@@ -1,0 +1,21 @@
+{
+  "title": "flisk config verify does not report a circular dependsOn",
+  "why": "Fixed. `flisk up` refuses orders -> billing -> orders and a running Tilt fails the reload and keeps the previous graph, but `flisk config verify` says nothing about the cycle.",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "billing"
+    },
+    {
+      "op": "addDep",
+      "owner": "billing",
+      "entry": "orders"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

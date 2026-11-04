@@ -1,0 +1,16 @@
+{
+  "title": "a typo in dependsOn is dropped without a word by flisk up",
+  "why": "Fixed. `ordres` matches nothing: Tilt gives orders no edge and `flisk up --only orders` starts orders alone, and neither says why. Only `flisk config verify` reports it.",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "ordres"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

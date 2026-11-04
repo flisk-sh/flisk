@@ -1,0 +1,96 @@
+# Enigma 36 (tests/e2e/scale/enigma36): one project of 36 resources drawn by seed from every resource type, framework and
+# language, over six stacks, booted with one flisk up. Each night draws a new combination; the seed is the first line of the
+# K1 step and in the job summary, and a manual run with that seed replays the same project.
+# Nightly and manual only: 36 resources build about 30 images, too slow for a pull request.
+name: 🎰 E2E | Enigma 36
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Seed to replay (empty draws a new one)"
+        type: string
+        default: ""
+      count:
+        description: "How many resources to draw"
+        type: string
+        default: "36"
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-scale-enigma36
+  cancel-in-progress: false
+
+jobs:
+  enigma36:
+    name: 🎰 Enigma 36 random resource mix
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    env:
+      E2E_SEED: ${{ inputs.seed }}
+      ENIGMA_COUNT: ${{ inputs.count || '36' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Flisk from this checkout
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: local
+
+      - name: Machine resources
+        run: |
+          echo "cpus: $(nproc)"
+          free -h
+          df -h / | tail -1
+          docker version --format 'docker {{.Server.Version}}'
+
+      - name: K1 draw the resources
+        run: |
+          tests/e2e/scale/enigma36/run.sh K1
+          seed="$(jq -r .seed "${RUNNER_TEMP}/flisk-e2e/enigma36/plan.json")"
+          echo "E2E_SEED=$seed" >> "$GITHUB_ENV"
+          {
+            echo "### Enigma 36, seed \`$seed\`"
+            echo "Replay: run this workflow with seed \`$seed\`, or \`E2E_SEED=$seed tests/e2e/scale/enigma36/run.sh all\`."
+            echo
+            echo '| resource | type | stack |'
+            echo '| --- | --- | --- |'
+            jq -r '.entries[] | "| \(.name) | \(.kind) | \(.stack) |"' "${RUNNER_TEMP}/flisk-e2e/enigma36/plan.json"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: K2 scaffold every drawn resource
+        run: tests/e2e/scale/enigma36/run.sh K2
+      - name: K3 flisk config verify
+        run: tests/e2e/scale/enigma36/run.sh K3
+      - name: K4 flisk up and status lists every resource
+        run: tests/e2e/scale/enigma36/run.sh K4
+      - name: K5 every resource meets its type's contract
+        run: tests/e2e/scale/enigma36/run.sh K5
+      - name: K6 seeded restart, neighbour stays up
+        run: tests/e2e/scale/enigma36/run.sh K6
+      - name: K7 undrawn resource is one error envelope
+        run: tests/e2e/scale/enigma36/run.sh K7
+
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: e2e-enigma36
+
+      - name: Diagnostics on failure
+        if: failure() || cancelled()
+        run: tests/e2e/scale/enigma36/run.sh diagnostics
+
+      - name: flisk down
+        if: always()
+        run: tests/e2e/scale/enigma36/run.sh cleanup

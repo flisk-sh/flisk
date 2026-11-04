@@ -1,0 +1,22 @@
+{
+  "name": "flisk",
+  "version": "1.0.0",
+  "description": "Flisk App Builder. Tell your AI what app you want (an online shop, a website, a booking app, an AI helper) and it builds the whole app and runs it on your own computer with one command.",
+  "author": {
+    "name": "Flisk",
+    "url": "https://flisk.sh"
+  },
+  "homepage": "https://flisk.sh",
+  "repository": "https://github.com/flisk-sh/flisk",
+  "license": "MIT",
+  "keywords": [
+    "flisk",
+    "local-development",
+    "dev-environment",
+    "microservices",
+    "docker",
+    "tilt",
+    "mcp",
+    "agents"
+  ]
+}

@@ -23,7 +23,7 @@ The stated aim is a reply within one working day. What the history shows:
 
 ## Roadmap
 
-There is no separate roadmap document. The plan is the open issues: [start here](https://github.com/flisk-sh/flisk/issues/469) links the island trackers, and each tracker lists its issues. Release notes are in the [CHANGELOG](../CHANGELOG.md).
+There is no separate roadmap document. The plan is the open issues: [start here](https://github.com/flisk-sh/flisk/issues/469) links the island trackers, and each tracker lists its issues. Release notes are in the [CHANGELOG](../docs/CHANGELOG.md).
 
 ## Releases and supported versions
 

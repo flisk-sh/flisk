@@ -6,8 +6,10 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   databaseManagementEnabled,
+  describeSharedPostgresUsers,
   evaluateSharedPlatformPostgres,
   isSharedPlatformPostgresDependency,
+  namesSharedPlatformPostgres,
   POSTGRES_DEPENDENCY_NAMES,
   sharedPlatformPostgresMessage,
 } from "../shared-platform-postgres.js";
@@ -167,6 +169,35 @@ describe("evaluateSharedPlatformPostgres", () => {
     expect(evaluation.dependsOnUsers).toEqual(["billing-api"]);
   });
 
+  it("willStart when the project declares a database resource and feature is off (#2863)", () => {
+    resource("app", "shop-db", { appType: "database", framework: "postgres" });
+    const evaluation = evaluateSharedPlatformPostgres(root);
+    expect(evaluation.willStart).toBe(true);
+    expect(evaluation.reason).toBe("dependsOn");
+    expect(evaluation.databaseResources).toEqual(["shop-db"]);
+    expect(evaluation.dependsOnUsers).toEqual([]);
+    expect(sharedPlatformPostgresMessage(evaluation)).toContain(
+      "database resource(s) shop-db declare it",
+    );
+  });
+
+  it("counts a dependsOn on a database resource as a Postgres user, not an unknown name", () => {
+    resource("app", "shop-db", { appType: "database", framework: "postgres" });
+    resource("app", "orders-api-migrator", { appType: "migrator", dependsOn: ["shop-db"] });
+    const evaluation = evaluateSharedPlatformPostgres(root);
+    expect(evaluation.dependsOnUsers).toEqual(["orders-api-migrator"]);
+    expect(evaluation.unknownDependsOnNames).toEqual([]);
+    expect(describeSharedPostgresUsers(evaluation)).toBe(
+      "database resource(s) shop-db declare it and resource(s) orders-api-migrator depend on postgres/database-management/shop-db",
+    );
+  });
+
+  it("names the shared Postgres by its aliases and by database resource names", () => {
+    expect(namesSharedPlatformPostgres("postgres")).toBe(true);
+    expect(namesSharedPlatformPostgres("shop-db")).toBe(false);
+    expect(namesSharedPlatformPostgres("shop-db", ["shop-db"])).toBe(true);
+  });
+
   it("willStart false when feature is off and nothing depends on either name", () => {
     resource("app", "api", { appType: "backend", port: 4000, dependsOn: [] });
     const evaluation = evaluateSharedPlatformPostgres(root);
@@ -249,6 +280,7 @@ describe("sharedPlatformPostgresMessage", () => {
       featureOnFromSpecMaster: false,
       focusWouldEnableDatabaseManagement: false,
       dependsOnUsers: [],
+      databaseResources: [],
       willStart: false,
       reason: "none" as const,
       unknownDependsOnNames: [],
@@ -268,6 +300,7 @@ describe("sharedPlatformPostgresMessage", () => {
       featureOnFromSpecMaster: false,
       focusWouldEnableDatabaseManagement: true,
       dependsOnUsers: [],
+      databaseResources: [],
       willStart: false,
       reason: "none" as const,
       unknownDependsOnNames: [],
@@ -287,6 +320,7 @@ describe("sharedPlatformPostgresMessage", () => {
       featureOnFromSpecMaster: false,
       focusWouldEnableDatabaseManagement: false,
       dependsOnUsers: [],
+      databaseResources: [],
       willStart: true,
       reason: "feature" as const,
       unknownDependsOnNames: [],
@@ -306,6 +340,7 @@ describe("sharedPlatformPostgresMessage", () => {
       featureOnFromSpecMaster: false,
       focusWouldEnableDatabaseManagement: false,
       dependsOnUsers: [],
+      databaseResources: [],
       willStart: true,
       reason: "feature" as const,
       unknownDependsOnNames: [],
@@ -325,6 +360,7 @@ describe("sharedPlatformPostgresMessage", () => {
       featureOnFromSpecMaster: false,
       focusWouldEnableDatabaseManagement: false,
       dependsOnUsers: ["orders-api", "billing-api"],
+      databaseResources: [],
       willStart: true,
       reason: "dependsOn" as const,
       unknownDependsOnNames: [],

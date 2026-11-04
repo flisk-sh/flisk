@@ -11,6 +11,7 @@ export declare function findUnknownServices(requested: string[], candidates: Dis
  * The requested services plus their `dependsOn` closure. This mirrors what the generated Tiltfile enables for
  * `--focus=<service>` (see get_all_needed_services in engine/topologies/tilt/config/profiles.star) so the CLI can report
  * the same set. Shared infrastructure (Postgres, Traefik, the golden images) is always enabled by the Tiltfile and is not listed here.
- * A dependsOn entry that is not a discovered service is ignored.
+ * The edges are the ones the Tiltfile waits on (utils/dependency-graph.ts): services and stacks named in `dependsOn`, and a
+ * frontend's `backendName`. A dependsOn entry that is neither is ignored.
  */
 export declare function resolveOnlySelection(requested: string[], all: DiscoveredResource[]): OnlySelection;

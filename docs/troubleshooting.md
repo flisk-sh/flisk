@@ -57,6 +57,20 @@ $ flisk up nope --dry-run
 - **Defined in:** [`errors.ts`](../cli/src/utils/errors.ts) (`stackNotFound`). `Resource "x" not found` is the same pattern.
 - **Checked:** reproduced for the stack message; the resource message was read from source, not reproduced.
 
+### `Required secrets`: `secret X has no value`
+
+```text
+$ flisk up --dry-run
+❌ 1 required secret without a value:
+    services/main/api/service.json: secret SECRET_KEY has no value
+   Fix: Add NAME=value to .env (it is gitignored), or export it in the environment, or move it to "optional"
+```
+
+- **Cause:** the service lists `SECRET_KEY` in `secrets.required`, and neither the env file of the run (the project `.env`, or the one chosen with `--env-file`) nor the environment has a non-empty value for it. Compose refuses to interpolate such a name, which used to fail the whole Tiltfile and stop every service.
+- **Fix:** put `SECRET_KEY=...` in `.env`, export it, or list it under `secrets.optional` if the service can run without it. With `FLISK_SECRET_PROVIDER=infisical` the check is skipped and Infisical supplies the names.
+- **Defined in:** [`service-config-checks.ts`](../cli/src/utils/service-config-checks.ts) (`checkRequiredSecrets`), run by the `flisk up` gate, dry run included.
+- **Checked:** reproduced by the Docker chaos tier (`secrets=required, no value`) and covered by `service-config-checks.test.ts`.
+
 ### `flisk X is older than the Y this project requires (minFliskVersion)`
 
 ```text
@@ -106,6 +120,7 @@ FAIL tilt    Tilt CLI not found
 - **Defined in:** [`cold-preflight.ts`](../cli/src/utils/cold-preflight.ts) and `DOCTOR_FIXES` in [`doctor.ts`](../cli/src/commands/doctor.ts).
 - **Checked:** Tilt missing reproduced; Docker down simulated. Other texts in the same family, **read from source, not reproduced**, from [`errors.ts`](../cli/src/utils/errors.ts): `Tilt CLI is not installed`, `Docker (or a compatible container runtime) is not running`, `Docker is running but not responding (`docker ps` hung for 10s)` (fix: quit and reopen Docker Desktop, or `colima restart`), all under `Flisk can't start - missing prerequisites:`.
 - **Only `flisk up` is blocked:** `flisk project` writes the project configuration and clones a starter template without a Docker daemon or Tilt, and prints the next step instead. `flisk doctor` remains the explicit readiness check.
+- **See also:** [Troubleshoot Docker layers (L1–L4 overview)](troubleshoot-docker-layers.md) for identifying which layer broke a Docker build and how to rebuild golden layers.
 - **See also:** [Troubleshoot L1 (base image) build failures](troubleshoot-l1.md) for failures pulling the upstream base image, Alpine package installation errors, or missing golden layers.
 - **See also:** [Troubleshoot L2 (dependency layer) build failures](troubleshoot-l2.md) for package installation, lockfile synchronization, and Docker layer caching issues.
 
@@ -153,17 +168,28 @@ All **read from source, not reproduced** except where stated. Defined in [`docto
 
 Podman: doctor prints `Podman is running` when it is the runtime it finds, and `Docker daemon is not running` otherwise. Whether a Podman setup can run a whole stack was not checked.
 
+### `Docker build cache exceeds 10 GB threshold`
+
+```text
+⚠ 11.82GB across 780 entries: Docker build cache exceeds 10 GB threshold. Cache is shared across all projects on this machine
+ℹ Fix: Prune old build cache: flisk down --prune-cache (or docker builder prune --filter until=24h). Note: this affects other projects on this machine.
+```
+
+- **Cause:** Starting stacks builds golden base image layers and mounts package caches (`RUN --mount=type=cache,target=/cache/bun`) so builds take seconds instead of minutes. Over time, Docker build cache grows by several gigabytes. Because Docker build cache is daemon-global, it is shared across all projects on the machine.
+- **Fix:** Run `flisk down --prune-cache` when stopping your stack. It safely prunes cache older than 24 hours (`docker builder prune -f --filter until=24h`), preserving warm cache for recent builds while reclaiming gigabytes of disk space. Customize the retention window with `--cache-until <age>` (e.g. `flisk down --prune-cache --cache-until 7d`). In interactive terminals, it prompts for confirmation; pass `-y` / `--yes` in scripts. Or run `flisk doctor --fix` when host disk space is low (< 10 GB).
+- **Checked:** tested with mocked `docker system df` and unit tests pinning the 10 GB threshold and guarded pruning.
+
 ### `Docker cannot create another network: all predefined address pools are in use`
 
 ```text
 ✗ Docker cannot create another network: all predefined address pools are in use. Each Flisk project needs several
-ℹ Fix: run flisk down --prune-networks in projects you are not using, or docker network prune (removes all unused networks)
+ℹ Fix: Run flisk doctor --fix --scope=machine: it removes unused networks of every Flisk project and keeps the ones in use. Or run flisk down --prune-networks in each project you are not using
 ```
 
 - **Cause:** Docker's default address pools are used up. Each Flisk project creates several networks and keeps them after `flisk down`. Docker's own error text is `all predefined address pools have been fully subnetted`; doctor matches `address pools`.
-- **Fix:** run `flisk down --prune-networks` in projects you no longer use, or `docker network prune`, which removes every unused network on that Docker daemon, whoever created it. `--prune-networks` was added in [#585](https://github.com/flisk-sh/flisk/pull/585).
+- **Fix:** run `flisk doctor --fix --scope=machine`. It lists every unused network that belongs to a Flisk project (each with its owner), skips any network with a container attached, and asks before it removes them; add `--dry-run` to only list them. Alternatives: `flisk down --prune-networks` in each project you no longer use, or `docker network prune`, which removes every unused network on that Docker daemon, whoever created it. `--prune-networks` was added in [#585](https://github.com/flisk-sh/flisk/pull/585).
 - **If you skip doctor:** since [#589](https://github.com/flisk-sh/flisk/pull/589), the `init-networks` resource in Tilt fails with `Failed to create Docker network <name>: <Docker's message>` and exits 1. Before it, the failure was swallowed (the command ended `|| true`), `init-networks` reported success, and the later failure was `network ... declared as external, but could not be found`, which is what [byo.md](byo.md#running-more-than-one-project) and the [moon recipe](recipes/moon.md) describe. The `Failed to create Docker network` text is in [`utils_docker_networks.star`](../runtime/engine/topologies/tilt/common/utils_docker_networks.star).
-- **Checked:** the doctor message is **simulated** (the stand-in `docker` failed `network create` with Docker's text). The `init-networks` and `declared as external` messages are **read from source and docs, not reproduced**; this machine's Docker pools are in use by other people's work and were not touched.
+- **Checked:** the doctor message is **simulated** (the stand-in `docker` failed `network create` with Docker's text). The `init-networks` failure was **reproduced** on 2026-10-27 (macOS, Colima, 32 networks, 25 of them unused): `Failed to create Docker network helpdock_backend: Error response from daemon: all predefined address pools have been fully subnetted`. Removing the unused networks of other Flisk projects let the next `network create` succeed.
 
 Note that `flisk doctor` itself runs `docker network create flisk_doctor_probe_<pid>` and removes it, to test whether a network can be created.
 
@@ -188,6 +214,48 @@ $ flisk doctor --no-ping      # no .env file
 - **Fix:** as printed. `flisk project` writes a `.env` with working defaults and does not need Docker.
 - **Defined in:** [`doctor.ts`](../cli/src/commands/doctor.ts) (`checkEnvironmentVariables`) and [`env-validator.ts`](../cli/src/utils/env-validator.ts).
 - **Checked:** reproduced, all three. When only a warning applies, doctor passes and appends `(warning: ...)`; for example a `DATABASE_URL` password that differs from `DB_PASSWORD` (read from source, not reproduced).
+
+### Public environment secrets (`NEXT_PUBLIC_*`, `VITE_*`)
+
+```text
+⚠ Potential secret-looking values detected in public environment variables: NEXT_PUBLIC_API_KEY (.env)
+ℹ Fix: Move secrets to server-side variables or API routes. Public variables (NEXT_PUBLIC_*, VITE_*) are embedded into client bundles.
+```
+
+- **Cause:** a client-accessible variable prefixed with `NEXT_PUBLIC_` (Next.js) or `VITE_` (Vite) holds a value that matches high-confidence credential signatures (for example Stripe secret keys `sk_live_`, AWS credentials `AKIA`, GitHub tokens `ghp_`, OpenAI keys `sk-proj-`, Slack tokens `xoxb-`, Google API keys `AIza`, private keys, JWTs, or embedded URL credentials). The bundler inlines these values directly into the browser-facing JavaScript bundle where any visitor can inspect them.
+- **Warning-only:** this check is an informational warning (`⚠`) by default, so it does not fail `flisk doctor` or block local developer workflows. When run with `flisk doctor --strict`, it is treated as a blocking failure.
+- **Redaction:** `flisk doctor` outputs only the variable name and the relative file path. Secret values are never printed in diagnostic messages, error output, JSON envelopes, or logs.
+- **Publishable keys allowed:** known public-by-design identifiers, such as Stripe publishable keys (`pk_live_`, `pk_test_`) and common placeholders (`sk_test_x`), are recognized and permitted.
+- **Fix:** rotate any leaked credential immediately. Move calls that require secrets to server routes, API endpoints, or a backend-for-frontend (BFF) proxy so client code never receives secret tokens.
+- **Defined in:** [`public-env-secrets.ts`](../cli/src/utils/public-env-secrets.ts) and [`doctor.ts`](../cli/src/commands/doctor.ts) (`checkPublicEnvSecrets`).
+
+### `TOOLCHAIN_MISMATCH`: a service needs another runtime version
+
+```text
+✗ api: wants node@24 (service.json), node 20.11.0 is on PATH
+Switch to that version with your version manager, or change "toolchain" in the service.json.
+```
+
+- **Cause:** a local-process service declares `"toolchain": "node@24"` (or `python@3.12`, ...) in its `service.json`, and the program on `PATH` is another version, is missing, or did not report a version. `flisk up` stops before starting anything; `flisk doctor` fails the **Service toolchains** check.
+- **Hints:** without `toolchain`, a `.nvmrc`, `.node-version` or `.python-version` in the service folder is compared too, but a mismatch there is only a warning in `flisk doctor` and never stops `flisk up`.
+- **Fix:** switch versions with your version manager (nvm, fnm, mise, pyenv, ...), or change `toolchain`. Container services are not checked: their image decides the runtime.
+- **Defined in:** [`toolchain.ts`](../cli/src/utils/toolchain.ts).
+
+### Env values that point outside the local stack
+
+```text
+⚠ 2 values point outside the local stack:
+    orders-api DATABASE_URL -> db.shared.example.com (services/shop/orders-api/.env.local)
+    (project) AUTH_ISSUER -> auth.dev.example.com (.env)
+ℹ Fix: Point them at a local service (http://<service>:<port>, *.localhost), or list hosts that are meant to be remote in "allowedHosts" in .flisk/project.json
+```
+
+- **Cause:** a URL, or a `*_HOST` / `*_HOSTNAME` / `*_DOMAIN` value, names a host that is not part of the local stack. Flisk reads the project `.env`, each service's `env` and `params` in `service.json`, and `.env`, `.env.local`, `.env.development` and `.env.development.local` in each service folder. The service then talks to a shared or production system while you think it runs locally, which shows up as data in shared environments or unexplained 401s.
+- **Local:** `localhost`, `*.localhost`, `*.local`, `*.internal`, loopback and private IP addresses, one-word names (Compose services and containers on the stack network), and the names of the project's services and stacks.
+- **Warning-only:** a warning (`⚠`) by default; `flisk doctor --strict` fails on it.
+- **Redaction:** only the service, the variable name, the host and the file are printed, never the value.
+- **Fix:** point the value at the local service, or add the host to `allowedHosts` in `.flisk/project.json` when it is meant to be remote (`"*.stripe.com"` matches every subdomain).
+- **Defined in:** [`remote-env-hosts.ts`](../cli/src/utils/remote-env-hosts.ts) (`checkRemoteEnvHosts`).
 
 ### Project files that do not match what Flisk expects
 
@@ -334,6 +402,18 @@ No available host port in 15432-15532 for postgres. Set FLISK_POSTGRES_PORT to a
 
 ## Services never turn healthy, or are left behind
 
+### `Advertised Endpoints`: `N advertised link(s) return 404`
+
+```text
+⚠ 1 advertised link returns 404 (the service may be healthy, but nothing answers at this exact path):
+    <name> (404)
+      <url>
+```
+- **Defined in:** [`doctor-runtime.ts`](../cli/src/utils/doctor-runtime.ts), `summarizeAdvertisedProbes`. Doctor requests the URL each routable service advertises (the one `flisk networks` and the Flisk App show) and warns, without failing, when one answers 404.
+- **Cause:** `/health` is fine, but nothing handles the exact path of the advertised link, usually an API with no root route.
+- **Fix:** leave it, or add a `GET` route for that path. A stopped stack is skipped, not reported: the check only runs once services answer.
+- **Checked:** read from source, not reproduced.
+
 ### `HTTP 404: Traefik is answering but has no route for this URL`
 
 ```text
@@ -357,6 +437,18 @@ Before [#585](https://github.com/flisk-sh/flisk/pull/585), `flisk up shop` start
 
 - **Fix:** use a version that includes #585, then `flisk down`. On an older version, `docker ps` shows what is left; stop only containers whose names start with your project's.
 - **Checked:** read from the PR description and merged change, not reproduced.
+
+### `docker images` lists every service twice (`:dev` and `:tilt-<hash>`), and old builds fill the disk
+
+```text
+<project>_<stack>_<service>   dev                ddbc536add42
+<project>_<stack>_<service>   tilt-ddbc536add42  ddbc536add42
+```
+
+- **Cause:** Tilt builds each image as `<name>:tilt-<hash>`, tags it with the `:dev` name the compose service uses, and from then on uses only `:dev`. The `tilt-*` tag stays. Both tags are one image, so the pair costs no space, but after a rebuild the previous build keeps its own `tilt-*` tag, so a full old image per service stays on disk until Tilt's own prune.
+- **Fix:** the `tilt-image-tags` resource (label `infra.docker`) removes this project's `tilt-*` tags when `flisk up` starts and each time a build is tagged `:dev`: the tag on the current image, and old builds. An old build still used by the container compose is replacing goes once that container is removed. A newer build that Tilt has not tagged `:dev` yet is left alone. To keep the tags, run `FLISK_KEEP_TILT_TAGS=1 flisk up`. On a version without it, `docker image rm <name>:tilt-<hash>` removes a tag by hand; it never deletes an image another tag still names.
+- **Defined in:** [`tilt_image_tags.star`](../runtime/engine/topologies/tilt/resources/tilt_image_tags.star), registered by `load_all_infrastructure` in [`infra-loader.star`](../runtime/engine/topologies/tilt/resources/infra-loader.star).
+- **Checked:** unit tests with a fake `docker` (`tilt-image-tags-tilt.test.ts`), and the generated script run once in a Colima VM on Docker 29.5.2: six `:dev` services went from two tags to one with their containers still running, and a `:dev` tag event removed a new alias.
 
 ## Scaffolded code
 
@@ -385,11 +477,11 @@ src/index.ts(33,14): error TS2591: Cannot find name 'process'.
 
 ## Windows and WSL2
 
-Native Windows can run `flisk doctor` and inspect a project; starting needs WSL2. Setup and the smoke run are in [WSL2 setup](wsl2.md#troubleshooting). All entries here are **read from source, not reproduced** (no Windows machine was used).
+Native Windows can run `flisk doctor`, inspect a project, run `flisk demo` and start services that each declare a `command` ([without Docker](run-without-docker.md)); starting a Docker stack needs WSL2. Setup and the smoke run are in [WSL2 setup](wsl2.md#troubleshooting). All entries here are **read from source, not reproduced** (no Windows machine was used).
 
 | Message | Fix as printed | Defined in |
 | --- | --- | --- |
-| `Native Windows landscape boot is unsupported. Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md` | Use WSL2 Ubuntu with Docker Desktop integration | `doctor.ts` |
+| `Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md` | Use WSL2 Ubuntu with Docker Desktop integration | `doctor.ts` |
 | `Docker Desktop is using Windows containers. Switch to Linux containers. Flisk stacks are Linux images.` | Switch Docker Desktop to Linux containers | `windows-doctor.ts` |
 | `tilt.exe not found on PATH. Install Tilt from https://docs.tilt.dev/install.html` | Install Tilt | `windows-doctor.ts` |
 | `Windows reserved port(s) ... for Hyper-V/WSL ...` | The message suggests `net stop winnat` then `net start winnat` in an Administrator terminal, or changing Flisk's ports | `windows-doctor.ts` |

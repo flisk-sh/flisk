@@ -52,7 +52,7 @@ The `flisk` on the default PATH may be an older release than `origin/main`. Re-c
   2. `flisk up one-backend`
   3. `curl --fail http://api.one-backend.localhost/api/api-backend/health`, expected `{"status":"ok"}`.
 - Optional, only if it fits: `flisk up one-backend --dry-run` before the real run.
-- Claim check: the README says Docker, Tilt, Bun 1.2+ and Node 22.12+ are needed. Say "needs Docker" on screen, not "no setup".
+- Claim check: the README says the demo needs only Node.js 22.12+, and a container stack needs Docker, Tilt and Bun 1.2+. Say "Docker optional" on screen, not "no setup".
 
 ### 0:55 to 1:15. Proof
 

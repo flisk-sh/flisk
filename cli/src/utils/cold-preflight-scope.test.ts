@@ -130,6 +130,16 @@ describe("cold preflight scope", () => {
     expect(output).toContain("FAIL tilt    Tilt CLI not found");
   });
 
+  it("prints the caller's next-step hints after the failed machine checks", async () => {
+    await expect(
+      assertMachineReadyOrExit({ scope: "runtime", hints: ["Run: flisk doctor"] }),
+    ).rejects.toThrow("process.exit(1)");
+
+    expect(errorSpy.mock.calls.map((call: unknown[]) => String(call[0]))).toContain(
+      "→ Run: flisk doctor",
+    );
+  });
+
   it("does not block the scaffold scope when Docker is stopped and Tilt is missing", async () => {
     await expect(assertMachineReadyOrExit({ scope: "scaffold" })).resolves.toBeUndefined();
 

@@ -451,7 +451,8 @@ def test_source_orchestrator_calls_force_start_for_selected_dependson():
 def test_source_resolution_special_case_before_yaml_fallthrough():
     source = ORCHESTRATOR.read_text()
     resolve_idx = source.find("def _resolve_dependency_to_resource(")
-    special_idx = source.find("if is_shared_platform_postgres_dependency(dep_name):")
+    # The alias check (now also matching a `database` resource name, #2863) must come before the -yaml fallthrough.
+    special_idx = source.find("if is_shared_platform_postgres_dependency(dep_name)", resolve_idx)
     yaml_fallthrough = source.find("return dep_name + '-yaml'", resolve_idx)
     assert resolve_idx != -1 and special_idx != -1 and yaml_fallthrough != -1
     assert resolve_idx < special_idx < yaml_fallthrough
@@ -480,3 +481,45 @@ def test_source_no_circular_load_from_infra_loader_to_apply_compose():
 def test_source_apply_compose_loads_infra_loader_via_top_level_path():
     apply_source = ORCHESTRATOR.read_text()
     assert "load('../infra-loader.star', 'Infra')" in apply_source
+
+
+@TILT_REQUIRED
+def test_golden_build_is_a_dependency_when_the_stack_uses_it(tmp_path):
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_infra_dependencies')\n"
+        + _make_should_enable({"golden-image"})
+        + "should_enable = make_should_enable(set(['golden-image']))\n"
+        "ctx = {'golden_image_resource': 'golden-layers-build'}\n"
+        "r = {'deps': build_infra_dependencies('svc', should_enable, ctx, False, True)}\n",
+    )
+    assert result["deps"] == ["golden-layers-build"]
+
+
+@TILT_REQUIRED
+def test_golden_build_is_not_a_dependency_for_a_bring_your_own_only_stack(tmp_path):
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_infra_dependencies', 'stack_uses_golden_image')\n"
+        + _make_should_enable({"golden-image"})
+        + "should_enable = make_should_enable(set(['golden-image']))\n"
+        "ctx = {'golden_image_resource': 'golden-layers-build'}\n"
+        "config = {'resources': [{'name': 'api'}, {'name': 'web'}]}\n"
+        "manifests = {'api': {'appType': 'bring-your-own'}, 'web': {'appType': 'bring-your-own'}}\n"
+        "uses = stack_uses_golden_image(config, manifests)\n"
+        "r = {'uses': uses, 'deps': build_infra_dependencies('svc', should_enable, ctx, False, uses)}\n",
+    )
+    assert result["uses"] is False
+    assert result["deps"] == []
+
+
+@TILT_REQUIRED
+def test_a_mixed_stack_still_waits_for_the_golden_build(tmp_path):
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'stack_uses_golden_image')\n"
+        "config = {'resources': [{'name': 'api'}, {'name': 'job'}]}\n"
+        "manifests = {'api': {'appType': 'backend'}, 'job': {'appType': 'bring-your-own'}}\n"
+        "r = {'uses': stack_uses_golden_image(config, manifests)}\n",
+    )
+    assert result["uses"] is True

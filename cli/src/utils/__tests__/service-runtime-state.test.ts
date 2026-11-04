@@ -157,6 +157,37 @@ describe("deriveServiceStates", () => {
     });
   });
 
+  it("shows a migrator that exited 0 as ready, and the services that wait on it too", () => {
+    // Tilt reports an exited-0 compose container as runtime ok; the migrator has no Docker health check.
+    const states = deriveServiceStates(
+      json(
+        item("postgres", "ok", "ok"),
+        item("migrations", "ok", "ok", { composeResourceInfo: {} }),
+        item("api", "ok", "ok"),
+      ),
+      { migrations: ["postgres"], api: ["migrations"] },
+    );
+    expect(states.migrations).toEqual({ status: "ready" });
+    expect(states.api).toEqual({ status: "ready" });
+  });
+
+  it("shows a migrator that exited non-zero as failed, and the services that wait on it as blocked", () => {
+    const states = deriveServiceStates(
+      json(
+        item("postgres", "ok", "ok"),
+        item("migrations", "ok", "error", { composeResourceInfo: {} }),
+        item("api", "pending", "pending"),
+      ),
+      { migrations: ["postgres"], api: ["migrations"] },
+    );
+    expect(states.migrations).toMatchObject({ status: "error" });
+    expect(states.api).toEqual({
+      status: "error",
+      reason: "migrations failed",
+      blockedBy: ["migrations"],
+    });
+  });
+
   it("rejects malformed Tilt output instead of reporting services as ready", () => {
     expect(() => deriveServiceStates("{not json", deps)).toThrow(SyntaxError);
   });

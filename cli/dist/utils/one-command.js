@@ -175,9 +175,9 @@ export async function installServiceDependencies(projectRoot, run = defaultRun) 
     return results;
 }
 /** Runs a command and resolves with its exit code. */
-function defaultRun(command, args, cwd) {
+export function defaultRun(command, args, cwd, spawnFn = spawn) {
     return new Promise((resolve) => {
-        const child = spawn(command, args, { cwd, stdio: "ignore" });
+        const child = spawnFn(command, args, { cwd, stdio: "ignore" });
         child.on("error", () => resolve(1));
         child.on("close", (code) => resolve(code ?? 1));
     });

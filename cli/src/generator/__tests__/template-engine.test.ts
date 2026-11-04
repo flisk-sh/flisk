@@ -4,19 +4,35 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import Handlebars from "handlebars";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectConfig } from "../../types/index.js";
+import { compileTemplate } from "../mini-template.js";
 import {
+  ensureProjectRuntimeAssets,
+  findCliAssetRoot,
   generateDatabaseManagementCompose,
   generateMasterConfigs,
   isTestFile,
   loadTemplate,
   ProjectConfigNotFoundError,
   readProjectConfig,
+  staleServiceOutputs,
   TemplateEngine,
   verifyMasterConfigs,
 } from "../template-engine.js";
+
+const fsState = vi.hoisted(() => ({
+  existsSync: vi.fn(),
+  actualExistsSync: null as ((filePath: string | Buffer | URL) => boolean) | null,
+}));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  fsState.actualExistsSync = actual.existsSync;
+  fsState.existsSync.mockImplementation(actual.existsSync);
+  const mockedFs = { ...actual, existsSync: fsState.existsSync };
+  return { ...mockedFs, default: mockedFs };
+});
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const readEngine = (rel: string) =>
@@ -414,9 +430,10 @@ describe("template-engine", () => {
   });
 
   describe("starlark helper", () => {
+    const compile = (source: string) =>
+      compileTemplate(source, (new TemplateEngine() as unknown as { helpers(): never }).helpers());
     const render = (value: unknown) => {
-      new TemplateEngine();
-      return Handlebars.compile("{{starlark v}}")({ v: value });
+      return compile("{{starlark v}}")({ v: value });
     };
 
     it("escapes a trailing backslash so it cannot close the string", () => {
@@ -437,17 +454,13 @@ describe("template-engine", () => {
     });
 
     it("starlarkArray renders [] for a non-array and one item per array element", () => {
-      new TemplateEngine();
-      const template = Handlebars.compile("{{starlarkArray v}}");
+      const template = compile("{{starlarkArray v}}");
       expect(template({ v: "proxy" })).toBe("[]");
       expect(template({ v: ["proxy", 1, true] })).toBe('["proxy", 1, True]');
     });
 
     it("json helper emits compact JSON", () => {
-      new TemplateEngine();
-      expect(Handlebars.compile("{{{json v}}}")({ v: { a: 1, b: [null] } })).toBe(
-        '{"a":1,"b":[null]}',
-      );
+      expect(compile("{{{json v}}}")({ v: { a: 1, b: [null] } })).toBe('{"a":1,"b":[null]}');
     });
   });
 
@@ -493,6 +506,15 @@ describe("template-engine", () => {
       expect(compose).toContain("container_name: my_shop_postgres");
       expect(compose).toContain("my_shop_postgres_data:/var/lib/postgresql/data");
       expect(compose).toContain("name: my_shop_database");
+    });
+
+    it("writes an uppercase project name in lowercase, so Compose accepts it (#1519, #2993)", () => {
+      const compose = generateDatabaseManagementCompose(
+        projectConfig({ project: { name: "Lychee", version: "1.0.0" } }),
+      );
+      expect(compose).toContain("container_name: lychee_postgres");
+      expect(compose).toContain("name: lychee_database");
+      expect(compose).not.toContain("Lychee");
     });
 
     it("falls back to flisk_project when the project name is empty", () => {
@@ -592,6 +614,24 @@ describe("template-engine", () => {
       } as ProjectConfig);
       expect(postgres).toContain(
         '"$' + "{FLISK_BIND_ADDRESS:-127.0.0.1}:$" + '{FLISK_POSTGRES_PORT:-15432}:5432"',
+      );
+    });
+
+    it("focus mode keeps the discovery daemon enabled, or a new service.json never reloads a running Tilt", () => {
+      // Found by a real `flisk up` (tests/chaos): every `flisk up` is a focus run, set_enabled_resources() disables whatever it
+      // does not list, and the daemon was not listed. It was created but stayed Disabled, so scaffolding a service while the stack
+      // ran changed nothing until some other watched file was edited.
+      const tiltfile = loadTemplate("Tiltfile.hbs");
+      const focusBlock = tiltfile.slice(
+        tiltfile.indexOf("if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:"),
+      );
+
+      expect(focusBlock).toMatch(
+        /if _AUTO_DISCOVER_ENABLED:\s*\n\s*_ALWAYS_ENABLED_INFRA_RESOURCES\.append\('service-discovery-daemon'\)/,
+      );
+      // Only when the daemon is registered: enabling a name Tilt never registered fails Tiltfile evaluation.
+      expect(tiltfile).toMatch(
+        /if _AUTO_DISCOVER_ENABLED:\s*\n\s*watch_file\('snapshots\/resource-snapshot.json'\)/,
       );
     });
 
@@ -746,6 +786,34 @@ describe("template-engine", () => {
       }
       throw new Error("Expected readProjectConfig to throw");
     }
+
+    it("rejects a repos entry whose branch is not a string, instead of cloning the default branch", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-repos-branch-"));
+      try {
+        const fliskDir = path.join(projectRoot, ".flisk");
+        fs.mkdirSync(fliskDir, { recursive: true });
+        const config = {
+          version: "1.0",
+          project: { name: "hub", version: "0.1.0" },
+          phases: {
+            pre_alpha: { enabledStacks: [] },
+            alpha: { enabledStacks: [] },
+            beta: { enabledStacks: [] },
+            out_of_scope: { enabledStacks: [] },
+          },
+          optional_infra: {},
+          discovery: { paths: ["services"] },
+          repos: [{ url: "https://github.com/acme/orders.git", dir: "services/orders", branch: 7 }],
+        };
+        fs.writeFileSync(path.join(fliskDir, "project.json"), JSON.stringify(config), "utf-8");
+
+        const message = (catchFromReadProjectConfig(projectRoot) as Error).message;
+
+        expect(message).toContain("repos (optional array of { url, dir, branch? }");
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
 
     it("throws an Error with the file path and parse reason when .flisk/project.json is malformed (#1521)", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-malformed-project-json-"));
@@ -921,6 +989,22 @@ describe("template-engine", () => {
       ["a discovery without paths", { ...projectConfig(), discovery: {} }],
     ];
 
+    for (const flag of ["monitoring", "elk", "debezium", "golden_image", "verdaccio"] as const) {
+      invalidConfigs.push([
+        `a non-boolean optional_infra.${flag}`,
+        { ...projectConfig(), optional_infra: { ...projectConfig().optional_infra, [flag]: 1 } },
+      ]);
+    }
+    invalidConfigs.push(
+      ["a null discovery", { ...projectConfig(), discovery: null }],
+      ["a string discovery", { ...projectConfig(), discovery: "services/*" }],
+      [
+        "discovery paths that are not an array",
+        { ...projectConfig(), discovery: { paths: "services/*" } },
+      ],
+      ["a null optional_infra", { ...projectConfig(), optional_infra: null }],
+    );
+
     for (const [label, value] of invalidConfigs) {
       it(`rejects ${label}`, () => {
         const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-invalid-project-json-"));
@@ -939,6 +1023,21 @@ describe("template-engine", () => {
         }
       });
     }
+
+    it("returns every field of a valid config, including the optional ones", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-valid-project-json-"));
+      try {
+        const config = projectConfig({
+          always_enabled_infra: ["traefik"],
+          overrides: { "shop/api": { port: 4100 } },
+        } as Partial<ProjectConfig>);
+        writeProjectJson(projectRoot, config);
+
+        expect(readProjectConfig(projectRoot)).toEqual(config);
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
 
     it("migrates a legacy stacks config to phases", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-legacy-stacks-"));
@@ -975,6 +1074,191 @@ describe("template-engine", () => {
   });
 
   describe("generateMasterConfigs", () => {
+    it("renders configs and copies runtime assets from an executable-relative package", async () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-packaged-assets-"));
+      const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-packaged-exec-"));
+      const packagedRoot = path.join(fakeExecDir, "flisk-cli");
+      const runtimeRoot = path.join(packagedRoot, "runtime");
+      const runtimeDir = path.join(runtimeRoot, "shared-platform-engineering", "docker-templates");
+      const oldExecPath = process.execPath;
+      const oldExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
+      const originalExistsSync = fsState.actualExistsSync;
+      if (!originalExistsSync) throw new Error("node:fs mock was not initialized");
+
+      fs.mkdirSync(runtimeDir, { recursive: true });
+      for (const file of [
+        "install-deps.sh",
+        "bun-hoisted-symlink-fix.sh",
+        "prisma-bun-client-link-fix.sh",
+        "prisma-normalize-client.sh",
+      ]) {
+        fs.writeFileSync(path.join(runtimeDir, file), `#!/bin/sh\necho ${file}\n`);
+      }
+      fs.mkdirSync(path.join(runtimeRoot, "engine"), { recursive: true });
+      fs.mkdirSync(path.join(runtimeRoot, "discovery"), { recursive: true });
+      fs.mkdirSync(path.join(runtimeRoot, "specs"), { recursive: true });
+      fs.mkdirSync(path.join(runtimeRoot, "ext"), { recursive: true });
+      fs.writeFileSync(path.join(runtimeRoot, "Tiltfile"), "packaged extension\n");
+      fs.writeFileSync(path.join(runtimeRoot, "engine", "marker.star"), "packaged engine\n");
+
+      Object.defineProperty(process, "execPath", {
+        value: path.join(fakeExecDir, "flisk"),
+        configurable: true,
+      });
+      process.env.FLISK_EXTENSION_SOURCE = packagedRoot;
+      fsState.existsSync.mockImplementation((filePath) => {
+        const resolved = String(filePath);
+        if (
+          resolved.startsWith(`${repoRoot}${path.sep}runtime${path.sep}`) ||
+          (resolved.startsWith(`${repoRoot}${path.sep}`) &&
+            resolved.endsWith(path.join("shared-platform-engineering", "docker-templates")))
+        ) {
+          return false;
+        }
+        return originalExistsSync(filePath);
+      });
+
+      try {
+        writeProjectJson(projectRoot, projectConfig());
+        await generateMasterConfigs(projectRoot, { quiet: true });
+
+        const generatedDir = path.join(projectRoot, ".flisk", ".flisk-out");
+        expect(fs.readFileSync(path.join(generatedDir, "Tiltfile"), "utf-8")).toContain(
+          "# 🎯 test-project - TILT ENTRYPOINT",
+        );
+        expect(fs.readFileSync(path.join(projectRoot, ".tiltignore"), "utf-8")).toContain(
+          "SYSTEM-GENERATED BY Flisk CLI",
+        );
+        expect(fs.readFileSync(path.join(projectRoot, "package.json"), "utf-8")).toContain(
+          '"workspaces": [\n    "services/*/*"\n  ]',
+        );
+        expect(
+          fs.readFileSync(
+            path.join(
+              projectRoot,
+              "shared-platform-engineering",
+              "docker-templates",
+              "install-deps.sh",
+            ),
+            "utf-8",
+          ),
+        ).toContain("echo install-deps.sh");
+        expect(
+          fs.readFileSync(
+            path.join(generatedDir, "flisk-cli-ext", "engine", "marker.star"),
+            "utf-8",
+          ),
+        ).toBe("packaged engine\n");
+      } finally {
+        fsState.existsSync.mockImplementation(originalExistsSync);
+        Object.defineProperty(process, "execPath", {
+          value: oldExecPath,
+          configurable: true,
+        });
+        if (oldExtensionSource === undefined) delete process.env.FLISK_EXTENSION_SOURCE;
+        else process.env.FLISK_EXTENSION_SOURCE = oldExtensionSource;
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+        fs.rmSync(fakeExecDir, { recursive: true, force: true });
+      }
+    }, 20000);
+
+    it("warns when the packaged runtime asset root is missing", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-missing-assets-"));
+      const originalExistsSync = fsState.actualExistsSync;
+      if (!originalExistsSync) throw new Error("node:fs mock was not initialized");
+      const warnings: string[] = [];
+      fsState.existsSync.mockImplementation((filePath) => {
+        const resolved = String(filePath);
+        if (resolved.endsWith(path.join("shared-platform-engineering", "docker-templates"))) {
+          return false;
+        }
+        return originalExistsSync(filePath);
+      });
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation((message: unknown) => {
+        warnings.push(String(message));
+      });
+
+      try {
+        expect(findCliAssetRoot()).toBeNull();
+        expect(ensureProjectRuntimeAssets(projectRoot)).toEqual([]);
+        expect(warnings).toEqual([expect.stringContaining("Flisk runtime assets not found")]);
+        expect(
+          fs.existsSync(path.join(projectRoot, "shared-platform-engineering", "docker-templates")),
+        ).toBe(false);
+      } finally {
+        fsState.existsSync.mockImplementation(originalExistsSync);
+        warnSpy.mockRestore();
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+
+    it("warns for required runtime files missing after the package directory is copied", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-incomplete-assets-"));
+      const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-incomplete-exec-"));
+      const packagedRoot = path.join(fakeExecDir, "flisk-cli");
+      const runtimeDir = path.join(
+        packagedRoot,
+        "runtime",
+        "shared-platform-engineering",
+        "docker-templates",
+      );
+      const originalExecPath = process.execPath;
+      const originalExistsSync = fsState.actualExistsSync;
+      if (!originalExistsSync) throw new Error("node:fs mock was not initialized");
+      const warnings: string[] = [];
+
+      fs.mkdirSync(runtimeDir, { recursive: true });
+      fs.writeFileSync(path.join(runtimeDir, "install-deps.sh"), "#!/bin/sh\n");
+      Object.defineProperty(process, "execPath", {
+        value: path.join(fakeExecDir, "flisk"),
+        configurable: true,
+      });
+      fsState.existsSync.mockImplementation((filePath) => {
+        const resolved = String(filePath);
+        if (
+          resolved.startsWith(`${repoRoot}${path.sep}runtime${path.sep}`) ||
+          (resolved.startsWith(`${repoRoot}${path.sep}`) &&
+            resolved.endsWith(path.join("shared-platform-engineering", "docker-templates")))
+        ) {
+          return false;
+        }
+        return originalExistsSync(filePath);
+      });
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation((message: unknown) => {
+        warnings.push(String(message));
+      });
+
+      try {
+        expect(ensureProjectRuntimeAssets(projectRoot)).toEqual([
+          "shared-platform-engineering/docker-templates",
+        ]);
+        expect(
+          fs.readFileSync(
+            path.join(
+              projectRoot,
+              "shared-platform-engineering",
+              "docker-templates",
+              "install-deps.sh",
+            ),
+            "utf-8",
+          ),
+        ).toBe("#!/bin/sh\n");
+        expect(warnings).toHaveLength(3);
+        expect(warnings.join("\n")).toContain("bun-hoisted-symlink-fix.sh");
+        expect(warnings.join("\n")).toContain("prisma-bun-client-link-fix.sh");
+        expect(warnings.join("\n")).toContain("prisma-normalize-client.sh");
+      } finally {
+        fsState.existsSync.mockImplementation(originalExistsSync);
+        warnSpy.mockRestore();
+        Object.defineProperty(process, "execPath", {
+          value: originalExecPath,
+          configurable: true,
+        });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+        fs.rmSync(fakeExecDir, { recursive: true, force: true });
+      }
+    });
+
     it("warns for unlicensed Sablier and Verdaccio, writes the stack compose, and stays quiet", async () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-premium-warnings-"));
       const oldExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
@@ -1111,6 +1395,30 @@ describe("template-engine", () => {
         // Callers that already have the manifest list can skip re-discovery.
         const skipped = verifyMasterConfigs(projectRoot, { manifestPaths: [] });
         expect(skipped.errors.join("\n")).not.toContain(".autogenerated");
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+
+    it("accepts a database resource whose .autogenerated holds only the discovery service.yaml (#2863)", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-generated-database-"));
+      try {
+        writeProjectJson(projectRoot, projectConfig());
+        const resourceDir = path.join(projectRoot, "services", "shop", "shop-db");
+        const generatedDir = path.join(resourceDir, ".autogenerated");
+        fs.mkdirSync(generatedDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(resourceDir, "service.json"),
+          `${JSON.stringify({ appName: "shop-db", appType: "database", framework: "postgres", stack: "shop" }, null, 2)}\n`,
+        );
+        // flisk up writes no outputs for a database resource, so there is no contract snapshot, only the shadow.
+        fs.writeFileSync(path.join(generatedDir, "service.yaml"), "appName: shop-db\n");
+
+        const errors = verifyMasterConfigs(projectRoot).errors.filter((error) =>
+          error.includes(".autogenerated"),
+        );
+        expect(errors).toEqual([]);
+        expect(staleServiceOutputs(projectRoot)).toEqual([]);
       } finally {
         fs.rmSync(projectRoot, { recursive: true, force: true });
       }

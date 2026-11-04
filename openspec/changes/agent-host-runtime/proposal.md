@@ -2,7 +2,7 @@
 
 ## Why
 
-Coding agents increasingly run inside Dev Containers, Codespaces, or remote workspaces (VS Code Agent Host, Cursor, Coder, T3 Code) rather than on the developer's machine shell. `flisk doctor` already reports a versioned JSON readiness report and `flisk status --json` a versioned status report, and `tdk-skills` already guides agents. What is missing:
+Coding agents increasingly run inside Dev Containers, Codespaces, or remote workspaces (VS Code Agent Host, Cursor, Coder, T3 Code) rather than on the developer's machine shell. `flisk doctor` already reports a versioned JSON readiness report and `flisk status --json` a versioned status report, and `flisk-skills` already guides agents. What is missing:
 
 - `doctor` does not recognize Dev Containers, Codespaces, or WebContainers. Inside them it gives a generic "install Docker Desktop" message, or tries to start Tilt where no Docker daemon exists.
 - `flisk up` and `flisk down` have no machine-readable output and `up` cannot start a subset of services.
@@ -28,4 +28,4 @@ Coding agents increasingly run inside Dev Containers, Codespaces, or remote work
 
 - `doctor` and `up` gain host-aware errors; existing `doctor --json` and `status --json` remain backward compatible (additive fields only, report version bumped per its existing convention).
 - Generated stacks and the service.json contract are unchanged.
-- `tdk-skills` (separate repo, synced via `scripts/sync-tdk-skills.sh`) needs a follow-up PR.
+- `flisk-skills` (separate repo, synced via `scripts/sync-flisk-skills.sh`) needs a follow-up PR.

@@ -5,7 +5,7 @@ set -euo pipefail
 
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 readonly FIXTURE_DIR="${REPO_ROOT}/tests/e2e/fixtures/byo-python-health"
-readonly SCHEMA="${REPO_ROOT}/engine/schemas/service-schema.json"
+readonly SCHEMA="${REPO_ROOT}/runtime/engine/schemas/service-schema.json"
 readonly WORK_BASE="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 readonly PROJECT_DIR="$(mktemp -d "${WORK_BASE%/}/flisk-byo-python.XXXXXX")"
 readonly RESOURCE_DIR="${PROJECT_DIR}/services/shop/legacy"

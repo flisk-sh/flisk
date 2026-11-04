@@ -63,4 +63,33 @@ describe("resource scaffold E2E", () => {
     expect(output).not.toMatch(/Unknown service\.json field: [^\n]*envVars/);
     expect(output).not.toMatch(/Unknown service\.json field: [^\n]*dependencies/);
   }, 90000);
+
+  it("`flisk config verify` still passes right after `flisk resource` drops the router and Postgres (#2963)", () => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-verify-platform-"));
+    runFlisk(["project", "--yes"], projectRoot);
+    runFlisk(
+      [
+        "resource",
+        "web",
+        "--type",
+        "bring-your-own",
+        "--image",
+        "caddy:2",
+        "--no-proxy",
+        "--stack",
+        "app",
+        "--yes",
+      ],
+      projectRoot,
+    );
+    const verify = JSON.parse(runFlisk(["config", "verify", "--json"], projectRoot));
+    expect(verify.data.valid, JSON.stringify(verify.data.errors)).toBe(true);
+    // A routed resource brings the router back, again without a `flisk config regenerate`.
+    runFlisk(["resource", "api", "--type", "backend", "--stack", "app", "--yes"], projectRoot);
+    const again = JSON.parse(runFlisk(["config", "verify", "--json"], projectRoot));
+    expect(again.data.valid, JSON.stringify(again.data.errors)).toBe(true);
+    expect(readFileSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"), "utf-8")).toContain(
+      "DISABLED_PLATFORM_INFRA = []",
+    );
+  }, 120000);
 });

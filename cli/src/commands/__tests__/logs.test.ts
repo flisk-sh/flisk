@@ -75,7 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  for (const option of ["service", "since", "port", "tail"])
+  for (const option of ["service", "since", "port", "tail", "unhealthy"])
     logsCommand.setOptionValue(option, undefined);
   logsCommand.setOptionValue("tail", "200");
   logsCommand.setOptionValue("json", false);
@@ -364,5 +364,60 @@ describe("flisk logs --json", () => {
       services: ["api"],
       lines: [{ resource: "api", text: "log from svc" }],
     });
+  });
+});
+
+describe("flisk logs --unhealthy", () => {
+  const states = (...items: Array<[string, string, string]>) =>
+    ok(
+      JSON.stringify({
+        items: items.map(([name, update, runtime]) => ({
+          metadata: { name },
+          status: { updateStatus: update, runtimeStatus: runtime },
+        })),
+      }),
+    );
+
+  it("asks Tilt for logs of only the failing services", async () => {
+    tilt.runTilt
+      .mockResolvedValueOnce(states(["api", "error", "none"], ["web", "ok", "ok"]))
+      .mockResolvedValueOnce(ok(`${logLine("boom")}\n`));
+    const { envelope, code } = await run("--unhealthy");
+    expect(code).toBeNull();
+    expect(envelope.data).toMatchObject({ lines: [{ text: "boom" }] });
+    const args = tilt.runTilt.mock.calls[1]?.[1] as string[];
+    expect(args.slice(args.indexOf("--") + 1)).toEqual(["api"]);
+  });
+
+  it("intersects with --service", async () => {
+    tilt.runTilt
+      .mockResolvedValueOnce(resources("api", "db", "web"))
+      .mockResolvedValueOnce(states(["api", "error", "none"], ["db", "error", "none"]))
+      .mockResolvedValueOnce(ok(""));
+    await run("--unhealthy", "--service", "db", "web");
+    const args = tilt.runTilt.mock.calls[2]?.[1] as string[];
+    expect(args.slice(args.indexOf("--") + 1)).toEqual(["db"]);
+    logsCommand.setOptionValue("service", undefined);
+  });
+
+  it("says so, without reading logs, when everything is healthy", async () => {
+    tilt.runTilt.mockResolvedValueOnce(states(["api", "ok", "ok"]));
+    const { envelope } = await run("--unhealthy");
+    expect(envelope.data).toMatchObject({ lines: [], unhealthy: [] });
+    expect(tilt.runTilt).toHaveBeenCalledTimes(1);
+  });
+
+  it("prints a plain sentence in human mode when everything is healthy", async () => {
+    tilt.runTilt.mockResolvedValueOnce(states(["api", "ok", "ok"]));
+    logsCommand.setOptionValue("json", false);
+    await logsCommand.parseAsync(["--unhealthy"], { from: "user" });
+    expect(out.join("\n")).toContain("All services are healthy");
+  });
+
+  it("fails like the other Tilt reads when Tilt cannot be queried", async () => {
+    tilt.runTilt.mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "" });
+    const { envelope, code } = await run("--unhealthy");
+    expect(code).toBe(1);
+    expect(envelope.errors[0]?.code).toBe("TILT_NOT_RUNNING");
   });
 });

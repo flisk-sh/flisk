@@ -37,7 +37,8 @@ function Invoke-NativeWindowsRefusal {
 $doctorText = Invoke-NativeWindowsRefusal -Label 'flisk doctor' -CliArgs @('doctor')
 # Hosted Windows runners have no Docker daemon, so the Docker OS check is
 # skipped there; the daemon failure line is the container diagnostic we get.
-if ($doctorText -notmatch '(?i)Docker container mode|Windows containers|Linux containers|Docker OS|Docker is not running') {
+# checkWindowsDockerMode prints "Docker daemon is not responding", so accept that wording too.
+if ($doctorText -notmatch '(?i)Docker container mode|Windows containers|Linux containers|Docker OS|Docker is not running|Docker daemon is not responding') {
   throw 'flisk doctor did not report Docker container mode diagnostics on native Windows.'
 }
 if ($doctorText -notmatch '(?i)flisk\.localhost|Windows ports and DNS|core\.autocrlf|File sharing') {

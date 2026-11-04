@@ -11,4 +11,6 @@ export interface BackendFrameworkProvider {
   compilerOptions?: Record<string, unknown>;
   /** Contents of `src/index.ts`. The health routes and the PORT read are part of the contract. */
   createIndex(name: string, durability?: string): string;
+  /** Contents of `tests/<name>.test.ts`, in place of the shared placeholder test. */
+  createTest?(name: string): string;
 }

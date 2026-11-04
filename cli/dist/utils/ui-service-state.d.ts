@@ -1,5 +1,4 @@
-import type { DiscoveredResource, StackMetadata } from "../types/index.js";
-import { type ServiceRuntimeState } from "./service-runtime-state.js";
+import type { DiscoveredResource, ServiceRuntimeState, StackMetadata } from "../types/index.js";
 export type ServiceStates = Record<string, ServiceRuntimeState>;
 /** One look at the running Tilt. Empty when no Tilt answers, so every service stays unknown. */
 export declare function fetchServiceStates(services: DiscoveredResource[], tiltPort: number): Promise<ServiceStates>;

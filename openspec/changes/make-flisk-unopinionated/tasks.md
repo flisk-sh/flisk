@@ -8,31 +8,31 @@ Tracked as epics and sub-tasks in flisk-sh/flisk: #2216 (audit), #2217 (minimal 
 - [x] 1.2 Identify generated files that overwrite or assume a framework (#2223)
 - [x] 1.3 Identify hard-coded dependencies on Bun, Traefik, Postgres, Docker, and Tilt (#2224)
 - [x] 1.4 Document which defaults are required for `flisk up` versus optional (#2225)
-- [ ] 1.5 Add an `unopinionated` test fixture with no generated framework files (#2226)
+- [x] 1.5 Add an `unopinionated` test fixture with no generated framework files (#2226): an API and a website with `command`, started by `flisk up` in `cli/src/commands/__tests__/up-native-e2e.test.ts`
 
 ## 2. Define the minimal core
 
-- [ ] 2.1 Define a minimal service contract: name, command or image, ports, env, dependencies (see `specs/core-platform/spec.md`)
+- [ ] 2.1 Define a minimal service contract: name, command or image, ports, env, dependencies (see `specs/core-platform/spec.md`). Done for `command` services (appName, appType, command, port, env, dependsOn, healthCheckPath; no stack; a second runtime source is refused). An `image` service still needs `appType` and `stack`.
 - [ ] 2.2 Allow a service to run from an existing Dockerfile without generation
-- [ ] 2.3 Allow a service to run from a direct local command without Docker
-- [ ] 2.4 Make `flisk up` work with zero generated files when the user supplies their own runtime config
-- [ ] 2.5 Ensure `flisk doctor` validates only the capabilities actually enabled
+- [x] 2.3 Allow a service to run from a direct local command without Docker (#2229): see `design.md`
+- [ ] 2.4 Make `flisk up` work with zero generated files when the user supplies their own runtime config. Done for `command` services (only `.flisk/project.json` and `.flisk/native/` are written); not yet for an own Dockerfile or Compose file.
+- [x] 2.5 Ensure `flisk doctor` validates only the capabilities actually enabled (#2231): a project of `command` services is checked for its programs, dependsOn, ports and health, not for Docker, Compose, Tilt, Bun or the gateway/database ports. Finer per-capability checks (gateway, database) come with 3.1 and 3.2.
 
 ## 3. Make integrations optional
 
-- [ ] 3.1 Move Traefik behind an optional gateway capability
+- [x] 3.1 Move Traefik behind an optional gateway capability (#2232)
 - [ ] 3.2 Move Postgres behind an optional database capability
 - [ ] 3.3 Move hot reload behind an optional watch capability
-- [ ] 3.4 Make health checks optional and configurable
+- [x] 3.4 Make health checks optional and configurable (#2235)
 - [ ] 3.5 Make generated API clients opt-in
 - [ ] 3.6 Make generated Vite, Nginx, and TypeScript files opt-in
 
 ## 4. Support existing workflows
 
 - [ ] 4.1 Add `flisk import compose`
-- [ ] 4.2 Add `flisk import tiltfile`
+- [x] 4.2 Add `flisk import tiltfile` (#2239)
 - [ ] 4.3 Allow Flisk to orchestrate an existing Compose project without rewriting it
-- [ ] 4.4 Allow Flisk to wrap an existing Tiltfile without replacing it
+- [x] 4.4 Allow Flisk to wrap an existing Tiltfile without replacing it (#2239: with `orchestration.source: "tiltfile"`, the generated `.flisk/.flisk-out/Tiltfile` only `include()`s it)
 - [ ] 4.5 Add `--no-generate` mode for orchestration only
 - [ ] 4.6 Add `--dry-run --explain` output showing what Flisk would create or change
 

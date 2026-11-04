@@ -56,3 +56,5 @@ export declare function installServiceDependencies(projectRoot: string, run?: (c
     dir: string;
     ok: boolean;
 }[]>;
+/** Runs a command and resolves with its exit code. */
+export declare function defaultRun(command: string, args: string[], cwd: string, spawnFn?: typeof spawn): Promise<number>;

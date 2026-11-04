@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 
-# Flisk Landscape Mac M1 Resource Monitor
+# Flisk Mac M1 Resource Monitor
 # Monitors Docker container resource usage and provides optimization recommendations
 
 set -e
@@ -14,7 +14,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🍎 Flisk Landscape Mac M1 Resource Monitor${NC}"
+echo -e "${BLUE}🍎 Flisk Mac M1 Resource Monitor${NC}"
 echo "=================================================="
 
 # Check if Docker is running
@@ -33,19 +33,19 @@ echo -e "${BLUE}💻 System Memory:${NC} $SYSTEM_MEMORY"
 
 echo ""
 
-# Check running Flisk Landscape containers
+# Check running Flisk containers
 PROJECT_CONTAINERS=$(docker ps --format "{{.Names}}" | grep -E "(postgres|redis|nats|kafka|traefik|clickhouse|elasticsearch|verdaccio|infisical)" | sort)
 
 if [ -z "$PROJECT_CONTAINERS" ]; then
-    echo -e "${YELLOW}⚠️  No Flisk Landscape containers are currently running${NC}"
+    echo -e "${YELLOW}⚠️  No Flisk containers are currently running${NC}"
     echo "Run 'tilt up' to start services"
     exit 0
 fi
 
-echo -e "${GREEN}📊 Running Flisk Landscape Containers:${NC}"
+echo -e "${GREEN}📊 Running Flisk Containers:${NC}"
 echo "=================================================="
 
-# Get detailed stats for Flisk Landscape containers
+# Get detailed stats for Flisk containers
 TOTAL_MEMORY_MB=0
 HIGH_CPU_COUNT=0
 HIGH_MEMORY_COUNT=0

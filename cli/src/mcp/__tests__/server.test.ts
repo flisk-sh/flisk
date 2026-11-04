@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { FliskError } from "../../utils/errors.js";
 import { createMcpServer, type McpTool } from "../server.js";
 
 const echo: McpTool = {
@@ -96,6 +97,34 @@ describe("mcp server", () => {
     expect((res as Partial<Response>).error).toBeUndefined();
     expect(res.result).toMatchObject({ isError: true, content: [{ text: "kaput" }] });
   });
+  it("adds a thrown FliskError's suggestions under its message", async () => {
+    const hinted = createMcpServer(
+      [
+        {
+          ...echo,
+          name: "hinted",
+          handler: async () =>
+            Promise.reject(new FliskError("name is required", ["Pass a name", "Or omit it"])),
+        },
+        { ...echo, name: "bare", handler: async () => Promise.reject(new FliskError("no hints")) },
+      ],
+      { name: "flisk", version: "1.0.0" },
+    );
+    const callTool = async (name: string): Promise<ToolCallResult> => {
+      const line = await hinted.handleLine(
+        JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name } }),
+      );
+      return (JSON.parse(line ?? "null") as { result: ToolCallResult }).result;
+    };
+    expect(await callTool("hinted")).toMatchObject({
+      isError: true,
+      content: [{ text: "name is required\n- Pass a name\n- Or omit it" }],
+    });
+    expect(await callTool("bare")).toMatchObject({
+      isError: true,
+      content: [{ text: "no hints" }],
+    });
+  });
   it("rejects an unknown tool, non-object arguments, and unknown methods", async () => {
     expect(
       (await call({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "nope" } })).error
@@ -156,5 +185,47 @@ describe("mcp server", () => {
     );
     const res = JSON.parse(line as string) as Response;
     expect(res.result).toMatchObject({ isError: true, content: [{ text: "plain failure" }] });
+  });
+  it("calls a tool by a former name but lists only its current name", async () => {
+    const renamed = createMcpServer(
+      [
+        { ...echo, name: "item_list", aliases: ["list_items"] },
+        // A tool's own name wins over another tool's former name.
+        { ...boom, name: "list_items_v2", aliases: ["item_list"] },
+      ],
+      { name: "flisk", version: "1.0.0" },
+    );
+    const send = async (message: unknown): Promise<Response> =>
+      JSON.parse((await renamed.handleLine(JSON.stringify(message))) as string) as Response;
+    const list = (await send({ jsonrpc: "2.0", id: 13, method: "tools/list" }))
+      .result as ToolsListResult;
+    expect(list.tools.map((t) => t.name)).toEqual(["item_list", "list_items_v2"]);
+    expect(JSON.stringify(list.tools)).not.toContain("aliases");
+
+    for (const name of ["item_list", "list_items"]) {
+      const res = await send({
+        jsonrpc: "2.0",
+        id: 14,
+        method: "tools/call",
+        params: { name, arguments: { a: 1 } },
+      });
+      expect(res.result, name).toMatchObject({
+        isError: false,
+        structuredContent: { got: { a: 1 } },
+      });
+    }
+  });
+});
+
+describe("serverInfo icons", () => {
+  it("returns the icons it was given, so clients can show them", async () => {
+    const icons = [
+      { src: "https://mcp.flisk.sh/icon-512.png", mimeType: "image/png", sizes: ["512x512"] },
+    ];
+    const withIcons = createMcpServer([echo], { name: "flisk", version: "1.0.0", icons });
+    const raw = await withIcons.handleLine(
+      JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    );
+    expect(JSON.parse(raw ?? "").result.serverInfo.icons).toEqual(icons);
   });
 });

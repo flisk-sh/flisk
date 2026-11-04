@@ -36,7 +36,7 @@ Sections: who we are, what Flisk CLI does and does not do, why this repo (quote 
 
 ### 4. Acceptance is a link, not a badge
 
-If accepted, add the outbound link under a "Listed by" note in awesome-tdk-framework. Do not add a badge until the target's page is live.
+If accepted, add the outbound link under a "Listed by" note in awesome-flisk-framework. Do not add a badge until the target's page is live.
 
 ## Risks / Trade-offs
 
@@ -51,5 +51,5 @@ Docs-only. No runtime migration. First five targets are chosen by hand and revie
 
 ## Open Questions
 
-- Should the packet live in `flisk` or `awesome-tdk-framework`?
+- Should the packet live in `flisk` or `awesome-flisk-framework`?
 - Do we want a short "supply-chain notes" page (install script, checksums, engine tarball) linked from every issue?

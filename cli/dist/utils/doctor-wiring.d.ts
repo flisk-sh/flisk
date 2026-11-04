@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import type { CheckResult, DiscoveredResource } from "../types/index.js";
 import { type ExecAsync } from "./exec-async.js";
 /** Enforces the Prisma 7 project contract before `flisk up` can run. */
-export declare function checkPrismaConsistency(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+export declare function checkPrismaConsistency(projectRoot?: string, resources?: DiscoveredResource[], options?: Record<string, unknown>): CheckResult;
 export declare function checkResourcePackageJson(projectRoot?: string): CheckResult;
 /**
  * Two resources with one appName share a Compose service name and Traefik router and service names
@@ -16,6 +16,13 @@ export declare function checkDuplicateResourceNames(projectRoot?: string, resour
  * a backend by its port, and usually means a copied service.json.
  */
 export declare function checkDuplicateResourcePorts(projectRoot?: string): CheckResult;
+/**
+ * A bring-your-own service.json that `provides` REDIS_URL, QDRANT_URL or AMQP_URL and has no `framework`: written by
+ * `flisk resource --type redis|qdrant|rabbitmq`, which became `--type database|queue --framework ...`. The file keeps working
+ * (it is plain bring-your-own), so this is a warning that names the command to recreate it with the web UI port and the
+ * `framework` field.
+ */
+export declare function checkInfraFrameworks(projectRoot?: string): CheckResult;
 export declare function checkServiceUrlPorts(projectRoot?: string): CheckResult;
 /**
  * Two API backends in one stack used to share the stack-scoped Traefik routers (`/api/<stack>-management`), so the same rule
@@ -51,7 +58,19 @@ export declare function checkNatsBroker(projectRoot?: string): CheckResult;
  * Preflight loop: edit service.json → `flisk config regenerate` → `flisk doctor`.
  * Doctor is the gate; one real `flisk up` after doctor is green confirms the run.
  */
-export declare function checkSharedPlatformPostgres(projectRoot?: string): CheckResult;
+export declare function checkSharedPlatformPostgres(projectRoot?: string, options?: Record<string, unknown>): CheckResult;
+/**
+ * Whether the shared Postgres still accepts the DB_PASSWORD in the project .env.
+ *
+ * Postgres applies POSTGRES_PASSWORD only when it first initialises a data volume, and the volume lives in Docker, outside the
+ * project folder. A recreated folder (or a changed .env) gets a new random DB_PASSWORD while the old volume keeps its own, and
+ * every service that connects, such as a migrator, then fails with "password authentication failed" minutes into `flisk up`.
+ *
+ * The login is tried from the container's own network address: the official image trusts 127.0.0.1 without a password, so a
+ * loopback test would pass whatever the password. PGPASSWORD is handed to docker through this process's environment, so the
+ * password never appears in a command line.
+ */
+export declare function checkPostgresCredentials(projectRoot?: string, exec?: ExecAsync, options?: Record<string, unknown>): Promise<CheckResult>;
 interface TiltProcess {
     pid: number;
     root: string;

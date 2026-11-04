@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="812" height="102" viewBox="0 0 812 102" role="img" aria-label="Claude Code input: Build me a small online shop with a storefront and an orders API…">
+<title>Claude Code input: Build me a small online shop with a storefront and an orders API…</title>
+<style>@keyframes ty{0%,6%{transform:translateX(0);animation-timing-function:steps(65,end)}50%,100%{transform:translateX(507px)}} .ty{transform:translateX(507px);animation:ty 10s linear infinite} .caret{animation:blink 1s steps(1) infinite}@keyframes blink{50%{opacity:0}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<path d="M0 0h812v70a14 14 0 0 1-14 14H14A14 14 0 0 1 0 70Z" fill="#0e0e10"/>
+<path d="M0 86h812v6a10 10 0 0 1-10 10H10A10 10 0 0 1 0 92Z" fill="#c8c9cc"/>
+<rect x="0" y="86" width="812" height="2" fill="#e4e5e7"/>
+<path d="M350 86h112a6 6 0 0 1-6 6H356a6 6 0 0 1-6-6Z" fill="#a7a9ad"/>
+<rect x="14" y="0" width="784" height="62" fill="#1c1c1c"/>
+<rect x="28" y="6" width="756" height="30" rx="6" fill="none" stroke="#6b6b6b" stroke-width="1.2"/>
+<text x="40" y="26" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="13" textLength="16" lengthAdjust="spacingAndGlyphs"><tspan fill="#9a9a9a">&gt; </tspan></text><text x="56" y="26" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="13" fill="#f0f0f0" textLength="507" lengthAdjust="spacingAndGlyphs">Build me a small online shop with a storefront and an orders API…</text><clipPath id="tyc"><rect x="55" y="13" width="516" height="19"/></clipPath><g clip-path="url(#tyc)"><g class="ty"><rect x="56" y="13" width="516" height="19" fill="#1c1c1c"/><rect class="caret" x="56" y="14" width="7" height="17" fill="#f0f0f0" opacity="0.85"/></g></g>
+<text fill="#7a7a7a" x="40" y="53" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="12">? for shortcuts</text>
+</svg>

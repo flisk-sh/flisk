@@ -29,7 +29,7 @@ concurrency:
 jobs:
   example:
     name: ${{ matrix.repo }} on a clean machine
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -48,7 +48,7 @@ jobs:
             web_checks: |
               dashboard-app|/
               checkout-app|/
-          - repo: tdk-restaurant-example
+          - repo: flisk-restaurant-example
             # Patterns match the service name in the URL (e.g. "reservation"
             # from /api/reservation/health), not the stack name ("guest") --
             # they only happen to be the same word for kitchen.

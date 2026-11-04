@@ -1,9 +1,14 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
+import type { PortOccupant } from "../types/index.js";
 import { parseTiltResourceFailures, summarizeTiltBuildError } from "./doctor-runtime.js";
 import { conflictPort, portConflictFix } from "./port-conflict-fix.js";
-import type { PortOccupant } from "./port-occupant.js";
-import { effectiveRuntimeStatus, isTiltResourcePending } from "./tilt-resource-state.js";
+import {
+  effectiveRuntimeStatus,
+  isNeverStarted,
+  isTiltResourcePending,
+} from "./tilt-resource-state.js";
 import { onlyEnabledResources } from "./up-readiness.js";
 
 export interface StartupReport {
@@ -15,6 +20,10 @@ export interface StartupReport {
   blocked: Array<{ name: string; because: string[] }>;
   /** Not ready with nothing failed upstream: still building or starting. */
   starting: string[];
+  /** Services whose images were still actively building when timed out. */
+  stillBuilding?: string[];
+  /** Last log lines for services that timed out. */
+  lastLogs?: Record<string, string>;
 }
 
 interface Item {
@@ -23,7 +32,46 @@ interface Item {
     updateStatus?: string;
     runtimeStatus?: string;
     composeResourceInfo?: { healthStatus?: string };
+    /** Set by Tilt while a resource waits for its resource_deps, e.g. every service waiting on `init-networks`. */
+    waiting?: { reason?: string; on?: Array<{ kind?: string; name?: string }> };
+    lastDeployTime?: string | null;
+    pendingBuildSince?: string | null;
   };
+}
+
+/** The resources Tilt says this one is waiting for. */
+function waitingOn(item: Item): string[] {
+  return (item.status?.waiting?.on ?? [])
+    .filter((ref) => (ref.kind ?? "UIResource") === "UIResource" && ref.name)
+    .map((ref) => ref.name as string);
+}
+
+// Docker has no free subnet left for a new network (every project creates several and `flisk down` keeps them).
+const NETWORK_POOL_EXHAUSTED = /all predefined address pools have been fully subnetted/i;
+
+/**
+ * Tilt's error for a failed local command is only "exit status 1"; the reason (for example Docker's "all predefined
+ * address pools have been fully subnetted") is in the resource's log. Returns the fix for each failed resource whose
+ * message or log names a known machine problem.
+ */
+export async function machineProblemFixes(
+  failures: Array<{ name: string; message: string }>,
+  fetchLogs: (name: string) => Promise<string | null>,
+): Promise<Map<string, string>> {
+  const fixes = new Map<string, string>();
+  for (const { name, message } of failures.slice(0, 5)) {
+    const fix = machineProblemFix(message) ?? machineProblemFix((await fetchLogs(name)) ?? "");
+    if (fix) fixes.set(name, fix);
+  }
+  return fixes;
+}
+
+/** A plain fix for a failure message that names a known machine problem, or null. */
+export function machineProblemFix(message: string): string | null {
+  if (NETWORK_POOL_EXHAUSTED.test(message)) {
+    return "Fix: Docker has no free network ranges left. Run `flisk doctor --fix --scope=machine` to remove the unused networks of every Flisk project (networks in use are kept), then run flisk up again";
+  }
+  return null;
 }
 
 export function transitiveDependencies(
@@ -65,18 +113,47 @@ export function buildStartupReport(
   const failedNames = new Set(failed.map((entry) => entry.name));
 
   const items = (JSON.parse(enabledJson) as { items?: Item[] }).items ?? [];
+  // service.json dependsOn, plus what Tilt reports as waited for (shared infrastructure such as init-networks, which no
+  // service.json names).
+  const deps: Record<string, string[]> = { ...dependsOn };
+  for (const item of items) {
+    const name = item.metadata?.name;
+    if (!name) continue;
+    const waits = waitingOn(item);
+    if (waits.length > 0) deps[name] = [...new Set([...(deps[name] ?? []), ...waits])];
+  }
   const blocked: StartupReport["blocked"] = [];
   const starting: string[] = [];
+  const stillBuilding: string[] = [];
   for (const item of items) {
     const name = item.metadata?.name ?? "unknown";
-    if (name === "(Tiltfile)" || failedNames.has(name) || deferred.has(name)) continue;
-    const because = [...transitiveDependencies(name, dependsOn)]
+    // A resource Flisk registers but never starts waits on nothing, so it is neither blocked nor starting:
+    // parseTiltResourceFailures leaves it out of pendingCount, and this report must agree with it.
+    if (
+      name === "(Tiltfile)" ||
+      failedNames.has(name) ||
+      deferred.has(name) ||
+      isNeverStarted(item.status)
+    )
+      continue;
+    const because = [...transitiveDependencies(name, deps)]
       .filter((dep) => failedNames.has(dep))
       .sort();
-    if (because.length > 0) blocked.push({ name, because });
-    else if (isPending(item)) starting.push(name);
+    if (because.length > 0) {
+      blocked.push({ name, because });
+    } else if (isPending(item)) {
+      starting.push(name);
+      if (item.status?.updateStatus === "in_progress") {
+        stillBuilding.push(name);
+      }
+    }
   }
-  return { failed, blocked, starting };
+  return {
+    failed,
+    blocked,
+    starting,
+    stillBuilding: stillBuilding.length > 0 ? stillBuilding : undefined,
+  };
 }
 
 /** A failure exists and everything still pending is blocked by it, so waiting longer cannot help. */
@@ -93,21 +170,45 @@ export function formatStartupReport(
   report: StartupReport,
   timedOut: boolean,
   occupantOf?: (port: number) => PortOccupant | null,
+  machineFixes: Map<string, string> = new Map(),
+  lastLogs?: Record<string, string>,
 ): string[] {
   const lines: string[] = [];
   for (const { name, message } of report.failed) {
     lines.push(`✗ ${name} failed: ${message}`);
     const port = conflictPort(message);
-    const fix = portConflictFix(message, port !== null && occupantOf ? occupantOf(port) : null);
+    const fix =
+      portConflictFix(message, port !== null && occupantOf ? occupantOf(port) : null) ??
+      machineFixes.get(name) ??
+      machineProblemFix(message);
     if (fix) lines.push(`  ${fix}`);
   }
   for (const { name, because } of report.blocked) {
     lines.push(`✗ ${name} is not ready because ${because.join(", ")} failed`);
   }
-  if (report.starting.length > 0) {
+  if (report.stillBuilding && report.stillBuilding.length > 0) {
     lines.push(
-      `${timedOut ? "Timed out waiting for" : "Still starting:"} ${report.starting.join(", ")}`,
+      `${timedOut ? "Timed out while building:" : "Still building:"} ${report.stillBuilding.join(", ")}`,
     );
+  }
+  const startingOnly = report.starting.filter((s) => !report.stillBuilding?.includes(s));
+  if (startingOnly.length > 0) {
+    lines.push(
+      `${timedOut ? "Timed out waiting for" : "Still starting:"} ${startingOnly.join(", ")}`,
+    );
+  }
+  const combinedLogs = { ...(report.lastLogs ?? {}), ...(lastLogs ?? {}) };
+  const timedOutServices = [...(report.stillBuilding ?? []), ...startingOnly];
+  if (timedOut) {
+    for (const name of timedOutServices) {
+      const logs = combinedLogs[name]?.trim();
+      if (logs) {
+        lines.push(`Last log lines for ${name}:`);
+        for (const logLine of logs.split("\n").slice(-10)) {
+          lines.push(`  ${logLine}`);
+        }
+      }
+    }
   }
   if (lines.length > 0) {
     const causes = [...new Set(report.blocked.flatMap((entry) => entry.because))].sort();

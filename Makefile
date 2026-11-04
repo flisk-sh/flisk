@@ -1,7 +1,7 @@
 # Makefile
 # Common development tasks
 
-.PHONY: help test test-ts test-python test-shell test-e2e test-tilt-engine test-coverage lint video video-build video-test video-validate video-generate
+.PHONY: help test test-ts test-python test-shell ade-score scores test-e2e test-tilt-engine test-coverage lint video video-build video-test video-validate video-generate
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -31,22 +31,64 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	for script in $(wildcard scripts/verify-*.sh) tests/e2e/lib/lib.sh tests/e2e/*/*/*.sh tests/e2e/resource-types/common.sh; do bash -n "$$script" || exit 1; done
 	node tests/e2e/lib/validate-suites.mjs
 	bash tests/e2e/static/skills-and-docs.sh >/dev/null
+	node --test scripts/docs/tabs.test.mjs
+	node --test scripts/docs/fit.test.mjs
+	node --test scripts/docs/llms-demo-links.test.mjs
+	node --test scripts/sync-llms-demos.test.mjs
+	node --test scripts/agent-plugin.test.mjs
 	node scripts/check-ci-inventory.mjs
 	node --test scripts/check-ci-inventory.test.mjs
+	node --test scripts/check-ruleset-snapshots.test.mjs
 	node --test scripts/check-test-helper-allowlist.test.mjs
+	node --test cli/scripts/pin-module-location.test.mjs
+	node --test scripts/check-published-service-schema.test.mjs
 	node --test scripts/pilot-scorecard.test.mjs
+	node --test scripts/package-lifecycle-smoke.test.mjs
+	node --test scripts/wsl2-demo.test.mjs
+	node --test scripts/wsl2-smoke.test.mjs
+	node --test scripts/install-git-hooks.test.mjs
+	node --test scripts/setup-pre-commit.test.mjs
+	node --test scripts/cold-boot-notes.test.mjs
+	node --test scripts/install-git-hooks.test.mjs
+	node --test scripts/release-binaries.test.mjs
+	node --test scripts/release-tag-target.test.mjs
+	node --test scripts/umux-lite-score.test.mjs
+	node --test scripts/ade-score.test.mjs
+	node --test 'scripts/scores/*.test.mjs'
+	node scripts/scores/run.mjs --check
 	node --test scripts/autoresearch/layer-eval.test.mjs
 	node --test scripts/e2e-gate-expectations.test.mjs
 	node --test scripts/wait-for-e2e-gates.test.mjs
+	node --test scripts/cancel-dead-queue-runs.test.mjs
+	node --test scripts/wait-for-npm-version.test.mjs
+	node --test scripts/npm-downloads-graph.test.mjs
+	node --test scripts/install-global.test.mjs
 	node tests/e2e/lib/check-axes.mjs
 	node --test tests/e2e/lib/__tests__/suite-matrix.test.mjs
 	node --test tests/e2e/lib/__tests__/registry-axes.test.mjs
 	node --test tests/e2e/lib/__tests__/check-axes.test.mjs
+	node --test tests/e2e/lib/__tests__/enigma36-plan.test.mjs
 	node --test scripts/red-job-tracker.test.mjs
 	node --test scripts/security-alert-issues.test.mjs
+	node --test scripts/competitor-gap-issues.test.mjs
+	node --test scripts/competitor-matrix.test.mjs
+	node scripts/competitor-matrix.mjs --check
 	node --test scripts/ci-report.test.mjs
 	node --test scripts/test-summary.test.mjs
+	node --test scripts/sync-byo-templates.test.mjs
+	node --test scripts/journey-map.test.mjs
+	node --test scripts/sync-flisk-skills.test.mjs
+	node --test scripts/audit-codebase.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
+	node --test scripts/ai-conflict-buttons-comment.test.mjs
+	node --test scripts/hacktoberfest-embed.test.mjs
+	node --test scripts/demo-svgs.test.mjs
+
+ade-score: ## Print the deterministic ADE score (no AI, files only); add ARGS="--markdown" or ARGS="--json"
+	node scripts/ade-score.mjs $(ARGS)
+
+scores: ## Print the scoreboard of scripts/scores/ (files scorers); ARGS="--source all" adds GitHub data, "--markdown"/"--json" change the format
+	node scripts/scores/run.mjs $(ARGS)
 
 test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, flisk)
 	@test -n "$(GROUP)" -a -n "$(SUITE)" || { echo "usage: make test-e2e GROUP=<group> SUITE=<suite> [CASES=\"<case> ...\"]"; ls tests/e2e/*/*/suite.json | sed 's#tests/e2e/##; s#/suite.json##'; exit 2; }

@@ -1,0 +1,55 @@
+{
+  "title": "add, change and remove dependsOn entries between looks at the graph",
+  "why": "Fixed. The edit-then-look loop most of the feedback describes. Every look must show the edit; nothing is expected to break.",
+  "steps": [
+    {
+      "op": "check",
+      "only": "orders"
+    },
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "billing"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    },
+    {
+      "op": "setDeps",
+      "owner": "orders",
+      "entries": ["users"]
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    },
+    {
+      "op": "addDep",
+      "owner": "billing",
+      "entry": "orders"
+    },
+    {
+      "op": "check",
+      "only": "billing"
+    },
+    {
+      "op": "removeDep",
+      "owner": "orders",
+      "entry": "users"
+    },
+    {
+      "op": "moveStack",
+      "name": "billing",
+      "stack": "extra"
+    },
+    {
+      "op": "check",
+      "only": "billing"
+    },
+    {
+      "op": "coldCheck"
+    }
+  ],
+  "expect": []
+}

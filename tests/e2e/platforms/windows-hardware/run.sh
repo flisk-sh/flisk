@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 # The published Windows binary on a real Windows host (#1765). The Windows CI suites (tests/e2e/platforms/windows and
 # tests/e2e/platforms/windows-binary) prove the contract on a GitHub-hosted runner. This suite proves it on the machine a
-# developer uses: the published tdk-windows-amd64.exe, installed the way a user installs it, with the paths, PATH lookup and
+# developer uses: the published flisk-windows-amd64.exe, installed the way a user installs it, with the paths, PATH lookup and
 # filesystem a runner never has.
 #
 #   tests/e2e/platforms/windows-hardware/run.sh all      every case in order

@@ -106,7 +106,7 @@ If one of these fails on a clean checkout, that is a bug in the project, not in 
 For developing and running Flisk locally:
 
 - **macOS and Linux**: Supported directly.
-- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows is inspect-only (`flisk --version`, `flisk doctor`, and `flisk up --dry-run`) and refutes startup (`flisk up` exits with an error indicating landscape startup requires Ubuntu on WSL2). See the [WSL2 setup guide](../docs/wsl2.md) and tracking in [#622](https://github.com/flisk-sh/flisk/issues/622).
+- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows runs `flisk demo` and local-process projects (services that declare a `command`); for a Docker stack it is inspect-only (`flisk --version`, `flisk doctor`, and `flisk up --dry-run`), and `flisk up` exits with an error indicating landscape startup requires Ubuntu on WSL2. See the [WSL2 setup guide](../docs/wsl2.md) and tracking in [#622](https://github.com/flisk-sh/flisk/issues/622).
 
 ## Getting help
 
@@ -132,7 +132,7 @@ The full steps for reviewers, including what to look at, are in [docs/contributi
 
 ## Changing the CLI source
 
-The CLI is committed as compiled output in `cli/dist/`, so `npm install -g github:flisk-sh/flisk` works without a build step. CI checks that `cli/dist/` matches `cli/src/`.
+The CLI is committed as compiled output in `cli/dist/`, so a source checkout runs `cli/bin/flisk.js` without a build step. CI checks that `cli/dist/` matches `cli/src/`. The npm package does not ship `cli/dist/`: `prepack` bundles it into `cli/dist-bundle/`, which `cli/bin/flisk.js` runs when it is present, and the package carries only that bundle plus the two `cli/dist/` files of its `main` entry (`scripts/check-npm-package.mjs` fails the `📦 Pack CLI` job otherwise).
 
 After you change anything under `cli/src/`:
 
@@ -323,7 +323,7 @@ Every commit needs a [Developer Certificate of Origin](../docs/project/DCO) sign
 Every contribution matters. When your pull request is merged:
 
 - You are credited in the automated GitHub release notes for the next release.
-- Your contribution is recorded in [CHANGELOG.md](../CHANGELOG.md).
+- Your contribution is recorded in [CHANGELOG.md](../docs/CHANGELOG.md).
 - You are recognized across the project contributor list and All Contributors records.
 
 ## Contributor badges

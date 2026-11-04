@@ -4,11 +4,13 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { errorFactories, FliskError, ProcessExitError, runCommand, showErrorAndExit, } from "../utils/errors.js";
+import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
-import { isTiltConnectionFailure, isValidPort } from "../utils/tilt-logs.js";
+import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
+import { isValidPort } from "../utils/validation.js";
 export const restartCommand = new Command("restart")
     .description("Restart a running resource in the stack")
     .argument("<resource>", "Name of the resource (service) to restart")
@@ -32,7 +34,7 @@ export const restartCommand = new Command("restart")
             const error = errorFactories.notInProject();
             if (options.json)
                 writeMachineError(error);
-            error.exit();
+            return error.exit();
         }
         let tiltAvailable = false;
         try {
@@ -51,13 +53,25 @@ export const restartCommand = new Command("restart")
             }
             throw new FliskError(msg, ["Start the stack first with: flisk up"]);
         }
-        const result = await runTilt("trigger", [resourceName, "--port", portText], {
+        const effectivePort = options.port !== undefined
+            ? portText
+            : resolveRuntimeTiltPort(root, { envPort: process.env.TILT_PORT });
+        if (effectivePort === null) {
+            const msg = tiltUnreachableMessage(portText);
+            if (options.json) {
+                console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "TILT_NOT_RUNNING", message: msg }])));
+                process.exit(1);
+            }
+            throw new FliskError(msg, ["Start the stack first with: flisk up"]);
+        }
+        const activePortText = String(effectivePort);
+        const result = await runTilt("trigger", [resourceName, "--port", activePortText], {
             inheritStdio: false,
         });
         if (result.exitCode !== 0) {
             const detail = result.stderr.trim();
             if (!detail || isTiltConnectionFailure(detail)) {
-                const msg = tiltUnreachableMessage(portText);
+                const msg = tiltUnreachableMessage(activePortText);
                 if (options.json) {
                     console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "TILT_NOT_RUNNING", message: msg }])));
                     process.exit(1);
@@ -68,7 +82,10 @@ export const restartCommand = new Command("restart")
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "TILT_TRIGGER_FAILED", message: detail }])));
                 process.exit(1);
             }
-            throw new FliskError(`Failed to restart ${resourceName}: ${detail}`);
+            throw new FliskError(`Failed to restart ${resourceName}: ${detail}`, [
+                "Check that the stack is running with: flisk status",
+                `Read the resource logs with: flisk logs --service ${resourceName}`,
+            ]);
         }
         if (options.json) {
             console.log(JSON.stringify(createMachineEnvelope({ resource: resourceName, restarted: true })));

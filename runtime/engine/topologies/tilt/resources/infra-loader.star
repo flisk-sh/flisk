@@ -23,6 +23,7 @@
 load("../common/utils_debug.star", "debug_log")
 load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
+load("./tilt_image_tags.star", "register_tilt_image_tags")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
 load("../../platform/docker/networking/sablier_container_cycle.star", "sablier_middleware_suffix")
@@ -114,12 +115,15 @@ def _ensure_database_management_compose(root_prefix, write_fn):
     """
     compose_rel = "services/platform/database-management/docker-compose.yml"
     compose_file = root_prefix + compose_rel if root_prefix else compose_rel
-    if _file_exists(compose_file):
+    if not write_fn:
         return compose_file
-    if write_fn:
-        write_fn(compose_rel, _generate_database_management_compose())
-        if not _file_exists(compose_file) and compose_file.startswith('/'):
-            write_fn(compose_file, _generate_database_management_compose())
+    # Written on every run (write_fn only touches the file when its text changed): the file carries the project name, its network
+    # and volume names, so a file left from before `.flisk/project.json` was renamed made Compose look for the old network
+    # ("network Lychee_database declared as external, but could not be found", #2993).
+    content = _generate_database_management_compose()
+    write_fn(compose_rel, content)
+    if not _file_exists(compose_file) and compose_file.startswith('/'):
+        write_fn(compose_file, content)
     return compose_file
 
 # No module-level mutable registration flag: Tilt freezes Starlark globals after
@@ -128,6 +132,45 @@ def _ensure_database_management_compose(root_prefix, write_fn):
 # (`force_start_platform_postgres`) are mutually exclusive via should_enable —
 # the orchestrator only force-starts when database-management is off — so each
 # Tiltfile evaluation registers `postgres` at most once on its own path.
+
+
+_HEALTHY_POSTGRES_SCRIPT = (
+    'name="$1"; '
+    + 'cname="${name}_postgres"; '
+    + 'exited_count=0; '
+    + 'for i in $(seq 1 120); do '
+    + '  id="$(docker ps -q -f "name=^/${cname}$" 2>/dev/null | head -n 1)"; '
+    + '  if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=^/${cname}$" 2>/dev/null | head -n 1)"; fi; '
+    + '  if [ -z "$id" ]; then sleep 1; continue; fi; '
+    + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$state" = "dead" ]; then '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    echo "ERROR: container postgres is dead (exit code $code)"; exit 1; '
+    + '  fi; '
+    + '  if [ "$state" = "exited" ]; then '
+    + '    policy="$(docker inspect --format="{{.HostConfig.RestartPolicy.Name}}" "$id" 2>/dev/null)"; '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    if [ "$policy" = "no" ] || [ -z "$policy" ]; then '
+    + '      exited_count=$((exited_count + 1)); '
+    + '      if [ "$exited_count" -ge 5 ]; then '
+    + '        echo "ERROR: container postgres exited with code $code and will not restart (restart: ${policy:-no})"; exit 1; '
+    + '      fi; '
+    + '    else '
+    + '      exited_count=0; '
+    + '    fi; '
+    + '  else '
+    + '    exited_count=0; '
+    + '  fi; '
+    + '  health="$(docker inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$health" = "healthy" ]; then echo "postgres is healthy"; exit 0; fi; '
+    + '  if [ "$health" = "unhealthy" ]; then echo "ERROR: postgres is unhealthy"; exit 1; fi; '
+    + '  if [ "$health" = "none" ]; then '
+    + '    echo "ERROR: postgres container has no health check configured"; exit 1; '
+    + '  fi; '
+    + '  sleep 1; '
+    + 'done; '
+    + 'echo "ERROR: timed out waiting for postgres to become healthy"; exit 1'
+)
 
 
 def _register_platform_postgres(should_enable, root_prefix="", env_file=None, write_fn=None, required=False):
@@ -144,6 +187,13 @@ def _register_platform_postgres(should_enable, root_prefix="", env_file=None, wr
         debug_log("INFRA: Loading postgres compose from {}".format(postgres_compose))
         _docker_compose(postgres_compose, env_file, 'database-management')
         dc_resource('postgres', labels=['infra.tools'], resource_deps=['init-networks'], auto_init=True)
+        local_resource(
+            name='postgres-healthy',
+            cmd=['sh', '-c', _HEALTHY_POSTGRES_SCRIPT, 'sh', PlatformDockerConstants.PROJECT_NAME],
+            labels=['infra.tools', 'health'],
+            resource_deps=['postgres'],
+            auto_init=True,
+        )
         return
     message = "Shared platform Postgres compose was not materialized at {}".format(postgres_compose)
     if required:
@@ -446,6 +496,9 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
 
     # Size Tilt's parallel image builds to the Docker engine before any build is queued
     configure_build_concurrency()
+
+    # Remove the tilt-<hash> tag Tilt leaves on every app image next to :dev, and the old builds it keeps alive
+    register_tilt_image_tags(PlatformDockerConstants.PROJECT_NAME + '_')
 
     # Build golden image before other infrastructure (if enabled)
     golden_image_resource = None

@@ -1,0 +1,21 @@
+{
+	"action-consistency": 0,
+	"ade": 50,
+	"competitor-coverage": 57.2,
+	"env-var-consistency": 0,
+	"doctor-check-docs": 27.8,
+	"error-contract": 96.8,
+	"install-weight": 1129.8,
+	"json-coverage": 100,
+	"json-docs": 100,
+	"legacy-names": 0,
+	"llms-freshness": 100,
+	"mcp-parity": 100,
+	"mcp-tool-tests": 100,
+	"schema-coverage": 100,
+	"schema-surface": 52,
+	"skills-parity": 100,
+	"steps-to-first-healthy": 7,
+	"tool-consistency": 0,
+	"translation-drift": 0
+}

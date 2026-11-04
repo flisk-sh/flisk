@@ -1,27 +1,23 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { createServer } from "node:net";
+import type { HostPortPlan } from "../types/index.js";
 import { FliskError } from "./errors.js";
 import { hasLocalListener } from "./port-listener-probe.js";
-
-export interface HostPortPlan {
-  ingressHttp: number;
-  ingressHttps: number;
-  postgres: number;
-  requested: { ingressHttp: number; ingressHttps: number; postgres: number };
-  explicit: {
-    ingressHttp: boolean;
-    ingressHttps: boolean;
-    postgres: boolean;
-  };
-  reason: { ingressHttp: string; ingressHttps: string; postgres: string };
-}
 
 export interface HostPortPlanOptions {
   env?: NodeJS.ProcessEnv;
   isAvailable?: (port: number) => Promise<boolean>;
   ranges?: Partial<Record<keyof HostPortPlan["explicit"], { start: number; end: number }>>;
+  database?: boolean;
+  /** False when the gateway capability is off: no Traefik, so HTTP and HTTPS are neither planned nor probed. */
+  gateway?: boolean;
+  capabilities?: { database?: boolean; gateway?: boolean; [key: string]: boolean | undefined };
 }
+
+/** The `reason` a plan gives for the HTTP and HTTPS ports when the gateway capability is off. */
+export const GATEWAY_DISABLED_REASON = "gateway capability disabled";
 
 export const DEFAULT_HOST_PORT_RANGES = {
   ingressHttp: { start: 8080, end: 8180 },
@@ -87,7 +83,26 @@ export async function createHostPortPlan(options: HostPortPlanOptions = {}): Pro
   const selected: Partial<HostPortPlan> = { explicit: explicitFlags };
   const reserved = new Set<number>();
 
-  for (const key of ["ingressHttp", "ingressHttps", "postgres"] as const) {
+  const dbEnabled = options.database !== false && options.capabilities?.database !== false;
+  const gatewayEnabled = options.gateway !== false && options.capabilities?.gateway !== false;
+  const keys = [
+    ...(gatewayEnabled ? (["ingressHttp", "ingressHttps"] as const) : []),
+    ...(dbEnabled ? (["postgres"] as const) : []),
+  ];
+
+  if (!dbEnabled) {
+    selected.postgres = 5432;
+    explicitFlags.postgres = false;
+    reasons.postgres = "database capability disabled";
+  }
+  if (!gatewayEnabled) {
+    selected.ingressHttp = REQUESTED_PORTS.ingressHttp;
+    selected.ingressHttps = REQUESTED_PORTS.ingressHttps;
+    reasons.ingressHttp = GATEWAY_DISABLED_REASON;
+    reasons.ingressHttps = GATEWAY_DISABLED_REASON;
+  }
+
+  for (const key of keys) {
     const envValue = env[ENV_KEYS[key]];
     const explicit = envValue !== undefined && envValue.trim() !== "";
     const range = options.ranges?.[key] ?? DEFAULT_HOST_PORT_RANGES[key];
@@ -143,5 +158,28 @@ export async function createHostPortPlan(options: HostPortPlanOptions = {}): Pro
 }
 
 export function formatHostPortPlan(plan: HostPortPlan): string {
-  return `Host ports: HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`;
+  const parts = [
+    ...(plan.reason?.ingressHttp === GATEWAY_DISABLED_REASON
+      ? []
+      : [`HTTP ${plan.ingressHttp}`, `HTTPS ${plan.ingressHttps}`]),
+    ...(plan.reason?.postgres === "database capability disabled"
+      ? []
+      : [`Postgres ${plan.postgres}`]),
+  ];
+  return parts.length > 0 ? `Host ports: ${parts.join(", ")}` : "Host ports: none needed";
+}
+
+/** The plan with HTTP and HTTPS marked as not needed, for a project whose gateway capability is off. */
+export function withoutGatewayPorts(plan: HostPortPlan): HostPortPlan {
+  return {
+    ...plan,
+    ingressHttp: REQUESTED_PORTS.ingressHttp,
+    ingressHttps: REQUESTED_PORTS.ingressHttps,
+    explicit: { ...plan.explicit, ingressHttp: false, ingressHttps: false },
+    reason: {
+      ...plan.reason,
+      ingressHttp: GATEWAY_DISABLED_REASON,
+      ingressHttps: GATEWAY_DISABLED_REASON,
+    },
+  };
 }

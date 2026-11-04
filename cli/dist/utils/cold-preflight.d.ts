@@ -1,4 +1,4 @@
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, ProjectCapabilities } from "../types/index.js";
 export type PreflightItem = {
     id: "node" | "docker" | "compose" | "tilt" | "bun" | "ports" | "nats" | "prisma" | "colima";
     ok: boolean;
@@ -13,6 +13,13 @@ export type PreflightItem = {
  *   executables are checked for the next-step hint, never to block setup.
  */
 export type PreflightScope = "runtime" | "scaffold";
+/**
+ * The scope a preflight actually ran with: a requested `runtime` scope becomes `native` in a project whose services all
+ * declare `command`, where only Node (and Bun, when a service needs it) can block.
+ */
+export type EffectivePreflightScope = PreflightScope | "native";
+/** Checks a project of `command` services needs: no container runtime, no Tilt, no gateway or database ports. */
+export declare const NATIVE_CHECK_IDS: readonly PreflightItem["id"][];
 /** Checks that only the local runtime (starting a stack) needs. */
 export declare const RUNTIME_CHECK_IDS: readonly PreflightItem["id"][];
 /** Checks that writing project configuration needs. */
@@ -22,6 +29,8 @@ export declare const MACHINE_CHECK_IDS: readonly PreflightItem["id"][];
 export type PreflightResult = {
     ok: boolean;
     inProject: boolean;
+    /** `native` when the project's services all run as local processes and the container checks were not run. */
+    scope: EffectivePreflightScope;
     items: PreflightItem[];
     header: string;
     footer: string;
@@ -30,9 +39,14 @@ export type PreflightResult = {
 export declare function nodeTooOld(version: string): boolean;
 /** Requires a Docker engine and Compose version check to complete successfully. */
 export declare function requireVerifiedDockerVersions(result: CheckResult): CheckResult;
+export declare function usesPrisma(projectRoot: string): boolean;
 export declare function runColdPreflight(opts?: {
     cwd?: string;
     scope?: PreflightScope;
+    capabilities?: ProjectCapabilities;
+    database?: boolean;
+    gateway?: boolean;
+    [key: string]: unknown;
 }): Promise<PreflightResult>;
 /** Formats only failed preflight checks and the applicable readiness message. */
 export declare function formatColdPreflight(result: PreflightResult, options?: {
@@ -41,6 +55,7 @@ export declare function formatColdPreflight(result: PreflightResult, options?: {
 /** Exits before machine-dependent command work when any machine check fails. */
 export declare function assertMachineReadyOrExit(opts?: {
     scope?: PreflightScope;
+    hints?: string[];
 }): Promise<void>;
 export type RuntimePrerequisiteStatus = {
     hasDockerCli: boolean;

@@ -50,7 +50,7 @@ flisk config verify
 
 A project with no Tiltfile at all is the default. The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) has none in its root: `flisk up one-backend` runs the generated one.
 
-When you need more, the root `Tiltfile` is yours. `flisk eject --dry-run` reports it as "not generated, not git-ignored", so Flisk will not overwrite it. The [tdk-example landscape](https://github.com/flisk-sh/flisk/tree/main/examples/tdk-example) has a hand-written root `Tiltfile`, and it starts with a line that sets `FLISK_PROJECT_ROOT` before it loads the extension. Its `TILT_SERVICE_DEFAULTS.star` sets the platform defaults, such as the base ports (`BASE_PORT_BACKEND = 4000`) and the health check paths.
+When you need more, the root `Tiltfile` is yours. `flisk eject --dry-run` reports it as "not generated, not git-ignored", so Flisk will not overwrite it. The [flisk-example landscape](https://github.com/flisk-sh/flisk/tree/main/examples/flisk-example) has a hand-written root `Tiltfile`, and it starts with a line that sets `FLISK_PROJECT_ROOT` before it loads the extension. Its `TILT_SERVICE_DEFAULTS.star` sets the platform defaults, such as the base ports (`BASE_PORT_BACKEND = 4000`) and the health check paths.
 
 So the split is:
 

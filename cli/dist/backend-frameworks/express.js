@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 export function getExpressIndexTemplate(name) {
     return `import express from 'express';
 
@@ -31,7 +34,7 @@ app.get('/', (_req, res) => {
   });
 });
 
-const port = Number(process.env.PORT || 3000);
+${portFromEnv()}
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 app.listen(port, '0.0.0.0', () => {

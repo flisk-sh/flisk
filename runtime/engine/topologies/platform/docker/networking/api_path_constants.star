@@ -173,7 +173,7 @@ def _load_project_localhost():
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'flisk-project') + ".localhost"
+        return _project_json.get('project', {}).get('name', 'flisk-project').lower() + ".localhost"
     return "flisk-project.localhost"
 
 _PROJECT_LOCALHOST = _load_project_localhost()

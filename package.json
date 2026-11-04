@@ -1,7 +1,8 @@
 {
   "name": "@flisk-sh/flisk",
-  "version": "1.4.2",
-  "description": "Flisk CLI — start services on your machine.",
+  "version": "1.4.34",
+  "mcpName": "io.github.flisk-sh/flisk",
+  "description": "Flisk: your whole app, running on your computer with one command.",
   "homepage": "https://flisk.sh",
   "repository": {
     "type": "git",
@@ -29,17 +30,15 @@
     "!runtime/**/*.spec.*",
     "!runtime/**/test_*.py",
     "!runtime/**/*_test.py",
-    "examples/tdk-example",
+    "examples/flisk-example",
     "cli/bin",
-    "cli/dist/**/*.js",
     "cli/dist-bundle/**/*.js",
-    "!cli/dist/**/__tests__/**",
-    "!cli/dist/**/*.test.js",
-    "!cli/dist/**/*.spec.js",
+    "cli/dist/types/index.js",
+    "cli/dist/utils/constants.js",
     "cli/templates",
     "cli/package.json",
     "cli/shared-platform-engineering/docker-templates",
-    "CHANGELOG.md"
+    "docs/CHANGELOG.md"
   ],
   "scripts": {
     "build": "cd cli && npm run build",
@@ -81,8 +80,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "commander": "^15.0.0",
-    "handlebars": "^4.7.8"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "chalk": "^6.0.1",

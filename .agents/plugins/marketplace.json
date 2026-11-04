@@ -1,0 +1,20 @@
+{
+  "name": "flisk",
+  "interface": {
+    "displayName": "Flisk"
+  },
+  "plugins": [
+    {
+      "name": "flisk",
+      "source": {
+        "source": "local",
+        "path": "./plugins/flisk"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

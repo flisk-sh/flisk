@@ -21,7 +21,7 @@ import { Command } from "commander";
 import { LEGACY_PACKAGE } from "../utils/cli-command.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { PACKAGE_JSON } from "../utils/constants.js";
-import { getErrorMessage, logVerbose, showErrorAndExit } from "../utils/errors.js";
+import { FliskError, getErrorMessage, logVerbose, showErrorAndExit } from "../utils/errors.js";
 import { showCancelled } from "../utils/formatting.js";
 import { getPackageVersion } from "../utils/paths.js";
 import { binaryAssetName, executableName, isWindows } from "../utils/platform.js";
@@ -173,7 +173,7 @@ export function detectAllInstallations(): InstallInfo[] {
 
 const BINARY_RELEASE_REPO = "flisk-sh/releases";
 
-const ENGINE_ASSET_NAME = "tdk-cli-engine.tar.gz";
+const ENGINE_ASSET_NAME = "flisk-cli-engine.tar.gz";
 const CHECKSUMS_ASSET_NAME = "checksums.txt";
 
 /** @internal Exported for unit tests only; not part of the package API. */
@@ -191,7 +191,10 @@ export function parseChecksums(text: string): Map<string, string> {
   const sums = new Map<string, string>();
   for (const line of text.split("\n")) {
     const match = line.trim().match(/^([0-9a-f]{64})\s+\*?(.+)$/i);
-    if (match) sums.set(match[2].trim(), match[1].toLowerCase());
+    if (match) {
+      const [, hash, name] = match;
+      if (hash && name) sums.set(name.trim(), hash.toLowerCase());
+    }
   }
   return sums;
 }
@@ -210,14 +213,22 @@ function verifyChecksum(
 ): void {
   const expected = sums.get(assetName);
   if (!expected) {
-    if (required) throw new Error(`${CHECKSUMS_ASSET_NAME} has no entry for ${assetName}`);
+    if (required)
+      throw new FliskError(`${CHECKSUMS_ASSET_NAME} has no entry for ${assetName}`, [
+        "Run flisk upgrade again once the release has finished publishing",
+        "Or install with: npm install -g @flisk-sh/flisk",
+      ]);
     logVerbose(`${CHECKSUMS_ASSET_NAME} has no entry for ${assetName}; skipping verification`);
     return;
   }
   const actual = createHash("sha256").update(readFileSync(filePath)).digest("hex");
   if (actual !== expected) {
-    throw new Error(
+    throw new FliskError(
       `${isWindows() ? "checksum mismatch" : "Checksum mismatch"} for ${assetName} (expected ${expected}, got ${actual})`,
+      [
+        "Run flisk upgrade again; an interrupted download fails this check",
+        "Or install with: npm install -g @flisk-sh/flisk",
+      ],
     );
   }
 }
@@ -304,7 +315,11 @@ export async function upgradeViaBinary(
     const binaryResponse = await fetch(release.downloadUrl, {
       signal: AbortSignal.timeout(120_000),
     });
-    if (!binaryResponse.ok) throw new Error(`Download failed (${binaryResponse.status})`);
+    if (!binaryResponse.ok)
+      throw new FliskError(`Download failed (${binaryResponse.status})`, [
+        "Check your network connection and run flisk upgrade again",
+        "Or install with: npm install -g @flisk-sh/flisk",
+      ]);
     writeFileSync(tmpPath, Buffer.from(await binaryResponse.arrayBuffer()));
 
     // The compiled binary has no source checkout to find engine/ or
@@ -317,7 +332,11 @@ export async function upgradeViaBinary(
     const engineResponse = await fetch(release.engineDownloadUrl, {
       signal: AbortSignal.timeout(120_000),
     });
-    if (!engineResponse.ok) throw new Error(`Engine download failed (${engineResponse.status})`);
+    if (!engineResponse.ok)
+      throw new FliskError(`Engine download failed (${engineResponse.status})`, [
+        "Check your network connection and run flisk upgrade again",
+        "Or install with: npm install -g @flisk-sh/flisk",
+      ]);
     const engineBuffer = Buffer.from(await engineResponse.arrayBuffer());
     writeFileSync(engineTmpPath, engineBuffer);
 
@@ -328,7 +347,10 @@ export async function upgradeViaBinary(
       signal: AbortSignal.timeout(30_000),
     });
     if (!checksumResponse.ok)
-      throw new Error(`Checksum download failed (${checksumResponse.status})`);
+      throw new FliskError(`Checksum download failed (${checksumResponse.status})`, [
+        "Check your network connection and run flisk upgrade again",
+        "Or install with: npm install -g @flisk-sh/flisk",
+      ]);
     const sums = parseChecksums(await checksumResponse.text());
     verifyChecksum(tmpPath, release.assetName, sums, true);
     verifyChecksum(engineTmpPath, ENGINE_ASSET_NAME, sums, false);
@@ -397,10 +419,17 @@ export async function getLatestVersion(): Promise<string | null> {
       const response = await fetch("https://registry.npmjs.org/@flisk-sh%2fflisk/latest", {
         signal: AbortSignal.timeout(10_000),
       });
-      if (!response.ok) throw new Error(`npm registry returned ${response.status}`);
+      if (!response.ok)
+        throw new FliskError(`npm registry returned ${response.status}`, [
+          "Check your network connection and npm registry access",
+          "Run: npm view @flisk-sh/flisk version",
+        ]);
       const latest = (await response.json()) as { version?: string };
       result = latest.version ?? "";
-      if (!result) throw new Error("npm registry response did not include a version");
+      if (!result)
+        throw new FliskError("npm registry response did not include a version", [
+          "Run: npm view @flisk-sh/flisk version",
+        ]);
     } else {
       result = execSync("npm view @flisk-sh/flisk version", {
         encoding: "utf-8",
@@ -599,8 +628,9 @@ export async function upgradeViaGit(path: string): Promise<boolean> {
       encoding: "utf-8",
     }).trim();
     if (dirty) {
-      throw new Error(
+      throw new FliskError(
         "The Flisk source checkout has local changes. Commit or stash them, then run `flisk upgrade` again.",
+        ["git stash", "flisk upgrade"],
       );
     }
 
@@ -630,8 +660,9 @@ export async function upgradeViaGit(path: string): Promise<boolean> {
       }
     }
     if (!defaultRef?.startsWith("origin/")) {
-      throw new Error(
+      throw new FliskError(
         "Could not find the default branch for origin (expected origin/HEAD, origin/main, or origin/master).",
+        ["git remote set-head origin --auto", "flisk upgrade"],
       );
     }
     const defaultBranch = defaultRef.slice("origin/".length);
@@ -758,7 +789,7 @@ export function createUpgradeCommand(): Command {
           }
           if (process.platform === "win32") {
             showErrorAndExit(
-              "No Windows AMD64 binary in this Flisk release. Need asset tdk-windows-amd64.exe.",
+              "No Windows AMD64 binary in this Flisk release. Need asset flisk-windows-amd64.exe.",
             );
           }
           showErrorAndExit(
@@ -766,7 +797,7 @@ export function createUpgradeCommand(): Command {
           );
         }
 
-        latestVersion = binaryRelease.tag.replace(/^v/, "").split("-")[0];
+        latestVersion = binaryRelease.tag.replace(/^v/, "").split("-")[0] ?? binaryRelease.tag;
 
         if (latestVersion === currentVersion && !options.force) {
           console.log(chalk.green("\n✅ You are already on the latest version!"));

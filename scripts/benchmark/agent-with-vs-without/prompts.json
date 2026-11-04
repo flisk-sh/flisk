@@ -1,0 +1,15 @@
+{
+	"suffix": "\n\nWhen everything is running, write the full health-check URL of every service you started to HEALTH_URLS.txt in this folder, one URL per line. Leave the app running when you finish.",
+	"prompts": [
+		{
+			"id": "shop",
+			"text": "Build me a small online shop with a storefront and an orders API, and run it on my laptop.",
+			"minServices": 2
+		},
+		{
+			"id": "ai-agent",
+			"text": "Build me an AI agent with an MCP tools server and a database, and run it on my laptop.",
+			"minServices": 3
+		}
+	]
+}

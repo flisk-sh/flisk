@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Windows AMD64 binary release
-The release pipeline SHALL produce `tdk-windows-amd64.exe` from Bun's `bun-windows-x64` target, include it in checksums and the binary ZIP, and preserve all existing Unix asset names and the `tdk-cli-engine.tar.gz` engine archive. CI SHALL confirm the resulting Windows executable is non-empty and has the PE `MZ` signature.
+The release pipeline SHALL produce `flisk-windows-amd64.exe` from Bun's `bun-windows-x64` target, include it in checksums and the binary ZIP, and preserve all existing Unix asset names and the `flisk-cli-engine.tar.gz` engine archive. CI SHALL confirm the resulting Windows executable is non-empty and has the PE `MZ` signature.
 
 #### Scenario: Release asset is built and packaged
 - **WHEN** the binary release script completes

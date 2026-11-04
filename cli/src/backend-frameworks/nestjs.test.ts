@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { portFromEnv } from "../utils/generated-port.js";
 import { getNestIndexTemplate, nestBackendProvider } from "./nestjs.js";
 
 describe("nestBackendProvider", () => {
@@ -55,7 +56,7 @@ describe("getNestIndexTemplate", () => {
   });
 
   it("binds to port and 0.0.0.0", () => {
-    expect(template).toContain("const port = Number(process.env.PORT || 3000);");
+    expect(template).toContain(portFromEnv("port", "  "));
     expect(template).toContain("await app.listen(port, '0.0.0.0');");
     expect(template).toContain(
       "console.log('\\n🚀 payment-svc running on http://localhost:' + port);",

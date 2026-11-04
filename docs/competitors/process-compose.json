@@ -1,0 +1,586 @@
+{
+	"competitor": "process-compose",
+	"rows": [
+		{
+			"id": "depends-on-conditions",
+			"name": "Startup conditions between processes",
+			"area": "orchestration",
+			"offer": "A process can wait for another to start, finish, finish cleanly, turn healthy or print a ready log line.",
+			"source": "https://f1bonacc1.github.io/process-compose/launcher/",
+			"checked": "2026-10-27",
+			"match": [
+				"process_healthy",
+				"process_completed_successfully",
+				"depends_on"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk waits for a dependency to be ready (health URL, port or running) but has no wait-for-completion condition for native one-shot jobs.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "Ready means the health URL answers"
+						}
+					},
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "\"dependsOn\": [\"api\"]"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "log-line-readiness",
+			"name": "Wait for a ready log line",
+			"area": "orchestration",
+			"offer": "A dependency counts as ready once a chosen regex matches a line in its output, useful for services with no health endpoint.",
+			"source": "https://f1bonacc1.github.io/process-compose/launcher/",
+			"checked": "2026-10-27",
+			"match": [
+				"process_log_ready",
+				"ready_log_line"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Workers and databases without an HTTP endpoint are common in agent stacks, and Flisk's native readiness only has URL, port or alive-after-a-second.",
+				"evidence": []
+			},
+			"acceptance": "A readyLogLine field in service.json documented in docs/service-json.md and docs/run-without-docker.md, exercised by a native-runtime test under cli/src and checked by flisk up --dry-run.",
+			"ice": {
+				"impact": 5,
+				"confidence": 6,
+				"ease": 5,
+				"basis": "Impact 5: helps non-HTTP workers; confidence 6: one clear doc page; ease 5: the native readiness wait exists but log tailing must be added to it."
+			}
+		},
+		{
+			"id": "health-probes",
+			"name": "Exec and HTTP health probes",
+			"area": "runtime",
+			"offer": "Liveness and readiness probes run a command or an HTTP request on a period, with delay, timeout and failure threshold.",
+			"source": "https://f1bonacc1.github.io/process-compose/health/",
+			"checked": "2026-10-27",
+			"match": [
+				"liveness",
+				"readiness",
+				"http_get",
+				"failure_threshold"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk checks an HTTP path (and port) before dependents start, but has no command probe, tunable period or failure threshold.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "answers below 400"
+						}
+					},
+					{
+						"command": "flisk doctor"
+					}
+				]
+			}
+		},
+		{
+			"id": "restart-policies",
+			"name": "Restart policies with backoff",
+			"area": "runtime",
+			"offer": "Each process has a restart policy (never, on failure, always) with a backoff delay and a restart cap.",
+			"source": "https://f1bonacc1.github.io/process-compose/launcher/",
+			"checked": "2026-10-27",
+			"match": [
+				"availability",
+				"backoff_seconds",
+				"max_restarts",
+				"on_failure"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk restarts native processes with doubling backoff and gives up after quick repeated exits, but the only setting is restart: no.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "After five quick exits in a row Flisk stops restarting it"
+						}
+					},
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "`\"no\"` turns off the restart on exit"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "replicas",
+			"name": "Replicas of one process",
+			"area": "orchestration",
+			"offer": "A process can run several instances, each told its replica number, and be scaled while running.",
+			"source": "https://f1bonacc1.github.io/process-compose/launcher/",
+			"checked": "2026-10-27",
+			"match": [
+				"replicas",
+				"pc_replica_num",
+				"process scale"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk runs 1 to 10 container replicas behind Traefik, but native processes have no replicas and no live scale command.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "Number of containers to run"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "namespaces",
+			"name": "Namespaces to start groups",
+			"area": "orchestration",
+			"offer": "Processes are grouped into namespaces that can be started, stopped or restarted together.",
+			"source": "https://f1bonacc1.github.io/process-compose/configuration/",
+			"checked": "2026-10-27",
+			"match": [
+				"namespace",
+				"-n"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "start a group with `flisk up <stack>`"
+						}
+					},
+					{
+						"command": "flisk stacks"
+					}
+				]
+			}
+		},
+		{
+			"id": "shutdown-control",
+			"name": "Ordered and custom shutdown",
+			"area": "runtime",
+			"offer": "Shutdown can run a custom command or signal per process and stop processes in reverse dependency order.",
+			"source": "https://f1bonacc1.github.io/process-compose/configuration/",
+			"checked": "2026-10-27",
+			"match": [
+				"shutdown",
+				"ordered_shutdown",
+				"signal"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "flisk down stops dependents first and frees the ports, but a service cannot set its own stop command or signal.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "Stops every service, dependents first, and frees the ports."
+						}
+					},
+					{
+						"command": "flisk down"
+					}
+				]
+			}
+		},
+		{
+			"id": "env-files-templating",
+			"name": "Env files, expansion and templating",
+			"area": "environments",
+			"offer": "Environment values expand from .env files, env_file entries, command output and Go templates.",
+			"source": "https://f1bonacc1.github.io/process-compose/configuration/",
+			"checked": "2026-10-27",
+			"match": [
+				"env_file",
+				"environment",
+				"envsubst",
+				"vars"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk expands ${VAR} and ${VAR:-default} from the project .env or shell and accepts --env-file, but has no per-service env file, command-output vars or templates.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "Values may use `${VAR}` or `${VAR:-default}`"
+						}
+					},
+					{
+						"text": {
+							"file": "docs/environment.md",
+							"contains": "`flisk up --env-file`"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "config-override-extends",
+			"name": "Override files and extends",
+			"area": "environments",
+			"offer": "Several config files merge in order, with an automatic override file and extends at file and process level.",
+			"source": "https://f1bonacc1.github.io/process-compose/merge/",
+			"checked": "2026-10-27",
+			"match": [
+				"extends",
+				"process-compose.override.yml",
+				"-f"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Teams with dev and CI variants of one stack need small per-environment changes, and today Flisk has one service.json per service with no layering.",
+				"evidence": []
+			},
+			"acceptance": "A documented service.override.json or environment layer in docs/service-json.md, shown by flisk config explain and covered by a discovery test under runtime/discovery.",
+			"ice": {
+				"impact": 4,
+				"confidence": 5,
+				"ease": 3,
+				"basis": "Impact 4: useful but compose-style overrides are not the launch audience's first ask; confidence 5: Flisk's own discovery model differs; ease 3: touches the Starlark discovery registry and schema."
+			}
+		},
+		{
+			"id": "strict-validation",
+			"name": "Strict config validation",
+			"area": "workflow",
+			"offer": "A strict mode rejects unknown keys and typos at startup, and a dry run validates the file.",
+			"source": "https://f1bonacc1.github.io/process-compose/configuration/",
+			"checked": "2026-10-27",
+			"match": [
+				"is_strict",
+				"dry-run"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "Shows the services, their commands and the start order."
+						}
+					},
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "must be a path such as /health"
+						}
+					},
+					{
+						"command": "flisk config"
+					}
+				]
+			}
+		},
+		{
+			"id": "terminal-ui",
+			"name": "Interactive terminal UI",
+			"area": "terminal",
+			"offer": "A terminal screen lists processes with state, live logs, start/stop/restart keys, scaling and a command palette.",
+			"source": "https://f1bonacc1.github.io/process-compose/tui/",
+			"checked": "2026-10-27",
+			"match": [
+				"tui",
+				"command palette",
+				"ctrl-r"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "The maintainers' own comparison says local processes have no terminal UI yet, and it would show state and logs without flipping between commands.",
+				"evidence": []
+			},
+			"acceptance": "A flisk ui screen for native runs, proven by cli/src/commands/ui.tsx handling a native project and a component test under cli/src/commands/__tests__.",
+			"ice": {
+				"impact": 6,
+				"confidence": 7,
+				"ease": 3,
+				"basis": "Impact 6: the most visible gap against process-compose users; confidence 7: Flisk's own docs admit it; ease 3: cli/src/commands/ui.tsx exists but is built around the Docker and Tilt status."
+			}
+		},
+		{
+			"id": "tui-themes-shortcuts",
+			"name": "TUI themes and shortcuts",
+			"area": "terminal",
+			"offer": "The terminal UI has selectable themes and remappable key bindings stored in user config files.",
+			"source": "https://f1bonacc1.github.io/process-compose/tui/",
+			"checked": "2026-10-27",
+			"match": [
+				"theme.yaml",
+				"shortcuts.yaml",
+				"ctrl-t"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Cosmetic customization of a UI Flisk does not yet have; revisit only after a native terminal UI exists.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "interactive-processes",
+			"name": "Interactive processes with a PTY",
+			"area": "terminal",
+			"offer": "A process can get a pseudo-terminal so you can type into REPLs and debuggers from the TUI, or send keys remotely.",
+			"source": "https://f1bonacc1.github.io/process-compose/interactive-processes/",
+			"checked": "2026-10-27",
+			"match": [
+				"is_interactive",
+				"send-keys",
+				"pty"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk services run as non-interactive, logged processes for agents and CI; REPLs and debuggers belong in the user's own terminal.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "file-watching",
+			"name": "Watch files and restart",
+			"area": "workflow",
+			"offer": "A process restarts when watched files change, with include/exclude globs, debounce and optional restart of dependents.",
+			"source": "https://f1bonacc1.github.io/process-compose/watch/",
+			"checked": "2026-10-27",
+			"match": [
+				"watch",
+				"debounce",
+				"cascade",
+				"exclude"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Container services get file sync and live reload through Tilt, but native command services are not restarted when files change.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/ARCHITECTURE.md",
+							"contains": "default sync directories"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "scheduled-processes",
+			"name": "Cron and interval jobs",
+			"area": "workflow",
+			"offer": "A process can run on a cron expression or fixed interval with overlap control.",
+			"source": "https://f1bonacc1.github.io/process-compose/scheduled-processes/",
+			"checked": "2026-10-27",
+			"match": [
+				"schedule",
+				"cron",
+				"run_on_start",
+				"max_concurrent"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is a dev inner loop for services and agents; recurring jobs belong in the app's own scheduler or in production tooling.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "rest-api",
+			"name": "REST API with OpenAPI",
+			"area": "integrations",
+			"offer": "A running instance serves a REST and WebSocket API to list, start, stop, restart and monitor processes.",
+			"source": "https://f1bonacc1.github.io/process-compose/client/",
+			"checked": "2026-10-27",
+			"match": [
+				"rest api",
+				"openapi",
+				"process list",
+				"websocket"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk exposes its state through the CLI with --json and the MCP server rather than a long-running HTTP daemon.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "api-auth-socket",
+			"name": "API token and unix socket",
+			"area": "security",
+			"offer": "The control API can require a token header or listen only on a local unix socket.",
+			"source": "https://f1bonacc1.github.io/process-compose/client/",
+			"checked": "2026-10-27",
+			"match": [
+				"pc_api_token",
+				"x-pc-token-key",
+				"unix-socket"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "There is no Flisk HTTP control server to protect; the MCP server runs over local stdio.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "mcp-server",
+			"name": "MCP server for AI assistants",
+			"area": "agents",
+			"offer": "An MCP server over stdio or SSE lets assistants start, stop, restart and inspect processes and read logs.",
+			"source": "https://f1bonacc1.github.io/process-compose/mcp-server/",
+			"checked": "2026-10-27",
+			"match": [
+				"mcp_server",
+				"transport: stdio",
+				"expose_control_tools"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "AGENTS.md",
+							"contains": "`flisk mcp` over stdio"
+						}
+					},
+					{
+						"mcpTool": "resource_restart"
+					},
+					{
+						"mcpTool": "status"
+					},
+					{
+						"mcpTool": "logs"
+					},
+					{
+						"command": "flisk mcp"
+					}
+				]
+			}
+		},
+		{
+			"id": "mcp-user-tools",
+			"name": "Commands exposed as MCP tools",
+			"area": "agents",
+			"offer": "A process with an mcp block becomes an MCP tool with typed arguments or a resource, run on demand.",
+			"source": "https://f1bonacc1.github.io/process-compose/mcp-server/",
+			"checked": "2026-10-27",
+			"match": [
+				"mcp.type: tool",
+				"process://",
+				"@{arg}"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk's agent surface is its own fixed tool set plus an mcp resource type for running real MCP servers; wrapping arbitrary shell commands as tools is a different product.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "mcp-log-search",
+			"name": "Search logs from the agent",
+			"area": "observability",
+			"offer": "The assistant can fetch, truncate or search a process's logs, with relevance ranking.",
+			"source": "https://f1bonacc1.github.io/process-compose/mcp-server/",
+			"checked": "2026-10-27",
+			"match": [
+				"pc_",
+				"bm25",
+				"search logs"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Agents debugging a failing service read bounded snapshots today and must scan the lines themselves.",
+				"evidence": []
+			},
+			"acceptance": "A search or grep input on the logs MCP tool in cli/src/mcp/tools.ts and a matching flisk logs --grep flag, covered by a test in cli/src/mcp/__tests__.",
+			"ice": {
+				"impact": 5,
+				"confidence": 6,
+				"ease": 6,
+				"basis": "Impact 5: agents lose time on long logs; confidence 6: the tool is documented but ranking is optional; ease 6: buildLogsArgs and the logs command already take filters."
+			}
+		},
+		{
+			"id": "dependency-graph",
+			"name": "Dependency graph view",
+			"area": "observability",
+			"offer": "The dependency tree can be printed as ASCII, Mermaid, JSON or YAML, and shown in the TUI and API.",
+			"source": "https://f1bonacc1.github.io/process-compose/graph/",
+			"checked": "2026-10-27",
+			"match": [
+				"graph",
+				"mermaid",
+				"dependency graph"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Flisk already builds the dependsOn graph in discovery, and showing it would help people and agents understand start order.",
+				"evidence": []
+			},
+			"acceptance": "A flisk graph command (cli/src/commands/graph.ts) and an MCP tool, with a Mermaid output test under cli/src/commands/__tests__.",
+			"ice": {
+				"impact": 5,
+				"confidence": 7,
+				"ease": 6,
+				"basis": "Impact 5: nice for onboarding and debugging order; confidence 7: the page is clear; ease 6: the DAG exists in runtime/discovery and the native start order is already computed."
+			}
+		},
+		{
+			"id": "log-files-rotation",
+			"name": "Per-process logs and rotation",
+			"area": "observability",
+			"offer": "Logs go to per-process or one unified file, with size, age and gzip rotation and formatting options.",
+			"source": "https://f1bonacc1.github.io/process-compose/logging/",
+			"checked": "2026-10-27",
+			"match": [
+				"log_location",
+				"log_configuration",
+				"rotation"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk writes timestamped per-service log files and merges them in flisk logs with --tail and --since, but has no rotation or format settings.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/run-without-docker.md",
+							"contains": "which is what `flisk logs` reads"
+						}
+					},
+					{
+						"command": "flisk logs"
+					}
+				]
+			}
+		}
+	]
+}

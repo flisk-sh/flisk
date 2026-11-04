@@ -12,11 +12,11 @@ The extension SHALL detect whether the active VS Code workspace contains a Flisk
 - **THEN** the extension shows a non-blocking empty state and keeps orchestration actions disabled
 
 ### Requirement: Extension is delivered as a new package
-The extension SHALL be implemented as a new VS Code extension package at `/private/var/www/2025/ollamar1/tdk-vscode-extension`.
+The extension SHALL be implemented as a new VS Code extension package at `/private/var/www/2025/ollamar1/flisk-vscode-extension`.
 
 #### Scenario: One-shot implementation starts
 - **WHEN** implementation begins
-- **THEN** the extension package is scaffolded outside `flisk` at `/private/var/www/2025/ollamar1/tdk-vscode-extension`
+- **THEN** the extension package is scaffolded outside `flisk` at `/private/var/www/2025/ollamar1/flisk-vscode-extension`
 
 #### Scenario: Extension package is verified
 - **WHEN** the MVP is complete

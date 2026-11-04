@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { Tab } from "../types/index.js";
+import { FliskError } from "./errors.js";
 
 export type UiKeymapGroup = "Navigation" | "Actions";
 
@@ -136,7 +137,9 @@ export type UiKeymapId = (typeof UI_KEYMAP)[number]["id"];
 function getUiKeymapEntry(id: UiKeymapId): UiKeymapEntry {
   const entry = UI_KEYMAP.find((shortcut) => shortcut.id === id);
   if (!entry) {
-    throw new Error(`Unknown Flisk UI shortcut: ${id}`);
+    throw new FliskError(`Unknown Flisk UI shortcut: ${id}`, [
+      "See the shortcuts with ? in flisk ui",
+    ]);
   }
   return entry;
 }

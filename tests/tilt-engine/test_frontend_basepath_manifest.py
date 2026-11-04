@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE_ROOT = ROOT.parent / "tdk-restaurant-example"
+EXAMPLE_ROOT = ROOT.parent / "flisk-restaurant-example"
 
 
 def test_frontend_service_manifests_define_explicit_base_paths():

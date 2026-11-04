@@ -1,0 +1,9 @@
+{
+  "name": "tool-loop-agent",
+  "private": true,
+  "type": "module",
+  "description": "The tool-loop agent. The setup job runs `npm install` here before the agent starts.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0"
+  }
+}

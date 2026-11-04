@@ -6,7 +6,7 @@
 # 🏗️ TILT TECH STACK MASTER CONFIG
 # =============================================================================
 # 
-# Defines the approved technology choices for the Flisk Landscape platform.
+# Defines the approved technology choices for the Flisk platform.
 # This is the single source of truth for tech stack validation.
 #
 # See: docs/TILT_MASTER_CONFIGS.md

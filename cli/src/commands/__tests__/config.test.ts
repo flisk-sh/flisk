@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTempProject, parseEnvelope, runCommandInProcess } from "../../test-support/index.js";
+import { findProjectRoot } from "../../utils/paths.js";
 import { configCommand } from "../config.js";
 
 beforeEach(() => {
@@ -26,6 +27,11 @@ vi.mock("node:child_process", async (importOriginal) => ({
   spawnSync: vi.fn(() => ({ status: 0 })),
 }));
 
+vi.mock("../../utils/paths.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/paths.js")>();
+  return { ...actual, findProjectRoot: vi.fn(actual.findProjectRoot) };
+});
+
 describe("config command", () => {
   describe("project config structure", () => {
     it("should have required project.json fields", () => {
@@ -36,10 +42,22 @@ describe("config command", () => {
           version: "1.0.0",
         },
         phases: {
-          pre_alpha: { name: "pre-alpha", description: "Pre-alpha phase", enabledStacks: [] },
-          alpha: { name: "alpha", description: "Alpha phase", enabledStacks: [] },
+          pre_alpha: {
+            name: "pre-alpha",
+            description: "Pre-alpha phase",
+            enabledStacks: [],
+          },
+          alpha: {
+            name: "alpha",
+            description: "Alpha phase",
+            enabledStacks: [],
+          },
           beta: { name: "beta", description: "Beta phase", enabledStacks: [] },
-          out_of_scope: { name: "out-of-scope", description: "Future phase", enabledStacks: [] },
+          out_of_scope: {
+            name: "out-of-scope",
+            description: "Future phase",
+            enabledStacks: [],
+          },
         },
         optional_infra: {
           monitoring: false,
@@ -206,7 +224,10 @@ describe("config regenerate --dry-run", () => {
 
     expect(result.status).toBeUndefined();
     expect(result.stdout).toContain("Dry run - comparing current files");
-    expect(result.stdout.match(/Status: NEW/g)).toHaveLength(3);
+    // Now grouped by category; should show NEW for each group's files (actual master config files)
+    expect(result.stdout).toContain("📁 TILT_TECH_STACK.star");
+    expect(result.stdout).toContain("📁 TILT_RESOURCE_DEFAULTS.star");
+    expect(result.stdout).toContain("📁 spec.master");
     expect(result.stdout).toContain("Run without --dry-run to apply these changes.");
     expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out"))).toBe(false);
   });
@@ -224,12 +245,13 @@ describe("config regenerate --dry-run", () => {
     const result = await runCommandInProcess(configCommand, ["regenerate", "--dry-run"], root);
 
     expect(result.status).toBeUndefined();
-    expect(result.stdout).toContain("Status: MODIFIED");
-    // The stale spec.master has fewer lines than the generated file, so the count goes up.
-    expect(result.stdout).toMatch(/Lines: 2 → \d+ \(\+\d+\)/);
-    // The stale tech stack has more lines, so the count goes down.
-    expect(result.stdout).toMatch(/Lines: 300 → \d+ \(-\d+\)/);
-    expect(result.stdout).toContain("First change around line 1:");
+    // New grouped output shows modifications for actual master config files
+    expect(result.stdout).toContain("📝 TILT_TECH_STACK.star");
+    expect(result.stdout).toContain("📝 spec.master");
+    // Line count changes
+    expect(result.stdout).toMatch(/Lines: \+\d+/);
+    expect(result.stdout).toMatch(/Lines: -\d+/);
+    // The diff output shows context around changes
     expect(result.stdout).toContain(`- ${"x".repeat(60)}...`);
     expect(result.stdout).toContain("Run without --dry-run to apply these changes.");
     // Dry run never touches the stale files.
@@ -245,7 +267,9 @@ describe("config regenerate --dry-run", () => {
     const result = await runCommandInProcess(configCommand, ["regenerate", "--dry-run"], root);
 
     expect(result.status).toBeUndefined();
-    expect(result.stdout.match(/Status: No changes/g)).toHaveLength(3);
+    // New grouped output shows "all up to date" for each group
+    expect(result.stdout).toContain("✅ 📋 Core orchestration — all up to date");
+    expect(result.stdout).toContain("✅ 📦 Project spec — all up to date");
     expect(result.stdout).toContain("All files are already up to date!");
   });
 
@@ -269,6 +293,7 @@ describe("config regenerate", () => {
     expect(result.status).toBeUndefined();
     expect(result.stdout).toContain("Regenerating master configuration files");
     expect(result.stdout).toContain("Configuration regenerated!");
+    expect(result.stdout).toContain("restart it (`flisk down && flisk up`)");
     expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out", "spec.master"))).toBe(true);
   });
 
@@ -323,7 +348,12 @@ describe("config verify", () => {
     const root = createTempProject({
       projectJson: projectJson(),
       resources: {
-        "shop/api": { appType: "api", stack: "core", schemaVersion: 1, dependsOn: ["ghost"] },
+        "shop/api": {
+          appType: "api",
+          stack: "core",
+          schemaVersion: 1,
+          dependsOn: ["ghost"],
+        },
       },
     });
     await runCommandInProcess(configCommand, ["regenerate"], root);
@@ -361,7 +391,12 @@ describe("config verify", () => {
     expect(result.status).toBe(1);
     expect(parseEnvelope(result.stdout)).toMatchObject({
       data: null,
-      errors: [{ code: "COMMAND_FAILED", message: expect.stringContaining("project root") }],
+      errors: [
+        {
+          code: "COMMAND_FAILED",
+          message: expect.stringContaining("project root"),
+        },
+      ],
     });
   });
 });
@@ -382,13 +417,19 @@ describe("config migrate", () => {
       string,
       unknown
     >;
-    expect(migrated).toMatchObject({ appType: "api", schemaVersion: 1, extra: true });
+    expect(migrated).toMatchObject({
+      appType: "api",
+      schemaVersion: 1,
+      extra: true,
+    });
   });
 
   it("leaves a service already at the current schemaVersion alone and counts zero", async () => {
     const root = createTempProject({
       projectJson: projectJson(),
-      resources: { "shop/api": { appType: "api", stack: "core", schemaVersion: 1 } },
+      resources: {
+        "shop/api": { appType: "api", stack: "core", schemaVersion: 1 },
+      },
     });
     const before = fs.readFileSync(serviceFile(root, "shop/api"));
 
@@ -402,7 +443,9 @@ describe("config migrate", () => {
   it("refuses an unsupported schemaVersion and writes nothing", async () => {
     const root = createTempProject({
       projectJson: projectJson(),
-      resources: { "shop/api": { appType: "api", stack: "core", schemaVersion: 99 } },
+      resources: {
+        "shop/api": { appType: "api", stack: "core", schemaVersion: 99 },
+      },
     });
     const before = fs.readFileSync(serviceFile(root, "shop/api"));
 
@@ -473,7 +516,9 @@ describe("config enable-infra and disable-infra", () => {
     const result = await runCommandInProcess(configCommand, ["enable-infra", "kafka"], root);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Invalid service. Must be one of: monitoring");
+    expect(result.stderr).toContain(
+      "Invalid service. Must be one of: monitoring, elk, debezium, golden_image, verdaccio",
+    );
     expect(fs.readFileSync(path.join(root, ".flisk", "project.json"))).toEqual(before);
   });
 
@@ -511,6 +556,206 @@ describe("config enable-infra and disable-infra", () => {
   });
 });
 
+describe("config version gate", () => {
+  const pinnedFliskVersion = "999.999.999";
+
+  const commands = [
+    { name: "regenerate", args: ["regenerate"], status: undefined },
+    { name: "migrate", args: ["migrate"], status: undefined },
+    { name: "verify", args: ["verify"], status: 1 },
+    { name: "enable-infra", args: ["enable-infra", "monitoring"], status: undefined },
+    { name: "disable-infra", args: ["disable-infra", "monitoring"], status: undefined },
+  ];
+
+  it.each(commands)(
+    "rejects $name when the CLI does not match pinnedFliskVersion",
+    async ({ args }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson(),
+          pinnedFliskVersion,
+        },
+        resources: {
+          "shop/api": {
+            type: "api",
+            stack: "core",
+          },
+        },
+      });
+
+      const result = await runCommandInProcess(configCommand, args, root);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`does not match pinnedFliskVersion ${pinnedFliskVersion}`);
+      expect(result.stderr).toContain(`npm install -g @flisk-sh/flisk@${pinnedFliskVersion}`);
+    },
+  );
+
+  it.each(commands)("allows $name to continue with --ignore-version", async ({ args, status }) => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const root = createTempProject({
+      projectJson: {
+        ...projectJson(),
+        pinnedFliskVersion,
+      },
+    });
+
+    const result = await runCommandInProcess(configCommand, [...args, "--ignore-version"], root);
+    expect(result.status).toBe(status);
+
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("--ignore-version set"));
+
+    expect(result.stderr).not.toContain(`does not match pinnedFliskVersion ${pinnedFliskVersion}`);
+
+    expect(result.stdout.trim()).not.toBe("");
+  });
+
+  it("does not generate files when regenerate is blocked by the version gate", async () => {
+    const root = createTempProject({
+      projectJson: {
+        ...projectJson(),
+        pinnedFliskVersion,
+      },
+    });
+
+    const result = await runCommandInProcess(configCommand, ["regenerate"], root);
+
+    expect(result.status).toBe(1);
+    expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out", "spec.master"))).toBe(false);
+  });
+
+  it("does not migrate service.json when migrate is blocked by the version gate", async () => {
+    const root = createTempProject({
+      projectJson: {
+        ...projectJson(),
+        pinnedFliskVersion,
+      },
+      resources: {
+        "shop/api": {
+          type: "api",
+          stack: "core",
+        },
+      },
+    });
+
+    const file = serviceFile(root, "shop/api");
+    const before = fs.readFileSync(file);
+
+    const result = await runCommandInProcess(configCommand, ["migrate"], root);
+
+    expect(result.status).toBe(1);
+    expect(fs.readFileSync(file)).toEqual(before);
+  });
+
+  it.each([
+    {
+      name: "enable-infra",
+      args: ["enable-infra", "monitoring"],
+      optionalInfra: { monitoring: false },
+    },
+    {
+      name: "disable-infra",
+      args: ["disable-infra", "monitoring"],
+      optionalInfra: { monitoring: true },
+    },
+  ])(
+    "does not modify project.json when $name is blocked by the version gate",
+    async ({ args, optionalInfra }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson("config-version-gate", optionalInfra),
+          pinnedFliskVersion,
+        },
+      });
+
+      const file = path.join(root, ".flisk", "project.json");
+      const before = fs.readFileSync(file);
+
+      const result = await runCommandInProcess(configCommand, args, root);
+
+      expect(result.status).toBe(1);
+      expect(fs.readFileSync(file)).toEqual(before);
+    },
+  );
+
+  it.each([
+    { name: "regenerate", args: ["regenerate", "--json"] },
+    { name: "migrate", args: ["migrate", "--json"] },
+    { name: "verify", args: ["verify", "--json"] },
+    {
+      name: "enable-infra",
+      args: ["enable-infra", "monitoring", "--json"],
+    },
+    {
+      name: "disable-infra",
+      args: ["disable-infra", "monitoring", "--json"],
+    },
+  ])(
+    "emits a valid JSON error envelope when $name is blocked by the version gate",
+    async ({ args }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson(),
+          pinnedFliskVersion,
+        },
+      });
+
+      const result = await runCommandInProcess(configCommand, args, root);
+
+      expect(result.status).toBe(1);
+
+      expect(parseEnvelope(result.stdout)).toMatchObject({
+        schemaVersion: 1,
+        data: null,
+        errors: [
+          {
+            message: expect.stringContaining(
+              `does not match pinnedFliskVersion ${pinnedFliskVersion}`,
+            ),
+          },
+        ],
+      });
+    },
+  );
+
+  it.each([
+    {
+      name: "enable-infra",
+      args: ["enable-infra", "monitoring"],
+      optionalInfra: { monitoring: false },
+      expectedEnabled: true,
+    },
+    {
+      name: "disable-infra",
+      args: ["disable-infra", "monitoring"],
+      optionalInfra: { monitoring: true },
+      expectedEnabled: false,
+    },
+  ])(
+    "preserves version requirements when $name updates project.json",
+    async ({ args, optionalInfra, expectedEnabled }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson("config-version-preservation", optionalInfra),
+          minFliskVersion: "1.3.70",
+          pinnedFliskVersion: "1.3.80",
+        },
+      });
+
+      const result = await runCommandInProcess(configCommand, [...args, "--ignore-version"], root);
+
+      expect(result.status).toBeUndefined();
+
+      const saved = JSON.parse(fs.readFileSync(path.join(root, ".flisk", "project.json"), "utf-8"));
+
+      expect(saved.minFliskVersion).toBe("1.3.70");
+      expect(saved.pinnedFliskVersion).toBe("1.3.80");
+      expect(saved.optional_infra.monitoring).toBe(expectedEnabled);
+    },
+  );
+});
+
 describe("config edit", () => {
   it("opens project.json in a known editor with its own arguments", async () => {
     vi.stubEnv("EDITOR", "code --wait");
@@ -540,6 +785,17 @@ describe("config edit", () => {
       stdio: "inherit",
     });
     expect(spawnSync).not.toHaveBeenCalledWith("frobnicate", expect.anything(), expect.anything());
+  });
+
+  it("exits 1 when project.json is missing without launching an editor", async () => {
+    const root = createTempProject({ projectJson: null });
+    vi.mocked(findProjectRoot).mockReturnValueOnce(root);
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(".flisk/project.json not found");
+    expect(spawnSync).not.toHaveBeenCalled();
   });
 
   it("exits 1 outside a project without launching an editor", async () => {

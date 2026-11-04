@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 export function getFastifyIndexTemplate(name) {
     return `import Fastify from 'fastify';
 
@@ -25,7 +28,7 @@ app.get('/', async () => ({
   endpoints: ['/health', '/health/live', '/health/ready']
 }));
 
-const port = Number(process.env.PORT || 3000);
+${portFromEnv()}
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 await app.listen({ port, host: '0.0.0.0' });

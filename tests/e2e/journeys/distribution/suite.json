@@ -1,0 +1,26 @@
+{
+  "group": "journeys",
+  "suite": "distribution",
+  "description": "Getting an app to its users, with the packed CLI of the checkout: the starter list (launch, portal, fullstack pinned by ref), an mcp resource checked with flisk mcp check on a live stack, the distribute board, status and listing kit, and the render and wrangler exports as dry runs that write nothing.",
+  "paths": [
+    "cli/src/commands/export.ts",
+    "cli/src/commands/distribute.ts",
+    "cli/src/commands/mcp.ts",
+    "cli/src/commands/mcp-check.ts",
+    "cli/src/commands/project.ts",
+    "cli/src/utils/distribution.ts",
+    "cli/src/utils/mcp-check.ts",
+    "cli/src/utils/project-templates.ts",
+    "cli/src/backend-frameworks/mcp.ts",
+    "cli/src/mcp/tools.ts",
+    "tests/e2e/journeys/distribution/**",
+    ".github/workflows/e2e-journeys.yml"
+  ],
+  "cases": ["DS1", "DS2", "DS3", "DS4", "DS5", "DS6"],
+  "triggers": ["pr", "nightly", "manual"],
+  "timeoutMinutes": 30,
+  "needsSecrets": [],
+  "checkName": "🧭 Distribution commands",
+  "install": true,
+  "freePostgres": true
+}

@@ -1,14 +1,16 @@
-# 🚀 Flisk CLI — start services on your machine
+# 🚀 Flisk: your whole app, running on your computer with one command
 
-Flisk CLI — start services on your machine. It is not a deploy and not a Compose file. Define services in `service.json`, then run `flisk up`. No Kubernetes is needed on the machine. If your existing Helm, Compose, or Tilt workflow already works locally, keep using it.
+Flisk runs your whole app on your computer with one command. It is not a deploy and not a Compose file. Define services in `service.json`, then run `flisk up`. No Kubernetes is needed on the machine. If your existing Helm, Compose, or Tilt workflow already works locally, keep using it.
 
 > Command reference for the `flisk` CLI. See the **[main README](../README.md)** for onboarding and the **[Helm handoff guide](../docs/with-helm.md)** for the local-development/production boundary.
 
 New to contributing? Start with the [step-by-step contributor guide](../docs/contributing/README.md). To add a Vite frontend framework, see the [frontend provider guide](../docs/frontend-framework-providers.md).
 
+**Try it with no Docker:** `npx @flisk-sh/flisk demo` needs only Node.js 22.12+. Without Docker or Tilt (or on native Windows) it starts a small menu app as two local processes in about a second and opens it; with Docker and Tilt it starts the full restaurant demo. `flisk up --dry-run` previews any project without Docker or Tilt.
+
 ## Cheat sheet
 
-Run in a project with Bun, Docker, and Tilt. On Windows, run the CLI in WSL2.
+Run in a project with Bun, Docker, and Tilt, or, when every service's `service.json` declares a `command`, with only your app's runtime: `flisk up` then runs the services as local processes ([guide](../docs/run-without-docker.md)). On Windows, run the CLI in WSL2.
 
 `flisk project` writes the project configuration and clones starter templates without a running Docker daemon or an installed Tilt; the runtime is only needed by `flisk up`.
 
@@ -86,7 +88,12 @@ flisk down --force               # ⚙️ Accepted for script compatibility; has
 flisk down --dry-run             # 🔍 Show the command without stopping resources
 flisk down --verbose             # 📝 Verbose output (-v)
 flisk down --prune-networks      # 🧹 Also remove unattached Docker networks for this project
+flisk down --prune-cache         # 🧹 Prune old Docker build cache (default: older than 24h)
+flisk down --prune-cache --cache-until 7d # 🧹 Keep cache newer than 7 days
+flisk down --project ~/code/shop # 📁 Stop the project in that folder, from anywhere
 ```
+
+Outside a project folder, `flisk down` stops the one Flisk project that is running; with several running it lists them and asks for `--project`.
 
 For non-interactive assignment of unassigned resources, pass the stack name and `--resources`; names may be space- or comma-separated. Add `--yes` to skip confirmation. Use `flisk stack --list` to inspect unassigned resources without changing them.
 
@@ -161,7 +168,7 @@ Backend creation defaults to Bun + Hono, exactly as it always has: omit `--langu
 | `koa` | Koa | 3 |
 | `h3` | h3 | 1.x |
 
-The selected id is saved as `framework` in `service.json`. `--framework hono` is accepted and saved too, and omitting it changes nothing. `--framework` cannot be combined with `--language python`, and unknown ids fail before a resource is written. Languages without a provider can use `--type bring-your-own`. See the [backend provider guide](../docs/backend-language-providers.md) and the runnable [Python example](../examples/one-backend-python/README.md).
+The selected id is saved as `framework` in `service.json`. `--framework hono` is accepted and saved too, and omitting it changes nothing. `--framework` cannot be combined with `--language python`, and unknown ids fail before a resource is written. Languages without a provider can use `--type bring-your-own`. Python services also support opt-in pytest-on-save via `dev.testOnSave` in `service.json`. See the [backend provider guide](../docs/backend-language-providers.md) and the runnable [Python example](../examples/one-backend-python/README.md).
 
 An interactive terminal asks which backend framework to use and lists Hono first. `--yes`, a piped run and a language that owns its runtime (Python, Go, Rust, Node) never ask, so a script keeps the same output as before.
 
@@ -201,6 +208,7 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk up <stack>` | 🚀 Start a stack | `flisk up api` |
 | `flisk up --dry-run` | 👀 Preview the services and URLs without Docker, Tilt, or file changes | `flisk up api --dry-run` |
 | `flisk up --env-file <path>` | 🔀 Use another project env file for the run instead of `.env` (inside the project) | `flisk up --env-file .env.integration` |
+| `flisk up` (services with `command`) | 🏃 Run them as local processes without Docker or Tilt, in `dependsOn` order, with prefixed logs and restarts; Ctrl+C or `flisk down` stops them | `flisk up` |
 | `flisk down` | ⏹️ Stop all services | `flisk down` |
 | `flisk status` | 📊 Show resource status | `flisk status` |
 | `flisk logs` | 📜 Print a bounded snapshot of recent logs from the running stack (`--json`) | `flisk logs` |
@@ -212,14 +220,17 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | Command | Description |
 |---------|-------------|
 | `flisk ui [--high-contrast] [--no-animations]` | 🎨 Interactive terminal UI |
+| `flisk os` | 🖥️ Start [FliskOS](https://github.com/flisk-sh/fliskos), the local desktop app for projects, coding agents and Flisk apps: runs `fliskos` for the current project when it is on `PATH`, else opens `FliskOS.app` on macOS; never installs it (`--project`, `--port`, `--no-open`, `--scan-root`, `--json`; see the [cheat sheet](../docs/cheat-sheet.md#flisk-os)) |
 | `flisk networks` | 🌐 Show Traefik-routed URLs (`--stack`, `--json`, `--raw`) |
 | `flisk import [dir]` | 📥 Import the services in a directory's root `docker-compose.yml` (`--dry-run`, `--yes`, `--force`) |
 | `flisk eject` | 🚪 Write `EJECTED.md` describing the generated Tilt files; copies nothing (`--dry-run`, `--yes`) |
 | `flisk mcp` | 🤖 Run a Model Context Protocol server over stdio for coding agents |
+| `flisk mcp check <url\|resource>` | 🩺 Check an MCP server's protocol, local or remote: initialize, tools and `readOnlyHint`, prompts, error codes, HTTP rules, icon; read-only unless `--call` (`--no-icon`, `--json`; see [docs/mcp.md](../docs/mcp.md#checking-a-server)) |
+| `flisk connect <claude\|cursor\|codex>` | 🔌 Connect a coding agent: merge the `flisk mcp` entry into its MCP config and write the Flisk skills (`--dry-run`, `--global`, `--force`, `--json`; see [Flisk for AI agents](../docs/agents/flisk-for-agents.md)) |
 | `flisk config regenerate` | ♻️ Regenerate master config files from `.flisk/project.json` |
 | `flisk config verify` | ✅ Check generated files match `.flisk/project.json` |
 | `flisk config enable-infra <service>` | ➕ Enable an optional infrastructure service (`disable-infra` to turn it off) |
-| `flisk doctor` | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports) |
+| `flisk doctor` | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports); a project of `command` services is checked only for what its processes need |
 | `flisk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#flisk-completion-shell) |
 | `flisk upgrade` | ⬆️ Self-update to the latest version (`--dry-run`, `--force`, `--all`) |
 | `flisk version` | ℹ️ Show version |
@@ -479,13 +490,13 @@ To bring an existing Compose repo in, `flisk import` runs [flisk-import](https:/
 
 ## 📝 License
 
-[MIT](../LICENSE) © [Flisk Landscape](https://github.com/flisk-sh)
+[MIT](../LICENSE) © [Flisk](https://github.com/flisk-sh)
 
 ---
 
 <div align="center">
 
-**[⬆️ Back to Top](#-flisk-cli--start-services-on-your-machine)**
+**[⬆️ Back to Top](#-flisk-your-whole-app-running-on-your-computer-with-one-command)**
 
 Made with 💚 for developers who ship
 

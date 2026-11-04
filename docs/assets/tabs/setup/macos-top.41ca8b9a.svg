@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="812" height="58" viewBox="0 0 812 58" role="img" aria-label="macOS window: flisk up — ~/my-shop">
+<title>macOS window: flisk up — ~/my-shop</title>
+<style>.bar{fill:#ececec}.ttl{fill:#4d4d4d}.sep{fill:#d0d0d0} @media (prefers-color-scheme:dark){.bar{fill:#2b2b2d}.ttl{fill:#c8c8c8}.sep{fill:#000}}</style>
+<path d="M0 16a16 16 0 0 1 16-16h780a16 16 0 0 1 16 16v42H0Z" fill="#0e0e10"/>
+<circle cx="406" cy="9" r="2.5" fill="#25262b"/><circle cx="406" cy="9" r="1" fill="#3b4a6b"/>
+<rect class="bar" x="14" y="18" width="784" height="40"/>
+<circle cx="34" cy="38" r="6" fill="#ff5f57"/><circle cx="53.8" cy="38" r="6" fill="#febc2e"/><circle cx="73.6" cy="38" r="6" fill="#28c840"/>
+<text class="ttl" x="406" y="43" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="13" font-weight="600">flisk up — ~/my-shop</text>
+<rect class="sep" x="14" y="57" width="784" height="1"/>
+</svg>

@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { describe, expect, it } from "vitest";
+import type { HostPortPlan } from "../../types/index.js";
 import { createDoctorReport } from "../doctor-report.js";
-import { createHostPortPlan, type HostPortPlan } from "../host-port-plan.js";
+import { createHostPortPlan } from "../host-port-plan.js";
 import { formatPortFallbackNotice } from "../port-fallback-notice.js";
 
 const free = async () => true;

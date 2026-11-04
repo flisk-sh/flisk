@@ -106,6 +106,134 @@ describe("restart command unit tests", () => {
     }
   });
 
+  it("fails with USAGE error in text mode when --port is invalid", async () => {
+    const { exitCode, stderr } = await runRestart(["api", "--port", "not-a-port"]);
+
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("--port must be a valid port number");
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("fails with USAGE error in text mode when TILT_PORT env is invalid", async () => {
+    process.env.TILT_PORT = "70000";
+    const { exitCode, stderr } = await runRestart(["api"]);
+
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("TILT_PORT must be a valid port number");
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("fails with error in text mode when executed outside a Flisk project", async () => {
+    paths.findProjectRoot.mockReturnValue(null);
+
+    const { exitCode, stderr } = await runRestart(["api"]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Could not find project root");
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("reports error in text mode when isTiltAvailable returns false", async () => {
+    tilt.isTiltAvailable.mockResolvedValue(false);
+
+    const { exitCode, stderr } = await runRestart(["api"]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Could not reach Tilt on port 10350");
+    expect(stderr).toContain("Start the stack first with: flisk up");
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("reports error in text mode when trigger output indicates connection failure", async () => {
+    tilt.runTilt.mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "connect: connection refused",
+    });
+
+    const { exitCode, stderr } = await runRestart(["api"]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Could not reach Tilt on port 10350");
+    expect(stderr).toContain("Start the stack first with: flisk up");
+  });
+
+  it("reports error in text mode when trigger output has empty stderr", async () => {
+    tilt.runTilt.mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "   ",
+    });
+
+    const { exitCode, stderr } = await runRestart(["api"]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Could not reach Tilt on port 10350");
+    expect(stderr).toContain("Start the stack first with: flisk up");
+  });
+
+  it("reports TILT_NOT_RUNNING when trigger fails with empty stderr in --json mode", async () => {
+    tilt.runTilt.mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "",
+    });
+
+    const { envelope, exitCode } = await runRestart(["api", "--json"]);
+
+    expect(exitCode).toBe(1);
+    expect(envelope?.errors[0]?.code).toBe("TILT_NOT_RUNNING");
+  });
+
+  it("fails with error message and exit code when restarting an unknown resource in text mode", async () => {
+    tilt.runTilt.mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: 'resource "unknown-service" not found',
+    });
+
+    const { exitCode, stderr } = await runRestart(["unknown-service"]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain(
+      'Failed to restart unknown-service: resource "unknown-service" not found',
+    );
+    expect(tilt.runTilt).toHaveBeenCalledWith("trigger", ["unknown-service", "--port", "10350"], {
+      inheritStdio: false,
+    });
+  });
+
+  it("fails with error message and exit code when the underlying restart call fails in text mode", async () => {
+    tilt.runTilt.mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "trigger failed: container is restarting",
+    });
+
+    const { exitCode, stderr } = await runRestart(["api"]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Failed to restart api: trigger failed: container is restarting");
+    expect(tilt.runTilt).toHaveBeenCalledWith("trigger", ["api", "--port", "10350"], {
+      inheritStdio: false,
+    });
+  });
+
+  it("writes machine error when action throws an unexpected error in --json mode", async () => {
+    paths.findProjectRoot.mockImplementation(() => {
+      throw new Error("File system failure");
+    });
+
+    const { envelope, exitCode, stderr } = await runRestart(["api", "--json"]);
+
+    expect(exitCode).toBe(2);
+    expect(envelope?.errors[0]).toEqual({
+      code: "INTERNAL",
+      message: "File system failure",
+    });
+    expect(stderr).toContain("File system failure");
+  });
+
   it("fails with USAGE error in --json mode when --port is invalid", async () => {
     const { envelope, exitCode, stderr } = await runRestart([
       "api",

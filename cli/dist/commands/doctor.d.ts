@@ -1,9 +1,12 @@
 import { Command } from "commander";
 import type { CheckResult } from "../types/index.js";
+import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
+import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { type ExecAsync } from "../utils/exec-async.js";
+import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
-export { checkStarlarkLoadExports };
+export { checkDockerBuildCache, checkDockerFileSharing, checkPublicEnvSecrets, checkStarlarkLoadExports, };
 export declare const DOCTOR_FIXES: {
     readonly dockerMissing: "See https://docs.docker.com/get-docker/";
     readonly dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor";
@@ -14,7 +17,7 @@ export declare const DOCTOR_FIXES: {
     readonly notProject: "flisk project --yes";
 };
 export declare const WSL2_DOCTOR_MESSAGE = "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
-export declare const NATIVE_WINDOWS_DOCTOR_MESSAGE = "Native Windows landscape boot is unsupported. Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
+export declare const NATIVE_WINDOWS_DOCTOR_MESSAGE = "Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
 export declare const MIN_TILT_VERSION: readonly [0, 25, 0];
 export declare const MIN_BUN_VERSION: readonly [1, 2, 0];
 export declare function versionMeetsMinimum(raw: string, minimum: readonly number[]): boolean;
@@ -60,9 +63,8 @@ export declare namespace checkDockerOperatingSystem {
 }
 export declare function checkBun(exec?: ExecAsync): Promise<CheckResult>;
 /**
- * A repo can pin the oldest CLI it works with: `"minFliskVersion": "1.3.80"` in
- * .flisk/project.json. An older `flisk` fails here, so a team sees one clear line
- * instead of a half-working `flisk up`.
+ * Checks the project's minimum and exact pinned CLI version.
+ * Shared with `flisk up` so both commands report the same message and fix.
  */
 export declare function checkFliskVersion(currentVersion?: string): CheckResult;
 /**
@@ -88,6 +90,25 @@ export declare function checkFrontendDockerPreflight(): CheckResult;
  * for a slow migration or a flaky healthcheck.
  */
 export declare const checkContainerResourceHealth: DoctorCheckFn;
+/**
+ * Pings every routable service on the same /health URLs `flisk up` advertises.
+ *
+ * This is a runtime check, not an environment one: before `flisk up` there is
+ * nothing to ping, so a stopped stack is reported as skipped and doctor still
+ * passes. Once services are up, an unreachable endpoint is a real failure --
+ * it catches the case where a container is running but Traefik never routed
+ * to it, which `docker ps` alone will not show.
+ */
+export declare function checkServiceHealth(timeoutMs: number, ingressPort?: number): Promise<CheckResult>;
+/**
+ * Runs the GET steps of each service's "smoke" block through its public URL. These are the checks `flisk up` already runs, minus the
+ * writes, so a service with an empty /health but a missing list route is caught before anyone clicks a dead link.
+ *
+ * Like the health ping, this only runs once services answer. A stopped stack is skipped, not failed.
+ */
+export declare function checkServiceSmoke(timeoutMs: number, ingressPort?: number, options?: {
+    gateway?: boolean;
+}): Promise<CheckResult>;
 export declare function renderDoctorOutput(machineResults: CheckResult[], projectResults: CheckResult[], inProject: boolean, options?: {
     all?: boolean;
 }, allResults?: CheckResult[]): void;

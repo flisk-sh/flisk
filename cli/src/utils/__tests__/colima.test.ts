@@ -1,9 +1,38 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type ColimaDeps, checkColima, isColimaDocker } from "../colima.js";
+import {
+  type ColimaDeps,
+  type ColimaStatus,
+  checkColima,
+  isColimaDocker,
+  nativeLimaPath,
+  planColimaRepair,
+} from "../colima.js";
+
+const { existsSyncMock, execFileSyncMock } = vi.hoisted(() => ({
+  existsSyncMock: vi.fn(),
+  execFileSyncMock: vi.fn(),
+}));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    existsSync: (path: string) => existsSyncMock(path),
+  };
+});
+
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return {
+    ...actual,
+    execFileSync: (command: string, args: string[], options?: unknown) =>
+      execFileSyncMock(command, args, options),
+  };
+});
 
 function deps(overrides: Partial<ColimaDeps> = {}): ColimaDeps {
   return {
@@ -127,5 +156,184 @@ describe("checkColima with colima logging to stderr", () => {
     expect(status.running).toBe(true);
     expect(status.arch).toBe("aarch64");
     expect(status.problem).toBeUndefined();
+  });
+});
+
+describe("planColimaRepair", () => {
+  it("returns undefined (no repair steps) for a healthy Colima setup", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: true,
+      arch: "aarch64",
+    };
+    expect(planColimaRepair(status, true)).toBeUndefined();
+  });
+
+  it("returns undefined when Docker does not run on Colima", () => {
+    const status: ColimaStatus = {
+      isColima: false,
+      running: true,
+    };
+    expect(planColimaRepair(status, true)).toBeUndefined();
+    expect(planColimaRepair(status, false)).toBeUndefined();
+  });
+
+  it("returns a 'start' step when the Colima VM is stopped", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: false,
+      problem: "The Colima VM is not running",
+      fix: "Run `colima start`",
+    };
+    expect(planColimaRepair(status, false)).toBe("start");
+  });
+
+  it("returns a 'start' step when the Colima VM is missing or uninitialized", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: false,
+      problem: "The state of the Colima VM could not be read",
+      fix: "Run `colima status` to see what it says",
+    };
+    expect(planColimaRepair(status, false)).toBe("start");
+  });
+
+  it("returns a 'restart' step when the Colima VM is running but the Docker daemon does not answer", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: true,
+      arch: "aarch64",
+    };
+    expect(planColimaRepair(status, false)).toBe("restart");
+  });
+
+  it("returns a 'native-lima' step when Lima is installed as an x86_64 build on Apple Silicon", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: false,
+      problem: "Lima is installed as an x86_64 build, so it cannot start the Colima VM on this Mac",
+      fix: "Install a native Lima (brew reinstall lima, or use a native limactl on PATH) and run `colima start`",
+    };
+    expect(planColimaRepair(status, false)).toBe("native-lima");
+  });
+
+  it("returns a 'native-lima' step when the colima CLI cannot see the running VM", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: true,
+      problem: "The Colima VM is running, but the colima CLI on this PATH cannot see it",
+      fix: "Use a native limactl",
+    };
+    expect(planColimaRepair(status, true)).toBe("native-lima");
+  });
+});
+
+describe("nativeLimaPath", () => {
+  const fakeHome = "/Users/fakeuser";
+
+  beforeEach(() => {
+    existsSyncMock.mockReset();
+    execFileSyncMock.mockReset();
+    existsSyncMock.mockReturnValue(false);
+  });
+
+  it("returns undefined when no Lima binary exists in candidate directories", () => {
+    existsSyncMock.mockReturnValue(false);
+    expect(nativeLimaPath({ HOME: fakeHome })).toBeUndefined();
+  });
+
+  it("returns /opt/homebrew/bin when a native arm64 limactl is present there", () => {
+    existsSyncMock.mockImplementation((path: string) => path === "/opt/homebrew/bin/limactl");
+    execFileSyncMock.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "file" && args?.[1] === "/opt/homebrew/bin/limactl") {
+        return "Mach-O 64-bit executable arm64\n";
+      }
+      return "";
+    });
+
+    expect(nativeLimaPath({ HOME: fakeHome })).toBe("/opt/homebrew/bin");
+  });
+
+  it("returns ~/.local/bin when limactl is in ~/.local/bin and is a native aarch64 binary", () => {
+    const expectedBin = `${fakeHome}/.local/bin`;
+    existsSyncMock.mockImplementation((path: string) => path === `${expectedBin}/limactl`);
+    execFileSyncMock.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "file" && args?.[1] === `${expectedBin}/limactl`) {
+        return "ELF 64-bit LSB executable, ARM aarch64\n";
+      }
+      return "";
+    });
+
+    expect(nativeLimaPath({ HOME: fakeHome })).toBe(expectedBin);
+  });
+
+  it("returns ~/bin when limactl is in ~/bin and is a native arm64 binary", () => {
+    const expectedBin = `${fakeHome}/bin`;
+    existsSyncMock.mockImplementation((path: string) => path === `${expectedBin}/limactl`);
+    execFileSyncMock.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "file" && args?.[1] === `${expectedBin}/limactl`) {
+        return "Mach-O 64-bit executable arm64\n";
+      }
+      return "";
+    });
+
+    expect(nativeLimaPath({ HOME: fakeHome })).toBe(expectedBin);
+  });
+
+  it("skips an x86_64 binary and returns undefined if no native candidate exists", () => {
+    existsSyncMock.mockImplementation((path: string) => path === "/opt/homebrew/bin/limactl");
+    execFileSyncMock.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "file" && args?.[1] === "/opt/homebrew/bin/limactl") {
+        return "Mach-O 64-bit executable x86_64\n";
+      }
+      return "";
+    });
+
+    expect(nativeLimaPath({ HOME: fakeHome })).toBeUndefined();
+  });
+
+  it("skips an x86_64 binary in /opt/homebrew/bin and selects native arm64 in ~/.local/bin (candidate precedence)", () => {
+    const localBin = `${fakeHome}/.local/bin`;
+    existsSyncMock.mockImplementation(
+      (path: string) => path === "/opt/homebrew/bin/limactl" || path === `${localBin}/limactl`,
+    );
+    execFileSyncMock.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "file" && args?.[1] === "/opt/homebrew/bin/limactl") {
+        return "Mach-O 64-bit executable x86_64\n";
+      }
+      if (cmd === "file" && args?.[1] === `${localBin}/limactl`) {
+        return "Mach-O 64-bit executable arm64\n";
+      }
+      return "";
+    });
+
+    expect(nativeLimaPath({ HOME: fakeHome })).toBe(localBin);
+  });
+
+  it("prefers /opt/homebrew/bin over ~/.local/bin when both are native (candidate precedence)", () => {
+    const localBin = `${fakeHome}/.local/bin`;
+    existsSyncMock.mockImplementation(
+      (path: string) => path === "/opt/homebrew/bin/limactl" || path === `${localBin}/limactl`,
+    );
+    execFileSyncMock.mockImplementation((cmd: string) => {
+      if (cmd === "file") return "Mach-O 64-bit executable arm64\n";
+      return "";
+    });
+
+    expect(nativeLimaPath({ HOME: fakeHome })).toBe("/opt/homebrew/bin");
+  });
+
+  it("falls back to accepting candidate directory if the file command fails or is unavailable", () => {
+    existsSyncMock.mockImplementation((path: string) => path === "/opt/homebrew/bin/limactl");
+    execFileSyncMock.mockImplementation(() => {
+      throw new Error("spawn file ENOENT");
+    });
+
+    expect(nativeLimaPath({ HOME: fakeHome })).toBe("/opt/homebrew/bin");
+  });
+
+  it("returns undefined when HOME is undefined and /opt/homebrew/bin does not exist", () => {
+    existsSyncMock.mockReturnValue(false);
+    expect(nativeLimaPath({ HOME: undefined })).toBeUndefined();
   });
 });

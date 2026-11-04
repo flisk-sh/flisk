@@ -1,7 +1,10 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 export function getElysiaIndexTemplate(name) {
     return `import { Elysia } from 'elysia';
 
-const port = Number(process.env.PORT || 3000);
+${portFromEnv()}
 
 const app = new Elysia()
   // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)

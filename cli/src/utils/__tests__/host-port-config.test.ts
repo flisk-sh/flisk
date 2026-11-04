@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdtempSync, rmSync } from "node:fs";
+
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { HostPortPlan } from "../../types/index.js";
 import {
   exportHostPortPlan,
   getHostPortPlan,
@@ -11,7 +13,6 @@ import {
   readSavedHostPortPlan,
   writeSavedHostPortPlan,
 } from "../host-port-config.js";
-import type { HostPortPlan } from "../host-port-plan.js";
 
 describe("saved host port plan", () => {
   let projectRoot = "";
@@ -31,6 +32,65 @@ describe("saved host port plan", () => {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
+  });
+
+  describe("ports from the project .env (#2971)", () => {
+    function dotenvProject(lines: string): string {
+      const root = mkdtempSync(join(tmpdir(), "flisk-port-dotenv-"));
+      mkdirSync(join(root, ".flisk"), { recursive: true });
+      writeFileSync(join(root, ".env"), lines);
+      return root;
+    }
+    const free = async () => true;
+
+    it("plans FLISK_HTTP_PORT, FLISK_HTTPS_PORT and FLISK_POSTGRES_PORT from .env", async () => {
+      delete process.env.FLISK_HTTP_PORT;
+      delete process.env.FLISK_HTTPS_PORT;
+      delete process.env.FLISK_POSTGRES_PORT;
+      projectRoot = dotenvProject(
+        "FLISK_HTTP_PORT=8180\nFLISK_HTTPS_PORT=8543\nFLISK_POSTGRES_PORT=15500\n",
+      );
+      const plan = await getHostPortPlan(projectRoot, { isPortFree: free, inspectDocker: false });
+      expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([8180, 8543, 15500]);
+      expect(plan.explicit).toEqual({ ingressHttp: true, ingressHttps: true, postgres: true });
+    });
+
+    it("lets the shell win over .env", async () => {
+      process.env.FLISK_HTTP_PORT = "8190";
+      delete process.env.FLISK_HTTPS_PORT;
+      delete process.env.FLISK_POSTGRES_PORT;
+      projectRoot = dotenvProject("FLISK_HTTP_PORT=8180\nFLISK_HTTPS_PORT=8543\n");
+      const plan = await getHostPortPlan(projectRoot, { isPortFree: free, inspectDocker: false });
+      expect(plan.ingressHttp).toBe(8190);
+      expect(plan.ingressHttps).toBe(8543);
+    });
+
+    it("a .env value beats a saved plan, like a shell value does", async () => {
+      delete process.env.FLISK_HTTP_PORT;
+      delete process.env.FLISK_HTTPS_PORT;
+      delete process.env.FLISK_POSTGRES_PORT;
+      projectRoot = dotenvProject("FLISK_HTTP_PORT=8181\n");
+      writeSavedHostPortPlan(projectRoot, {
+        ingressHttp: 80,
+        ingressHttps: 443,
+        postgres: 5432,
+        requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+        explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+        reason: { ingressHttp: "free", ingressHttps: "free", postgres: "free" },
+      });
+      const plan = await getHostPortPlan(projectRoot, { isPortFree: free, inspectDocker: false });
+      expect(plan.ingressHttp).toBe(8181);
+    });
+
+    it("without the variable anywhere, the default plan is unchanged", async () => {
+      delete process.env.FLISK_HTTP_PORT;
+      delete process.env.FLISK_HTTPS_PORT;
+      delete process.env.FLISK_POSTGRES_PORT;
+      projectRoot = dotenvProject("OTHER=1\n");
+      const plan = await getHostPortPlan(projectRoot, { isPortFree: free, inspectDocker: false });
+      expect([plan.ingressHttp, plan.ingressHttps]).toEqual([80, 443]);
+      expect(plan.explicit.ingressHttp).toBe(false);
+    });
   });
 
   it("recognizes published ports held by the current project's containers", () => {
@@ -167,5 +227,73 @@ describe("saved host port plan", () => {
     expect(plan.ingressHttp).not.toBe(8080);
     expect(plan.postgres).not.toBe(15432);
     expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([80, 443, 15433]);
+  });
+});
+
+describe("ports a bring-your-own service publishes", () => {
+  let projectRoot = "";
+  afterEach(() => {
+    if (projectRoot) rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  const project = (extraPorts: unknown[]) => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-extra-"));
+    mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
+    writeFileSync(
+      join(projectRoot, ".flisk", "project.json"),
+      JSON.stringify({ project: { name: "tube" } }),
+    );
+    const dir = join(projectRoot, "services", "tube", "caddy");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "service.json"),
+      JSON.stringify({
+        appName: "caddy",
+        appType: "bring-your-own",
+        stack: "tube",
+        port: 8080,
+        image: "caddy:2",
+        extraPorts,
+      }),
+    );
+  };
+
+  it("keeps Traefik off a proxy's 80 and 443, even when nothing listens there yet", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    project([
+      { port: 80, bind: "0.0.0.0" },
+      { port: 443, bind: "0.0.0.0" },
+    ]);
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect(plan.ingressHttp).not.toBe(80);
+    expect(plan.ingressHttps).not.toBe(443);
+  });
+
+  it("still takes 80 and 443 when the extra ports are elsewhere", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    project([{ port: 80, hostPort: 8081 }]);
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect([plan.ingressHttp, plan.ingressHttps]).toEqual([80, 443]);
+  });
+
+  it("reserves the host port a publish variable resolves to, from the project .env", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    delete process.env.TUBEHAUS_HTTP_BIND;
+    project([{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:8081}" }]);
+    writeFileSync(join(projectRoot, ".env"), "TUBEHAUS_HTTP_BIND=127.0.0.1:80\n");
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect(plan.ingressHttp).not.toBe(80);
+  });
+
+  it("falls back to the default of publish when the .env does not set it", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    delete process.env.TUBEHAUS_HTTP_BIND;
+    project([{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }]);
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect(plan.ingressHttp).not.toBe(80);
   });
 });

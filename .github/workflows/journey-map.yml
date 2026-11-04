@@ -21,7 +21,7 @@ permissions:
 jobs:
   map:
     name: 🗺️ Refresh map
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     # Label events run this job only for `hacktoberfest`; no event text is used in any script.
     if: github.event_name != 'issues' || github.event.label.name == 'hacktoberfest'

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="81" height="48" viewBox="0 0 81 48" role="img" aria-label="3 agents">
+<title>3 agents</title>
+<style>.t{fill:#59636e}.w{fill:#818b981f}@media (prefers-color-scheme:dark){.t{fill:#9198a1}.w{fill:#656c7633}}</style>
+<rect class="w" x="8" y="14" width="65" height="20" rx="10"/>
+<text class="t" x="40.5" y="28" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" textLength="49" lengthAdjust="spacingAndGlyphs">3 agents</text>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="196" height="48" viewBox="0 0 196 48" role="img" aria-label="One-command demo">
+<title>One-command demo</title>
+<style>.t{fill:#1f2328}.i{stroke:#59636e}.w{fill:#818b981f}.u{fill:#fd8c73}@media (prefers-color-scheme:dark){.t{fill:#f0f6fc}.i{stroke:#9198a1}.w{fill:#656c7633}.u{fill:#f78166}}</style>
+<g class="i" transform="translate(16 16)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.75C8.4 5.6 10.4 7.6 14.25 8 10.4 8.4 8.4 10.4 8 14.25 7.6 10.4 5.6 8.4 1.75 8 5.6 7.6 7.6 5.6 8 1.75Z"/></g>
+<text class="t" x="40" y="29" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="14" font-weight="400" textLength="132" lengthAdjust="spacingAndGlyphs">One-command demo</text>
+</svg>

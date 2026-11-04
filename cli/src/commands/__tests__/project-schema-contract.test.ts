@@ -33,6 +33,16 @@ describe("project-schema.json", () => {
     return { valid, errors: validateProject.errors ?? [] };
   };
 
+  it("accepts composeProjectNames, which flisk import writes", () => {
+    const { valid, errors } = validate({
+      ...defaults,
+      composeProjectNames: { shop: "myshop", photos: "lychee_1" },
+    });
+    expect(errors).toEqual([]);
+    expect(valid).toBe(true);
+    expect(validate({ ...defaults, composeProjectNames: { shop: "My Shop" } }).valid).toBe(false);
+  });
+
   it("accepts the default .flisk/project.json that flisk project writes", () => {
     const { valid, errors } = validate(defaults);
     expect(errors).toEqual([]);
@@ -68,5 +78,73 @@ describe("project-schema.json", () => {
 
   it("accepts a MAJOR.MINOR.PATCH minFliskVersion", () => {
     expect(validate({ ...defaults, minFliskVersion: "1.3.80" }).valid).toBe(true);
+  });
+
+  it("accepts a MAJOR.MINOR.PATCH legacy minTdkVersion", () => {
+    expect(validate({ ...defaults, minTdkVersion: "1.3.80" }).valid).toBe(true);
+  });
+
+  it.each([["abc"], ["1.3"], ["v1.3.80"], ["1.3.80-beta"]])(
+    "rejects legacy minTdkVersion %s with a pattern error",
+    (minTdkVersion) => {
+      const { valid, errors } = validate({ ...defaults, minTdkVersion });
+
+      expect(valid).toBe(false);
+      expect(errors).toEqual([
+        expect.objectContaining({
+          keyword: "pattern",
+          instancePath: "/minTdkVersion",
+        }),
+      ]);
+    },
+  );
+
+  it.each([["abc"], ["1.3"], ["v1.3.80"], ["1.3.80-beta"], ["1.3.80.1"]])(
+    "rejects pinnedFliskVersion %s with a pattern error",
+    (pinnedFliskVersion) => {
+      const { valid, errors } = validate({ ...defaults, pinnedFliskVersion });
+
+      expect(valid).toBe(false);
+      expect(errors).toEqual([
+        expect.objectContaining({
+          keyword: "pattern",
+          instancePath: "/pinnedFliskVersion",
+        }),
+      ]);
+    },
+  );
+
+  it("accepts a MAJOR.MINOR.PATCH pinnedFliskVersion", () => {
+    expect(validate({ ...defaults, pinnedFliskVersion: "1.3.80" }).valid).toBe(true);
+  });
+
+  it("rejects a non-string pinnedFliskVersion", () => {
+    const { valid, errors } = validate({
+      ...defaults,
+      pinnedFliskVersion: 1.3,
+    });
+
+    expect(valid).toBe(false);
+    expect(errors).toEqual([
+      expect.objectContaining({
+        keyword: "type",
+        instancePath: "/pinnedFliskVersion",
+      }),
+    ]);
+  });
+
+  it("rejects a non-string legacy minTdkVersion", () => {
+    const { valid, errors } = validate({
+      ...defaults,
+      minTdkVersion: 1.3,
+    });
+
+    expect(valid).toBe(false);
+    expect(errors).toEqual([
+      expect.objectContaining({
+        keyword: "type",
+        instancePath: "/minTdkVersion",
+      }),
+    ]);
   });
 });

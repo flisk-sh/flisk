@@ -68,4 +68,29 @@ describe("flisk completion shell selection", () => {
       }
     }
   });
+
+  it.each([
+    ["positional argument", ["unknown-shell"]],
+    ["--shell option", ["--shell", "unknown-shell"]],
+  ])("rejects an unknown shell (%s) and reports the error", async (_, args) => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { expectExit } = captureExit();
+
+    try {
+      await expect(runCompletionCommand(args)).rejects.toThrow("process.exit");
+
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining("Unsupported shell: unknown-shell"),
+      );
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining("Supported shells: bash, zsh, fish, powershell"),
+      );
+      expect(log).not.toHaveBeenCalled();
+      expectExit(1);
+    } finally {
+      error.mockRestore();
+      log.mockRestore();
+    }
+  });
 });

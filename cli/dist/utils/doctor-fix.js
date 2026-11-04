@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { checkColima, nativeLimaPath, planColimaRepair } from "./colima.js";
 import { DISK_WARN_GIB } from "./doctor-host.js";
 import { findProjectTiltUpPids, fliskNetworkOwner, fliskNetworkPrefixes, projectNetworkNames, } from "./down-cleanup.js";
+import { FliskError } from "./errors.js";
 import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
 const execFilePromise = promisify(execFile);
@@ -121,7 +122,10 @@ export function createDockerFixDeps(run = runDocker) {
                 await run(["network", "rm", name]);
             }
             catch (error) {
-                throw new Error(firstLine(error));
+                throw new FliskError(firstLine(error), [
+                    `See what still uses it with: docker network inspect ${name}`,
+                    `Remove it by hand with: docker network rm ${name}`,
+                ]);
             }
         },
         freeDiskGib() {
@@ -163,7 +167,25 @@ export function createDockerFixDeps(run = runDocker) {
                 await run(kind === "builder" ? ["builder", "prune", "-f"] : ["image", "prune", "-f"]);
             }
             catch (error) {
-                throw new Error(firstLine(error));
+                throw new FliskError(firstLine(error), [
+                    `Run it by hand: docker ${kind === "builder" ? "builder" : "image"} prune -f`,
+                    "Check the container engine with: flisk doctor",
+                ]);
+            }
+        },
+        async trimColima() {
+            try {
+                await execFilePromise("colima", ["ssh", "--", "sudo", "fstrim", "-av"], {
+                    encoding: "utf-8",
+                    timeout: 300_000,
+                    windowsHide: true,
+                });
+            }
+            catch (error) {
+                throw new FliskError(firstLine(error), [
+                    "Run it by hand: colima ssh -- sudo fstrim -av",
+                    "Check the container engine with: flisk doctor",
+                ]);
             }
         },
         async tiltStatus(pid) {
@@ -186,32 +208,35 @@ export function createDockerFixDeps(run = runDocker) {
 }
 export const dockerFixDeps = createDockerFixDeps();
 /** Starts or restarts Colima, with a native limactl first on PATH when one is installed. */
-async function runColima(action) {
+export async function runColima(action, run = execFilePromise, findNativeLima = nativeLimaPath, hasFile = existsSync) {
     if (action === "native-lima") {
-        let nativeDir = nativeLimaPath();
+        let nativeDir = findNativeLima();
         if (!nativeDir) {
             // No native limactl on PATH: reinstall Lima through the native Homebrew, which pulls a native build on Apple Silicon.
-            const brewBin = existsSync("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
-            await execFilePromise(brewBin, ["reinstall", "lima"], {
+            const brewBin = hasFile("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
+            await run(brewBin, ["reinstall", "lima"], {
                 encoding: "utf-8",
                 timeout: 300_000,
             });
-            nativeDir = nativeLimaPath();
+            nativeDir = findNativeLima();
             if (!nativeDir) {
-                throw new Error("brew reinstall lima did not provide a native limactl");
+                throw new FliskError("brew reinstall lima did not provide a native limactl", [
+                    "Reinstall Lima with the arm64 Homebrew in /opt/homebrew: brew reinstall lima",
+                    "Check the container engine with: flisk doctor",
+                ]);
             }
         }
         const env = nativeDir
             ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
             : process.env;
-        await execFilePromise("colima", ["start"], { encoding: "utf-8", timeout: 300_000, env });
+        await run("colima", ["start"], { encoding: "utf-8", timeout: 300_000, env });
         return;
     }
-    const nativeDir = nativeLimaPath();
+    const nativeDir = findNativeLima();
     const env = nativeDir
         ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
         : process.env;
-    await execFilePromise("colima", [action], { encoding: "utf-8", timeout: 300_000, env });
+    await run("colima", [action], { encoding: "utf-8", timeout: 300_000, env });
 }
 /**
  * What `--fix` would do: stop this project's stale Tilt; remove unused networks that are a leftover doctor probe or
@@ -303,6 +328,19 @@ export async function planDoctorFixes(projectName, deps = dockerFixDeps, context
                 reason: `${low}; ${danglingImages} untagged image${danglingImages === 1 ? "" : "s"}`,
             });
         }
+        // Docker's data lives in the Colima VM; its disk image does not shrink by itself, so the freed space stays
+        // unavailable to macOS until the VM trims it. This runs after the prunes above.
+        const colima = deps.colimaStatus();
+        if (colima.isColima && colima.running) {
+            actions.push({
+                id: "trim:colima",
+                check: "Disk Space",
+                scope: "host",
+                command: "colima ssh -- sudo fstrim -av",
+                status: "planned",
+                reason: `${low}; Docker data lives in the Colima VM, whose disk image keeps its size on the Mac until it is trimmed`,
+            });
+        }
     }
     const own = new Set(projectName ? projectNetworkNames(projectName) : []);
     const prefixes = fliskNetworkPrefixes(networks.map((network) => network.name));
@@ -381,6 +419,11 @@ export async function applyDoctorFixes(actions, options, deps = dockerFixDeps) {
             continue;
         }
         try {
+            if (action.id === "trim:colima") {
+                await deps.trimColima();
+                results.push({ ...action, status: "applied", reason: "trimmed" });
+                continue;
+            }
             if (action.id.startsWith("prune:")) {
                 await deps.prune(action.id === "prune:builder" ? "builder" : "images");
                 results.push({ ...action, status: "applied", reason: "pruned" });

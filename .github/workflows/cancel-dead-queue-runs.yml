@@ -1,0 +1,34 @@
+# Cancels the runs of merge queue batches that no longer exist. GitHub deletes a dead batch's gh-readonly-queue/... branch but
+# leaves its workflow runs, which hold runners and block the runs queued behind them in the same concurrency group
+# (scripts/cancel-dead-queue-runs.mjs). Runs on the default branch only; no pull request code.
+name: 🧹 CI | Cancel dead queue runs
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: cancel-dead-queue-runs
+  cancel-in-progress: false
+
+jobs:
+  cancel:
+    name: Cancel runs of dead queue batches
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write # cancel runs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Cancel dead queue runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: node scripts/cancel-dead-queue-runs.mjs --repo "$REPO"

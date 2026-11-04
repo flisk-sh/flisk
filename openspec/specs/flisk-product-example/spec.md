@@ -23,8 +23,8 @@ An Ubuntu `example-e2e` CI job SHALL run doctor, start the example stack, verify
 - **THEN** `example-e2e` fails and does not pass the main-branch gate
 
 ### Requirement: The 100-service ERP system is labeled as a fixture
-README and benchmark documentation that refer to the 100-service `tdk-erp-system` SHALL identify it as a fixture bench, not an ERP product.
+README and benchmark documentation that refer to the 100-service `flisk-erp-system` SHALL identify it as a fixture bench, not an ERP product.
 
 #### Scenario: Documentation describes the benchmark
-- **WHEN** documentation mentions the 100-service bench or `tdk-erp-system`
+- **WHEN** documentation mentions the 100-service bench or `flisk-erp-system`
 - **THEN** it labels the system as a fixture bench

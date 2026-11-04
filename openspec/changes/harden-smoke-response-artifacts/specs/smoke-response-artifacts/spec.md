@@ -49,7 +49,7 @@ Before `flisk up` writes a smoke response artifact, the CLI MUST ensure that `.f
 
 #### Scenario: Example project is checked out
 
-- **WHEN** a user checks out `examples/tdk-example`
+- **WHEN** a user checks out `examples/flisk-example`
 - **THEN** its `.gitignore` ignores `.flisk/smoke/`
 
 ### Requirement: Smoke text sinks redact known project secrets

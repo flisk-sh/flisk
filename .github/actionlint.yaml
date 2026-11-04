@@ -12,3 +12,8 @@ paths:
       # it) but the pinned actionlint does not know it yet. It is what reads the
       # Dependabot alerts; security-events only covers the code scanning ones.
       - 'unknown permission scope "vulnerability-alerts"'
+  .github/workflows/scoreboard.yml:
+    ignore:
+      # The same scope as above: it reads the open Dependabot alerts (open-security-alerts), and security-events only
+      # covers the code scanning ones.
+      - 'unknown permission scope "vulnerability-alerts"'

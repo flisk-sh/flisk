@@ -1,28 +1,26 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { relative } from "node:path";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 import chalk from "chalk";
+import { declaredDependsOn, dependencyEdges } from "./dependency-graph.js";
 import { checkDuplicateResourceNames } from "./doctor-wiring.js";
+import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
+import { parseEnv } from "./env-validator.js";
+import { projectEnvLookup } from "./extra-port-publish.js";
 import { formatCount } from "./formatting.js";
+import { generateEntries } from "./generated-secrets.js";
 import { findProjectRoot } from "./paths.js";
-import { SERVICE_MANIFEST_SCHEMA_VERSION } from "./service-manifest.js";
+import { envFileErrors, providersOf, SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
+import { extraPortsOf, isLoopbackAddress } from "./status-ports.js";
 function filePath(projectRoot, resource) {
     return relative(projectRoot, resource.configPath) || resource.configPath;
 }
-/** The dependsOn names a service declares: none when absent, null when it is not an array of strings. */
-function declaredDependsOn(resource) {
-    const value = resource.config?.dependsOn;
-    if (value === undefined)
-        return [];
-    if (Array.isArray(value) && value.every((entry) => typeof entry === "string"))
-        return value;
-    return null;
-}
 /** Each cycle once, as service names starting from the alphabetically first, ending where it started. */
 function findDependencyCycles(resources) {
-    const known = new Set(resources.map((r) => r.name));
-    const edges = new Map(resources.map((r) => [r.name, (declaredDependsOn(r) ?? []).filter((dep) => known.has(dep))]));
+    const edges = dependencyEdges(resources);
     const cycles = new Map();
     const state = new Map();
     const stack = [];
@@ -51,7 +49,7 @@ function findDependencyCycles(resources) {
 }
 /** A dependsOn that is not a list of service names cannot be followed, so say so instead of failing later. */
 export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
-    const problems = resources.flatMap((resource) => declaredDependsOn(resource) === null
+    const problems = resources.flatMap((resource) => declaredDependsOn(resource.config) === null
         ? [
             `${filePath(projectRoot, resource)} dependsOn ${JSON.stringify(resource.config?.dependsOn)}: expected an array of service names`,
         ]
@@ -91,6 +89,326 @@ export function checkCircularDependencies(projectRoot = findProjectRoot() ?? pro
         didPass: false,
         message: `${cycles.length} ${cycles.length === 1 ? "circular dependency" : "circular dependencies"}:\n    ${lines.join("\n    ")}`,
         fix: 'Remove one "dependsOn" entry in each cycle so the services no longer wait on each other, or move what they share into a third service',
+    };
+}
+/**
+ * Everything `flisk config verify` reports about one service.json's own fields (Docker-safe names, field types, line breaks,
+ * route paths), applied before `flisk up` starts anything. Without it a bad value passed `flisk up` and stopped inside Tilt
+ * ("repository name must be lowercase", "string has no .get field or method"). A missing schemaVersion or required field is
+ * left out: old projects keep working without them, and `flisk config migrate` adds the version.
+ */
+export function checkServiceFields(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const problems = resources.flatMap((resource) => validateServiceManifest({
+        ...(resource.config ?? {}),
+        // A service with no appName is named after its directory; that name has to be Docker-safe too. A wrong-typed one is reported.
+        appName: resource.config && "appName" in resource.config ? resource.config.appName : resource.name,
+    }, filePath(projectRoot, resource)).errors.filter((error) => !/required field is missing|\.schemaVersion:/.test(error)));
+    if (problems.length === 0) {
+        return { name: "Service fields", didPass: true, message: "Every service.json field is valid" };
+    }
+    return {
+        name: "Service fields",
+        didPass: false,
+        message: `${formatCount(problems.length, "invalid field")}:\n    ${problems.join("\n    ")}`,
+        fix: "Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    };
+}
+/**
+ * A custom `dockerfile` (relative to the service, or to its `buildContext`) that does not exist stops the Tiltfile with
+ * "CUSTOM DOCKERFILE NOT FOUND" (discovery/manifest/loading.star), after `flisk up` has said yes.
+ */
+export function checkCustomDockerfiles(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const problems = resources.flatMap((resource) => {
+        const config = resource.config;
+        const dockerfile = config?.dockerfile;
+        if (typeof dockerfile !== "string" || dockerfile === "")
+            return [];
+        const context = typeof config?.buildContext === "string" ? config.buildContext : "";
+        const path = join(dirname(resource.configPath), context === "." ? "" : context, dockerfile);
+        // The loader runs `test -f`, so a directory (for example ".autogenerated") is as missing as a path that does not exist.
+        let isFile = false;
+        try {
+            isFile = statSync(path).isFile();
+        }
+        catch {
+            isFile = false;
+        }
+        return isFile
+            ? []
+            : [`${filePath(projectRoot, resource)} dockerfile: no such file in the service directory`];
+    });
+    if (problems.length === 0) {
+        return { name: "Custom Dockerfiles", didPass: true, message: "Every custom dockerfile exists" };
+    }
+    return {
+        name: "Custom Dockerfiles",
+        didPass: false,
+        message: `${formatCount(problems.length, "missing dockerfile")}:\n    ${problems.join("\n    ")}`,
+        fix: 'Create the file, or remove "dockerfile" from service.json to use the generated Dockerfile',
+    };
+}
+/**
+ * A `sidecarOf` (#2908) becomes `network_mode: "service:<host>"` in the stack's Compose file, so the host must be a resource in
+ * the same stack. Otherwise Compose stops with "service ... depends on undefined service", after `flisk up` has said yes.
+ */
+export function checkSidecars(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const stackOf = new Map(resources.map((resource) => [resource.name, resource.config?.stack]));
+    const problems = resources.flatMap((resource) => {
+        const host = resource.config?.sidecarOf;
+        if (typeof host !== "string" || host === "")
+            return [];
+        const at = `${filePath(projectRoot, resource)} sidecarOf "${host}"`;
+        if (!stackOf.has(host))
+            return [`${at}: no resource has that name`];
+        if (stackOf.get(host) !== resource.config?.stack) {
+            return [
+                `${at}: is in stack "${String(stackOf.get(host))}", not "${String(resource.config?.stack)}"`,
+            ];
+        }
+        return [];
+    });
+    if (problems.length === 0) {
+        return {
+            name: "Sidecars",
+            didPass: true,
+            message: "Every sidecarOf names a resource in its stack",
+        };
+    }
+    return {
+        name: "Sidecars",
+        didPass: false,
+        message: `${formatCount(problems.length, "invalid sidecarOf", "invalid sidecarOf")}:\n    ${problems.join("\n    ")}`,
+        fix: 'Set "sidecarOf" to the appName of a resource in the same stack',
+    };
+}
+/**
+ * A bind mount in `volumes` (#1748) is relative to its service directory, and one that climbs out of the project would hand a
+ * container files Flisk was never asked to share. The generator refuses it too, after `flisk up` has said yes.
+ */
+export function checkVolumes(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const problems = resources.flatMap((resource) => {
+        if (!resource.config || !("volumes" in resource.config || "envFile" in resource.config)) {
+            return [];
+        }
+        const dir = relative(projectRoot, dirname(resource.configPath));
+        const depth = dir === "" ? 0 : dir.split(sep).length;
+        // The shape of each entry is reported with the other service.json fields (checkServiceFields); this check adds the location.
+        const config = resource.config;
+        const displayPath = filePath(projectRoot, resource);
+        return [
+            ...volumesErrors(config, displayPath, depth),
+            ...envFileErrors(config, displayPath, depth),
+        ].filter((problem) => problem.endsWith("must stay inside the project"));
+    });
+    if (problems.length === 0) {
+        return { name: "Volumes", didPass: true, message: "Every bind mount stays inside the project" };
+    }
+    return {
+        name: "Volumes",
+        didPass: false,
+        message: `${formatCount(problems.length, "bind mount outside the project", "bind mounts outside the project")}:\n    ${problems.join("\n    ")}`,
+        fix: 'Mount a path inside the project, such as "./config", or use a named volume such as "data"',
+    };
+}
+/** Major version of a postgres or pgvector image reference (`postgres:18-alpine`, `pgvector/pgvector:pg18`), or null when it is neither or has no numeric tag. */
+export function postgresImageMajor(image) {
+    if (typeof image !== "string")
+        return null;
+    const withoutDigest = image.split("@")[0] ?? "";
+    const lastSlash = withoutDigest.lastIndexOf("/");
+    const colon = withoutDigest.indexOf(":", lastSlash + 1);
+    if (colon === -1)
+        return null;
+    const repository = withoutDigest.slice(0, colon).replace(/^(?:docker\.io\/)?(?:library\/)?/, "");
+    if (repository !== "postgres" && repository !== "pgvector/pgvector")
+        return null;
+    const match = /^(?:pg)?(\d+)/.exec(withoutDigest.slice(colon + 1));
+    return match ? Number(match[1]) : null;
+}
+/**
+ * Postgres 18 images keep the cluster below /var/lib/postgresql, and refuse to start when a volume is mounted at the
+ * pre-18 /var/lib/postgresql/data. In a mixed run `flisk up` then restarts the container in a loop (#3139).
+ */
+export function postgresVolumeWarnings(projectRoot, resources) {
+    return resources.flatMap((resource) => {
+        const major = postgresImageMajor(resource.config?.image);
+        if (major === null || major < 18)
+            return [];
+        const volumes = resource.config?.volumes;
+        if (!Array.isArray(volumes))
+            return [];
+        return volumes.flatMap((volume, index) => {
+            const target = volume?.target;
+            if (typeof target !== "string" || target.replace(/\/+$/, "") !== "/var/lib/postgresql/data") {
+                return [];
+            }
+            return [
+                `${filePath(projectRoot, resource)} volumes[${index}].target ${target}: Postgres ${major} refuses to start with its data volume here. Mount /var/lib/postgresql instead`,
+            ];
+        });
+    });
+}
+/** A warning, never an error: the project is valid, the container just will not start. */
+export function checkPostgresVolumes(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), strict = false) {
+    const problems = postgresVolumeWarnings(projectRoot, resources);
+    if (problems.length === 0) {
+        return {
+            name: "Postgres volume",
+            didPass: true,
+            message: "No Postgres 18+ image mounts its volume at /var/lib/postgresql/data",
+        };
+    }
+    return {
+        name: "Postgres volume",
+        didPass: false,
+        isWarning: !strict,
+        message: `${formatCount(problems.length, "Postgres 18+ volume")} at the pre-18 path:\n    ${problems.join("\n    ")}`,
+        fix: 'Set the volume "target" to /var/lib/postgresql (Postgres 18+ images store data in a versioned directory below it)',
+    };
+}
+/** `docker ps` lines `name|ports`, or "" when Docker cannot be asked. */
+function dockerPublishedPorts() {
+    try {
+        return execFileSync("docker", ["ps", "--format", "{{.Names}}|{{.Ports}}"], {
+            encoding: "utf-8",
+            timeout: 5000,
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+    }
+    catch {
+        return "";
+    }
+}
+/** The non-loopback host address (`0.0.0.0:80/tcp`) a running container publishes this host port on, or null. */
+export function liveNetworkAddress(dockerPs, hostPort, containerPort, protocol) {
+    const suffix = `:${hostPort}->${containerPort}/${protocol}`;
+    for (const line of dockerPs.split("\n")) {
+        const ports = line.slice(line.indexOf("|") + 1);
+        for (const mapping of ports.split(",")) {
+            const text = mapping.trim();
+            if (!text.endsWith(suffix))
+                continue;
+            const address = text.slice(0, text.length - suffix.length).replace(/^\[(.*)\]$/, "$1");
+            if (address && !isLoopbackAddress(address) && address !== "::1")
+                return `${address}${suffix.replace("->", " -> ")}`;
+        }
+    }
+    return null;
+}
+/**
+ * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935), or a `publish` that resolves to one (a bare port, 0.0.0.0 or any
+ * non-loopback address), is reachable from every device on the network, unlike everything else Flisk publishes. Say so in
+ * `flisk doctor`, as a warning, so it stays a visible choice. A `publish` variable is read from the shell and the project `.env`
+ * the way Compose reads it; a value that is not a port or address:port is named, because Compose would refuse it.
+ */
+export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), dockerPorts = dockerPublishedPorts) {
+    const lookup = projectEnvLookup(projectRoot);
+    const ports = resources.flatMap((resource) => extraPortsOf(resource, lookup).map((port) => ({ resource, port })));
+    const open = ports
+        .filter(({ port }) => !port.problem && !isLoopbackAddress(port.bind))
+        .map(({ resource, port }) => {
+        const via = port.publish
+            ? ` (${port.publish.variables.join(", ")}, ${port.publish.source === "environment" ? "set in the environment or .env" : "default in service.json"})`
+            : "";
+        return `${resource.name} ${port.address}${via}`;
+    });
+    const bad = ports
+        .filter(({ port }) => port.problem)
+        .map(({ resource, port }) => `${resource.name} ${port.problem}`);
+    // service.json and .env say 127.0.0.1, but a container created before they changed (or by hand) may still be on every interface.
+    const declaredLoopback = ports.filter(({ port }) => !port.problem && isLoopbackAddress(port.bind));
+    const live = declaredLoopback.length > 0 ? dockerPorts() : "";
+    const stale = declaredLoopback
+        .map(({ resource, port }) => ({
+        resource,
+        port,
+        address: liveNetworkAddress(live, port.hostPort, port.containerPort, port.protocol),
+    }))
+        .filter((entry) => entry.address !== null)
+        .map(({ resource, port, address }) => `${resource.name} ${port.address} is declared on this machine only, but a running container publishes ${address}`);
+    if (open.length === 0 && bad.length === 0 && stale.length === 0) {
+        return {
+            name: "Network ports",
+            didPass: true,
+            message: "No port is published beyond this machine",
+        };
+    }
+    const sections = [
+        open.length > 0
+            ? `${formatCount(open.length, "port")} reachable from the network:\n    ${open.join("\n    ")}`
+            : "",
+        stale.length > 0
+            ? `${formatCount(stale.length, "port")} wider than declared:\n    ${stale.join("\n    ")}`
+            : "",
+        bad.length > 0 ? `Invalid published address:\n    ${bad.join("\n    ")}` : "",
+    ].filter(Boolean);
+    return {
+        name: "Network ports",
+        didPass: false,
+        isWarning: true,
+        message: sections.join("\n  "),
+        fix: [
+            open.length > 0
+                ? 'Remove "bind": "0.0.0.0" from extraPorts, or start a "publish" default or .env value with 127.0.0.1:, to publish on this machine only'
+                : "",
+            stale.length > 0
+                ? "Recreate the container (flisk restart <resource>) so it picks up the declared bind"
+                : "",
+            bad.length > 0
+                ? 'Set the .env value to a port or an IPv4 address:port such as "127.0.0.1:8080"'
+                : "",
+        ]
+            .filter(Boolean)
+            .join(". "),
+    };
+}
+/** The runtimes `docker info` lists, or null when Docker cannot be asked. */
+function dockerRuntimes() {
+    try {
+        const out = execFileSync("docker", ["info", "--format", "{{json .Runtimes}}"], {
+            encoding: "utf-8",
+            timeout: 8000,
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+        return Object.keys(JSON.parse(out) ?? {});
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * A bring-your-own `container.gpus` reserves NVIDIA devices in the generated Compose file. `config verify` accepts it anywhere, so
+ * on a host whose Docker has no NVIDIA runtime (a laptop, Docker Desktop on a Mac) the failure comes from Docker when the container
+ * is created, after the build. Warn up front instead. A Docker that cannot be asked is not a finding (the Docker checks report it),
+ * and a host using CDI may not list the runtime, so this is a warning, never a gate.
+ */
+export function checkGpuRuntime(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), runtimes = dockerRuntimes) {
+    const wanting = resources
+        .filter((resource) => {
+        const container = resource.config
+            ?.container;
+        return container?.gpus !== undefined;
+    })
+        .map((resource) => resource.name);
+    if (wanting.length === 0) {
+        return { name: "GPU runtime", didPass: true, message: "No service asks for a GPU" };
+    }
+    const found = runtimes();
+    if (found === null || found.includes("nvidia")) {
+        return {
+            name: "GPU runtime",
+            didPass: true,
+            message: found === null
+                ? "Docker did not answer; the GPU runtime was not checked"
+                : "Docker has the NVIDIA runtime",
+        };
+    }
+    return {
+        name: "GPU runtime",
+        didPass: false,
+        isWarning: true,
+        message: `${wanting.join(", ")} ask for a GPU (container.gpus), but Docker lists no nvidia runtime (found: ${found.join(", ") || "none"}); Docker will refuse to create ${wanting.length === 1 ? "it" : "them"}`,
+        fix: "Install the NVIDIA Container Toolkit on a GPU host, or remove container.gpus for this machine",
     };
 }
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
@@ -163,6 +481,74 @@ export function warnSchemaVersions(projectRoot, resources) {
         console.warn(chalk.gray(`  ${check.fix}`));
 }
 /**
+ * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
+ * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
+ * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ */
+export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), env = process.env) {
+    const provider = (env.FLISK_SECRET_PROVIDER ?? "").trim().toLowerCase();
+    if (provider !== "" && provider !== "env-file") {
+        return {
+            name: "Required secrets",
+            didPass: true,
+            message: "Secrets are left to the secret provider",
+        };
+    }
+    const envFile = env[PROJECT_ENV_FILE_VAR] || join(projectRoot, ".env");
+    let fileValues = new Map();
+    try {
+        if (existsSync(envFile))
+            fileValues = parseEnv(readFileSync(envFile, "utf-8"));
+    }
+    catch {
+        // An unreadable env file is reported where the file is read; here every name counts as missing.
+    }
+    const has = (name) => Boolean((env[name] ?? "").trim() || (fileValues.get(name) ?? "").trim());
+    const problems = resources.flatMap((resource) => {
+        const required = resource.config?.secrets
+            ?.required;
+        // `secrets.generate` names are written to the env file by `flisk up` before anything starts.
+        const generated = generateEntries(resource.config);
+        const missingSecrets = (Array.isArray(required) ? required : [])
+            .filter((name) => typeof name === "string" &&
+            /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) &&
+            !has(name) &&
+            !generated.has(name))
+            .map((name) => `${filePath(projectRoot, resource)}: secret ${name} has no value`);
+        // A provider's token is required unless the provider has a local fallback (service.json `providers`).
+        const missingTokens = providersOf(resource.config)
+            .filter((provider) => provider.required &&
+            provider.tokenSecret !== undefined &&
+            /^[A-Za-z_][A-Za-z0-9_]*$/.test(provider.tokenSecret) &&
+            !has(provider.tokenSecret) &&
+            !missingSecrets.some((line) => line.endsWith(` ${provider.tokenSecret} has no value`)))
+            .map((provider) => `${filePath(projectRoot, resource)}: secret ${provider.tokenSecret} (token of provider ${provider.id}) has no value`);
+        return [...missingSecrets, ...missingTokens];
+    });
+    if (problems.length === 0) {
+        return {
+            name: "Required secrets",
+            didPass: true,
+            message: "Every required secret has a value",
+        };
+    }
+    return {
+        name: "Required secrets",
+        didPass: false,
+        message: `${formatCount(problems.length, "required secret")} without a value:\n    ${problems.join("\n    ")}`,
+        fix: `Add NAME=value to ${relative(projectRoot, envFile) || ".env"} (it is gitignored), or export it in the environment, or move it to "optional"`,
+    };
+}
+/** Prints each secret that a literal in `params` or `env` overrides. A warning: such a project still starts. */
+export function warnSecretConflicts(projectRoot, resources) {
+    for (const resource of resources ?? discoverResourcesFromRoot(projectRoot)) {
+        if (!resource.config)
+            continue;
+        for (const warning of secretConflictWarnings(resource.config, filePath(projectRoot, resource)))
+            console.warn(chalk.yellow(`⚠ ${warning}`));
+    }
+}
+/**
  * Runs before anything starts (also under --dry-run, like the drift gate): duplicate service names, circular
  * dependsOn and invalid ports exit with 1 and say which file, which field, and how to fix it.
  */
@@ -170,9 +556,14 @@ export function enforceServiceConfigGate(projectRoot, options = {}, exit = proce
     const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
     const failed = [
         checkDuplicateResourceNames(projectRoot, resources),
+        checkServiceFields(projectRoot, resources),
+        checkCustomDockerfiles(projectRoot, resources),
+        checkRequiredSecrets(projectRoot, resources),
         checkDependsOnShape(projectRoot, resources),
         checkCircularDependencies(projectRoot, resources),
         checkServicePorts(projectRoot, resources),
+        checkSidecars(projectRoot, resources),
+        checkVolumes(projectRoot, resources),
     ].filter((check) => !check.didPass);
     if (failed.length === 0)
         return;

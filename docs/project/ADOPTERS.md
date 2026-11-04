@@ -5,7 +5,9 @@ Teams that run `flisk up` on their own repositories. There are two ways to be li
 - **Fill in the form.** Open the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue form. A maintainer turns it into a row for you, so you do not have to edit a Markdown table.
 - **Open a pull request.** Add one row to the table at the bottom of this file.
 
-Each row needs the organization, a link to their repository or a public write-up, and the Flisk version. The 100-service `/health` fixture (`tdk-erp-system`, `docs/benchmarks/results`) is a benchmark, not an adopter, and must not be listed here.
+Each row needs the organization, a link to their repository or a public write-up, and the Flisk version. The 100-service `/health` fixture (`flisk-erp-system`, `docs/benchmarks/results`) is a benchmark, not an adopter, and must not be listed here.
+
+[ADOPTER-COVERAGE.md](ADOPTER-COVERAGE.md) tracks which Compose features Flisk covers and what is still open, for the repositories checked so far (TubeHaus is the only one listed here that has a row yet; the others are added when their Compose file is imported and run).
 
 ## What counts
 
@@ -18,7 +20,7 @@ Each row needs the organization, a link to their repository or a public write-up
 
 **What does not count:**
 
-- benchmark fixtures, including `tdk-erp-system` and anything under `docs/benchmarks/results`
+- benchmark fixtures, including `flisk-erp-system` and anything under `docs/benchmarks/results`
 - "evaluating" or "planning to try" Flisk
 - forks or copies of the projects in `examples/`
 
@@ -46,6 +48,7 @@ Do not copy that example into the table.
 
 | Organization | Link | Flisk version |
 | --- | --- | --- |
+| TubeHaus | https://github.com/biolend83/tubehaus | 1.4.25 |
 | Lekast | https://www.linkedin.com/company/lekast/ | 1.3.178 |
 | mfin.services | https://medium.com/@mfin.services | 1.3.140 |
 | MakeOffer | https://www.linkedin.com/company/makeofferio | 1.3.180 |

@@ -27,10 +27,13 @@ Aliases: `byo`, `bring-your-own`
 
 - Flisk does not generate application code for this type
 - Provide your own Dockerfile or use `--image <name>` to use an existing image
-- Default port range: 4000-5999 (next free port)
+- Port: the port your container listens on (any 1-65535). `flisk resource` suggests the next free one in 4000-5999 when you do not pass one
 - If Dockerfile exists, it will not be overwritten
 - BYO resources receive the standard Traefik route by default. Use `--no-proxy` to disable it;
   this writes `exposeViaProxy: false` to the service manifest
+- A routed resource is reached at `http://api.<project>.localhost/api/<name>`: a path prefix, which Flisk strips before the
+  request reaches the container. That suits an API. An app that serves its own pages and assets from `/` (a React or Svelte
+  UI in one container) cannot work under a prefix. Set `"webUi": true` for it (see "Web UIs" below)
 - Use `--yes` in scripts to skip the create confirmation
 - `--port` accepts an unused integer from 4000 through 5999
 - By default, Flisk writes an Nginx Dockerfile and health endpoint that listen on the assigned
@@ -38,6 +41,43 @@ Aliases: `byo`, `bring-your-own`
 - Set `"buildContext"` in `service.json` (a path relative to the resource directory) to build from a source tree elsewhere in the repo, as `flisk-import` does for an existing Dockerfile. `dockerfile` is then relative to that context. Without it the context is the resource directory
 - Pass `--dockerfile <path>` to select a custom Dockerfile, or `--image <image>` to use an
   existing image without creating a Dockerfile
+
+## Web UIs (`webUi`)
+
+A bring-your-own app that serves a web page from `/` is routed on its own host name, with no path prefix:
+
+```json
+{ "appName": "app", "appType": "bring-your-own", "stack": "trek", "port": 3000, "image": "mauriceboe/trek", "webUi": true,
+  "healthCheckPath": "/api/health" }
+```
+
+`flisk up` then prints `http://app.<project>.localhost:<ingress port>` (the name is the resource's `appName`) and Traefik
+routes `Host(<name>.<project>.localhost)` to the container with nothing stripped, so the page, its assets and its own `/api/...`
+calls work as they do without Flisk. There is no `/api/<name>` route for it. `*.localhost` names resolve to this machine in
+browsers and in current `curl`, with no `/etc/hosts` entry.
+
+- Without `webUi` (the default) nothing changes: a routed resource stays an API at `/api/<name>`.
+- `webUi` applies to bring-your-own resources only and has no effect with `exposeViaProxy: false` (no route at all).
+- An explicit `traefik.host` is an extra host name for the same route; `traefik.pathPrefix` is ignored for a web UI.
+- The route uses the resource's `healthCheckPath` (or `healthCheck.command`) as before; keep it a path that answers 2xx or 3xx.
+- A web UI keeps no stack-scoped router, so it does not take the stack's shared route away from the stack's backends.
+- `flisk import` does not set `webUi`: Compose does not say whether a container serves pages or an API, so add it by hand to the
+  resources that serve a UI.
+
+Checked by `tests/tilt-engine/test_byo_web_ui.py` (the generated labels, run through Tilt) and the CLI URL tests; a browser
+loading a page through the host route under a real `flisk up` was not part of those tests.
+
+## Inference (a local model server)
+
+`--type inference` is a bring-your-own preset for an OpenAI-compatible model server, so agents and MCP servers can point at a model that runs with the stack instead of a paid API:
+
+```bash
+flisk resource brain --type inference --stack kitchen
+```
+
+It writes a `service.json` with `port: 11434`, `healthCheckPath: "/v1/models"` and `image: "ollama/ollama"`, and no Dockerfile. Ollama is only the default: pass `--image` (vLLM, llama.cpp server, any image), `--dockerfile`, `--port` (any 1-65535) or `--health-path` to use something else. Anything that answers `GET /v1/models` works. Agents call it at `http://brain:11434/v1/chat/completions` on the Docker network.
+
+Pull a model once with `docker compose exec brain ollama pull <model>` (or your server's equivalent). The preset mounts no volume, so pulled models are lost when `flisk down` removes the container: pull them again after `flisk up`, or bake the model into your own image with `--dockerfile`. A container on macOS cannot use the GPU; for Metal speed run the server on the host and set `"command"` in `service.json` instead.
 
 ## One-shot jobs (migrations, seeders)
 
@@ -48,9 +88,484 @@ For a one-shot job, set the restart policy to `no`:
 flisk resource migrate --type bring-your-own --stack shop --dockerfile ./Dockerfile --restart no --yes
 ```
 
+A service that lists such a job in `dependsOn` starts only after the job exited `0` (a `<job>-done` resource in Tilt waits for it); if the job fails, the services after it are not started.
+
 `--restart` takes `no`, `on-failure`, `unless-stopped` (the default) or `always`, and is written to `service.json` as
-`"restart": "no"`. It is rejected for any other resource type. Checked with a real `flisk up` (PR #275): a dbmate job
+`"restart": "no"`. In `service.json`, `restart` also takes `on-failure:N` (see below). It is rejected for any other resource type. Checked with a real `flisk up` (PR #275): a dbmate job
 (`ghcr.io/amacneil/dbmate:2`, `dbmate up`) with `restart: "no"` applied its migration once and stayed `exited (0)` with zero restarts. A runnable version lives in [`examples/byo-jobs/`](../examples/byo-jobs/README.md); check it with `tests/e2e/resource-types/bring-your-own/verify-byo-job.sh dbmate`.
+
+## Container runtime options (capabilities, read-only, user)
+
+Some images need Compose options that Flisk cannot infer: a VPN client that needs `NET_ADMIN`, a hardened service that drops
+every capability and runs read-only as a fixed user, or a headless browser that needs a larger `/dev/shm`. Set them in a
+`container` block in the resource's `service.json`:
+
+```json
+"container": {
+  "capAdd": ["NET_ADMIN"],
+  "capDrop": ["ALL"],
+  "init": true,
+  "readOnly": true,
+  "user": "10001:10001",
+  "securityOpt": ["no-new-privileges:true"],
+  "shmSize": "256mb",
+  "entrypoint": ["/docker-entrypoint.sh"],
+  "command": ["server", "/data", "--console-address", ":9001"]
+}
+```
+
+Each key becomes the Compose key of the same meaning (`cap_add`, `cap_drop`, `init`, `read_only`, `user`, `security_opt`,
+`shm_size`, `entrypoint`, `command`) in the generated `docker-compose.app.autogenerated.yml`. Every key is optional; `init` stays `true` unless you set it
+to `false`. `container` applies to bring-your-own resources only: `flisk config verify` reports it on any other type, and an
+unknown key or a value with characters Compose would read as YAML is refused before Tilt starts. Checked by
+`tests/tilt-engine/test_byo_container_options.py`, which runs the generator through Tilt; a container started with these options
+was not part of that test.
+
+`command` replaces the image's default command (Compose `command`), for an image that needs arguments to start, such as
+MinIO's `server /data`. It is a list of non-empty strings without control characters: `["sh", "-c", "..."]` runs a script.
+Compose reads `$` itself, so write `$$VAR` for a variable the container expands when it starts (`$$HOME` reaches the shell
+as `$HOME`), and `${VAR}` for one Compose fills in from the project `.env`. Checked by the same test file, which also runs
+`docker compose config` on the generated file.
+
+`entrypoint` replaces the image's `ENTRYPOINT` (Compose `entrypoint`) and takes the same list form. Compose also drops the
+image's default `CMD` when an `entrypoint` is set, so set `command` too if the image needs its arguments. An empty list
+(`"entrypoint": []`) removes the image's `ENTRYPOINT` and keeps its `CMD`. Both keys are exec form: there is no shell
+unless you start one with `["sh", "-c", "..."]`, so `"command": ["echo $HOME"]` is not expanded. The `$$` rule is the same
+for both: `$$VAR` reaches the container as `$VAR`, a lone `$VAR` is read by Compose from the project `.env` (or becomes empty).
+They apply to an image and to a `build:` service alike (a `buildContext` resource). Do not confuse them with the top-level
+`"command"` of `service.json`, which starts a local process on your machine and has no container: `container.command` is
+the arguments of the container's process.
+
+## Extra ports (a proxy on 80 and 443, a second listener)
+
+`port` is the one port Flisk health-checks and routes through Traefik. A reverse proxy such as Caddy listens on 80 and 443,
+and some services have a second listener next to HTTP (a SOCKS proxy, a metrics port). List those as `extraPorts`:
+
+```json
+"port": 8080,
+"extraPorts": [
+  { "port": 80, "hostPort": 8081 },
+  { "port": 443 },
+  { "port": 443, "protocol": "udp" }
+]
+```
+
+Each entry is published on `127.0.0.1` only (`"127.0.0.1:8081:80/tcp"` in the generated Compose file), so nothing is reachable
+from the network, unless the entry opts in with `"bind": "0.0.0.0"`: a self-hosted app that phones and TVs on your Wi-Fi must
+open needs that, and `flisk doctor` then lists the port under "Network ports" as a warning, so it stays a visible choice.
+`hostPort` defaults to `port` and `protocol` to `tcp`. A host port that is already taken makes the container
+fail to start, so pick a free one with `hostPort`. `flisk status` prints the addresses next to the service. `extraPorts` applies
+to bring-your-own resources with one container: `flisk config verify` refuses it with `replicas`, on another resource type, or
+when two entries ask for the same host port. Checked by `tests/tilt-engine/test_byo_extra_ports.py` (the generator, run through
+Tilt, and `docker compose config` with a `.env`); a container listening on those ports was not part of that test.
+
+### Taking the binding from `.env` (`publish`)
+
+A Compose project often lets the installer choose how a port is published: `"${WEB_HTTP_BIND:-80}:80"` with
+`WEB_HTTP_BIND=127.0.0.1:8080` in `.env` for a host behind its own reverse proxy. Give the entry `publish` instead of
+`hostPort` and `bind`, written as the host side of that mapping. The variable name is yours: `WEB_HTTP_BIND` here is only an
+example, and any name matching `[A-Za-z_][A-Za-z0-9_]*` works, so keep the one your Compose file and `.env` already use:
+
+```json
+"extraPorts": [
+  { "port": 80, "publish": "${WEB_HTTP_BIND:-0.0.0.0:80}" }
+]
+```
+
+The generated Compose file gets `"${WEB_HTTP_BIND:-0.0.0.0:80}:80/tcp"`, and Compose resolves the variable from the shell
+and the project `.env`, so `WEB_HTTP_BIND=127.0.0.1:8080` there publishes on loopback port 8080 and an unset variable
+publishes the default. One string covers the address and the port, which is why `publish` is a single field rather than
+`hostPort` and `bind` each taking a variable (that could not express a `.env` value such as `127.0.0.1:8080`).
+
+- The text is `digits`, `.`, `:` and `${NAME:-default}` / `${NAME-default}` / `${NAME}` only. A default keeps the safe value
+  visible in `service.json`; a bare `${NAME}` (any-sync's `"127.0.0.1:${REDIS_PORT}"`) takes its value from the environment
+  (the shell or the project `.env`, the two places Compose reads). It is written as `${NAME:?NAME is not set, add it to .env}`,
+  so Compose stops when `NAME` is unset or empty instead of publishing a different mapping (`${PORT}80` would otherwise become
+  host port 80 on every interface). When the host port is a literal after the last `:` (`${HOST}:80`) it still counts for the
+  published-twice check; when it comes from a variable, `flisk config verify` cannot compare it with the others. A literal that
+  can never be a port (`127.0.0.1:65536${A}`) is refused. The container side stays the literal `port` (any-sync's `:${REDIS_PORT}` container side is written as the port
+  the image listens on). The default (and any `.env` value) is a port,
+  which Docker publishes on every interface, or an IPv4 `address:port`. A default like `127.0.0.1:80` keeps the safe behaviour of
+  a plain entry; one like `0.0.0.0:80` is the explicit choice. IPv6 and host names are not accepted.
+- `publish` replaces `hostPort` and `bind`; `flisk config verify` refuses them together, a malformed template, and two entries
+  whose default host port is the same.
+- `flisk status` shows the address the variable resolves to now (the shell first, then the project `.env`, then the default).
+  The port planner keeps Traefik off that resolved port, and `flisk doctor` lists a resolved address that is not loopback
+  under "Network ports" with the variable it came from, and names a `.env` value that is not a port or address:port. Both
+  read the root `.env` only: a different file chosen with `flisk up --env-file`, or a variable exported in another shell than the
+  one running `flisk status`, can resolve differently when the stack starts. Numeric `hostPort` and `bind` entries are unchanged.
+
+## Sidecars (sharing another container's network)
+
+Some containers are meant to run inside another one's network namespace, so each reaches the other on `127.0.0.1`: a
+PO-token or auth helper next to the app that calls it, a VPN or proxy client. In Compose that is
+`network_mode: "service:<name>"`. In Flisk, name the host resource with `sidecarOf`:
+
+```json
+{ "appName": "bgutil", "appType": "bring-your-own", "stack": "tube", "port": 4416,
+  "image": "brainicism/bgutil-ytdlp-pot-provider", "sidecarOf": "tubehaus" }
+```
+
+The generated Compose service gets `network_mode: "service:tubehaus"` and none of its own networks, published ports or
+Traefik route (Compose refuses `networks` and `ports` next to `network_mode`). The sidecar starts after its host, as if
+`sidecarOf` were in `dependsOn`. Publish any port the pair needs with `extraPorts` on the host. `flisk config verify` and
+`flisk doctor` refuse a `sidecarOf` that names no resource, a resource in another stack, the resource itself, or one combined
+with `extraPorts` or `replicas`. Checked by `tests/tilt-engine/test_byo_sidecar.py` (the generator and the start order, run
+through Tilt); two containers talking over a shared namespace under `flisk up` was not part of that test.
+
+## Volumes (data that survives a restart, config files)
+
+A container's filesystem is thrown away when it is recreated. Keep data in `volumes`:
+
+```json
+"volumes": [
+  { "source": "library", "target": "/data" },
+  { "source": "./Caddyfile", "target": "/etc/caddy/Caddyfile", "readOnly": true },
+  { "source": "../../../web", "target": "/srv/web", "readOnly": true }
+]
+```
+
+- **A name** (`"library"`) is a named Docker volume. It is declared once in the stack's generated Compose file, `flisk down`
+  keeps it, and two services that name the same volume share it. To start from empty, stop the stack with `flisk down` and
+  remove the volume: `docker volume ls --filter label=com.docker.compose.volume=library` shows its full name, then
+  `docker volume rm <that name>`.
+- **Keep an existing install's data:** a named volume can set `name`, the Docker volume's own name. Without it the name gets
+  the generated project's prefix, so a Compose install's `myapp_data` is not found. With `"name": "myapp_data"` (the name
+  `docker volume ls` shows), `flisk up` mounts that volume as it is: no copy, and `docker compose up` and `flisk up` share the
+  data. Docker creates the volume when it does not exist yet. `flisk import` writes `name` for you from the Compose file.
+- **A path** starting with `./` or `../` is a bind mount, relative to the service directory (where its `service.json` is).
+  It must stay inside the project: `flisk up` and `flisk doctor` refuse one that climbs above the project root.
+- `target` is an absolute path in the container; `readOnly: true` mounts it read-only.
+
+`volumes` applies to bring-your-own resources. Checked by `tests/tilt-engine/test_byo_volumes.py` (the generator, run through
+Tilt). A five-service stack shaped like tubehaus's Compose file, generated with `container`, `extraPorts`, `sidecarOf` and
+`volumes`, passed `docker compose config`, which resolved the bind mounts to the project's folders; starting those containers
+was not part of the check.
+
+## Environment (plain configuration)
+
+Put configuration that belongs in the repository in `env`, and credentials in `secrets` (which read the git-ignored project
+`.env`):
+
+```json
+"env": {
+  "POSTGRES_DB": "invidious",
+  "PROXY": "socks5://tubehaus:1080",
+  "PUBLIC_URL": "${APP_URL:-http://localhost:8081}"
+},
+"secrets": { "required": ["POSTGRES_PASSWORD"] }
+```
+
+Each entry is added to the container's Compose `environment`, after Flisk's own variables and the secrets. A value may use
+`${VAR}` or `${VAR:-default}`, which Compose resolves from the project `.env`. Values are written quoted, so spaces, `:` and `#`
+reach the container as written. `flisk config verify` refuses a name that is not an environment variable name, a value that is
+not a string, and a line break. Checked by `tests/tilt-engine/test_byo_env.py`, which also runs `docker compose config` on the
+generated file.
+
+## tmpfs mounts and extra env files (Compose stacks such as Lychee)
+
+Two more keys carry over what a Compose file such as LycheeOrg/Lychee's sets:
+
+| Key | Compose key | Value |
+| --- | --- | --- |
+| `container.tmpfs` | `tmpfs` | List of in-memory mounts. Each is an absolute path in the container, optionally followed by `:` and mount options, such as `/tmp:noexec,nosuid,nodev,size=100m`. Options are lowercase letters, digits, `=`, `,`, `_` and `-`. |
+| `envFile` | `env_file` | List of env files, each a path relative to the service directory, such as `../../../.env`. It must stay inside the project. |
+
+```json
+"envFile": ["../../../.env"],
+"container": { "tmpfs": ["/tmp:noexec,nosuid,nodev,size=100m"] }
+```
+
+Each `envFile` path is written after Flisk's own generated env file, relative to the generated Compose file, in Compose's
+`required: false` form: a file that does not exist yet is skipped, not an error. A path that leaves the project, an absolute path,
+or a value with characters Compose would read as YAML is refused by `flisk config verify` and before Tilt starts (`flisk doctor`
+reports a path outside the project). Both keys apply to bring-your-own resources only. Checked by
+`tests/tilt-engine/test_byo_tmpfs_env_file.py` (the generator, run through Tilt); a container started with them was not part of that test.
+
+CPU and memory limits use `container.cpus` and `container.memory`, described in the next section.
+
+## Models (Compose models, Docker Model Runner)
+
+A Compose stack such as nosia asks Docker Model Runner for its models with a top-level `models:` block and lists them on the
+service that uses them. `models` carries that over: `flisk import` writes it from the Compose file, and `flisk export compose`
+writes it back out.
+
+```json
+"models": [
+  { "name": "llm", "model": "${LLM_MODEL:-ai/smollm2}" },
+  { "name": "embedding", "model": "ai/granite-embedding-multilingual" }
+]
+```
+
+The service gets `models: [llm, embedding]`, and the stack's generated Compose file declares each name once at the top level,
+with `model` written quoted. Two services naming the same model share it; one name given two different models stops `flisk up`.
+
+- `name`: letters, digits, `-`, `_` and `.`, starting with a letter or digit. Listed once per service.
+- `model`: a model reference such as `ai/smollm2`, `ai/qwen3:8B-Q4_K_M` or `hf.co/org/name`, or a Compose variable `${NAME}` or
+  `${NAME:-<model reference>}`, which Compose fills in from the project's `.env` or your shell.
+
+Quotes, spaces, backslashes, line breaks and anything else Compose would read as YAML are refused by `flisk config verify` and
+before Tilt starts. `models` applies to bring-your-own resources only. Docker Model Runner must be enabled in Docker Desktop
+(or the `docker-model-plugin` installed) for the container to start. Checked by `tests/tilt-engine/test_byo_models.py`, which also
+runs `docker compose config` on the generated file; pulling and running a model was not part of that test.
+
+## Image variables, restart limits, stop timeout, hosts, ulimits and network aliases (imported Compose stacks)
+
+Compose files such as karatektus/pl_mail, anyproto/any-sync-dockercompose, wger-project/docker, open-mercato and labsai/EDDI
+use these settings. Each one carries over to a bring-your-own resource:
+
+| service.json | Compose key | Value |
+| --- | --- | --- |
+| `image` | `image` | May use Compose variables: `postgres:${POSTGRES_VERSION:-18}-alpine`, `ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}`. Written quoted; Compose fills it in from the shell and the project `.env`. |
+| `restart` | `restart` | Also `on-failure:N`, N from 1 to 100: restart after a failure at most N times. |
+| `container.stopGracePeriod` | `stop_grace_period` | A duration such as `30s` or `1m30s`. |
+| `container.extraHosts` | `extra_hosts` | List of `name:address`, where address is `host-gateway`, an IPv4 address or an IPv6 address: `["host.docker.internal:host-gateway", "legacy:10.0.0.5"]`. The address may be a Compose variable: `host.docker.internal:${OM_HOST_GATEWAY:-host-gateway}`, `db:${DB_HOST}` or `db:${DB_HOST-10.0.0.5}`, where a default is an address of the same kinds. |
+| `container.ulimits` | `ulimits` | Per limit name (`nofile`, `nproc`, `memlock`, `core`, `stack`, ...), a number or `{"soft": n, "hard": n}`. `-1` means unlimited. |
+| `container.networkAliases` | `networks.<backend>.aliases` | Extra DNS names for the service on the stack's backend network, which every app service is on: pl_mail's worker answers as `mercure`. Not for a sidecar (`sidecarOf`). |
+| `healthCheck.startPeriod` | `healthcheck.start_period` | Seconds after the container starts before failed probes count, for an app that boots slowly (Lychee uses 10 to 60). Same style as `interval` and `timeout`. It applies with a `healthCheck.port` or `healthCheck.command` probe: a bring-your-own resource has no other container health check. |
+
+```json
+"image": "postgres:${POSTGRES_VERSION:-18}-alpine",
+"restart": "on-failure:5",
+"healthCheck": { "command": ["pg_isready"], "startPeriod": 30 },
+"container": {
+  "stopGracePeriod": "1m30s",
+  "extraHosts": ["host.docker.internal:host-gateway"],
+  "ulimits": { "nofile": { "soft": 65536, "hard": 65536 }, "nproc": 65535 },
+  "networkAliases": ["mercure"]
+}
+```
+
+A variable can be written `${NAME}`, `${NAME:-default}` (the default when NAME is unset or empty) or `${NAME-default}` (the default
+only when NAME is unset, as in codecov's `"${CODECOV_PORT-8080}:8080"`). The same three forms work in `image`,
+`extraPorts[].publish` and `models[].model`. A default uses only the characters its field allows.
+A value with quotes, spaces, line breaks or other characters Compose would read as YAML is refused by `flisk config verify` and
+before Tilt starts. With `networkAliases` the service's networks are written in Compose's map form; without it they stay a list.
+Checked by `tests/tilt-engine/test_byo_compose_options.py`, which runs the generator through Tilt and `docker compose config` on
+the generated file; a container started with these settings was not part of that test.
+
+## dependsOn conditions, build args, logging, bind paths from the environment (more imported Compose stacks)
+
+open-mercato, anyproto/any-sync-dockercompose, wger-project/docker and labsai/EDDI also use these:
+
+| service.json | Compose key | Value |
+| --- | --- | --- |
+| `dependsOn` entry | `depends_on` | A name as before, or `{"name": "db", "condition": "service_healthy"}`. The condition is `service_started`, `service_healthy` or `service_completed_successfully`. Flisk starts services in dependsOn order by name (Tilt `resource_deps`), so the condition is accepted and kept but does not change the order. Applies to every resource type. |
+| `buildArgs` | `build.args` | Object of NAME to string for a bring-your-own resource built from its Dockerfile: `{"NODE_VERSION": "${NODE_VERSION:-22}"}`. |
+| `logging` | `logging` | `{"driver": "json-file", "options": {"max-size": "5m", "max-file": "5"}}`. Option values are strings (#2965). |
+| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}`, `${NAME-./path}`, or a bare `${STORAGE_DIR}` with no default, and each may be followed by a sub-path: `${STORAGE_DIR}/redis`, `${DATA:-./data}/sub`. A default must be a path inside the project, resolved like any other bind path. A value set in the environment (the shell or the project `.env`) is used as Compose reads it, relative to the generated Compose file, so set an absolute path. A bare `${NAME}` is written as `${NAME:?...}`, so Compose stops when it is unset or empty instead of mounting `/redis` from `${STORAGE_DIR}/redis`. A sub-path has no `.` or `..` segment. `selinux` applies as on any bind mount. |
+| `volumes[].selinux` | `:z` / `:Z` | `"z"` (label shared between containers) or `"Z"` (private) on a bind mount. |
+| `image` | `image` | Also `${NAME:?message}` or `${NAME?message}`: Compose stops with the message when NAME is unset (`dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set}`). The message uses printable ASCII only, with no quotes, backslash, braces, `$` or backtick. |
+
+`env` values already reach Compose as written, so nested and mixed expressions work: `${A:-${B:-file}}` or
+`mongodb://${U:-x}:${P}@db/eddi?a=b&c=d`. `buildArgs`, `logging` options and `env` values are written as JSON strings, which YAML
+reads as double-quoted strings, so they cannot add keys. A line break or control character in any of them is refused by
+`flisk config verify` and before Tilt starts. `.flisk/project.json` can carry `composeProjectNames` (stack to the Compose
+project name an install ran under), which `flisk import` writes. Flisk accepts it and does not use it yet. Checked by
+`tests/tilt-engine/test_byo_compose_round3.py`, which runs the generator and the manifest loaders through Tilt and
+`docker compose config` on the generated file. A container started with these settings was not part of that test.
+
+## What Flisk adds to a bring-your-own container (and what it no longer does)
+
+A bring-your-own container gets the environment its `service.json` declares, plus `PORT`, `RESOURCE_NAME` and `INSTANCE_ID` (and
+`FLISK_HEALTH_PATH` when it has a health path). It does **not** get Flisk's shared Postgres settings unless it asks for them:
+
+- `DATABASE_URL`, `TILT_DATABASE_URL` and `NODE_ENV=development` are added only when `dependsOn` lists `postgres`,
+  `database-management` or a `database` resource, or the service sets its own `databaseName`. A `DATABASE_URL` in the service's
+  own `env` always wins. `DATABASE_NAME` in the generated `.env.backend.autogenerated` follows the same rule (#3026): a plain
+  container no longer gets the name of a database that does not exist. (They used to be added to every container: Laravel reads `DATABASE_URL` before `DB_CONNECTION`, so
+  LycheeOrg/Lychee connected to Flisk's Postgres instead of its own MariaDB, #2991.) `AUTO_MIGRATE` is not added.
+- `NATS_QUEUE_GROUP` and `TILT_NATS_URL` are added only with the `nats` feature in `featuresEnabled`.
+- There is no CPU or memory limit unless `container.cpus` or `container.memory` is set (#2992; see the next section).
+
+### The router and the shared Postgres start only when something uses them (#2963)
+
+Flisk's own router (Traefik, `127.0.0.1:8080/8443`) and its shared PostgreSQL (`15432`) are platform services. A project whose
+resources are **all** bring-your-own gets each one only when a resource uses it:
+
+- the router: some resource is routed, that is, does not set `"exposeViaProxy": false`;
+- the shared Postgres: some resource lists `postgres` or `database-management` in `dependsOn`, has the `database-management`
+  feature, or is (or depends on) a `database` resource.
+
+A project of unrouted containers that bring their own database therefore publishes only the ports it declares. Any other resource
+type (backend, agent, worker, MCP, frontend) keeps both, as before. A value in `.flisk/project.json` wins over this:
+`"capabilities": { "gateway": true, "database": true }` keeps them on, `false` turns them off. `flisk up` regenerates
+`.flisk/.flisk-out/` when adding or removing a resource changes the answer, and `flisk status` (and `flisk status --json`, field
+`platformServices`) says why each one runs or does not.
+
+Project names are lower-cased: `"name": "Lychee"` in `.flisk/project.json` is used as `lychee` for the Compose project, networks,
+containers, volumes and image tags, because Compose refuses uppercase (#1519). `services/platform/database-management/
+docker-compose.yml` is rewritten on every `flisk up` when its text changed, so a renamed project does not keep the old network
+name (#2993). Checked by `tests/tilt-engine/test_byo_flisk_defaults.py`.
+
+## GPUs, CPU and memory (model servers and simulators)
+
+A container Flisk builds from its own Dockerfile is limited to 0.5 CPU and 512M of memory. A bring-your-own container has **no
+limit** unless `container.cpus` or `container.memory` is set (it runs as it would under plain Compose, and `flisk export compose`
+matches), and only the limit you set is written. A model server (vLLM, Ollama, llama.cpp) or a
+scientific workload (a cuQuantum or Qiskit Aer GPU simulator, a tensor-network or large state-vector simulation) needs more,
+and needs the GPU. Add these keys to the same `container` block:
+
+```json
+"container": {
+  "gpus": "all",
+  "cpus": 8,
+  "memory": "32g",
+  "ipc": "host",
+  "shmSize": "16g"
+}
+```
+
+- `gpus`: `"all"` or a count. It becomes an NVIDIA device reservation (`deploy.resources.reservations.devices` with
+  `driver: nvidia` and `capabilities: [gpu]`). The host needs an NVIDIA GPU and the NVIDIA Container Toolkit (Linux, or
+  Windows with WSL 2); without them Docker refuses to start the container.
+- `cpus` and `memory`: replace Flisk's limits (`deploy.resources.limits`). A reservation never exceeds its limit.
+- `ipc`: `host`, `private`, `shareable` or `none`. vLLM tensor parallelism and PyTorch data loaders use `host`, or a large
+  `shmSize`.
+
+Docker on macOS cannot reach the Apple GPU (Metal). There, run the model server as a local process instead: a service.json
+with a top-level `command` (for example `ollama serve`) runs on the host with no Docker, and the containers in the stack reach it
+like any other service.
+
+Checked by `tests/tilt-engine/test_byo_gpu_resources.py` (the generator) and
+`tests/e2e/resource-types/bring-your-own/verify-byo-hpc.sh` (a container started by `flisk up` gets the CPU, memory, IPC and
+`/dev/shm` settings, and `docker compose config` accepts the generated GPU reservation; the live GPU check runs only on a host
+with the NVIDIA runtime).
+
+## Infrastructure frameworks (Redis, Qdrant, MinIO, MLflow, NATS, RabbitMQ)
+
+Postgres and NATS come with every project. For a cache, a vector store, S3-compatible object storage, experiment tracking or
+a second queue, create a resource of type `database` or `queue` and name its framework:
+
+```bash
+flisk resource cache --type database --framework redis --stack hqc
+flisk resource vectors --type database --framework qdrant --stack hqc
+flisk resource store --type database --framework minio --stack hqc
+flisk resource tracking --type database --framework mlflow --stack hqc
+flisk resource bus --type queue --stack hqc                        # nats is the default queue
+flisk resource broker --type queue --framework rabbitmq --stack hqc
+```
+
+`--type database` on its own, or with `--framework postgres`, is still the shared Flisk Postgres (no container of its own).
+Every other framework writes a bring-your-own `service.json` (`appType: "bring-your-own"`, the engine does not know the
+frameworks) with `"framework": "<id>"` recorded, a pinned image, a readiness probe, a named volume `<name>-data` that
+`flisk down` keeps, and `provides`. The containers in the stack reach each server on the Docker network by name; it is not
+routed through Traefik.
+
+| Type | Framework | Image | Port | Data | Provides |
+| --- | --- | --- | --- | --- | --- |
+| `database` | `redis` | `redis:7.4-alpine` | 6379 | `/data` | `REDIS_URL=redis://<name>:6379` |
+| `database` | `qdrant` | `qdrant/qdrant:v1.12.5` | 6333 | `/qdrant/storage` | `QDRANT_URL=http://<name>:6333` |
+| `database` | `minio` | `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` | 9000 | `/data` | `MINIO_ENDPOINT`, `AWS_ENDPOINT_URL_S3` (`http://<name>:9000`), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
+| `database` | `mlflow` | `ghcr.io/mlflow/mlflow:v3.17.2` | 5000 | `/data` | `MLFLOW_TRACKING_URI=http://<name>:5000` |
+| `queue` | `nats` (default) | `nats:2.11.8-alpine` | 4222 | `/data` | `NATS_URL=nats://<name>:4222` |
+| `queue` | `rabbitmq` | `rabbitmq:4.1-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
+
+`--image` replaces the pinned image (`--image redis:8-alpine`); `--port` is refused, because the image listens on its own port.
+The NATS here is its own container with JetStream on its volume, not the platform NATS.
+
+### Web UIs
+
+A framework with a UI publishes it on `127.0.0.1` only (`extraPorts`, so this machine and nothing else on the network):
+Qdrant dashboard `http://127.0.0.1:6333/dashboard`, RabbitMQ management `http://127.0.0.1:15672` (`guest` / `guest`), MinIO
+console `http://127.0.0.1:9001` (`minioadmin` / `minioadmin`) and MLflow `http://127.0.0.1:5000`. Two resources of one
+framework collide on the host port: change `hostPort` in the second one's `extraPorts` (`{ "port": 6333, "hostPort": 6334 }`).
+On macOS, AirPlay Receiver listens on port 5000 (System Settings, General, AirDrop & Handoff): Docker still publishes
+MLflow on `127.0.0.1:5000`, but a browser may reach AirPlay instead, so set `hostPort` for MLflow there or switch AirPlay off. The server itself stays reachable by name inside the stack on its original port.
+
+### MinIO and MLflow
+
+MinIO stopped publishing images (`minio/minio` and `quay.io/minio/minio` are gone), so the `minio` framework uses the
+community fork `pgsty/minio` pinned to a release: the same command line and S3 API, built for amd64 and arm64. It is not the
+vendor's own build; pass `--image` to use another one. It starts with `container.command` (`server /data --console-address
+:9001`), uses the development login `minioadmin` / `minioadmin` (`params`) and provides the S3 settings the AWS SDKs read.
+
+MLflow keeps its SQLite store in the volume and serves artifacts through the tracking server (`--serve-artifacts`), so a
+client only needs `MLFLOW_TRACKING_URI`. Where the artifacts are stored depends on `dependsOn`: **by default in the local
+volume** (`/data/artifacts`), and **in MinIO when a minio resource is in its `dependsOn`**, because the MinIO `provides`
+(`AWS_ENDPOINT_URL_S3` and the keys) then reach the MLflow container. In that case its start script installs `boto3` (about
+4 seconds on every start), creates the bucket `mlflow` if it is missing (MinIO does not create buckets) and uses
+`s3://mlflow`. Add the dependency in `tracking/service.json`:
+
+```json
+"dependsOn": ["store"]
+```
+
+### Moving from the old preset types
+
+Flisk 1.4.24 had `flisk resource --type redis|qdrant|rabbitmq` (and the unreleased `minio` and `mlflow`). They are gone:
+`--type redis` fails with `redis is a framework: use --type database --framework redis`. Projects made with them keep working,
+because their `service.json` is plain bring-your-own, but they have no `framework` field and no UI port, and `flisk doctor`
+warns about them ("Infrastructure frameworks"). To move one, keep its data volume name in mind (`<name>-data` is the same),
+delete the resource folder and run the new command with the same name; or add `"framework": "redis"` (and, for a UI,
+`"extraPorts": [{ "port": 6333 }]`) to the existing `service.json` by hand.
+
+The RabbitMQ framework lets the default `guest` account connect from the other containers, which RabbitMQ allows only from
+localhost by default; none of the frameworks sets a password except the MinIO development login, so do not publish them on
+other interfaces.
+
+### Connection settings for the services that depend on it (`provides`)
+
+`provides` in a service.json lists settings that every service naming it in `dependsOn` gets in its generated env file:
+
+```json
+"provides": { "REDIS_URL": "redis://cache:6379" }
+```
+
+A service that sets the same name in its own `params` keeps its value. The values land in a generated file that
+`flisk config verify` checks, so they must be plain values without spaces, quotes or `$`: never put a secret in `provides`.
+Any resource can set it; the frameworks write it for you.
+
+Checked by `tests/e2e/resource-types/bring-your-own/verify-byo-infra.sh` (e2e BY8): through `flisk up` and Traefik, a probe
+that lists the six frameworks in `dependsOn` reads their settings from its environment and does a round trip to each (SET
+and GET, a Qdrant collection, a RabbitMQ and a NATS message, an MLflow experiment, and an artifact uploaded through MLflow that
+is then an object in the MinIO bucket), every container is healthy with its data in its own named volume, and the UIs answer on
+127.0.0.1 only.
+
+## External providers (IBM Quantum, Amazon Braket, hosted APIs)
+
+A service that calls a cloud endpoint with a token, and that should use a local stand-in while no token is configured (a
+Qiskit Aer simulator instead of a real QPU, a local model server instead of a hosted API), declares it in `providers`:
+
+```json
+"dependsOn": ["quantum-sim"],
+"providers": {
+  "ibm-quantum": {
+    "url": "https://quantum.cloud.ibm.com/api",
+    "tokenSecret": "IBM_QUANTUM_TOKEN",
+    "fallback": "quantum-sim"
+  },
+  "braket": { "url": "https://braket.us-east-1.amazonaws.com", "tokenSecret": "AWS_BRAKET_TOKEN" }
+}
+```
+
+For each provider (`ibm-quantum` becomes `PROVIDER_IBM_QUANTUM_…`) the container gets:
+
+| Variable | Value |
+| --- | --- |
+| `PROVIDER_IBM_QUANTUM_URL` | `url` (in the generated env file) |
+| `PROVIDER_IBM_QUANTUM_FALLBACK_URL` | `http://<fallback>:<its port>`, when `fallback` is set (in the generated env file) |
+| `IBM_QUANTUM_TOKEN` | the token, from the project `.env` (gitignored), like `secrets` |
+| `PROVIDER_IBM_QUANTUM_REMOTE` | `true` while the token has a value, empty otherwise |
+
+The code calls the remote URL when `PROVIDER_…_REMOTE` is `true` and the fallback URL otherwise. The token reaches the container
+through Compose interpolation and is never written to a generated file. A provider without a `fallback` needs its token:
+`flisk up` (and `--dry-run`) stops before anything starts and names it, as it does for `secrets.required`. Set
+`"required": false` to start without it, or `"required": true` to need it even with a fallback. List the fallback in
+`dependsOn` too; `flisk config verify` reports it when it is missing.
+
+To add, rotate or remove a token, edit the project `.env` and run `flisk restart <service>`. The container is recreated with
+the new value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
+the flag still follows the variable.
+
+`providers` applies to backend, worker, mcp, agent and bring-your-own services running in containers. It does not start a
+proxy in front of the provider; the service calls the URL itself.
+
+Checked by `tests/tilt-engine/test_providers.py` (the generators) and
+`tests/e2e/resource-types/bring-your-own/verify-byo-providers.sh` (e2e BY9): `flisk up --dry-run` refuses a required provider
+token that is missing; without the token the service sees an empty `REMOTE` and reaches the simulator through its fallback
+URL; after the token is added to `.env` and `flisk restart`, it sees `REMOTE=true` and the new token, and no generated file
+holds it.
 
 ## Bringing a framework app (Node, Go, Rust, ...)
 
@@ -103,7 +618,7 @@ The existing `Dockerfile` is kept, and the resource gets a `service.json` like t
 ### Limits
 
 - **No live reload.** Flisk does not sync source into a bring-your-own container, and only the manifest is watched. After changing source, rebuild the image from the Tilt UI or restart `flisk up`. For Go, the native provider has an opt-in loop (`dev.liveReload`, see [backend language providers](backend-language-providers.md#opt-in-live-reload)); a Go app you bring as a container, including the Gin example, does not get it.
-- **Ports.** 4000-5999 for this type, shared with backends.
+- **Ports.** `port` is the port inside your container, such as 3000, 8080 or 5432. Nothing is published on your machine: Traefik reaches the container on the stack network, so two bring-your-own services can both use 5432. Names can be two characters (`db`), so the Compose hostname keeps working.
 - **No generated code.** Flisk will not add a health route, a `PORT` read or a Dockerfile for you.
 
 ### Examples and recipes

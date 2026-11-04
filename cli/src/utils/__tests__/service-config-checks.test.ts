@@ -6,10 +6,19 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkCircularDependencies,
+  checkCustomDockerfiles,
   checkDependsOnShape,
+  checkGpuRuntime,
+  checkNetworkPorts,
+  checkPostgresVolumes,
+  checkRequiredSecrets,
   checkSchemaVersions,
+  checkServiceFields,
   checkServicePorts,
+  checkSidecars,
+  checkVolumes,
   enforceServiceConfigGate,
+  postgresImageMajor,
   warnSchemaVersions,
 } from "../service-config-checks.js";
 
@@ -416,4 +425,481 @@ describe("additional edge cases across service config checks", () => {
     // Check invalid ports reported
     expect(reported).toContain("invalid port");
   });
+});
+
+describe("checkServiceFields", () => {
+  it("passes names Docker can use", () => {
+    service("orders-api");
+    service("orders2", { stack: "back_office" }, "bo/orders2");
+    expect(checkServiceFields(root).didPass).toBe(true);
+  });
+  it.each(["Orders", "my service", "orders/", "-orders", "orders-", "orders:tag", "a".repeat(60)])(
+    "refuses the appName %j, which Docker cannot name an image after",
+    (name) => {
+      service(name);
+      const result = checkServiceFields(root);
+      expect(result.didPass).toBe(false);
+      expect(result.message).toContain("appName");
+    },
+  );
+  it("refuses a stack with an uppercase letter", () => {
+    service("orders", { stack: "Shop" });
+    expect(checkServiceFields(root).message).toContain("stack");
+  });
+  it("leaves a local-process service alone: it never reaches Docker", () => {
+    service("Orders", { command: "node server.js" });
+    expect(checkServiceFields(root).didPass).toBe(true);
+  });
+  it("refuses a field of the wrong type, which would stop the Tiltfile", () => {
+    service("orders", { traefik: "x" });
+    expect(checkServiceFields(root).message).toContain("traefik: expected an object");
+  });
+  it("does not require schemaVersion or stack, which old projects lack", () => {
+    service("orders", { stack: undefined });
+    expect(checkServiceFields(root).didPass).toBe(true);
+  });
+  it("is part of the gate flisk up applies", () => {
+    service("Orders");
+    const exit = vi.fn(() => {
+      throw new Error("exit");
+    }) as never;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => enforceServiceConfigGate(root, {}, exit)).toThrow("exit");
+  });
+});
+
+describe("circular dependencies through stacks and backendName", () => {
+  it("finds a cycle that runs through a frontend's backendName", () => {
+    service("api", { dependsOn: ["ui"] });
+    service("ui", { appType: "frontend", backendName: "api" });
+    expect(checkCircularDependencies(root).didPass).toBe(false);
+  });
+  it("finds a cycle through a stack name", () => {
+    service("a", { dependsOn: ["core"], stack: "edge" }, "edge/a");
+    service("b", { dependsOn: ["a"], stack: "core" }, "core/b");
+    expect(checkCircularDependencies(root).didPass).toBe(false);
+  });
+  it("does not call a service that depends on its own stack a cycle", () => {
+    service("a", { dependsOn: ["app"] });
+    service("b");
+    expect(checkCircularDependencies(root).didPass).toBe(true);
+  });
+});
+
+describe("checkCustomDockerfiles", () => {
+  it("passes when no custom dockerfile is declared", () => {
+    service("api");
+    expect(checkCustomDockerfiles(root).didPass).toBe(true);
+  });
+  it("passes when the file exists, relative to the service or to its buildContext", () => {
+    service("api", { dockerfile: "docker/Dockerfile.dev" });
+    mkdirSync(join(root, "services/app/api/docker"), { recursive: true });
+    writeFileSync(join(root, "services/app/api/docker/Dockerfile.dev"), "FROM scratch\n");
+    service("web", { dockerfile: "Dockerfile", buildContext: "ctx" });
+    mkdirSync(join(root, "services/app/web/ctx"), { recursive: true });
+    writeFileSync(join(root, "services/app/web/ctx/Dockerfile"), "FROM scratch\n");
+    expect(checkCustomDockerfiles(root).didPass).toBe(true);
+  });
+  it("treats a directory as missing: the loader checks for a regular file", () => {
+    service("api", { dockerfile: "docker" });
+    mkdirSync(join(root, "services/app/api/docker"), { recursive: true });
+    expect(checkCustomDockerfiles(root).didPass).toBe(false);
+  });
+  it("names a missing file", () => {
+    service("api", { dockerfile: "does/not/exist/Dockerfile" });
+    const result = checkCustomDockerfiles(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("services/app/api/service.json dockerfile");
+  });
+  it("is part of the gate flisk up applies", () => {
+    service("api", { dockerfile: "missing" });
+    const exit = vi.fn(() => {
+      throw new Error("exit");
+    }) as never;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => enforceServiceConfigGate(root, {}, exit)).toThrow("exit");
+  });
+});
+
+describe("the gate accepts what `flisk import` writes for a Compose app", () => {
+  // Found by the compose-import journey: the gate refused buildContext "../../../api" (a Dockerfile that stays where the Compose
+  // file had it, outside the service directory), `flisk up` exited before starting anything and the journey timed out.
+  it("an api built from a tree outside its service directory, and a database from an image", () => {
+    mkdirSync(join(root, "api"), { recursive: true });
+    writeFileSync(join(root, "api/Dockerfile"), "FROM node:22-alpine\n");
+    // `flisk import` copies the password of the Compose file into .env, which the required-secrets check then finds.
+    writeFileSync(join(root, ".env"), "POSTGRES_PASSWORD=example\n");
+    service(
+      "api",
+      {
+        appType: "backend",
+        stack: "composeapp",
+        port: 3000,
+        healthCheckPath: "/",
+        dependsOn: ["db"],
+        buildContext: "../../../api",
+        dockerfile: "Dockerfile",
+      },
+      "composeapp/api",
+    );
+    service(
+      "db",
+      {
+        appType: "bring-your-own",
+        stack: "composeapp",
+        port: 4000,
+        image: "postgres:16-alpine",
+        exposeViaProxy: false,
+        secrets: { required: ["POSTGRES_PASSWORD"] },
+      },
+      "composeapp/db",
+    );
+    const exit = vi.fn(() => {
+      throw new Error("exit");
+    }) as never;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => enforceServiceConfigGate(root, {}, exit)).not.toThrow();
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it("still refuses a build context that is an absolute path, which the loader cannot resolve", () => {
+    service("api", { buildContext: "/srv/api", dockerfile: "Dockerfile" });
+    expect(checkServiceFields(root).message).toContain(
+      "buildContext: must be a path relative to the service directory",
+    );
+  });
+});
+
+describe("checkRequiredSecrets", () => {
+  it("requires a provider's token unless the provider has a local fallback", () => {
+    service("agent", {
+      dependsOn: ["quantum-sim"],
+      providers: {
+        braket: { url: "https://braket.example", tokenSecret: "AWS_BRAKET_TOKEN" },
+        "ibm-quantum": {
+          url: "https://quantum.example",
+          tokenSecret: "IBM_QUANTUM_TOKEN",
+          fallback: "quantum-sim",
+        },
+      },
+    });
+    const result = checkRequiredSecrets(root, undefined, {});
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain(
+      "secret AWS_BRAKET_TOKEN (token of provider braket) has no value",
+    );
+    expect(result.message).not.toContain("IBM_QUANTUM_TOKEN");
+    expect(checkRequiredSecrets(root, undefined, { AWS_BRAKET_TOKEN: "t" }).didPass).toBe(true);
+  });
+
+  it("names a token once when secrets.required also lists it", () => {
+    service("agent", {
+      secrets: { required: ["AWS_BRAKET_TOKEN"] },
+      providers: { braket: { url: "https://braket.example", tokenSecret: "AWS_BRAKET_TOKEN" } },
+    });
+    const message = checkRequiredSecrets(root, undefined, {}).message;
+    expect(message.match(/AWS_BRAKET_TOKEN/g)).toHaveLength(1);
+  });
+
+  it("fails for a required secret with no value, naming the file and the secret", () => {
+    service("api", { secrets: { required: ["SECRET_KEY"], optional: ["TOKEN"] } });
+    const result = checkRequiredSecrets(root, undefined, {});
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("secret SECRET_KEY has no value");
+    expect(result.message).not.toContain("TOKEN");
+    expect(result.fix).toContain(".env");
+  });
+
+  it("passes when the project .env or the environment has a value, and fails for an empty one", () => {
+    service("api", { secrets: { required: ["A_KEY", "B_KEY"] } });
+    writeFileSync(join(root, ".env"), "A_KEY=1\nB_KEY=\n");
+    expect(checkRequiredSecrets(root, undefined, {}).message).toContain("B_KEY");
+    expect(checkRequiredSecrets(root, undefined, {}).message).not.toContain("A_KEY");
+    expect(checkRequiredSecrets(root, undefined, { B_KEY: "2" }).didPass).toBe(true);
+  });
+
+  it("reads the env file selected for the run instead of the project .env", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    writeFileSync(join(root, ".env"), "A_KEY=1\n");
+    writeFileSync(join(root, "other.env"), "X=1\n");
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_ENV_FILE: join(root, "other.env") }).didPass,
+    ).toBe(false);
+  });
+
+  it("leaves the names to the provider with FLISK_SECRET_PROVIDER=infisical", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "infisical" }).didPass,
+    ).toBe(true);
+  });
+
+  it("is part of the gate, so flisk up refuses it before Tilt starts", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    const exit = vi.fn((code: number) => {
+      throw new Error(`exit ${code}`);
+    }) as unknown as (code: number) => never;
+    const messages: string[] = [];
+    const saved = process.env.A_KEY;
+    delete process.env.A_KEY;
+    expect(() =>
+      enforceServiceConfigGate(root, { onInvalid: (m) => messages.push(m) }, exit),
+    ).toThrow("exit 1");
+    if (saved !== undefined) process.env.A_KEY = saved;
+    expect(messages.join("\n")).toContain("secret A_KEY has no value");
+  });
+});
+
+describe("checkSidecars", () => {
+  const byo = { appType: "bring-your-own", image: "example/x:1" };
+
+  it("passes for a sidecar of a resource in the same stack, and when there are none", () => {
+    service("api");
+    expect(checkSidecars(root).didPass).toBe(true);
+    service("tubehaus", byo);
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    expect(checkSidecars(root).didPass).toBe(true);
+  });
+
+  it("names a host that does not exist", () => {
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    const result = checkSidecars(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain('sidecarOf "tubehaus": no resource has that name');
+    expect(result.fix).toContain("same stack");
+  });
+
+  it("names a host in another stack", () => {
+    service("tubehaus", { ...byo, stack: "media" }, "media/tubehaus");
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    const result = checkSidecars(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain('is in stack "media", not "app"');
+  });
+
+  it("stops flisk up through the config gate", () => {
+    service("bgutil", { ...byo, sidecarOf: "missing" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.fn() as never;
+    enforceServiceConfigGate(root, {}, exit);
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("checkVolumes", () => {
+  const byo = { appType: "bring-your-own", image: "example/x:1" };
+
+  it("passes for named volumes and bind mounts inside the project", () => {
+    service("api", {
+      ...byo,
+      volumes: [
+        { source: "data", target: "/data" },
+        { source: "../../../web", target: "/srv/web", readOnly: true },
+      ],
+    });
+    expect(checkVolumes(root).didPass).toBe(true);
+  });
+
+  it("refuses a bind mount that leaves the project and stops flisk up", () => {
+    service("api", { ...byo, volumes: [{ source: "../../../../etc", target: "/host-etc" }] });
+    const result = checkVolumes(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("volumes[0].source: must stay inside the project");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.fn() as never;
+    enforceServiceConfigGate(root, {}, exit);
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("checkNetworkPorts", () => {
+  const byo = { appType: "bring-your-own", image: "caddy:2" };
+
+  it("passes when every extra port stays on this machine", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }, { port: 443, bind: "127.0.0.1" }] });
+    expect(checkNetworkPorts(root).didPass).toBe(true);
+  });
+
+  it("warns, without failing, about a port opened to the network", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80, bind: "0.0.0.0" }, { port: 443 }] });
+    const result = checkNetworkPorts(root);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("caddy 0.0.0.0:80/tcp");
+    expect(result.message).not.toContain("443");
+  });
+
+  it("warns when a running container publishes wider than service.json declares", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }, { port: 443 }] });
+    const ps = "shop-caddy|0.0.0.0:80->80/tcp, [::]:80->80/tcp, 127.0.0.1:443->443/tcp";
+    const result = checkNetworkPorts(root, undefined, () => ps);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("caddy 127.0.0.1:80/tcp is declared on this machine only");
+    expect(result.message).toContain("0.0.0.0:80 -> 80/tcp");
+    expect(result.message).not.toContain("443");
+    expect(result.fix).toContain("flisk restart");
+  });
+
+  it("passes when the running container matches loopback, or Docker is not running", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }] });
+    expect(checkNetworkPorts(root, undefined, () => "c|127.0.0.1:80->80/tcp").didPass).toBe(true);
+    expect(checkNetworkPorts(root, undefined, () => "").didPass).toBe(true);
+  });
+
+  describe("publish", () => {
+    const proxy = {
+      ...byo,
+      extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }],
+    };
+    const dotenv = (text: string) => writeFileSync(join(root, ".env"), text);
+    let saved: string | undefined;
+    beforeEach(() => {
+      saved = process.env.TUBEHAUS_HTTP_BIND;
+      delete process.env.TUBEHAUS_HTTP_BIND;
+    });
+    afterEach(() => {
+      if (saved === undefined) delete process.env.TUBEHAUS_HTTP_BIND;
+      else process.env.TUBEHAUS_HTTP_BIND = saved;
+    });
+
+    it("warns about the default when nothing sets the variable, and says where it comes from", () => {
+      service("caddy", proxy);
+      const result = checkNetworkPorts(root);
+      expect(result).toMatchObject({ didPass: false, isWarning: true });
+      expect(result.message).toContain(
+        "caddy 0.0.0.0:80/tcp (TUBEHAUS_HTTP_BIND, default in service.json)",
+      );
+    });
+
+    it("passes once the project .env keeps the port on this machine", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=127.0.0.1:8080\n");
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("passes when the default is loopback and the .env leaves it alone", () => {
+      service("caddy", {
+        ...byo,
+        extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}" }],
+      });
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("warns when the .env opens a loopback default to the network", () => {
+      service("caddy", {
+        ...byo,
+        extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}" }],
+      });
+      dotenv("TUBEHAUS_HTTP_BIND=8080\n");
+      expect(checkNetworkPorts(root).message).toContain("caddy 0.0.0.0:8080/tcp");
+    });
+
+    it("lets the shell win over the .env, as Compose does", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=0.0.0.0:80\n");
+      process.env.TUBEHAUS_HTTP_BIND = "127.0.0.1:8080";
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("names a value that is not a port or address:port", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=localhost:8080\n");
+      const result = checkNetworkPorts(root);
+      expect(result.isWarning).toBe(true);
+      expect(result.message).toContain('TUBEHAUS_HTTP_BIND resolves to "localhost:8080"');
+    });
+  });
+});
+
+describe("checkGpuRuntime", () => {
+  const model = { appType: "bring-your-own", image: "vllm:1", container: { gpus: "all" } };
+
+  it("passes when nothing asks for a GPU, without asking Docker", () => {
+    service("api");
+    const runtimes = vi.fn(() => []);
+    expect(checkGpuRuntime(root, undefined, runtimes).didPass).toBe(true);
+    expect(runtimes).not.toHaveBeenCalled();
+  });
+
+  it("warns when Docker has no nvidia runtime", () => {
+    service("llm", model);
+    const result = checkGpuRuntime(root, undefined, () => ["runc", "io.containerd.runc.v2"]);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("llm ask for a GPU");
+    expect(result.fix).toContain("NVIDIA Container Toolkit");
+  });
+
+  it("passes with the nvidia runtime, and when Docker does not answer", () => {
+    service("llm", model);
+    expect(checkGpuRuntime(root, undefined, () => ["runc", "nvidia"]).didPass).toBe(true);
+    expect(checkGpuRuntime(root, undefined, () => null).didPass).toBe(true);
+  });
+});
+
+describe("postgresImageMajor", () => {
+  it.each([
+    ["postgres:18", 18],
+    ["postgres:18-alpine", 18],
+    ["postgres:18.1", 18],
+    ["postgres:18-bookworm", 18],
+    ["pgvector/pgvector:pg18", 18],
+    ["docker.io/library/postgres:19", 19],
+    ["postgres:17", 17],
+    ["postgres:15-alpine", 15],
+    ["pgvector/pgvector:pg17", 17],
+  ])("reads %s as major %s", (image, major) => {
+    expect(postgresImageMajor(image)).toBe(major);
+  });
+
+  it.each(["postgres", "postgres:latest", "postgres@sha256:abc123", "redis:18", undefined])(
+    "has no numeric major for %s",
+    (image) => {
+      expect(postgresImageMajor(image)).toBeNull();
+    },
+  );
+});
+
+describe("checkPostgresVolumes", () => {
+  const withVolume = (image: string, target: string) =>
+    service("db", {
+      appType: "bring-your-own",
+      image,
+      volumes: [{ source: "pg", target }],
+    });
+
+  it.each(["postgres:18", "postgres:18-alpine", "pgvector/pgvector:pg18"])(
+    "warns, without failing, for %s at the pre-18 path",
+    (image) => {
+      withVolume(image, "/var/lib/postgresql/data");
+      const result = checkPostgresVolumes(root);
+      expect(result.didPass).toBe(false);
+      expect(result.isWarning).toBe(true);
+      expect(result.message).toContain("volumes[0].target");
+      expect(result.fix).toContain("/var/lib/postgresql");
+    },
+  );
+
+  it("fails, not only warns, under --strict", () => {
+    withVolume("postgres:18", "/var/lib/postgresql/data");
+    const result = checkPostgresVolumes(root, undefined, true);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(false);
+  });
+
+  it("warns for a trailing slash", () => {
+    withVolume("postgres:18", "/var/lib/postgresql/data/");
+    expect(checkPostgresVolumes(root).didPass).toBe(false);
+  });
+
+  it("passes when 18 mounts /var/lib/postgresql", () => {
+    withVolume("postgres:18-alpine", "/var/lib/postgresql");
+    expect(checkPostgresVolumes(root).didPass).toBe(true);
+  });
+
+  it.each(["postgres:17", "postgres:latest", "postgres", "postgres@sha256:abc123"])(
+    "passes for %s at /var/lib/postgresql/data",
+    (image) => {
+      withVolume(image, "/var/lib/postgresql/data");
+      expect(checkPostgresVolumes(root).didPass).toBe(true);
+    },
+  );
 });

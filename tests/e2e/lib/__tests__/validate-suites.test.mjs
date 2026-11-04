@@ -59,6 +59,16 @@ test("shape problems are each named", () => {
   }
 });
 
+test("typicalSeconds is optional and must be a positive integer", () => {
+  assert.deepEqual(checkSuiteJson({ ...good, typicalSeconds: 180 }, "resource-types", "demo"), []);
+  for (const typicalSeconds of [0, -5, 1.5, "180"]) {
+    assert.match(
+      checkSuiteJson({ ...good, typicalSeconds }, "resource-types", "demo").join("\n"),
+      /typicalSeconds must be a positive integer/,
+    );
+  }
+});
+
 test("secrets and scale suites never run on pull requests", () => {
   assert.match(checkSuiteJson({ ...good, needsSecrets: ["FLISK_LICENSE_KEY"] }, "resource-types", "demo").join(), /needs secrets must not run on pr/);
   assert.match(checkSuiteJson({ ...good, group: "scale" }, "scale", "demo").join(), /scale suites must not run on pr/);

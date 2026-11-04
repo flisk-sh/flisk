@@ -77,7 +77,7 @@ Docker builds use a content-addressable cache. Each instruction in a Dockerfile 
   RUN mkdir -p /app/node_modules/.bun
   ```
 - **Golden base image:** [`golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) builds the `<project>-l2:latest` golden image with pre-created `/cache/bun` and `/cache/prisma` directories.
-- **Install runner:** [`shared-platform-engineering/docker-templates/install-deps.sh`](../runtime/shared-platform-engineering/docker-templates/install-deps.sh) runs `bun install --force` with concurrency guards (`BUN_INSTALL_CONCURRENCY=4`), timeout enforcement (`INSTALL_TIMEOUT_SECONDS`), and private Verdaccio registry detection.
+- **Install runner:** [`shared-platform-engineering/docker-templates/install-deps.sh`](../runtime/shared-platform-engineering/docker-templates/install-deps.sh) runs `bun install --force` with concurrency guards (`BUN_INSTALL_CONCURRENCY=4`), timeout enforcement (`INSTALL_TIMEOUT_SECONDS`), private Verdaccio registry detection, a one-day minimum release age, and retries for registry and network errors (see [failure 4](#4-the-registry-fails-for-a-version-published-minutes-ago)).
 
 ---
 
@@ -371,6 +371,28 @@ cannot execute binary file: Exec format error
   ```
 
 ---
+
+### 4. The registry fails for a version published minutes ago
+
+#### Symptom:
+
+```text
+→ error: GET https://registry.npmjs.org/rollup/-/rollup-4.67.3.tgz - 404
+```
+
+#### Cause:
+
+A new release is listed in the package metadata a few minutes before the registry's CDN serves its tarball. An install that resolves the newest version in that window (any range such as `^4.0.0`) gets a 404 for a version that exists.
+
+#### What the installer does:
+
+- It skips versions published in the last day (`bun install --minimum-release-age=86400`), so a range resolves to the newest release that is at least a day old.
+- When a dependency pins a version newer than that (`"rollup": "4.67.3"`), it installs again without the minimum age.
+- It retries a tarball 404, a 408, 429 or 5xx answer, a dropped connection, or a stalled install, up to three attempts, waiting 15 s and then 30 s.
+- A 404 for package metadata (a package that does not exist) fails at once.
+- When the attempts run out on a registry error, the build log says so and suggests running `flisk up` again in a few minutes.
+
+Generated images use these defaults. A custom Dockerfile that runs `install-deps.sh` can set `FLISK_MIN_RELEASE_AGE_SECONDS` (seconds, `0` turns the minimum off), `FLISK_INSTALL_ATTEMPTS` (default `3`) and `FLISK_INSTALL_RETRY_DELAY` (seconds, multiplied by the attempt number; default `15`) in the environment of that `RUN` step.
 
 ## Related documentation
 

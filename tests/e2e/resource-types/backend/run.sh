@@ -23,7 +23,7 @@ API=api
 RESOURCES=("$API")
 # B1b/B2b: the directory name is literal (single quotes) and runs `touch` on the first unquoted Tilt local() call that uses it.
 # The marker name is relative and holds no variable: Compose and Tilt expand $VAR inside the paths they are given, which would point the
-# env file at a directory that was never created and fail the stack (rc-1.3.208). Tilt runs local() below $DIR (.tdk/.tdk-out), so find
+# env file at a directory that was never created and fail the stack (rc-1.3.208). Tilt runs local() below $DIR (.flisk/.flisk-out), so find
 # under $DIR sees the marker wherever it lands.
 PROBE_MARK=pwned_by_b1b
 PROBE_DIR='svc$(touch pwned_by_b1b)x'

@@ -1,0 +1,17 @@
+{
+  "title": "a frontend that names a stack in dependsOn",
+  "why": "Used to pass `flisk up --dry-run` and `config verify`, then fail the whole Tiltfile with \"string value is not iterable\" (api_gateway.star iterated a RESOURCE_ALIASES path string). A stack name now means the stack's backend-side services.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "storefront",
+      "entry": "extra"
+    },
+    {
+      "op": "check",
+      "only": "storefront"
+    }
+  ],
+  "expect": []
+}

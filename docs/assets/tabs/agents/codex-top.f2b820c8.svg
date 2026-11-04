@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="812" height="112" viewBox="0 0 812 112" role="img" aria-label="Codex in a terminal, ~/my-shop">
+<title>Codex in a terminal, ~/my-shop</title>
+<path d="M0 16a16 16 0 0 1 16-16h780a16 16 0 0 1 16 16v96H0Z" fill="#0e0e10"/>
+<circle cx="406" cy="9" r="2.5" fill="#25262b"/><circle cx="406" cy="9" r="1" fill="#3b4a6b"/>
+<rect x="14" y="18" width="784" height="94" fill="#111111"/>
+<rect x="14" y="18" width="784" height="22" fill="#262626"/>
+<circle cx="30" cy="29" r="5" fill="#ff5f57"/><circle cx="46.5" cy="29" r="5" fill="#febc2e"/><circle cx="63" cy="29" r="5" fill="#28c840"/>
+<text fill="#9a9a9a" x="406" y="33" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="11">~/my-shop</text>
+<rect x="28" y="50" width="330" height="54" rx="4" fill="none" stroke="#5c5c5c" stroke-width="1.2"/>
+<text x="42" y="70" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="13"><tspan fill="#9a9a9a">&gt;_ </tspan><tspan fill="#f0f0f0" font-weight="700">OpenAI Codex</tspan></text>
+<text x="42" y="92" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="12"><tspan fill="#8a8a8a">directory: </tspan><tspan fill="#d0d0d0">~/my-shop</tspan></text>
+</svg>

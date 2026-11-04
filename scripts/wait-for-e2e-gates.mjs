@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { gatesForEvent, workflowForGate } from "./e2e-gate-expectations.mjs";
 
 const API = "https://api.github.com";
-const DEFAULT_DEADLINE_SECONDS = 1800;
+const DEFAULT_DEADLINE_SECONDS = 1500;
 const DEFAULT_GRACE_SECONDS = 600;
 const DEFAULT_POLL_SECONDS = 15;
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);

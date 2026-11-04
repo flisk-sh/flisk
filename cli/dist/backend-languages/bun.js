@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 export function getBackendIndexTemplate(name) {
     return renderBackendIndex(name, false);
 }
@@ -60,7 +63,7 @@ ${drizzleRoute}app.get('/', (c) => {
   });
 });
 
-const port = process.env.PORT || 3000;
+${portFromEnv()}
 console.log('\\n🚀 ${name} running on http://localhost:' + port);
 console.log('📊 Health check: http://localhost:' + port + '/health\\n');
 

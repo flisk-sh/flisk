@@ -1,0 +1,27 @@
+{
+  "name": "flisk-chaos",
+  "private": true,
+  "description": "Chaos tests for service.json handling: random dependsOn edits checked against Tilt, flisk up and flisk config verify; a bulk check of good and corrupted service.json sets through the gates; a Docker tier that follows each value into the generated Compose file and Dockerfile. Needs tilt (and docker for the Docker tier) on PATH. Run: bun install && bun run chaos",
+  "type": "module",
+  "scripts": {
+    "chaos": "vitest run",
+    "chaos:scenarios": "vitest run -t scenario",
+    "chaos:survey": "CHAOS_SURVEY=1 vitest run -t survey",
+    "chaos:gates": "bun gates/bulk.ts --count 5000000",
+    "chaos:cli": "bun cli/fuzz.ts --count 3000 --jobs 8",
+    "chaos:mcp": "bun cli/mcp.ts --count 450",
+    "chaos:state": "bun cli/state.ts --sequences 30 --steps 12",
+    "chaos:size": "bun docker/size.ts",
+    "chaos:docker": "bun docker/run.ts --jobs 4",
+    "chaos:docker:frontend": "bun docker/run.ts --service storefront --jobs 4",
+    "chaos:docker:static": "bun docker/static-validate.ts --jobs 8",
+    "chaos:docker:static:frontend": "bun docker/static-validate.ts --service storefront --jobs 8",
+    "chaos:docker:agreement": "vitest run docker/agreement.test.ts"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "fast-check": "^4.0.0",
+    "vitest": "^5.0.0",
+    "yaml": "^2.8.0"
+  }
+}

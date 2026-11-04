@@ -28,7 +28,7 @@ def _load_project_names():
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        _PROJECT_NAME = _project_json.get('project', {}).get('name', 'flisk-project')
+        _PROJECT_NAME = _project_json.get('project', {}).get('name', 'flisk-project').lower()
         _PROJECT_NAME_DISPLAY = _PROJECT_NAME.replace('-', ' ').title()
         return _PROJECT_NAME, _PROJECT_NAME_DISPLAY
     return 'flisk-project', 'Flisk Project'

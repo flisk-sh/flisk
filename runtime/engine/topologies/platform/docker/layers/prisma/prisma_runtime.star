@@ -148,7 +148,8 @@ def _migrator_artifact_copies(res_path):
     return (
         "# Copy migration schema + resolved deps from l3 stage\n"
         + "COPY --from=l3_migration_build " + app_res_path + "/" + PRISMA_DIR_NAME + " ./" + PRISMA_DIR_NAME + "\n"
-        + "COPY --from=l3_migration_build " + base + " ./node_modules\n"
+        # --chown: ownership is set while copying; a later `chown -R` over node_modules would store it a second time.
+        + "COPY --chown=" + BUN_USER + ":" + BUN_USER + " --from=l3_migration_build " + base + " ./node_modules\n"
     )
 
 

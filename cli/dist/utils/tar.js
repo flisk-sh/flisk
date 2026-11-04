@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { FliskError } from "./errors.js";
 /**
  * Extracts a gzipped tarball (as an in-memory buffer) into destDir.
  * Shells out to the system `tar` binary rather than pulling in a JS tar
@@ -30,7 +31,7 @@ export function extractTarball(data, destDir) {
                 windowsHide: true,
             });
             if (fallback.status !== 0) {
-                throw new Error(`tar extraction failed: ${fallback.stderr?.toString() || result.stderr?.toString() || "unknown error"}`);
+                throw new FliskError(`tar extraction failed: ${fallback.stderr?.toString() || result.stderr?.toString() || "unknown error"}`, ["Check that tar is installed and the download finished", "Run the command again"]);
             }
             const entries = readdirSync(fallbackDir);
             const [only] = entries;

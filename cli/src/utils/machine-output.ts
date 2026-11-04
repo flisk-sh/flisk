@@ -1,14 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
+import type { MachineError } from "../types/index.js";
 import { FliskError } from "./errors.js";
 
 export const SCHEMA_VERSION = 1 as const;
-
-export interface MachineError {
-  code: string;
-  message: string;
-  suggestions?: string[];
-}
 
 export interface MachineEnvelope<T> {
   schemaVersion: typeof SCHEMA_VERSION;

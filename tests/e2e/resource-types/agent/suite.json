@@ -9,7 +9,7 @@
     "cli/src/agent-runtimes/**",
     "runtime/engine/**",
     ".claude/skills/**",
-    "scripts/sync-tdk-skills.sh",
+    "scripts/sync-flisk-skills.sh",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/agent/**",
     ".github/workflows/e2e-resource-types.yml"
@@ -44,5 +44,6 @@
     "manual"
   ],
   "timeoutMinutes": 30,
+  "typicalSeconds": 200,
   "needsSecrets": []
 }

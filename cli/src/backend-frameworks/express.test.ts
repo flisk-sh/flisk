@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { portFromEnv } from "../utils/generated-port.js";
 import { expressBackendProvider, getExpressIndexTemplate } from "./express.js";
 
 describe("expressBackendProvider", () => {
@@ -39,7 +40,7 @@ describe("getExpressIndexTemplate", () => {
   });
 
   it("reads port from process.env.PORT with fallback to 3000", () => {
-    expect(template).toContain("const port = Number(process.env.PORT || 3000);");
+    expect(template).toContain(portFromEnv());
   });
 
   it("binds to 0.0.0.0 for container networking", () => {

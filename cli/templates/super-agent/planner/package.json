@@ -1,0 +1,9 @@
+{
+  "name": "super-agent-planner",
+  "private": true,
+  "type": "module",
+  "description": "Optional: `npm install` here and set ANTHROPIC_API_KEY so Claude plans instead of the rules.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.136.0"
+  }
+}

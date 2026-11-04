@@ -1,4 +1,4 @@
-# Flisk Landscape Tilt Architecture - C4 Model
+# Flisk Tilt Architecture - C4 Model
 
 This document was split to keep each file focused and maintainable.
 

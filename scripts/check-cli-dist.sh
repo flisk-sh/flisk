@@ -25,8 +25,9 @@ To fix it, from the repository root:
   git commit -m "Rebuild cli/dist"
   git push
 
-cli/dist is committed so `npm install -g github:flisk-sh/flisk`
-works without a build step. Use `git add -f` for new files under cli/dist.
+cli/dist is committed so a source checkout runs without a build step, and
+the npm package's cli/dist-bundle is built from it. Use `git add -f` for new
+files under cli/dist.
 Pull requests from forks cannot be fixed by the CI bot; push the commit to
 your own branch yourself.
 MSG

@@ -1,0 +1,703 @@
+{
+	"competitor": "garden",
+	"rows": [
+		{
+			"id": "stack-graph",
+			"name": "Dependency graph of actions",
+			"area": "orchestration",
+			"offer": "Describes builds, deploys, runs and tests as one graph of actions with dependencies, so the right things start in the right order.",
+			"source": "https://docs.garden.io/overview/what-is-garden",
+			"checked": "2026-10-27",
+			"match": [
+				"graph of actions",
+				"stack graph"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "dependsOn"
+						}
+					},
+					{
+						"file": "runtime/discovery/AGENTS.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "show-dependency-graph",
+			"name": "Print the dependency graph",
+			"area": "orchestration",
+			"offer": "A command prints the dependency relationships across the whole project so you can see what depends on what.",
+			"source": "https://docs.garden.io/reference/commands",
+			"checked": "2026-10-27",
+			"match": [
+				"get graph",
+				"dependency relationships"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Flisk already knows every resource's dependsOn from service.json, so printing it as text or JSON for people and agents fits a local tool."
+			},
+			"acceptance": "A `flisk` command (or `flisk stack` subcommand) and an MCP tool listed in cli/src/mcp/tools.ts print the dependsOn graph as JSON; evidence becomes a command item plus an mcpTool item.",
+			"ice": {
+				"impact": 5,
+				"confidence": 7,
+				"ease": 6,
+				"basis": "Impact 5: helps people and agents understand start order but does not unblock anyone; confidence 7: Garden documents the command and dependsOn data is already in the registry; ease 6: data exists in runtime/discovery, only a CLI/MCP view is new."
+			}
+		},
+		{
+			"id": "dry-run-plan",
+			"name": "Preview before running",
+			"area": "orchestration",
+			"offer": "A plan command shows which actions would run without changing anything, so you can review before deploying.",
+			"source": "https://docs.garden.io/reference/commands",
+			"checked": "2026-10-27",
+			"match": [
+				"garden plan",
+				"without making any changes"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "cli/src/commands/up.ts",
+							"contains": "--dry-run"
+						}
+					},
+					{
+						"text": {
+							"file": "cli/src/commands/down.ts",
+							"contains": "--dry-run"
+						}
+					},
+					{
+						"command": "flisk up"
+					}
+				]
+			}
+		},
+		{
+			"id": "validate-config",
+			"name": "Validate configuration",
+			"area": "workflow",
+			"offer": "A validate command checks the project config files for errors and exits non-zero when something is wrong.",
+			"source": "https://docs.garden.io/reference/commands",
+			"checked": "2026-10-27",
+			"match": [
+				"garden validate",
+				"check your garden configuration"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk config verify"
+					},
+					{
+						"mcpTool": "config_verify"
+					}
+				]
+			}
+		},
+		{
+			"id": "project-status",
+			"name": "Status of project and actions",
+			"area": "observability",
+			"offer": "Prints the full status of the environment and every action as structured output.",
+			"source": "https://docs.garden.io/reference/commands",
+			"checked": "2026-10-27",
+			"match": [
+				"get status",
+				"full status of your project"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk status"
+					},
+					{
+						"mcpTool": "status"
+					}
+				]
+			}
+		},
+		{
+			"id": "log-streaming",
+			"name": "Live log streaming",
+			"area": "observability",
+			"offer": "Shows logs of one or more deployed services and can follow new lines as they arrive.",
+			"source": "https://docs.garden.io/reference/commands",
+			"checked": "2026-10-27",
+			"match": [
+				"garden logs",
+				"waits for new logs",
+				"follow"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "`flisk logs` prints a bounded snapshot of recent logs; live following happens in `flisk ui` and Tilt, not as a scriptable stream.",
+				"evidence": [
+					{
+						"command": "flisk logs"
+					},
+					{
+						"mcpTool": "logs"
+					},
+					{
+						"command": "flisk ui"
+					}
+				]
+			}
+		},
+		{
+			"id": "dev-console",
+			"name": "Interactive dev console",
+			"area": "terminal",
+			"offer": "Starts the stack with an interactive console and streaming logs in one command.",
+			"source": "https://docs.garden.io/reference/commands",
+			"checked": "2026-10-27",
+			"match": [
+				"garden up",
+				"dev console",
+				"streaming logs"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk ui"
+					},
+					{
+						"text": {
+							"file": "docs/ui.md",
+							"contains": "interactive terminal dashboard"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "exec-into-service",
+			"name": "Shell into a running service",
+			"area": "terminal",
+			"offer": "Runs a command or opens an interactive shell inside the container of a deployed service.",
+			"source": "https://docs.garden.io/reference/commands",
+			"checked": "2026-10-27",
+			"match": [
+				"garden exec",
+				"interactive shell",
+				"running service"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Developers and coding agents often need to run a one-off command inside a running service, and Flisk only has logs and restart today."
+			},
+			"acceptance": "A `flisk exec <resource> -- <cmd>` command (docker exec in container mode, a child process in the resource's directory in native mode) plus an MCP tool in cli/src/mcp/tools.ts; evidence becomes a command item and an mcpTool item.",
+			"ice": {
+				"impact": 6,
+				"confidence": 7,
+				"ease": 5,
+				"basis": "Impact 6: removes a common docker-exec detour for people and gives agents a safe way to run a command; confidence 7: documented Garden command and a known gap versus Compose; ease 5: Docker case is a thin wrapper around cli/src/commands/logs.ts-style container lookup but native mode needs its own path."
+			}
+		},
+		{
+			"id": "code-sync",
+			"name": "Live code sync into services",
+			"area": "runtime",
+			"offer": "Syncs local source changes into a running container with several sync modes so you do not rebuild the image.",
+			"source": "https://docs.garden.io/features/code-synchronization",
+			"checked": "2026-10-27",
+			"match": [
+				"code synchronization",
+				"sync mode",
+				"hot reload"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/compare/kubernetes-dev.md",
+							"contains": "Tilt `live_update`"
+						}
+					},
+					{
+						"file": "runtime/engine/AGENTS.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "local-process-actions",
+			"name": "Local process actions",
+			"area": "runtime",
+			"offer": "Runs builds and long-lived dev servers directly on the host next to containerised services, for hybrid setups.",
+			"source": "https://docs.garden.io/using-garden-with/local-scripts",
+			"checked": "2026-10-27",
+			"match": [
+				"exec provider",
+				"exec deploy",
+				"locally on the host"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "docs/run-without-docker.md"
+					},
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "For a local process"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "docker-compose-migration",
+			"name": "Migrate from Docker Compose",
+			"area": "integrations",
+			"offer": "A guide converts a docker-compose project into Garden config by hand.",
+			"source": "https://docs.garden.io/guides/migrating-from-docker-compose",
+			"checked": "2026-10-27",
+			"match": [
+				"migrating from docker compose",
+				"docker-compose.yml"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk import"
+					},
+					{
+						"text": {
+							"file": "docs/CHANGELOG.md",
+							"contains": "`flisk import` delegates"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "tests-as-primitive",
+			"name": "Tests as first-class actions",
+			"area": "workflow",
+			"offer": "Tests are a built-in action kind you define in config and run from the CLI against the environment.",
+			"source": "https://docs.garden.io/overview/use-cases/shift-testing-left",
+			"checked": "2026-10-27",
+			"match": [
+				"test action",
+				"garden test",
+				"first class primitive"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk scaffolds vitest and playwright test setups per resource but has no `flisk test` command that runs them against the running stack.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "vitest"
+						}
+					},
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "playwright"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "version-based-skip",
+			"name": "Skip unchanged builds and tests",
+			"area": "orchestration",
+			"offer": "Hashes each action's sources, config and upstream actions so only changed pieces rebuild or re-test.",
+			"source": "https://docs.garden.io/features/team-caching",
+			"checked": "2026-10-27",
+			"match": [
+				"smart caching",
+				"version of each action",
+				"only that test will re-run"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk relies on layered Docker images and Tilt change detection for rebuilds; there is no content-hash that lets a re-run of resources or tests be skipped explicitly.",
+				"evidence": [
+					{
+						"text": {
+							"file": "runtime/engine/AGENTS.md",
+							"contains": "Golden Image"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "workflow-sequences",
+			"name": "Scripted command sequences",
+			"area": "workflow",
+			"offer": "Defines named sequences of CLI commands and shell steps in config that run the same way locally and in CI.",
+			"source": "https://docs.garden.io/features/workflows",
+			"checked": "2026-10-27",
+			"match": [
+				"workflows",
+				"steps",
+				"command steps"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "A committed, named sequence such as up then migrate then smoke test fits a local runner and is what people otherwise keep in Makefiles."
+			},
+			"acceptance": "service.json or the project config accepts a `workflows` block and `flisk workflow <name>` runs its steps; evidence becomes a command item for `flisk workflow` and a text item in docs/service-json.md.",
+			"ice": {
+				"impact": 4,
+				"confidence": 5,
+				"ease": 3,
+				"basis": "Impact 4: Makefiles and shell scripts already cover this for most users; confidence 5: Garden's users value it but Flisk users have not asked; ease 3: needs a new config schema in discovery plus a new command and error handling."
+			}
+		},
+		{
+			"id": "custom-commands",
+			"name": "Project-defined custom commands",
+			"area": "workflow",
+			"offer": "Lets a team add its own named commands, with steps and arguments, that show up in the tool's help.",
+			"source": "https://docs.garden.io/features/custom-commands",
+			"checked": "2026-10-27",
+			"match": [
+				"custom commands",
+				"kind: command",
+				"garden api-dev"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Named shortcuts for a team's usual start-up flow (which stack, which flags) would shorten onboarding without leaving the CLI."
+			},
+			"acceptance": "A project-level manifest key defines commands that `flisk help` lists and `flisk <name>` runs; evidence becomes a command item for the sample command and a text item in docs/service-json.md.",
+			"ice": {
+				"impact": 3,
+				"confidence": 5,
+				"ease": 4,
+				"basis": "Impact 3: stacks already group resources and shell aliases cover the rest; confidence 5: only Garden documentation as evidence; ease 4: cli/src/commands/stack.ts and help.ts give a place but dynamic commands need careful naming rules."
+			}
+		},
+		{
+			"id": "config-templates",
+			"name": "Reusable config templates",
+			"area": "workflow",
+			"offer": "Teams write templates that render several actions from a few inputs, hiding boilerplate from app developers.",
+			"source": "https://docs.garden.io/features/config-templates",
+			"checked": "2026-10-27",
+			"match": [
+				"config templates",
+				"rendertemplate",
+				"boilerplate"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk generates services from built-in templates (`flisk resource`, `flisk project agent-stack`) but a team cannot register its own template.",
+				"evidence": [
+					{
+						"command": "flisk resource"
+					},
+					{
+						"command": "flisk project"
+					}
+				]
+			}
+		},
+		{
+			"id": "variables-templating",
+			"name": "Variables and template strings",
+			"area": "workflow",
+			"offer": "Config values can use ${...} template strings that reference variables, other actions and the environment.",
+			"source": "https://docs.garden.io/features/variables-and-templating",
+			"checked": "2026-10-27",
+			"match": [
+				"template strings",
+				"${some.key}",
+				"variables"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk has plain params and secrets per resource in service.json but no expression language to reference other resources' values.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "`params`"
+						}
+					},
+					{
+						"file": "docs/environment.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "multi-repo-sources",
+			"name": "Import actions from other repos",
+			"area": "integrations",
+			"offer": "Pulls actions or whole config from other git repositories pinned to a branch, tag or commit.",
+			"source": "https://docs.garden.io/features/remote-sources",
+			"checked": "2026-10-27",
+			"match": [
+				"remote sources",
+				"repositoryurl",
+				"importing remote repositories"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk discovers services across several local scan roots but does not clone or pin remote repositories.",
+				"evidence": [
+					{
+						"file": "runtime/discovery/AGENTS.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "ci-portable-pipelines",
+			"name": "Same config in CI",
+			"area": "workflow",
+			"offer": "The configuration used on a laptop also runs unchanged in CI pipelines.",
+			"source": "https://docs.garden.io/overview/use-cases/portable-ci-pipelines",
+			"checked": "2026-10-27",
+			"match": [
+				"portable ci",
+				"run anywhere",
+				"same configuration"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk documents a GitHub Actions job that verifies files and boots a stack, but treats CI as a throwaway environment, not a delivery path.",
+				"evidence": [
+					{
+						"file": "docs/ci.md"
+					},
+					{
+						"command": "flisk config verify"
+					}
+				]
+			}
+		},
+		{
+			"id": "otel-command-traces",
+			"name": "Export CLI traces to APM",
+			"area": "observability",
+			"offer": "Runs a local OpenTelemetry collector during a command and exports timing data to Datadog, New Relic, Honeycomb or OTLP.",
+			"source": "https://docs.garden.io/reference/providers/otel-collector",
+			"checked": "2026-10-27",
+			"match": [
+				"otel-collector",
+				"opentelemetry collector",
+				"exporters"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk ships an optional monitoring feature (SigNoz) for the apps it runs, but does not trace its own CLI commands.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/FEATURES.md",
+							"contains": "Observability platform"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "team-shared-cache",
+			"name": "Team-shared build and test cache",
+			"area": "collaboration",
+			"offer": "Stores action versions in a hosted backend so teammates and CI skip work someone already did.",
+			"source": "https://docs.garden.io/features/team-caching",
+			"checked": "2026-10-27",
+			"match": [
+				"garden cloud backend",
+				"shared with your team",
+				"across ci runs"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "It depends on a hosted service and shared state across people; Flisk is a local runtime with no account or backend."
+			}
+		},
+		{
+			"id": "remote-container-builder",
+			"name": "Hosted remote image builder",
+			"area": "environments",
+			"offer": "Builds container images on managed remote compute with shared layer caches.",
+			"source": "https://docs.garden.io/features/remote-container-builder",
+			"checked": "2026-10-27",
+			"match": [
+				"remote container builder",
+				"remote build compute",
+				"nvme"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Remote build compute is a paid cloud service; Flisk builds on the developer's own machine by design."
+			}
+		},
+		{
+			"id": "preview-environments",
+			"name": "Per-PR preview environments",
+			"area": "environments",
+			"offer": "Creates an isolated environment per pull request or developer in a shared remote cluster.",
+			"source": "https://docs.garden.io/overview/use-cases/on-demand-preview-envs",
+			"checked": "2026-10-27",
+			"match": [
+				"preview environments",
+				"isolated",
+				"own namespace"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "These live in a remote Kubernetes cluster; Flisk is local only and leaves staging and previews to cluster tooling."
+			}
+		},
+		{
+			"id": "auto-environment-cleanup",
+			"name": "Automatic environment cleanup",
+			"area": "environments",
+			"offer": "A cluster agent pauses or deletes idle environments after a configured time.",
+			"source": "https://docs.garden.io/using-garden-with/kubernetes/automatic-environment-cleanup",
+			"checked": "2026-10-27",
+			"match": [
+				"automatic environment cleanup",
+				"aec",
+				"pause"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "It needs an agent running inside a Kubernetes cluster; local stacks stop with `flisk down`."
+			}
+		},
+		{
+			"id": "local-kubernetes",
+			"name": "Local Kubernetes provider",
+			"area": "environments",
+			"offer": "Targets Docker Desktop, minikube or similar local clusters and picks the context automatically.",
+			"source": "https://docs.garden.io/using-garden-with/kubernetes/local-kubernetes",
+			"checked": "2026-10-27",
+			"match": [
+				"local-kubernetes",
+				"minikube",
+				"docker desktop"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk runs services on Docker or as plain processes and does not need or emit Kubernetes resources."
+			}
+		},
+		{
+			"id": "k8s-helm-iac-actions",
+			"name": "Kubernetes, Helm and IaC deploys",
+			"area": "integrations",
+			"offer": "Deploys Kubernetes manifests and Helm charts and applies Terraform or Pulumi stacks as part of the graph.",
+			"source": "https://docs.garden.io/overview/garden-vs-other-tools",
+			"checked": "2026-10-27",
+			"match": [
+				"helm",
+				"terraform",
+				"pulumi",
+				"kubectl"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk does not deploy or replace Helm and IaC tools; production policy stays with those tools (docs/with-helm.md)."
+			}
+		},
+		{
+			"id": "remote-secrets",
+			"name": "Hosted secrets and variables",
+			"area": "security",
+			"offer": "Stores variables and encrypted secrets in a cloud service, scoped to environments and users, and imports them into config.",
+			"source": "https://docs.garden.io/features/remote-variables",
+			"checked": "2026-10-27",
+			"match": [
+				"remote variables",
+				"garden cloud",
+				"scoped to environments"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "A hosted multi-user secret store needs an account service; Flisk keeps secret values in the project .env and only names them in service.json."
+			}
+		},
+		{
+			"id": "local-volume-mounts",
+			"name": "Mount host folders into pods",
+			"area": "runtime",
+			"offer": "An experimental alternative to file sync that mounts host directories into Kubernetes pods through hostPath.",
+			"source": "https://github.com/garden-io/garden/releases",
+			"checked": "2026-10-27",
+			"match": [
+				"local volume mounts",
+				"localvolumes",
+				"hostpath"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "It only exists for Kubernetes pods; Flisk already bind-mounts or live-updates containers through Docker and Tilt."
+			}
+		},
+		{
+			"id": "cloud-dashboard",
+			"name": "Hosted dashboard and history",
+			"area": "collaboration",
+			"offer": "A web dashboard shows environment URLs, logs and command history for the team.",
+			"source": "https://docs.garden.io/overview/use-cases/on-demand-preview-envs",
+			"checked": "2026-10-27",
+			"match": [
+				"garden dashboard",
+				"command history",
+				"app.garden.io"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "It is a hosted team product; Flisk shows the local stack in `flisk ui` and the Tilt UI."
+			}
+		}
+	]
+}

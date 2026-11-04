@@ -1,7 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { writeSync } from "node:fs";
-import { createMachineEnvelope, type MachineError } from "./machine-output.js";
+import type { MachineError } from "../types/index.js";
+import { lastShownError } from "./last-error.js";
+import { createMachineEnvelope } from "./machine-output.js";
 
 export type JsonError = MachineError;
 
@@ -20,13 +23,17 @@ export function createJsonEmitter(failureCode: string, command: string): JsonEmi
     writeSync(1, `${JSON.stringify(createMachineEnvelope(data, errors))}\n`);
   };
   process.once("exit", (code) => {
+    // The command usually printed why it stopped just before exiting: carry that, not only the exit code.
+    const shown = lastShownError();
     emit({ ok: false }, [
       {
         code: failureCode,
         message:
-          code === 0
+          shown?.message ??
+          (code === 0
             ? `${command} exited before reporting a result`
-            : `${command} exited with code ${code}`,
+            : `${command} exited with code ${code}`),
+        ...(shown && shown.suggestions.length > 0 ? { suggestions: shown.suggestions } : {}),
       },
     ]);
   });

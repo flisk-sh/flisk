@@ -1,21 +1,5 @@
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, DoctorAction } from "../types/index.js";
 import { type ColimaStatus } from "./colima.js";
-export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
-/** One repair `flisk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
-export interface DoctorAction {
-    id: string;
-    check: string;
-    /**
-     * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
-     * Flisk project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
-     * (Docker build cache, dangling images), only planned while free disk space is low.
-     */
-    scope: "project" | "probe" | "machine" | "host";
-    /** The exact command a user could run by hand. */
-    command: string;
-    status: DoctorActionStatus;
-    reason: string;
-}
 export interface DockerNetwork {
     name: string;
     /** Containers attached; a network with any is in use and is never planned for removal. */
@@ -37,6 +21,11 @@ export interface DoctorFixDeps {
         danglingImages: number;
     }>;
     prune(kind: "builder" | "images"): Promise<void>;
+    /**
+     * Gives the space Docker freed inside the Colima VM back to the host. Pruning only frees space inside the VM; its disk
+     * image keeps its size on the Mac until the free blocks are trimmed (`fstrim`).
+     */
+    trimColima(): Promise<void>;
     /** Starts, restarts, or repairs (native lima) the Colima VM, with a native limactl first on PATH when there is one. */
     colima(action: "start" | "restart" | "native-lima"): Promise<void>;
     /** The state of the Colima VM behind Docker. */
@@ -54,6 +43,13 @@ export declare function parseElapsed(etime: string): number | null;
 export declare function anyTiltAnswers(ports: number[], probe?: (port: number) => Promise<string | null>, attempts?: number, wait?: (ms: number) => Promise<void>): Promise<boolean>;
 export declare function createDockerFixDeps(run?: DockerRunner): DoctorFixDeps;
 export declare const dockerFixDeps: DoctorFixDeps;
+export type ColimaRunner = (file: string, args: string[], options: {
+    encoding: "utf-8";
+    timeout: number;
+    env?: NodeJS.ProcessEnv;
+}) => Promise<unknown>;
+/** Starts or restarts Colima, with a native limactl first on PATH when one is installed. */
+export declare function runColima(action: "start" | "restart" | "native-lima", run?: ColimaRunner, findNativeLima?: () => string | undefined | null, hasFile?: (path: string) => boolean): Promise<void>;
 export interface PlanContext {
     /** `tilt up` processes for this project (see `projectTiltPids`). */
     tiltPids?: number[];

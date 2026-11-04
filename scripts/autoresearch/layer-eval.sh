@@ -7,7 +7,7 @@
 # feature tests, then prints one summary block.
 set -uo pipefail
 CORE="$(cd "$(dirname "$0")/../.." && pwd)"
-ERP="${FLISK_BENCH_PROJECT:-$CORE/../tdk-erp-system}"
+ERP="${FLISK_BENCH_PROJECT:-$CORE/../flisk-erp-system}"
 SAMPLE="${LAYER_EVAL_SAMPLE:-20}"
 FLISK_CLI="${FLISK_CLI:-$CORE/cli/bin/flisk.js}"
 PREFIX="$(python3 -c "import json;print(json.load(open('$ERP/.flisk/project.json'))['project']['name'])")"

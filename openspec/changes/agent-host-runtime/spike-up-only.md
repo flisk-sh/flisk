@@ -1,6 +1,6 @@
 # Spike: `flisk up --only` and Tilt resource selection
 
-Run 2026-10-04 against a scratch copy of `tdk-ecommerce-example` (stack `store`: `catalog-api`, and `storefront-web` which has `"dependsOn": ["catalog-api"]`), Tilt 0.37.7. Selection was read with `tilt alpha tiltfile-result -f .flisk/.flisk-out/Tiltfile -- <args>`, which evaluates the Tiltfile and lists `EnabledManifests` without starting any container. Readiness behavior was read from a real Tilt with two local resources, one disabled by `config.set_enabled_resources`.
+Run 2026-10-04 against a scratch copy of `flisk-ecommerce-example` (stack `store`: `catalog-api`, and `storefront-web` which has `"dependsOn": ["catalog-api"]`), Tilt 0.37.7. Selection was read with `tilt alpha tiltfile-result -f .flisk/.flisk-out/Tiltfile -- <args>`, which evaluates the Tiltfile and lists `EnabledManifests` without starting any container. Readiness behavior was read from a real Tilt with two local resources, one disabled by `config.set_enabled_resources`.
 
 ## What Tilt selects
 

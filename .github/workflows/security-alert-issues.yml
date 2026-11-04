@@ -35,7 +35,7 @@ jobs:
       github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event != 'pull_request')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     # Code scanning alerts need security-events: read, Dependabot alerts need
     # vulnerability-alerts: read. They are two separate permissions.

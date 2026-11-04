@@ -1,3 +1,4 @@
+import type { AgentOverview } from "../utils/agent-sessions.js";
 import { RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE } from "../utils/constants.js";
 export interface DiscoveredResource {
     name: string;
@@ -8,7 +9,21 @@ export interface DiscoveredResource {
     port?: number;
     type?: ResourceType;
 }
-export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "bring-your-own"];
+export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "database", "bring-your-own"];
+export interface HealthCheckObjectConfig {
+    enabled?: boolean;
+    interval?: number;
+    timeout?: number;
+    retries?: number;
+    /** Seconds after start before failed probes count (Compose start_period). */
+    startPeriod?: number;
+    path?: string;
+    /** Ready when this TCP port accepts a connection (#2875). */
+    port?: number;
+    /** Ready when this command exits 0: the program and its arguments (#2875). */
+    command?: string[];
+}
+export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
 export interface ResourceConfigFields {
     appName: string;
     appType: (typeof RESOURCE_CONFIG_APP_TYPES)[number];
@@ -18,11 +33,19 @@ export interface ResourceConfigFields {
     replicas?: number;
     runtime?: string;
     featuresEnabled?: string[];
+    /**
+     * Names after discovery. service.json may also write `{ "name": "db", "condition": "service_healthy" }` entries
+     * (dependsOnErrors checks them); parseResource turns them into their names.
+     */
     dependsOn?: string[];
+    /** Deprecated spelling of dependsOn; still read, and counted with it. */
+    dependencies?: string[];
     enabled?: boolean;
     basePath?: string;
     backendName?: string;
     apiPath?: string;
+    /** Optional health check configuration: false or { enabled: false } disables health checks; or custom interval, timeout, retries, path. */
+    healthCheck?: HealthCheckConfig;
     /** Path the container healthcheck probes (and Traefik too, unless traefik.healthCheck is set). Defaults to /health. */
     healthCheckPath?: string;
     /** Post-start check through the public proxy URL, run by `flisk up`. See utils/smoke.ts. */
@@ -35,6 +58,8 @@ export interface ResourceConfigFields {
     };
     /** bring-your-own only: false keeps the resource off Traefik (no route, no health check). Defaults to true. */
     exposeViaProxy?: boolean;
+    /** bring-your-own only: the app serves a web UI from `/`, so it is routed on `<name>.<project>.localhost` instead of `/api/<name>` (#2997). */
+    webUi?: boolean;
     /** On-demand scaling via Sablier (Premium - requires FLISK_LICENSE_KEY). See hasSablierLicense() in extension-fetch.ts. */
     sablier?: {
         enable?: boolean;
@@ -49,6 +74,25 @@ export interface ResourceConfigFields {
     image?: string;
     /** agent only: how the agent runtime is scaffolded and where its session state lives. See agent-runtimes/. */
     agent?: AgentConfig;
+    /**
+     * Run the service as a local process with this shell command instead of a container (no image, no Dockerfile). Started from
+     * the service directory with PORT set to `port`. See utils/native-service.ts.
+     */
+    command?: string;
+    /** Extra environment for a `command` service. Values may reference `${VAR}` from the project .env or the shell. */
+    env?: Record<string, string>;
+    /** Development loop settings (live reload, file watching, test on save). */
+    dev?: DevConfig;
+}
+export interface DevTestOnSaveConfig {
+    enabled?: boolean;
+    path?: string;
+}
+export interface DevConfig {
+    command?: string;
+    watch?: string[];
+    liveReload?: boolean;
+    testOnSave?: boolean | DevTestOnSaveConfig;
 }
 export interface AgentConfig {
     /** Runtime scaffold the resource was created with. `custom` is the only one today and carries no vendor dependency. */
@@ -86,13 +130,41 @@ export interface FileGenerationTask {
     description: string;
     emoji: string;
 }
-export type ResourceType = "frontend" | "backend" | "library" | "sdk" | "worker" | "migrator" | "mcp" | "agent" | "bring-your-own";
+export type ResourceType = "frontend" | "backend" | "library" | "sdk" | "worker" | "migrator" | "mcp" | "agent" | "database" | "bring-your-own";
 export declare const CREATABLE_RESOURCE_TYPES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own"];
 /**
- * Every value `flisk resource --type` accepts: the creatable types plus `sdk`, which registers a
- * package that already exists instead of scaffolding one.
+ * `--type database`: the project's database, declared in a service.json (`framework: postgres`). It has
+ * no code, port or image of its own: services list its name in `dependsOn` and get `DATABASE_URL`.
  */
-export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "sdk"];
+export declare const DATABASE_RESOURCE_TYPE = "database";
+/** The database `--type database` runs when no `--framework` is given: the shared Flisk Postgres. */
+export declare const DATABASE_FRAMEWORK = "postgres";
+/** `--type queue`: a message queue or broker, run as its own container (utils/infra-presets.ts). */
+export declare const QUEUE_RESOURCE_TYPE = "queue";
+/** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
+export declare const DATABASE_INFRA_FRAMEWORKS: readonly ["redis", "qdrant", "minio", "mlflow"];
+/** `--type queue --framework <id>`. */
+export declare const QUEUE_FRAMEWORKS: readonly ["nats", "rabbitmq"];
+/** The queue `--type queue` runs when no `--framework` is given. */
+export declare const DEFAULT_QUEUE_FRAMEWORK = "nats";
+/** Every framework id of the infrastructure presets. */
+export type InfraFramework = (typeof DATABASE_INFRA_FRAMEWORKS)[number] | (typeof QUEUE_FRAMEWORKS)[number];
+/** The frameworks `--type database` accepts: the shared Postgres first, then the infrastructure presets. */
+export declare const DATABASE_FRAMEWORKS: readonly ["postgres", "redis", "qdrant", "minio", "mlflow"];
+/**
+ * Every value `flisk resource --type` accepts: the creatable types, `database`, and `sdk`, which
+ * registers a package that already exists instead of scaffolding one.
+ */
+export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "database", "queue", "sdk"];
+/** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
+export declare const INFERENCE_RESOURCE_TYPE = "inference";
+/**
+ * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
+ * the `inference` preset, `database` and `queue`. `sdk` is left out because it only registers a package that
+ * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
+ * `resource_create` tool builds its type enum from this list.
+ */
+export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference", "database", "queue"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";
@@ -155,12 +227,32 @@ export interface ProjectOptionalInfra {
 export interface ProjectDiscovery {
     paths: string[];
 }
+export interface ProjectOrchestration {
+    source: "tiltfile" | string;
+    path?: string;
+    [key: string]: unknown;
+}
+/** `capabilities` in `.flisk/project.json`: a capability set to false is not provisioned. Every capability is on unless set to false. */
+export interface ProjectCapabilities {
+    /** The Traefik reverse proxy and gateway routing (`proxy`). */
+    gateway?: boolean;
+    /** The bundled shared Postgres (`database-management`). */
+    database?: boolean;
+    [key: string]: boolean | undefined;
+}
+export interface RepoConfig {
+    url: string;
+    dir: string;
+    branch?: string;
+}
 export interface ProjectConfig {
+    repos?: RepoConfig[];
     version: string;
     project: {
         name: string;
         version: string;
     };
+    capabilities?: ProjectCapabilities;
     phases: {
         pre_alpha: ProjectPhaseDefinition;
         alpha: ProjectPhaseDefinition;
@@ -174,9 +266,12 @@ export interface ProjectConfig {
         out_of_scope: LegacyProjectStackDefinition;
     };
     always_enabled_infra?: string[];
+    /** stack -> the Compose project name an imported Compose file ran under (written by flisk import); accepted, not yet read. */
+    composeProjectNames?: Record<string, string>;
     optional_infra: ProjectOptionalInfra;
     discovery: ProjectDiscovery;
     overrides?: Record<string, JsonValue>;
+    orchestration?: ProjectOrchestration;
 }
 export type TabId = "overview" | "resources" | "events" | "files" | "config";
 export interface Tab {
@@ -197,6 +292,8 @@ export interface DetailPanelProps {
     stack: DiscoveredStack | null;
     service: DiscoveredResource | null;
     stackMetadata?: StackMetadata | null;
+    /** Live readiness and sessions of the selected service when it is an agent; undefined for other services. */
+    agent?: AgentOverview | null;
     visible: boolean;
 }
 export interface ResourceTableProps {
@@ -225,6 +322,18 @@ export interface ValidationResult {
     valid: boolean;
     error?: string;
 }
+export interface PortOwnerDetails {
+    ownerType: "docker" | "process";
+    port: number;
+    container?: string;
+    name?: string;
+    image?: string;
+    process?: string;
+    command?: string;
+    pid?: number;
+    setting?: string;
+    [key: string]: unknown;
+}
 export interface CheckResult {
     name: string;
     didPass: boolean;
@@ -234,6 +343,8 @@ export interface CheckResult {
     isSkipped?: boolean;
     /** Informational warning that does not fail the check unless strict mode is enabled. */
     isWarning?: boolean;
+    /** Structured observed metadata (e.g. busy port owner, process, or container) for machine reports. */
+    observed?: PortOwnerDetails | unknown;
 }
 export interface ServiceUrl {
     name: string;
@@ -307,3 +418,63 @@ export type MasterConfigFileName = typeof TECH_STACK_FILE | typeof RESOURCE_DEFA
  * Eliminates the need for 'as MasterConfigFileName' assertion.
  */
 export declare function isMasterConfigFileName(filename: string): filename is MasterConfigFileName;
+export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
+/** One repair `flisk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
+export interface DoctorAction {
+    id: string;
+    check: string;
+    /**
+     * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
+     * Flisk project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
+     * (Docker build cache, dangling images), only planned while free disk space is low.
+     */
+    scope: "project" | "probe" | "machine" | "host";
+    /** The exact command a user could run by hand. */
+    command: string;
+    status: DoctorActionStatus;
+    reason: string;
+}
+export interface HostPortPlan {
+    ingressHttp: number;
+    ingressHttps: number;
+    postgres: number;
+    tiltUi?: number;
+    requested: {
+        ingressHttp: number;
+        ingressHttps: number;
+        postgres: number;
+    };
+    explicit: {
+        ingressHttp: boolean;
+        ingressHttps: boolean;
+        postgres: boolean;
+    };
+    reason: {
+        ingressHttp: string;
+        ingressHttps: string;
+        postgres: string;
+    };
+}
+/** What a `--json` action reports: its data, any errors, and a non-zero exit code when the report is a failure. */
+export interface JsonCommandResult {
+    data: unknown;
+    errors?: MachineError[];
+    exitCode?: number;
+}
+export interface MachineError {
+    code: string;
+    message: string;
+    suggestions?: string[];
+}
+export interface PortOccupant {
+    pid: number;
+    /** The program's name, without its directory (`postgres`, not `/opt/homebrew/bin/postgres`). */
+    command: string;
+}
+export interface ServiceRuntimeState {
+    status: ResourceStatus;
+    /** Why the service is not ready: its own error, or the dependency that failed or is still starting. */
+    reason?: string;
+    /** Failed services this one depends on, directly or through others. */
+    blockedBy?: string[];
+}

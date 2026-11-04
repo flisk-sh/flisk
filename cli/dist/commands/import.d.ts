@@ -1,15 +1,21 @@
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
+import { JsonCommandError } from "../utils/json-command.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export declare const IMPORT_PACKAGE = "flisk-import@0.2.2";
+export declare const IMPORT_PACKAGE = "flisk-import@0.18.0";
+/** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.1 or later), forwarded as its first argument. */
+export declare const TILTFILE_IMPORTER = "tiltfile";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export declare const MIN_CORE_VERSION = "1.3.104";
-/** Recommended core version with automatic Tiltfile bootstrapping for imported stacks (#1018). */
-export declare const RECOMMENDED_CORE_VERSION = "1.3.145";
+/**
+ * Recommended core for imported stacks: 1.4.11 (#2646) runs a bring-your-own port outside 4000-5999 and two-letter
+ * names, which flisk-import 0.3.0 and later write. The pin ships in the CLI itself, so a CLI that runs it is already newer.
+ */
+export declare const RECOMMENDED_CORE_VERSION = "1.4.11";
 type SpawnFn = (command: string, args: string[], options: SpawnOptions) => ReturnType<typeof spawn>;
 interface ParsedSemver {
     major: number;
@@ -42,9 +48,71 @@ export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv
 };
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export declare function runImport(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<number>;
+/** What flisk-import printed and how it exited, for `flisk import --json`. */
+export interface ImportRun {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+}
+/**
+ * Runs flisk-import with its output piped instead of the caller's terminal and no stdin, so it can never prompt, and
+ * resolves to what it printed and its exit code. A refusal of the core version gate or a missing npx is a run too.
+ */
+export declare function runImportCaptured(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<ImportRun>;
 export declare function buildForwardedImportArgs(args: string[], options?: {
     yes?: boolean;
     force?: boolean;
+    dryRun?: boolean;
 }): string[];
+/** What `flisk import --json` reports. `written` lists the service.json files the importer says it wrote. */
+export interface ImportReport {
+    dir: string;
+    dryRun: boolean;
+    force: boolean;
+    written: string[];
+    output: string;
+}
+/**
+ * What `flisk import tiltfile --json` reports. `path` is the path argument as given (`Tiltfile` when omitted); `written`
+ * lists the files the importer says it wrote (`.flisk/project.json`).
+ */
+export interface TiltfileImportReport {
+    path: string;
+    dryRun: boolean;
+    force: boolean;
+    written: string[];
+    output: string;
+}
+/** The report of a successful run, read from the forwarded arguments and the importer's "  wrote <path>" lines. */
+export declare function importReport(forwardedArgs: string[], run: ImportRun): ImportReport | TiltfileImportReport;
+/**
+ * The error of a failed run: the importer's "Error: ..." line (or whatever it printed last) and its "-> ..." hints. The
+ * importer prints "Nothing to import: ..." on stdout, so stdout is read when stderr says nothing.
+ */
+export declare function importFailure(run: ImportRun, commandName?: string): JsonCommandError;
+export interface ImportOptions {
+    yes?: boolean;
+    force?: boolean;
+    dryRun?: boolean;
+    json?: boolean;
+}
+export declare function resolveImportOptions(options?: ImportOptions, cmd?: Command): ImportOptions;
+/**
+ * Runs `flisk import` (and its `compose` / `tiltfile` subcommands). With `--json` the importer runs captured and never
+ * prompts; otherwise it inherits the terminal, and a run that would write is refused when there is no terminal to ask in.
+ * Sets `process.exitCode` to the importer's exit code, or 1 for a refusal.
+ */
+export declare function executeImport(args: string[], options?: ImportOptions, commandName?: string): Promise<void>;
+/**
+ * Without a terminal the importer cannot ask its (Y/n) question: it wrote nothing and exited 0, which a coding agent or CI
+ * job reads as success. A run that would write, with no `--yes` and no stdin TTY, is refused with exit 1 before it starts.
+ */
+export declare function nonInteractiveRefusal(forwardedArgs: string[], commandName?: string, isTTY?: boolean): string | null;
+export declare const composeCommand: Command;
+/**
+ * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.1 or later)
+ * does the import, like `compose`; core only wraps the registered Tiltfile at `flisk up` (see wrappedTiltfilePath).
+ */
+export declare const tiltfileCommand: Command;
 export declare const importCommand: Command;
 export {};

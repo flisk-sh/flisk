@@ -1,0 +1,22 @@
+{
+  "name": "flisk",
+  "owner": {
+    "name": "Flisk",
+    "url": "https://flisk.sh"
+  },
+  "metadata": {
+    "description": "Official Flisk agent plugin: tell your AI what app you want and it builds and runs it on your computer",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "flisk",
+      "description": "Flisk App Builder. Tell your AI what app you want (an online shop, a website, a booking app, an AI helper) and it builds the whole app and runs it on your own computer with one command.",
+      "version": "1.0.0",
+      "source": "./plugins/flisk-claude",
+      "homepage": "https://flisk.sh",
+      "license": "MIT",
+      "category": "development"
+    }
+  ]
+}

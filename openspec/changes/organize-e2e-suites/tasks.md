@@ -63,7 +63,7 @@
 - [ ] 5.1 Write `docs/contributing/05-write-e2e.md`: when an e2e is required, choosing the group, suite anatomy, shared helpers, running a case, CI triggers, deliberate break and evidence, with the agent suite as the worked example
 - [ ] 5.2 Link it from `CONTRIBUTING.md` (Tests) and `docs/contributing/README.md`. Add an "E2E" line to each recipe in `docs/contributing/02-feature-recipes.md`
 - [ ] 5.3 Write `.claude/skills/flisk-e2e-author/SKILL.md` and link it from `.agents/skills/`
-- [ ] 5.4 Make `scripts/sync-tdk-skills.sh` keep skills listed in `.claude/skills/LOCAL`, and extend the D2 fixture test to cover it
+- [ ] 5.4 Make `scripts/sync-flisk-skills.sh` keep skills listed in `.claude/skills/LOCAL`, and extend the D2 fixture test to cover it
 - [ ] 5.5 Run the docs link check over the new pages
 
 ## 6. Cutover

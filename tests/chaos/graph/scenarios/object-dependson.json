@@ -1,0 +1,22 @@
+{
+  "title": "dependsOn written as an object",
+  "why": "`config verify` used to crash with INTERNAL \"{} is not iterable\", hiding every other finding.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "setShape",
+      "owner": "billing",
+      "shape": "object"
+    },
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "ghost"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

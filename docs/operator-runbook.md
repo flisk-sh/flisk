@@ -9,9 +9,9 @@ One page for whoever installs, supports, or releases the Flisk CLI. Details live
 | macOS | supported | supported |
 | Linux | supported | supported |
 | WSL2 Ubuntu | supported (see [wsl2.md](wsl2.md)) | supported |
-| Native Windows | not supported; refuses with "Native Windows is inspect-only" (see [decision](design/native-windows-runtime-decision.md)) | inspect-only |
+| Native Windows | local-process projects and `flisk demo` supported; Docker stacks refuse with "Landscape startup needs Ubuntu on WSL2" (see [decision](design/native-windows-runtime-decision.md)) | inspect-only for Docker stacks |
 
-`flisk up` needs Docker and Tilt on the host. Run `flisk doctor` to check them.
+`flisk up` for a container stack needs Docker and Tilt on the host; services that declare a `command` need only their runtime. Run `flisk doctor` to check what your project uses.
 
 ## Versions `flisk doctor` checks
 
@@ -42,6 +42,8 @@ For a file-by-file guide to service outputs, see [Generated service files](gener
 ## Importing an existing repo
 
 `flisk import` runs the published importer, [`flisk-import`](https://www.npmjs.com/package/flisk-import), at the exact version pinned in `cli/src/commands/import.ts` (`IMPORT_PACKAGE`). `FLISK_IMPORT_PACKAGE` overrides it. When a new importer is published, move the pin in a CLI release.
+
+`flisk export` runs the published exporter, [`@flisk-sh/flisk-export`](https://github.com/flisk-sh/flisk-export), at the exact version pinned in `cli/src/commands/export.ts`. `FLISK_EXPORT_PACKAGE` overrides it. It only writes render.yaml, wrangler.toml or a standalone docker-compose.yml (`flisk export compose`); it never deploys.
 
 It reads one file, the root `docker-compose.yml`, and writes one bring-your-own `service.json` per Compose service, plus `.flisk/project.json` if the directory is not a Flisk project. It does not read other Compose file names, override files, Dockerfiles, `package.json` or Procfiles, and it names what it did not translate. See the importer's [import.md](https://github.com/flisk-sh/flisk-import/blob/main/docs/import.md) for the mapping.
 
@@ -99,7 +101,7 @@ The normal release is the workflow, from a release branch (see the publish gate 
 3. The workflow signs the checksums, then opens a `Release <version> (automatic version bump)` PR so `main` matches npm; merging it tags `v<version>` and publishes the checksums release. If a step fails after publication, follow [Repair a half-finished release](releasing.md#repair-a-half-finished-release) instead of re-dispatching.
 4. The installer verifies each binary against `checksums.txt`.
 
-To build a binary by hand, without publishing, run `scripts/release-binaries.sh`. It writes `tdk-linux-{amd64,arm64}`, `tdk-darwin-{amd64,arm64}`, `tdk-windows-amd64.exe`, `tdk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`. `scripts/release-binaries.sh --publish` creates a draft release, downloads every asset, compares bytes with the local build, and only then publishes it as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
+To build a binary by hand, without publishing, run `scripts/release-binaries.sh`. It writes `flisk-linux-{amd64,arm64}`, `flisk-darwin-{amd64,arm64}`, `flisk-windows-amd64.exe`, `flisk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`. `scripts/release-binaries.sh --publish` creates a draft release, downloads every asset, compares bytes with the local build, and only then publishes it as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
 
 ### Publish gate
 

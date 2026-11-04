@@ -1,6 +1,6 @@
 ## 1. Scope Review and Repository Setup
 
-- [x] 1.1 Create `/private/var/www/2025/ollamar1/tdk-vscode-extension` as the new VS Code-only extension package location.
+- [x] 1.1 Create `/private/var/www/2025/ollamar1/flisk-vscode-extension` as the new VS Code-only extension package location.
 - [x] 1.2 Add `docs/spec-critique.md` documenting MVP creep risks, unsafe repair risks, missing CLI contract risks, and how this implementation constrains each one.
 - [x] 1.3 Scaffold a TypeScript VS Code extension package with activation, command registration, test harness, lint/typecheck scripts, packaging metadata, and README.
 - [x] 1.4 Add extension configuration settings for Flisk CLI path, polling behavior, notification categories, and safe repair confirmation behavior.

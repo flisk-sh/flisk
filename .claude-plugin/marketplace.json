@@ -1,17 +1,20 @@
 {
-  "name": "tdk-skills",
+  "name": "flisk",
   "owner": {
-    "name": "Flisk Landscape"
+    "name": "Flisk",
+    "url": "https://flisk.sh"
   },
   "metadata": {
-    "description": "Shared agent skills for the Flisk CLI and landscape repositories",
-    "version": "1.0.0"
+    "description": "Flisk App Builder: tell your AI what app you want and it builds and runs it on your computer"
   },
   "plugins": [
     {
-      "name": "flisk-cli",
-      "source": "./plugins/flisk-cli",
-      "description": "Operate and troubleshoot the Flisk CLI in a project repository"
+      "name": "flisk",
+      "description": "Flisk App Builder. Tell your AI what app you want (an online shop, a website, a booking app, an AI helper) and it builds the whole app and runs it on your own computer with one command.",
+      "source": "./plugins/flisk-claude",
+      "homepage": "https://flisk.sh",
+      "license": "MIT",
+      "category": "development"
     }
   ]
 }

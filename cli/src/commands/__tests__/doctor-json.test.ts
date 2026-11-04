@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureExit, type ExitCapture, parseEnvelope } from "../../test-support/index.js";
-import type { CheckResult } from "../../types/index.js";
+import type { CheckResult, DoctorAction } from "../../types/index.js";
 import { WEBCONTAINER_DOCS, WEBCONTAINER_UP_MESSAGE } from "../../utils/agent-host.js";
-import { type DoctorAction, hasFailedActions } from "../../utils/doctor-fix.js";
+import { hasFailedActions } from "../../utils/doctor-fix.js";
 import {
   collectDoctorChecks,
   createDoctorReport,
@@ -203,6 +203,25 @@ describe("doctor JSON command", () => {
     expect(parsedPassing.data.ready).toBe(true);
     expect(parsedPassing.data.checks).toEqual([PASSING_CHECK, SKIPPED_CHECK]);
     expect(getDoctorExitCode(passingReport)).toBe(0);
+  });
+
+  it("includes buildCache in doctor report data when present in checks", () => {
+    const buildCacheCheck = {
+      name: "Docker Build Cache",
+      didPass: true,
+      message: "11.82GB across 780 entries",
+      buildCache: {
+        size: "11.82GB",
+        entries: 780,
+        reclaimable: "11.82GB",
+      },
+    };
+    const report = createDoctorReport([PASSING_CHECK, buildCacheCheck], true);
+    expect(report.data.buildCache).toEqual({
+      size: "11.82GB",
+      entries: 780,
+      reclaimable: "11.82GB",
+    });
   });
 
   it("emits a single JSON document on Linux without human banners and matches text mode exit code 1 on failure", async () => {
@@ -405,6 +424,64 @@ describe("doctor JSON command", () => {
     }
   });
 
+  it("includes public env secrets warning in JSON output with ready=true and exits 0", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    const secretKey = [
+      "sk",
+      "live",
+      "51M00000000000000000000000000000000000000000000000000000000",
+    ].join("_");
+    vi.mocked(getHostPortPlan).mockResolvedValue({
+      ingressHttp: 80,
+      ingressHttps: 443,
+      postgres: 5432,
+      requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "preferred", ingressHttps: "preferred", postgres: "preferred" },
+    });
+    vi.mocked(collectDoctorChecks).mockResolvedValue({
+      checks: [
+        PASSING_CHECK,
+        {
+          name: "Public Environment Secrets",
+          didPass: true,
+          isWarning: true,
+          message:
+            "Potential secret-looking values detected in public environment variables: NEXT_PUBLIC_STRIPE (.env)",
+          fix: "Move secrets to server-side variables or API routes. Public variables (NEXT_PUBLIC_*, VITE_*) are embedded into client bundles.",
+        },
+      ],
+      errors: [],
+    });
+
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      const { log, exit } = captureOutput();
+      await doctorCommand.parseAsync(["--json", "--no-ping"], { from: "user" });
+      expect(exit).not.toHaveBeenCalled();
+
+      const rawStdout = String(log.mock.calls[0]?.[0]);
+      expect(rawStdout).not.toContain(secretKey);
+
+      const report = parseEnvelope(rawStdout);
+      expect(report.data.ready).toBe(true);
+      expect(report.data.checks).toHaveLength(2);
+      expect(report.data.checks[1]).toMatchObject({
+        name: "Public Environment Secrets",
+        didPass: true,
+        isWarning: true,
+      });
+      expect(report.data.checks[1].message).toContain("NEXT_PUBLIC_STRIPE (.env)");
+      expect(report.data.checks[1].message).not.toContain(secretKey);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+      doctorCommand.setOptionValue("json", false);
+      doctorCommand.setOptionValue("ping", true);
+    }
+  });
+
   it("redacts secret values across check results, fixes, and error messages in JSON output", async () => {
     const platform = Object.getOwnPropertyDescriptor(process, "platform");
     if (!platform) throw new Error("Missing process.platform descriptor");
@@ -559,7 +636,7 @@ describe("doctor JSON command", () => {
     const probeFailingCheck: CheckResult = {
       name: "Service Health",
       didPass: false,
-      message: "http://api.tdk.localhost:8080/health returned 503 Service Unavailable",
+      message: "http://api.flisk.localhost:8080/health returned 503 Service Unavailable",
       fix: "flisk logs to inspect container health",
     };
     const probePassingCheck: CheckResult = {
@@ -601,5 +678,48 @@ describe("doctor JSON command", () => {
     } finally {
       Object.defineProperty(process, "platform", platform);
     }
+  });
+
+  it("includes observed port owner in doctor --json report and check result", async () => {
+    const portCheckWithObserved: CheckResult = {
+      name: "Host Ports",
+      didPass: false,
+      message:
+        "Port 8080 is already in use.\n\nOwner: Docker container shop-api\nImage: example/shop-api:latest\nPort: 8080",
+      fix: "Change FLISK_HTTP_PORT to an available port, or manually stop the conflicting container.",
+      observed: {
+        ownerType: "docker",
+        container: "shop-api",
+        image: "example/shop-api:latest",
+        port: 8080,
+        setting: "FLISK_HTTP_PORT",
+      },
+    };
+
+    vi.mocked(collectDoctorChecks).mockResolvedValue({
+      checks: [portCheckWithObserved],
+      errors: [],
+    });
+
+    const { log, exit } = captureOutput();
+    await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
+    expect(exit).toHaveBeenCalledWith(1);
+
+    const rawStdout = String(log.mock.calls[0]?.[0]);
+    const report = parseEnvelope(rawStdout);
+
+    expect(report.data.ready).toBe(false);
+    expect(report.data.observed).toMatchObject({
+      ownerType: "docker",
+      container: "shop-api",
+      image: "example/shop-api:latest",
+      port: 8080,
+      setting: "FLISK_HTTP_PORT",
+    });
+    expect(report.data.checks[0].observed).toMatchObject({
+      ownerType: "docker",
+      container: "shop-api",
+      port: 8080,
+    });
   });
 });

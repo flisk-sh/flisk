@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { checkCandidates, COMPARE_FILE_CAP, releaseInputFor } from "./check-release-candidate.mjs";
+import { candidateState, checkCandidates, COMPARE_FILE_CAP, releaseInputFor } from "./check-release-candidate.mjs";
 
 const RELEASE = "a".repeat(40);
 const OLD = "b".repeat(40);
@@ -149,14 +149,16 @@ esac
 );
 chmodSync(stubGh, 0o755);
 const fakeDir = mkdtempSync(path.join(tmpdir(), "rc-fake-"));
-const runCli = (sha, runs, compares = {}) => {
-  writeFileSync(path.join(fakeDir, "runs.json"), JSON.stringify({ workflow_runs: runs }));
+const stubEnv = { ...process.env, PATH: `${stubDir}${path.delimiter}${process.env.PATH}`, FAKE_DIR: fakeDir, GH_TOKEN: "x", RC_POLL_MS: "50" };
+const writeRuns = (runs) => writeFileSync(path.join(fakeDir, "runs.json"), JSON.stringify({ workflow_runs: runs }));
+const runCli = (sha, runs, compares = {}, extraArgs = []) => {
+  writeRuns(runs);
   for (const [base, body] of Object.entries(compares)) {
     writeFileSync(path.join(fakeDir, `compare-${base}.json`), JSON.stringify(body));
   }
-  return spawnSync(process.execPath, [script, "--sha", sha, "--repo", "flisk-sh/flisk"], {
+  return spawnSync(process.execPath, [script, "--sha", sha, "--repo", "flisk-sh/flisk", ...extraArgs], {
     encoding: "utf8",
-    env: { ...process.env, PATH: `${stubDir}${path.delimiter}${process.env.PATH}`, FAKE_DIR: fakeDir, GH_TOKEN: "x" },
+    env: stubEnv,
   });
 };
 const success = (sha) => ({ conclusion: "success", head_sha: sha });
@@ -187,6 +189,52 @@ test("cli: a release input change fails with exit 1 and names the candidate and 
 test("cli: a failed candidate run never counts", () => {
   const out = runCli(RELEASE, [{ conclusion: "failure", head_sha: RELEASE }]);
   assert.equal(out.status, 1);
+});
+
+test("candidateState: passed, pending, failed or none", () => {
+  const done = (conclusion) => ({ status: "completed", conclusion });
+  assert.equal(candidateState([]), "none");
+  assert.equal(candidateState([done("failure"), done("cancelled")]), "failed");
+  assert.equal(candidateState([done("failure"), { status: "in_progress", conclusion: null }]), "pending");
+  assert.equal(candidateState([{ status: "queued", conclusion: null }]), "pending");
+  assert.equal(candidateState([{ status: "in_progress", conclusion: null }, done("success")]), "passed");
+});
+
+test("cli --wait: a failed candidate on the commit refuses at once and says so", () => {
+  const out = runCli(RELEASE, [{ status: "completed", conclusion: "failure", head_sha: RELEASE }], {}, ["--wait", "5"]);
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /did not pass; nothing is published/);
+});
+
+test("cli --wait: a candidate that is still running past the deadline refuses", () => {
+  const out = runCli(RELEASE, [{ status: "in_progress", conclusion: null, head_sha: RELEASE }], {}, ["--wait", "0.0001"]);
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /did not finish within 0\.0001 minutes/);
+});
+
+test("cli --wait: no candidate on the commit refuses without waiting", () => {
+  const out = runCli(RELEASE, [], {}, ["--wait", "5"]);
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /No passing Release candidate covers/);
+});
+
+test("cli --wait: waits for a running candidate and passes once it succeeds", async () => {
+  writeRuns([{ status: "in_progress", conclusion: null, head_sha: RELEASE }]);
+  const child = spawn(process.execPath, [script, "--sha", RELEASE, "--repo", "flisk-sh/flisk", "--wait", "1"], { env: stubEnv });
+  let stdout = "";
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  writeRuns([{ status: "completed", conclusion: "success", head_sha: RELEASE }]);
+  const code = await new Promise((resolve) => child.on("close", resolve));
+  assert.equal(code, 0);
+  assert.match(stdout, /still running on a{40}; waiting/);
+  assert.match(stdout, /Release candidate passed for a{40}/);
+});
+
+test("cli: without --wait a running candidate still refuses", () => {
+  const out = runCli(RELEASE, [{ status: "in_progress", conclusion: null, head_sha: RELEASE }]);
+  assert.equal(out.status, 1);
+  assert.doesNotMatch(out.stderr, /did not finish/);
 });
 
 test("cli: missing --sha or --repo prints usage and exits 2", () => {

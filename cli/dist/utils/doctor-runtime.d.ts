@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
-import type { CheckResult, DiscoveredResource } from "../types/index.js";
+import type { CheckResult, DiscoveredResource, ProjectCapabilities } from "../types/index.js";
+import { type PortOwnerDetails } from "./port-owner.js";
 import { type HealthProbe } from "./service-urls.js";
 import type { SmokeResult } from "./smoke.js";
 export declare const HOST_PORT_FIXES: {
@@ -16,11 +17,12 @@ export declare const INGRESS_PORTS: readonly [80, 443];
 export declare function toComposeProjectPrefix(projectName: string): string;
 export interface PublishedPortHolder {
     name: string;
+    image?: string;
     ports: string;
     publishedPorts: number[];
 }
 /**
- * Parse `docker ps --format '{{.Names}}\t{{.Ports}}'` lines into containers that
+ * Parse `docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'` lines into containers that
  * publish specific host ports (e.g. 0.0.0.0:80->80/tcp).
  */
 export declare function parsePublishedPortHolders(dockerPsOutput: string, ports: readonly number[]): PublishedPortHolder[];
@@ -32,6 +34,17 @@ export interface TiltResourceFailure {
     runtimeStatus: string;
     error: string;
 }
+/**
+ * Tilt persists each resource's disable state in a `<name>-disable` ConfigMap on
+ * first load. When `flisk config regenerate` (or a Tiltfile edit) adds a resource
+ * to the focus allowlist while Tilt is already running, Tilt reloads the Tiltfile
+ * but leaves that ConfigMap at `isDisabled: "true"`, so `disableStatus.state`
+ * stays `Disabled` until `flisk down && flisk up`.
+ *
+ * Returns the names of resources in `tilt get uiresources -o json` that the
+ * Tiltfile enables for the current run yet Tilt still reports as `Disabled`.
+ */
+export declare function findStaleDisabledResources(jsonText: string, projectRoot?: string | null): string[];
 /**
  * Resource names with `sablier: {enable: true, deferStart: true}` in their
  * manifest (openspec/changes/prioritized-cold-start): these are expected to
@@ -70,7 +83,10 @@ export declare function checkPrivateNpmRegistry(exec?: typeof execSync, projectR
  * This is the exact failure mode that leaves apps never scheduled while doctor
  * previously reported "Environment ready".
  */
-export declare function checkIngressPorts(exec?: typeof execSync, projectName?: string, ports?: readonly number[]): CheckResult;
+export declare function checkIngressPorts(exec?: typeof execSync, projectName?: string, ports?: readonly number[], options?: {
+    gateway?: boolean;
+    capabilities?: ProjectCapabilities;
+}): CheckResult;
 /** Host ports the generated stack publishes: Traefik (80, 443) and Postgres (5432). */
 export declare const HOST_PORTS: Record<number, string>;
 type PortState = "free" | "in-use" | "unknown";
@@ -110,7 +126,7 @@ export declare function summarizeAdvertisedProbes(probes: HealthProbe[]): CheckR
  * are reported by checkIngressPorts, so only 5432 is checked against other
  * containers here.
  */
-export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>): Promise<CheckResult>;
+export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>, options?: Record<string, unknown>, findOwner?: (port: number) => PortOwnerDetails | null): Promise<CheckResult>;
 /**
  * When a Tilt session is active, surface resource update errors (Traefik port
  * binds, image builds, etc.) instead of claiming the environment is ready

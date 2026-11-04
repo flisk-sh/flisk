@@ -101,31 +101,72 @@ echo "📁 Cache location: /cache/bun"
 # Install function with timeout and logging
 # Uses constrained concurrency to prevent "Resolving dependencies" hang
 # =============================================================================
+# =============================================================================
+# Skip package versions published in the last day (#2895). The registry lists a new release before its CDN serves the
+# tarball, so a build minutes after a release fails with "GET .../rollup-4.67.3.tgz - 404"; an older version that matches the
+# same range installs instead. FLISK_MIN_RELEASE_AGE_SECONDS=0 turns it off. A Bun without the flag installs without it.
+# =============================================================================
+MIN_RELEASE_AGE_SECONDS="${FLISK_MIN_RELEASE_AGE_SECONDS:-86400}"
+MIN_RELEASE_AGE_FLAG=""
+if [ "$MIN_RELEASE_AGE_SECONDS" != "0" ] && bun install --help 2>&1 | grep -q -- "--minimum-release-age"; then
+  MIN_RELEASE_AGE_FLAG="--minimum-release-age=$MIN_RELEASE_AGE_SECONDS"
+  echo "🕒 Skipping package versions published in the last ${MIN_RELEASE_AGE_SECONDS}s"
+fi
+
 run_install() {
   local args="$1"
   local attempt="$2"
 
-  echo "📌 Attempt $attempt: bun install $args (concurrency: $BUN_INSTALL_CONCURRENCY)"
+  echo "📌 Attempt $attempt: bun install $args $MIN_RELEASE_AGE_FLAG (concurrency: $BUN_INSTALL_CONCURRENCY)"
   set +e
   # Use timeout with explicit concurrency limit
   timeout "$INSTALL_TIMEOUT_SECONDS" \
     bun install $args \
     --concurrent-tasks "$BUN_INSTALL_CONCURRENCY" \
     --concurrent-scripts "$BUN_INSTALL_CONCURRENCY" \
-    $BUN_CACHE_FLAG $BUN_VERBOSE_FLAG >"$BUN_INSTALL_LOG" 2>&1
+    $MIN_RELEASE_AGE_FLAG $BUN_CACHE_FLAG $BUN_VERBOSE_FLAG >"$BUN_INSTALL_LOG" 2>&1
   local code=$?
   set -e
   return $code
 }
 
+# A registry hiccup (a tarball the CDN does not serve yet, a 5xx, a dropped connection, a stalled install) is worth another
+# try; a package that does not exist (a 404 for its metadata, not a tarball) is not.
+is_transient_install_failure() {
+  [ "$1" -eq 124 ] && return 0
+  grep -Eq -- "\.tgz - 404|- (408|429|5[0-9][0-9])([^0-9]|$)|ECONNRESET|ETIMEDOUT|ECONNREFUSED|ConnectionRefused|ConnectionClosed|timed out|socket hang up" "$BUN_INSTALL_LOG"
+}
+
 # =============================================================================
 # Install with lockfile but allow updates within resolved ranges
 # =============================================================================
+MAX_ATTEMPTS="${FLISK_INSTALL_ATTEMPTS:-3}"
+RETRY_DELAY_SECONDS="${FLISK_INSTALL_RETRY_DELAY:-15}"
 ATTEMPT=1
 INSTALL_CODE=0
+TRANSIENT=0
 
-run_install "--force" $ATTEMPT
-INSTALL_CODE=$?
+while :; do
+  INSTALL_CODE=0
+  run_install "--force" $ATTEMPT || INSTALL_CODE=$?
+  [ "$INSTALL_CODE" -eq 0 ] && break
+  if [ -n "$MIN_RELEASE_AGE_FLAG" ] && grep -q "blocked by minimum-release-age" "$BUN_INSTALL_LOG"; then
+    # A dependency pins a version newer than the minimum age: that version is what the service asks for, so allow it.
+    echo "ℹ️  A dependency asks for a version published in the last ${MIN_RELEASE_AGE_SECONDS}s; installing without the minimum age"
+    MIN_RELEASE_AGE_FLAG=""
+  elif is_transient_install_failure "$INSTALL_CODE"; then
+    TRANSIENT=1
+    [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ] && break
+    delay=$((ATTEMPT * RETRY_DELAY_SECONDS))
+    echo "⚠️  bun install hit a registry or network error (attempt $ATTEMPT of $MAX_ATTEMPTS) - retrying in ${delay}s:"
+    grep -E -- " - [0-9]{3}([^0-9]|$)|ECONN|timed out" "$BUN_INSTALL_LOG" | head -n 3 || true
+    sleep "$delay"
+  else
+    TRANSIENT=0
+    break
+  fi
+  ATTEMPT=$((ATTEMPT + 1))
+done
 ATTEMPT=$((ATTEMPT + 1))
 
 cleanup_tail
@@ -136,6 +177,10 @@ cleanup_tail
 if [ "$INSTALL_CODE" -ne 0 ]; then
   echo "❌ Dependency installation failed after $((ATTEMPT - 1)) attempts (exit $INSTALL_CODE). Last ${FAIL_TAIL_LINES} lines:"
   tail -n "$FAIL_TAIL_LINES" "$BUN_INSTALL_LOG"
+  if [ "$TRANSIENT" -eq 1 ]; then
+    echo "💡 The package registry or the network failed, not the service: this is usually transient (a version published"
+    echo "   minutes ago is listed before its tarball is served). Run flisk up again in a few minutes."
+  fi
   exit 1
 fi
 

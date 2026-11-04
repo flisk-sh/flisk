@@ -1,10 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Native platform and architecture mapping
-The CLI SHALL continue to recognize `process.platform === "win32"` as Windows and `process.arch === "x64"` as AMD64. Native Windows SHALL remain an inspection-only platform for CLI workflows. Stack startup commands (`flisk up` without `--dry-run` and `flisk demo`) SHALL refuse execution on native Windows with guidance to run under Ubuntu in WSL2 unless the unsupported `TDK_ALLOW_NATIVE_WINDOWS=1` override is set.
+The CLI SHALL continue to recognize `process.platform === "win32"` as Windows and `process.arch === "x64"` as AMD64. Native Windows SHALL remain an inspection-only platform for CLI workflows. Stack startup commands (`flisk up` without `--dry-run` and `flisk demo`) SHALL refuse execution on native Windows with guidance to run under Ubuntu in WSL2 unless the unsupported `FLISK_ALLOW_NATIVE_WINDOWS=1` override is set.
 
 #### Scenario: Stack startup refusal on native Windows
-- **WHEN** a user executes `flisk up` without `--dry-run`, or `flisk demo`, on a native Windows host without `TDK_ALLOW_NATIVE_WINDOWS=1`
+- **WHEN** a user executes `flisk up` without `--dry-run`, or `flisk demo`, on a native Windows host without `FLISK_ALLOW_NATIVE_WINDOWS=1`
 - **THEN** the CLI exits non-zero and prints `"Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only."`
 - **AND** starts no Tilt process, Docker daemon communication, or container workloads
 

@@ -1,20 +1,26 @@
 import { agentCommand } from "./agent.js";
 import { completionCommand } from "./completion.js";
 import { configCommand } from "./config.js";
+import { connectCommand } from "./connect.js";
+import { distributeCommand } from "./distribute.js";
 import { doctorCommand } from "./doctor.js";
 import { downCommand } from "./down.js";
 import { ejectCommand } from "./eject.js";
+import { exportCommand } from "./export.js";
 import { importCommand } from "./import.js";
 import { logsCommand } from "./logs.js";
 import { maintainersCommand } from "./maintainers.js";
 import { mcpCommand } from "./mcp.js";
 import { networksCommand } from "./networks.js";
 import { openCommand } from "./open.js";
+import { osCommand } from "./os.js";
 import { projectCommand } from "./project.js";
 import { projectsCommand } from "./projects.js";
+import { reposCommand } from "./repos.js";
 import { resourceCommand } from "./resource.js";
 import { resourcesCommand } from "./resources.js";
 import { restartCommand } from "./restart.js";
+import { runServiceCommand } from "./run.js";
 import { runtimeCommand } from "./runtime.js";
 import { stackCommand } from "./stack.js";
 import { stacksCommand } from "./stacks.js";
@@ -32,8 +38,10 @@ export function getRegisteredCommands() {
         upCommand,
         downCommand,
         mcpCommand,
+        connectCommand,
         logsCommand,
         ejectCommand,
+        exportCommand,
         importCommand,
         openCommand,
         statusCommand,
@@ -43,6 +51,7 @@ export function getRegisteredCommands() {
         projectCommand,
         configCommand,
         uiCommand,
+        osCommand,
         versionCommand,
         maintainersCommand,
         doctorCommand,
@@ -51,5 +60,8 @@ export function getRegisteredCommands() {
         networksCommand,
         agentCommand,
         restartCommand,
+        runServiceCommand,
+        distributeCommand,
+        reposCommand,
     ];
 }

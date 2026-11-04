@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "flisk": {
+      "command": "flisk",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

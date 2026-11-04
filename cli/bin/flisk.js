@@ -29,8 +29,8 @@ if (nodeTooOld(process.versions.node)) {
   process.exit(1);
 }
 
-// dist-bundle/ (ink/react/chalk inlined) exists only in a packed npm package;
-// a git checkout runs the committed dist/ instead.
+// dist-bundle/ (ink/react/chalk inlined) exists only in a packed npm package, which
+// ships no dist/cli.js; a git checkout runs the committed dist/ instead.
 const bundledCliPath = join(__dirname, "..", "dist-bundle", "cli.js");
 const cliPath = existsSync(bundledCliPath)
   ? bundledCliPath

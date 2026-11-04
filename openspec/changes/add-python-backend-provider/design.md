@@ -79,7 +79,7 @@ This differs from the frontend provider guide intentionally: backend runtime ima
 
 ### Python example lives beside `one-backend`, not inside the default example
 
-`examples/one-backend-python/` mirrors `examples/one-backend/`: one authored `service.json` with `"language": "python"`, the provider's FastAPI files, and a README. Adding a Python service to `examples/tdk-example` would put a second language in the required eight-minute default-example gate and change what `flisk project example` produces, so the default example stays Bun-only. A drift test compares the example with `flisk resource --type backend --language python` output so the example cannot rot. A path-filtered CI job boots the example, checks routed `/health`, and runs the pytest smoke test inside the built image, so the runner needs no host Python toolchain.
+`examples/one-backend-python/` mirrors `examples/one-backend/`: one authored `service.json` with `"language": "python"`, the provider's FastAPI files, and a README. Adding a Python service to `examples/flisk-example` would put a second language in the required eight-minute default-example gate and change what `flisk project example` produces, so the default example stays Bun-only. A drift test compares the example with `flisk resource --type backend --language python` output so the example cannot rot. A path-filtered CI job boots the example, checks routed `/health`, and runs the pytest smoke test inside the built image, so the runner needs no host Python toolchain.
 
 ### CLI runtime stays language-neutral
 

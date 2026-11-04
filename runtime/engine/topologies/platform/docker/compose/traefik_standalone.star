@@ -10,6 +10,7 @@
 load("../constants.star", "PlatformDockerConstants")
 load("../config/healthcheck.star", "compose_healthcheck_timing")
 load("../networking/traefik_static_routes.star", "normalize_abs_path")
+load("../networking/traefik_constants.star", "TRAEFIK_PROJECT_CONSTRAINT")
 
 
 def generate_standalone_traefik_compose(sablier_enabled = False, http_host_port = "8080", https_host_port = "8443", bind_address = "127.0.0.1"):
@@ -19,11 +20,26 @@ def generate_standalone_traefik_compose(sablier_enabled = False, http_host_port 
     emitted when sablier_enabled is True (a license grants "sablier"). Without
     it they would run for nothing: a container holding a read-write Docker
     socket, an image build, and a plugin download from GitHub on every start.
+
+    Pass None for https_host_port to emit an HTTP-only Traefik configuration.
     """
     network = PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC
     name = PlatformDockerConstants.PROJECT_NAME
     log_level = "DEBUG" if sablier_enabled else "INFO"
     plugins_volume = "      - plugins-storage:/plugins-storage\n" if sablier_enabled else ""
+    https_entrypoint = (
+        '      - "--entrypoints.websecure.address=:443"\n'
+        if https_host_port != None
+        else ""
+    )
+    https_port = (
+        '      - "{bind_address}:{https_host_port}:443"\n'.format(
+            bind_address=bind_address,
+            https_host_port=https_host_port,
+        )
+        if https_host_port != None
+        else ""
+    )
     return """###############################################################################
 # SYSTEM-GENERATED - DO NOT EDIT
 # Standalone Traefik for Flisk projects without platform/introvertic proxy files.
@@ -40,6 +56,8 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.watch=true"
       - "--providers.docker.network={network}"
+      # Only this project's containers (#2906); see TRAEFIK_PROJECT_CONSTRAINT.
+      - "--providers.docker.constraints={project_constraint}"
       # Static routes for sablier.deferStart resources (openspec/changes/
       # prioritized-cold-start): a never-created resource has no container
       # and thus no Docker labels for the provider above to discover, so its
@@ -48,12 +66,10 @@ services:
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--log.level={log_level}"
+{https_entrypoint}      - "--log.level={log_level}"
 {sablier_flags}    ports:
       - "{bind_address}:{http_host_port}:80"
-      - "{bind_address}:{https_host_port}:443"
-    volumes:
+{https_port}    volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./{dynamic_dir_name}:/etc/traefik/dynamic:ro
 {plugins_volume}    networks:
@@ -70,11 +86,14 @@ volumes:
 """.format(
         name=name,
         network=network,
+        project_constraint=TRAEFIK_PROJECT_CONSTRAINT,
         http_host_port=http_host_port,
         https_host_port=https_host_port,
         bind_address=bind_address,
         healthcheck_timing=compose_healthcheck_timing(10),
         traefik_depends_on=_SABLIER_DEPENDS_ON if sablier_enabled else "",
+        https_entrypoint=https_entrypoint,
+        https_port=https_port,
         sablier_flags=_SABLIER_FLAGS if sablier_enabled else "",
         sablier_services=_SABLIER_SERVICES.format(
             name=name,
@@ -104,6 +123,9 @@ def _docker_socket_gid():
     the socket's gid there (`stat -c %g /var/run/docker.sock`).
     """
     return os.environ.get("FLISK_DOCKER_SOCKET_GID", "0")
+
+
+docker_socket_gid = _docker_socket_gid
 
 
 def _project_root_mount():

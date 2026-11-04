@@ -12,6 +12,7 @@ import {
   pingHealthTarget,
   pingHealthTargets,
   resolveServicePath,
+  resolveServiceUrl,
   resolveSubdomainBases,
 } from "../service-urls.js";
 
@@ -196,6 +197,66 @@ describe("resolveServicePath", () => {
   });
 });
 
+describe("resolveServiceUrl", () => {
+  const original = process.env.FLISK_SERVICE_BASE_URL;
+
+  beforeEach(() => {
+    process.env.FLISK_SERVICE_BASE_URL = "http://demo.localhost";
+  });
+
+  afterEach(() => {
+    if (original === undefined) {
+      delete process.env.FLISK_SERVICE_BASE_URL;
+    } else {
+      process.env.FLISK_SERVICE_BASE_URL = original;
+    }
+  });
+
+  it("points a frontend at the ingress, not the Tilt UI port", () => {
+    expect(
+      resolveServiceUrl(makeResource("storefront", "frontend", { basePath: "/storefront" }), 8080),
+    ).toBe("http://app.demo.localhost:8080/storefront");
+  });
+
+  it("points a backend at the api ingress route", () => {
+    expect(resolveServiceUrl(makeResource("orders-api", "backend"), 8080)).toBe(
+      "http://api.demo.localhost:8080/api/orders",
+    );
+  });
+
+  it("has no URL for a service without a Traefik route", () => {
+    expect(resolveServiceUrl(makeResource("mailer", "worker"), 8080)).toBeUndefined();
+  });
+
+  // #2997: a web UI cannot be served under /api/<name>, so it gets its own host name.
+  it("gives a bring-your-own web UI its own host name and no path", () => {
+    const app = makeResource("app", "bring-your-own", { webUi: true });
+    expect(resolveServiceUrl(app, 8280)).toBe("http://app.demo.localhost:8280");
+    expect(resolveServicePath(app)).toBe("");
+    expect(resolveServiceUrl(makeResource("trek", "bring-your-own", { webUi: true }), 8280)).toBe(
+      "http://trek.demo.localhost:8280",
+    );
+  });
+
+  it("keeps the /api/<name> path for a bring-your-own API, and has no URL for a private web UI", () => {
+    expect(resolveServiceUrl(makeResource("app", "bring-your-own"), 8280)).toBe(
+      "http://api.demo.localhost:8280/api/app",
+    );
+    expect(
+      resolveServiceUrl(
+        makeResource("app", "bring-your-own", { webUi: true, exposeViaProxy: false }),
+        8280,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("advertises a web UI at its host name", () => {
+    expect(
+      buildAdvertisedTargets([makeResource("app", "bring-your-own", { webUi: true })], 8280),
+    ).toEqual([{ name: "app", appType: "bring-your-own", url: "http://app.demo.localhost:8280" }]);
+  });
+});
+
 describe("buildHealthTargets", () => {
   const original = process.env.FLISK_SERVICE_BASE_URL;
 
@@ -223,6 +284,10 @@ describe("buildHealthTargets", () => {
     ]);
   });
 
+  it("does not probe /health on a bring-your-own service: its health path is its own", () => {
+    expect(buildHealthTargets([makeResource("api", "bring-your-own")])).toEqual([]);
+  });
+
   it("skips services that have no Traefik route", () => {
     const targets = buildHealthTargets([
       makeResource("kitchen-worker", "worker"),
@@ -233,6 +298,27 @@ describe("buildHealthTargets", () => {
     ]);
 
     expect(targets.map((t) => t.name)).toEqual(["menu-api"]);
+  });
+
+  it.each(["worker", "library", "sdk", "migrator"] as const)(
+    "returns no health URL for a %s resource",
+    (kind) => {
+      expect(buildHealthTargets([makeResource(`test-${kind}`, kind)])).toEqual([]);
+    },
+  );
+
+  it("returns a health URL for a frontend while skipping worker, library, sdk, and migrator", () => {
+    const targets = buildHealthTargets([
+      makeResource("kitchen-worker", "worker"),
+      makeResource("shared-lib", "library"),
+      makeResource("client-sdk", "sdk"),
+      makeResource("db-migrator", "migrator"),
+      makeResource("floor-app", "frontend"),
+    ]);
+
+    expect(targets).toEqual([
+      { name: "floor-app", appType: "frontend", url: "http://app.demo.localhost/floor-app/health" },
+    ]);
   });
 });
 
@@ -263,8 +349,47 @@ describe("buildAdvertisedTargets", () => {
     ]);
   });
 
+  it("advertises a routed bring-your-own service at the API host, and not a private one", () => {
+    const targets = buildAdvertisedTargets([
+      makeResource("api", "bring-your-own"),
+      makeResource("db", "bring-your-own", { exposeViaProxy: false }),
+    ]);
+
+    expect(targets).toEqual([
+      { name: "api", appType: "bring-your-own", url: "http://api.demo.localhost/api/api" },
+    ]);
+  });
+
   it("has no targets when nothing is routable", () => {
-    expect(buildAdvertisedTargets([makeResource("kitchen-worker", "worker")])).toEqual([]);
+    expect(
+      buildAdvertisedTargets([
+        makeResource("kitchen-worker", "worker"),
+        makeResource("shared-lib", "library"),
+        makeResource("client-sdk", "sdk"),
+        makeResource("db-migrator", "migrator"),
+      ]),
+    ).toEqual([]);
+  });
+
+  it.each(["worker", "library", "sdk", "migrator"] as const)(
+    "returns no advertised URL for a %s resource",
+    (kind) => {
+      expect(buildAdvertisedTargets([makeResource(`test-${kind}`, kind)])).toEqual([]);
+    },
+  );
+
+  it("returns an advertised URL for a frontend while skipping worker, library, sdk, and migrator", () => {
+    const targets = buildAdvertisedTargets([
+      makeResource("kitchen-worker", "worker"),
+      makeResource("shared-lib", "library"),
+      makeResource("client-sdk", "sdk"),
+      makeResource("db-migrator", "migrator"),
+      makeResource("floor-app", "frontend"),
+    ]);
+
+    expect(targets).toEqual([
+      { name: "floor-app", appType: "frontend", url: "http://app.demo.localhost/floor-app" },
+    ]);
   });
 });
 

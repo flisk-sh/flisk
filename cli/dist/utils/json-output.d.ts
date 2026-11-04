@@ -1,4 +1,4 @@
-import { type MachineError } from "./machine-output.js";
+import type { MachineError } from "../types/index.js";
 export type JsonError = MachineError;
 export type JsonEmitter = (data: Record<string, unknown>, errors?: JsonError[]) => void;
 /**

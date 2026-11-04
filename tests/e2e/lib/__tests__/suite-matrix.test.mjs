@@ -143,3 +143,18 @@ test("the repository's ORM and language legs are selected under their own groups
   assert.ok(legs.filter((l) => l.group === "orm").every((l) => l.dir === `orm/${l.suite}`));
 });
 
+
+test("a suite with typicalSeconds starts first, longest first, and the rest stay in name order", () => {
+  const dir = fixture([
+    ["resource-types", "alpha", { suite: "alpha", triggers: ["release"], timeoutMinutes: 10 }],
+    ["resource-types", "migrator", { suite: "migrator", triggers: ["release"], timeoutMinutes: 30, typicalSeconds: 180 }],
+    ["resource-types", "beta", { suite: "beta", triggers: ["release"], timeoutMinutes: 10 }],
+    ["resource-types", "agent", { suite: "agent", triggers: ["release"], timeoutMinutes: 30, typicalSeconds: 200 }],
+  ]);
+  try {
+    const labels = selectSuites(dir, "resource-types", "release").map((leg) => leg.label);
+    assert.deepEqual(labels, ["agent", "migrator", "alpha", "beta"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

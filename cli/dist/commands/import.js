@@ -3,17 +3,23 @@
 import { spawn } from "node:child_process";
 import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
+import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "flisk-import@0.2.2";
+export const IMPORT_PACKAGE = "flisk-import@0.18.0";
+/** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.1 or later), forwarded as its first argument. */
+export const TILTFILE_IMPORTER = "tiltfile";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export const MIN_CORE_VERSION = "1.3.104";
-/** Recommended core version with automatic Tiltfile bootstrapping for imported stacks (#1018). */
-export const RECOMMENDED_CORE_VERSION = "1.3.145";
+/**
+ * Recommended core for imported stacks: 1.4.11 (#2646) runs a bring-your-own port outside 4000-5999 and two-letter
+ * names, which flisk-import 0.3.0 and later write. The pin ships in the CLI itself, so a CLI that runs it is already newer.
+ */
+export const RECOMMENDED_CORE_VERSION = "1.4.11";
 /** Parses a semver version string, extracting major, minor, patch, and prerelease identifiers. */
 export function parseSemver(raw) {
     const cleaned = raw.trim().replace(/^v/, "").split("+")[0];
@@ -129,10 +135,45 @@ export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersio
         child.on("close", (code) => resolve(code ?? 1));
     });
 }
+/**
+ * Runs flisk-import with its output piped instead of the caller's terminal and no stdin, so it can never prompt, and
+ * resolves to what it printed and its exit code. A refusal of the core version gate or a missing npx is a run too.
+ */
+export function runImportCaptured(args, spawnFn = spawn, getVersionFn = getPackageVersion) {
+    const check = checkCoreVersion(getVersionFn(), args);
+    if (!check.ok) {
+        return Promise.resolve({ exitCode: 1, stdout: "", stderr: check.message ?? "" });
+    }
+    const invocation = importInvocation(args);
+    return new Promise((resolve) => {
+        const child = spawnFn(invocation.command, invocation.args, {
+            stdio: ["ignore", "pipe", "pipe"],
+            shell: invocation.shell,
+        });
+        let stdout = "";
+        let stderr = "";
+        child.stdout?.on("data", (chunk) => {
+            stdout += chunk.toString();
+        });
+        child.stderr?.on("data", (chunk) => {
+            stderr += chunk.toString();
+        });
+        child.on("error", (err) => {
+            resolve({
+                exitCode: 127,
+                stdout,
+                stderr: `flisk import: could not run npx (${err.message}). Install Node.js/npm and retry.`,
+            });
+        });
+        child.on("close", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
+    });
+}
 export function buildForwardedImportArgs(args, options = {}) {
     let yes = Boolean(options.yes);
     let force = Boolean(options.force);
     const filtered = [];
+    // `tiltfile` forwards its own path, which may be any name, so only the Compose keyword is ever stripped.
+    let strippedCompose = args[0] === TILTFILE_IMPORTER;
     for (const arg of args) {
         if (arg === "--yes" || arg === "-y") {
             yes = true;
@@ -140,9 +181,15 @@ export function buildForwardedImportArgs(args, options = {}) {
         else if (arg === "--force" || arg === "-f") {
             force = true;
         }
+        else if (!strippedCompose && arg === "compose") {
+            strippedCompose = true;
+        }
         else {
             filtered.push(arg);
         }
+    }
+    if (options.dryRun && !filtered.includes("--dry-run")) {
+        filtered.push("--dry-run");
     }
     if (yes) {
         filtered.push("--yes");
@@ -152,13 +199,140 @@ export function buildForwardedImportArgs(args, options = {}) {
     }
     return filtered;
 }
+/** The report of a successful run, read from the forwarded arguments and the importer's "  wrote <path>" lines. */
+export function importReport(forwardedArgs, run) {
+    const isTiltfile = forwardedArgs[0] === TILTFILE_IMPORTER;
+    const positional = (isTiltfile ? forwardedArgs.slice(1) : forwardedArgs).find((arg) => !arg.startsWith("-"));
+    const common = {
+        dryRun: forwardedArgs.includes("--dry-run"),
+        force: forwardedArgs.includes("--force"),
+        written: [...run.stdout.matchAll(/^\s+wrote (.+)$/gm)].map((match) => match[1].trim()),
+        output: run.stdout.trim(),
+    };
+    return isTiltfile
+        ? { path: positional ?? "Tiltfile", ...common }
+        : { dir: positional ?? ".", ...common };
+}
+/**
+ * The error of a failed run: the importer's "Error: ..." line (or whatever it printed last) and its "-> ..." hints. The
+ * importer prints "Nothing to import: ..." on stdout, so stdout is read when stderr says nothing.
+ */
+export function importFailure(run, commandName = "flisk import") {
+    const lines = (text) => text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const errLines = lines(run.stderr);
+    const hints = errLines
+        .filter((line) => line.startsWith("->"))
+        .map((line) => line.slice(2).trim());
+    const errorLine = errLines.find((line) => line.startsWith("Error:"));
+    const message = errorLine?.replace(/^Error:\s*/, "") ??
+        (errLines.filter((line) => !line.startsWith("->")).join(" ") ||
+            lines(run.stdout).pop() ||
+            `flisk-import exited with code ${run.exitCode}`);
+    const fallback = run.exitCode === 127
+        ? "Install Node.js 22.12 or later, which provides npx, then run the command again"
+        : `Run \`${commandName} --dry-run\` to see the plan without writing anything`;
+    const suggestions = hints.length > 0 ? hints : [fallback];
+    return new JsonCommandError("IMPORT_FAILED", message, suggestions, run.exitCode);
+}
+export function resolveImportOptions(options = {}, cmd) {
+    const parentOpts = (cmd?.parent?.opts() ?? {});
+    const cmdOpts = (cmd?.opts() ?? {});
+    return {
+        yes: Boolean(options.yes || cmdOpts.yes || parentOpts.yes),
+        force: Boolean(options.force || cmdOpts.force || parentOpts.force),
+        dryRun: Boolean(options.dryRun || cmdOpts.dryRun || parentOpts.dryRun),
+        json: Boolean(options.json || cmdOpts.json || parentOpts.json),
+    };
+}
+/**
+ * Runs `flisk import` (and its `compose` / `tiltfile` subcommands). With `--json` the importer runs captured and never
+ * prompts; otherwise it inherits the terminal, and a run that would write is refused when there is no terminal to ask in.
+ * Sets `process.exitCode` to the importer's exit code, or 1 for a refusal.
+ */
+export async function executeImport(args, options = {}, commandName = "flisk import") {
+    if (options.json) {
+        await runJsonCommand("IMPORT_FAILED", commandName, async () => {
+            // Without a terminal the importer cannot ask, so --json writes without a prompt, like --yes.
+            const forwardedArgs = buildForwardedImportArgs(args, { ...options, yes: true });
+            const run = await runImportCaptured(forwardedArgs);
+            // The importer's own text is for a person; stdout carries only the envelope.
+            if (run.stdout.trim())
+                console.log(run.stdout.trimEnd());
+            if (run.stderr.trim())
+                console.error(run.stderr.trimEnd());
+            if (run.exitCode !== 0)
+                throw importFailure(run, commandName);
+            return { data: importReport(forwardedArgs, run) };
+        });
+        return;
+    }
+    const forwardedArgs = buildForwardedImportArgs(args, options);
+    const refusal = nonInteractiveRefusal(forwardedArgs, commandName);
+    if (refusal) {
+        console.error(refusal);
+        process.exitCode = 1;
+        return;
+    }
+    process.exitCode = await runImport(forwardedArgs);
+}
+/**
+ * Without a terminal the importer cannot ask its (Y/n) question: it wrote nothing and exited 0, which a coding agent or CI
+ * job reads as success. A run that would write, with no `--yes` and no stdin TTY, is refused with exit 1 before it starts.
+ */
+export function nonInteractiveRefusal(forwardedArgs, commandName = "flisk import", isTTY = Boolean(process.stdin.isTTY)) {
+    if (isTTY)
+        return null;
+    const answersItself = ["--yes", "--dry-run", "--help", "-h"].some((flag) => forwardedArgs.includes(flag));
+    if (answersItself)
+        return null;
+    return [
+        `${commandName}: no terminal to confirm the import, so nothing was written.`,
+        `-> Preview first: ${commandName} --dry-run`,
+        `-> Then write without a prompt: ${commandName} --yes (or --json)`,
+    ].join("\n");
+}
+export const composeCommand = addYesOption(new Command("compose"))
+    .description("Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)")
+    .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
+    .option("-f, --force", "Overwrite an existing service.json", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .allowUnknownOption()
+    .helpOption(false)
+    .action(async (args, options, cmd) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport(args, resolved, "flisk import compose");
+});
+/**
+ * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.1 or later)
+ * does the import, like `compose`; core only wraps the registered Tiltfile at `flisk up` (see wrappedTiltfilePath).
+ */
+export const tiltfileCommand = addYesOption(new Command("tiltfile"))
+    .description("Register an existing Tiltfile so flisk up runs it unchanged (writes .flisk/project.json)")
+    .argument("[args...]", "Passed to flisk-import tiltfile: [path] --dry-run --yes --force")
+    .option("-f, --force", "Overwrite existing orchestration configuration", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .allowUnknownOption()
+    .helpOption(false)
+    .action(async (args, options, cmd) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport([TILTFILE_IMPORTER, ...args], resolved, "flisk import tiltfile");
+});
 export const importCommand = addYesOption(new Command("import"))
     .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
     .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
     .option("-f, --force", "Overwrite an existing service.json", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
     .allowUnknownOption()
     .helpOption(false)
-    .action(async (args, options) => {
-    const forwardedArgs = buildForwardedImportArgs(args, options);
-    process.exitCode = await runImport(forwardedArgs);
+    .addCommand(composeCommand)
+    .addCommand(tiltfileCommand)
+    .action(async (args, options, cmd) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport(args, resolved, "flisk import");
 });

@@ -1,0 +1,20 @@
+{
+  "title": "the deprecated dependencies key",
+  "why": "The env generator read `dependencies` before `dependsOn`; Tilt and the CLI ignored it. All three now read both.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "setLegacy",
+      "owner": "storefront",
+      "entries": ["billing"]
+    },
+    {
+      "op": "check",
+      "only": "storefront"
+    },
+    {
+      "op": "coldCheck"
+    }
+  ],
+  "expect": []
+}

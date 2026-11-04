@@ -10,9 +10,11 @@ import {
   checkHealthRoutes,
   checkIngressPorts,
   checkPrivateNpmRegistry,
+  checkTiltResourceHealth,
   describeTiltFailure,
   findForeignIngressHolders,
   findMissingHealthRoutes,
+  findStaleDisabledResources,
   getDeferredResourceNames,
   HOST_PORT_FIXES,
   HOST_PORTS,
@@ -55,6 +57,12 @@ describe("doctor-runtime utilities", () => {
   });
 
   describe("parsePublishedPortHolders", () => {
+    it("reads the image from the name, image, ports format", () => {
+      const psOutput = "c_traefik\ttraefik:v3.1\t0.0.0.0:80->80/tcp";
+      const holders = parsePublishedPortHolders(psOutput, [80]);
+      expect(holders[0]).toMatchObject({ name: "c_traefik", image: "traefik:v3.1" });
+    });
+
     it("parses container lines and matches requested host ports", () => {
       const psOutput = [
         "c_traefik\t0.0.0.0:80->80/tcp, :::80->80/tcp, 0.0.0.0:443->443/tcp",
@@ -162,6 +170,29 @@ describe("doctor-runtime utilities", () => {
   });
 
   describe("parseTiltResourceFailures", () => {
+    it("does not count a never-started resource (auto_init=False) as pending", () => {
+      const tiltJson = JSON.stringify({
+        items: [
+          {
+            metadata: { name: "healthy-api" },
+            status: { updateStatus: "ok", runtimeStatus: "ok" },
+          },
+          {
+            metadata: { name: "redis" },
+            status: {
+              updateStatus: "none",
+              runtimeStatus: "none",
+              lastDeployTime: null,
+              pendingBuildSince: null,
+            },
+          },
+        ],
+      });
+      const parsed = parseTiltResourceFailures(tiltJson);
+      expect(parsed.pendingCount).toBe(0);
+      expect(parsed.okCount).toBe(1);
+    });
+
     it("categorizes ok, error, pending, and deferred resources", () => {
       const tiltJson = JSON.stringify({
         items: [
@@ -208,6 +239,137 @@ describe("doctor-runtime utilities", () => {
       expect(parsed.failures.map((f) => f.name)).toEqual(["failed-build", "unhealthy-runtime"]);
       expect(parsed.deferredCount).toBe(1); // lazy-worker
       expect(parsed.pendingCount).toBe(1); // starting-service
+    });
+  });
+
+  describe("checkTiltResourceHealth", () => {
+    it("skips when Tilt returns an unparseable resource status response", () => {
+      const result = checkTiltResourceHealth((() => "not valid JSON") as never);
+
+      expect(result.didPass).toBe(true);
+      expect(result.isSkipped).toBe(true);
+      expect(result.message).toBe("Could not parse Tilt resource status - skipped");
+    });
+
+    it("skips when Tilt reports no resources", () => {
+      const result = checkTiltResourceHealth((() => JSON.stringify({ items: [] })) as never);
+
+      expect(result.didPass).toBe(true);
+      expect(result.isSkipped).toBe(true);
+      expect(result.message).toBe("No Tilt UIResources found");
+    });
+
+    it("detects resources that Tilt keeps Disabled after the Tiltfile enables them", () => {
+      const fixture = JSON.stringify({
+        items: [
+          {
+            metadata: { name: "traefik" },
+            status: { updateStatus: "ok", runtimeStatus: "ok" },
+          },
+          {
+            metadata: { name: "orders-api" },
+            status: { updateStatus: "ok", runtimeStatus: "ok" },
+          },
+          {
+            metadata: { name: "service-discovery-daemon" },
+            status: {
+              updateStatus: "none",
+              runtimeStatus: "none",
+              disableStatus: { state: "Disabled" },
+            },
+          },
+          {
+            metadata: { name: "other-stack-service" },
+            status: {
+              updateStatus: "none",
+              runtimeStatus: "none",
+              disableStatus: { state: "Disabled" },
+            },
+          },
+        ],
+      });
+
+      expect(findStaleDisabledResources(fixture)).toEqual(["service-discovery-daemon"]);
+
+      const result = checkTiltResourceHealth((() => fixture) as never);
+      expect(result.didPass).toBe(false);
+      expect(result.message).toContain("service-discovery-daemon");
+      expect(result.message).toContain("restart needed: flisk down && flisk up");
+      expect(result.fix).toContain("flisk down && flisk up");
+    });
+
+    it("detects focus-enabled services and companion suffix resources when only (Tiltfile) is enabled", () => {
+      const tmpDir = mkdtempSync(join(tmpdir(), "flisk-stale-disabled-"));
+      try {
+        const outDir = join(tmpDir, ".flisk", ".flisk-out");
+        mkdirSync(outDir, { recursive: true });
+        writeFileSync(
+          join(outDir, "Tiltfile"),
+          [
+            "_ALWAYS_ENABLED_INFRA_RESOURCES = ['init-networks', 'traefik', 'golden-layers-build']",
+            "config.set_enabled_resources(_FILTERED_RESOURCES)",
+          ].join("\n"),
+        );
+        writeFileSync(join(outDir, "spec.master"), 'PRE_ALPHA_RESOURCES = {\n"shop": True,\n}\n');
+        const svcDir = join(tmpDir, "services", "shop", "orders-api");
+        mkdirSync(svcDir, { recursive: true });
+        writeFileSync(
+          join(svcDir, "service.json"),
+          JSON.stringify({
+            appName: "orders-api",
+            appType: "backend",
+            stack: "shop",
+          }),
+        );
+
+        const fixture = JSON.stringify({
+          items: [
+            {
+              metadata: { name: "(Tiltfile)" },
+              status: { updateStatus: "ok", runtimeStatus: "not_applicable" },
+            },
+            {
+              metadata: { name: "orders-api" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+            {
+              metadata: { name: "orders-api-image" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+            {
+              metadata: { name: "provision-db-billing" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+            {
+              metadata: { name: "billing-api" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+          ],
+        });
+
+        expect(findStaleDisabledResources(fixture, tmpDir)).toEqual([
+          "orders-api",
+          "orders-api-image",
+        ]);
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
   });
 
@@ -301,7 +463,9 @@ describe("doctor-runtime utilities", () => {
       mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
       writeFileSync(
         join(tmpDir, ".flisk", "project.json"),
-        JSON.stringify({ phases: { dev: { enabledStacks: ["app", "verdaccio"] } } }),
+        JSON.stringify({
+          phases: { dev: { enabledStacks: ["app", "verdaccio"] } },
+        }),
       );
       expect(projectConfigEnablesVerdaccio(tmpDir)).toBe(true);
     });
@@ -410,10 +574,30 @@ describe("doctor-runtime utilities", () => {
 
     it("orders infrastructure failures ahead of user services", () => {
       const failures = [
-        { name: "web", updateStatus: "error", runtimeStatus: "ok", error: "err" },
-        { name: "postgres", updateStatus: "error", runtimeStatus: "ok", error: "err" },
-        { name: "api", updateStatus: "error", runtimeStatus: "ok", error: "err" },
-        { name: "traefik", updateStatus: "error", runtimeStatus: "ok", error: "err" },
+        {
+          name: "web",
+          updateStatus: "error",
+          runtimeStatus: "ok",
+          error: "err",
+        },
+        {
+          name: "postgres",
+          updateStatus: "error",
+          runtimeStatus: "ok",
+          error: "err",
+        },
+        {
+          name: "api",
+          updateStatus: "error",
+          runtimeStatus: "ok",
+          error: "err",
+        },
+        {
+          name: "traefik",
+          updateStatus: "error",
+          runtimeStatus: "ok",
+          error: "err",
+        },
       ];
       const ordered = orderTiltFailures(failures);
       expect(ordered.map((f) => f.name)).toEqual(["postgres", "traefik", "api", "web"]);
@@ -450,6 +634,122 @@ describe("doctor-runtime utilities", () => {
       );
       expect(error).toContain("ZodError missing required config/env: DATABASE_URL");
     });
+
+    it.skipIf(process.platform === "win32")(
+      "extracts Kafka connection refused errors from logs",
+      () => {
+        const fakeExec = (cmd: string) => {
+          if (cmd.includes("docker ps")) return "api\n";
+          if (cmd.includes("docker logs")) return "ECONNREFUSED kafka:9092";
+          return "";
+        };
+
+        const error = probeContainerRuntimeError(
+          "api",
+          fakeExec as unknown as typeof execSync,
+          "myproj",
+        );
+
+        expect(error).toBe("runtime crash: Kafka connection refused");
+      },
+    );
+
+    it.skipIf(process.platform === "win32")(
+      "extracts private registry failures from runtime logs",
+      () => {
+        const fakeExec = (cmd: string) => {
+          if (cmd.includes("docker ps")) return "api\n";
+          if (cmd.includes("docker logs")) {
+            return "ConnectionRefused downloading package manifest @flisk-sh/sdk";
+          }
+          return "";
+        };
+
+        const error = probeContainerRuntimeError(
+          "api",
+          fakeExec as unknown as typeof execSync,
+          "myproj",
+        );
+
+        expect(error).toBe(
+          "runtime/build log: private registry ConnectionRefused for @flisk-sh/sdk",
+        );
+      },
+    );
+
+    it.skipIf(process.platform === "win32")(
+      "reports a generic ZodError when runtime logs omit field paths",
+      () => {
+        const fakeExec = (cmd: string) => {
+          if (cmd.includes("docker ps")) return "api\n";
+          if (cmd.includes("docker logs")) return "ZodError: validation failed";
+          return "";
+        };
+
+        const error = probeContainerRuntimeError(
+          "api",
+          fakeExec as unknown as typeof execSync,
+          "myproj",
+        );
+
+        expect(error).toBe("runtime crash: ZodError during config/env validation");
+      },
+    );
+
+    it.skipIf(process.platform === "win32")(
+      "reports a structured application failure from a runtime probe",
+      () => {
+        const fakeExec = (cmd: string) => {
+          if (cmd.includes("docker ps")) return "flisk-project-api-autogenerated-api-1\n";
+          if (cmd.includes("docker logs")) {
+            return "error: Failed to initialize API: database unavailable";
+          }
+          return "";
+        };
+
+        const error = probeContainerRuntimeError(
+          "api",
+          fakeExec as unknown as typeof execSync,
+          "flisk-project",
+        );
+
+        expect(error).toBe("runtime crash: error: Failed to initialize API: database unavailable");
+      },
+    );
+
+    it.skipIf(process.platform === "win32")(
+      "returns no diagnosis when a runtime probe fails",
+      () => {
+        const fakeExec = (cmd: string) => {
+          if (cmd.includes("docker ps")) return "flisk-project-api-autogenerated-api-1\n";
+          if (cmd.includes("docker logs")) throw new Error("docker logs failed");
+          return "";
+        };
+
+        expect(
+          probeContainerRuntimeError(
+            "api",
+            fakeExec as unknown as typeof execSync,
+            "flisk-project",
+          ),
+        ).toBeNull();
+      },
+    );
+
+    it.skipIf(process.platform === "win32")(
+      "returns no diagnosis for unrecognized runtime logs",
+      () => {
+        const fakeExec = (cmd: string) => {
+          if (cmd.includes("docker ps")) return "api\n";
+          if (cmd.includes("docker logs")) return "service started successfully";
+          return "";
+        };
+
+        expect(
+          probeContainerRuntimeError("api", fakeExec as unknown as typeof execSync, "myproj"),
+        ).toBeNull();
+      },
+    );
 
     it("describes tilt failures using build error when available", () => {
       const failure = {
@@ -584,7 +884,12 @@ describe("doctor-runtime utilities", () => {
   describe("summarizeServiceProbes", () => {
     it("skips when no services answered", () => {
       const result = summarizeServiceProbes([
-        { name: "api", appType: "backend", url: "http://api.local/health", ok: false },
+        {
+          name: "api",
+          appType: "backend",
+          url: "http://api.local/health",
+          ok: false,
+        },
       ]);
       expect(result.didPass).toBe(true);
       expect(result.isSkipped).toBe(true);
@@ -593,7 +898,13 @@ describe("doctor-runtime utilities", () => {
 
     it("passes when all responding services are ok", () => {
       const result = summarizeServiceProbes([
-        { name: "api", appType: "backend", url: "http://api.local/health", ok: true, status: 200 },
+        {
+          name: "api",
+          appType: "backend",
+          url: "http://api.local/health",
+          ok: true,
+          status: 200,
+        },
       ]);
       expect(result.didPass).toBe(true);
       expect(result.message).toContain("All 1 service responding on /health");
@@ -601,8 +912,20 @@ describe("doctor-runtime utilities", () => {
 
     it("fails when a service returns 404 or 502 with helpful diagnosis", () => {
       const result = summarizeServiceProbes([
-        { name: "api", appType: "backend", url: "http://api.local/health", ok: false, status: 404 },
-        { name: "web", appType: "frontend", url: "http://web.local/health", ok: true, status: 200 },
+        {
+          name: "api",
+          appType: "backend",
+          url: "http://api.local/health",
+          ok: false,
+          status: 404,
+        },
+        {
+          name: "web",
+          appType: "frontend",
+          url: "http://web.local/health",
+          ok: true,
+          status: 200,
+        },
       ]);
       expect(result.didPass).toBe(false);
       expect(result.message).toContain("1 service not healthy (1/2 healthy)");
@@ -614,7 +937,12 @@ describe("doctor-runtime utilities", () => {
   describe("summarizeAdvertisedProbes", () => {
     it("skips when no advertised services responded", () => {
       const result = summarizeAdvertisedProbes([
-        { name: "api", appType: "backend", url: "http://api.local/", ok: false },
+        {
+          name: "api",
+          appType: "backend",
+          url: "http://api.local/",
+          ok: false,
+        },
       ]);
       expect(result.didPass).toBe(true);
       expect(result.isSkipped).toBe(true);
@@ -622,8 +950,20 @@ describe("doctor-runtime utilities", () => {
 
     it("passes when all responding endpoints are reachable (non-404)", () => {
       const result = summarizeAdvertisedProbes([
-        { name: "api", appType: "backend", url: "http://api.local/", ok: true, status: 200 },
-        { name: "docs", appType: "frontend", url: "http://docs.local/", ok: true, status: 302 },
+        {
+          name: "api",
+          appType: "backend",
+          url: "http://api.local/",
+          ok: true,
+          status: 200,
+        },
+        {
+          name: "docs",
+          appType: "frontend",
+          url: "http://docs.local/",
+          ok: true,
+          status: 302,
+        },
       ]);
       expect(result.didPass).toBe(true);
       expect(result.message).toBe("2 advertised endpoints reachable");
@@ -631,7 +971,13 @@ describe("doctor-runtime utilities", () => {
 
     it("warns when an advertised endpoint returns 404", () => {
       const result = summarizeAdvertisedProbes([
-        { name: "api", appType: "backend", url: "http://api.local/", ok: false, status: 404 },
+        {
+          name: "api",
+          appType: "backend",
+          url: "http://api.local/",
+          ok: false,
+          status: 404,
+        },
       ]);
       expect(result.didPass).toBe(true);
       expect(result.isWarning).toBe(true);

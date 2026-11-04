@@ -1,0 +1,140 @@
+--- a/deepmerge/index.js
++++ b/deepmerge/index.js
+@@ -36,6 +36,19 @@
+ 	return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
+ }
+ 
++function setProperty(target, property, value) {
++	if (property === '__proto__') {
++		Object.defineProperty(target, property, {
++			value: value,
++			writable: true,
++			enumerable: true,
++			configurable: true
++		})
++	} else {
++		target[property] = value
++	}
++}
++
+ function propertyIsOnObject(object, property) {
+ 	try {
+ 		return property in object
+@@ -55,7 +68,7 @@
+ 	var destination = {}
+ 	if (options.isMergeableObject(target)) {
+ 		getKeys(target).forEach(function(key) {
+-			destination[key] = cloneUnlessOtherwiseSpecified(target[key], options)
++			setProperty(destination, key, cloneUnlessOtherwiseSpecified(target[key], options))
+ 		})
+ 	}
+ 	getKeys(source).forEach(function(key) {
+@@ -64,9 +77,9 @@
+ 		}
+ 
+ 		if (propertyIsOnObject(target, key) && options.isMergeableObject(source[key])) {
+-			destination[key] = getMergeFunction(key, options)(target[key], source[key], options)
++			setProperty(destination, key, getMergeFunction(key, options)(target[key], source[key], options))
+ 		} else {
+-			destination[key] = cloneUnlessOtherwiseSpecified(source[key], options)
++			setProperty(destination, key, cloneUnlessOtherwiseSpecified(source[key], options))
+ 		}
+ 	})
+ 	return destination
+--- a/deepmerge/dist/cjs.js
++++ b/deepmerge/dist/cjs.js
+@@ -61,6 +61,19 @@
+ 	return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
+ }
+ 
++function setProperty(target, property, value) {
++	if (property === '__proto__') {
++		Object.defineProperty(target, property, {
++			value: value,
++			writable: true,
++			enumerable: true,
++			configurable: true
++		});
++	} else {
++		target[property] = value;
++	}
++}
++
+ function propertyIsOnObject(object, property) {
+ 	try {
+ 		return property in object
+@@ -80,7 +93,7 @@
+ 	var destination = {};
+ 	if (options.isMergeableObject(target)) {
+ 		getKeys(target).forEach(function(key) {
+-			destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
++			setProperty(destination, key, cloneUnlessOtherwiseSpecified(target[key], options));
+ 		});
+ 	}
+ 	getKeys(source).forEach(function(key) {
+@@ -89,9 +102,9 @@
+ 		}
+ 
+ 		if (propertyIsOnObject(target, key) && options.isMergeableObject(source[key])) {
+-			destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
++			setProperty(destination, key, getMergeFunction(key, options)(target[key], source[key], options));
+ 		} else {
+-			destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
++			setProperty(destination, key, cloneUnlessOtherwiseSpecified(source[key], options));
+ 		}
+ 	});
+ 	return destination
+--- a/deepmerge/dist/umd.js
++++ b/deepmerge/dist/umd.js
+@@ -65,6 +65,19 @@
+ 		return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
+ 	}
+ 
++	function setProperty(target, property, value) {
++		if (property === '__proto__') {
++			Object.defineProperty(target, property, {
++				value: value,
++				writable: true,
++				enumerable: true,
++				configurable: true
++			});
++		} else {
++			target[property] = value;
++		}
++	}
++
+ 	function propertyIsOnObject(object, property) {
+ 		try {
+ 			return property in object
+@@ -84,7 +97,7 @@
+ 		var destination = {};
+ 		if (options.isMergeableObject(target)) {
+ 			getKeys(target).forEach(function(key) {
+-				destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
++				setProperty(destination, key, cloneUnlessOtherwiseSpecified(target[key], options));
+ 			});
+ 		}
+ 		getKeys(source).forEach(function(key) {
+@@ -93,9 +106,9 @@
+ 			}
+ 
+ 			if (propertyIsOnObject(target, key) && options.isMergeableObject(source[key])) {
+-				destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
++				setProperty(destination, key, getMergeFunction(key, options)(target[key], source[key], options));
+ 			} else {
+-				destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
++				setProperty(destination, key, cloneUnlessOtherwiseSpecified(source[key], options));
+ 			}
+ 		});
+ 		return destination
+--- a/deepmerge/package.json
++++ b/deepmerge/package.json
+@@ -9,7 +9,7 @@
+     "clone",
+     "recursive"
+   ],
+-  "version": "4.3.1",
++  "version": "4.3.2-flisk.1",
+   "homepage": "https://github.com/TehShrike/deepmerge",
+   "repository": {
+     "type": "git",

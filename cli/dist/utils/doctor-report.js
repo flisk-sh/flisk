@@ -1,4 +1,5 @@
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
+import { rankDoctorFixes } from "./doctor-fix-first.js";
 import { SCHEMA_VERSION } from "./machine-output.js";
 /** Wait for concurrent probes to finish even if one throws, so they can release resources. */
 export async function collectDoctorChecks(machineChecks, projectChecks) {
@@ -27,7 +28,11 @@ function containerRuntimeReachable(checks) {
     return runtime ? runtime.didPass : null;
 }
 /** Produce the same readiness decision for human and machine consumers. */
-export function createDoctorReport(checks, inProject, errors = [], portPlan, host) {
+export function createDoctorReport(checks, inProject, errors = [], portPlan, host, capabilities, buildCache) {
+    const fixFirst = rankDoctorFixes(checks);
+    const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
+    const detectedBuildCache = buildCache ??
+        checks.find((check) => check.name === "Docker Build Cache")?.buildCache;
     return {
         schemaVersion: SCHEMA_VERSION,
         data: {
@@ -35,6 +40,10 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
                 checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
             inProject,
             checks,
+            ...(capabilities ? { capabilities } : {}),
+            ...(observedOwner ? { observed: observedOwner } : {}),
+            ...(fixFirst.length > 0 ? { fixFirst } : {}),
+            ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
             ...(host
                 ? {
                     host: {
@@ -48,23 +57,27 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
                 ? {
                     ports: {
                         http: {
-                            requested: portPlan?.requested.ingressHttp ?? 80,
+                            requested: portPlan?.requested?.ingressHttp ?? 80,
                             chosen: portPlan?.ingressHttp ?? null,
-                            explicit: portPlan?.explicit.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
-                            reason: portPlan?.reason.ingressHttp ?? "port planning failed",
+                            explicit: portPlan?.explicit?.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
+                            reason: portPlan?.reason?.ingressHttp ?? "port planning failed",
                         },
                         https: {
-                            requested: portPlan?.requested.ingressHttps ?? 443,
+                            requested: portPlan?.requested?.ingressHttps ?? 443,
                             chosen: portPlan?.ingressHttps ?? null,
-                            explicit: portPlan?.explicit.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
-                            reason: portPlan?.reason.ingressHttps ?? "port planning failed",
+                            explicit: portPlan?.explicit?.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
+                            reason: portPlan?.reason?.ingressHttps ?? "port planning failed",
                         },
-                        postgres: {
-                            requested: portPlan?.requested.postgres ?? 5432,
-                            chosen: portPlan?.postgres ?? null,
-                            explicit: portPlan?.explicit.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
-                            reason: portPlan?.reason.postgres ?? "port planning failed",
-                        },
+                        ...(capabilities && !capabilities.includes("database")
+                            ? {}
+                            : {
+                                postgres: {
+                                    requested: portPlan?.requested?.postgres ?? 5432,
+                                    chosen: portPlan?.postgres ?? null,
+                                    explicit: portPlan?.explicit?.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
+                                    reason: portPlan?.reason?.postgres ?? "port planning failed",
+                                },
+                            }),
                     },
                 }
                 : {}),
@@ -74,5 +87,7 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
 }
 /** 0: ready (warnings permitted), 1: blocking findings, 2: usage/internal failure. */
 export function getDoctorExitCode(report) {
-    return report.errors.length > 0 ? 2 : report.data.ready ? 0 : 1;
+    if (report.errors.length > 0)
+        return 2;
+    return report.data.ready ? 0 : 1;
 }

@@ -1,17 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import type { ResourceStatus } from "../types/index.js";
+import type { ServiceRuntimeState } from "../types/index.js";
 import { buildStartupReport, transitiveDependencies } from "./startup-report.js";
 import { effectiveRuntimeStatus, isTiltResourcePending } from "./tilt-resource-state.js";
 import { onlyEnabledResources } from "./up-readiness.js";
-
-export interface ServiceRuntimeState {
-  status: ResourceStatus;
-  /** Why the service is not ready: its own error, or the dependency that failed or is still starting. */
-  reason?: string;
-  /** Failed services this one depends on, directly or through others. */
-  blockedBy?: string[];
-}
 
 interface Item {
   metadata?: { name?: string };

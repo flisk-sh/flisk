@@ -45,10 +45,12 @@ const RESOURCE_CONFIG_FIELDS = [
   "runtime",
   "featuresEnabled",
   "dependsOn",
+  "dependencies",
   "enabled",
   "basePath",
   "backendName",
   "apiPath",
+  "healthCheck",
   "healthCheckPath",
   "smoke",
   "traefik",
@@ -56,7 +58,11 @@ const RESOURCE_CONFIG_FIELDS = [
   "dockerfile",
   "image",
   "exposeViaProxy",
+  "webUi",
   "agent",
+  "command",
+  "env",
+  "dev",
 ] as const satisfies readonly (keyof ResourceConfigFields)[];
 type ResourceConfigFieldsAreComplete =
   Exclude<keyof ResourceConfigFields, (typeof RESOURCE_CONFIG_FIELDS)[number]> extends never
@@ -143,6 +149,27 @@ describe("service-schema.json stays independent of the provider registries", () 
 
     for (const service of generatedServices) {
       expect(validateService(service), JSON.stringify(validateService.errors)).toBe(true);
+    }
+  });
+
+  it("keeps . and .. segments out of a bind source that starts with a variable, as the CLI does", () => {
+    const withSource = (source: string) =>
+      manifest({
+        appName: "redis",
+        appType: "bring-your-own",
+        port: 6379,
+        image: "redis:7",
+        volumes: [{ source, target: "/data" }],
+      });
+    for (const source of ["${STORAGE_DIR}", "${STORAGE_DIR}/redis", "${DATA:-./data}/sub"]) {
+      expect(validateService(withSource(source)), source).toBe(true);
+    }
+    for (const source of ["${STORAGE_DIR}/../etc", "${STORAGE_DIR}/./x", "${STORAGE_DIR}/a/.."]) {
+      expect(validateService(withSource(source)), source).toBe(false);
+      expect(
+        validateServiceManifest(withSource(source), "service.json").errors,
+        source,
+      ).not.toEqual([]);
     }
   });
 
@@ -270,5 +297,75 @@ describe("bring-your-own health path", () => {
   it("keeps the healthCheckPath pattern when a bring-your-own service sets one", () => {
     expect(validateService({ ...byo, healthCheckPath: "/health" })).toBe(true);
     expect(validateService({ ...byo, healthCheckPath: "health" })).toBe(false);
+  });
+});
+
+describe("command services (the minimal contract)", () => {
+  const minimal = {
+    appName: "api",
+    appType: "backend",
+    command: "node server.js",
+    schemaVersion: 1,
+  };
+
+  it("accepts a service with appName, appType, command and schemaVersion, and no stack", () => {
+    expect(validateService(minimal)).toBe(true);
+    expect(
+      validateService({ ...minimal, port: 8080, env: { API_URL: "http://localhost:4000" } }),
+    ).toBe(true);
+  });
+
+  it("does not apply the Docker port ranges to a local process", () => {
+    expect(validateService({ ...minimal, appType: "backend", port: 8080 })).toBe(true);
+    expect(validateService({ ...minimal, appType: "frontend", port: 5173 })).toBe(true);
+  });
+
+  it("refuses a second runtime source next to command", () => {
+    expect(validateService({ ...minimal, image: "nginx" })).toBe(false);
+    expect(validateService({ ...minimal, dockerfile: "Dockerfile" })).toBe(false);
+  });
+
+  it("still needs appName, appType and schemaVersion", () => {
+    for (const field of ["appName", "appType", "schemaVersion"]) {
+      const without: Record<string, unknown> = { ...minimal };
+      delete without[field];
+      expect(validateService(without), field).toBe(false);
+    }
+  });
+
+  it("has no `name` alias for appName", () => {
+    expect(schema.properties.name).toBeUndefined();
+  });
+
+  it("requires env values to be strings", () => {
+    expect(validateService({ ...minimal, env: { PORT2: 1 } })).toBe(false);
+  });
+});
+
+describe("bring-your-own keeps its Compose port and short names", () => {
+  it("accepts the container's own port and a two-letter name for bring-your-own", () => {
+    for (const port of [80, 3000, 5432, 8080]) {
+      const ok = validateService(
+        manifest({ appName: "db", appType: "bring-your-own", port, image: "postgres:16" }),
+      );
+      expect(ok, `${port}: ${JSON.stringify(validateService.errors)}`).toBe(true);
+    }
+  });
+
+  it("still keeps backend and frontend ports in their Flisk ranges", () => {
+    expect(validateService(manifest({ appName: "api", appType: "backend", port: 3000 }))).toBe(
+      false,
+    );
+    expect(validateService(manifest({ appName: "web", appType: "frontend", port: 80 }))).toBe(
+      false,
+    );
+  });
+
+  it("rejects a one-letter name", () => {
+    expect(
+      validateService(
+        manifest({ appName: "d", appType: "bring-your-own", port: 5432, image: "postgres:16" }),
+      ),
+    ).toBe(false);
   });
 });

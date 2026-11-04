@@ -1,0 +1,540 @@
+{
+	"competitor": "warp",
+	"rows": [
+		{
+			"id": "agent-skills",
+			"name": "Reusable agent skills",
+			"area": "skills",
+			"offer": "Agents discover project-level and global skill files and invoke them on their own when a task fits.",
+			"source": "https://docs.warp.dev/agents/capabilities/skills/",
+			"checked": "2026-10-27",
+			"match": [
+				"skills",
+				"reusable instructions",
+				"automatic discovery"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": ".agents/skills/flisk-up/SKILL.md"
+					},
+					{
+						"file": ".agents/skills/flisk-doctor/SKILL.md"
+					},
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "flisk project` writes the Flisk skills to `.claude/skills/`"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "project-rules-agents-md",
+			"name": "Project rules via AGENTS.md",
+			"area": "skills",
+			"offer": "Agents read an AGENTS.md at the repo root and in subdirectories as standing project rules.",
+			"source": "https://docs.warp.dev/agents/capabilities/rules/",
+			"checked": "2026-10-27",
+			"match": [
+				"project rules",
+				"agents.md",
+				"global rules"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "AGENTS.md"
+					},
+					{
+						"file": "cli/src/utils/agent-skills.ts"
+					},
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "an `AGENTS.md` to your project"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "mcp-server-support",
+			"name": "MCP servers for agents",
+			"area": "integrations",
+			"offer": "The app lets users register MCP servers over streamable HTTP or SSE so local agents gain extra tools and data.",
+			"source": "https://docs.warp.dev/agents/capabilities/mcp/",
+			"checked": "2026-10-27",
+			"match": [
+				"model context protocol",
+				"mcp servers",
+				"streamable http"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk is the MCP server side (flisk mcp plus hosted --type mcp resources) and documents client setup per agent host, but it ships no client-side server registry or UI.",
+				"evidence": [
+					{
+						"file": "docs/agent-tooling/flisk-mcp-setup.md"
+					},
+					{
+						"mcpTool": "stack_list"
+					},
+					{
+						"command": "flisk mcp"
+					}
+				]
+			}
+		},
+		{
+			"id": "agent-drives-dev-server",
+			"name": "Agent watches live dev server",
+			"area": "agents",
+			"offer": "The agent attaches to a running dev server, database shell or debugger, reads its live output and reacts to it.",
+			"source": "https://docs.warp.dev/agents/capabilities/full-terminal-use/",
+			"checked": "2026-10-27",
+			"match": [
+				"full terminal use",
+				"long-running servers",
+				"live terminal buffer"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "An agent can read recent logs and status over MCP, but only as a bounded snapshot; there is no follow or stream tool.",
+				"evidence": [
+					{
+						"mcpTool": "logs"
+					},
+					{
+						"mcpTool": "status"
+					},
+					{
+						"command": "flisk logs"
+					}
+				]
+			}
+		},
+		{
+			"id": "machine-readable-api",
+			"name": "Programmatic API for runs",
+			"area": "integrations",
+			"offer": "A public HTTP API, OpenAPI spec and CLI let scripts and CI start, monitor and cancel agent runs.",
+			"source": "https://docs.warp.dev/factories/api-and-sdk/",
+			"checked": "2026-10-27",
+			"match": [
+				"platform api",
+				"agent & run endpoints",
+				"openapi"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk is driven locally through a documented --json CLI envelope and the MCP tools; there is deliberately no network API for a single-machine runtime.",
+				"evidence": [
+					{
+						"file": "docs/reference/machine-readable-cli.md"
+					},
+					{
+						"mcpTool": "status"
+					},
+					{
+						"command": "flisk status"
+					}
+				]
+			}
+		},
+		{
+			"id": "factory-as-code",
+			"name": "Declarative definition in the repo",
+			"area": "environments",
+			"offer": "The whole setup is a versioned tree of YAML and Markdown files that can live in the user's own repository.",
+			"source": "https://docs.warp.dev/factories/factory-as-code/",
+			"checked": "2026-10-27",
+			"match": [
+				"factory definition",
+				"versioned",
+				"factory.yaml"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "docs/configuration.md"
+					},
+					{
+						"file": "docs/generated-files.md"
+					},
+					{
+						"command": "flisk config"
+					}
+				]
+			}
+		},
+		{
+			"id": "secret-redaction",
+			"name": "Secret redaction in output",
+			"area": "security",
+			"offer": "Configured patterns mask passwords, keys and PII before content is shown or sent to an LLM provider.",
+			"source": "https://docs.warp.dev/support-and-community/privacy-and-security/secret-redaction/",
+			"checked": "2026-10-27",
+			"match": [
+				"secret redaction",
+				"api keys",
+				"mask"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "cli/src/utils/secret-redaction.ts"
+					},
+					{
+						"text": {
+							"file": "docs/assurance-case.md",
+							"contains": "Values from the project `.env` are redacted from output"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "env-vars-external-secrets",
+			"name": "Secrets from external managers",
+			"area": "security",
+			"offer": "Environment variables can pull dynamic secrets from managers such as 1Password, LastPass or HashiCorp Vault instead of storing values.",
+			"source": "https://docs.warp.dev/knowledge-and-collaboration/warp-drive/environment-variables/",
+			"checked": "2026-10-27",
+			"match": [
+				"environment variables",
+				"dynamic secrets",
+				"1password",
+				"hashicorp vault"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Flisk reads secrets only from the project .env; a developer whose secrets live in a manager has to export them by hand before flisk up."
+			},
+			"acceptance": "docs/environment.md documents a resolver (for example a command or op:// reference named in service.json secrets) and a test in cli/src proves flisk up injects the resolved value without writing it to a generated file.",
+			"ice": {
+				"impact": 5,
+				"confidence": 5,
+				"ease": 4,
+				"basis": "Impact 5: teams with a secret manager are common but .env works for most local stacks. Confidence 5: Warp's page describes the user need but not how many users rely on it. Ease 4: secrets flow through cli/src/utils env handling and Compose injection, so a resolver touches the env pipeline and needs careful tests."
+			}
+		},
+		{
+			"id": "git-worktrees-parallel",
+			"name": "Parallel stacks per git worktree",
+			"area": "orchestration",
+			"offer": "Several branches checked out as git worktrees each get their own agent and review context so parallel agents do not collide.",
+			"source": "https://docs.warp.dev/code/git-worktrees/",
+			"checked": "2026-10-27",
+			"match": [
+				"git worktrees",
+				"parallel local agent work",
+				"multiple branches"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Agents working in parallel worktrees need an isolated stack each, which Flisk cannot give today because ports, identity and discovery assume one instance per machine."
+			},
+			"acceptance": "A command or flag (for example flisk up --instance <name>) plus a docs/ page and an e2e test under tests/e2e starting the same project twice from two worktrees without port or name clashes; flisk status reports both.",
+			"ice": {
+				"impact": 7,
+				"confidence": 6,
+				"ease": 3,
+				"basis": "Impact 7: running several coding agents on one repo is the launch audience's growing pain and the stack is what collides. Confidence 6: Warp pitches worktrees for parallel agents and docs/compare-honest.md lists multi-instance as an open design question. Ease 3: ports, Traefik hostnames and the registry in runtime/ all assume a single instance."
+			}
+		},
+		{
+			"id": "agent-profile-permissions",
+			"name": "Per-agent tool permission profiles",
+			"area": "security",
+			"offer": "Profiles set how autonomous an agent is, which commands run unprompted and which MCP servers it may call.",
+			"source": "https://docs.warp.dev/agents/capabilities/agent-profiles-permissions/",
+			"checked": "2026-10-27",
+			"match": [
+				"agent profiles",
+				"permissions",
+				"command allowlist",
+				"autonomy"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "The flisk mcp server exposes mutating tools (down, config_regenerate, resource_create) with no read-only mode, so a user cannot give an agent inspect-only access to the stack."
+			},
+			"acceptance": "A flag or env var (for example flisk mcp --read-only) hides or refuses the mutating tools in cli/src/mcp/tools.ts, covered by a test in cli/src/mcp/__tests__ and described in docs/mcp.md.",
+			"ice": {
+				"impact": 5,
+				"confidence": 6,
+				"ease": 7,
+				"basis": "Impact 5: safe-by-default agent access is a recurring ask but agent hosts already gate tool calls. Confidence 6: Warp documents per-profile MCP rules and Flisk's tool list is known to be partly destructive. Ease 7: the tools are declared in one file (cli/src/mcp/tools.ts), so filtering by a flag is a small change in an existing place."
+			}
+		},
+		{
+			"id": "cloud-agent-environments",
+			"name": "Cloud agent environments",
+			"area": "environments",
+			"offer": "Hosted cloud agents run in a repeatable container with set repositories and setup commands on every run.",
+			"source": "https://docs.warp.dev/platform/environments/",
+			"checked": "2026-10-27",
+			"match": [
+				"environments",
+				"cloud agent",
+				"repeatable container"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Hosted cloud workspaces are a different product; Flisk runs the user's own stack on their own machine."
+			}
+		},
+		{
+			"id": "scheduled-agents",
+			"name": "Scheduled cloud agents",
+			"area": "orchestration",
+			"offer": "Cloud agents run on a cron schedule for chores such as dependency upkeep and issue triage.",
+			"source": "https://docs.warp.dev/platform/triggers/scheduled-agents/",
+			"checked": "2026-10-27",
+			"match": [
+				"scheduled agents",
+				"cron schedule",
+				"recurring"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "A hosted scheduler for agent runs belongs to a control plane; Flisk only runs the local stack while the developer works."
+			}
+		},
+		{
+			"id": "multi-agent-orchestration",
+			"name": "Parent and child agent runs",
+			"area": "orchestration",
+			"offer": "A parent agent spawns child agents, locally or in the cloud, and the user inspects every conversation and artifact.",
+			"source": "https://docs.warp.dev/platform/orchestration/multi-agent-runs/",
+			"checked": "2026-10-27",
+			"match": [
+				"orchestrated agents",
+				"parent agent",
+				"child agents"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Scheduling LLM agents is the agent framework's job; Flisk hosts the agent processes and their services, not their plans."
+			}
+		},
+		{
+			"id": "agent-session-sharing",
+			"name": "Live agent session sharing",
+			"area": "collaboration",
+			"offer": "Collaborators can watch, steer and reply inside a live agent session from another device.",
+			"source": "https://docs.warp.dev/agents/local-agents/session-sharing/",
+			"checked": "2026-10-27",
+			"match": [
+				"session sharing",
+				"share live agent sessions",
+				"steer"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Sharing a terminal or agent view is a workspace feature; Flisk is a local CLI with no shared session surface."
+			}
+		},
+		{
+			"id": "integrations-slack-linear-github",
+			"name": "Trigger agents from Slack and Linear",
+			"area": "integrations",
+			"offer": "Agents start from Slack, Linear, Jira or GitHub events and report back there.",
+			"source": "https://docs.warp.dev/platform/integrations/",
+			"checked": "2026-10-27",
+			"match": [
+				"integrations",
+				"slack",
+				"linear",
+				"github"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Event-driven cloud triggers need a hosted service; a local runtime has no inbound audience for them."
+			}
+		},
+		{
+			"id": "enterprise-sso",
+			"name": "SSO for the workspace",
+			"area": "enterprise",
+			"offer": "Organisations sign users in through Okta, Entra ID, Google Workspace or any SAML or OIDC provider.",
+			"source": "https://docs.warp.dev/enterprise/security-and-compliance/sso/",
+			"checked": "2026-10-27",
+			"match": [
+				"single sign-on",
+				"saml",
+				"okta",
+				"oidc"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk has no accounts or hosted workspace to sign in to; it is a local MIT CLI."
+			}
+		},
+		{
+			"id": "bring-your-own-api-key",
+			"name": "Bring your own model key",
+			"area": "agents",
+			"offer": "Users plug in their own Anthropic, OpenAI or Google keys to control model choice, billing and data routing.",
+			"source": "https://docs.warp.dev/agents/inference/bring-your-own-api-key/",
+			"checked": "2026-10-27",
+			"match": [
+				"bring your own api key",
+				"byok",
+				"model access"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk does not call models itself; the agent in the user's service or editor owns model access."
+			}
+		},
+		{
+			"id": "self-hosted-execution",
+			"name": "Self-hosted cloud agent workers",
+			"area": "runtime",
+			"offer": "An enterprise plan runs cloud agent workloads on the customer's own compute while Warp tracks each run.",
+			"source": "https://docs.warp.dev/factories/self-hosting/",
+			"checked": "2026-10-27",
+			"match": [
+				"self-hosting",
+				"managed worker",
+				"your infrastructure"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk has no cloud control plane to point at customer compute, and stays a single-machine local runtime."
+			}
+		},
+		{
+			"id": "local-to-cloud-handoff",
+			"name": "Hand a local agent to the cloud",
+			"area": "workflow",
+			"offer": "An in-progress local agent conversation and uncommitted changes are snapshotted and continued as a cloud run.",
+			"source": "https://docs.warp.dev/platform/handoff/local-to-cloud/",
+			"checked": "2026-10-27",
+			"match": [
+				"handoff",
+				"local to cloud",
+				"snapshots"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Moving work to hosted agents needs a cloud runner, which a local-only runtime does not provide."
+			}
+		},
+		{
+			"id": "computer-use-recordings",
+			"name": "Agent GUI testing with recordings",
+			"area": "workflow",
+			"offer": "Agents drive a desktop GUI in a sandbox and return an annotated video as proof of a change.",
+			"source": "https://docs.warp.dev/agents/capabilities/computer-use/testing-and-recordings/",
+			"checked": "2026-10-27",
+			"match": [
+				"computer use",
+				"recordings",
+				"sandbox"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Desktop GUI automation is an agent capability; Flisk supplies the running app and its health, not the test driver."
+			}
+		},
+		{
+			"id": "warp-drive-workflows",
+			"name": "Saved parameterised commands",
+			"area": "terminal",
+			"offer": "Named commands with arguments are saved, searched in a palette and shared with the team.",
+			"source": "https://docs.warp.dev/knowledge-and-collaboration/warp-drive/workflows/",
+			"checked": "2026-10-27",
+			"match": [
+				"workflows",
+				"parameterized commands",
+				"warp drive"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "A command library is a terminal-emulator feature; Flisk's own commands are the shell commands the user already types."
+			}
+		},
+		{
+			"id": "session-restoration",
+			"name": "Restore windows and panes",
+			"area": "terminal",
+			"offer": "Windows, tabs, panes and recent blocks come back when the terminal app restarts.",
+			"source": "https://docs.warp.dev/terminal/sessions/session-restoration/",
+			"checked": "2026-10-27",
+			"match": [
+				"session restoration",
+				"windows, tabs, panes"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Restoring terminal layout is a terminal-emulator concern; Flisk restores services with flisk up, not UI state."
+			}
+		},
+		{
+			"id": "codebase-indexing",
+			"name": "Codebase context indexing",
+			"area": "agents",
+			"offer": "The app indexes a git repository locally so agents answer with real knowledge of the code.",
+			"source": "https://docs.warp.dev/agents/capabilities/codebase-context/",
+			"checked": "2026-10-27",
+			"match": [
+				"codebase context",
+				"indexes",
+				"git-tracked"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Code search and indexing belong to the agent host; Flisk gives agents stack state, not code understanding."
+			}
+		},
+		{
+			"id": "factory-scorers",
+			"name": "LLM scorers for agent runs",
+			"area": "observability",
+			"offer": "An LLM-based evaluation grades completed agent runs against criteria the team defines.",
+			"source": "https://docs.warp.dev/factories/measure-and-improve/scorers/",
+			"checked": "2026-10-27",
+			"match": [
+				"scorers",
+				"evaluation",
+				"completed runs"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Grading hosted agent runs needs run history on a platform; Flisk's observability is local logs, status and doctor."
+			}
+		}
+	]
+}

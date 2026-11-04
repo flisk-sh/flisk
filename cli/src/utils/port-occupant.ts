@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { execFileSync } from "node:child_process";
 import { basename } from "node:path";
+import type { PortOccupant } from "../types/index.js";
 
 type CommandRunner = (command: string, args: string[]) => string;
 
@@ -12,12 +14,6 @@ const run: CommandRunner = (command, args) =>
     timeout: 5000,
     windowsHide: true,
   });
-
-export interface PortOccupant {
-  pid: number;
-  /** The program's name, without its directory (`postgres`, not `/opt/homebrew/bin/postgres`). */
-  command: string;
-}
 
 /**
  * The process listening on `port`, or null when it cannot be told (no lsof, Windows, nothing listens, or the process

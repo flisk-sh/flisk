@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 export function getNestIndexTemplate(name) {
     return `import 'reflect-metadata';
 import { Controller, Get, Module } from '@nestjs/common';
@@ -27,7 +30,7 @@ class AppModule {}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log'] });
-  const port = Number(process.env.PORT || 3000);
+${portFromEnv("port", "  ")}
 
   // Bind beyond loopback: Traefik reaches the container over the Docker network.
   await app.listen(port, '0.0.0.0');

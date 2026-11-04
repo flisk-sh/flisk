@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 # The bundled product example on a clean runner (moved from the retired example-e2e workflow, #1299). Each case is one step of the old workflow, with the
 # same logic: D1 builds and packs the candidate CLI, D2 installs the tarball globally, D3 clones and configures the example, and D4
-# boots it with flisk up and proves the routed worker write path. The example stays at $REPO_ROOT/tdk-example, where the workflow's
+# boots it with flisk up and proves the routed worker write path. The example stays at $REPO_ROOT/flisk-example, where the workflow's
 # diagnostics and stop steps look for it. The workflow keeps its setup steps (Bun, Tilt, free ports) and its diagnostics.
 #
 #   tests/e2e/examples/default/run.sh D1 D2 D3 D4    the four steps in order
@@ -14,8 +14,8 @@ SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/lib.sh
 source "$SUITE_DIR/../../lib/lib.sh"
 RUNNER_TEMP="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
-e2e_init default tdk-example
-DIR="$REPO_ROOT/tdk-example"
+e2e_init default flisk-example
+DIR="$REPO_ROOT/flisk-example"
 # The example lives in the checkout, not in the scratch space, so the default cleanup only stops it: it never removes a directory
 # the checkout owns.
 e2e_cleanup() { [ -d "$DIR" ] && (cd "$DIR" && flisk down >/dev/null 2>&1 || true); }
@@ -38,8 +38,8 @@ D2() { # pack and install the candidate Flisk package
 D3() { # clone and configure the bundled example
   log "D3 clone and configure the bundled example"
   cd "$REPO_ROOT"
-  flisk project example --path tdk-example
-  cd tdk-example
+  flisk project example --path flisk-example
+  cd flisk-example
   flisk project --yes
   # The product example intentionally uses only PostgreSQL and NATS.
   # Keep its scaffold from enabling optional Infisical resources.
@@ -88,8 +88,8 @@ D4() { # boot, health check, and prove the routed worker write path
       echo "flisk doctor reported readiness findings while the example was starting; reading its saved port plan anyway."
     fi
     http_port="$(jq -er '.data.ports.http.chosen | select(type == "number")' doctor.json)"
-    api="http://api.tdk-example.localhost:${http_port}/api/orders"
-    app="http://app.tdk-example.localhost:${http_port}/orders-app/"
+    api="http://api.flisk-example.localhost:${http_port}/api/orders"
+    app="http://app.flisk-example.localhost:${http_port}/orders-app/"
     for _ in $(seq 1 90); do
       if curl -fsS "$api/health" >/dev/null 2>&1 && curl -fsS "$api/worker-ready" >/dev/null 2>&1 && curl -fsS "$app" >/dev/null 2>&1; then break; fi
       sleep 2

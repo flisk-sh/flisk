@@ -57,7 +57,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/lifecycle"
           packed="$(npm pack --pack-destination "$RUNNER_TEMP/lifecycle" --silent)"
-          mv "$RUNNER_TEMP/lifecycle/$packed" "$RUNNER_TEMP/lifecycle/tdk-cli.tgz"
+          mv "$RUNNER_TEMP/lifecycle/$packed" "$RUNNER_TEMP/lifecycle/flisk-cli.tgz"
           cp cli/package.json scripts/package-lifecycle-smoke.sh scripts/install-global.mjs "$RUNNER_TEMP/lifecycle/"
 
       # A clean Node 22 image: no Tilt, no Docker project, no global flisk.
@@ -67,4 +67,4 @@ jobs:
           docker run --rm \
             --volume "$RUNNER_TEMP/lifecycle:/lifecycle:ro" \
             node:22-bookworm-slim \
-            bash /lifecycle/package-lifecycle-smoke.sh /lifecycle/tdk-cli.tgz /lifecycle/package.json
+            bash /lifecycle/package-lifecycle-smoke.sh /lifecycle/flisk-cli.tgz /lifecycle/package.json

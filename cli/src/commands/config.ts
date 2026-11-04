@@ -2,27 +2,46 @@
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
 import {
   generateMasterConfigs,
   readProjectConfig,
+  staleServiceOutputs,
   TemplateEngine,
   verifyMasterConfigs,
 } from "../generator/template-engine.js";
-import type { ProjectConfig } from "../types/index.js";
+import type { JsonCommandResult, ProjectConfig } from "../types/index.js";
 import { isMasterConfigFileName } from "../types/index.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { type ConfigFileDrift, explainConfigFile } from "../utils/config-explain.js";
-import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
+import {
+  MASTER_CONFIG_FILES,
+  PROJECT_JSON,
+  RESOURCE_DEFAULTS_FILE,
+  TECH_STACK_FILE,
+} from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
-import { errorFactories, requireProjectRoot, runCommand, showError } from "../utils/errors.js";
+import {
+  errorFactories,
+  FliskError,
+  requireProjectRoot,
+  runCommand,
+  showError,
+} from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
+import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import {
+  checkCircularDependencies,
+  checkDependsOnShape,
+  postgresVolumeWarnings,
+} from "../utils/service-config-checks.js";
 import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
   validateServiceManifest,
@@ -32,8 +51,38 @@ import {
   discoverServiceManifestPaths,
   warnAboutSkippedFiles,
 } from "../utils/services.js";
-import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
+import {
+  describeSharedPostgresUsers,
+  evaluateSharedPlatformPostgres,
+} from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
+
+/** How one master file changes on `flisk config regenerate`. `lineDiff` is new minus current lines (0 for a new file). */
+export interface RegenerateChange {
+  file: (typeof MASTER_CONFIG_FILES)[number];
+  status: "new" | "modified" | "unchanged";
+  lineDiff: number;
+}
+
+/** The change `flisk config regenerate` makes to each master file, from the same generator its dry run compares with. */
+export function regeneratePlan(projectRoot: string): RegenerateChange[] {
+  const newFiles = new TemplateEngine().generateAll(readProjectConfig(projectRoot), {
+    projectRoot,
+  });
+  const outputDir = join(projectRoot, ".flisk", ".flisk-out");
+  return MASTER_CONFIG_FILES.map((file): RegenerateChange => {
+    const filePath = join(outputDir, file);
+    if (!existsSync(filePath)) return { file, status: "new", lineDiff: 0 };
+    const current = readFileSync(filePath, "utf-8");
+    const next = newFiles[file];
+    if (current === next) return { file, status: "unchanged", lineDiff: 0 };
+    return {
+      file,
+      status: "modified",
+      lineDiff: next.split("\n").length - current.split("\n").length,
+    };
+  });
+}
 
 /** Human wording for `flisk config explain`, one line per drift outcome. */
 const DRIFT_LABELS: Record<ConfigFileDrift, string> = {
@@ -48,9 +97,50 @@ export const configCommand = new Command("config")
     new Command("regenerate")
       .description("Regenerate all 4 master config files from .flisk/project.json")
       .option("--dry-run", "Show what would change without writing files")
+      .option(
+        "--ignore-version",
+        "Continue even if the CLI does not match the project's version requirements",
+        false,
+      )
+      .option(
+        "--json",
+        "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)",
+        false,
+      )
       .action(async (options) => {
+        if (options.json) {
+          await runJsonCommand("REGENERATE_FAILED", "flisk config regenerate", async () => {
+            const projectRoot = findProjectRoot();
+            if (!projectRoot) throw errorFactories.notInProject();
+
+            enforceFliskVersionGate(projectRoot, {
+              ignoreVersion: options.ignoreVersion,
+              json: options.json,
+            });
+
+            const changes = regeneratePlan(projectRoot);
+            if (!options.dryRun) {
+              await generateMasterConfigs(projectRoot, { discardHandEdits: true, quiet: true });
+            }
+            return {
+              data: {
+                dryRun: Boolean(options.dryRun),
+                hasChanges: changes.some((change) => change.status !== "unchanged"),
+                changes,
+                // Written by `flisk up`, not by regenerate: listed so a caller does not take "regenerated" for "up to date".
+                staleServiceOutputs: staleServiceOutputs(projectRoot),
+              },
+            };
+          });
+          return;
+        }
         await runCommand(async () => {
           const projectRoot = requireProjectRoot();
+
+          enforceFliskVersionGate(projectRoot, {
+            ignoreVersion: options.ignoreVersion,
+            json: options.json,
+          });
 
           // The plan is the comparison report, so it supplies its own printer rather than the standard pair.
           if (
@@ -61,99 +151,137 @@ export const configCommand = new Command("config")
 
               const projectConfig = readProjectConfig(projectRoot);
               const engine = new TemplateEngine();
-              const newFiles = engine.generateAll(projectConfig);
+              const newFiles = engine.generateAll(projectConfig, { projectRoot });
 
               const outputDir = join(projectRoot, ".flisk", ".flisk-out");
               const filesToCheck = MASTER_CONFIG_FILES;
 
+              // Group master config files by purpose for clearer output
+              // Using the actual files generated by the template engine
+              type MasterConfigFileName = (typeof MASTER_CONFIG_FILES)[number];
+              const fileGroups: Array<{
+                title: string;
+                files: MasterConfigFileName[];
+                description: string;
+              }> = [
+                {
+                  title: "📋 Core orchestration",
+                  files: [TECH_STACK_FILE, RESOURCE_DEFAULTS_FILE],
+                  description:
+                    "Tilt tech stack and resource defaults; drives all service generation",
+                },
+                {
+                  title: "📦 Project spec",
+                  files: ["spec.master" as MasterConfigFileName],
+                  description: "Compiled project specification; used by Tilt for service discovery",
+                },
+              ];
+
               let hasChanges = false;
 
-              for (const filename of filesToCheck) {
-                // Runtime validation with type guard eliminates type assertion
-                if (!isMasterConfigFileName(filename)) {
-                  continue; // Skip unknown files (shouldn't happen with const array)
-                }
-                const newContent = newFiles[filename];
-                const filePath = join(outputDir, filename);
+              for (const group of fileGroups) {
+                let groupHasChanges = false;
+                const groupChanges: Array<{
+                  filename: string;
+                  isNew: boolean;
+                  lineDiff: number;
+                  diffLines: string[];
+                }> = [];
 
-                if (!existsSync(filePath)) {
-                  console.log(chalk.yellow(`📁 ${filename}`));
-                  console.log(chalk.gray("   Status: NEW (file does not exist)\n"));
-                  hasChanges = true;
-                  continue;
-                }
+                for (const filename of group.files) {
+                  if (!filesToCheck.includes(filename)) continue;
+                  if (!isMasterConfigFileName(filename)) continue;
 
-                const currentContent = readFileSync(filePath, "utf-8");
+                  const newContent = newFiles[filename];
+                  const filePath = join(outputDir, filename);
 
-                if (currentContent === newContent) {
-                  console.log(chalk.green(`✓ ${filename}`));
-                  console.log(chalk.gray("   Status: No changes\n"));
-                } else {
-                  console.log(chalk.yellow(`📝 ${filename}`));
-                  console.log(chalk.gray("   Status: MODIFIED"));
-
-                  const currentLines = currentContent.split("\n").length;
-                  const newLines = newContent.split("\n").length;
-                  const lineDiff = newLines - currentLines;
-
-                  if (lineDiff > 0) {
-                    console.log(
-                      chalk.gray(`   Lines: ${currentLines} → ${newLines} (+${lineDiff})`),
-                    );
-                  } else if (lineDiff < 0) {
-                    console.log(
-                      chalk.gray(`   Lines: ${currentLines} → ${newLines} (${lineDiff})`),
-                    );
-                  } else {
-                    console.log(chalk.gray(`   Lines: ${currentLines} (content changed)`));
+                  if (!existsSync(filePath)) {
+                    groupHasChanges = true;
+                    groupChanges.push({ filename, isNew: true, lineDiff: 0, diffLines: [] });
+                    continue;
                   }
 
-                  const currentLinesArr = currentContent.split("\n");
-                  const newLinesArr = newContent.split("\n");
-                  let firstDiffLine = -1;
+                  const currentContent = readFileSync(filePath, "utf-8");
 
-                  for (let i = 0; i < Math.max(currentLinesArr.length, newLinesArr.length); i++) {
-                    if (currentLinesArr[i] !== newLinesArr[i]) {
-                      firstDiffLine = i;
-                      break;
-                    }
-                  }
+                  if (currentContent !== newContent) {
+                    groupHasChanges = true;
+                    const currentLines = currentContent.split("\n").length;
+                    const newLines = newContent.split("\n").length;
+                    const lineDiff = newLines - currentLines;
 
-                  if (firstDiffLine >= 0) {
-                    console.log(chalk.gray(`   First change around line ${firstDiffLine + 1}:`));
-                    const contextStart = Math.max(0, firstDiffLine - 1);
-                    const contextEnd = Math.min(currentLinesArr.length, firstDiffLine + 2);
+                    const currentLinesArr = currentContent.split("\n");
+                    const newLinesArr = newContent.split("\n");
+                    let firstDiffLine = -1;
 
-                    for (let i = contextStart; i < contextEnd; i++) {
-                      const line = currentLinesArr[i];
-                      const newLine = newLinesArr[i];
-                      if (line !== newLine) {
-                        if (line !== undefined) {
-                          console.log(
-                            chalk.red(
-                              `     - ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
-                            ),
-                          );
-                        }
-                        if (newLine !== undefined) {
-                          console.log(
-                            chalk.green(
-                              `     + ${newLine.substring(0, 60)}${newLine.length > 60 ? "..." : ""}`,
-                            ),
-                          );
-                        }
-                      } else {
-                        console.log(
-                          chalk.gray(
-                            `       ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
-                          ),
-                        );
+                    for (let i = 0; i < Math.max(currentLinesArr.length, newLinesArr.length); i++) {
+                      if (currentLinesArr[i] !== newLinesArr[i]) {
+                        firstDiffLine = i;
+                        break;
                       }
                     }
-                  }
 
-                  console.log("");
+                    const diffLines: string[] = [];
+                    if (firstDiffLine >= 0) {
+                      const contextStart = Math.max(0, firstDiffLine - 1);
+                      const contextEnd = Math.min(currentLinesArr.length, firstDiffLine + 2);
+                      for (let i = contextStart; i < contextEnd; i++) {
+                        const line = currentLinesArr[i];
+                        const newLine = newLinesArr[i];
+                        if (line !== newLine) {
+                          if (line !== undefined) {
+                            diffLines.push(
+                              chalk.red(
+                                `     - ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
+                              ),
+                            );
+                          }
+                          if (newLine !== undefined) {
+                            diffLines.push(
+                              chalk.green(
+                                `     + ${newLine.substring(0, 60)}${newLine.length > 60 ? "..." : ""}`,
+                              ),
+                            );
+                          }
+                        } else if (line !== undefined) {
+                          diffLines.push(
+                            chalk.gray(
+                              `       ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                    groupChanges.push({ filename, isNew: false, lineDiff, diffLines });
+                  }
+                }
+
+                if (groupHasChanges) {
+                  console.log(chalk.blue(`\n${group.title}`));
+                  console.log(chalk.gray(`   ${group.description}\n`));
+                  for (const change of groupChanges) {
+                    if (change.isNew) {
+                      console.log(chalk.yellow(`  📁 ${change.filename}`));
+                      console.log(chalk.gray("     Status: NEW (file does not exist)\n"));
+                    } else {
+                      console.log(chalk.yellow(`  📝 ${change.filename}`));
+                      console.log(chalk.gray("     Status: MODIFIED"));
+                      if (change.lineDiff > 0) {
+                        console.log(chalk.gray(`     Lines: +${change.lineDiff}`));
+                      } else if (change.lineDiff < 0) {
+                        console.log(chalk.gray(`     Lines: ${change.lineDiff}`));
+                      } else {
+                        console.log(chalk.gray("     Lines: content changed"));
+                      }
+                      for (const diffLine of change.diffLines) {
+                        console.log(diffLine);
+                      }
+                      console.log("");
+                    }
+                  }
                   hasChanges = true;
+                } else {
+                  console.log(chalk.green(`\n✅ ${group.title} — all up to date`));
+                  console.log(chalk.gray(`   ${group.description}\n`));
                 }
               }
 
@@ -170,15 +298,48 @@ export const configCommand = new Command("config")
           console.log(chalk.blue("📋 Regenerating master configuration files...\n"));
           await generateMasterConfigs(projectRoot, { discardHandEdits: true });
           console.log(chalk.green("\n✅ Configuration regenerated!"));
+          console.log(
+            chalk.gray(
+              "   If a stack is already running, restart it (`flisk down && flisk up`) so Tilt applies changes to enabled resources.",
+            ),
+          );
+          const stale = staleServiceOutputs(projectRoot);
+          if (stale.length > 0) {
+            console.log(
+              chalk.yellow(
+                `\n⚠️  ${stale.length} service${stale.length === 1 ? "" : "s"} still ${stale.length === 1 ? "has" : "have"} generated files (compose, Dockerfile) written from an older service.json:`,
+              ),
+            );
+            for (const file of stale) console.log(chalk.gray(`   ${file}`));
+            console.log(
+              chalk.gray(
+                "   `flisk config regenerate` rewrites the master files only; `flisk up` writes these, and `flisk config verify` reports them until then.",
+              ),
+            );
+          }
         });
       }),
   )
   .addCommand(
     new Command("migrate")
       .description("Migrate service.json files to the current schema version")
-      .action(async () => {
-        await runCommand(async () => {
-          const projectRoot = requireProjectRoot();
+      .option(
+        "--ignore-version",
+        "Continue even if the CLI does not match the project's version requirements",
+        false,
+      )
+      .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
+      .action(async (options) => {
+        const action = async (): Promise<JsonCommandResult> => {
+          const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+          if (!projectRoot) throw errorFactories.notInProject();
+
+          enforceFliskVersionGate(projectRoot, {
+            ignoreVersion: options.ignoreVersion,
+            json: options.json,
+          });
+
+          const warnings: string[] = [];
           const failures: string[] = [];
           const pendingMigrations: Array<{ filePath: string; manifest: Record<string, unknown> }> =
             [];
@@ -219,6 +380,7 @@ export const configCommand = new Command("config")
               continue;
             }
             for (const warning of validation.warnings) {
+              warnings.push(warning);
               console.warn(chalk.yellow(`⚠️  ${warning}`));
             }
 
@@ -226,6 +388,18 @@ export const configCommand = new Command("config")
             pendingMigrations.push({ filePath, manifest: record });
           }
 
+          // Nothing is written when one file fails, so a failed run leaves every service.json as it was.
+          if (options.json && failures.length > 0) {
+            return {
+              data: null,
+              errors: failures.map((message) => ({
+                code: "MIGRATE_FAILED",
+                message,
+                suggestions: ["Fix the file, then run `flisk config migrate` again"],
+              })),
+              exitCode: 1,
+            };
+          }
           for (const failure of failures) showError(failure);
           if (failures.length > 0) process.exit(1);
           for (const migration of pendingMigrations) {
@@ -241,17 +415,42 @@ export const configCommand = new Command("config")
             ),
           );
           console.log(chalk.yellow("Review the diff; unknown fields were preserved."));
-        });
+          return {
+            data: {
+              schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+              migrated: pendingMigrations.map(({ filePath }) =>
+                relative(projectRoot, filePath).split(sep).join("/"),
+              ),
+              warnings,
+            },
+          };
+        };
+
+        if (options.json) {
+          await runJsonCommand("MIGRATE_FAILED", "flisk config migrate", action);
+          return;
+        }
+        await runCommand(action);
       }),
   )
   .addCommand(
     new Command("verify")
       .description("Verify that generated files match .flisk/project.json")
+      .option(
+        "--ignore-version",
+        "Continue even if the CLI does not match the project's version requirements",
+        false,
+      )
       .option("--json", "Emit a machine-readable verification report")
       .action(async (options) => {
         const action = async (): Promise<void> => {
           const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
           if (!projectRoot) throw errorFactories.notInProject();
+
+          enforceFliskVersionGate(projectRoot, {
+            ignoreVersion: options.ignoreVersion,
+            json: options.json,
+          });
 
           const { resources, problems } = discoverResourcesWithProblems(projectRoot);
           warnAboutSkippedFiles(problems);
@@ -259,14 +458,31 @@ export const configCommand = new Command("config")
             ...resources.map((r) => r.configPath),
             ...problems.map((p) => p.path),
           ];
-          const result = verifyMasterConfigs(projectRoot, { manifestPaths });
+          const verified = verifyMasterConfigs(projectRoot, { manifestPaths });
+          // A warning only: Postgres 18+ with a volume at the pre-18 path is valid config that will not start.
+          const result = {
+            ...verified,
+            warnings: [...verified.warnings, ...postgresVolumeWarnings(projectRoot, resources)],
+          };
           // Same predicate as flisk doctor's Shared platform Postgres check.
           const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
           const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
-          const sharedPostgresErrors = sharedPostgres.unknownDependsOnNames.map(
-            ({ resource, name }) =>
-              `dependsOn "${name}" on ${resource} is not a known service or stack (shared platform Postgres names are postgres and database-management)`,
-          );
+          // A wrong-typed dependsOn and a circular dependsOn are what `flisk up` refuses, so verify says the same.
+          const graphErrors = [
+            checkDependsOnShape(projectRoot, resources),
+            checkCircularDependencies(projectRoot, resources),
+          ]
+            .filter((check) => !check.didPass)
+            .map((check) =>
+              check.fix ? `${check.message}\n    Fix: ${check.fix}` : check.message,
+            );
+          const sharedPostgresErrors = [
+            ...graphErrors,
+            ...sharedPostgres.unknownDependsOnNames.map(
+              ({ resource, name }) =>
+                `dependsOn "${name}" on ${resource} is not a known service or stack (shared platform Postgres names are postgres and database-management)`,
+            ),
+          ];
 
           if (options.json) {
             console.log(
@@ -318,13 +534,13 @@ export const configCommand = new Command("config")
             } else if (sharedPostgres.reason === "feature") {
               console.log(
                 chalk.yellow(
-                  `ℹ️  Postgres will start because database-management is enabled and resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`,
+                  `ℹ️  Postgres will start because database-management is enabled and ${describeSharedPostgresUsers(sharedPostgres)} (project resource set; flisk up may select a subset)`,
                 ),
               );
             } else {
               console.log(
                 chalk.green(
-                  `ℹ️  Postgres will start because resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`,
+                  `ℹ️  Postgres will start because ${describeSharedPostgresUsers(sharedPostgres)} (project resource set; flisk up may select a subset)`,
                 ),
               );
             }
@@ -413,14 +629,16 @@ export const configCommand = new Command("config")
 
         const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
         if (!existsSync(projectJsonPath)) {
-          throw new Error(".flisk/project.json not found");
+          throw new FliskError(".flisk/project.json not found", [
+            "Create the project config with: flisk project --yes",
+          ]);
         }
 
         const editor = process.env.EDITOR || "vi";
         console.log(chalk.blue(`Opening ${projectJsonPath} in ${editor}...`));
 
         const editorParts = editor.trim().split(/\s+/);
-        const editorCmd = editorParts[0];
+        const editorCmd = editorParts[0] || "vi";
         const editorArgs = [...editorParts.slice(1), projectJsonPath];
 
         const allowedEditors = [
@@ -463,11 +681,26 @@ function isOptionalInfraKey(
   return service in config.optional_infra;
 }
 
-async function toggleInfraService(service: string, enabled: boolean): Promise<void> {
-  const projectRoot = requireProjectRoot();
+async function toggleInfraService(
+  service: string,
+  enabled: boolean,
+  options: { json?: boolean; ignoreVersion?: boolean } = {},
+): Promise<JsonCommandResult> {
+  const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+  if (!projectRoot) throw errorFactories.notInProject();
+
+  enforceFliskVersionGate(projectRoot, {
+    ignoreVersion: options.ignoreVersion,
+    json: options.json,
+  });
 
   // Validates service is in OPTIONAL_INFRA_SERVICES array
   const validation = validateOptionalInfraService(service);
+  if (options.json && !validation.valid) {
+    throw new FliskError(validation.error ?? "Invalid infrastructure service", [
+      `flisk config ${enabled ? "enable" : "disable"}-infra monitoring`,
+    ]);
+  }
   assertValid(validation);
 
   // Verdaccio is a Premium feature - refuse to enable it without a license
@@ -476,9 +709,13 @@ async function toggleInfraService(service: string, enabled: boolean): Promise<vo
   if (service === "verdaccio" && enabled) {
     const granted = await hasVerdaccioLicense(projectRoot);
     if (!granted) {
-      throw new Error(
+      throw new FliskError(
         "Verdaccio is a Premium feature and requires a license key that grants it. " +
           "Set export FLISK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
+        [
+          "export FLISK_LICENSE_KEY=<key>",
+          "Request a Premium license at https://flisk.sh/#waitlist",
+        ],
       );
     }
   }
@@ -487,42 +724,76 @@ async function toggleInfraService(service: string, enabled: boolean): Promise<vo
 
   // Runtime validation: ensure service is a valid key of optional_infra
   if (!isOptionalInfraKey(service, config)) {
-    throw new Error(
+    throw new FliskError(
       `Invalid infrastructure service: "${service}". ` +
         `Must be one of: ${Object.keys(config.optional_infra).join(", ")}`,
+      [`flisk config enable-infra ${Object.keys(config.optional_infra)[0] ?? "monitoring"}`],
     );
   }
 
-  // Type-safe assignment: service is now narrowed to OptionalInfraKey
-  config.optional_infra[service] = enabled;
+  const wasEnabled = config.optional_infra[service];
 
   const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
-  // ProjectConfig is guaranteed to be JSON-serializable
-  writeJsonFile(projectJsonPath, config as unknown);
+  const rawProjectValue: unknown = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
+
+  if (
+    typeof rawProjectValue !== "object" ||
+    rawProjectValue === null ||
+    Array.isArray(rawProjectValue)
+  ) {
+    throw new FliskError("Invalid project.json: expected an object.", [
+      "Fix .flisk/project.json so it holds a JSON object",
+    ]);
+  }
+
+  const rawProject = rawProjectValue as Record<string, unknown>;
+  const rawOptionalInfra = rawProject.optional_infra;
+
+  if (
+    typeof rawOptionalInfra !== "object" ||
+    rawOptionalInfra === null ||
+    Array.isArray(rawOptionalInfra)
+  ) {
+    throw new FliskError("Invalid project.json: optional_infra must be an object.", [
+      "Set optional_infra in .flisk/project.json to an object, or remove it",
+    ]);
+  }
+
+  (rawOptionalInfra as Record<string, unknown>)[service] = enabled;
+
+  writeJsonFile(projectJsonPath, rawProject);
 
   const action = enabled ? "Enabled" : "Disabled";
   console.log(chalk.green(`✓ ${action}: ${service}`));
   console.log(chalk.gray("Run `flisk config regenerate` to apply."));
+  return { data: { service, enabled, wasEnabled: Boolean(wasEnabled) } };
+}
+
+/** `flisk config enable-infra` and `disable-infra`: the same command with the other value. */
+function infraToggleCommand(name: "enable-infra" | "disable-infra", enabled: boolean): Command {
+  return new Command(name)
+    .description(`${enabled ? "Enable" : "Disable"} optional infrastructure service`)
+    .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
+    .option(
+      "--ignore-version",
+      "Continue even if the CLI does not match the project's version requirements",
+      false,
+    )
+    .option(
+      "--json",
+      "Print one JSON envelope on stdout with the service and its previous state",
+      false,
+    )
+    .action(async (service: string, options: { json?: boolean; ignoreVersion?: boolean }) => {
+      const action = () => toggleInfraService(service, enabled, options);
+      if (options.json) {
+        await runJsonCommand("INFRA_TOGGLE_FAILED", `flisk config ${name}`, action);
+        return;
+      }
+      await runCommand(action);
+    });
 }
 
 configCommand
-  .addCommand(
-    new Command("enable-infra")
-      .description("Enable optional infrastructure service")
-      .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
-      .action(async (service) => {
-        await runCommand(async () => {
-          await toggleInfraService(service, true);
-        });
-      }),
-  )
-  .addCommand(
-    new Command("disable-infra")
-      .description("Disable optional infrastructure service")
-      .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
-      .action(async (service) => {
-        await runCommand(async () => {
-          await toggleInfraService(service, false);
-        });
-      }),
-  );
+  .addCommand(infraToggleCommand("enable-infra", true))
+  .addCommand(infraToggleCommand("disable-infra", false));

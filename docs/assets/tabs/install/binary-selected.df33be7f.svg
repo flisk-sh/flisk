@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="155" height="48" viewBox="0 0 155 48" role="img" aria-label="Prebuilt binary (selected)">
+<title>Prebuilt binary (selected)</title>
+<style>.t{fill:#1f2328}.i{stroke:#1f2328}.w{fill:#818b981f}.u{fill:#fd8c73}@media (prefers-color-scheme:dark){.t{fill:#f0f6fc}.i{stroke:#f0f6fc}.w{fill:#656c7633}.u{fill:#f78166}}</style>
+<rect class="w" x="8" y="8" width="139" height="32" rx="6"/>
+<rect class="u" x="8" y="46" width="139" height="2" rx="1"/>
+<g class="i" transform="translate(16 16)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.75v8.5M4.75 7 8 10.25 11.25 7M2.25 11v1.75c0 .83.67 1.5 1.5 1.5h8.5c.83 0 1.5-.67 1.5-1.5V11"/></g>
+<text class="t" x="40" y="29" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="14" font-weight="600" textLength="99" lengthAdjust="spacingAndGlyphs">Prebuilt binary</text>
+</svg>

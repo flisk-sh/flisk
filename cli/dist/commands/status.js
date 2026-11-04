@@ -2,15 +2,21 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
+import { describePlatformServices, getEnabledCapabilities, isGatewayEnabled, } from "../utils/capabilities.js";
+import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
-import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
+import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
 import { runCommand } from "../utils/errors.js";
+import { projectEnvLookup } from "../utils/extra-port-publish.js";
 import { formatCount, showDetail, showStep } from "../utils/formatting.js";
-import { getHostPortPlan } from "../utils/host-port-config.js";
+import { getHostPortPlan, resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
+import { nativeServiceStates } from "../utils/native-runtime.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
+import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
@@ -22,6 +28,8 @@ export const statusCommand = new Command("status")
     .option("--stacks", "Show stack information (default)", true)
     .option("--resources", "Show all discovered resources", false)
     .option("--tilt", "Show tilt resource status", false)
+    .option("--no-gateway", "Disable gateway status reporting")
+    .option("--unhealthy", "Show only services that are failing or still starting", false)
     .action(async (options) => {
     const action = async () => {
         // Discover first: outside a project this fails before any status line is printed.
@@ -29,21 +37,40 @@ export const statusCommand = new Command("status")
         const projectRoot = findProjectRoot();
         const projectName = projectRoot ? readProjectName(projectRoot) : null;
         const sharedInfraGroup = projectName
-            ? groupSharedPostgres(projectName, discovery.stacks)
+            ? groupSharedPostgres(projectName, discovery.stacks, {
+                projectRoot: projectRoot ?? undefined,
+            })
             : null;
+        // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
+        // No Traefik runs then, so every service answers on localhost instead of an ingress route.
+        const nativeProject = isNativeProject(discovery.resources);
+        const nativeStates = projectRoot && nativeProject
+            ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
+            : null;
+        const gatewayEnabled = isGatewayEnabled(projectRoot, options);
+        const platformServices = describePlatformServices(projectRoot, discovery.resources, options);
+        // `extraPorts` published through ${VAR:-default} resolve from the shell and the project .env, like Compose.
+        const envLookup = projectEnvLookup(projectRoot ?? undefined);
         let tiltAvailable = false;
-        try {
-            tiltAvailable = await isTiltAvailable();
-        }
-        catch {
-            // Tilt not available (spawn error)
-            tiltAvailable = false;
+        if (!nativeStates) {
+            try {
+                tiltAvailable = await isTiltAvailable();
+            }
+            catch {
+                // Tilt not available (spawn error)
+                tiltAvailable = false;
+            }
         }
         if (!options.json) {
             showStep("Flisk Status\n");
-            console.log(chalk.bold("Tilt:"), tiltAvailable ? chalk.green("available") : chalk.red("not found"));
-            if (!tiltAvailable) {
-                showDetail("Install Tilt: https://docs.tilt.dev/install.html");
+            if (nativeStates) {
+                console.log(chalk.bold("Runtime:"), "local processes (no Docker, no Tilt)");
+            }
+            else {
+                console.log(chalk.bold("Tilt:"), tiltAvailable ? chalk.green("available") : chalk.red("not found"));
+                if (!tiltAvailable) {
+                    showDetail("Install Tilt: https://docs.tilt.dev/install.html");
+                }
             }
             console.log();
         }
@@ -53,8 +80,20 @@ export const statusCommand = new Command("status")
         // Tilt answers or its output cannot be read.
         let readiness = null;
         // The same look at Tilt feeds readiness and each service's state, so `flisk status` and `flisk ui` cannot disagree.
-        let serviceStates = null;
-        const tiltPort = getTiltPollingPort(process.env.TILT_PORT);
+        let serviceStates = nativeStates;
+        let staleDisabled = [];
+        const tiltPort = (projectRoot
+            ? resolveRuntimeTiltPort(projectRoot, { envPort: process.env.TILT_PORT })
+            : null) ?? getTiltPollingPort(process.env.TILT_PORT);
+        // Port plan is best effort; service URLs are shown in both JSON and terminal output.
+        let portPlan = null;
+        try {
+            const root = findProjectRoot();
+            portPlan = root ? await getHostPortPlan(root, { inspectDocker: false }) : null;
+        }
+        catch {
+            // Port planning failed; service URLs will be omitted from terminal output.
+        }
         if (tiltAvailable) {
             const text = await tiltGetUiResources(tiltPort);
             // `tilt get` has no -f flag; resources come from the running Tilt's API on its port, the same source as readiness.
@@ -74,36 +113,52 @@ export const statusCommand = new Command("status")
             if (text) {
                 const deferred = getDeferredResourceNames(discovery.resources);
                 try {
-                    if (options.json)
-                        readiness = evaluateTiltReadiness(text, deferred).result;
+                    readiness = evaluateTiltReadiness(text, deferred).result;
                 }
                 catch {
                     readiness = null;
                 }
                 try {
-                    serviceStates = deriveServiceStates(text, Object.fromEntries(discovery.resources.map((r) => [r.name, r.config?.dependsOn ?? []])), deferred);
+                    serviceStates = deriveServiceStates(text, Object.fromEntries(discovery.resources.map((r) => [r.name, dependsOnOf(r.config)])), deferred);
                 }
                 catch {
                     serviceStates = null;
                 }
+                try {
+                    staleDisabled = findStaleDisabledResources(text, projectRoot);
+                }
+                catch {
+                    staleDisabled = [];
+                }
             }
         }
+        const tiltfileError = readiness?.failures.find((failure) => failure.name === "(Tiltfile)")?.message ?? null;
         if (options.json) {
-            let portPlan = null;
-            try {
-                const root = findProjectRoot();
-                portPlan = root ? await getHostPortPlan(root, { inspectDocker: false }) : null;
-            }
-            catch {
-                // Port planning is best effort; stack ports then list only the Tilt UI.
-            }
             const errors = queryError ? [{ code: "TILT_STATUS_UNAVAILABLE", message: queryError }] : [];
+            // A native run answers the readiness question agents poll (data.tilt.readiness.ready) from its own run state.
+            if (nativeStates) {
+                const states = Object.entries(nativeStates);
+                const isRunning = states.some(([, state]) => state.status !== "unknown");
+                readiness = isRunning
+                    ? {
+                        ready: states.every(([, state]) => state.status === "ready"),
+                        failures: [],
+                        pending: states.filter(([, state]) => state.status !== "ready").length,
+                        timedOut: false,
+                        enabled: states.map(([name]) => name),
+                    }
+                    : null;
+            }
             const data = {
+                // Only a project of local processes says so; a container project's report keeps its shape.
+                ...(nativeStates ? { runtime: "native" } : {}),
                 tilt: {
                     available: tiltAvailable,
                     resourcesQueried: options.tilt && tiltAvailable,
                     resources: tiltResources,
                     readiness,
+                    tiltfileError,
+                    staleDisabled,
                 },
                 resourceCount: discovery.resources.length,
                 resources: discovery.resources.map((resource) => ({
@@ -111,7 +166,7 @@ export const statusCommand = new Command("status")
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
                     port: resource.port ?? null,
-                    ...buildServicePorts(resource, portPlan?.ingressHttp),
+                    ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup),
                     status: serviceStates?.[resource.name]?.status ?? "unknown",
                     ...(serviceStates?.[resource.name]?.reason
                         ? { statusReason: serviceStates[resource.name]?.reason }
@@ -120,14 +175,19 @@ export const statusCommand = new Command("status")
                         ? { blockedBy: serviceStates[resource.name]?.blockedBy }
                         : {}),
                 })),
-                ports: buildStackPorts(portPlan, tiltPort),
+                ports: buildStackPorts(portPlan, tiltPort, { gateway: gatewayEnabled }),
                 stacks: discovery.stacks.map((stack) => ({
                     name: stack.name,
                     resourceCount: stack.resourceCount,
                     resources: stack.resources.map((resource) => resource.name),
+                    healthyCount: stack.resources.filter((resource) => serviceStates?.[resource.name]?.status === "ready").length,
                 })),
                 unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
                 sharedInfra: sharedInfraGroup,
+                platformServices,
+                capabilities: getEnabledCapabilities(projectRoot, options),
+                // Names of the failing or pending services, so a caller need not filter `resources` itself.
+                unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
             };
             console.log(JSON.stringify(createMachineEnvelope(data, errors)));
             if (errors.length > 0) {
@@ -138,27 +198,51 @@ export const statusCommand = new Command("status")
         }
         console.log(chalk.bold("Resources:"), `${discovery.resources.length} discovered`);
         console.log(chalk.bold("Stacks:"), `${discovery.stacks.length} defined`);
-        if (discovery.stacks.length > 0) {
+        const hasStates = serviceStates !== null && Object.keys(serviceStates).length > 0;
+        const unhealthyOnly = Boolean(options.unhealthy);
+        // When the Tiltfile cannot be re-run (a cycle, a wrong-typed field in a service.json just edited), Tilt keeps the last good
+        // graph and every service still reads as healthy. Without this line the edit seems to have had no effect. The cause varies
+        // (a first load has no previous graph), so the guidance does not claim what the stack is running.
+        if (tiltfileError && !unhealthyOnly) {
+            console.log();
+            console.log(chalk.red(`✗ Tilt could not reload the Tiltfile: ${tiltfileError}`));
+            showDetail("Fix the cause shown above. If Tilt does not pick the fix up, restart with flisk down and flisk up.");
+            console.log();
+        }
+        if (staleDisabled.length > 0 && !unhealthyOnly) {
+            console.log();
+            console.log(chalk.yellow(`⚠️  Tilt keeps ${formatCount(staleDisabled.length, "resource")} Disabled that the Tiltfile enables: ${staleDisabled.join(", ")}`));
+            showDetail("restart needed: `flisk down && flisk up`");
+            console.log();
+        }
+        // With service states the grouped "Services:" section below replaces the plain per-stack counts.
+        if (!hasStates && !unhealthyOnly) {
             for (const stack of discovery.stacks) {
-                const resourcesInStack = stack.resources.length;
-                showDetail(`${stack.name}: ${formatCount(resourcesInStack, "resource")}`);
+                showDetail(`${stack.name}: ${formatCount(stack.resources.length, "resource")}`);
                 if (options.verbose) {
                     for (const resource of stack.resources) {
                         showDetail(`${resource.name}`, 6);
                     }
                 }
             }
-        }
-        if (discovery.unassignedResources.length > 0) {
-            console.log();
-            console.log(chalk.yellow(`${formatCount(discovery.unassignedResources.length, "resource")} not in any stack:`));
-            if (options.verbose) {
-                for (const resource of discovery.unassignedResources) {
-                    showDetail(`${resource.name}`);
+            if (discovery.unassignedResources.length > 0) {
+                console.log();
+                console.log(chalk.yellow(`${formatCount(discovery.unassignedResources.length, "resource")} not in any stack:`));
+                if (options.verbose) {
+                    for (const resource of discovery.unassignedResources) {
+                        showDetail(`${resource.name}`);
+                    }
                 }
             }
         }
-        if (sharedInfraGroup) {
+        if (!unhealthyOnly) {
+            console.log();
+            console.log(chalk.bold("Platform services:"));
+            for (const service of platformServices) {
+                showDetail(`${service.name}: ${service.reason}`);
+            }
+        }
+        if (sharedInfraGroup && !unhealthyOnly) {
             console.log();
             console.log(chalk.bold("Shared infrastructure:"));
             showDetail(`${sharedInfraGroup.name} (one instance, ${formatCount(sharedInfraGroup.databases.length, "database")})`);
@@ -166,19 +250,38 @@ export const statusCommand = new Command("status")
                 showDetail(`  ${database.name} (stack ${database.stack}): ${database.services.join(", ")}`);
             }
         }
-        if (serviceStates && Object.keys(serviceStates).length > 0) {
+        if (hasStates && serviceStates) {
+            const states = serviceStates;
             console.log();
-            console.log(chalk.bold("Services:"));
-            for (const resource of discovery.resources) {
-                const state = serviceStates[resource.name];
-                if (!state)
+            console.log(chalk.bold(unhealthyOnly ? "Unhealthy services:" : "Services:"));
+            const unhealthy = new Set(unhealthyServiceNames(discovery.resources, states));
+            if (unhealthyOnly && unhealthy.size === 0) {
+                showDetail(chalk.green("All services are healthy."));
+            }
+            for (const group of groupServicesByStack(discovery.stacks, discovery.unassignedResources, states)) {
+                const shown = group.resources.filter((resource) => states[resource.name] && (!unhealthyOnly || unhealthy.has(resource.name)));
+                if (unhealthyOnly && shown.length === 0)
                     continue;
-                const mark = state.status === "ready"
-                    ? chalk.green("✓")
-                    : state.status === "error"
-                        ? chalk.red("✗")
-                        : chalk.yellow("…");
-                showDetail(`${mark} ${resource.name}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`);
+                const summary = `${group.healthy}/${group.total} healthy`;
+                showDetail(`${chalk.bold(group.name)}: ${group.healthy === group.total ? chalk.green(summary) : chalk.yellow(summary)}`);
+                for (const resource of shown) {
+                    const state = states[resource.name];
+                    if (!state)
+                        continue;
+                    let mark = chalk.yellow("…");
+                    if (state.status === "ready") {
+                        mark = chalk.green("✓");
+                    }
+                    else if (state.status === "error") {
+                        mark = chalk.red("✗");
+                    }
+                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup);
+                    const urlPart = ports.url ? ` → ${ports.url}` : "";
+                    const extraPart = ports.extraPorts.length
+                        ? `  ${chalk.dim(ports.extraPorts.map((p) => p.address).join(", "))}`
+                        : "";
+                    showDetail(`${mark} ${resource.name}${urlPart}${extraPart}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`, 6);
+                }
             }
         }
         else if (discovery.resources.length > 0) {

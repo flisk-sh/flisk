@@ -10,7 +10,7 @@
 # Priority: service.json → synthesize from path
 # =============================================================================
 
-load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error')
+load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('../../engine/topologies/tilt/manifest/constants.star',
      'MANIFEST_DEFAULTS',
      'DEFAULT_SYNCS',
@@ -20,6 +20,7 @@ load('../../engine/topologies/tilt/manifest/constants.star',
      'HEALTH_CHECK_PATH')
 load('../../engine/topologies/tilt/common/utils.star', 'Utils')
 load('../../engine/topologies/platform/docker/constants.star', 'PlatformDockerConstants')
+load('../../engine/topologies/platform/docker/config/healthcheck.star', 'manifest_health_check')
 
 def _check_prisma_folder(resource_path):
     """
@@ -107,6 +108,7 @@ def load_manifest(resource_path, persist_to_disk=False):
         unsafe_field_error = generated_string_error(manifest, manifest_full_path) if type(manifest) == "dict" else None
         if unsafe_field_error:
             fail(unsafe_field_error)
+        normalize_depends_on(manifest, manifest_full_path)
         manifest_source = 'service.json'
         manifest_path = manifest_full_path
     else:
@@ -295,6 +297,8 @@ def _apply_manifest_defaults(manifest, resource_path):
     computed_db_name = PlatformDockerConstants.get_db_name(stack)
     if 'databaseName' not in result:
         result['databaseName'] = computed_db_name
+        # Computed here, not asked for: a bring-your-own service must not read it as a request for the shared Postgres (#2991).
+        result['_databaseNameComputed'] = True
     elif result['databaseName'] != computed_db_name:
         overrides.append("databaseName: {} (auto: {})".format(result['databaseName'], computed_db_name))
     
@@ -308,12 +312,15 @@ def _apply_manifest_defaults(manifest, resource_path):
         
         # A bring-your-own service without healthCheckPath may not serve HTTP, so it gets no default Traefik health path.
         default_health_path = None if app_type == 'bring-your-own' else HEALTH_CHECK_PATH
+        # `healthCheck.path` wins over healthCheckPath; `"healthCheck": false` leaves Traefik no health path either.
+        health_check = manifest_health_check(result)
         computed_traefik = {
             'host': stack + '.backend.' + PlatformDockerConstants.PROJECT_NAME + '.local',
             'pathPrefix': default_path_prefix,
             # Follows healthCheckPath so a manifest that only sets that keeps one
             # path for both probes; `traefik.healthCheck` overrides just Traefik's.
-            'healthCheck': result.get('healthCheckPath') or default_health_path,
+            # A port or command probe (#2875) means the service may serve no HTTP: Traefik gets no health path either.
+            'healthCheck': None if (health_check.disabled or health_check.port or health_check.command) else (health_check.path or result.get('healthCheckPath') or default_health_path),
         }
         
         # Check for overrides

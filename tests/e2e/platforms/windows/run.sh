@@ -6,7 +6,8 @@
 #   W1 typecheck the CLI, build it and run its help
 #   W2 the Windows platform unit tests
 #   W3 native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing
-#   W4 native Windows refuses the one-command demo before it clones, installs or boots anything
+#   W4 native Windows refuses a Docker starter (flisk restaurant) before it clones, installs or boots anything
+#   W5 native Windows runs `flisk demo` without Docker: the two-service demo answers, a rerun reuses it, flisk down stops it
 #
 #   tests/e2e/platforms/windows/run.sh all      every case in order
 #   tests/e2e/platforms/windows/run.sh W2 W3    single cases
@@ -39,10 +40,16 @@ W3() { # native Windows refuses the CLI with WSL2 guidance and starts nothing
   pwsh -NoProfile -File "$(windows_path "$SUITE_DIR/native-refusal.ps1")"
 }
 
-W4() { # native Windows refuses the one-command demo before it clones or installs anything
+W4() { # native Windows refuses a Docker starter before it clones or installs anything
   log "W4 native Windows demo contract"
   cd "$REPO_ROOT/cli"
   pwsh -NoProfile -File "$(windows_path "$SUITE_DIR/demo-refusal.ps1")"
+}
+
+W5() { # native Windows runs the demo without Docker
+  log "W5 native Windows demo without Docker"
+  cd "$REPO_ROOT/cli"
+  pwsh -NoProfile -File "$(windows_path "$SUITE_DIR/demo-native.ps1")"
 }
 
 e2e_main "$@"

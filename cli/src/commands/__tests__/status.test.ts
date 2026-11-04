@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,10 @@ import { statusCommand } from "../status.js";
 // check what status prints, so both are mocked.
 vi.mock("../../utils/cold-preflight.js", () => ({
   assertMachineReadyOrExit: vi.fn(async () => {}),
-  detectRuntimePrerequisites: vi.fn(() => ({ hasDockerCli: true, hasTiltCli: true })),
+  detectRuntimePrerequisites: vi.fn(() => ({
+    hasDockerCli: true,
+    hasTiltCli: true,
+  })),
   formatRuntimeNextSteps: vi.fn(() => []),
 }));
 vi.mock("../../utils/tilt.js", async (importOriginal) => ({
@@ -36,7 +39,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../../..");
 
 const FIXTURE_SERVICES = [
-  { dir: "services/shop/orders-api", appName: "orders-api", appType: "backend", stack: "shop" },
+  {
+    dir: "services/shop/orders-api",
+    appName: "orders-api",
+    appType: "backend",
+    stack: "shop",
+  },
   {
     dir: "services/shop/orders-web",
     appName: "orders-web",
@@ -44,7 +52,12 @@ const FIXTURE_SERVICES = [
     stack: "shop",
     dependsOn: ["orders-api"],
   },
-  { dir: "services/billing/invoices", appName: "invoices", appType: "backend", stack: "billing" },
+  {
+    dir: "services/billing/invoices",
+    appName: "invoices",
+    appType: "backend",
+    stack: "billing",
+  },
   { dir: "tools/report-job", appName: "report-job", appType: "backend" },
 ];
 
@@ -215,11 +228,20 @@ describe("flisk status", () => {
     expect(JSON.parse(output)).toMatchObject({
       schemaVersion: 1,
       data: {
-        tilt: { available: false, resourcesQueried: false, resources: null, readiness: null },
+        tilt: {
+          available: false,
+          resourcesQueried: false,
+          resources: null,
+          readiness: null,
+        },
         resourceCount: 4,
         stacks: [
           { name: "billing", resourceCount: 1, resources: ["invoices"] },
-          { name: "shop", resourceCount: 2, resources: ["orders-api", "orders-web"] },
+          {
+            name: "shop",
+            resourceCount: 2,
+            resources: ["orders-api", "orders-web"],
+          },
         ],
         unassignedResources: ["report-job"],
       },
@@ -255,17 +277,40 @@ describe("flisk status", () => {
     const log = vi.spyOn(console, "log").mockImplementation((...parts: unknown[]) => {
       lines.push(parts.map(String).join(" "));
     });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {}) as never);
     try {
       // A status with errors exits non-zero; the JSON envelope is still printed first.
-      await statusCommand.parseAsync(["--json", "--tilt"], { from: "user" }).catch(() => undefined);
+      await statusCommand.parseAsync(["--json", "--tilt"], { from: "user" });
+      expect(exit).toHaveBeenCalledWith(1);
     } finally {
       log.mockRestore();
+      error.mockRestore();
+      exit.mockRestore();
     }
-    // The status envelope comes first; vitest turns the following process.exit into an error that prints a second one.
-    const envelope = JSON.parse(stripVTControlCharacters(lines.filter(Boolean)[0] ?? "{}"));
-    expect(envelope.errors?.[0]).toMatchObject({ code: "TILT_STATUS_UNAVAILABLE" });
+    expect(lines).toHaveLength(1);
+    const envelope = JSON.parse(stripVTControlCharacters(lines[0] ?? "{}"));
+    expect(envelope.errors?.[0]).toMatchObject({
+      code: "TILT_STATUS_UNAVAILABLE",
+    });
     expect(envelope.errors?.[0]?.message).toMatch(/No Tilt is answering on port \d+/);
     expect(runTilt).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed Tilt status request in human output", async () => {
+    vi.mocked(runTilt).mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "tilt status request failed",
+    });
+
+    const output = await runStatus(["--tilt"]);
+
+    expect(output).toContain("Tilt Resources:");
+    expect(output).toContain("No Tilt is answering on port 10350. Start it with: flisk up");
+    expect(runTilt).toHaveBeenCalledWith("get", ["uiresources", "--port", "10350"], {
+      inheritStdio: false,
+    });
   });
 
   describe("service state from a running Tilt", () => {
@@ -298,9 +343,107 @@ describe("flisk status", () => {
       expect(byName["report-job"]).toMatchObject({ status: "unknown" });
     });
 
+    it("says so when the Tiltfile could not be reloaded, instead of showing the old graph as healthy", async () => {
+      // A cycle written into a service.json while the stack runs: Tilt keeps the last good graph, every service stays ready, and
+      // only the (Tiltfile) resource carries the error. It used to reach the JSON readiness only, never the terminal.
+      const broken = JSON.stringify({
+        items: [
+          {
+            metadata: { name: "(Tiltfile)" },
+            status: {
+              updateStatus: "error",
+              runtimeStatus: "not_applicable",
+              buildHistory: [
+                {
+                  error: "cycle detected in resource dependency graph: a -> b -> a",
+                },
+              ],
+            },
+          },
+          {
+            metadata: { name: "orders-api" },
+            status: { updateStatus: "ok", runtimeStatus: "ok" },
+          },
+        ],
+      });
+      vi.mocked(tiltGetUiResources).mockResolvedValue(broken);
+
+      const human = await runStatus([]);
+      expect(human).toContain("Tilt could not reload the Tiltfile");
+      expect(human).toContain("a -> b -> a");
+
+      const data = JSON.parse(await runStatus(["--json"])).data;
+      expect(data.tilt.tiltfileError).toContain("cycle detected");
+    });
+
+    it("reports no Tiltfile error when the Tiltfile is fine", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      expect(await runStatus([])).not.toContain("could not reload the Tiltfile");
+      expect(JSON.parse(await runStatus(["--json"])).data.tilt.tiltfileError).toBeNull();
+    });
+
+    it("reports resources kept Disabled by Tilt that the Tiltfile enables", async () => {
+      const specMasterPath = join(projectRoot, ".flisk", ".flisk-out", "spec.master");
+      const originalSpecMaster = readFileSync(specMasterPath, "utf-8");
+      writeFileSync(
+        specMasterPath,
+        originalSpecMaster.replace(
+          "PRE_ALPHA_RESOURCES = {",
+          'PRE_ALPHA_RESOURCES = {\n"orders-api": True,',
+        ),
+      );
+      try {
+        const stale = JSON.stringify({
+          items: [
+            {
+              metadata: { name: "traefik" },
+              status: { updateStatus: "ok", runtimeStatus: "ok" },
+            },
+            {
+              metadata: { name: "orders-api" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+            {
+              metadata: { name: "service-discovery-daemon" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+            {
+              metadata: { name: "invoices" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+          ],
+        });
+        vi.mocked(tiltGetUiResources).mockResolvedValue(stale);
+
+        const human = await runStatus([]);
+        expect(human).toContain("orders-api");
+        expect(human).toContain("service-discovery-daemon");
+        expect(human).toContain("restart needed: `flisk down && flisk up`");
+
+        const data = JSON.parse(await runStatus(["--json"])).data;
+        expect(data.tilt.staleDisabled).toEqual(["orders-api", "service-discovery-daemon"]);
+      } finally {
+        writeFileSync(specMasterPath, originalSpecMaster);
+      }
+    });
+
     it("shows every service as unknown when no Tilt answers", async () => {
       const output = await runStatus(["--json"]);
-      const resources = JSON.parse(output).data.resources as Array<{ status: string }>;
+      const resources = JSON.parse(output).data.resources as Array<{
+        status: string;
+      }>;
       expect(resources.map((r) => r.status)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
     });
 
@@ -308,9 +451,93 @@ describe("flisk status", () => {
       vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
       const output = await runStatus();
       expect(output).toContain("Services:");
-      expect(output).toContain("✗ orders-api  error");
-      expect(output).toContain("✗ orders-web  error (orders-api failed)");
-      expect(output).toContain("✓ invoices  ready");
+      expect(output).toContain("✗ orders-api → http://");
+      expect(output).toContain("error (error/none)");
+      expect(output).toContain("✗ orders-web → http://");
+      expect(output).toContain("error (orders-api failed)");
+      expect(output).toContain("✓ invoices → http://");
+      expect(output).toContain("ready");
+    });
+
+    it("prints a pending unhealthy service with its status marker", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        tilt(
+          ["orders-api", "pending", "pending"],
+          ["orders-web", "ok", "ok"],
+          ["invoices", "ok", "ok"],
+        ),
+      );
+
+      const output = await runStatus();
+
+      expect(output).toContain("Services:");
+      expect(output).toContain("… orders-api");
+      expect(output).toContain("pending");
+      expect(output).toContain("0/2 healthy");
+      expect(output).toContain("… orders-web");
+      expect(output).toContain("pending (waiting for orders-api)");
+      expect(output).toContain("✓ invoices");
+    });
+
+    it("groups services by stack with a healthy/total line per stack", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const output = await runStatus();
+      expect(output).toMatch(/^ {2}billing: 1\/1 healthy$/m);
+      expect(output).toMatch(/^ {2}shop: 0\/2 healthy$/m);
+      expect(output).toMatch(/^ {2}\(no stack\): 0\/1 healthy$/m);
+      expect(output.indexOf("shop: 0/2")).toBeLessThan(output.indexOf("✗ orders-api"));
+    });
+
+    it("adds healthyCount per stack and an unhealthy list to JSON without touching other fields", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const data = JSON.parse(await runStatus(["--json"])).data;
+      expect(data.stacks).toEqual([
+        {
+          name: "billing",
+          resourceCount: 1,
+          resources: ["invoices"],
+          healthyCount: 1,
+        },
+        {
+          name: "shop",
+          resourceCount: 2,
+          resources: ["orders-api", "orders-web"],
+          healthyCount: 0,
+        },
+      ]);
+      expect(data.unhealthy).toEqual(["orders-api", "orders-web"]);
+      expect(data.resourceCount).toBe(4);
+    });
+
+    it("--unhealthy shows only failing services and their stacks", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const output = await runStatus(["--unhealthy"]);
+      expect(output).toContain("Unhealthy services:");
+      expect(output).toContain("✗ orders-api");
+      expect(output).toContain("✗ orders-web");
+      expect(output).not.toContain("invoices");
+      expect(output).not.toContain("billing");
+      expect(output).not.toContain("All services are healthy");
+    });
+
+    it("--unhealthy says so when every service is healthy", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        tilt(
+          ["orders-api", "ok", "ok"],
+          ["orders-web", "ok", "ok"],
+          ["invoices", "ok", "ok"],
+          ["report-job", "ok", "ok"],
+        ),
+      );
+      const output = await runStatus(["--unhealthy"]);
+      expect(output).toContain("All services are healthy.");
+      expect(output).not.toContain("✓");
+    });
+
+    it("--unhealthy does not claim health when no Tilt answers", async () => {
+      const output = await runStatus(["--unhealthy"]);
+      expect(output).toContain("nothing is confirmed running");
+      expect(output).not.toContain("All services are healthy");
     });
 
     it("says service states are unknown in the human output when no Tilt answers", async () => {

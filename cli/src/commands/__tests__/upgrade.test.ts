@@ -57,7 +57,7 @@ vi.mock("../../utils/paths.js", async (importOriginal) => {
 const platformMock = {
   isWindows: vi.fn((): boolean => process.platform === "win32"),
   binaryAssetName: vi.fn((): string | null =>
-    process.platform === "win32" ? "tdk-windows-amd64.exe" : "tdk-darwin-arm64",
+    process.platform === "win32" ? "flisk-windows-amd64.exe" : "flisk-darwin-arm64",
   ),
   executableName: vi.fn((): string => (process.platform === "win32" ? "flisk.exe" : "flisk")),
 };
@@ -115,15 +115,15 @@ describe("upgradeViaBinary", () => {
     fliskPath = join(installDir, "flisk");
     release = {
       tag: "v1.3.21",
-      assetName: "tdk-darwin-arm64",
-      downloadUrl: "https://example.test/tdk-darwin-arm64",
-      engineDownloadUrl: "https://example.test/tdk-cli-engine.tar.gz",
+      assetName: "flisk-darwin-arm64",
+      downloadUrl: "https://example.test/flisk-darwin-arm64",
+      engineDownloadUrl: "https://example.test/flisk-cli-engine.tar.gz",
       checksumsUrl: "https://example.test/checksums.txt",
     };
     checksums = [
-      `${sha256(BINARY_BYTES)}  tdk-darwin-arm64`,
-      `${sha256("other platform")}  tdk-linux-amd64`,
-      `${sha256(ENGINE_BYTES)}  tdk-cli-engine.tar.gz`,
+      `${sha256(BINARY_BYTES)}  flisk-darwin-arm64`,
+      `${sha256("other platform")}  flisk-linux-amd64`,
+      `${sha256(ENGINE_BYTES)}  flisk-cli-engine.tar.gz`,
     ].join("\n");
     execSyncMock.mockReset();
     fetchMock.mockReset();
@@ -193,7 +193,10 @@ describe("upgradeViaBinary", () => {
       "the engine tarball does not match",
       () => checksums.replace(sha256(ENGINE_BYTES), sha256("x")),
     ],
-    ["checksums.txt has no entry for the binary", () => checksums.replace("tdk-darwin-arm64", "x")],
+    [
+      "checksums.txt has no entry for the binary",
+      () => checksums.replace("flisk-darwin-arm64", "x"),
+    ],
   ])("refuses to install when %s", async (_case, makeChecksums) => {
     checksums = makeChecksums();
     const ok = await upgradeViaBinary(fliskPath, release);
@@ -205,7 +208,7 @@ describe("upgradeViaBinary", () => {
   it("still installs releases whose checksums.txt predates the engine entry", async () => {
     checksums = checksums
       .split("\n")
-      .filter((line) => !line.endsWith("tdk-cli-engine.tar.gz"))
+      .filter((line) => !line.endsWith("flisk-cli-engine.tar.gz"))
       .join("\n");
     const ok = await upgradeViaBinary(fliskPath, release);
 
@@ -357,12 +360,22 @@ describe("parseChecksums", () => {
     const a = "a".repeat(64);
     const b = "B".repeat(64);
     const sums = parseChecksums(
-      `${a}  tdk-linux-amd64\n${b} *tdk-cli-engine.tar.gz\n\nnot a checksum line\n`,
+      `${a}  flisk-linux-amd64\n${b} *flisk-cli-engine.tar.gz\n\nnot a checksum line\n`,
     );
 
-    expect(sums.get("tdk-linux-amd64")).toBe(a);
-    expect(sums.get("tdk-cli-engine.tar.gz")).toBe("b".repeat(64));
+    expect(sums.get("flisk-linux-amd64")).toBe(a);
+    expect(sums.get("flisk-cli-engine.tar.gz")).toBe("b".repeat(64));
     expect(sums.size).toBe(2);
+  });
+
+  it("skips lines missing checksum hash or file name", () => {
+    const validHash = "c".repeat(64);
+    const sums = parseChecksums(
+      `\n   \nshort-hash  file.tar.gz\n${validHash}\n${validHash}   \n${validHash}  valid-file.tar.gz\n`,
+    );
+
+    expect(sums.get("valid-file.tar.gz")).toBe(validHash);
+    expect(sums.size).toBe(1);
   });
 });
 
@@ -456,7 +469,7 @@ describe("getLatestBinaryRelease", () => {
   });
 
   it("returns null when GitHub API responds with non-ok status", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce({
@@ -468,7 +481,7 @@ describe("getLatestBinaryRelease", () => {
   });
 
   it("returns null when response json does not contain tag_name", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce({
@@ -480,13 +493,13 @@ describe("getLatestBinaryRelease", () => {
   });
 
   it("returns null when fetch throws an error", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("network timeout")));
     expect(await getLatestBinaryRelease()).toBeNull();
   });
 
   it("returns a binary release object when release is found", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce({
@@ -497,10 +510,11 @@ describe("getLatestBinaryRelease", () => {
     const release = await getLatestBinaryRelease();
     expect(release).toEqual({
       tag: "v1.4.0",
-      assetName: "tdk-darwin-arm64",
-      downloadUrl: "https://github.com/flisk-sh/releases/releases/download/v1.4.0/tdk-darwin-arm64",
+      assetName: "flisk-darwin-arm64",
+      downloadUrl:
+        "https://github.com/flisk-sh/releases/releases/download/v1.4.0/flisk-darwin-arm64",
       engineDownloadUrl:
-        "https://github.com/flisk-sh/releases/releases/download/v1.4.0/tdk-cli-engine.tar.gz",
+        "https://github.com/flisk-sh/releases/releases/download/v1.4.0/flisk-cli-engine.tar.gz",
       checksumsUrl: "https://github.com/flisk-sh/releases/releases/download/v1.4.0/checksums.txt",
     });
   });
@@ -626,6 +640,83 @@ describe("detectInstallation and detectInstallationForPath", () => {
     } finally {
       process.argv[1] = origArgv1;
     }
+  });
+
+  it("detectInstallation handles error when realpathSync throws and returns unknown", () => {
+    const origArgv1 = process.argv[1];
+    process.argv[1] = "";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      findOnPathMock.mockReturnValueOnce(join(tempDir, "nonexistent-flisk"));
+      const info = detectInstallation();
+      expect(info.method).toBe("unknown");
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Could not detect installation method"),
+      );
+    } finally {
+      process.argv[1] = origArgv1;
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("detectInstallation detects git repository when cliRoot contains .git", () => {
+    const origArgv1 = process.argv[1];
+    process.argv[1] = "";
+    try {
+      const standalonePath = join(tempDir, "my-flisk");
+      writeFileSync(standalonePath, "some-script");
+      findOnPathMock.mockReturnValueOnce(standalonePath);
+      const info = detectInstallation();
+      expect(info.method).toBe("git");
+      expect(info.path).toBeDefined();
+    } finally {
+      process.argv[1] = origArgv1;
+    }
+  });
+
+  it("detectInstallation detects bun installation when fliskPath contains .bun", () => {
+    const origArgv1 = process.argv[1];
+    process.argv[1] = "";
+    try {
+      const bunBin = join(tempDir, ".bun", "bin", "flisk");
+      mkdirSync(dirname(bunBin), { recursive: true });
+      writeFileSync(bunBin, "#!/bin/sh");
+      findOnPathMock.mockReturnValueOnce(bunBin);
+      const info = detectInstallation();
+      expect(info).toEqual({ method: "bun", path: bunBin });
+    } finally {
+      process.argv[1] = origArgv1;
+    }
+  });
+
+  it("detectInstallation detects npm installation when fliskPath contains node_modules", () => {
+    const origArgv1 = process.argv[1];
+    process.argv[1] = "";
+    try {
+      const npmBin = join(tempDir, "node_modules", ".bin", "flisk");
+      mkdirSync(dirname(npmBin), { recursive: true });
+      writeFileSync(npmBin, "#!/bin/sh");
+      findOnPathMock.mockReturnValueOnce(npmBin);
+      const info = detectInstallation();
+      expect(info).toEqual({ method: "npm", path: npmBin });
+    } finally {
+      process.argv[1] = origArgv1;
+    }
+  });
+
+  it("detectInstallationForPath returns unknown when path does not exist", () => {
+    const nonexistent = join(tempDir, "does-not-exist");
+    const info = detectInstallationForPath(nonexistent);
+    expect(info).toEqual({ method: "unknown", path: nonexistent });
+  });
+
+  it("detectInstallationForPath returns unknown when isStandaloneBinary returns false", () => {
+    const scriptPath = join(tempDir, "custom-script");
+    writeFileSync(scriptPath, "#!/bin/sh");
+    execFileSyncMock.mockReturnValueOnce("POSIX shell script text executable");
+
+    const info = detectInstallationForPath(scriptPath);
+    expect(info).toEqual({ method: "unknown", path: scriptPath });
   });
 });
 
@@ -843,6 +934,157 @@ describe("upgradeAllInstallations", () => {
       logSpy.mockRestore();
     }
   });
+
+  it("updates binary when installed version is older than latest release tag", async () => {
+    const fakeBin = join(tempDir, "flisk");
+    writeFileSync(fakeBin, "ELF");
+    findAllOnPathMock.mockReturnValue([fakeBin]);
+    findOnPathMock.mockReturnValue(null);
+    execFileSyncMock.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "file") return "ELF 64-bit executable";
+      if (args?.[0] === "version") return "1.3.0\n";
+      return "";
+    });
+
+    const binarySha = sha256("fake-bin");
+    const engineSha = sha256("fake-engine");
+    const sumsText = `${binarySha}  flisk-darwin-arm64\n${engineSha}  flisk-cli-engine.tar.gz`;
+
+    const createGitHubReleaseFetchMock = () =>
+      vi.fn().mockImplementation(async (input: string | URL | Request) => {
+        const url =
+          typeof input === "string"
+            ? new URL(input)
+            : input instanceof URL
+              ? input
+              : new URL(input.url);
+
+        if (
+          url.protocol === "https:" &&
+          url.hostname === "api.github.com" &&
+          url.pathname.startsWith("/repos/")
+        ) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ tag_name: "v1.4.0" }),
+          };
+        }
+        if (
+          url.protocol === "https:" &&
+          url.hostname === "github.com" &&
+          url.pathname.endsWith("/checksums.txt")
+        ) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () => sumsText,
+          };
+        }
+        if (
+          url.protocol === "https:" &&
+          url.hostname === "github.com" &&
+          url.pathname.includes("/releases/download/")
+        ) {
+          return {
+            ok: true,
+            status: 200,
+            arrayBuffer: async () =>
+              Buffer.from(url.pathname.includes("engine") ? "fake-engine" : "fake-bin"),
+          };
+        }
+        throw new Error(`Unexpected fetch URL: ${url.href}`);
+      });
+
+    vi.stubGlobal("fetch", createGitHubReleaseFetchMock());
+
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const ok = await upgradeAllInstallations(false);
+      expect(ok).toBe(true);
+      const text = logSpy.mock.calls.flat().join(" ");
+      expect(text).toContain(`Updating ${realpathSync(fakeBin)} (1.3.0 → 1.4.0)`);
+      expect(text).toContain("All Flisk installations on PATH are up to date.");
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it("strictly matches legitimate GitHub release URLs and rejects lookalike or malicious URLs", async () => {
+    const binarySha = sha256("fake-bin");
+    const engineSha = sha256("fake-engine");
+    const sumsText = `${binarySha}  flisk-darwin-arm64\n${engineSha}  flisk-cli-engine.tar.gz`;
+
+    const mockFetch = vi.fn().mockImplementation(async (input: string | URL | Request) => {
+      const url =
+        typeof input === "string"
+          ? new URL(input)
+          : input instanceof URL
+            ? input
+            : new URL(input.url);
+
+      if (
+        url.protocol === "https:" &&
+        url.hostname === "api.github.com" &&
+        url.pathname.startsWith("/repos/")
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ tag_name: "v1.4.0" }),
+        };
+      }
+      if (
+        url.protocol === "https:" &&
+        url.hostname === "github.com" &&
+        url.pathname.endsWith("/checksums.txt")
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => sumsText,
+        };
+      }
+      if (
+        url.protocol === "https:" &&
+        url.hostname === "github.com" &&
+        url.pathname.includes("/releases/download/")
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          arrayBuffer: async () =>
+            Buffer.from(url.pathname.includes("engine") ? "fake-engine" : "fake-bin"),
+        };
+      }
+      throw new Error(`Unexpected fetch URL: ${url.href}`);
+    });
+
+    // Valid GitHub API and asset URLs must match
+    const apiRes = await mockFetch("https://api.github.com/repos/flisk-sh/flisk/releases/latest");
+    expect(apiRes.status).toBe(200);
+    expect(await apiRes.json()).toEqual({ tag_name: "v1.4.0" });
+
+    const sumsRes = await mockFetch(
+      "https://github.com/flisk-sh/flisk/releases/download/v1.4.0/checksums.txt",
+    );
+    expect(sumsRes.status).toBe(200);
+    expect(await sumsRes.text()).toBe(sumsText);
+
+    // Lookalike hostnames, insecure protocols, and attacker-controlled domains must be rejected
+    await expect(
+      mockFetch("https://attacker-api.github.com/repos/flisk-sh/flisk/releases/latest"),
+    ).rejects.toThrow("Unexpected fetch URL");
+    await expect(mockFetch("https://evil.com/api.github.com/releases/latest")).rejects.toThrow(
+      "Unexpected fetch URL",
+    );
+    await expect(
+      mockFetch("http://api.github.com/repos/flisk-sh/flisk/releases/latest"),
+    ).rejects.toThrow("Unexpected fetch URL");
+    await expect(
+      mockFetch("https://not-github.com/releases/download/v1.4.0/checksums.txt"),
+    ).rejects.toThrow("Unexpected fetch URL");
+  });
 });
 
 describe("upgradeCommand action handler", () => {
@@ -867,7 +1109,7 @@ describe("upgradeCommand action handler", () => {
     promptConfirmMock.mockResolvedValue(true);
     getPackageVersionMock.mockReturnValue("1.3.186");
     platformMock.isWindows.mockReturnValue(false);
-    platformMock.binaryAssetName.mockReturnValue("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValue("flisk-darwin-arm64");
     platformMock.executableName.mockReturnValue("flisk");
   });
 
@@ -1003,6 +1245,60 @@ describe("upgradeCommand action handler", () => {
       const res = await runUpgrade([]);
       expect(res.status).toBe(0);
       expect(res.stdout).toContain("You are already on the latest version!");
+      expect(res.stdout).toContain("1.3.186 (current) = 1.3.186 (latest)");
+    });
+
+    it("shows upgrade available and prompts when installed version is older than latest binary release", async () => {
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ tag_name: "v1.4.0" }),
+        }),
+      );
+      promptConfirmMock.mockResolvedValueOnce(false);
+
+      const res = await runUpgrade([]);
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain("Upgrade available: 1.3.0 → 1.4.0");
+      expect(res.stdout).toContain("Cancelled.");
+    });
+
+    it("shows upgrade available and performs dry run when installed version is older than latest binary release", async () => {
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ tag_name: "v1.4.0" }),
+        }),
+      );
+
+      const res = await runUpgrade(["--dry-run"]);
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain("Upgrade available: 1.3.0 → 1.4.0");
+      expect(res.stdout).toContain("Dry run mode - would perform:");
+      expect(res.stdout).toContain("Method: binary");
+      expect(res.stdout).toContain(`Path: ${fakeBin}`);
+      expect(res.stdout).toContain("Action: Download and replace with");
+      expect(res.stdout).toContain("Action: Refresh bundled engine from");
+    });
+
+    it("normalizes leading v in release tag and handles boundary version comparison", async () => {
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ tag_name: "v2.0.0-beta.1" }),
+        }),
+      );
+      promptConfirmMock.mockResolvedValueOnce(false);
+
+      const res = await runUpgrade([]);
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain("Upgrade available: 1.3.0 → 2.0.0");
     });
 
     it("shows force upgrade requested when already on latest and --force is passed with --dry-run", async () => {
@@ -1140,6 +1436,20 @@ describe("upgradeCommand action handler", () => {
       expect(res.stdout).toContain("Already up to date with origin/main!");
     });
 
+    it("shows force upgrade requested when local commit matches remote and --force is passed with --dry-run", async () => {
+      execFileSyncMock.mockImplementation((_cmd: string, args: string[]) => {
+        if (args[0] === "fetch") return "";
+        if (args[0] === "rev-parse" && args[1] === "HEAD") return "abcdef1234567\n";
+        if (args[0] === "rev-parse" && args[1] === "origin/main") return "abcdef1234567\n";
+        return "";
+      });
+
+      const res = await runUpgrade(["--force", "--dry-run"]);
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain("Force upgrade requested");
+      expect(res.stdout).toContain("Dry run mode - would perform:");
+    });
+
     it("shows updates available and performs dry run", async () => {
       execFileSyncMock.mockImplementation((_cmd: string, args: string[]) => {
         if (args[0] === "fetch") return "";
@@ -1260,6 +1570,17 @@ describe("upgradeCommand action handler", () => {
 
       const res = await runUpgrade([]);
       expect(res.status).toBe(0);
+    });
+
+    it("shows force upgrade requested when already on latest and --force is passed with --dry-run", async () => {
+      getPackageVersionMock.mockReturnValue("1.4.0");
+      execSyncMock.mockReturnValue("1.4.0\n");
+
+      const res = await runUpgrade(["--force", "--dry-run"]);
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain("Force upgrade requested (currently 1.4.0)");
+      expect(res.stdout).toContain("Dry run mode - would perform:");
+      expect(res.stdout).toContain("Action: Upgrade to 1.4.0");
     });
 
     it("successfully upgrades and verifies new version", async () => {

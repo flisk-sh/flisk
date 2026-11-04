@@ -4,7 +4,7 @@
 - [x] 1.2 Call the shared `ensureGitignore()` for `projectRoot` before the first smoke record is written, so `.flisk/smoke/` is ignored even when the project never ran `flisk project`. Note that it adds the whole Flisk entry set, not only `.flisk/smoke/`.
 - [x] 1.3 Skip the ignore call outside a git working tree: do not create or modify a `.gitignore` there, and print no ignore warning.
 - [x] 1.4 When the ignore entry cannot be ensured, warn before writing the records and say that Git may track them. Never report the directory as protected when it could not be checked.
-- [x] 1.5 Add `.flisk/smoke/` to `examples/tdk-example/.gitignore`.
+- [x] 1.5 Add `.flisk/smoke/` to `examples/flisk-example/.gitignore`.
 - [x] 1.6 Add regression tests: a project with a `smoke` block and no prior `flisk project` call gets the ignore entry; a project outside a git working tree gets no `.gitignore`; an unwritable `.gitignore` produces the warning before any record is written.
 
 ## 2. Redact smoke text

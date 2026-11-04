@@ -3,15 +3,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "./env-validator.js";
+import { FliskError } from "./errors.js";
 
 export const REDACTED = "[REDACTED]";
 
-export class EnvUnreadableError extends Error {
+export class EnvUnreadableError extends FliskError {
   constructor(
     readonly path: string,
     reason: string,
+    suggestions: string[] = [],
   ) {
-    super(`Could not read ${path}: ${reason}`);
+    super(`Could not read ${path}: ${reason}`, suggestions);
     this.name = "EnvUnreadableError";
   }
 }
@@ -44,7 +46,9 @@ function secretValuesOf(envPath: string): string[] {
   try {
     content = readFileSync(envPath, "utf-8");
   } catch (error) {
-    throw new EnvUnreadableError(envPath, error instanceof Error ? error.message : String(error));
+    throw new EnvUnreadableError(envPath, error instanceof Error ? error.message : String(error), [
+      `Check that ${envPath} is a readable file`,
+    ]);
   }
   return [...parseEnv(content).values()].filter(
     (value) => value.length >= MIN_REDACTED_VALUE_LENGTH,

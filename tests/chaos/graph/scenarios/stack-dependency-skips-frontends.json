@@ -1,0 +1,17 @@
+{
+  "title": "a backend that depends on a stack does not wait for the stack's UI",
+  "why": "Matches `--focus`: transitive stack dependencies never pull in dependency UIs, and a UI that waits for its backend would make a cycle.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "billing",
+      "entry": "main"
+    },
+    {
+      "op": "check",
+      "only": "billing"
+    }
+  ],
+  "expect": []
+}

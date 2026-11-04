@@ -108,7 +108,9 @@ describe("vendored .flisk/.flisk-out/flisk-cli-ext folder", () => {
       await withExtensionSource(bundle, async (projectRoot) => {
         const vendored = path.join(projectRoot, ".flisk", ".flisk-out", "flisk-cli-ext");
         expect(fs.readFileSync(path.join(vendored, "Tiltfile"), "utf-8")).toBe("# nested\n");
-        expect(walk(vendored).length).toBe(5);
+        // The Tiltfile, the four markers, and the fingerprint `flisk up` compares with the installed engine (#2899).
+        expect(walk(vendored).length).toBe(6);
+        expect(fs.existsSync(path.join(vendored, ".source-fingerprint"))).toBe(true);
         expect(fs.existsSync(path.join(vendored, "runtime"))).toBe(false);
       });
     } finally {

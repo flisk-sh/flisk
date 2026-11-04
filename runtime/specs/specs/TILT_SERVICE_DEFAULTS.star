@@ -6,7 +6,7 @@
 # 🔧 TILT SERVICE DEFAULTS MASTER CONFIG
 # =============================================================================
 # 
-# Defines standard configurations for all services in the Flisk Landscape platform.
+# Defines standard configurations for all services in the Flisk platform.
 # This provides consistent port allocation, health checks, and build settings.
 #
 # See: docs/TILT_MASTER_CONFIGS.md

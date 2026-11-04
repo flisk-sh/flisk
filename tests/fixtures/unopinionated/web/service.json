@@ -1,0 +1,15 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "unopinionated-web",
+  "appType": "frontend",
+  "command": "node server.js",
+  "port": 3000,
+  "healthCheckPath": "/health",
+  "dependsOn": [
+    "unopinionated-api"
+  ],
+  "env": {
+    "API_URL": "http://localhost:${API_PORT:-4000}"
+  }
+}

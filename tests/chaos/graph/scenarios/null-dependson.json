@@ -1,0 +1,17 @@
+{
+  "title": "dependsOn written as null",
+  "why": "`flisk up` refuses it; `config verify` used to say nothing.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "setShape",
+      "owner": "billing",
+      "shape": "null"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

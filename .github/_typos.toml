@@ -7,6 +7,8 @@ extend-exclude = [
   "examples/byo-jobs/prisma/prisma/migrations/migration_lock.toml",
   # Translated READMEs use other languages, which the English word list flags.
   "docs/README-*.md",
+  # Generated images are named after a content hash (score-84.3dbe6268.svg), which the word list reads as typos.
+  "docs/assets/fit/**",
 ]
 
 [default]
@@ -26,3 +28,10 @@ postgress = "postgress"
 certifi = "certifi"
 # in-toto attestation filename (checksums.txt.intoto.jsonl).
 intoto = "intoto"
+# Jest/Mocha function names that scripts/scores/skipped-tests.mjs searches for.
+xdescribe = "xdescribe"
+xit = "xit"
+# Qiskit Aer, the quantum circuit simulator named in the GPU and provider docs.
+aer = "aer"
+# Amazon Braket, the quantum computing service in the provider examples (AWS_BRAKET_TOKEN).
+braket = "braket"

@@ -9,6 +9,8 @@
 // The agent's chat lines are an example session. Re-check the output lines when the CLI wording changes.
 // Run: node scripts/demo-svgs.mjs
 import { writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const outFile = (name) => new URL(`../docs/assets/${name}`, import.meta.url);
 
@@ -35,7 +37,7 @@ const CHAR = 0.61; // monospace advance as a share of the font size
 const esc = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-class Scene {
+export class Scene {
   constructor({ width, title, duration }) {
     this.width = width;
     this.title = title;
@@ -118,7 +120,9 @@ const sansText = (x, y, text, { size = 15, color = C.paper, weight = 400 } = {})
 const monoText = (x, y, text, { size = 14, color = C.paper } = {}) =>
   `<text x="${x}" y="${y}" font-family="${MONO}" font-size="${size}" fill="${color}" xml:space="preserve">${esc(text)}</text>`;
 
-function aiDemo() {
+export const render = (scene, height, label) => scene.render(height, label);
+
+export function aiDemo() {
   const s = new Scene({ width: 900, title: "AI coding agent  ·  ~/my-shop", duration: 17 });
   const left = 36;
 
@@ -176,7 +180,7 @@ function aiDemo() {
   return s.render(548, "An AI coding agent builds a small online shop with Flisk and runs it locally");
 }
 
-function cliDemo() {
+export function cliDemo() {
   const s = new Scene({ width: 900, title: "Terminal  ·  ~/my-shop", duration: 18 });
   const x = 28;
   const size = 14;
@@ -228,6 +232,12 @@ function cliDemo() {
   return s.render(y + 14, "Four flisk commands create a project, an API, and a website, then start them");
 }
 
-writeFileSync(outFile("demo-ai.svg"), aiDemo());
-writeFileSync(outFile("demo-cli.svg"), cliDemo());
-console.log("wrote docs/assets/demo-ai.svg and docs/assets/demo-cli.svg");
+export function main() {
+  writeFileSync(outFile("demo-ai.svg"), aiDemo());
+  writeFileSync(outFile("demo-cli.svg"), cliDemo());
+  console.log("wrote docs/assets/demo-ai.svg and docs/assets/demo-cli.svg");
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

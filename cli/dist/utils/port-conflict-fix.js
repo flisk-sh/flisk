@@ -9,7 +9,10 @@ export function conflictPort(message) {
     // The raw Docker error can reach the report when the readiness check fails before the summary runs.
     const match = message.match(/^host port (\d+) is already allocated$/) ??
         message.match(/Bind for [^ ]+:(\d+) failed: port is already allocated/i);
-    return match ? Number(match[1]) : null;
+    if (!match)
+        return null;
+    const [, port] = match;
+    return port ? Number(port) : null;
 }
 /**
  * The next step for a host port another process already holds. When the occupant is known it is named; otherwise the

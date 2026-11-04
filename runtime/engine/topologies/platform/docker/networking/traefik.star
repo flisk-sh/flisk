@@ -12,6 +12,7 @@ load(
     "TRAEFIK_PROJECT_API_HOST",
     "TRAEFIK_DOCKER_NETWORK",
     "TRAEFIK_ENABLE_LABEL",
+    "TRAEFIK_PROJECT_LABEL",
     "TRAEFIK_FRONTEND_ENABLE_HTTP",
     "TRAEFIK_FRONTEND_ENABLE_HTTPS",
     "TRAEFIK_FRONTEND_PRIORITY_BASE",
@@ -27,6 +28,8 @@ load(
 )
 load("./traefik_helpers.star",
     "backend_rule",
+    "byo_ui_host",
+    "byo_web_ui",
     "build_entrypoints",
     "cli_api_path",
     "frontend_rule",
@@ -107,6 +110,7 @@ def get_frontend_traefik_labels(res_name, domain, base_path, port, traefik_host=
 """.format(router_name=router_name, middlewares=middlewares)
 
     labels = """        - "{traefik_enable_label}"
+        - "{traefik_project_label}"
         - 'traefik.http.routers.{router_name}.rule={frontend_route_rule}'
         - "traefik.http.routers.{router_name}.entrypoints={frontend_entrypoints}"
         - "traefik.http.routers.{router_name}.priority={router_priority}"
@@ -114,6 +118,7 @@ def get_frontend_traefik_labels(res_name, domain, base_path, port, traefik_host=
         - "traefik.docker.network={traefik_network}\"""".format(
         router_name=router_name,
         traefik_enable_label=TRAEFIK_ENABLE_LABEL,
+        traefik_project_label=TRAEFIK_PROJECT_LABEL,
         frontend_route_rule=frontend_route_rule,
         frontend_entrypoints=frontend_entrypoints,
         middleware_labels=middleware_labels,
@@ -145,6 +150,111 @@ def _explicit_backend_route(manifest):
     return traefik_cfg.get('host') or '', traefik_cfg.get('pathPrefix') or ''
 
 
+def _byo_web_ui_labels(resource_entry_name, traefik_resource_name, internal_port, health_path, manifest):
+    """Traefik labels for a bring-your-own web UI (`webUi: true`, #2997): one router on Host(`<name>.<project>.localhost`).
+
+    No path prefix is matched or stripped, so the app serves its pages and assets from `/` as it does without Flisk. There is no
+    /api/<name> router: that path cannot serve a page. An explicit `traefik.host` is an extra host name for the same router.
+    """
+    router_name = traefik_scoped_name(resource_entry_name)
+    service_name = traefik_scoped_name(traefik_resource_name)
+    explicit_host, _ = _explicit_backend_route(manifest)
+    rule = "Host(`{}`)".format(byo_ui_host(traefik_resource_name))
+    if explicit_host:
+        rule += " || Host(`{}`)".format(explicit_host)
+    entrypoints = build_entrypoints(TRAEFIK_BACKEND_ENABLE_HTTP, TRAEFIK_BACKEND_ENABLE_HTTPS)
+
+    middlewares = ""
+    if 'maintenance' in manifest.get('featuresEnabled', []):
+        middlewares += ",maintenance@file"
+    sablier_middleware, sablier_enabled = sablier_middleware_suffix(manifest, resource_entry_name)
+    middlewares = (middlewares + sablier_middleware).lstrip(",")
+    middleware_labels = ""
+    if middlewares:
+        middleware_labels = '      - "traefik.http.routers.{}.middlewares={}"\n'.format(router_name, middlewares)
+
+    healthcheck_labels = ""
+    if health_path:
+        healthcheck_labels = """      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.path={health_path}"
+      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.interval={health_interval}"
+      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.timeout={health_timeout}"
+      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.followredirects=false"
+""".format(
+            service_name=service_name,
+            health_path=health_path,
+            health_interval=TRAEFIK_HEALTHCHECK_INTERVAL,
+            health_timeout=TRAEFIK_HEALTHCHECK_TIMEOUT,
+        )
+
+    labels = """      - "{enable}"
+      - "{project_label}"
+      - "traefik.http.routers.{router_name}.rule={rule}"
+      - "traefik.http.routers.{router_name}.entrypoints={entrypoints}"
+      - "traefik.http.routers.{router_name}.service={service_name}"
+{middleware_labels}      - "traefik.http.services.{service_name}.loadbalancer.server.port={internal_port}"
+{healthcheck_labels}      - "traefik.docker.network={network}"
+""".format(
+        enable=TRAEFIK_ENABLE_LABEL,
+        project_label=TRAEFIK_PROJECT_LABEL,
+        router_name=router_name,
+        rule=rule,
+        entrypoints=entrypoints,
+        service_name=service_name,
+        middleware_labels=middleware_labels,
+        internal_port=internal_port,
+        healthcheck_labels=healthcheck_labels,
+        network=TRAEFIK_DOCKER_NETWORK,
+    )
+    if sablier_enabled:
+        labels += sablier_container_labels(manifest, resource_entry_name, "      ")
+    return labels
+
+
+def _regex_literal(path):
+    """`path` as a Go regexp literal for a Traefik label: every character that is not a letter, digit, `/`, `-` or `_` goes
+    in a one-character class (`[.]`, `[+]`), so an `apiPath` such as `/api/a+b` matches itself. A class rather than a
+    backslash, because a backslash is an escape in a YAML string. `$` is left out: Compose would read it as a variable.
+    """
+    out = ""
+    for ch in path.elems():
+        if ch.isalnum() or ch in "/-_":
+            out += ch
+        elif ch == "$":
+            fail("apiPath may not contain '$': " + path)
+        elif ch in "]^\\":
+            out += "[\\" + ch + "]"
+        else:
+            out += "[" + ch + "]"
+    return out
+
+
+def _trailing_slash_redirect_labels(router_name, service_name, api_path, entrypoints, base_priority):
+    """A GET/HEAD to the bare `/api/<name>` redirects to `/api/<name>/` (bring-your-own services only).
+
+    The `-project` router strips `/api/<name>`, so a page served at the bare prefix resolves its relative links (`./`,
+    `static/app.css`) against `/api/`, where nothing is routed: the form posts 404 and the assets never load. A browser
+    that lands on `/api/<name>/` resolves them under the prefix. Only GET and HEAD redirect, so an API client's POST to
+    the bare path still reaches the service unchanged; the query string is kept.
+    """
+    return """
+      - "traefik.http.routers.{router_name}-slash.rule=Host(`{api_host}`) && Path(`{api_path}`) && (Method(`GET`) || Method(`HEAD`))"
+      - "traefik.http.routers.{router_name}-slash.entrypoints={entrypoints}"
+      - "traefik.http.routers.{router_name}-slash.service={service_name}"
+      - "traefik.http.routers.{router_name}-slash.middlewares={router_name}-slash"
+      - "traefik.http.routers.{router_name}-slash.priority={priority}"
+      - "traefik.http.middlewares.{router_name}-slash.redirectregex.regex=^(https?://[^/?]+{path_regex})([?].*)?$$"
+      - "traefik.http.middlewares.{router_name}-slash.redirectregex.replacement=$${{1}}/$${{2}}"
+""".format(
+        router_name=router_name,
+        api_host=TRAEFIK_PROJECT_API_HOST,
+        api_path=api_path,
+        entrypoints=entrypoints,
+        service_name=service_name,
+        priority=base_priority + 1,
+        path_regex=_regex_literal(api_path),
+    )
+
+
 def get_backend_traefik_labels(
     resource_entry_name,
     traefik_host,
@@ -166,6 +276,15 @@ def get_backend_traefik_labels(
         traefik_cfg = manifest.get('traefik') or {}
         reject_unsafe_value(traefik_cfg.get('host'), 'traefik.host')
         reject_unsafe_value(traefik_cfg.get('pathPrefix'), 'traefik.pathPrefix')
+
+    if byo_web_ui(manifest):
+        return _byo_web_ui_labels(
+            resource_entry_name=resource_entry_name,
+            traefik_resource_name=traefik_resource_name,
+            internal_port=internal_port,
+            health_path=health_path,
+            manifest=manifest,
+        )
 
     backend_route_rule = backend_rule(traefik_host, traefik_path)
     backend_entrypoints = build_entrypoints(
@@ -238,11 +357,13 @@ def get_backend_traefik_labels(
         )
 
     labels = """      - "{traefik_enable_label}"
+      - "{traefik_project_label}"
 {backend_router_labels}      - "traefik.http.services.{service_name}.loadbalancer.server.port={internal_port}"
 {traefik_healthcheck_labels}      - "traefik.docker.network={traefik_network}"
 """.format(
         router_name=router_name,
         traefik_enable_label=TRAEFIK_ENABLE_LABEL,
+        traefik_project_label=TRAEFIK_PROJECT_LABEL,
         backend_router_labels=backend_router_labels,
         service_name=service_name,
         internal_port=internal_port,
@@ -289,6 +410,9 @@ def get_backend_traefik_labels(
             api_path=api_path,
             router_priority=router_priority,
         )
+
+        if manifest.get("appType") == "bring-your-own":
+            labels += _trailing_slash_redirect_labels(router_name, service_name, api_path, project_entrypoints, router_priority)
 
         if management_path and management_path != api_path and not stack_shared:
             labels += """

@@ -4,10 +4,11 @@
 
 ## Start here
 
+- **[Quickstart](quickstart.md)**: get a running stack in 3 commands (demo, manual, or guided)
 - [Flisk 101](101/README.md): a 13-lab course from an empty folder to a running stack, with an AI-agent prompt in every lab
 - [Run one backend locally](../examples/one-backend/README.md)
 - [Run one Python backend locally](../examples/one-backend-python/README.md)
-- [Full multi-service example](../examples/tdk-example/README.md)
+- [Full multi-service example](../examples/flisk-example/README.md)
 - [Mega cheat sheet](cheat-sheet.md): every `flisk` command, alias and flag
 - [Configuration and editor schemas](configuration.md)
 - [Resource features](resource-features.md): code generators, Prisma, and `featuresEnabled`
@@ -15,7 +16,7 @@
 - [Environment, params and secrets](environment.md): the project `.env`, `params`, `secrets` and auth
 - [Operator runbook](operator-runbook.md): install matrix, version minimums, releases, license key
 - [Install from GitHub Packages](github-packages.md): `~/.npmrc` setup when you install from GitHub instead of npm
-- [Release operations](releasing.md): cut, verify and repair a CLI release; GitHub Packages backfill; unscoped npm package
+- [Release operations](releasing.md): cut, verify and repair a CLI release; GitHub Packages backfill; why there is no unscoped npm package
 - [WSL2 setup](wsl2.md)
 - [Windows hardware checks](windows-hardware.md): what the Windows e2e suites cover, what a real Windows machine adds, and how to run them
 - [Native Windows runtime decision](design/native-windows-runtime-decision.md): RFC #1757 evaluation, blocker spike, maintainers' decision, and acceptance matrix
@@ -43,6 +44,7 @@
 - [Running Flisk in CI](ci.md): a GitHub Actions workflow for your repository: `flisk config verify`, then `flisk up` and a health wait
 - [Gradual adoption](gradual-adoption.md): what Flisk adds to an existing repository, what to commit, and how to remove it
 - [Troubleshooting](troubleshooting.md): flisk and Tilt messages as printed, with cause, fix and how each was checked
+- [Troubleshoot Docker layers](troubleshoot-docker-layers.md): overview of golden image layers (L1–L4), identifying build failures, and rebuild methods
 - [Troubleshoot L1 (base image)](troubleshoot-l1.md): Docker build failures in the foundational OS and Bun runtime layer
 - [Troubleshoot L2 (dependency layer)](troubleshoot-l2.md): Docker build failures in package manifests, lockfiles, and dependency caching
 - [Leaving Flisk](leaving-flisk.md): what `flisk eject` really does, what stays usable without Flisk, what you lose

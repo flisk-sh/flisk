@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import {
   checkDiskSpace,
+  DISK_FAIL_GIB,
   DISK_SPACE_CHECK,
+  DISK_WARN_GIB,
   DOCKER_DESKTOP_STUCK_FIX,
   dockerDesktopStuck,
 } from "../doctor-host.js";
@@ -20,7 +22,13 @@ describe("checkDiskSpace", () => {
     expect(result).toMatchObject({ name: DISK_SPACE_CHECK, didPass: false });
     expect(result.isWarning).toBeUndefined();
     expect(result.message).toMatch(/1\.9 GB free/);
-    expect(result.fix).toMatch(/docker system prune -af/);
+    // The safe build-cache cleanup comes first; the image-deleting prune is only the labelled last resort.
+    const fix = result.fix ?? "";
+    expect(fix.indexOf("docker builder prune -f")).toBeGreaterThan(-1);
+    expect(fix.indexOf("docker builder prune -f")).toBeLessThan(
+      fix.indexOf("docker system prune -af"),
+    );
+    expect(fix).toMatch(/last resort/);
   });
 
   it("handles boundary at exactly 2 GB as a warning rather than a failure", () => {
@@ -112,5 +120,13 @@ describe("dockerDesktopStuck", () => {
   it("defaults to process.platform when platform argument is omitted", () => {
     const result = dockerDesktopStuck(false);
     expect(result).toBeNull();
+  });
+});
+
+describe("disk space thresholds", () => {
+  it("pins failure and warning thresholds and enforces ordering", () => {
+    expect(DISK_FAIL_GIB).toBe(2);
+    expect(DISK_WARN_GIB).toBe(10);
+    expect(DISK_FAIL_GIB).toBeLessThan(DISK_WARN_GIB);
   });
 });

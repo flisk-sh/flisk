@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { portFromEnv } from "../utils/generated-port.js";
 import { fastifyBackendProvider, getFastifyIndexTemplate } from "./fastify.js";
 
 describe("fastifyBackendProvider", () => {
@@ -43,7 +44,7 @@ describe("getFastifyIndexTemplate", () => {
   });
 
   it("binds to host 0.0.0.0 and port from environment", () => {
-    expect(template).toContain("const port = Number(process.env.PORT || 3000);");
+    expect(template).toContain(portFromEnv());
     expect(template).toContain("await app.listen({ port, host: '0.0.0.0' });");
   });
 

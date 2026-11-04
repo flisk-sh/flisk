@@ -1,19 +1,35 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { EventEmitter } from "node:events";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  spawn: vi.fn(),
+}));
+
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  spawn: (...args: unknown[]) => mocks.spawn(...args),
+}));
+
+import { createTempDir, runCommandInProcess } from "../../test-support/index.js";
 import {
   buildForwardedImportArgs,
   checkCoreVersion,
   compareSemver,
+  composeCommand,
   IMPORT_PACKAGE,
   importCommand,
+  importFailure,
   importInvocation,
+  importReport,
   isVersionAtLeast,
   MIN_CORE_VERSION,
+  nonInteractiveRefusal,
   parseSemver,
   RECOMMENDED_CORE_VERSION,
   runImport,
+  runImportCaptured,
 } from "../import.js";
 
 function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
@@ -30,6 +46,16 @@ function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
 }
 
 describe("flisk import", () => {
+  // These runs stand for a person at a terminal; a run without one is refused (see "flisk import without a terminal").
+  const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  beforeAll(() => {
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+  });
+  afterAll(() => {
+    if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+  });
+
   it("forwards every argument, including flags, to flisk-import", () => {
     const inv = importInvocation([".", "--dry-run", "--force"], {}, "linux");
     expect(inv).toEqual({
@@ -156,6 +182,25 @@ describe("flisk import", () => {
         "--force",
       ]);
     });
+
+    it("strips the compose subcommand keyword from forwarded positional arguments", () => {
+      expect(buildForwardedImportArgs(["compose", "./services"])).toEqual(["./services"]);
+      expect(buildForwardedImportArgs(["compose", "./services"], { dryRun: true })).toEqual([
+        "./services",
+        "--dry-run",
+      ]);
+      expect(
+        buildForwardedImportArgs(["compose", "./services"], { yes: true, force: true }),
+      ).toEqual(["./services", "--yes", "--force"]);
+      expect(buildForwardedImportArgs(["compose"])).toEqual([]);
+      expect(buildForwardedImportArgs(["compose"], { dryRun: true })).toEqual(["--dry-run"]);
+      expect(buildForwardedImportArgs(["compose", "-y", "-f", "./services"])).toEqual([
+        "./services",
+        "--yes",
+        "--force",
+      ]);
+      expect(buildForwardedImportArgs(["compose", "./compose"])).toEqual(["./compose"]);
+    });
   });
 
   describe("importCommand CLI argument parsing and execution", () => {
@@ -167,31 +212,116 @@ describe("flisk import", () => {
       { commandArgs: ["-y", ".", "-f"], expectedForwarded: [".", "--yes", "--force"] },
       { commandArgs: [".", "-y", "-f"], expectedForwarded: [".", "--yes", "--force"] },
       { commandArgs: ["--force", "--yes", "."], expectedForwarded: [".", "--yes", "--force"] },
+      { commandArgs: ["compose", "."], expectedForwarded: ["."] },
+      { commandArgs: ["compose", "./services"], expectedForwarded: ["./services"] },
+      { commandArgs: ["compose", "--yes", "."], expectedForwarded: [".", "--yes"] },
+      { commandArgs: ["compose", ".", "-y"], expectedForwarded: [".", "--yes"] },
+      { commandArgs: ["compose", "--force", "."], expectedForwarded: [".", "--force"] },
+      { commandArgs: ["compose", ".", "-f"], expectedForwarded: [".", "--force"] },
+      { commandArgs: ["compose", "-y", ".", "-f"], expectedForwarded: [".", "--yes", "--force"] },
+      { commandArgs: ["compose", "--dry-run"], expectedForwarded: ["--dry-run"] },
+      {
+        commandArgs: ["compose", "./services", "--dry-run"],
+        expectedForwarded: ["./services", "--dry-run"],
+      },
+      {
+        commandArgs: ["--dry-run", "compose", "./services"],
+        expectedForwarded: ["./services", "--dry-run"],
+      },
+      { commandArgs: ["compose"], expectedForwarded: [] },
     ])(
       "normalizes flags regardless of position or alias for $commandArgs",
       async ({ commandArgs, expectedForwarded }) => {
         importCommand.setOptionValue("yes", false);
         importCommand.setOptionValue("force", false);
+        importCommand.setOptionValue("dryRun", false);
+        composeCommand.setOptionValue("yes", false);
+        composeCommand.setOptionValue("force", false);
+        composeCommand.setOptionValue("dryRun", false);
 
         const { calls, spawnFn } = fakeSpawn({ code: 0 });
-        const argsParsed: string[] = [];
-        const optsParsed: { yes?: boolean; force?: boolean } = {};
+        mocks.spawn.mockImplementation(spawnFn);
+        const prevExitCode = process.exitCode;
 
-        // Parse using commander instance to extract args and options
-        const testCmd = importCommand.action(async (args, options) => {
-          argsParsed.push(...args);
-          Object.assign(optsParsed, options);
-          const forwarded = buildForwardedImportArgs(args, options);
-          await runImport(forwarded, spawnFn, () => "1.3.183");
+        try {
+          await importCommand.parseAsync(["node", "flisk", ...commandArgs], { from: "node" });
+
+          expect(calls).toHaveLength(1);
+          const spawnedArgs = calls[0]?.[1] as string[];
+          expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
+        } finally {
+          mocks.spawn.mockReset();
+          process.exitCode = prevExitCode;
+        }
+      },
+    );
+  });
+
+  describe("flisk import compose subcommand", () => {
+    it("registers compose as a subcommand of import", () => {
+      const sub = importCommand.commands.find((c) => c.name() === "compose");
+      expect(sub).toBeDefined();
+      expect(sub).toBe(composeCommand);
+    });
+
+    it("registers -y/--yes, -f/--force, --dry-run, and --json on compose subcommand", () => {
+      const yesOpt = composeCommand.options.find((o) => o.long === "--yes");
+      expect(yesOpt?.short).toBe("-y");
+      const forceOpt = composeCommand.options.find((o) => o.long === "--force");
+      expect(forceOpt?.short).toBe("-f");
+      expect(composeCommand.options.find((o) => o.long === "--dry-run")).toBeDefined();
+      expect(composeCommand.options.find((o) => o.long === "--json")).toBeDefined();
+    });
+
+    it("leaves --help to flisk-import", () => {
+      expect(composeCommand.options.find((o) => o.long === "--help")).toBeUndefined();
+    });
+
+    it("forwards arguments and dry-run when executed directly through composeCommand", async () => {
+      composeCommand.setOptionValue("yes", false);
+      composeCommand.setOptionValue("force", false);
+      composeCommand.setOptionValue("dryRun", false);
+
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const prevExitCode = process.exitCode;
+
+      try {
+        await composeCommand.parseAsync(["node", "flisk", "compose", "./legacy", "--dry-run"], {
+          from: "node",
         });
-
-        await testCmd.parseAsync(["node", "flisk", ...commandArgs], { from: "node" });
 
         expect(calls).toHaveLength(1);
         const spawnedArgs = calls[0]?.[1] as string[];
-        expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
-      },
-    );
+        expect(spawnedArgs.slice(2)).toEqual(["./legacy", "--dry-run"]);
+      } finally {
+        mocks.spawn.mockReset();
+        process.exitCode = prevExitCode;
+      }
+    });
+
+    it("forwards empty arguments when executed directly through composeCommand without dir", async () => {
+      composeCommand.setOptionValue("yes", false);
+      composeCommand.setOptionValue("force", false);
+      composeCommand.setOptionValue("dryRun", false);
+
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const prevExitCode = process.exitCode;
+
+      try {
+        await composeCommand.parseAsync(["node", "flisk", "compose"], {
+          from: "node",
+        });
+
+        expect(calls).toHaveLength(1);
+        const spawnedArgs = calls[0]?.[1] as string[];
+        expect(spawnedArgs.slice(2)).toEqual([]);
+      } finally {
+        mocks.spawn.mockReset();
+        process.exitCode = prevExitCode;
+      }
+    });
   });
 
   describe("core version gate", () => {
@@ -330,9 +460,13 @@ describe("flisk import", () => {
 
       // Prerelease identifiers comparison
       expect(compareSemver("1.0.0-alpha", "1.0.0-beta")).toBe(-1);
+      expect(compareSemver("1.0.0-beta", "1.0.0-alpha")).toBe(1);
       expect(compareSemver("1.0.0-1", "1.0.0-2")).toBe(-1);
+      expect(compareSemver("1.0.0-2", "1.0.0-1")).toBe(1);
       expect(compareSemver("1.0.0-1", "1.0.0-alpha")).toBe(-1); // numeric has lower precedence than string
+      expect(compareSemver("1.0.0-alpha", "1.0.0-1")).toBe(1); // string has higher precedence than numeric
       expect(compareSemver("1.0.0-alpha.1", "1.0.0-alpha")).toBe(1);
+      expect(compareSemver("1.0.0-alpha", "1.0.0-alpha.1")).toBe(-1); // fewer prerelease components has lower precedence
 
       // Invalid inputs return null
       expect(compareSemver("invalid", "1.0.0")).toBeNull();
@@ -343,5 +477,320 @@ describe("flisk import", () => {
       expect(isVersionAtLeast(RECOMMENDED_CORE_VERSION, MIN_CORE_VERSION)).toBe(true);
       expect(compareSemver(RECOMMENDED_CORE_VERSION, MIN_CORE_VERSION)).toBe(1);
     });
+  });
+});
+
+/** A spawn double whose child prints `stdout` and `stderr` through pipes, then closes with `code` (or fails to start). */
+function fakeCapturedSpawn(outcome: {
+  code?: number | null;
+  stdout?: string;
+  stderr?: string;
+  error?: Error;
+}) {
+  const calls: unknown[][] = [];
+  const spawnFn = ((command: string, args: string[], options: unknown) => {
+    calls.push([command, args, options]);
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new EventEmitter(),
+      stderr: new EventEmitter(),
+    });
+    queueMicrotask(() => {
+      if (outcome.error) {
+        child.emit("error", outcome.error);
+        return;
+      }
+      if (outcome.stdout) child.stdout.emit("data", Buffer.from(outcome.stdout));
+      if (outcome.stderr) child.stderr.emit("data", Buffer.from(outcome.stderr));
+      child.emit("close", outcome.code);
+    });
+    return child;
+  }) as never;
+  return { calls, spawnFn };
+}
+
+const IMPORTER_OUTPUT = [
+  "Plan for ./legacy (stack legacy):",
+  "  api   create  services/legacy/api/service.json",
+  "  wrote services/legacy/api/service.json",
+  "  wrote services/legacy/worker/service.json",
+  "",
+  "Wrote 2 service.json file(s).",
+  "",
+].join("\n");
+
+describe("flisk import --json", () => {
+  it("runs the importer with piped output and no stdin, and resolves to what it printed", async () => {
+    const { calls, spawnFn } = fakeCapturedSpawn({ code: 0, stdout: "out", stderr: "err" });
+    expect(await runImportCaptured([".", "--yes"], spawnFn, () => "1.3.200")).toEqual({
+      exitCode: 0,
+      stdout: "out",
+      stderr: "err",
+    });
+    expect((calls[0]?.[2] as { stdio: unknown } | undefined)?.stdio).toEqual([
+      "ignore",
+      "pipe",
+      "pipe",
+    ]);
+  });
+
+  it("reports the core version gate and a missing npx as runs, not throws", async () => {
+    const gate = fakeCapturedSpawn({ code: 0 });
+    const refused = await runImportCaptured([".", "--yes"], gate.spawnFn, () => "1.3.100");
+    expect(refused.exitCode).toBe(1);
+    expect(refused.stderr).toContain("flisk upgrade");
+    expect(gate.calls).toHaveLength(0);
+
+    const missing = fakeCapturedSpawn({ error: new Error("ENOENT") });
+    const run = await runImportCaptured(["."], missing.spawnFn, () => "1.3.200");
+    expect(run.exitCode).toBe(127);
+    expect(run.stderr).toContain("could not run npx (ENOENT)");
+    expect(
+      (await runImportCaptured(["."], fakeCapturedSpawn({ code: null }).spawnFn)).exitCode,
+    ).toBe(1);
+  });
+
+  it("forwards a parsed --dry-run once", () => {
+    expect(buildForwardedImportArgs(["./legacy"], { dryRun: true, yes: true })).toEqual([
+      "./legacy",
+      "--dry-run",
+      "--yes",
+    ]);
+    expect(buildForwardedImportArgs(["--dry-run", "./legacy"], { dryRun: true })).toEqual([
+      "--dry-run",
+      "./legacy",
+    ]);
+  });
+
+  it("reads the written files from the importer's 'wrote' lines", () => {
+    expect(
+      importReport(["./legacy", "--yes", "--force"], {
+        exitCode: 0,
+        stdout: IMPORTER_OUTPUT,
+        stderr: "",
+      }),
+    ).toEqual({
+      dir: "./legacy",
+      dryRun: false,
+      force: true,
+      written: ["services/legacy/api/service.json", "services/legacy/worker/service.json"],
+      output: IMPORTER_OUTPUT.trim(),
+    });
+    expect(
+      importReport(["--dry-run", "--yes"], {
+        exitCode: 0,
+        stdout: "Dry run: nothing written.",
+        stderr: "",
+      }),
+    ).toMatchObject({ dir: ".", dryRun: true, written: [] });
+  });
+
+  it("turns a failed run into IMPORT_FAILED with the importer's message, hints and exit code", () => {
+    const error = importFailure({
+      exitCode: 2,
+      stdout: "",
+      stderr: "Error: docker-compose.yml is not valid YAML\n  -> Fix line 3\n",
+    });
+    expect(error).toMatchObject({
+      code: "IMPORT_FAILED",
+      message: "docker-compose.yml is not valid YAML",
+      suggestions: ["Fix line 3"],
+      exitCode: 2,
+    });
+    expect(
+      importFailure({
+        exitCode: 1,
+        stdout: "Plan\nNothing to import: no service in docker-compose.yml could be mapped.\n",
+        stderr: "",
+      }).message,
+    ).toBe("Nothing to import: no service in docker-compose.yml could be mapped.");
+    expect(importFailure({ exitCode: 127, stdout: "", stderr: "" })).toMatchObject({
+      message: "flisk-import exited with code 127",
+      suggestions: [expect.stringContaining("npx")],
+    });
+  });
+
+  describe("the command", () => {
+    // In-process runs keep Commander's option values, so each case resets the ones it sets.
+    const reset = () => {
+      for (const name of ["yes", "force", "dryRun", "json"]) {
+        importCommand.setOptionValue(name, false);
+        composeCommand.setOptionValue(name, false);
+      }
+    };
+
+    it("prints one envelope with what the importer wrote and implies --yes", async () => {
+      reset();
+      const { calls, spawnFn } = fakeCapturedSpawn({ code: 0, stdout: IMPORTER_OUTPUT });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["./legacy", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBeUndefined();
+        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["./legacy", "--yes"]);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: {
+            dir: "./legacy",
+            dryRun: false,
+            force: false,
+            written: ["services/legacy/api/service.json", "services/legacy/worker/service.json"],
+            output: IMPORTER_OUTPUT.trim(),
+          },
+          errors: [],
+        });
+        // The importer's text is for a person: it goes to stderr.
+        expect(result.stderr).toContain("Wrote 2 service.json file(s).");
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
+    });
+
+    it("prints an IMPORT_FAILED envelope and exits with the importer's code", async () => {
+      reset();
+      const { spawnFn } = fakeCapturedSpawn({
+        code: 1,
+        stdout: "Nothing to import: no service in docker-compose.yml could be mapped.\n",
+      });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["--dry-run", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBe(1);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: null,
+          errors: [
+            {
+              code: "IMPORT_FAILED",
+              message: "Nothing to import: no service in docker-compose.yml could be mapped.",
+              suggestions: [
+                "Run `flisk import --dry-run` to see the plan without writing anything",
+              ],
+            },
+          ],
+        });
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
+    });
+
+    it("prints JSON envelope when running compose subcommand with --json", async () => {
+      reset();
+      const { calls, spawnFn } = fakeCapturedSpawn({ code: 0, stdout: IMPORTER_OUTPUT });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["compose", "./legacy", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBeUndefined();
+        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["./legacy", "--yes"]);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: {
+            dir: "./legacy",
+            dryRun: false,
+            force: false,
+            written: ["services/legacy/api/service.json", "services/legacy/worker/service.json"],
+            output: IMPORTER_OUTPUT.trim(),
+          },
+          errors: [],
+        });
+        expect(result.stderr).toContain("Wrote 2 service.json file(s).");
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
+    });
+
+    it("prints JSON envelope for compose --dry-run --json without dir argument", async () => {
+      reset();
+      const { calls, spawnFn } = fakeCapturedSpawn({
+        code: 0,
+        stdout: "Dry run: nothing written.",
+      });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["compose", "--dry-run", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBeUndefined();
+        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["--dry-run", "--yes"]);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: {
+            dir: ".",
+            dryRun: true,
+            force: false,
+            written: [],
+            output: "Dry run: nothing written.",
+          },
+          errors: [],
+        });
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
+    });
+  });
+});
+
+describe("flisk import without a terminal", () => {
+  it("refuses a run that would write, instead of exiting 0 with nothing written", () => {
+    const message = nonInteractiveRefusal(["."], "flisk import", false);
+    expect(message).toContain("nothing was written");
+    expect(message).toContain("flisk import --dry-run");
+    expect(message).toContain("flisk import --yes");
+  });
+
+  it.each([["--yes"], ["--dry-run"], ["--help"]])("lets %s through: it needs no answer", (flag) => {
+    expect(nonInteractiveRefusal([".", flag], "flisk import", false)).toBeNull();
+  });
+
+  it.each([
+    [["."], false, 1],
+    [[".", "--dry-run"], true, 0],
+    [[".", "--yes"], true, 0],
+  ])(
+    "flisk import %j without a terminal: importer spawned %s, exit %i",
+    async (args, spawned, exitCode) => {
+      for (const name of ["yes", "force", "dryRun", "json"])
+        importCommand.setOptionValue(name, false);
+      const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+      Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      const previousExitCode = process.exitCode;
+      try {
+        process.exitCode = undefined;
+        await importCommand.parseAsync(["node", "flisk", ...args], { from: "node" });
+
+        expect(calls.length > 0).toBe(spawned);
+        expect(process.exitCode ?? 0).toBe(exitCode);
+        if (!spawned) expect(err.mock.calls.flat().join("\n")).toContain("nothing was written");
+      } finally {
+        process.exitCode = previousExitCode;
+        err.mockRestore();
+        mocks.spawn.mockReset();
+        if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+        else delete (process.stdin as { isTTY?: boolean }).isTTY;
+      }
+    },
+  );
+
+  it("asks as before in a terminal", () => {
+    expect(nonInteractiveRefusal(["."], "flisk import", true)).toBeNull();
   });
 });

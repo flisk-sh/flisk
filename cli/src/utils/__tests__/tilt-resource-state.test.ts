@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { effectiveRuntimeStatus, isTiltResourcePending } from "../tilt-resource-state.js";
+import {
+  effectiveRuntimeStatus,
+  isNeverStarted,
+  isTiltResourcePending,
+} from "../tilt-resource-state.js";
 
 describe("isTiltResourcePending", () => {
   it.each([
@@ -22,6 +26,42 @@ describe("isTiltResourcePending", () => {
     ["error", "ok"],
   ])("does not treat update=%s runtime=%s as pending", (update, runtime) => {
     expect(isTiltResourcePending(update, runtime)).toBe(false);
+  });
+});
+
+describe("isNeverStarted", () => {
+  // Shape of a redis resource with auto_init=False: Tilt lists it with both statuses none and nothing queued or deployed.
+  it("treats a resource never built or deployed as not waiting on anything", () => {
+    expect(
+      isNeverStarted({
+        updateStatus: "none",
+        runtimeStatus: "none",
+        lastDeployTime: null,
+        pendingBuildSince: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps a resource with a queued build pending", () => {
+    expect(
+      isNeverStarted({
+        updateStatus: "none",
+        runtimeStatus: "none",
+        lastDeployTime: null,
+        pendingBuildSince: "2026-11-02T07:41:50Z",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps a resource that has deployed before pending", () => {
+    expect(
+      isNeverStarted({
+        updateStatus: "none",
+        runtimeStatus: "none",
+        lastDeployTime: "2026-11-02T07:41:50Z",
+        pendingBuildSince: null,
+      }),
+    ).toBe(false);
   });
 });
 

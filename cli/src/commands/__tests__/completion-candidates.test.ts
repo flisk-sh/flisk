@@ -412,6 +412,14 @@ describe("shell completion candidates", () => {
       expect(typeValuesOf(shell, "--framework", "backend"), shell).toEqual(
         Object.keys(BACKEND_FRAMEWORKS),
       );
+      expect(typeValuesOf(shell, "--framework", "database"), shell).toEqual([
+        "postgres",
+        "redis",
+        "qdrant",
+        "minio",
+        "mlflow",
+      ]);
+      expect(typeValuesOf(shell, "--framework", "queue"), shell).toEqual(["nats", "rabbitmq"]);
     }
   });
 

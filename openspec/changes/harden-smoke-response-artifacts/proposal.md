@@ -8,7 +8,7 @@ This change addresses issue [flisk#1771](https://github.com/flisk-sh/flisk/issue
 
 - Ensure `.flisk/smoke/` is ignored before smoke response records are written, independent of how the project or its `smoke` configuration was created. If the entry cannot be ensured, warn before writing the records.
 - Redact known project secrets from every smoke text sink: the stored body, the last-success copy, the printed failure snippet, and the URL and error text kept in the record.
-- Add `.flisk/smoke/` to `examples/tdk-example/.gitignore`.
+- Add `.flisk/smoke/` to `examples/flisk-example/.gitignore`.
 - Document the storage location, what redaction covers and its limits, how local records survive `flisk down` and can be deleted, and what CI publishes and for how long.
 - Add unit tests for ignore setup, for redaction in every sink, and for the redaction-failure path.
 
@@ -25,5 +25,5 @@ This change addresses issue [flisk#1771](https://github.com/flisk-sh/flisk/issue
 ## Impact
 
 - `cli/src/utils/smoke.ts` (the record writer, the failure line, and the dependency bag the runner takes), `cli/src/commands/up.ts` (where the plans, the record directory, and the redaction source are wired), and the shared ignore helper in `cli/src/utils/file-helpers.ts`.
-- `examples/tdk-example/.gitignore`, the smoke unit tests, `docs/smoke.md`, and `docs/configuration.md`.
+- `examples/flisk-example/.gitignore`, the smoke unit tests, `docs/smoke.md`, and `docs/configuration.md`.
 - No manifest or schema change; existing `smoke` blocks keep working. The 64 KiB cap, the record paths, the comparison files, the CI upload, and the 14-day retention stay as they are.

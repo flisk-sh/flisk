@@ -1,0 +1,583 @@
+{
+	"competitor": "dev-containers",
+	"rows": [
+		{
+			"id": "declarative-config-file",
+			"name": "Declarative environment config file",
+			"area": "environments",
+			"offer": "A checked-in devcontainer.json describes how the development container is built, configured and connected to.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"devcontainer.json",
+				"metadata"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk's checked-in file is a service.json per service; it describes the running services, not the developer toolchain.",
+				"evidence": [
+					{
+						"file": "docs/service-json.md"
+					},
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "bring-your-own"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "toolchain-from-image",
+			"name": "Toolchain from image or Dockerfile",
+			"area": "environments",
+			"offer": "The dev container is created from a registry image or a Dockerfile so every developer gets the same installed tools and versions.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"image",
+				"build.dockerfile",
+				"dockerfile"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Installing the developer toolchain is a decision left to Dev Containers or Devbox; Flisk only checks tools with flisk doctor and runs the services (docs/compare/dev-environments.md)."
+			}
+		},
+		{
+			"id": "features-install-units",
+			"name": "Features: shareable install units",
+			"area": "environments",
+			"offer": "Features are packaged install scripts plus config that add a tool or runtime to any dev container by referencing an id.",
+			"source": "https://containers.dev/implementors/features/",
+			"checked": "2026-10-27",
+			"match": [
+				"features",
+				"install.sh",
+				"devcontainer-feature.json"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Toolchain installation is out of scope by design; Flisk's own resource features (nats, prisma, redis) configure services, not developer machines."
+			}
+		},
+		{
+			"id": "templates-scaffold",
+			"name": "Templates to start a project",
+			"area": "environments",
+			"offer": "Pick a starting Template from a filterable index and the tool writes the dev container configuration files for you.",
+			"source": "https://code.visualstudio.com/docs/devcontainers/containers",
+			"checked": "2026-10-27",
+			"match": [
+				"template",
+				"add dev container configuration files"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk scaffolds services and whole starter stacks rather than editor container configs.",
+				"evidence": [
+					{
+						"command": "flisk project"
+					},
+					{
+						"command": "flisk resource"
+					},
+					{
+						"file": ".agents/skills/flisk-recipe-starters/SKILL.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "multiple-named-configs",
+			"name": "Several named configurations per repo",
+			"area": "environments",
+			"offer": "A repository can hold more than one devcontainer.json in sub-folders and the user picks which environment to open.",
+			"source": "https://containers.dev/implementors/spec/",
+			"checked": "2026-10-27",
+			"match": [
+				".devcontainer/<folder>/devcontainer.json",
+				"more than one location"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk selects among named stacks with flisk up [stack].",
+				"evidence": [
+					{
+						"command": "flisk stacks"
+					},
+					{
+						"command": "flisk up"
+					}
+				]
+			}
+		},
+		{
+			"id": "generate-devcontainer-config",
+			"name": "Generate a .devcontainer config",
+			"area": "environments",
+			"offer": "A command writes a ready dev container configuration into the project so any supporting editor or cloud host can open it.",
+			"source": "https://code.visualstudio.com/docs/devcontainers/containers",
+			"checked": "2026-10-27",
+			"match": [
+				"add dev container configuration files",
+				".devcontainer/devcontainer.json"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Flisk already detects devcontainer and Codespaces hosts and its starter has Codespaces/DevPod buttons, so scaffolding a config that installs flisk and reaches Docker fits the one-command story."
+			},
+			"acceptance": "flisk project writes .devcontainer/devcontainer.json (flisk install, Docker access, forwarded gateway port) and a test in cli/src/commands/__tests__ plus a docs/agent-hosts.md text proves it.",
+			"ice": {
+				"impact": 6,
+				"confidence": 6,
+				"ease": 5,
+				"basis": "Impact 6: Codespaces/DevPod users are a named launch path; confidence 6: the page documents the generator but not what users ask for; ease 5: cli/src/commands/project.ts already scaffolds files, but the container needs Docker access that must be designed."
+			}
+		},
+		{
+			"id": "terminal-in-container",
+			"name": "Shell inside a running service",
+			"area": "environments",
+			"offer": "Any terminal opened in the tool runs inside the container, so developers work with the same tools and runtime as the app.",
+			"source": "https://code.visualstudio.com/docs/devcontainers/containers",
+			"checked": "2026-10-27",
+			"match": [
+				"opening a terminal",
+				"terminal window you open"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "There is no flisk exec or shell for a service container or local-process service today, only logs and restart, and a one-command shell fits the debug loop for agents and people."
+			},
+			"acceptance": "A flisk exec <resource> command (or MCP tool) is in cli/src/commands and the command tree, with a test; evidence would be {command: 'flisk exec'}.",
+			"ice": {
+				"impact": 5,
+				"confidence": 5,
+				"ease": 5,
+				"basis": "Impact 5: debugging inside a service is common but docker exec works today; confidence 5: the source describes an editor terminal, so the CLI analogue is inferred; ease 5: cli/src/commands/logs.ts shows how to resolve a resource to a container, but local-process services have no container."
+			}
+		},
+		{
+			"id": "attach-running-container",
+			"name": "Attach editor to running container",
+			"area": "environments",
+			"offer": "The editor can connect to an already running Docker container and remember per-image settings, extensions and folders.",
+			"source": "https://code.visualstudio.com/docs/devcontainers/attach-container",
+			"checked": "2026-10-27",
+			"match": [
+				"attach to running container",
+				"attach to a docker container"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Editor integration is out of scope by design; Flisk works with any editor and leaves attaching to the editor's own Docker tooling."
+			}
+		},
+		{
+			"id": "editor-extensions-in-container",
+			"name": "Editor extensions installed in container",
+			"area": "integrations",
+			"offer": "Extension ids listed under customizations.vscode are installed inside the container when it is created.",
+			"source": "https://containers.dev/supporting",
+			"checked": "2026-10-27",
+			"match": [
+				"extensions",
+				"customizations",
+				"vscode"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "IDE integration is out of scope by design; Flisk does not ship an editor extension."
+			}
+		},
+		{
+			"id": "dotfiles-personalization",
+			"name": "Dotfiles applied to containers",
+			"area": "environments",
+			"offer": "The extension clones a personal dotfiles repository into every dev container so shell setup follows the developer.",
+			"source": "https://code.visualstudio.com/docs/devcontainers/containers",
+			"checked": "2026-10-27",
+			"match": [
+				"dotfiles",
+				"dotfiles repository"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Personal shell setup belongs to the developer's editor or toolchain layer, not to a service runtime."
+			}
+		},
+		{
+			"id": "compose-multi-container",
+			"name": "Multi-container via Docker Compose",
+			"area": "runtime",
+			"offer": "A dev container can reference Compose files and pick which services to start, instead of defining its own orchestrator.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"dockercomposefile",
+				"runservices",
+				"docker compose"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk generates the Compose and Tilt files itself from service.json, with one gateway in front.",
+				"evidence": [
+					{
+						"file": "docs/how-flisk-up-works.md"
+					},
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "behind one gateway"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "lifecycle-commands",
+			"name": "Lifecycle commands on create and start",
+			"area": "runtime",
+			"offer": "Hooks such as onCreateCommand, postCreateCommand and postStartCommand run setup scripts at defined moments of the container's life.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"oncreatecommand",
+				"postcreatecommand",
+				"poststartcommand"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk orders one-shot setup with migrator resources and dependsOn, but has no generic per-service on-create or post-start hook.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "migrator"
+						}
+					},
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "dependsOn"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "port-forwarding",
+			"name": "Port forwarding with attributes",
+			"area": "runtime",
+			"offer": "Ports are forwarded to the host with labels and a choice to notify, open the browser or stay silent when a port appears.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"forwardports",
+				"portsattributes",
+				"onautoforward"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk gives each service one gateway URL and flisk open launches it; there are no per-port label or auto-open options.",
+				"evidence": [
+					{
+						"command": "flisk open"
+					},
+					{
+						"command": "flisk status"
+					},
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "behind one gateway"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "headless-cli",
+			"name": "Create and run without an editor",
+			"area": "runtime",
+			"offer": "A reference command-line tool builds, starts and configures the dev container from devcontainer.json with no editor involved.",
+			"source": "https://containers.dev/supporting",
+			"checked": "2026-10-27",
+			"match": [
+				"dev container cli",
+				"create and configure a dev container"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk up"
+					},
+					{
+						"command": "flisk down"
+					},
+					{
+						"command": "flisk doctor"
+					}
+				]
+			}
+		},
+		{
+			"id": "ci-reuse",
+			"name": "Reuse the same environment in CI",
+			"area": "runtime",
+			"offer": "A GitHub Action and an Azure DevOps task run the repository's dev container in CI so local and CI builds match.",
+			"source": "https://containers.dev/overview",
+			"checked": "2026-10-27",
+			"match": [
+				"github action",
+				"azure devops task",
+				"continuous integration"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk documents a copy-paste GitHub Actions workflow, not a maintained Action or Azure DevOps task.",
+				"evidence": [
+					{
+						"file": "docs/ci.md"
+					},
+					{
+						"file": "docs/examples/ci/flisk-ci.yml"
+					}
+				]
+			}
+		},
+		{
+			"id": "prebuilt-images",
+			"name": "Prebuilt environment images",
+			"area": "runtime",
+			"offer": "The environment image is built once in CI, pushed to a registry with its configuration in a label, and reused so startup is fast.",
+			"source": "https://containers.dev/guide/prebuild",
+			"checked": "2026-10-27",
+			"match": [
+				"prebuild",
+				"devcontainer.metadata",
+				"container registry"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk layers golden base images for faster local builds but does not publish a shared prebuilt team image.",
+				"evidence": [
+					{
+						"text": {
+							"file": "AGENTS.md",
+							"contains": "golden image layering"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "rebuild-container",
+			"name": "Rebuild after config change",
+			"area": "runtime",
+			"offer": "A rebuild command re-creates the container so changes to the configuration take effect.",
+			"source": "https://containers.dev/supporting",
+			"checked": "2026-10-27",
+			"match": [
+				"rebuild container"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk live-updates containers while you code and restarts or regenerates when configuration changes.",
+				"evidence": [
+					{
+						"command": "flisk restart"
+					},
+					{
+						"command": "flisk config regenerate"
+					}
+				]
+			}
+		},
+		{
+			"id": "docker-in-docker",
+			"name": "Docker access from inside the container",
+			"area": "runtime",
+			"offer": "Features and the privileged and mounts properties let the dev container use Docker itself, for example docker-in-docker.",
+			"source": "https://containers.dev/implementors/features/",
+			"checked": "2026-10-27",
+			"match": [
+				"docker-in-docker",
+				"privileged",
+				"mounts"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk detects whether a container runtime is reachable from a devcontainer or Codespace but does not configure that access.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/agent-hosts.md",
+							"contains": "containerRuntimeReachable"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "remote-docker-host",
+			"name": "Containers on a remote host",
+			"area": "runtime",
+			"offer": "The extension can run containers on a remote Docker host reached over SSH or a tunnel while the editor stays local.",
+			"source": "https://code.visualstudio.com/docs/devcontainers/containers",
+			"checked": "2026-10-27",
+			"match": [
+				"remote ssh",
+				"remote tunnel",
+				"docker installed on a remote"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Remote editor sessions are editor integration and out of scope; Flisk is a local runtime on the machine with the repository."
+			}
+		},
+		{
+			"id": "hosted-cloud-environments",
+			"name": "Hosted Codespaces and cloud hosts",
+			"area": "integrations",
+			"offer": "The spec is supported by hosted services such as GitHub Codespaces and CodeSandbox that run the dev container in the cloud.",
+			"source": "https://containers.dev/supporting",
+			"checked": "2026-10-27",
+			"match": [
+				"github codespaces",
+				"codesandbox",
+				"cloud"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Hosted cloud workspaces are out of scope by design; Flisk only detects when it is running inside one (flisk doctor)."
+			}
+		},
+		{
+			"id": "host-requirements",
+			"name": "Declared minimum CPU and memory",
+			"area": "runtime",
+			"offer": "hostRequirements states minimum CPUs, memory, storage and GPU so tools warn or pick a bigger machine.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"hostrequirements",
+				"cpus",
+				"memory"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "A stack of many containers can silently starve a small Docker VM, so a declared minimum that flisk doctor checks fits Flisk's diagnostics role."
+			},
+			"acceptance": "service.json or the project config accepts a minimum memory/CPU and flisk doctor reports a pass or fail; evidence would be a text check in docs/service-json.md and a doctor test.",
+			"ice": {
+				"impact": 4,
+				"confidence": 5,
+				"ease": 5,
+				"basis": "Impact 4: it helps people on small Docker VMs but is not an asked-for launch feature; confidence 5: the spec is clear but the Docker VM memory source differs by platform; ease 5: cli/src/commands/doctor.ts already holds many checks, though no host-memory check exists yet."
+			}
+		},
+		{
+			"id": "container-privilege-options",
+			"name": "Capabilities and security options",
+			"area": "security",
+			"offer": "capAdd, securityOpt, privileged and init let a dev container add debugger capabilities such as SYS_PTRACE in a cross-orchestrator way.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"capadd",
+				"securityopt",
+				"sys_ptrace"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Debugging Go, Rust or C++ services inside containers needs ptrace, and a service.json passthrough would keep users from hand-editing generated Compose files, which AGENTS.md forbids."
+			},
+			"acceptance": "service.json documents capAdd/securityOpt fields in docs/service-json.md, the Compose generator emits them, and flisk config verify passes; evidence would be a text check on that doc.",
+			"ice": {
+				"impact": 4,
+				"confidence": 5,
+				"ease": 4,
+				"basis": "Impact 4: only debugger-in-container users need it; confidence 5: the spec property is clear, whether Flisk already passes it through was not found in docs; ease 4: touches the Starlark Compose generator and the schema in runtime/engine."
+			}
+		},
+		{
+			"id": "env-from-host-secrets",
+			"name": "Environment values from the host",
+			"area": "security",
+			"offer": "containerEnv and remoteEnv set variables and can read the host environment with localEnv substitution.",
+			"source": "https://containers.dev/implementors/json_reference/",
+			"checked": "2026-10-27",
+			"match": [
+				"containerenv",
+				"remoteenv",
+				"localenv"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/environment.md",
+							"contains": "Nothing secret is ever written to a generated file."
+						}
+					},
+					{
+						"file": "docs/environment.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "agent-readable-docs",
+			"name": "Docs written for coding agents",
+			"area": "agents",
+			"offer": "The VS Code docs point agents at an llms.txt and serve every article as Markdown by adding .md to its URL.",
+			"source": "https://code.visualstudio.com/docs/devcontainers/containers",
+			"checked": "2026-10-27",
+			"match": [
+				"llms.txt",
+				"ai agents",
+				"markdown"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "docs/agents/llms.txt"
+					},
+					{
+						"file": "docs/agents/llms-full.txt"
+					}
+				]
+			}
+		}
+	]
+}

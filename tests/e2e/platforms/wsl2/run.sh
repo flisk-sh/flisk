@@ -83,8 +83,8 @@ WS4() { # the existing WSL2 routed write smoke
 WS5() { # diagnostics for the artifact; runs even when a later step failed
   log "WS5 collect diagnostics"
   mkdir -p "$REPO_ROOT/wsl2-evidence"
-  if [ -f /root/flisk-smoke-work/tdk-example/up.log ]; then
-    cp /root/flisk-smoke-work/tdk-example/up.log "$REPO_ROOT/wsl2-evidence/up.log"
+  if [ -f /root/flisk-smoke-work/flisk-example/up.log ]; then
+    cp /root/flisk-smoke-work/flisk-example/up.log "$REPO_ROOT/wsl2-evidence/up.log"
   fi
   docker ps -a >"$REPO_ROOT/wsl2-evidence/containers.log" 2>&1 || true
   uname -a >"$REPO_ROOT/wsl2-evidence/kernel.log"

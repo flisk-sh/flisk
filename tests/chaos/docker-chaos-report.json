@@ -1,0 +1,1159 @@
+[
+  {
+    "id": "apiPath#0=\"api\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "apiPath#1=\"/a b\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "apiPath#2=\"/a;b\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "apiPath#3=7",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "appName#0=\"orders-api\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders-api\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appName#0=\"Orders\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#1=\"my service\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#1=\"orders2\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders2\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appName#10=\"ünï\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#11=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#12=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#13=\"orders__\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#14=\"\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#2=\"o\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"o\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appName#2=\"ORDERS_API\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#3=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appName#3=\"orders/api\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#4=\"-orders\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#4=\"orders-v2-x\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders-v2-x\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appName#5=\"orders--x\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders--x\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appName#5=\"orders-\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#6=\"orders.\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#7=\".orders\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#8=\"orders:tag\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appName#9=\"orders@sha\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appName: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 59 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appType#0=\"database\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appType#0=7",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appType: expected a string |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "appType#1=\"Backend\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appType#2=\"backend frontend\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appType=empty",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appType=null",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "baseline",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "basePath#0=\"/storefront\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "basePath#0=\"storefront\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "basePath#1=\"/a/b\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "basePath#1=\"/Store Front\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "basePath#2=\"/\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "basePath#2=\"/a b\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "basePath#3=\"/a;b\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "basePath#4=\"/A\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "basePath#5=\"/x/../y\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "build.context=..",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "build.dockerfile=../x",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "build.dockerfile=abs",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.build.dockerfile: must be a path relative to the service directory (no leading \"/\" or drive) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "build=null",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "build=string",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.build: expected an object |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "buildContext#0=\"..\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "buildContext#0=\"/\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.buildContext: must be a path relative to the service directory (no leading \"/\" or drive) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "buildContext#1=\"../..\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "buildContext#1=\"/etc\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.buildContext: must be a path relative to the service directory (no leading \"/\" or drive) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "buildContext#2=\"../../../\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "buildContext#3=\"src\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "databaseName=bad",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "databaseName=long",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.databaseName: at most 63 characters (a Postgres identifier) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "dependsOn=postgres",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "dependsOn=self",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json dependsOn \"orders\": circular dependency orders -> orders |   Fix: Remove one \"dependsOn\" entry in each cycle so the services no longer wait on each other, or move what they share into a third service",
+    "detail": []
+  },
+  {
+    "id": "dependsOn=string",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json dependsOn \"postgres\": expected an array of service names |   Fix: Write \"dependsOn\" as an array of service names, for example [\"postgres\", \"api\"]",
+    "detail": []
+  },
+  {
+    "id": "dependsOn=unicode",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"unknownDependsOn\":[{\"resource\":\"orders\",\"name\":\"ünï\"}],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "dev.command.newline",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "dev.command.quote",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "dev.liveReload=str",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.dev.liveReload: expected true or false |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "dev.watch.abs",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.dev.watch[0]: must be a path relative to the service directory (no leading \"/\" or drive) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "dev.watch.bad",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.dev.watch: expected an array of strings |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "dockerfile#0=\"../../../etc/passwd\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json dockerfile: no such file in the service directory |   Fix: Create the file, or remove \"dockerfile\" from service.json to use the generated Dockerfile",
+    "detail": []
+  },
+  {
+    "id": "dockerfile#1=\"/etc/passwd\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json dockerfile: no such file in the service directory |   Fix: Create the file, or remove \"dockerfile\" from service.json to use the generated Dockerfile",
+    "detail": []
+  },
+  {
+    "id": "dockerfile#2=\"does/not/exist/Dockerfile\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json dockerfile: no such file in the service directory |   Fix: Create the file, or remove \"dockerfile\" from service.json to use the generated Dockerfile",
+    "detail": []
+  },
+  {
+    "id": "dockerfile#3=\"Docker file\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json dockerfile: no such file in the service directory |   Fix: Create the file, or remove \"dockerfile\" from service.json to use the generated Dockerfile",
+    "detail": []
+  },
+  {
+    "id": "dockerfile#4=\"Dockerfile\\nFROM x\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "env.newline",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "featuresEnabled#0=[]",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "featuresEnabled#0={\"a\":1}",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.featuresEnabled: expected an array of strings |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "featuresEnabled#1=[\"vitest\"]",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "featuresEnabled#1=[1]",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.featuresEnabled: expected an array of strings |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "featuresEnabled#2=[\"vitest\",\"nats\"]",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "featuresEnabled#2=[null]",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.featuresEnabled: expected an array of strings |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "featuresEnabled#3=[\"nats\",\"nats\"]",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "featuresEnabled#3=[\"x\\ny\"]",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#0=\"/\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "healthCheckPath#0=\"health\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#1=\"/he alth\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#1=\"/health\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "healthCheckPath#2=\"/api/v1/health\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "healthCheckPath#2=\"/h'ealth\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#3=\"/a-b/c\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "healthCheckPath#3=\"/health\\\"\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#4=\"/a;b\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#5=\"/{x}\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#6=\"$(id)\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "healthCheckPath#7=\"/A/B\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "image+dockerfile",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json: set \"image\" or \"dockerfile\", not both; a service runs from one source |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "image=bad",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "image=ok",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "language#0=\"bun\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "language#0=\"BUN\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.language: expected a lowercase id such as bun, python or go |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "language#1=\"bun;rm\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.language: expected a lowercase id such as bun, python or go |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "language#2=7",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.language: expected a string |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "nats.queueGroup=bad",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "params.newline",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "port#0=0",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port 0: not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "port#0=1",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "port#1=-1",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port -1: not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "port#1=80",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "port#2=4000",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "port#2=65536",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port 65536: not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "port#3=1.5",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port 1.5: not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "port#3=65535",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "port#4=\"4000\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port \"4000\": not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "port#5=null",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port null: not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "port#6=true",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port true: not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "port#7=1e+21",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json port 1e+21: not an integer from 1 to 65535 |   Fix: Set \"port\" to the port the service listens on, an integer from 1 to 65535",
+    "detail": []
+  },
+  {
+    "id": "replicas#0=0",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.replicas: expected an integer from 1 to 10 |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "replicas#0=1",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "replicas#1=-1",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.replicas: expected an integer from 1 to 10 |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "replicas#1=2",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "replicas#2=1.5",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.replicas: expected an integer from 1 to 10 |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "replicas#2=3",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "replicas#3=\"2\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.replicas: expected an integer from 1 to 10 |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "replicas#4=100000",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.replicas: expected an integer from 1 to 10 |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "replicas=null",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "restart=odd",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "sablier=string",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.sablier: expected an object |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "schemaVersion=2",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json schemaVersion 2: this flisk supports 1 |   Fix: Upgrade flisk to a version that supports these files. Changing schemaVersion by hand is not a fix",
+    "detail": []
+  },
+  {
+    "id": "schemaVersion=str",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json schemaVersion \"1\": this flisk supports 1 |   Fix: Upgrade flisk to a version that supports these files. Changing schemaVersion by hand is not a fix",
+    "detail": []
+  },
+  {
+    "id": "stack#0=\"main\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "stack#0=\"Shop\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.stack: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 63 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "stack#1=\"extra2\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "stack#1=\"MAIN\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.stack: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 63 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "stack#2=\"back office\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "stack#2=\"back-office\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "stack#3=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.stack: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 63 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "stack#3=\"back_office\"",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "stack#4=\"-x\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.stack: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 63 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "stack#4=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "stack#5=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "stack#5=\"x-\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.stack: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 63 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "stack#6=\"\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.stack: cannot be a Docker image name; use lowercase letters and digits joined by \"-\", \"_\" or \".\" (at most 63 characters) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "stack#7=\"x/y\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "stack#8=\"x:y\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "traefik.host=bad",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "traefik.host=ok",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "traefik.pathPrefix=bad",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "detail": []
+  },
+  {
+    "id": "traefik=string",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.traefik: expected an object |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "unknown.field",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  }
+]

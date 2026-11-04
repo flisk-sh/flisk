@@ -34,7 +34,7 @@ The homepage H1 and subhead are already shipped. The ROI calculator is off the h
 
 ### Product boundary
 
-The free MIT CLI is the product. Premium is $19 per developer per month for extras only; public pricing should say most teams should stay on free. Production remains on Helm, Argo CD, or Kustomize.
+The free MIT CLI is the product. Premium is $17 per developer per month for extras only; public pricing should say most teams should stay on free. Production remains on Helm, Argo CD, or Kustomize.
 
 Tilt may appear once in How it works or Requirements: `Docker runs the containers. Tilt runs the dev loop. Flisk CLI writes that config.` Do not explain Tilt in deploy- or Compose-misread replies.
 

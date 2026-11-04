@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# Repository checks that need no stack: the skill symlinks, the skill sync script and the documentation links. They were cases
-# of the agent suite; they run in make test-shell instead, since they need only the checkout and no Docker or Tilt.
+# Repository checks that need no stack: the skill symlinks, the skill sync script, the documentation links, the generated
+# docs tab bars, the fit calculator and the Flisk plugin. The first three were cases of the agent suite; they all run in
+# make test-shell instead, since they need only the checkout and no Docker or Tilt.
 #   tests/e2e/static/skills-and-docs.sh
 set -euo pipefail
 
@@ -31,10 +32,12 @@ D1() {
 }
 
 D2() {
-  log "D2 sync-tdk-skills.sh keeps the skills in .claude/skills/LOCAL and deletes a skill removed upstream"
+  log "D2 sync-flisk-skills.sh keeps the skills in .claude/skills/LOCAL and deletes a skill removed upstream"
   local tmp; tmp="$(mktemp -d)"
-  mkdir -p "$tmp/repo/scripts" "$tmp/repo/.claude" "$tmp/repo/.agents"
-  cp "$REPO_ROOT/scripts/sync-tdk-skills.sh" "$tmp/repo/scripts/"
+  mkdir -p "$tmp/repo/scripts" "$tmp/repo/.claude" "$tmp/repo/.agents" "$tmp/repo/.claude-plugin"
+  # This repo's own marketplace, which the sync must leave alone.
+  echo '{"name":"flisk","plugins":[]}' >"$tmp/repo/.claude-plugin/marketplace.json"
+  cp "$REPO_ROOT/scripts/sync-flisk-skills.sh" "$tmp/repo/scripts/"
   cp -R "$REPO_ROOT/.claude/skills" "$tmp/repo/.claude/skills"
   cp -R "$REPO_ROOT/.agents/skills" "$tmp/repo/.agents/skills"
   # A skill the previous sync brought in that the source repo no longer has.
@@ -45,7 +48,7 @@ D2() {
   echo '{"name":"fixture","plugins":[]}' >"$tmp/src/.claude-plugin/marketplace.json"
   echo '{"name":"flisk-cli"}' >"$tmp/src/plugins/flisk-cli/.claude-plugin/plugin.json"
   echo "# kept" >"$tmp/src/skills/kept-upstream/SKILL.md"; echo "# new" >"$tmp/src/skills/new-upstream/SKILL.md"
-  (cd "$tmp/repo" && FLISK_SKILLS_REPO="$tmp/src" bash scripts/sync-tdk-skills.sh) || die "sync-tdk-skills.sh failed on the fixture"
+  (cd "$tmp/repo" && FLISK_SKILLS_REPO="$tmp/src" bash scripts/sync-flisk-skills.sh) || die "sync-flisk-skills.sh failed on the fixture"
   ls -l "$tmp/repo/.agents/skills"
   local name kept=0
   while IFS= read -r name; do
@@ -57,6 +60,8 @@ D2() {
   for name in flisk-agent-ops flisk-e2e-author; do
     grep -qx "$name" "$REPO_ROOT/.claude/skills/LOCAL" || die "$name is not listed in .claude/skills/LOCAL"
   done
+  [ "$(cat "$tmp/repo/.claude-plugin/marketplace.json")" = '{"name":"flisk","plugins":[]}' ] || die "the sync overwrote this repo's .claude-plugin/marketplace.json"
+  [ ! -e "$tmp/repo/.claude-plugin/flisk-cli" ] || die "the sync copied the flisk-skills plugin manifest into .claude-plugin"
   [ ! -e "$tmp/repo/.claude/skills/removed-upstream" ] || die "a skill removed upstream survived in .claude/skills"
   [ ! -L "$tmp/repo/.agents/skills/removed-upstream" ] || die "a skill removed upstream survived in .agents/skills"
   for n in kept-upstream new-upstream; do
@@ -70,8 +75,22 @@ D3() {
   (cd "$REPO_ROOT" && node "$E2E_LIB/check-docs.mjs") || die "documentation check failed"
 }
 
+D4() {
+  log "D4 tab bars and tab images match docs/tabs.json (scripts/docs/tabs.mjs)"
+  (cd "$REPO_ROOT" && node scripts/docs/tabs.mjs --check) || die "generated docs tabs are out of date; run: node scripts/docs/tabs.mjs"
+}
 
-for case in D1 D2 D3; do
+D5() {
+  log "D5 the fit calculator pages and the README fit section match scripts/docs/fit.mjs"
+  (cd "$REPO_ROOT" && node scripts/docs/fit.mjs --check) || die "generated fit pages are out of date; run: node scripts/docs/fit.mjs"
+}
+
+D6() {
+  log "D6 the Flisk plugin (plugins/flisk, the marketplaces, gemini-extension.json) matches scripts/agent-plugin.mjs"
+  (cd "$REPO_ROOT" && node scripts/agent-plugin.mjs --check) || die "the Flisk plugin files are out of date; run: node scripts/agent-plugin.mjs"
+}
+
+for case in D1 D2 D3 D4 D5 D6; do
   "$case"
   echo "PASS $case"
 done

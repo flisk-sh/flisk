@@ -1,0 +1,130 @@
+name: Usability feedback
+description: Rate Flisk's perceived ease of use with the UMUX-Lite two-item scale, and say how much you would miss it.
+title: "usability: "
+labels: ["ux-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us track how easy Flisk is to use. Rate each statement from 1 (strongly disagree) to 7 (strongly agree). No telemetry or automated survey is collected — this is manual and optional.
+  - type: dropdown
+    id: capabilities
+    attributes:
+      label: "“Flisk's capabilities meet my requirements”"
+      description: Your rating, 1 (strongly disagree) to 7 (strongly agree)
+      options:
+        - "1 - Strongly disagree"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7 - Strongly agree"
+    validations:
+      required: true
+  - type: dropdown
+    id: ease
+    attributes:
+      label: "“Flisk is easy to use”"
+      description: Your rating, 1 (strongly disagree) to 7 (strongly agree)
+      options:
+        - "1 - Strongly disagree"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7 - Strongly agree"
+    validations:
+      required: true
+  - type: dropdown
+    id: pmf
+    attributes:
+      label: How would you feel if you could no longer use Flisk?
+      options:
+        - Very disappointed
+        - Somewhat disappointed
+        - Not disappointed
+        - I no longer use Flisk
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How did you build it?
+      options:
+        - With an AI coding agent
+        - By typing flisk commands myself
+        - Both
+        - I did not get as far as running an app
+    validations:
+      required: true
+  - type: dropdown
+    id: before
+    attributes:
+      label: What did you use before Flisk to run an app like this? (optional)
+      description: Lets us compare Flisk with the tool you know, rated by the same people on the same two questions.
+      options:
+        - Nothing, this was my first time
+        - Docker Compose
+        - Tilt
+        - Skaffold
+        - DevSpace
+        - Garden
+        - A cloud app builder (Lovable, Bolt, Replit)
+        - Scripts I wrote myself
+        - Something else
+  - type: dropdown
+    id: before-capabilities
+    attributes:
+      label: "“The tool I used before met my requirements” (optional)"
+      description: Your rating of that tool, 1 (strongly disagree) to 7 (strongly agree)
+      options:
+        - "1 - Strongly disagree"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7 - Strongly agree"
+  - type: dropdown
+    id: before-ease
+    attributes:
+      label: "“The tool I used before was easy to use” (optional)"
+      description: Your rating of that tool, 1 (strongly disagree) to 7 (strongly agree)
+      options:
+        - "1 - Strongly disagree"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7 - Strongly agree"
+  - type: dropdown
+    id: source
+    attributes:
+      label: How did you hear about Flisk?
+      description: Optional. It lets us read the feedback of people who arrived from the launch separately.
+      options:
+        - Product Hunt
+        - Hacker News
+        - GitHub
+        - Search engine
+        - A friend or colleague
+        - Social media
+        - Other
+  - type: input
+    id: built
+    attributes:
+      label: What did you build or run? (optional)
+      description: For example "the online shop prompt", "a starter (flisk project saas)", or "our own repository".
+  - type: textarea
+    id: comments
+    attributes:
+      label: Comments (optional)
+      description: What worked well, what was confusing, or what you would change.
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup (optional)
+      description: OS, Docker flavour (or none), and the output of `flisk --version`.

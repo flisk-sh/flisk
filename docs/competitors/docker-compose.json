@@ -1,0 +1,632 @@
+{
+	"competitor": "docker-compose",
+	"rows": [
+		{
+			"id": "watch-sync-on-save",
+			"name": "Sync files on save",
+			"area": "workflow",
+			"offer": "Compose Watch copies edited host files into the running service container so a hot-reload framework picks them up without a rebuild.",
+			"source": "https://docs.docker.com/compose/how-tos/file-watch/",
+			"checked": "2026-10-27",
+			"match": [
+				"watch",
+				"sync",
+				"hot reload"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/ARCHITECTURE.md",
+							"contains": "live_update"
+						}
+					},
+					{
+						"file": "runtime/engine/AGENTS.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "watch-rebuild-on-change",
+			"name": "Rebuild image on file change",
+			"area": "workflow",
+			"offer": "Compose Watch can rebuild the image with BuildKit and replace the container when chosen files, such as a dependency manifest, change.",
+			"source": "https://docs.docker.com/compose/how-tos/file-watch/",
+			"checked": "2026-10-27",
+			"match": [
+				"rebuild",
+				"action",
+				"buildkit"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Tilt rebuilds images when watched sources change, but the paths that trigger a rebuild are not configurable per service in service.json.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/ARCHITECTURE.md",
+							"contains": "docker_build"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "watch-per-path-actions",
+			"name": "Per-path watch actions",
+			"area": "workflow",
+			"offer": "Compose lets each watched path choose sync, rebuild, sync with restart, or sync followed by a custom command, with ignore patterns.",
+			"source": "https://docs.docker.com/reference/compose-file/develop/",
+			"checked": "2026-10-27",
+			"match": [
+				"sync+restart",
+				"sync+exec",
+				"ignore",
+				"develop"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Developers on config-heavy services want to restart or run a command on one file change, which fits the Tilt live_update Flisk already generates.",
+				"evidence": []
+			},
+			"acceptance": "service.json gains a watch block (sync paths, ignore, restart/exec action) that runtime/engine turns into live_update steps; proven by a field in runtime/engine/schemas/service-schema.json plus a text check in docs/service-json.md.",
+			"ice": {
+				"impact": 5,
+				"confidence": 7,
+				"ease": 4,
+				"basis": "Impact 5: fixes slow reloads on non-hot-reload runtimes. Confidence 7: the Compose reference documents the actions and Tilt live_update has run and restart steps. Ease 4: needs schema, engine and drift-check changes in runtime/engine."
+			}
+		},
+		{
+			"id": "profiles-subsets",
+			"name": "Start a subset of services",
+			"area": "orchestration",
+			"offer": "Compose profiles mark optional services so they start only when their profile is enabled by flag or environment variable.",
+			"source": "https://docs.docker.com/compose/how-tos/profiles/",
+			"checked": "2026-10-27",
+			"match": [
+				"profiles",
+				"--profile",
+				"compose_profiles"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk stack"
+					},
+					{
+						"command": "flisk up"
+					},
+					{
+						"text": {
+							"file": "docs/comparison.md",
+							"contains": "flisk up <stack>"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "include-modular-files",
+			"name": "Include other project files",
+			"area": "orchestration",
+			"offer": "The include element pulls another Compose file in as a building block with its own project directory, so teams own their part of a big app.",
+			"source": "https://docs.docker.com/compose/how-tos/multiple-compose-files/include/",
+			"checked": "2026-10-27",
+			"match": [
+				"include",
+				"modularize",
+				"sub-compose"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk discovers service.json manifests under several scan roots, but it cannot pull in another project's manifest set by reference.",
+				"evidence": [
+					{
+						"text": {
+							"file": "runtime/discovery/AGENTS.md",
+							"contains": "Multi-root"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "extends-shared-config",
+			"name": "Extend shared service config",
+			"area": "orchestration",
+			"offer": "The extends attribute lets one service reuse and override a common service definition from the same or another file.",
+			"source": "https://docs.docker.com/compose/how-tos/multiple-compose-files/extends/",
+			"checked": "2026-10-27",
+			"match": [
+				"extends",
+				"common set of configuration"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Teams with many near-identical services would avoid copy-pasted service.json; the manifest is plain JSON so a reference field could fit.",
+				"evidence": []
+			},
+			"acceptance": "A service.json field (for example extends) is accepted by runtime/engine/schemas/service-schema.json and resolved by runtime/discovery, shown by a docs/service-json.md section and a passing flisk config verify.",
+			"ice": {
+				"impact": 4,
+				"confidence": 6,
+				"ease": 4,
+				"basis": "Impact 4: convenience for larger monorepos, not a blocker. Confidence 6: clear Compose feature but few asks seen from agent-stack users. Ease 4: needs schema plus discovery normalization work."
+			}
+		},
+		{
+			"id": "multi-file-overrides",
+			"name": "Layer override files per environment",
+			"area": "environments",
+			"offer": "Several Compose files can be merged in order so a base file is overridden for dev, test or admin tasks.",
+			"source": "https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/",
+			"checked": "2026-10-27",
+			"match": [
+				"merge",
+				"override",
+				"compose.override"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk switches environment through a different project env file but not by layering manifest overrides.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/environment.md",
+							"contains": "--env-file"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "dependency-health-gating",
+			"name": "Wait for healthy dependencies",
+			"area": "orchestration",
+			"offer": "depends_on with a health condition starts a service only after its dependency reports healthy, not merely running.",
+			"source": "https://docs.docker.com/compose/how-tos/startup-order/",
+			"checked": "2026-10-27",
+			"match": [
+				"service_healthy",
+				"depends_on",
+				"healthcheck"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "dependsOn"
+						}
+					},
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "healthCheckPath"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "run-to-completion-dependency",
+			"name": "Dependency runs to completion first",
+			"area": "orchestration",
+			"offer": "The service_completed_successfully condition holds a service back until a one-shot dependency such as a migration exits cleanly.",
+			"source": "https://docs.docker.com/compose/how-tos/startup-order/",
+			"checked": "2026-10-27",
+			"match": [
+				"service_completed_successfully",
+				"run to successful completion"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "migrator"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "models-top-level",
+			"name": "Declare AI models as dependencies",
+			"area": "agents",
+			"offer": "A models top-level element declares which LLMs an app needs, runs them through Docker Model Runner, and injects each model's URL and name as environment variables.",
+			"source": "https://docs.docker.com/ai/compose/models-and-compose/",
+			"checked": "2026-10-27",
+			"match": [
+				"models",
+				"model runner",
+				"endpoint_var",
+				"context_size"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Local agent stacks nearly always need a model endpoint, and a model resource that injects URL and name into dependents fits the agent resource type.",
+				"evidence": []
+			},
+			"acceptance": "A resource type or service.json block for a local model is accepted by the schema, started by flisk up, and listed by flisk status and the resource_list MCP tool, with URL and model env vars documented in docs/service-json.md.",
+			"ice": {
+				"impact": 6,
+				"confidence": 6,
+				"ease": 3,
+				"basis": "Impact 6: the launch audience builds agent systems that need a local model, and today they hand-wire one as bring-your-own. Confidence 6: the Compose page is clear, but Model Runner is Docker-specific and Ollama is common. Ease 3: needs a new resource kind across schema, engine and doctor."
+			}
+		},
+		{
+			"id": "provider-services",
+			"name": "Platform capability provider services",
+			"area": "integrations",
+			"offer": "Provider services let a Compose service declare a platform capability that a plugin or binary provisions and whose connection details are injected into dependents.",
+			"source": "https://docs.docker.com/compose/how-tos/provider-services/",
+			"checked": "2026-10-27",
+			"match": [
+				"provider services",
+				"provider",
+				"type"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk can run any local process or image as a bring-your-own resource, but there is no plugin hook that provisions a capability and injects its variables.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "Runs the service as a local process"
+						}
+					},
+					{
+						"file": "docs/byo.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "bridge-kubernetes",
+			"name": "Convert Compose to Kubernetes",
+			"area": "enterprise",
+			"offer": "Compose Bridge turns a Compose model into Kubernetes manifests and a Kustomize overlay using customizable transformation templates.",
+			"source": "https://docs.docker.com/compose/bridge/",
+			"checked": "2026-10-27",
+			"match": [
+				"compose bridge",
+				"kubernetes manifests",
+				"kustomize"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is local-only and its roadmap says it is not a Kubernetes tool.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "oci-publish-apps",
+			"name": "Publish apps as OCI artifacts",
+			"area": "collaboration",
+			"offer": "docker compose publish pushes a Compose application to an OCI registry so others can run it straight from the registry.",
+			"source": "https://docs.docker.com/compose/how-tos/oci-artifact/",
+			"checked": "2026-10-27",
+			"match": [
+				"oci artifact",
+				"compose publish",
+				"registry"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk projects are shared through version control and the roadmap rules out production deploy and shipping generated Compose files.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "gpu-reservations",
+			"name": "GPU device reservations",
+			"area": "runtime",
+			"offer": "A service can reserve host GPU devices through the deploy device settings with capabilities, count or device ids.",
+			"source": "https://docs.docker.com/compose/how-tos/gpu-support/",
+			"checked": "2026-10-27",
+			"match": [
+				"gpu",
+				"capabilities",
+				"device_ids",
+				"nvidia"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Local model and agent services often need a GPU on Linux hosts, and the setting would pass through to the generated Compose service.",
+				"evidence": []
+			},
+			"acceptance": "service.json accepts a gpu setting that appears in the generated Compose file and is listed in docs/service-json.md; flisk doctor checks the NVIDIA runtime.",
+			"ice": {
+				"impact": 4,
+				"confidence": 6,
+				"ease": 3,
+				"basis": "Impact 4: only Linux or Windows GPU hosts benefit and Docker Desktop on Mac cannot. Confidence 6: the Compose page is clear. Ease 3: schema, Compose template and a doctor check all change."
+			}
+		},
+		{
+			"id": "secrets-as-files",
+			"name": "Secrets mounted as files",
+			"area": "security",
+			"offer": "Compose mounts each secret as a file under /run/secrets so values stay out of environment variables and logs.",
+			"source": "https://docs.docker.com/compose/how-tos/use-secrets/",
+			"checked": "2026-10-27",
+			"match": [
+				"secrets",
+				"/run/secrets"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk keeps secret values out of generated files and masks them in logs, but injects them as environment variables rather than mounted files.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/environment.md",
+							"contains": "Injected by Compose from the project `.env`"
+						}
+					},
+					{
+						"file": "docs/smoke.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "lifecycle-hooks",
+			"name": "Post-start and pre-stop hooks",
+			"area": "workflow",
+			"offer": "Lifecycle hooks run a command right after a container starts or just before it stops, optionally with elevated privileges.",
+			"source": "https://docs.docker.com/compose/how-tos/lifecycle/",
+			"checked": "2026-10-27",
+			"match": [
+				"post_start",
+				"pre_stop",
+				"lifecycle hooks"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Seeding data after a service is up is common in local stacks, though migrators already cover the most frequent case.",
+				"evidence": []
+			},
+			"acceptance": "service.json accepts a postStart command that runs after the container reports healthy, documented in docs/service-json.md and visible in flisk logs.",
+			"ice": {
+				"impact": 4,
+				"confidence": 5,
+				"ease": 3,
+				"basis": "Impact 4: migrator resources already cover migrations. Confidence 5: Compose use is clear but demand in Flisk issues is unverified. Ease 3: needs engine ordering work in runtime/engine."
+			}
+		},
+		{
+			"id": "shared-base-images",
+			"name": "Share base layers across images",
+			"area": "runtime",
+			"offer": "Compose docs show multi-stage Dockerfiles and a shared base target so many service images reuse the same layers.",
+			"source": "https://docs.docker.com/compose/how-tos/dependent-images/",
+			"checked": "2026-10-27",
+			"match": [
+				"dependent images",
+				"multi-stage",
+				"base image"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "runtime/engine/AGENTS.md",
+							"contains": "Golden Image"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "env-files-precedence",
+			"name": "Env files and interpolation",
+			"area": "environments",
+			"offer": "Compose resolves variables from env files, the shell and the file itself in a documented order, and the CLI can take an alternate env file.",
+			"source": "https://docs.docker.com/compose/how-tos/environment-variables/envvars-precedence/",
+			"checked": "2026-10-27",
+			"match": [
+				"precedence",
+				"env-file",
+				"environment variables"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/environment.md",
+							"contains": "--env-file"
+						}
+					},
+					{
+						"file": "docs/environment.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "project-name-isolation",
+			"name": "Named projects side by side",
+			"area": "environments",
+			"offer": "A project name namespaces containers, networks and volumes so several copies of one app can run on the same host.",
+			"source": "https://docs.docker.com/compose/how-tos/project-name/",
+			"checked": "2026-10-27",
+			"match": [
+				"project name",
+				"-p",
+				"isolated"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk plans collision-free host ports so two stacks can coexist, but there is no flag to name or clone a project's runtime.",
+				"evidence": [
+					{
+						"file": "docs/faq-teams.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "default-network-discovery",
+			"name": "Service discovery by name",
+			"area": "runtime",
+			"offer": "Compose puts all services on a default network where each is reachable by its service name.",
+			"source": "https://docs.docker.com/compose/how-tos/networking/",
+			"checked": "2026-10-27",
+			"match": [
+				"default network",
+				"service discovery",
+				"service name"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk networks"
+					},
+					{
+						"mcpTool": "network_list"
+					}
+				]
+			}
+		},
+		{
+			"id": "exec-run-one-off",
+			"name": "Run commands in a service",
+			"area": "terminal",
+			"offer": "docker compose exec and run execute a command in a running or fresh service container.",
+			"source": "https://docs.docker.com/reference/cli/docker/compose/",
+			"checked": "2026-10-27",
+			"match": [
+				"docker compose exec",
+				"docker compose run"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Users and agents often need a quick shell or script inside a service, and Flisk only offers logs, restart and status.",
+				"evidence": []
+			},
+			"acceptance": "A command (for example flisk exec <resource> -- <cmd>) exists in cli/src/commands and an MCP tool in cli/src/mcp/tools.ts, proven by a command evidence entry and an mcpTool entry.",
+			"ice": {
+				"impact": 5,
+				"confidence": 7,
+				"ease": 4,
+				"basis": "Impact 5: the first thing a user reaches for after up, and agents benefit too. Confidence 7: exec and run are core Compose commands. Ease 4: needs resource-to-container resolution for both Docker and local-process modes."
+			}
+		},
+		{
+			"id": "up-wait-healthy",
+			"name": "Wait until services are healthy",
+			"area": "workflow",
+			"offer": "docker compose up --wait blocks until services are running or healthy, which scripts and CI use as a readiness gate.",
+			"source": "https://docs.docker.com/reference/cli/docker/compose/up/",
+			"checked": "2026-10-27",
+			"match": [
+				"--wait",
+				"wait-timeout",
+				"running|healthy"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "cli/src/commands/up.ts",
+							"contains": "when the stack is ready or the command fails"
+						}
+					},
+					{
+						"file": "docs/ci.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "logs-and-status",
+			"name": "Logs and service status",
+			"area": "observability",
+			"offer": "Compose streams service logs and lists service status from the command line.",
+			"source": "https://docs.docker.com/reference/cli/docker/compose/",
+			"checked": "2026-10-27",
+			"match": [
+				"docker compose logs",
+				"docker compose ps"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk logs"
+					},
+					{
+						"command": "flisk status"
+					},
+					{
+						"mcpTool": "logs"
+					},
+					{
+						"mcpTool": "status"
+					}
+				]
+			}
+		},
+		{
+			"id": "test-environments",
+			"name": "Throwaway test environments",
+			"area": "environments",
+			"offer": "Compose can create and destroy an isolated environment for an automated test suite in CI.",
+			"source": "https://docs.docker.com/compose/intro/features-uses/",
+			"checked": "2026-10-27",
+			"match": [
+				"automated testing environments",
+				"isolated testing environments"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "docs/ci.md"
+					},
+					{
+						"command": "flisk down"
+					}
+				]
+			}
+		}
+	]
+}

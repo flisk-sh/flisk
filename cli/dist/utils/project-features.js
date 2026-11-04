@@ -70,22 +70,13 @@ export const PROJECT_FEATURES = {
     },
 };
 /**
- * Get all enabled project features
+ * Get all enabled project features: those on by default plus those switched
+ * on in `optional_infra`. Each feature appears once, in `PROJECT_FEATURES`
+ * order. Names that are not features are ignored, and `false` does not turn
+ * off a feature that is on by default.
  */
 export function getEnabledProjectFeatures(optional_infra) {
-    const enabled = [];
-    for (const [key, feature] of Object.entries(PROJECT_FEATURES)) {
-        if (feature.enabled_by_default) {
-            enabled.push(key);
-        }
-    }
-    // Add optional features if enabled
-    if (optional_infra) {
-        for (const [key, isEnabled] of Object.entries(optional_infra)) {
-            if (isEnabled && PROJECT_FEATURES[key]) {
-                enabled.push(key);
-            }
-        }
-    }
-    return enabled;
+    return Object.entries(PROJECT_FEATURES)
+        .filter(([key, feature]) => feature.enabled_by_default || optional_infra?.[key] === true)
+        .map(([key]) => key);
 }

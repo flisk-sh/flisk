@@ -43,7 +43,7 @@ Found before the launch. Links were supplied by the owner; the HN search turned 
 
 | Item | Link | Date | What it claims | Action before Oct 28 |
 | --- | --- | --- | --- | --- |
-| dev.to article: "We ran 100 microservices on a 16GB laptop" | https://dev.to/mynameis0d3c53a3/we-ran-100-microservices-on-a-16gb-laptop-no-kubernetes-590e | Sep 27 | 10 services healthy in 8 s (161 MiB), 50 in 24 s (829 MiB), 100 in 112 s (1.6 GiB); 0 crashes, 0 OOM; benchmark script and raw JSON in the repo | Check each number against the committed benchmark JSON and `docs/claims.md`. The Show HN draft uses different figures (14 services in 4.6 s; 100 stubs in 472 s on a CI runner). Use one set of numbers, and say which hardware it came from. Link this article from the first comment as the longer write-up. |
+| dev.to article: "We ran 100 microservices on a 16GB laptop" | https://dev.to/mynameis0d3c53a3/we-ran-100-microservices-on-a-16gb-laptop-no-kubernetes-590e | Sep 27 | 10 services healthy in 8 s (161 MiB), 50 in 24 s (829 MiB), 100 in 112 s (1.6 GiB); 0 crashes, 0 OOM; benchmark script and raw JSON in the repo | Check each number against the committed benchmark JSON and `docs/claims.md`. The Show HN draft uses different figures (14 services in 4.6 s after images existed, a warm start; 100 stubs in 472 s on a CI runner). Use one set of numbers, and say which hardware it came from. Link this article from the first comment as the longer write-up. |
 | HN submission "New Open Source Tool for Development Experience. Flisk CLI – service.json" (not Show HN) | https://news.ycombinator.com/item?id=49924046 | about Oct 2, 2026 (16 days before Oct 18) | 1 point, 1 comment (submitter only); submitted URL is the repo, `github.com/flisk-sh/flisk` | Same repo URL as the planned Show HN. HN flags a resubmitted URL, so the Oct 28 post may be marked a dupe. Options: ask HN (hn@ycombinator.com) before posting, or post a different URL (the quickstart page) with the repo in the first comment. Owner decides on Tue Oct 27. |
 | Two earlier Show HN posts | TBD (owner to supply links) | TBD | TBD | Check whether either is still on the front page or drew discussion. If so, the Oct 28 post needs a new angle, or move it. HN flags a resubmission of the same URL. |
 
@@ -78,7 +78,7 @@ Count: 63 characters.
 >
 > What it does not do: it is not a deploy tool (production stays on Helm or whatever you use), and it is not a drop-in Compose replacement for a stack you already maintain. If Compose or your own Tilt file works for you, keep it.
 >
-> Setup needs Docker and Tilt. Native Windows only supports `flisk` inspection commands; use WSL2 Ubuntu for `flisk up`. The core CLI is MIT and needs no key. Premium features are optional.
+> Docker is optional: `npx @flisk-sh/flisk demo` needs only Node.js, and simple services run as local processes. Container stacks need Docker and Tilt (WSL2 Ubuntu on Windows). The core CLI is MIT and needs no key. Premium features are optional.
 >
 > The CLI makes no outbound calls of its own except `flisk upgrade`, an optional premium fetch with a license key, and the health ping from `flisk doctor`. Details: docs/security.md (link in the reply if asked).
 >
@@ -122,7 +122,7 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 >
 > Note on the Dockerfile: `flisk up` builds its own generated image, not the scaffolded `Dockerfile` in each service folder. The scaffolded one is a starting point for building outside Flisk. If you spot a case where that is confusing, tell me in the issues.
 >
-> Native Windows is inspect-only; use WSL2 Ubuntu to run it. Repo: https://github.com/flisk-sh/flisk
+> Native Windows runs the demo and local-process projects; use WSL2 Ubuntu for a Docker stack. Repo: https://github.com/flisk-sh/flisk
 
 ## Prepared answers
 

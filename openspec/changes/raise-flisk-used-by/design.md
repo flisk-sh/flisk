@@ -66,31 +66,31 @@ The `flisk-sh` organization repository listing and each candidate's default-bran
 
 | Repository | Root manifest and lockfile | Observed CLI usage | Initial disposition |
 |---|---|---|---|
-| `tdk-example` | No root Node manifest or lockfile; 4 nested service manifests | README documents `flisk project` and `flisk up` | Uses Flisk through operator setup; no project package declaration today |
-| `tdk-saas-starter` | Root `package.json` + `bun.lock`; 6 nested service manifests | README documents Flisk CLI setup and `flisk up` | Uses Flisk; root package currently has no CLI dependency |
-| `tdk-restaurant-example` | Root `package.json` + `bun.lock`; 6 nested service manifests | README documents Flisk CLI setup and `flisk up` | Uses Flisk; root package currently has no CLI dependency |
-| `tdk-user-management` | No root Node manifest or lockfile; 6 nested service manifests | README documents `flisk up` | Uses Flisk through operator setup; no project package declaration today |
-| `tdk-ecommerce-example` | Root `package.json` + `bun.lock`; 2 nested service manifests | README documents `flisk project`, `flisk up`, and a CLI minimum version | Uses Flisk; root package currently has no CLI dependency |
-| `tdk-erp-system` | Root `package.json`, no root lockfile; 107 service manifests | README documents `flisk up`; labeled 100-service fixture | Fixture uses Flisk; root package currently has no CLI dependency |
+| `flisk-example` | No root Node manifest or lockfile; 4 nested service manifests | README documents `flisk project` and `flisk up` | Uses Flisk through operator setup; no project package declaration today |
+| `flisk-saas-starter` | Root `package.json` + `bun.lock`; 6 nested service manifests | README documents Flisk CLI setup and `flisk up` | Uses Flisk; root package currently has no CLI dependency |
+| `flisk-restaurant-example` | Root `package.json` + `bun.lock`; 6 nested service manifests | README documents Flisk CLI setup and `flisk up` | Uses Flisk; root package currently has no CLI dependency |
+| `flisk-user-management` | No root Node manifest or lockfile; 6 nested service manifests | README documents `flisk up` | Uses Flisk through operator setup; no project package declaration today |
+| `flisk-ecommerce-example` | Root `package.json` + `bun.lock`; 2 nested service manifests | README documents `flisk project`, `flisk up`, and a CLI minimum version | Uses Flisk; root package currently has no CLI dependency |
+| `flisk-erp-system` | Root `package.json`, no root lockfile; 107 service manifests | README documents `flisk up`; labeled 100-service fixture | Fixture uses Flisk; root package currently has no CLI dependency |
 | `flisk-cli-starter` | Root `package.json`; no root lockfile found | `flisk:dry-run` and `flisk:up` npm scripts invoke `flisk` | Already declares `@flisk-sh/flisk` at `1.3.185`; audit version policy and lockfile in its own repo |
 | `create-flisk` | Root `package.json` + `package-lock.json` | README presents a Vite landing page and links to Flisk; no CLI command found | Showcase site, not a package consumer based on inspected setup |
-| `tdk-agent-stack` | No root Node manifest or lockfile; 2 service manifests | README lists Flisk CLI prerequisite and documents `flisk project` / `flisk up` | Uses Flisk through operator setup; no project package declaration today |
-| `tdk-auth-queue-email-example` | Root `package.json` + `bun.lock`; 4 nested service manifests | README documents Flisk CLI setup, `flisk project`, and `flisk up` | Uses Flisk; root package currently has no CLI dependency |
-| `tdk-thor-storefront` | Root `package.json` + `bun.lock`; 2 nested service manifests | README requires Flisk CLI 1.3.75+ and documents `flisk up` | Uses Flisk; root package currently has no CLI dependency |
-| `tdk-person-crud-example` | Root `package.json` + `bun.lock`; 6 nested service manifests | README documents `flisk up` | Uses Flisk; root package currently has no CLI dependency |
+| `flisk-agent-stack` | No root Node manifest or lockfile; 2 service manifests | README lists Flisk CLI prerequisite and documents `flisk project` / `flisk up` | Uses Flisk through operator setup; no project package declaration today |
+| `flisk-auth-queue-email-example` | Root `package.json` + `bun.lock`; 4 nested service manifests | README documents Flisk CLI setup, `flisk project`, and `flisk up` | Uses Flisk; root package currently has no CLI dependency |
+| `flisk-thor-storefront` | Root `package.json` + `bun.lock`; 2 nested service manifests | README requires Flisk CLI 1.3.75+ and documents `flisk up` | Uses Flisk; root package currently has no CLI dependency |
+| `flisk-person-crud-example` | Root `package.json` + `bun.lock`; 6 nested service manifests | README documents `flisk up` | Uses Flisk; root package currently has no CLI dependency |
 | `vercel-store` | Root `package.json` + `bun.lock`; 2 nested service manifests | README asks for the Flisk CLI and documents `flisk up` | Uses Flisk; root package currently has no CLI dependency |
-| `tdk-docker-compose-example` | No Node manifest, lockfile, or `service.json` found | README runs `flisk project` inside Docker Compose | CLI-in-Compose example; likely exception to npm dependency declaration |
+| `flisk-docker-compose-example` | No Node manifest, lockfile, or `service.json` found | README runs `flisk project` inside Docker Compose | CLI-in-Compose example; likely exception to npm dependency declaration |
 
 Secondary repositories were also checked for direct package declarations and documented use:
 
-- `tdk-skills` documents agent procedures that invoke `flisk` commands, but has no root package manifest; it is a skills catalog, not a CLI package consumer.
-- `awesome-tdk-framework` is a curated links repository with no root package manifest; mentions of the CLI are references.
+- `flisk-skills` documents agent procedures that invoke `flisk` commands, but has no root package manifest; it is a skills catalog, not a CLI package consumer.
+- `awesome-flisk-framework` is a curated links repository with no root package manifest; mentions of the CLI are references.
 - `flisk-sh/website` and `flisk.sh` have no root package manifest; the latter documents global installation but does not declare a project dependency.
-- `tdk-demo-animation` is walkthrough assets with no root package manifest.
+- `flisk-demo-animation` is walkthrough assets with no root package manifest.
 - `flisk-sh/releases` provides release artifacts and global-install instructions, with no root package manifest.
 - `flisk-service-definitions` has a root manifest/lockfile for AJV validation and 84 service definitions; its README says imported seed data has not been runtime-tested. It does not declare the CLI package.
 - `flisk-import` is its own npm package and documents `flisk import` as a core CLI command; its manifest does not depend on `@flisk-sh/flisk`.
 - `flisk-app` uses the installed `flisk` CLI and documents a global package install path for its own app, but does not declare `@flisk-sh/flisk` in its manifest.
-- Additional public organization repositories `tdk-labs`, `platform`, and `flisk-cli-extensions` were not identified as example/starter repos in this first-wave audit; assess them only if their maintained workflows directly install or invoke the published core package.
+- Additional public organization repositories `flisk-labs`, `platform`, and `flisk-cli-extensions` were not identified as example/starter repos in this first-wave audit; assess them only if their maintained workflows directly install or invoke the published core package.
 
 This audit verifies current manifests and documented setup, not whether every workflow is run by maintainers. The candidates with no local declaration may be valid future dev-dependency targets if their maintainers choose a project-local installation/command workflow and update their documentation/scripts in the same repository PR. Do not add a declaration by itself to repositories that continue to use only a global or binary CLI. The tracking issue with the inventory and supplied baseline is [#1716](https://github.com/flisk-sh/flisk/issues/1716).

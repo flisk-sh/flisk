@@ -6,6 +6,8 @@ import {
   buildStartupReport,
   formatStartupReport,
   isStartupStalled,
+  machineProblemFix,
+  machineProblemFixes,
   transitiveDependencies,
 } from "../startup-report.js";
 
@@ -262,6 +264,32 @@ describe("formatStartupReport", () => {
     expect(lines[0]).toBe("Timed out waiting for api, web");
   });
 
+  it("says timed out while building when stillBuilding is present", () => {
+    const lines = formatStartupReport(
+      { failed: [], blocked: [], starting: [], stillBuilding: ["api"] },
+      true,
+    );
+    expect(lines[0]).toBe("Timed out while building: api");
+  });
+
+  it("prints the last log lines for a service that timed out", () => {
+    const lines = formatStartupReport(
+      {
+        failed: [],
+        blocked: [],
+        starting: ["postgres"],
+        lastLogs: {
+          postgres:
+            "Starting database...\nError: FATAL password authentication failed for user 'flisk'",
+        },
+      },
+      true,
+    );
+    expect(lines).toContain("Timed out waiting for postgres");
+    expect(lines).toContain("Last log lines for postgres:");
+    expect(lines).toContain("  Error: FATAL password authentication failed for user 'flisk'");
+  });
+
   it("prints nothing when nothing is wrong", () => {
     expect(formatStartupReport({ failed: [], blocked: [], starting: [] }, false)).toEqual([]);
   });
@@ -291,5 +319,66 @@ describe("isStartupStalled", () => {
 
   it("is false when nothing has failed", () => {
     expect(isStartupStalled(json(item("api", "pending", "pending")), deps)).toBe(false);
+  });
+});
+
+describe("shared infrastructure that fails before any service starts", () => {
+  // The shape Tilt reports for a resource held back by a failed resource_dep (checked with tilt 0.37: a local_resource
+  // whose dependency exits 1 shows waiting.reason "waiting-for-dep" and waiting.on naming it).
+  const waitingFor = (name: string) => ({
+    waiting: {
+      reason: "waiting-for-dep",
+      on: [{ apiVersion: "v1alpha1", group: "tilt.dev", kind: "UIResource", name }],
+    },
+  });
+  const poolExhausted =
+    "Failed to create Docker network shop_infisical-network: Error response from daemon: all predefined address pools have been fully subnetted";
+  const text = json(
+    item("init-networks", "error", "not_applicable", failedBuild(poolExhausted)),
+    item("postgres", "pending", "pending", waitingFor("init-networks")),
+    item("traefik", "pending", "pending", waitingFor("init-networks")),
+    item("api", "pending", "pending", waitingFor("postgres")),
+  );
+
+  it("counts what Tilt says a resource waits on as a dependency", () => {
+    const report = buildStartupReport(text, { api: [] });
+    expect(report.starting).toEqual([]);
+    expect(report.blocked.map((b) => [b.name, b.because])).toEqual([
+      ["postgres", ["init-networks"]],
+      ["traefik", ["init-networks"]],
+      ["api", ["init-networks"]],
+    ]);
+  });
+
+  it("is stalled, so flisk up stops waiting instead of running into the timeout", () => {
+    expect(isStartupStalled(text, { api: [] })).toBe(true);
+  });
+
+  it("finds the Docker message in the failed resource's log when Tilt's error is only the exit status", async () => {
+    const logs: Record<string, string> = {
+      "init-networks": `Initializing Docker networks...\n${poolExhausted}\n`,
+    };
+    const fixes = await machineProblemFixes(
+      [
+        { name: "init-networks", message: "Command failed: exit status 1" },
+        { name: "api", message: "exit status 1" },
+      ],
+      async (name) => logs[name] ?? null,
+    );
+    expect([...fixes.keys()]).toEqual(["init-networks"]);
+    const lines = formatStartupReport(
+      { failed: [{ name: "init-networks", message: "exit status 1" }], blocked: [], starting: [] },
+      false,
+      undefined,
+      fixes,
+    );
+    expect(lines.join("\n")).toContain("flisk doctor --fix --scope=machine");
+  });
+
+  it("explains an exhausted Docker network pool", () => {
+    expect(machineProblemFix(poolExhausted)).toContain("flisk doctor --fix --scope=machine");
+    expect(machineProblemFix("exit status 1")).toBeNull();
+    const lines = formatStartupReport(buildStartupReport(text, {}), false);
+    expect(lines.join("\n")).toContain("Docker has no free network ranges left");
   });
 });

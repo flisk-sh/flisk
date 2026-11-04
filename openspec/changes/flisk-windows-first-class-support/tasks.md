@@ -29,7 +29,7 @@
 
 ## 5. Windows binary and CI
 
-- [x] 5.1 Update `scripts/release-binaries.sh` to compile Bun `bun-windows-x64` as `tdk-windows-amd64.exe`, include it in checksums and the binary ZIP, and preserve Unix names and engine archive.
+- [x] 5.1 Update `scripts/release-binaries.sh` to compile Bun `bun-windows-x64` as `flisk-windows-amd64.exe`, include it in checksums and the binary ZIP, and preserve Unix names and engine archive.
 - [x] 5.2 Update `.github/workflows/release-binaries.yml` to assert the executable exists at the script's real output location.
 - [x] 5.3 Add `.github/workflows/windows-smoke.yml` using `windows-latest`, Node 22, the repository's dependency installation convention, CLI build/typecheck, actual CLI `--help`, and targeted platform/upgrade/PATH tests without fake Docker e2e.
 - [x] 5.4 Add a Linux-side compile validation that checks the Windows artifact is non-empty and begins with `MZ`.
@@ -37,7 +37,7 @@
 ## 6. Installer and documentation across repositories
 
 - [ ] 6.1 In `flisk.sh`, add `install.ps1` with architecture refusal, latest-release downloads, exe checksum verification, per-user/default install path, adjacent engine extraction with old-tar fallback, user PATH update, and success instructions.
-- [ ] 6.2 Update release README and download list with `tdk-windows-amd64.exe — Windows x86_64 / AMD64`, Windows manual installation commands, and installer instructions.
+- [ ] 6.2 Update release README and download list with `flisk-windows-amd64.exe — Windows x86_64 / AMD64`, Windows manual installation commands, and installer instructions.
 - [ ] 6.3 Update `flisk/README.md`, applicable `cli/README.md`, Flisk website quickstart, website homepage/install page, and org profile README to use the exact supported-platform wording and Windows setup steps.
 - [ ] 6.4 Add a Windows problems documentation page covering only Docker Desktop state/mode, ports and Hyper-V exclusions, `*.localhost` DNS, and project-drive file sharing.
 - [ ] 6.5 Replace every specified “Windows is untested” statement and check templates for host-side `/tmp`, `/usr/local`, or shell-script assumptions without changing container-side scripts.

@@ -34,7 +34,7 @@
 
 ## 6. Section D: distribution and docs
 - [x] 6.1 `.claude/skills` to `.agents/skills` symlink check, no dangling links
-- [x] 6.2 `sync-tdk-skills.sh` fixture test
+- [x] 6.2 `sync-flisk-skills.sh` fixture test
 - [x] 6.3 Link and anchor check over `README.md`, `docs/**`, `AGENTS.md`; removed-file references; `docs/agents/llms*.txt`
 
 ## 7. Release evidence (comments on #1268)

@@ -28,6 +28,32 @@ body:
         - I did not finish
     validations:
       required: true
+  - type: dropdown
+    id: seq
+    attributes:
+      label: Overall, how easy or difficult was this task?
+      description: Your rating, 1 (very difficult) to 7 (very easy)
+      options:
+        - "1 - Very difficult"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7 - Very easy"
+  - type: dropdown
+    id: source
+    attributes:
+      label: How did you hear about Flisk?
+      description: Optional. It lets us read the feedback of people who arrived from the launch separately.
+      options:
+        - Product Hunt
+        - Hacker News
+        - GitHub
+        - Search engine
+        - A friend or colleague
+        - Social media
+        - Other
   - type: textarea
     id: saw
     attributes:

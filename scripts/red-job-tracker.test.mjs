@@ -3,7 +3,11 @@
 // Unit tests for scripts/red-job-tracker.mjs. Run by `make test-shell`.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decide, lastErrorLine } from "./red-job-tracker.mjs";
+import { decide, lastErrorLine, TRACKED } from "./red-job-tracker.mjs";
+
+test("TRACKED includes nightly-adopters.yml (#3100)", () => {
+	assert.ok(TRACKED.includes("nightly-adopters.yml"));
+});
 
 const run = (conclusion, extra = {}) => ({
 	databaseId: Math.floor(Math.random() * 1e9),

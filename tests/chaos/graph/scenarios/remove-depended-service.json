@@ -1,0 +1,24 @@
+{
+  "title": "deleting a service others depend on drops their edge silently",
+  "why": "Fixed. After users is removed, orders still lists it; the edge disappears from Tilt and from `flisk up --only orders` without a message.",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "users"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    },
+    {
+      "op": "removeService",
+      "name": "users"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

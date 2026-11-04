@@ -1,0 +1,666 @@
+{
+	"competitor": "tilt",
+	"rows": [
+		{
+			"id": "live-update-in-place",
+			"name": "Live update running containers",
+			"area": "runtime",
+			"offer": "Copies changed files into a running container and runs steps there, avoiding a full image rebuild.",
+			"source": "https://docs.tilt.dev/live_update_reference.html",
+			"checked": "2026-10-27",
+			"match": [
+				"live_update",
+				"sync",
+				"fall_back_on"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "generated Tilt `live_update`"
+						}
+					},
+					{
+						"file": "runtime/engine/topologies/tilt/resources/orchestrator/builders/typescript.star"
+					}
+				]
+			}
+		},
+		{
+			"id": "local-resource-host-processes",
+			"name": "Run host commands as resources",
+			"area": "runtime",
+			"offer": "Runs arbitrary commands and long-lived servers on the host (serve_cmd) as managed resources, with optional file triggers.",
+			"source": "https://docs.tilt.dev/local_resource.html",
+			"checked": "2026-10-27",
+			"match": [
+				"local_resource",
+				"serve_cmd",
+				"deps"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk runs services with a `command` as host processes only in the no-Docker mode, not alongside containers, and has no free-form local command resource.",
+				"evidence": [
+					{
+						"file": "docs/run-without-docker.md"
+					},
+					{
+						"command": "flisk up"
+					}
+				]
+			}
+		},
+		{
+			"id": "resource-deps-order",
+			"name": "Startup order between resources",
+			"area": "orchestration",
+			"offer": "Lets you declare that a resource waits until another has been ready, and pulls in transitive dependencies when you start one.",
+			"source": "https://docs.tilt.dev/resource_dependencies.html",
+			"checked": "2026-10-27",
+			"match": [
+				"resource_deps",
+				"startup order"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "dependsOn"
+						}
+					},
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "resource_deps"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "readiness-gating",
+			"name": "Readiness checks gate dependents",
+			"area": "orchestration",
+			"offer": "Dependents only start once a resource passes its readiness probe or health check.",
+			"source": "https://docs.tilt.dev/resource_dependencies.html",
+			"checked": "2026-10-27",
+			"match": [
+				"readiness checks",
+				"ready"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/service-json.md",
+							"contains": "healthCheckPath"
+						}
+					},
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "resource_deps"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "start-subset-of-resources",
+			"name": "Start only some resources",
+			"area": "orchestration",
+			"offer": "Start named resources only, plus whatever they depend on, instead of the whole system.",
+			"source": "https://docs.tilt.dev/cli/tilt_up.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt up frontend backend",
+				"tiltfile args",
+				"list of services to start"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "cli/src/commands/up.ts",
+							"contains": "--only <services...>"
+						}
+					},
+					{
+						"command": "flisk up"
+					}
+				]
+			}
+		},
+		{
+			"id": "multi-repo-tiltfiles",
+			"name": "Many Tiltfiles and repos",
+			"area": "orchestration",
+			"offer": "Composes one dev environment from service definitions spread over several folders or repositories.",
+			"source": "https://docs.tilt.dev/multiple_repos.html",
+			"checked": "2026-10-27",
+			"match": [
+				"many tiltfiles",
+				"many repos",
+				"include"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "runtime/discovery/AGENTS.md",
+							"contains": "Multi-root scanning"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "docker-compose-integration",
+			"name": "Adopt an existing compose file",
+			"area": "runtime",
+			"offer": "Points at an existing docker-compose file and layers dashboard control and live updates on top of it.",
+			"source": "https://docs.tilt.dev/docker_compose.html",
+			"checked": "2026-10-27",
+			"match": [
+				"docker_compose",
+				"existing docker-compose",
+				"tilt down"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk import"
+					},
+					{
+						"file": "cli/src/commands/import.ts"
+					}
+				]
+			}
+		},
+		{
+			"id": "manual-trigger-mode",
+			"name": "Manual update control",
+			"area": "workflow",
+			"offer": "Resources can be switched so file changes only mark them pending and rebuild when you press a button.",
+			"source": "https://docs.tilt.dev/manual_update_control.html",
+			"checked": "2026-10-27",
+			"match": [
+				"trigger_mode_manual",
+				"manual update control",
+				"pending changes"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "The engine reads a TILT_TRIGGER_MODE environment variable, but there is no flag, service.json field or documented per-service setting.",
+				"evidence": [
+					{
+						"file": "runtime/engine/topologies/tilt/resources/orchestrator/apply_runtime_flags.star"
+					}
+				]
+			}
+		},
+		{
+			"id": "trigger-rebuild-cli",
+			"name": "Trigger a resource from the CLI",
+			"area": "workflow",
+			"offer": "A single command forces an update of one resource of a running environment.",
+			"source": "https://docs.tilt.dev/cli/tilt_trigger.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt trigger",
+				"force a full rebuild",
+				"trigger an update"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk restart"
+					},
+					{
+						"mcpTool": "resource_restart"
+					}
+				]
+			}
+		},
+		{
+			"id": "custom-ui-buttons",
+			"name": "Custom action buttons in UI",
+			"area": "workflow",
+			"offer": "Adds buttons to the dashboard that run a local command, such as re-running an install or resetting data, optionally with inputs.",
+			"source": "https://docs.tilt.dev/buttons.html",
+			"checked": "2026-10-27",
+			"match": [
+				"custom buttons",
+				"cmd_button",
+				"uibutton"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "One-click project actions (reset DB, reseed, re-run codegen) fit the inner loop; docs/data.md only offers manual shell recipes today."
+			},
+			"acceptance": "A `buttons` entry in service.json or project.json generates a Tilt cmd_button; proved by generator code under runtime/engine/topologies/tilt, a docs/service-json.md section, and `flisk config verify` passing on a fixture.",
+			"ice": {
+				"impact": 5,
+				"confidence": 7,
+				"ease": 5,
+				"basis": "Impact: data reset and seed are common manual chores (docs/data.md) but shell scripts cover them; confidence: Tilt documents the feature and its inputs well; ease: the Tiltfile is generated in runtime/engine/topologies/tilt, but a new manifest field, schema and drift contract are needed."
+			}
+		},
+		{
+			"id": "ci-batch-mode",
+			"name": "Batch mode that exits by result",
+			"area": "workflow",
+			"offer": "Runs the whole environment non-interactively and exits non-zero if a build fails or a server crashes, success when all are healthy.",
+			"source": "https://docs.tilt.dev/cli/tilt_ci.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt ci",
+				"ci/batch mode",
+				"exits with failure"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "`flisk up --json` waits for readiness and docs/ci.md polls /health, but there is no one-command run-and-exit mode that fails on any crash.",
+				"evidence": [
+					{
+						"file": "docs/ci.md"
+					},
+					{
+						"command": "flisk up"
+					}
+				]
+			}
+		},
+		{
+			"id": "runtime-enable-disable",
+			"name": "Toggle resources while running",
+			"area": "orchestration",
+			"offer": "Enable or disable named resources, or all resources with a label, in a running environment without restarting it.",
+			"source": "https://docs.tilt.dev/cli/tilt_enable.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt enable",
+				"enables the specified resources",
+				"--only"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Switching services on and off during a session saves restarts when a large system only needs part of it at a time."
+			},
+			"acceptance": "`flisk enable|disable <service...>` command and a matching MCP tool, listed in cli/src/commands and cli/src/mcp/tools.ts, proven by an e2e test that stops one service without touching the rest.",
+			"ice": {
+				"impact": 6,
+				"confidence": 7,
+				"ease": 4,
+				"basis": "Impact: large stacks and agent sessions often need a subset, which is why `--only` exists; confidence: the Tilt command is documented and the same engine runs underneath; ease: `flisk ui` already shows enabled state but regeneration and drift rules make runtime toggling non-trivial."
+			}
+		},
+		{
+			"id": "tiltfile-config-args",
+			"name": "Per-developer options without restart",
+			"area": "workflow",
+			"offer": "Lets each developer pass options, store them in a config file and change them on a running environment.",
+			"source": "https://docs.tilt.dev/tiltfile_config.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt_config.json",
+				"tilt args",
+				"user configuration"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk takes `--only`, `--env-file` and a project `.env` at start, but options cannot be changed on a running stack.",
+				"evidence": [
+					{
+						"file": "docs/environment.md"
+					},
+					{
+						"text": {
+							"file": "cli/src/commands/up.ts",
+							"contains": "--env-file <path>"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "state-snapshots",
+			"name": "Save and share a state snapshot",
+			"area": "collaboration",
+			"offer": "Saves the current environment state and logs to a file that someone else can open later to debug or add context to a bug report.",
+			"source": "https://docs.tilt.dev/snapshots.html",
+			"checked": "2026-10-27",
+			"match": [
+				"snapshots",
+				"tilt snapshot create",
+				"async debugging"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "A one-file bundle of status, recent logs and doctor output would make bug reports and agent hand-offs reproducible."
+			},
+			"acceptance": "`flisk snapshot create [file]` (or an MCP tool `snapshot_create`) writes JSON combining status, logs and doctor output; proved by a command in cli/src/commands and a test that reads the file back.",
+			"ice": {
+				"impact": 6,
+				"confidence": 7,
+				"ease": 6,
+				"basis": "Impact: debugging hand-offs between people and agents are a recurring cost; confidence: Tilt documents the CLI behaviour but the best Flisk shape is open; ease: status, logs --json and doctor --json already exist, so it is mostly composition in cli/src/commands."
+			}
+		},
+		{
+			"id": "wait-for-ready-cli",
+			"name": "Wait for a resource condition",
+			"area": "workflow",
+			"offer": "A command blocks until chosen resources reach a condition such as Ready, for use in scripts.",
+			"source": "https://docs.tilt.dev/cli/tilt_wait.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt wait",
+				"--for=condition=ready",
+				"wait for a specific condition"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Scripts and agents can only poll `flisk status --json`; a blocking wait fits automation of a stack that is already running."
+			},
+			"acceptance": "`flisk wait [service...] --timeout` exits 0 when healthy, listed in cli/src/commands and as an MCP tool, proven by a unit test against a status fixture.",
+			"ice": {
+				"impact": 4,
+				"confidence": 6,
+				"ease": 6,
+				"basis": "Impact: polling status works today, so this is a convenience; confidence: Tilt marks the command experimental; ease: status already computes health in cli/src/commands/status.ts."
+			}
+		},
+		{
+			"id": "logs-cli",
+			"name": "Log query command",
+			"area": "observability",
+			"offer": "Reads logs of a running environment with follow, tail, time window, source (build or runtime) and JSON output.",
+			"source": "https://docs.tilt.dev/cli/tilt_logs.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt logs",
+				"--since",
+				"--follow",
+				"--json"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk logs supports service, tail, since, unhealthy-only and JSON, but has no follow mode or build versus runtime source filter.",
+				"evidence": [
+					{
+						"command": "flisk logs"
+					},
+					{
+						"mcpTool": "logs"
+					}
+				]
+			}
+		},
+		{
+			"id": "web-dashboard",
+			"name": "Dashboard of all resources",
+			"area": "observability",
+			"offer": "A web dashboard shows every resource, its status, logs and errors in one place.",
+			"source": "https://tilt.dev/",
+			"checked": "2026-10-27",
+			"match": [
+				"magic ui",
+				"web ui",
+				"logs, broken builds"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "docs/ui.md"
+					},
+					{
+						"text": {
+							"file": "docs/how-flisk-up-works.md",
+							"contains": "Tilt UI Port"
+						}
+					},
+					{
+						"command": "flisk ui"
+					}
+				]
+			}
+		},
+		{
+			"id": "state-api-query",
+			"name": "Query environment state",
+			"area": "integrations",
+			"offer": "Exposes the live state of every resource through an API and CLI so scripts can read it as JSON.",
+			"source": "https://docs.tilt.dev/cli/tilt_get.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt get",
+				"output format",
+				"json"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk status"
+					},
+					{
+						"mcpTool": "status"
+					}
+				]
+			}
+		},
+		{
+			"id": "doctor-diagnostics",
+			"name": "Diagnostics for bug reports",
+			"area": "observability",
+			"offer": "Prints information about the Tilt environment to attach to bug reports.",
+			"source": "https://docs.tilt.dev/cli/tilt_doctor.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt doctor",
+				"diagnostic information",
+				"bug reports"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk doctor"
+					},
+					{
+						"mcpTool": "doctor"
+					},
+					{
+						"file": "docs/reference/doctor-contract.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "extensions-ecosystem",
+			"name": "Shared Tiltfile extensions",
+			"area": "integrations",
+			"offer": "Teams load community or in-house Starlark snippets, such as extra checks and helpers, into their Tiltfile.",
+			"source": "https://docs.tilt.dev/extensions.html",
+			"checked": "2026-10-27",
+			"match": [
+				"extensions",
+				"ext://",
+				"load("
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "The generated Tiltfile is not meant to be edited, so users cannot add extensions; `flisk eject` hands the Starlark over.",
+				"evidence": [
+					{
+						"file": "docs/leaving-flisk.md"
+					},
+					{
+						"command": "flisk eject"
+					}
+				]
+			}
+		},
+		{
+			"id": "resource-labels-grouping",
+			"name": "Group resources with labels",
+			"area": "observability",
+			"offer": "Resources carry labels so the dashboard can group them, such as backend and frontend.",
+			"source": "https://tilt.dev/",
+			"checked": "2026-10-27",
+			"match": [
+				"labels",
+				"k8s_resource"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk groups services by stack and the Tilt UI shows them, but there is no user label field on a service.",
+				"evidence": [
+					{
+						"command": "flisk stacks"
+					},
+					{
+						"file": "cli/src/commands/stacks.ts"
+					}
+				]
+			}
+		},
+		{
+			"id": "one-command-onboarding",
+			"name": "New hire starts with one command",
+			"area": "workflow",
+			"offer": "Anyone on the team can start the whole app with a single command from the checked-in config.",
+			"source": "https://tilt.dev/",
+			"checked": "2026-10-27",
+			"match": [
+				"new hires just tilt up",
+				"painless onboarding"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "flisk up"
+						}
+					},
+					{
+						"command": "flisk up"
+					}
+				]
+			}
+		},
+		{
+			"id": "teardown-command",
+			"name": "Tear the environment down",
+			"area": "runtime",
+			"offer": "A separate command removes the containers a session left running.",
+			"source": "https://docs.tilt.dev/cli/tilt_up.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt down",
+				"continue running"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk down"
+					},
+					{
+						"mcpTool": "down"
+					}
+				]
+			}
+		},
+		{
+			"id": "kubernetes-deploy",
+			"name": "Deploy to Kubernetes clusters",
+			"area": "environments",
+			"offer": "Builds and applies Kubernetes YAML, Helm or Kustomize output to a local or remote cluster during development.",
+			"source": "https://docs.tilt.dev/tiltfile_concepts.html",
+			"checked": "2026-10-27",
+			"match": [
+				"k8s_yaml",
+				"helm",
+				"kustomize"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is a Docker-and-processes local runtime and leaves cluster deployment to the user's Kubernetes workflow (docs/scope.md)."
+			}
+		},
+		{
+			"id": "local-cluster-guidance",
+			"name": "Choosing a local cluster",
+			"area": "environments",
+			"offer": "Compares kind, Docker Desktop, minikube, k3d and others to run Kubernetes locally.",
+			"source": "https://docs.tilt.dev/choosing_clusters.html",
+			"checked": "2026-10-27",
+			"match": [
+				"local dev cluster",
+				"kind",
+				"minikube"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk does not need or provision a Kubernetes cluster, so cluster choice advice does not apply."
+			}
+		},
+		{
+			"id": "starlark-language-server",
+			"name": "Starlark editor support",
+			"area": "integrations",
+			"offer": "Ships a language server for editing Tiltfiles with completion and diagnostics.",
+			"source": "https://docs.tilt.dev/cli/tilt_lsp.html",
+			"checked": "2026-10-27",
+			"match": [
+				"tilt lsp",
+				"language server for starlark"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk users edit service.json, not Starlark, so editor support for the Tiltfile is not a Flisk surface."
+			}
+		}
+	]
+}

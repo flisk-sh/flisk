@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "commander";
 import { findCliAssetRoot, loadTemplate } from "../generator/template-engine.js";
 import { describeLayoutProblems, EXTENSION_DIRS, inspectExtensionLayout, resolveExtensionDir, resolveSharedPlatformDir, resolveTiltfile, } from "../utils/runtime-layout.js";
@@ -16,6 +16,22 @@ const REQUIRED_ASSET_PATHS = [
     { path: SHARED_PLATFORM_TEMPLATES, directory: true },
 ];
 const EXTENSION_NAMES = new Set(EXTENSION_DIRS);
+const PACKAGE_CLI_DIR = "cli";
+/**
+ * Turn the directory `findCliAssetRoot` found into the root the asset paths are relative to.
+ *
+ * The packaged CLI ships `cli/shared-platform-engineering/docker-templates`, so the upward search stops at
+ * `cli/`. The Tiltfile, the extension directories and `cli/templates` sit one level up (the package root,
+ * or the repository root in a source checkout). When the found directory is `cli/` and holds none of the
+ * extension entries, check from its parent instead.
+ */
+function resolveAssetRoot(candidate) {
+    if (basename(candidate) !== PACKAGE_CLI_DIR)
+        return candidate;
+    const layout = inspectExtensionLayout(candidate);
+    const hasNoExtensionEntries = layout.kind === "incomplete" && layout.missing.length === EXTENSION_DIRS.length + 1;
+    return hasNoExtensionEntries ? dirname(candidate) : candidate;
+}
 const REQUIRED_TEMPLATES = [
     ".tiltignore.hbs",
     "TILT_RESOURCE_DEFAULTS.star.hbs",
@@ -34,7 +50,7 @@ export const runtimeCommand = new Command("runtime")
         return;
     }
     const candidate = findCliAssetRoot();
-    const assetRoot = candidate ? resolve(candidate) : null;
+    const assetRoot = candidate ? resolveAssetRoot(resolve(candidate)) : null;
     const missing = assetRoot
         ? REQUIRED_ASSET_PATHS.filter(({ path, directory }) => {
             try {

@@ -1,0 +1,17 @@
+{
+  "title": "dependsOn written as a string",
+  "why": "`flisk up` refuses it; `config verify` used to split it per character (\"w\", \"e\", \"b\" unknown) and crashed with `{} is not iterable` for an object.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "setShape",
+      "owner": "billing",
+      "shape": "string"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

@@ -2,7 +2,7 @@
 
 Smoke records are written beneath `.flisk/smoke/<service>/<step-slug>/`. The latest response is stored in `body.txt`, and a passing response is copied to `last-success-body.txt`. That text is kept exactly as the service returned it. The repository has shared helpers in `cli/src/utils/secret-redaction.ts` (`envSecretValues()` and `redactSecrets()`), which `flisk logs` and `flisk doctor` already use, but the smoke runner does not.
 
-`ensureGitignore()` already knows about `.flisk/smoke/`, but it is currently called only from the `flisk project` flows (`cli/src/commands/project.ts:323` and `:494`). A project that gains smoke configuration in another way can therefore write response bodies with no matching ignore entry, and `examples/tdk-example/.gitignore` has the gap today: `git check-ignore -v .flisk/smoke/orders-api/read-back/body.txt` exits 1 there, while the same check at the repository root prints `.gitignore:47:.flisk/smoke/`.
+`ensureGitignore()` already knows about `.flisk/smoke/`, but it is currently called only from the `flisk project` flows (`cli/src/commands/project.ts:323` and `:494`). A project that gains smoke configuration in another way can therefore write response bodies with no matching ignore entry, and `examples/flisk-example/.gitignore` has the gap today: `git check-ignore -v .flisk/smoke/orders-api/read-back/body.txt` exits 1 there, while the same check at the repository root prints `.gitignore:47:.flisk/smoke/`.
 
 Records intentionally survive `flisk down`. The `smoke` suite in `.github/workflows/e2e-journeys.yml` uploads them as `smoke-records-<run id>-<attempt>` with 14-day retention.
 

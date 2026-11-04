@@ -1,0 +1,525 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="400" viewBox="0 0 1080 400" role="img" aria-labelledby="t d">
+  <title id="t">The Flisk ecosystem: bring your app, run it with flisk up, export it, watch it run</title>
+  <desc id="d">Bring an app in Rust, Go, Python, TypeScript, JavaScript, JVM, Ruby or PHP, from a Compose file, a Tiltfile, a Dockerfile or any image. Flisk runs 77 building blocks: 5 languages, 10 web frameworks, 10 API frameworks, 10 resource types, 8 data and AI services, 23 MCP tools and 11 starter projects. Export writes render.yaml and wrangler.toml and never deploys. A radar finds and checks every running part.</desc>
+  <defs>
+    <linearGradient id="bolt" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0" stop-color="#5ee0a0"/>
+      <stop offset="1" stop-color="#1f9d6b"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5ee0a0"/>
+      <stop offset=".5" stop-color="#1f9d6b" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#5ee0a0"/>
+      <animateTransform attributeName="gradientTransform" type="rotate" from="0 .5 .5" to="360 .5 .5" dur="6s" repeatCount="indefinite"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="0%" r="90%">
+      <stop offset="0" stop-color="#5ee0a0" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#5ee0a0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5ee0a0" stop-opacity="0"/>
+      <stop offset="1" stop-color="#5ee0a0" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".08" stop-color="#fff"/>
+      <stop offset=".92" stop-color="#fff"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="fade" maskUnits="userSpaceOnUse" x="406" y="0" width="306" height="400">
+      <rect x="406" y="0" width="306" height="400" fill="url(#edge)"/>
+    </mask>
+    <clipPath id="odo"><rect x="234" y="0" width="40" height="22"/></clipPath>
+  </defs>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #24292f; }
+    .card { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1; }
+    .hero { fill: #ffffff; stroke: url(#hero); stroke-width: 1.6; }
+    .kick { font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px; fill: #1f9d6b; }
+    .num { font-size: 10.5px; font-weight: 700; fill: #8c959f; }
+    .head { font-size: 15px; font-weight: 700; }
+    .big { font-size: 21px; font-weight: 800; fill: #1f9d6b; }
+    .sub { font-size: 10.5px; fill: #6e7781; }
+    .cmd { font-size: 11px; fill: #57606a; }
+    .cmd tspan { fill: #1f9d6b; }
+    .file { font-size: 12px; font-weight: 600; }
+    .host { font-size: 10px; fill: #6e7781; }
+    .note { font-size: 10px; fill: #6e7781; }
+    .chip rect { fill: #f6f8fa; stroke: #d0d7de; }
+    .chip text { font-size: 12px; font-weight: 600; }
+    .lang rect { fill: #ffffff; stroke: #d0d7de; }
+    .lang text { font-size: 11.5px; font-weight: 700; }
+    .count { font-size: 18px; font-weight: 800; fill: #1f9d6b; }
+    .what { font-size: 10.5px; font-weight: 600; fill: #57606a; }
+    .slot { fill: #ffffff; stroke: #d0d7de; }
+    .lit { fill: #5ee0a0; fill-opacity: .14; stroke: #1f9d6b; stroke-width: 1.2; opacity: 0; }
+    .tick { fill: #1f9d6b; font-size: 11px; font-weight: 700; opacity: 0; }
+    .bring { animation: bring 7.2s linear infinite; }
+    .from { animation: from 8.0s linear infinite; }
+    .out { animation: out 10.5s linear infinite; }
+    @keyframes bring { 0% { opacity: 0; } 3% { opacity: 1; } 12.5% { opacity: 1; } 16.5%, 100% { opacity: 0; } }
+    @keyframes from { 0% { opacity: 0; } 4% { opacity: 1; } 22% { opacity: 1; } 27%, 100% { opacity: 0; } }
+    @keyframes out { 0% { opacity: 0; } 3% { opacity: 1; } 14.3% { opacity: 1; } 18.3%, 100% { opacity: 0; } }
+    .stack { opacity: 0; animation: stack 16s linear infinite; }
+    @keyframes stack {
+      0% { opacity: 0; transform: translateY(6px); }
+      1.88% { opacity: 1; transform: translateY(0); }
+      10.62% { opacity: 1; transform: translateY(0); }
+      12.50%, 100% { opacity: 0; transform: translateY(-6px); }
+    }
+    .flow { fill: #1f9d6b; opacity: 0; animation: flow 1.2s linear infinite; }
+    .f2 { animation-delay: .4s; } .f3 { animation-delay: .8s; }
+    @keyframes flow { 0% { opacity: 0; transform: translateX(0); } 25% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateX(14px); } }
+    .ring { fill: none; stroke: #1f9d6b; stroke-opacity: .28; stroke-width: 1; }
+    .axis { stroke: #1f9d6b; stroke-opacity: .18; stroke-width: 1; }
+    .arm { transform-box: view-box; animation: spin 3.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .blip { fill: #5ee0a0; stroke: #1f9d6b; stroke-width: .8; opacity: .18; animation: blip 3.6s ease-out infinite; }
+    .tag { font-size: 10px; font-weight: 700; fill: #1f9d6b; opacity: .35; animation: tag 3.6s ease-out infinite; }
+    @keyframes blip { 0% { opacity: 1; } 70%, 100% { opacity: .18; } }
+    @keyframes tag { 0% { opacity: 1; } 70%, 100% { opacity: .35; } }
+    .ok { fill: #1f9d6b; animation: pulse 1.8s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+    .core { animation: pulse 1.5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+    @keyframes pulse { from { transform: scale(.9); } to { transform: scale(1.1); } }
+    .cursor { animation: blink 1s steps(1, end) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .m-lang { animation: m-lang 6.0s linear infinite; }
+    @keyframes m-lang { from { transform: translateX(0.0px); } to { transform: translateX(-273.9px); } }
+    .o-lang { animation: o-lang 12.0s cubic-bezier(.2,.7,.2,1) infinite; animation-delay: 0.00s; }
+    @keyframes o-lang { 0% { transform: translateY(110px); } 14%, 100% { transform: translateY(0); } }
+    .m-web { animation: m-web 15.1s linear infinite; }
+    @keyframes m-web { from { transform: translateX(-692.3px); } to { transform: translateX(0.0px); } }
+    .o-web { animation: o-web 12.0s cubic-bezier(.2,.7,.2,1) infinite; animation-delay: 0.12s; }
+    @keyframes o-web { 0% { transform: translateY(220px); } 14%, 100% { transform: translateY(0); } }
+    .m-api { animation: m-api 14.0s linear infinite; }
+    @keyframes m-api { from { transform: translateX(0.0px); } to { transform: translateX(-641.8px); } }
+    .o-api { animation: o-api 12.0s cubic-bezier(.2,.7,.2,1) infinite; animation-delay: 0.24s; }
+    @keyframes o-api { 0% { transform: translateY(220px); } 14%, 100% { transform: translateY(0); } }
+    .m-type { animation: m-type 15.7s linear infinite; }
+    @keyframes m-type { from { transform: translateX(-721.2px); } to { transform: translateX(0.0px); } }
+    .o-type { animation: o-type 12.0s cubic-bezier(.2,.7,.2,1) infinite; animation-delay: 0.36s; }
+    @keyframes o-type { 0% { transform: translateY(220px); } 14%, 100% { transform: translateY(0); } }
+    .m-data { animation: m-data 11.5s linear infinite; }
+    @keyframes m-data { from { transform: translateX(0.0px); } to { transform: translateX(-530.8px); } }
+    .o-data { animation: o-data 12.0s cubic-bezier(.2,.7,.2,1) infinite; animation-delay: 0.48s; }
+    @keyframes o-data { 0% { transform: translateY(176px); } 14%, 100% { transform: translateY(0); } }
+    .m-mcp { animation: m-mcp 52.5s linear infinite; }
+    @keyframes m-mcp { from { transform: translateX(-2414.5px); } to { transform: translateX(0.0px); } }
+    .o-mcp { animation: o-mcp 12.0s cubic-bezier(.2,.7,.2,1) infinite; animation-delay: 0.60s; }
+    @keyframes o-mcp { 0% { transform: translateY(506px); } 14%, 100% { transform: translateY(0); } }
+    .m-tpl { animation: m-tpl 18.7s linear infinite; }
+    @keyframes m-tpl { from { transform: translateX(0.0px); } to { transform: translateX(-859.8px); } }
+    .o-tpl { animation: o-tpl 12.0s cubic-bezier(.2,.7,.2,1) infinite; animation-delay: 0.72s; }
+    @keyframes o-tpl { 0% { transform: translateY(242px); } 14%, 100% { transform: translateY(0); } }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .card { fill: #161b22; stroke: #30363d; }
+      .hero { fill: #0d1117; }
+      .kick, .big, .tag, .cmd tspan, .tick, .count { fill: #5ee0a0; }
+      .sub, .note, .cmd, .host, .what { fill: #8b949e; }
+      .num { fill: #6e7681; }
+      .chip rect { fill: #161b22; stroke: #30363d; }
+      .lang rect, .slot { fill: #0d1117; stroke: #30363d; }
+      .lit { stroke: #5ee0a0; }
+      .flow, .ok { fill: #5ee0a0; }
+    }
+  </style>
+
+  <!-- 1. Bring your app: any language, from the files you already have -->
+  <rect class="card" x="10" y="10" width="200" height="380" rx="12"/>
+  <text class="num" x="24" y="32">01</text>
+  <text class="kick" x="46" y="32">BRING</text>
+  <text class="head" x="24" y="53">your app, any stack</text>
+  <text class="sub" x="24" y="74">in any language</text>
+  <g class="lang"><rect x="22.0" y="82" width="43.7" height="22" rx="11"/><text x="30.0" y="97">Rust</text></g>
+  <rect class="lit bring" style="animation-delay:0.0s" x="22.0" y="82" width="43.7" height="22" rx="11"/>
+  <g class="lang"><rect x="71.7" y="82" width="29.8" height="22" rx="11"/><text x="79.7" y="97">Go</text></g>
+  <rect class="lit bring" style="animation-delay:0.9s" x="71.7" y="82" width="29.8" height="22" rx="11"/>
+  <g class="lang"><rect x="107.5" y="82" width="57.5" height="22" rx="11"/><text x="115.5" y="97">Python</text></g>
+  <rect class="lit bring" style="animation-delay:1.8s" x="107.5" y="82" width="57.5" height="22" rx="11"/>
+  <g class="lang"><rect x="22.0" y="110" width="85.2" height="22" rx="11"/><text x="30.0" y="125">TypeScript</text></g>
+  <rect class="lit bring" style="animation-delay:2.7s" x="22.0" y="110" width="85.2" height="22" rx="11"/>
+  <g class="lang"><rect x="22.0" y="138" width="85.2" height="22" rx="11"/><text x="30.0" y="153">JavaScript</text></g>
+  <rect class="lit bring" style="animation-delay:3.6s" x="22.0" y="138" width="85.2" height="22" rx="11"/>
+  <g class="lang"><rect x="113.2" y="138" width="36.8" height="22" rx="11"/><text x="121.2" y="153">JVM</text></g>
+  <rect class="lit bring" style="animation-delay:4.5s" x="113.2" y="138" width="36.8" height="22" rx="11"/>
+  <g class="lang"><rect x="22.0" y="166" width="43.7" height="22" rx="11"/><text x="30.0" y="181">Ruby</text></g>
+  <rect class="lit bring" style="animation-delay:5.4s" x="22.0" y="166" width="43.7" height="22" rx="11"/>
+  <g class="lang"><rect x="71.7" y="166" width="36.8" height="22" rx="11"/><text x="79.7" y="181">PHP</text></g>
+  <rect class="lit bring" style="animation-delay:6.3s" x="71.7" y="166" width="36.8" height="22" rx="11"/>
+  <text class="sub" x="24" y="212">from what you have</text>
+  <rect class="slot" x="22" y="220" width="176" height="25" rx="6"/>
+  <rect class="lit from" style="animation-delay:0.0s" x="22" y="220" width="176" height="25" rx="6"/>
+  <text class="file" x="32" y="237">docker-compose.yml</text>
+  <text class="tick from" style="animation-delay:0.0s" x="182" y="237">✓</text>
+  <rect class="slot" x="22" y="252" width="176" height="25" rx="6"/>
+  <rect class="lit from" style="animation-delay:2.0s" x="22" y="252" width="176" height="25" rx="6"/>
+  <text class="file" x="32" y="269">Tiltfile</text>
+  <text class="tick from" style="animation-delay:2.0s" x="182" y="269">✓</text>
+  <rect class="slot" x="22" y="284" width="176" height="25" rx="6"/>
+  <rect class="lit from" style="animation-delay:4.0s" x="22" y="284" width="176" height="25" rx="6"/>
+  <text class="file" x="32" y="301">Dockerfile</text>
+  <text class="tick from" style="animation-delay:4.0s" x="182" y="301">✓</text>
+  <rect class="slot" x="22" y="316" width="176" height="25" rx="6"/>
+  <rect class="lit from" style="animation-delay:6.0s" x="22" y="316" width="176" height="25" rx="6"/>
+  <text class="file" x="32" y="333">any image:tag</text>
+  <text class="tick from" style="animation-delay:6.0s" x="182" y="333">✓</text>
+  <text class="cmd" x="24" y="376"><tspan>$</tspan> flisk import .</text>
+  <circle class="flow" cx="215" cy="200.0" r="2.3"/>
+  <circle class="flow f2" cx="215" cy="200.0" r="2.3"/>
+  <circle class="flow f3" cx="215" cy="200.0" r="2.3"/>
+
+  <!-- 2. Flisk: 77 building blocks, each row counted from the CLI source -->
+  <rect class="hero" x="228" y="10" width="492" height="380" rx="12"/>
+  <rect x="229" y="11" width="490" height="378" rx="11" fill="url(#glow)"/>
+  <g class="core"><path transform="translate(242 19)" d="M10 0 1 16h7l-4 12 11-17h-7z" fill="url(#bolt)" stroke="#16805a" stroke-width=".8" stroke-linejoin="round"/></g>
+  <text class="kick" x="266" y="32">FLISK<tspan class="sub" dx="10" style="letter-spacing:0;font-weight:400">· 77 building blocks, one command</tspan></text>
+  <text class="head" x="266" y="53">flisk up runs<tspan class="cursor"> _</tspan></text>
+  <text class="big stack s0" style="animation-delay:0.0s" x="242" y="84">full-stack apps</text>
+  <text class="big stack s1" style="animation-delay:2.0s" x="242" y="84">MLOps with MLflow</text>
+  <text class="big stack s2" style="animation-delay:4.0s" x="242" y="84">multi-agent AI</text>
+  <text class="big stack s3" style="animation-delay:6.0s" x="242" y="84">RAG on Qdrant</text>
+  <text class="big stack s4" style="animation-delay:8.0s" x="242" y="84">local LLMs, Ollama</text>
+  <text class="big stack s5" style="animation-delay:10.0s" x="242" y="84">microservices</text>
+  <text class="big stack s6" style="animation-delay:12.0s" x="242" y="84">SaaS &amp; shops</text>
+  <text class="big stack s7" style="animation-delay:14.0s" x="242" y="84">MCP tools for AI</text>
+  <g clip-path="url(#odo)" transform="translate(0 110)"><g class="o-lang"><text class="count" x="270" y="16" text-anchor="end">5</text><text class="count" x="270" y="-6" text-anchor="end">4</text><text class="count" x="270" y="-28" text-anchor="end">3</text><text class="count" x="270" y="-50" text-anchor="end">2</text><text class="count" x="270" y="-72" text-anchor="end">1</text><text class="count" x="270" y="-94" text-anchor="end">0</text></g></g>
+  <text class="what" x="276" y="125">languages</text>
+  <g mask="url(#fade)"><g class="m-lang">
+    <g class="chip"><rect x="406.0" y="110" width="37.7" height="22" rx="11"/><text x="414.0" y="125">Bun</text></g>
+    <g class="chip"><rect x="450.7" y="110" width="66.6" height="22" rx="11"/><text x="458.7" y="125">Node.js</text></g>
+    <g class="chip"><rect x="524.2" y="110" width="59.3" height="22" rx="11"/><text x="532.2" y="125">Python</text></g>
+    <g class="chip"><rect x="590.6" y="110" width="30.4" height="22" rx="11"/><text x="598.6" y="125">Go</text></g>
+    <g class="chip"><rect x="628.0" y="110" width="44.9" height="22" rx="11"/><text x="636.0" y="125">Rust</text></g>
+    <g class="chip"><rect x="679.9" y="110" width="37.7" height="22" rx="11"/><text x="687.9" y="125">Bun</text></g>
+    <g class="chip"><rect x="724.6" y="110" width="66.6" height="22" rx="11"/><text x="732.6" y="125">Node.js</text></g>
+    <g class="chip"><rect x="798.2" y="110" width="59.3" height="22" rx="11"/><text x="806.2" y="125">Python</text></g>
+    <g class="chip"><rect x="864.5" y="110" width="30.4" height="22" rx="11"/><text x="872.5" y="125">Go</text></g>
+    <g class="chip"><rect x="902.0" y="110" width="44.9" height="22" rx="11"/><text x="910.0" y="125">Rust</text></g>
+    <g class="chip"><rect x="953.9" y="110" width="37.7" height="22" rx="11"/><text x="961.9" y="125">Bun</text></g>
+    <g class="chip"><rect x="998.5" y="110" width="66.6" height="22" rx="11"/><text x="1006.5" y="125">Node.js</text></g>
+    <g class="chip"><rect x="1072.1" y="110" width="59.3" height="22" rx="11"/><text x="1080.1" y="125">Python</text></g>
+    <g class="chip"><rect x="1138.4" y="110" width="30.4" height="22" rx="11"/><text x="1146.4" y="125">Go</text></g>
+    <g class="chip"><rect x="1175.9" y="110" width="44.9" height="22" rx="11"/><text x="1183.9" y="125">Rust</text></g>
+    <g class="chip"><rect x="1227.8" y="110" width="37.7" height="22" rx="11"/><text x="1235.8" y="125">Bun</text></g>
+    <g class="chip"><rect x="1272.5" y="110" width="66.6" height="22" rx="11"/><text x="1280.5" y="125">Node.js</text></g>
+    <g class="chip"><rect x="1346.0" y="110" width="59.3" height="22" rx="11"/><text x="1354.0" y="125">Python</text></g>
+    <g class="chip"><rect x="1412.4" y="110" width="30.4" height="22" rx="11"/><text x="1420.4" y="125">Go</text></g>
+    <g class="chip"><rect x="1449.8" y="110" width="44.9" height="22" rx="11"/><text x="1457.8" y="125">Rust</text></g>
+  </g></g>
+  <g clip-path="url(#odo)" transform="translate(0 145)"><g class="o-web"><text class="count" x="270" y="16" text-anchor="end">10</text><text class="count" x="270" y="-6" text-anchor="end">9</text><text class="count" x="270" y="-28" text-anchor="end">8</text><text class="count" x="270" y="-50" text-anchor="end">7</text><text class="count" x="270" y="-72" text-anchor="end">6</text><text class="count" x="270" y="-94" text-anchor="end">5</text><text class="count" x="270" y="-116" text-anchor="end">4</text><text class="count" x="270" y="-138" text-anchor="end">3</text><text class="count" x="270" y="-160" text-anchor="end">2</text><text class="count" x="270" y="-182" text-anchor="end">1</text><text class="count" x="270" y="-204" text-anchor="end">0</text></g></g>
+  <text class="what" x="276" y="160">web frameworks</text>
+  <g mask="url(#fade)"><g class="m-web">
+    <g class="chip"><rect x="406.0" y="145" width="52.1" height="22" rx="11"/><text x="414.0" y="160">React</text></g>
+    <g class="chip"><rect x="465.1" y="145" width="37.7" height="22" rx="11"/><text x="473.1" y="160">Vue</text></g>
+    <g class="chip"><rect x="509.8" y="145" width="59.3" height="22" rx="11"/><text x="517.8" y="160">Svelte</text></g>
+    <g class="chip"><rect x="576.1" y="145" width="52.1" height="22" rx="11"/><text x="584.1" y="160">Solid</text></g>
+    <g class="chip"><rect x="635.3" y="145" width="59.3" height="22" rx="11"/><text x="643.3" y="160">Preact</text></g>
+    <g class="chip"><rect x="701.6" y="145" width="44.9" height="22" rx="11"/><text x="709.6" y="160">Qwik</text></g>
+    <g class="chip"><rect x="753.5" y="145" width="37.7" height="22" rx="11"/><text x="761.5" y="160">Lit</text></g>
+    <g class="chip"><rect x="798.2" y="145" width="66.6" height="22" rx="11"/><text x="806.2" y="160">Next.js</text></g>
+    <g class="chip"><rect x="871.7" y="145" width="124.4" height="22" rx="11"/><text x="879.7" y="160">TanStack Router</text></g>
+    <g class="chip"><rect x="1003.1" y="145" width="88.2" height="22" rx="11"/><text x="1011.1" y="160">vanilla TS</text></g>
+    <g class="chip"><rect x="1098.3" y="145" width="52.1" height="22" rx="11"/><text x="1106.3" y="160">React</text></g>
+    <g class="chip"><rect x="1157.5" y="145" width="37.7" height="22" rx="11"/><text x="1165.5" y="160">Vue</text></g>
+    <g class="chip"><rect x="1202.1" y="145" width="59.3" height="22" rx="11"/><text x="1210.1" y="160">Svelte</text></g>
+    <g class="chip"><rect x="1268.5" y="145" width="52.1" height="22" rx="11"/><text x="1276.5" y="160">Solid</text></g>
+    <g class="chip"><rect x="1327.6" y="145" width="59.3" height="22" rx="11"/><text x="1335.6" y="160">Preact</text></g>
+    <g class="chip"><rect x="1393.9" y="145" width="44.9" height="22" rx="11"/><text x="1401.9" y="160">Qwik</text></g>
+    <g class="chip"><rect x="1445.8" y="145" width="37.7" height="22" rx="11"/><text x="1453.8" y="160">Lit</text></g>
+    <g class="chip"><rect x="1490.5" y="145" width="66.6" height="22" rx="11"/><text x="1498.5" y="160">Next.js</text></g>
+    <g class="chip"><rect x="1564.1" y="145" width="124.4" height="22" rx="11"/><text x="1572.1" y="160">TanStack Router</text></g>
+    <g class="chip"><rect x="1695.4" y="145" width="88.2" height="22" rx="11"/><text x="1703.4" y="160">vanilla TS</text></g>
+    <g class="chip"><rect x="1790.7" y="145" width="52.1" height="22" rx="11"/><text x="1798.7" y="160">React</text></g>
+    <g class="chip"><rect x="1849.8" y="145" width="37.7" height="22" rx="11"/><text x="1857.8" y="160">Vue</text></g>
+    <g class="chip"><rect x="1894.5" y="145" width="59.3" height="22" rx="11"/><text x="1902.5" y="160">Svelte</text></g>
+    <g class="chip"><rect x="1960.8" y="145" width="52.1" height="22" rx="11"/><text x="1968.8" y="160">Solid</text></g>
+    <g class="chip"><rect x="2019.9" y="145" width="59.3" height="22" rx="11"/><text x="2027.9" y="160">Preact</text></g>
+    <g class="chip"><rect x="2086.3" y="145" width="44.9" height="22" rx="11"/><text x="2094.3" y="160">Qwik</text></g>
+    <g class="chip"><rect x="2138.2" y="145" width="37.7" height="22" rx="11"/><text x="2146.2" y="160">Lit</text></g>
+    <g class="chip"><rect x="2182.8" y="145" width="66.6" height="22" rx="11"/><text x="2190.8" y="160">Next.js</text></g>
+    <g class="chip"><rect x="2256.4" y="145" width="124.4" height="22" rx="11"/><text x="2264.4" y="160">TanStack Router</text></g>
+    <g class="chip"><rect x="2387.8" y="145" width="88.2" height="22" rx="11"/><text x="2395.8" y="160">vanilla TS</text></g>
+  </g></g>
+  <g clip-path="url(#odo)" transform="translate(0 180)"><g class="o-api"><text class="count" x="270" y="16" text-anchor="end">10</text><text class="count" x="270" y="-6" text-anchor="end">9</text><text class="count" x="270" y="-28" text-anchor="end">8</text><text class="count" x="270" y="-50" text-anchor="end">7</text><text class="count" x="270" y="-72" text-anchor="end">6</text><text class="count" x="270" y="-94" text-anchor="end">5</text><text class="count" x="270" y="-116" text-anchor="end">4</text><text class="count" x="270" y="-138" text-anchor="end">3</text><text class="count" x="270" y="-160" text-anchor="end">2</text><text class="count" x="270" y="-182" text-anchor="end">1</text><text class="count" x="270" y="-204" text-anchor="end">0</text></g></g>
+  <text class="what" x="276" y="195">API frameworks</text>
+  <g mask="url(#fade)"><g class="m-api">
+    <g class="chip"><rect x="406.0" y="180" width="44.9" height="22" rx="11"/><text x="414.0" y="195">Hono</text></g>
+    <g class="chip"><rect x="457.9" y="180" width="66.6" height="22" rx="11"/><text x="465.9" y="195">Express</text></g>
+    <g class="chip"><rect x="531.5" y="180" width="59.3" height="22" rx="11"/><text x="539.5" y="195">Elysia</text></g>
+    <g class="chip"><rect x="597.8" y="180" width="66.6" height="22" rx="11"/><text x="605.8" y="195">Fastify</text></g>
+    <g class="chip"><rect x="671.4" y="180" width="59.3" height="22" rx="11"/><text x="679.4" y="195">NestJS</text></g>
+    <g class="chip"><rect x="737.7" y="180" width="37.7" height="22" rx="11"/><text x="745.7" y="195">Koa</text></g>
+    <g class="chip"><rect x="782.4" y="180" width="30.4" height="22" rx="11"/><text x="790.4" y="195">h3</text></g>
+    <g class="chip"><rect x="819.8" y="180" width="66.6" height="22" rx="11"/><text x="827.8" y="195">FastAPI</text></g>
+    <g class="chip"><rect x="893.4" y="180" width="44.9" height="22" rx="11"/><text x="901.4" y="195">axum</text></g>
+    <g class="chip"><rect x="945.3" y="180" width="95.5" height="22" rx="11"/><text x="953.3" y="195">Go net/http</text></g>
+    <g class="chip"><rect x="1047.8" y="180" width="44.9" height="22" rx="11"/><text x="1055.8" y="195">Hono</text></g>
+    <g class="chip"><rect x="1099.7" y="180" width="66.6" height="22" rx="11"/><text x="1107.7" y="195">Express</text></g>
+    <g class="chip"><rect x="1173.2" y="180" width="59.3" height="22" rx="11"/><text x="1181.2" y="195">Elysia</text></g>
+    <g class="chip"><rect x="1239.6" y="180" width="66.6" height="22" rx="11"/><text x="1247.6" y="195">Fastify</text></g>
+    <g class="chip"><rect x="1313.1" y="180" width="59.3" height="22" rx="11"/><text x="1321.1" y="195">NestJS</text></g>
+    <g class="chip"><rect x="1379.5" y="180" width="37.7" height="22" rx="11"/><text x="1387.5" y="195">Koa</text></g>
+    <g class="chip"><rect x="1424.2" y="180" width="30.4" height="22" rx="11"/><text x="1432.2" y="195">h3</text></g>
+    <g class="chip"><rect x="1461.6" y="180" width="66.6" height="22" rx="11"/><text x="1469.6" y="195">FastAPI</text></g>
+    <g class="chip"><rect x="1535.2" y="180" width="44.9" height="22" rx="11"/><text x="1543.2" y="195">axum</text></g>
+    <g class="chip"><rect x="1587.1" y="180" width="95.5" height="22" rx="11"/><text x="1595.1" y="195">Go net/http</text></g>
+    <g class="chip"><rect x="1689.5" y="180" width="44.9" height="22" rx="11"/><text x="1697.5" y="195">Hono</text></g>
+    <g class="chip"><rect x="1741.4" y="180" width="66.6" height="22" rx="11"/><text x="1749.4" y="195">Express</text></g>
+    <g class="chip"><rect x="1815.0" y="180" width="59.3" height="22" rx="11"/><text x="1823.0" y="195">Elysia</text></g>
+    <g class="chip"><rect x="1881.3" y="180" width="66.6" height="22" rx="11"/><text x="1889.3" y="195">Fastify</text></g>
+    <g class="chip"><rect x="1954.9" y="180" width="59.3" height="22" rx="11"/><text x="1962.9" y="195">NestJS</text></g>
+    <g class="chip"><rect x="2021.3" y="180" width="37.7" height="22" rx="11"/><text x="2029.3" y="195">Koa</text></g>
+    <g class="chip"><rect x="2065.9" y="180" width="30.4" height="22" rx="11"/><text x="2073.9" y="195">h3</text></g>
+    <g class="chip"><rect x="2103.4" y="180" width="66.6" height="22" rx="11"/><text x="2111.4" y="195">FastAPI</text></g>
+    <g class="chip"><rect x="2176.9" y="180" width="44.9" height="22" rx="11"/><text x="2184.9" y="195">axum</text></g>
+    <g class="chip"><rect x="2228.8" y="180" width="95.5" height="22" rx="11"/><text x="2236.8" y="195">Go net/http</text></g>
+  </g></g>
+  <g clip-path="url(#odo)" transform="translate(0 215)"><g class="o-type"><text class="count" x="270" y="16" text-anchor="end">10</text><text class="count" x="270" y="-6" text-anchor="end">9</text><text class="count" x="270" y="-28" text-anchor="end">8</text><text class="count" x="270" y="-50" text-anchor="end">7</text><text class="count" x="270" y="-72" text-anchor="end">6</text><text class="count" x="270" y="-94" text-anchor="end">5</text><text class="count" x="270" y="-116" text-anchor="end">4</text><text class="count" x="270" y="-138" text-anchor="end">3</text><text class="count" x="270" y="-160" text-anchor="end">2</text><text class="count" x="270" y="-182" text-anchor="end">1</text><text class="count" x="270" y="-204" text-anchor="end">0</text></g></g>
+  <text class="what" x="276" y="230">resource types</text>
+  <g mask="url(#fade)"><g class="m-type">
+    <g class="chip"><rect x="406.0" y="215" width="66.6" height="22" rx="11"/><text x="414.0" y="230">backend</text></g>
+    <g class="chip"><rect x="479.6" y="215" width="73.8" height="22" rx="11"/><text x="487.6" y="230">frontend</text></g>
+    <g class="chip"><rect x="560.4" y="215" width="59.3" height="22" rx="11"/><text x="568.4" y="230">worker</text></g>
+    <g class="chip"><rect x="626.7" y="215" width="52.1" height="22" rx="11"/><text x="634.7" y="230">agent</text></g>
+    <g class="chip"><rect x="685.8" y="215" width="37.7" height="22" rx="11"/><text x="693.8" y="230">mcp</text></g>
+    <g class="chip"><rect x="730.5" y="215" width="81.0" height="22" rx="11"/><text x="738.5" y="230">inference</text></g>
+    <g class="chip"><rect x="818.5" y="215" width="73.8" height="22" rx="11"/><text x="826.5" y="230">database</text></g>
+    <g class="chip"><rect x="899.3" y="215" width="52.1" height="22" rx="11"/><text x="907.3" y="230">queue</text></g>
+    <g class="chip"><rect x="958.4" y="215" width="37.7" height="22" rx="11"/><text x="966.4" y="230">sdk</text></g>
+    <g class="chip"><rect x="1003.1" y="215" width="117.1" height="22" rx="11"/><text x="1011.1" y="230">bring-your-own</text></g>
+    <g class="chip"><rect x="1127.2" y="215" width="66.6" height="22" rx="11"/><text x="1135.2" y="230">backend</text></g>
+    <g class="chip"><rect x="1200.8" y="215" width="73.8" height="22" rx="11"/><text x="1208.8" y="230">frontend</text></g>
+    <g class="chip"><rect x="1281.6" y="215" width="59.3" height="22" rx="11"/><text x="1289.6" y="230">worker</text></g>
+    <g class="chip"><rect x="1347.9" y="215" width="52.1" height="22" rx="11"/><text x="1355.9" y="230">agent</text></g>
+    <g class="chip"><rect x="1407.1" y="215" width="37.7" height="22" rx="11"/><text x="1415.1" y="230">mcp</text></g>
+    <g class="chip"><rect x="1451.7" y="215" width="81.0" height="22" rx="11"/><text x="1459.7" y="230">inference</text></g>
+    <g class="chip"><rect x="1539.7" y="215" width="73.8" height="22" rx="11"/><text x="1547.7" y="230">database</text></g>
+    <g class="chip"><rect x="1620.5" y="215" width="52.1" height="22" rx="11"/><text x="1628.5" y="230">queue</text></g>
+    <g class="chip"><rect x="1679.7" y="215" width="37.7" height="22" rx="11"/><text x="1687.7" y="230">sdk</text></g>
+    <g class="chip"><rect x="1724.3" y="215" width="117.1" height="22" rx="11"/><text x="1732.3" y="230">bring-your-own</text></g>
+    <g class="chip"><rect x="1848.5" y="215" width="66.6" height="22" rx="11"/><text x="1856.5" y="230">backend</text></g>
+    <g class="chip"><rect x="1922.0" y="215" width="73.8" height="22" rx="11"/><text x="1930.0" y="230">frontend</text></g>
+    <g class="chip"><rect x="2002.8" y="215" width="59.3" height="22" rx="11"/><text x="2010.8" y="230">worker</text></g>
+    <g class="chip"><rect x="2069.2" y="215" width="52.1" height="22" rx="11"/><text x="2077.2" y="230">agent</text></g>
+    <g class="chip"><rect x="2128.3" y="215" width="37.7" height="22" rx="11"/><text x="2136.3" y="230">mcp</text></g>
+    <g class="chip"><rect x="2173.0" y="215" width="81.0" height="22" rx="11"/><text x="2181.0" y="230">inference</text></g>
+    <g class="chip"><rect x="2261.0" y="215" width="73.8" height="22" rx="11"/><text x="2269.0" y="230">database</text></g>
+    <g class="chip"><rect x="2341.8" y="215" width="52.1" height="22" rx="11"/><text x="2349.8" y="230">queue</text></g>
+    <g class="chip"><rect x="2400.9" y="215" width="37.7" height="22" rx="11"/><text x="2408.9" y="230">sdk</text></g>
+    <g class="chip"><rect x="2445.6" y="215" width="117.1" height="22" rx="11"/><text x="2453.6" y="230">bring-your-own</text></g>
+  </g></g>
+  <g clip-path="url(#odo)" transform="translate(0 250)"><g class="o-data"><text class="count" x="270" y="16" text-anchor="end">8</text><text class="count" x="270" y="-6" text-anchor="end">7</text><text class="count" x="270" y="-28" text-anchor="end">6</text><text class="count" x="270" y="-50" text-anchor="end">5</text><text class="count" x="270" y="-72" text-anchor="end">4</text><text class="count" x="270" y="-94" text-anchor="end">3</text><text class="count" x="270" y="-116" text-anchor="end">2</text><text class="count" x="270" y="-138" text-anchor="end">1</text><text class="count" x="270" y="-160" text-anchor="end">0</text></g></g>
+  <text class="what" x="276" y="265">data &amp; AI services</text>
+  <g mask="url(#fade)"><g class="m-data">
+    <g class="chip"><rect x="406.0" y="250" width="73.8" height="22" rx="11"/><text x="414.0" y="265">Postgres</text></g>
+    <g class="chip"><rect x="486.8" y="250" width="52.1" height="22" rx="11"/><text x="494.8" y="265">Redis</text></g>
+    <g class="chip"><rect x="545.9" y="250" width="59.3" height="22" rx="11"/><text x="553.9" y="265">Qdrant</text></g>
+    <g class="chip"><rect x="612.3" y="250" width="52.1" height="22" rx="11"/><text x="620.3" y="265">MinIO</text></g>
+    <g class="chip"><rect x="671.4" y="250" width="59.3" height="22" rx="11"/><text x="679.4" y="265">MLflow</text></g>
+    <g class="chip"><rect x="737.7" y="250" width="44.9" height="22" rx="11"/><text x="745.7" y="265">NATS</text></g>
+    <g class="chip"><rect x="789.6" y="250" width="73.8" height="22" rx="11"/><text x="797.6" y="265">RabbitMQ</text></g>
+    <g class="chip"><rect x="870.4" y="250" width="59.3" height="22" rx="11"/><text x="878.4" y="265">Ollama</text></g>
+    <g class="chip"><rect x="936.8" y="250" width="73.8" height="22" rx="11"/><text x="944.8" y="265">Postgres</text></g>
+    <g class="chip"><rect x="1017.5" y="250" width="52.1" height="22" rx="11"/><text x="1025.5" y="265">Redis</text></g>
+    <g class="chip"><rect x="1076.7" y="250" width="59.3" height="22" rx="11"/><text x="1084.7" y="265">Qdrant</text></g>
+    <g class="chip"><rect x="1143.0" y="250" width="52.1" height="22" rx="11"/><text x="1151.0" y="265">MinIO</text></g>
+    <g class="chip"><rect x="1202.1" y="250" width="59.3" height="22" rx="11"/><text x="1210.1" y="265">MLflow</text></g>
+    <g class="chip"><rect x="1268.5" y="250" width="44.9" height="22" rx="11"/><text x="1276.5" y="265">NATS</text></g>
+    <g class="chip"><rect x="1320.4" y="250" width="73.8" height="22" rx="11"/><text x="1328.4" y="265">RabbitMQ</text></g>
+    <g class="chip"><rect x="1401.2" y="250" width="59.3" height="22" rx="11"/><text x="1409.2" y="265">Ollama</text></g>
+    <g class="chip"><rect x="1467.5" y="250" width="73.8" height="22" rx="11"/><text x="1475.5" y="265">Postgres</text></g>
+    <g class="chip"><rect x="1548.3" y="250" width="52.1" height="22" rx="11"/><text x="1556.3" y="265">Redis</text></g>
+    <g class="chip"><rect x="1607.4" y="250" width="59.3" height="22" rx="11"/><text x="1615.4" y="265">Qdrant</text></g>
+    <g class="chip"><rect x="1673.8" y="250" width="52.1" height="22" rx="11"/><text x="1681.8" y="265">MinIO</text></g>
+    <g class="chip"><rect x="1732.9" y="250" width="59.3" height="22" rx="11"/><text x="1740.9" y="265">MLflow</text></g>
+    <g class="chip"><rect x="1799.2" y="250" width="44.9" height="22" rx="11"/><text x="1807.2" y="265">NATS</text></g>
+    <g class="chip"><rect x="1851.1" y="250" width="73.8" height="22" rx="11"/><text x="1859.1" y="265">RabbitMQ</text></g>
+    <g class="chip"><rect x="1931.9" y="250" width="59.3" height="22" rx="11"/><text x="1939.9" y="265">Ollama</text></g>
+  </g></g>
+  <g clip-path="url(#odo)" transform="translate(0 285)"><g class="o-mcp"><text class="count" x="270" y="16" text-anchor="end">23</text><text class="count" x="270" y="-6" text-anchor="end">22</text><text class="count" x="270" y="-28" text-anchor="end">21</text><text class="count" x="270" y="-50" text-anchor="end">20</text><text class="count" x="270" y="-72" text-anchor="end">19</text><text class="count" x="270" y="-94" text-anchor="end">18</text><text class="count" x="270" y="-116" text-anchor="end">17</text><text class="count" x="270" y="-138" text-anchor="end">16</text><text class="count" x="270" y="-160" text-anchor="end">15</text><text class="count" x="270" y="-182" text-anchor="end">14</text><text class="count" x="270" y="-204" text-anchor="end">13</text><text class="count" x="270" y="-226" text-anchor="end">12</text><text class="count" x="270" y="-248" text-anchor="end">11</text><text class="count" x="270" y="-270" text-anchor="end">10</text><text class="count" x="270" y="-292" text-anchor="end">9</text><text class="count" x="270" y="-314" text-anchor="end">8</text><text class="count" x="270" y="-336" text-anchor="end">7</text><text class="count" x="270" y="-358" text-anchor="end">6</text><text class="count" x="270" y="-380" text-anchor="end">5</text><text class="count" x="270" y="-402" text-anchor="end">4</text><text class="count" x="270" y="-424" text-anchor="end">3</text><text class="count" x="270" y="-446" text-anchor="end">2</text><text class="count" x="270" y="-468" text-anchor="end">1</text><text class="count" x="270" y="-490" text-anchor="end">0</text></g></g>
+  <text class="what" x="276" y="300">MCP tools</text>
+  <g mask="url(#fade)"><g class="m-mcp">
+    <g class="chip"><rect x="406.0" y="285" width="30.4" height="22" rx="11"/><text x="414.0" y="300">up</text></g>
+    <g class="chip"><rect x="443.4" y="285" width="44.9" height="22" rx="11"/><text x="451.4" y="300">down</text></g>
+    <g class="chip"><rect x="495.3" y="285" width="59.3" height="22" rx="11"/><text x="503.3" y="300">status</text></g>
+    <g class="chip"><rect x="561.7" y="285" width="44.9" height="22" rx="11"/><text x="569.7" y="300">logs</text></g>
+    <g class="chip"><rect x="613.6" y="285" width="59.3" height="22" rx="11"/><text x="621.6" y="300">doctor</text></g>
+    <g class="chip"><rect x="679.9" y="285" width="124.4" height="22" rx="11"/><text x="687.9" y="300">resource_create</text></g>
+    <g class="chip"><rect x="811.3" y="285" width="109.9" height="22" rx="11"/><text x="819.3" y="300">resource_list</text></g>
+    <g class="chip"><rect x="928.2" y="285" width="131.6" height="22" rx="11"/><text x="936.2" y="300">resource_restart</text></g>
+    <g class="chip"><rect x="1066.8" y="285" width="102.7" height="22" rx="11"/><text x="1074.8" y="300">resource_run</text></g>
+    <g class="chip"><rect x="1176.5" y="285" width="102.7" height="22" rx="11"/><text x="1184.5" y="300">project_init</text></g>
+    <g class="chip"><rect x="1286.2" y="285" width="117.1" height="22" rx="11"/><text x="1294.2" y="300">project_import</text></g>
+    <g class="chip"><rect x="1410.3" y="285" width="102.7" height="22" rx="11"/><text x="1418.3" y="300">project_info</text></g>
+    <g class="chip"><rect x="1520.0" y="285" width="109.9" height="22" rx="11"/><text x="1528.0" y="300">project_eject</text></g>
+    <g class="chip"><rect x="1636.9" y="285" width="138.8" height="22" rx="11"/><text x="1644.9" y="300">project_templates</text></g>
+    <g class="chip"><rect x="1782.7" y="285" width="88.2" height="22" rx="11"/><text x="1790.7" y="300">stack_list</text></g>
+    <g class="chip"><rect x="1877.9" y="285" width="102.7" height="22" rx="11"/><text x="1885.9" y="300">stack_assign</text></g>
+    <g class="chip"><rect x="1987.6" y="285" width="88.2" height="22" rx="11"/><text x="1995.6" y="300">agent_list</text></g>
+    <g class="chip"><rect x="2082.9" y="285" width="117.1" height="22" rx="11"/><text x="2090.9" y="300">agent_sessions</text></g>
+    <g class="chip"><rect x="2207.0" y="285" width="109.9" height="22" rx="11"/><text x="2215.0" y="300">config_verify</text></g>
+    <g class="chip"><rect x="2323.9" y="285" width="117.1" height="22" rx="11"/><text x="2331.9" y="300">config_explain</text></g>
+    <g class="chip"><rect x="2448.1" y="285" width="138.8" height="22" rx="11"/><text x="2456.1" y="300">config_regenerate</text></g>
+    <g class="chip"><rect x="2593.9" y="285" width="102.7" height="22" rx="11"/><text x="2601.9" y="300">network_list</text></g>
+    <g class="chip"><rect x="2703.6" y="285" width="109.9" height="22" rx="11"/><text x="2711.6" y="300">runtime_check</text></g>
+    <g class="chip"><rect x="2820.5" y="285" width="30.4" height="22" rx="11"/><text x="2828.5" y="300">up</text></g>
+    <g class="chip"><rect x="2857.9" y="285" width="44.9" height="22" rx="11"/><text x="2865.9" y="300">down</text></g>
+    <g class="chip"><rect x="2909.8" y="285" width="59.3" height="22" rx="11"/><text x="2917.8" y="300">status</text></g>
+    <g class="chip"><rect x="2976.2" y="285" width="44.9" height="22" rx="11"/><text x="2984.2" y="300">logs</text></g>
+    <g class="chip"><rect x="3028.0" y="285" width="59.3" height="22" rx="11"/><text x="3036.0" y="300">doctor</text></g>
+    <g class="chip"><rect x="3094.4" y="285" width="124.4" height="22" rx="11"/><text x="3102.4" y="300">resource_create</text></g>
+    <g class="chip"><rect x="3225.8" y="285" width="109.9" height="22" rx="11"/><text x="3233.8" y="300">resource_list</text></g>
+    <g class="chip"><rect x="3342.7" y="285" width="131.6" height="22" rx="11"/><text x="3350.7" y="300">resource_restart</text></g>
+    <g class="chip"><rect x="3481.2" y="285" width="102.7" height="22" rx="11"/><text x="3489.2" y="300">resource_run</text></g>
+    <g class="chip"><rect x="3590.9" y="285" width="102.7" height="22" rx="11"/><text x="3598.9" y="300">project_init</text></g>
+    <g class="chip"><rect x="3700.6" y="285" width="117.1" height="22" rx="11"/><text x="3708.6" y="300">project_import</text></g>
+    <g class="chip"><rect x="3824.8" y="285" width="102.7" height="22" rx="11"/><text x="3832.8" y="300">project_info</text></g>
+    <g class="chip"><rect x="3934.4" y="285" width="109.9" height="22" rx="11"/><text x="3942.4" y="300">project_eject</text></g>
+    <g class="chip"><rect x="4051.4" y="285" width="138.8" height="22" rx="11"/><text x="4059.4" y="300">project_templates</text></g>
+    <g class="chip"><rect x="4197.2" y="285" width="88.2" height="22" rx="11"/><text x="4205.2" y="300">stack_list</text></g>
+    <g class="chip"><rect x="4292.4" y="285" width="102.7" height="22" rx="11"/><text x="4300.4" y="300">stack_assign</text></g>
+    <g class="chip"><rect x="4402.1" y="285" width="88.2" height="22" rx="11"/><text x="4410.1" y="300">agent_list</text></g>
+    <g class="chip"><rect x="4497.3" y="285" width="117.1" height="22" rx="11"/><text x="4505.3" y="300">agent_sessions</text></g>
+    <g class="chip"><rect x="4621.5" y="285" width="109.9" height="22" rx="11"/><text x="4629.5" y="300">config_verify</text></g>
+    <g class="chip"><rect x="4738.4" y="285" width="117.1" height="22" rx="11"/><text x="4746.4" y="300">config_explain</text></g>
+    <g class="chip"><rect x="4862.5" y="285" width="138.8" height="22" rx="11"/><text x="4870.5" y="300">config_regenerate</text></g>
+    <g class="chip"><rect x="5008.3" y="285" width="102.7" height="22" rx="11"/><text x="5016.3" y="300">network_list</text></g>
+    <g class="chip"><rect x="5118.0" y="285" width="109.9" height="22" rx="11"/><text x="5126.0" y="300">runtime_check</text></g>
+    <g class="chip"><rect x="5234.9" y="285" width="30.4" height="22" rx="11"/><text x="5242.9" y="300">up</text></g>
+    <g class="chip"><rect x="5272.4" y="285" width="44.9" height="22" rx="11"/><text x="5280.4" y="300">down</text></g>
+    <g class="chip"><rect x="5324.3" y="285" width="59.3" height="22" rx="11"/><text x="5332.3" y="300">status</text></g>
+    <g class="chip"><rect x="5390.6" y="285" width="44.9" height="22" rx="11"/><text x="5398.6" y="300">logs</text></g>
+    <g class="chip"><rect x="5442.5" y="285" width="59.3" height="22" rx="11"/><text x="5450.5" y="300">doctor</text></g>
+    <g class="chip"><rect x="5508.9" y="285" width="124.4" height="22" rx="11"/><text x="5516.9" y="300">resource_create</text></g>
+    <g class="chip"><rect x="5640.2" y="285" width="109.9" height="22" rx="11"/><text x="5648.2" y="300">resource_list</text></g>
+    <g class="chip"><rect x="5757.1" y="285" width="131.6" height="22" rx="11"/><text x="5765.1" y="300">resource_restart</text></g>
+    <g class="chip"><rect x="5895.7" y="285" width="102.7" height="22" rx="11"/><text x="5903.7" y="300">resource_run</text></g>
+    <g class="chip"><rect x="6005.4" y="285" width="102.7" height="22" rx="11"/><text x="6013.4" y="300">project_init</text></g>
+    <g class="chip"><rect x="6115.1" y="285" width="117.1" height="22" rx="11"/><text x="6123.1" y="300">project_import</text></g>
+    <g class="chip"><rect x="6239.2" y="285" width="102.7" height="22" rx="11"/><text x="6247.2" y="300">project_info</text></g>
+    <g class="chip"><rect x="6348.9" y="285" width="109.9" height="22" rx="11"/><text x="6356.9" y="300">project_eject</text></g>
+    <g class="chip"><rect x="6465.8" y="285" width="138.8" height="22" rx="11"/><text x="6473.8" y="300">project_templates</text></g>
+    <g class="chip"><rect x="6611.6" y="285" width="88.2" height="22" rx="11"/><text x="6619.6" y="300">stack_list</text></g>
+    <g class="chip"><rect x="6706.9" y="285" width="102.7" height="22" rx="11"/><text x="6714.9" y="300">stack_assign</text></g>
+    <g class="chip"><rect x="6816.6" y="285" width="88.2" height="22" rx="11"/><text x="6824.6" y="300">agent_list</text></g>
+    <g class="chip"><rect x="6911.8" y="285" width="117.1" height="22" rx="11"/><text x="6919.8" y="300">agent_sessions</text></g>
+    <g class="chip"><rect x="7035.9" y="285" width="109.9" height="22" rx="11"/><text x="7043.9" y="300">config_verify</text></g>
+    <g class="chip"><rect x="7152.8" y="285" width="117.1" height="22" rx="11"/><text x="7160.8" y="300">config_explain</text></g>
+    <g class="chip"><rect x="7277.0" y="285" width="138.8" height="22" rx="11"/><text x="7285.0" y="300">config_regenerate</text></g>
+    <g class="chip"><rect x="7422.8" y="285" width="102.7" height="22" rx="11"/><text x="7430.8" y="300">network_list</text></g>
+    <g class="chip"><rect x="7532.5" y="285" width="109.9" height="22" rx="11"/><text x="7540.5" y="300">runtime_check</text></g>
+  </g></g>
+  <g clip-path="url(#odo)" transform="translate(0 320)"><g class="o-tpl"><text class="count" x="270" y="16" text-anchor="end">11</text><text class="count" x="270" y="-6" text-anchor="end">10</text><text class="count" x="270" y="-28" text-anchor="end">9</text><text class="count" x="270" y="-50" text-anchor="end">8</text><text class="count" x="270" y="-72" text-anchor="end">7</text><text class="count" x="270" y="-94" text-anchor="end">6</text><text class="count" x="270" y="-116" text-anchor="end">5</text><text class="count" x="270" y="-138" text-anchor="end">4</text><text class="count" x="270" y="-160" text-anchor="end">3</text><text class="count" x="270" y="-182" text-anchor="end">2</text><text class="count" x="270" y="-204" text-anchor="end">1</text><text class="count" x="270" y="-226" text-anchor="end">0</text></g></g>
+  <text class="what" x="276" y="335">starter projects</text>
+  <g mask="url(#fade)"><g class="m-tpl">
+    <g class="chip"><rect x="406.0" y="320" width="44.9" height="22" rx="11"/><text x="414.0" y="335">demo</text></g>
+    <g class="chip"><rect x="457.9" y="320" width="81.0" height="22" rx="11"/><text x="465.9" y="335">fullstack</text></g>
+    <g class="chip"><rect x="545.9" y="320" width="44.9" height="22" rx="11"/><text x="553.9" y="335">saas</text></g>
+    <g class="chip"><rect x="597.8" y="320" width="81.0" height="22" rx="11"/><text x="605.8" y="335">ecommerce</text></g>
+    <g class="chip"><rect x="685.8" y="320" width="95.5" height="22" rx="11"/><text x="693.8" y="335">agent-stack</text></g>
+    <g class="chip"><rect x="788.3" y="320" width="88.2" height="22" rx="11"/><text x="796.3" y="335">restaurant</text></g>
+    <g class="chip"><rect x="883.5" y="320" width="37.7" height="22" rx="11"/><text x="891.5" y="335">erp</text></g>
+    <g class="chip"><rect x="928.2" y="320" width="59.3" height="22" rx="11"/><text x="936.2" y="335">portal</text></g>
+    <g class="chip"><rect x="994.5" y="320" width="124.4" height="22" rx="11"/><text x="1002.5" y="335">user-management</text></g>
+    <g class="chip"><rect x="1125.9" y="320" width="59.3" height="22" rx="11"/><text x="1133.9" y="335">launch</text></g>
+    <g class="chip"><rect x="1192.2" y="320" width="66.6" height="22" rx="11"/><text x="1200.2" y="335">example</text></g>
+    <g class="chip"><rect x="1265.8" y="320" width="44.9" height="22" rx="11"/><text x="1273.8" y="335">demo</text></g>
+    <g class="chip"><rect x="1317.7" y="320" width="81.0" height="22" rx="11"/><text x="1325.7" y="335">fullstack</text></g>
+    <g class="chip"><rect x="1405.7" y="320" width="44.9" height="22" rx="11"/><text x="1413.7" y="335">saas</text></g>
+    <g class="chip"><rect x="1457.6" y="320" width="81.0" height="22" rx="11"/><text x="1465.6" y="335">ecommerce</text></g>
+    <g class="chip"><rect x="1545.6" y="320" width="95.5" height="22" rx="11"/><text x="1553.6" y="335">agent-stack</text></g>
+    <g class="chip"><rect x="1648.1" y="320" width="88.2" height="22" rx="11"/><text x="1656.1" y="335">restaurant</text></g>
+    <g class="chip"><rect x="1743.3" y="320" width="37.7" height="22" rx="11"/><text x="1751.3" y="335">erp</text></g>
+    <g class="chip"><rect x="1788.0" y="320" width="59.3" height="22" rx="11"/><text x="1796.0" y="335">portal</text></g>
+    <g class="chip"><rect x="1854.4" y="320" width="124.4" height="22" rx="11"/><text x="1862.4" y="335">user-management</text></g>
+    <g class="chip"><rect x="1985.7" y="320" width="59.3" height="22" rx="11"/><text x="1993.7" y="335">launch</text></g>
+    <g class="chip"><rect x="2052.1" y="320" width="66.6" height="22" rx="11"/><text x="2060.1" y="335">example</text></g>
+    <g class="chip"><rect x="2125.6" y="320" width="44.9" height="22" rx="11"/><text x="2133.6" y="335">demo</text></g>
+    <g class="chip"><rect x="2177.5" y="320" width="81.0" height="22" rx="11"/><text x="2185.5" y="335">fullstack</text></g>
+    <g class="chip"><rect x="2265.5" y="320" width="44.9" height="22" rx="11"/><text x="2273.5" y="335">saas</text></g>
+    <g class="chip"><rect x="2317.4" y="320" width="81.0" height="22" rx="11"/><text x="2325.4" y="335">ecommerce</text></g>
+    <g class="chip"><rect x="2405.5" y="320" width="95.5" height="22" rx="11"/><text x="2413.5" y="335">agent-stack</text></g>
+    <g class="chip"><rect x="2507.9" y="320" width="88.2" height="22" rx="11"/><text x="2515.9" y="335">restaurant</text></g>
+    <g class="chip"><rect x="2603.2" y="320" width="37.7" height="22" rx="11"/><text x="2611.2" y="335">erp</text></g>
+    <g class="chip"><rect x="2647.8" y="320" width="59.3" height="22" rx="11"/><text x="2655.8" y="335">portal</text></g>
+    <g class="chip"><rect x="2714.2" y="320" width="124.4" height="22" rx="11"/><text x="2722.2" y="335">user-management</text></g>
+    <g class="chip"><rect x="2845.5" y="320" width="59.3" height="22" rx="11"/><text x="2853.5" y="335">launch</text></g>
+    <g class="chip"><rect x="2911.9" y="320" width="66.6" height="22" rx="11"/><text x="2919.9" y="335">example</text></g>
+  </g></g>
+  <text class="cmd" x="242" y="376"><tspan>$</tspan> flisk up · hot reload · one URL · Docker optional</text>
+  <circle class="flow" cx="725" cy="200.0" r="2.3"/>
+  <circle class="flow f2" cx="725" cy="200.0" r="2.3"/>
+  <circle class="flow f3" cx="725" cy="200.0" r="2.3"/>
+
+  <!-- 3. Export: deploy files for two hosts, plus the files Flisk writes; it never deploys -->
+  <rect class="card" x="738" y="10" width="160" height="380" rx="12"/>
+  <text class="num" x="752" y="32">03</text>
+  <text class="kick" x="774" y="32">EXPORT</text>
+  <text class="head" x="752" y="53">hand it off</text>
+  <text class="sub" x="752" y="74">2 deploy files</text>
+  <rect class="slot" x="750" y="82" width="136" height="36" rx="6"/>
+  <rect class="lit out" style="animation-delay:0.0s" x="750" y="82" width="136" height="36" rx="6"/>
+  <text class="file" x="758" y="98">render.yaml</text>
+  <text class="host" x="758" y="111">→ Render</text>
+  <rect class="slot" x="750" y="125" width="136" height="36" rx="6"/>
+  <rect class="lit out" style="animation-delay:1.5s" x="750" y="125" width="136" height="36" rx="6"/>
+  <text class="file" x="758" y="141">wrangler.toml</text>
+  <text class="host" x="758" y="154">→ Cloudflare</text>
+  <text class="sub" x="752" y="182">5 written for you</text>
+  <rect class="slot" x="750" y="190" width="136" height="22" rx="6"/>
+  <rect class="lit out" style="animation-delay:3.0s" x="750" y="190" width="136" height="22" rx="6"/>
+  <text class="file" style="font-size:11.5px" x="758" y="205">Dockerfiles</text>
+  <rect class="slot" x="750" y="217" width="136" height="22" rx="6"/>
+  <rect class="lit out" style="animation-delay:4.5s" x="750" y="217" width="136" height="22" rx="6"/>
+  <text class="file" style="font-size:11.5px" x="758" y="232">compose.yaml</text>
+  <rect class="slot" x="750" y="244" width="136" height="22" rx="6"/>
+  <rect class="lit out" style="animation-delay:6.0s" x="750" y="244" width="136" height="22" rx="6"/>
+  <text class="file" style="font-size:11.5px" x="758" y="259">Tiltfile</text>
+  <rect class="slot" x="750" y="271" width="136" height="22" rx="6"/>
+  <rect class="lit out" style="animation-delay:7.5s" x="750" y="271" width="136" height="22" rx="6"/>
+  <text class="file" style="font-size:11.5px" x="758" y="286">vite.config</text>
+  <rect class="slot" x="750" y="298" width="136" height="22" rx="6"/>
+  <rect class="lit out" style="animation-delay:9.0s" x="750" y="298" width="136" height="22" rx="6"/>
+  <text class="file" style="font-size:11.5px" x="758" y="313">tsconfig.json</text>
+  <text class="note" x="752" y="356">files only, no deploy</text>
+  <text class="cmd" x="752" y="376"><tspan>$</tspan> flisk export render</text>
+  <circle class="flow" cx="903" cy="200.0" r="2.3"/>
+  <circle class="flow f2" cx="903" cy="200.0" r="2.3"/>
+  <circle class="flow f3" cx="903" cy="200.0" r="2.3"/>
+
+  <!-- 4. Radar: each blip is a running part, found and health-checked as the arm passes -->
+  <rect class="card" x="916" y="10" width="154" height="380" rx="12"/>
+  <text class="num" x="930" y="32">04</text>
+  <text class="kick" x="952" y="32">RADAR</text>
+  <text class="head" x="930" y="53">watch it run</text>
+  <circle class="ring" cx="993.0" cy="172" r="64.0"/>
+  <circle class="ring" cx="993.0" cy="172" r="42.7"/>
+  <circle class="ring" cx="993.0" cy="172" r="21.3"/>
+  <line class="axis" x1="929.0" y1="172" x2="1057.0" y2="172"/>
+  <line class="axis" x1="993.0" y1="108" x2="993.0" y2="236"/>
+  <g class="arm" style="transform-origin:993.0px 172px">
+    <path d="M993.0 172 L1057.0 172 A64 64 0 0 0 1014.9 111.9 Z" fill="url(#sweep)"/>
+    <line x1="993.0" y1="172" x2="1057.0" y2="172" stroke="#5ee0a0" stroke-width="1.5"/>
+  </g>
+  <circle class="blip" style="animation-delay:0.20s" cx="1036.3" cy="187.8" r="2.8"/>
+  <text class="tag" style="animation-delay:0.20s" x="1042.3" y="190.8" text-anchor="start">api</text>
+  <circle class="blip" style="animation-delay:0.70s" cx="1006.1" cy="208.1" r="2.8"/>
+  <text class="tag" style="animation-delay:0.70s" x="1012.1" y="211.1" text-anchor="start">mlflow</text>
+  <circle class="blip" style="animation-delay:1.15s" cx="970.8" cy="219.6" r="2.8"/>
+  <text class="tag" style="animation-delay:1.15s" x="976.8" y="222.6" text-anchor="start">web</text>
+  <circle class="blip" style="animation-delay:1.40s" cx="966.0" cy="194.6" r="2.8"/>
+  <text class="tag" style="animation-delay:1.40s" x="960.0" y="197.6" text-anchor="end">worker</text>
+  <circle class="blip" style="animation-delay:2.00s" cx="965.9" cy="162.1" r="2.8"/>
+  <text class="tag" style="animation-delay:2.00s" x="959.9" y="165.1" text-anchor="end">db</text>
+  <circle class="blip" style="animation-delay:2.40s" cx="967.4" cy="127.7" r="2.8"/>
+  <text class="tag" style="animation-delay:2.40s" x="961.4" y="130.7" text-anchor="end">agent</text>
+  <circle class="blip" style="animation-delay:2.95s" cx="1014.1" cy="126.8" r="2.8"/>
+  <text class="tag" style="animation-delay:2.95s" x="1020.1" y="129.8" text-anchor="start">mcp</text>
+  <circle class="blip" style="animation-delay:3.30s" cx="1020.7" cy="156.0" r="2.8"/>
+  <text class="tag" style="animation-delay:3.30s" x="1026.7" y="159.0" text-anchor="start">queue</text>
+  <circle class="ok" cx="934" cy="333" r="3.5"/>
+  <text class="note" x="944" y="336">8 of 8 parts healthy</text>
+  <text class="note" x="930" y="354">status · logs · doctor</text>
+  <text class="cmd" x="930" y="376"><tspan>$</tspan> flisk status</text>
+</svg>

@@ -68,6 +68,6 @@ If it fails, the job fails. The agent's edit never reaches `main`, and the fix i
 
 ## Try it
 
-The [tdk-example landscape](https://github.com/flisk-sh/flisk/tree/main/examples/tdk-example) is a small working stack with an API, PostgreSQL, a NATS worker and a UI. Run `flisk project --yes`, then `flisk config verify`, and you have the check running on a real project. The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) is the smallest version if you only want the agent and MCP resources.
+The [flisk-example landscape](https://github.com/flisk-sh/flisk/tree/main/examples/flisk-example) is a small working stack with an API, PostgreSQL, a NATS worker and a UI. Run `flisk project --yes`, then `flisk config verify`, and you have the check running on a real project. The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) is the smallest version if you only want the agent and MCP resources.
 
 Next step: the [quickstart](https://flisk.sh/docs/quickstart/) gets you from zero to `flisk up` in a few minutes.

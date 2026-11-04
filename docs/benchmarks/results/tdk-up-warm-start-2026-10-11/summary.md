@@ -29,6 +29,6 @@ Span is from the first Tilt build step to the last build finishing. Wall is from
 - os: Darwin 25.5.0 arm64
 - cpus: 8
 - memory_bytes: 17179869184
-- project: tdk-restaurant-example
+- project: flisk-restaurant-example
 - healthy_expected: 8
 - sample_vm: 1

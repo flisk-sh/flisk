@@ -1,14 +1,15 @@
 # echo
 
-**Stack:** a minimal Echo v4 app (Go 1.25), two files: `main.go` and `go.mod`
+**Stack:** a minimal Echo v4 app (Go 1.26), two files: `main.go` and `go.mod`
 
 **Notes:**
 - Echo has no project generator, so unlike the `create-*` examples the app is written out here (a `/health` route and a `/` route).
-- `go mod tidy` runs at build time to resolve Echo and write `go.sum`, so no `go.sum` is committed. Echo is pinned to v4.16.0 in
-  `go.mod`, the newest v4 release that declares Go 1.25. Newer releases (v4.16.1 and later) require Go 1.26, which the
-  `golang:1.25` image cannot build. Echo v5 is a different major version and is not used here.
-- The image is `golang:1.25-alpine`, the same as the [gin](../gin/README.md) example. I did not test whether Echo v4 also builds
-  on an older Go image, so no minimum Go version is claimed.
+- `go mod tidy` runs at build time to resolve Echo and write `go.sum`, so no `go.sum` is committed. Echo v4.16.1 and later
+  declare Go 1.26, so the build image is `golang:1.26-alpine`. The image's `GOTOOLCHAIN=local` refuses a `go.mod` newer than
+  the image, which is why pinning Echo for an older image did not hold: Dependabot bumped it back (#2409, then #2435).
+  Echo v5 is a different major version and is not used here.
+- Echo v4.16.3 is the first release past the proxy `X-Real-IP` and rate-limiter `X-Forwarded-For` advisories (Dependabot #75 and #76,
+  Echo `<= 4.16.2`). Keep it at v4.16.3 or later.
 - Through Flisk, Traefik sends `Host: api.<project>.localhost`; Echo accepted it with no host configuration (checked through a real
   `flisk up`).
 - The server listens on `":" + $PORT` (every interface). Flisk's native Go provider (`--language go`) scaffolds standard-library

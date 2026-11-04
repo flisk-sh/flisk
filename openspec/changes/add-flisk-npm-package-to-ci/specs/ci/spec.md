@@ -57,8 +57,23 @@ CI SHALL run `scripts/check-npm-package.mjs` on the root package pack in the `pa
 
 #### Scenario: An unexpected path would ship
 
-- **WHEN** the pack contains a path outside `cli/bin`, `cli/dist`, `cli/dist-bundle`, `cli/templates`, `cli/shared-platform-engineering/docker-templates`, `runtime/`, `examples/tdk-example/`, or the top-level `package.json`, `README.md`, `LICENSE`, `CHANGELOG.md`
+- **WHEN** the pack contains a path outside `cli/bin`, `cli/dist-bundle`, the `main` entry files `cli/dist/types/index.js` and `cli/dist/utils/constants.js`, `cli/templates`, `cli/shared-platform-engineering/docker-templates`, `runtime/`, `examples/flisk-example/`, or the top-level `package.json`, `README.md`, `LICENSE`, `CHANGELOG.md`
 - **THEN** the check exits non-zero and lists each such path
+
+#### Scenario: The CLI would ship twice
+
+- **WHEN** the pack contains any other file under `cli/dist/` (such as `cli/dist/cli.js`) next to `cli/dist-bundle/`, which is the only copy `cli/bin/flisk.js` runs in an installed package
+- **THEN** the check exits non-zero and lists each such path as outside the allowlist
+
+#### Scenario: Auditing a version that is already published
+
+- **WHEN** `npm-registry-audit` checks the pinned registry tarball with `--published`, and that version ships `cli/dist/` or a root `CHANGELOG.md` (the layout before 1.4.8)
+- **THEN** the check accepts those paths and still fails on test files, missing required paths and every manifest problem
+
+#### Scenario: The main entry imports a file that does not ship
+
+- **WHEN** the `main` entry, or a file it imports, imports a relative path that is not in the tarball
+- **THEN** the check exits non-zero and names each missing file
 
 #### Scenario: The module format is not declared
 
@@ -80,10 +95,10 @@ CI SHALL run `scripts/check-npm-package.mjs` on the root package pack in the `pa
 
 #### Scenario: A required path is missing
 
-- **WHEN** the tarball lacks any of `cli/bin/flisk.js`, `cli/dist-bundle/cli.js`, `cli/package.json`, `runtime/Tiltfile`, `runtime/specs/specs/TILT_TECH_STACK.star`, `examples/tdk-example/Tiltfile`, `package.json`, `README.md`, or `LICENSE`
+- **WHEN** the tarball lacks any of `cli/bin/flisk.js`, `cli/dist-bundle/cli.js`, `cli/package.json`, `runtime/Tiltfile`, `runtime/specs/specs/TILT_TECH_STACK.star`, `examples/flisk-example/Tiltfile`, `package.json`, `README.md`, or `LICENSE`
 - **THEN** the check exits non-zero and names each missing path
 
 #### Scenario: The bundled example stops working
 
-- **WHEN** `flisk project example --yes` from the installed tarball does not write `tdk-example/Tiltfile` and `tdk-example/TILT_TECH_STACK.star`
+- **WHEN** `flisk project example --yes` from the installed tarball does not write `flisk-example/Tiltfile` and `flisk-example/TILT_TECH_STACK.star`
 - **THEN** the `package-smoke` job fails

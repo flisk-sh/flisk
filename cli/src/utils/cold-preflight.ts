@@ -10,14 +10,17 @@ import {
   checkTilt,
   DOCTOR_FIXES,
 } from "../commands/doctor.js";
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, ProjectCapabilities } from "../types/index.js";
 import { BUN_FLOOR_LABEL, bunMeetsFloor } from "./bun-floor.js";
 import { projectNeedsBun } from "./bun-requirement.js";
+import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { readyNextStep } from "./cli-command.js";
 import { checkColima } from "./colima.js";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { PROJECT_JSON } from "./constants.js";
 import { checkNatsBroker } from "./doctor-wiring.js";
-import { getHostPortPlan } from "./host-port-config.js";
+import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix } from "./host-port-config.js";
+import { isNativeProject } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { findOnPath } from "./which.js";
@@ -38,6 +41,21 @@ export type PreflightItem = {
  */
 export type PreflightScope = "runtime" | "scaffold";
 
+/**
+ * The scope a preflight actually ran with: a requested `runtime` scope becomes `native` in a project whose services all
+ * declare `command`, where only Node (and Bun, when a service needs it) can block.
+ */
+export type EffectivePreflightScope = PreflightScope | "native";
+
+/** Checks a project of `command` services needs: no container runtime, no Tilt, no gateway or database ports. */
+export const NATIVE_CHECK_IDS: readonly PreflightItem["id"][] = ["node", "bun"];
+
+function blockingCheckIds(scope: EffectivePreflightScope): readonly PreflightItem["id"][] {
+  if (scope === "scaffold") return SCAFFOLD_CHECK_IDS;
+  if (scope === "native") return NATIVE_CHECK_IDS;
+  return MACHINE_CHECK_IDS;
+}
+
 /** Checks that only the local runtime (starting a stack) needs. */
 export const RUNTIME_CHECK_IDS: readonly PreflightItem["id"][] = ["docker", "compose", "tilt"];
 
@@ -55,6 +73,8 @@ export const MACHINE_CHECK_IDS: readonly PreflightItem["id"][] = [
 export type PreflightResult = {
   ok: boolean;
   inProject: boolean;
+  /** `native` when the project's services all run as local processes and the container checks were not run. */
+  scope: EffectivePreflightScope;
   items: PreflightItem[];
   header: string;
   footer: string;
@@ -108,7 +128,7 @@ export function requireVerifiedDockerVersions(result: CheckResult): CheckResult 
   };
 }
 
-function usesPrisma(projectRoot: string): boolean {
+export function usesPrisma(projectRoot: string): boolean {
   try {
     return discoverResourcesFromRoot(projectRoot).some((resource) => {
       return resource.config?.featuresEnabled?.includes("prisma") ?? false;
@@ -118,13 +138,56 @@ function usesPrisma(projectRoot: string): boolean {
   }
 }
 
+async function hostPortsItem(
+  root: string,
+  scope: PreflightScope,
+  opts?: { capabilities?: ProjectCapabilities; database?: boolean; [key: string]: unknown },
+): Promise<PreflightItem> {
+  const caps = {
+    gateway: isGatewayEnabled(root, opts),
+    database: isDatabaseCapabilityEnabled(root, opts),
+  };
+  try {
+    // Scaffolding must not talk to Docker at all, so the port plan is planned
+    // from the host ports alone.
+    const plan = await getHostPortPlan(root, {
+      ...(scope === "scaffold" ? { inspectDocker: false } : {}),
+      database: caps.database,
+      gateway: caps.gateway,
+    });
+    return {
+      id: "ports",
+      ok: true,
+      message: describeHostPortPlan(plan, caps),
+    };
+  } catch (error) {
+    return {
+      id: "ports",
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+      fix: hostPortPlanFix(caps),
+    };
+  }
+}
+
 export async function runColdPreflight(
-  opts: { cwd?: string; scope?: PreflightScope } = {},
+  opts: {
+    cwd?: string;
+    scope?: PreflightScope;
+    capabilities?: ProjectCapabilities;
+    database?: boolean;
+    gateway?: boolean;
+    [key: string]: unknown;
+  } = {},
 ): Promise<PreflightResult> {
   const cwd = opts.cwd ?? process.cwd();
-  const scope = opts.scope ?? "runtime";
   const projectRoot = findProjectRoot(cwd);
   const inProject = Boolean(projectRoot);
+  const resources = projectRoot ? discoverResourcesFromRoot(projectRoot) : [];
+  // A project whose services all declare `command` runs them as local processes (#2231): Docker, Compose, Tilt, the
+  // gateway/database host ports and the container wiring checks do not apply, so they are not run or reported.
+  const isNative = isNativeProject(resources);
+  const scope = isNative ? "native" : (opts.scope ?? "runtime");
   const items: PreflightItem[] = [];
   const nodeVersion = process.versions.node;
   items.push({
@@ -170,7 +233,7 @@ export async function runColdPreflight(
     items.push(await safeCheck("tilt", checkTilt, "Tilt CLI not found"));
   }
   // Outside a project Bun stays required: `flisk project` is about to create services that need it.
-  const bunNeeded = projectRoot ? projectNeedsBun(discoverResourcesFromRoot(projectRoot)) : true;
+  const bunNeeded = projectRoot ? projectNeedsBun(resources) : true;
   let bun = false;
   const bunPath = bunNeeded ? findOnPath("bun") : undefined;
   if (bunPath) {
@@ -197,26 +260,8 @@ export async function runColdPreflight(
         }
       : { id: "bun", ok: true, message: "Bun not needed: no generated JS services" },
   );
-  try {
-    // Scaffolding must not talk to Docker at all, so the port plan is planned
-    // from the host ports alone.
-    const plan = await getHostPortPlan(
-      projectRoot ?? cwd,
-      scope === "scaffold" ? { inspectDocker: false } : {},
-    );
-    items.push({
-      id: "ports",
-      ok: true,
-      message: `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`,
-    });
-  } catch (error) {
-    items.push({
-      id: "ports",
-      ok: false,
-      message: error instanceof Error ? error.message : String(error),
-      fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
-    });
-  }
+  // The host port plan places the gateway and Postgres, which only the container runtime starts.
+  if (scope !== "native") items.push(await hostPortsItem(projectRoot ?? cwd, scope, opts));
 
   // Project wiring (NATS, Prisma database) describes a running stack, so it is
   // only probed for the runtime scope.
@@ -227,11 +272,11 @@ export async function runColdPreflight(
       "NATS broker check failed",
     );
     if (!nats.ok) items.push(nats);
-    if (usesPrisma(projectRoot)) {
+    if (isDatabaseCapabilityEnabled(projectRoot, opts) && usesPrisma(projectRoot)) {
       let dbUp = false;
       try {
         const config = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        const projectName = String(config?.project?.name ?? "").replace(/-/g, "_");
+        const projectName = toComposeProjectName(String(config?.project?.name ?? "")).toLowerCase();
         if (projectName) {
           const running = execFileSync(
             findOnPath("docker") ?? "docker",
@@ -265,26 +310,32 @@ export async function runColdPreflight(
   }
 
   const failures = items.filter((check) => !check.ok).slice(0, 8);
-  const blockingIds = scope === "scaffold" ? SCAFFOLD_CHECK_IDS : MACHINE_CHECK_IDS;
+  const blockingIds = blockingCheckIds(scope);
   const machineFailed = failures.some((check) => blockingIds.includes(check.id));
   const bunFailed = failures.some((check) => check.id === "bun");
-  const header = failures.length
-    ? machineFailed
-      ? scope === "scaffold"
-        ? bunFailed
-          ? `Project setup blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nFix the machine checks below.`
-          : "Project setup blocked. Fix the machine checks below."
-        : bunFailed
-          ? `Cold start blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nPrisma/NATS configuration is project-specific and generated after \`flisk project\`. Fix the machine checks below.`
-          : "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `flisk project`. Fix the machine checks below."
-      : "Machine is ready. Project wiring is not."
-    : "";
-  const footer = failures.length
-    ? ""
-    : inProject
+  let header = "";
+  if (failures.length > 0) {
+    if (!machineFailed) {
+      header = "Machine is ready. Project wiring is not.";
+    } else if (scope === "native") {
+      header = "Cannot start the local processes. Fix the machine checks below.";
+    } else if (scope === "scaffold") {
+      header = bunFailed
+        ? `Project setup blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nFix the machine checks below.`
+        : "Project setup blocked. Fix the machine checks below.";
+    } else {
+      header = bunFailed
+        ? `Cold start blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nPrisma/NATS configuration is project-specific and generated after \`flisk project\`. Fix the machine checks below.`
+        : "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `flisk project`. Fix the machine checks below.";
+    }
+  }
+  let footer = "";
+  if (failures.length === 0) {
+    footer = inProject
       ? "Environment ready for Flisk"
       : `This machine is ready for Flisk.\n${readyNextStep()}`;
-  return { ok: failures.length === 0, inProject, items: failures, header, footer };
+  }
+  return { ok: failures.length === 0, inProject, scope, items: failures, header, footer };
 }
 
 /** Formats only failed preflight checks and the applicable readiness message. */
@@ -303,14 +354,15 @@ export function formatColdPreflight(
 
 /** Exits before machine-dependent command work when any machine check fails. */
 export async function assertMachineReadyOrExit(
-  opts: { scope?: PreflightScope } = {},
+  opts: { scope?: PreflightScope; hints?: string[] } = {},
 ): Promise<void> {
-  const scope = opts.scope ?? "runtime";
-  const result = await runColdPreflight({ scope });
-  const blockingIds = scope === "scaffold" ? SCAFFOLD_CHECK_IDS : MACHINE_CHECK_IDS;
+  const result = await runColdPreflight({ scope: opts.scope });
+  const blockingIds = blockingCheckIds(result.scope);
   const machineFailure = result.items.some((check) => blockingIds.includes(check.id));
   if (machineFailure) {
     console.error(formatColdPreflight(result));
+    // What to run once the machine checks pass; the caller knows its own next step.
+    for (const hint of opts.hints ?? []) console.error(`→ ${hint}`);
     process.exit(1);
   }
 }

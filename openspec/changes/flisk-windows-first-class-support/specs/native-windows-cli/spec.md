@@ -26,7 +26,7 @@ The CLI SHALL recognize `process.platform === "win32"` as Windows and `process.a
 
 #### Scenario: Windows AMD64 release asset
 - **WHEN** the platform is `win32` and architecture is `x64`
-- **THEN** the binary asset name is `tdk-windows-amd64.exe`
+- **THEN** the binary asset name is `flisk-windows-amd64.exe`
 
 #### Scenario: Windows ARM64 is rejected
 - **WHEN** the platform is `win32` and architecture is `arm64`
@@ -34,7 +34,7 @@ The CLI SHALL recognize `process.platform === "win32"` as Windows and `process.a
 
 #### Scenario: Existing Unix mappings remain stable
 - **WHEN** the platform and architecture are Linux x64 or macOS arm64
-- **THEN** asset names remain `tdk-linux-amd64` and `tdk-darwin-arm64`
+- **THEN** asset names remain `flisk-linux-amd64` and `flisk-darwin-arm64`
 
 ### Requirement: Cross-platform executable lookup
 The CLI SHALL resolve Docker, Tilt, Bun, and Flisk on PATH without Unix-only `which` or `command -v` commands. On Windows lookup SHALL consider executable suffixes including `.exe`, `.cmd`, and `.bat`, and SHALL split PATH using the platform path delimiter.
@@ -59,11 +59,11 @@ CLI child processes SHALL be launched with explicit executable paths and argumen
 - **THEN** it invokes the resolved Docker executable through an argument-safe file execution API
 
 ### Requirement: Windows upgrade installation detection
-The upgrade command SHALL use the shared asset mapping and Windows-compatible file operations. A compiled `flisk.exe` process SHALL upgrade the executable identified by `process.execPath`; an npm-installed `node.exe` entry point SHALL print `use npm install -g @flisk-sh/flisk@latest` and exit successfully. Other installation forms SHALL fail with a clear message. Windows engine extraction SHALL target `join(dirname(fliskExePath), "flisk-cli")`; dry run SHALL print `tdk-windows-amd64.exe`.
+The upgrade command SHALL use the shared asset mapping and Windows-compatible file operations. A compiled `flisk.exe` process SHALL upgrade the executable identified by `process.execPath`; an npm-installed `node.exe` entry point SHALL print `use npm install -g @flisk-sh/flisk@latest` and exit successfully. Other installation forms SHALL fail with a clear message. Windows engine extraction SHALL target `join(dirname(fliskExePath), "flisk-cli")`; dry run SHALL print `flisk-windows-amd64.exe`.
 
 #### Scenario: Dry run reports the Windows artifact
 - **WHEN** a Windows AMD64 user runs `flisk upgrade --dry-run`
-- **THEN** the planned asset is `tdk-windows-amd64.exe`
+- **THEN** the planned asset is `flisk-windows-amd64.exe`
 
 #### Scenario: npm installation upgrade
 - **WHEN** upgrade runs from the npm Node entry point on Windows

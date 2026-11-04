@@ -3,6 +3,7 @@
 import chalk from "chalk";
 import { QUICKSTART_DOCS_URL } from "./constants.js";
 import { getContainerRuntimeStatus } from "./docker.js";
+import { rememberShownError } from "./last-error.js";
 import { findProjectRoot } from "./paths.js";
 import { suggestClosest } from "./suggestions.js";
 import { isTiltAvailable } from "./tilt.js";
@@ -137,7 +138,8 @@ export function requireProjectRoot(): string {
   return projectRoot;
 }
 
-function handleCommandError(err: unknown): never {
+/** Prints a command failure the way every command does (a FliskError with its suggestions, anything else as one error line) and exits 1. */
+export function handleCommandError(err: unknown): never {
   if (err instanceof FliskError) {
     err.exit();
   }
@@ -201,6 +203,7 @@ export function showErrorAndExit(
 
 /** Display a formatted error message. Does NOT exit. */
 export function showError(message: string, context?: string, suggestions?: string[]): void {
+  rememberShownError({ message, suggestions: suggestions ?? [] });
   console.error(chalk.red(`❌ ${message}`));
 
   if (context) {

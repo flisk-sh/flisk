@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { exec, execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { FliskError } from "./errors.js";
 import { findOnPath } from "./which.js";
 const execPromise = promisify(exec);
 export const execAsync = async (command, timeoutMs) => {
@@ -11,7 +12,7 @@ export const execAsync = async (command, timeoutMs) => {
         const parts = command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [];
         const [parsedFile, ...args] = parts.map((part) => part.startsWith('"') || part.startsWith("'") ? part.slice(1, -1) : part);
         if (!parsedFile)
-            throw new Error("Command is empty");
+            throw new FliskError("Command is empty", ["Pass the program to run and its arguments"]);
         const file = findOnPath(parsedFile) ?? parsedFile;
         const { stdout } = await promisify(execFile)(file, args, {
             encoding: "utf-8",

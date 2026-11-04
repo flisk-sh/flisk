@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { portFromEnv } from "../utils/generated-port.js";
 import { getH3IndexTemplate, h3BackendProvider } from "./h3.js";
 
 describe("h3BackendProvider", () => {
@@ -41,7 +42,7 @@ describe("getH3IndexTemplate", () => {
   });
 
   it("binds HTTP server to port and 0.0.0.0 using node:http", () => {
-    expect(template).toContain("const port = Number(process.env.PORT || 3000);");
+    expect(template).toContain(portFromEnv());
     expect(template).toContain("createServer(toNodeListener(app)).listen(port, '0.0.0.0', () => {");
     expect(template).toContain(
       "console.log('\\n🚀 gateway-app running on http://localhost:' + port);",

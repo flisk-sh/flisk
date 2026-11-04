@@ -167,6 +167,7 @@ describe("flisk resource --type agent", () => {
     // The custom runtime has no vendor dependency, so the package.json carries none.
     const pkg = json("support-agent", "package.json");
     expect(pkg.dependencies).toEqual({});
+    expect(pkg.devDependencies).not.toHaveProperty("@types/pg");
     expect(pkg.scripts).toMatchObject({
       dev: expect.any(String),
       build: "tsc",
@@ -196,6 +197,8 @@ describe("flisk resource --type agent", () => {
     expect(pkg.dependencies).toMatchObject({
       pg: "^8.13.0",
     });
+    // The checkpoint store imports 'pg'; without its types the image build fails with TS7016.
+    expect(pkg.devDependencies).toMatchObject({ "@types/pg": "^8.11.0" });
 
     const index = readFileSync(join(dir("pg-agent"), "src", "index.ts"), "utf-8");
     expect(index).toContain("from 'pg'");
@@ -263,7 +266,7 @@ describe("flisk resource --type agent", () => {
   // Runs the generated runtime for real: a turn is checkpointed, a restart resumes it, and SIGTERM exits cleanly.
   // Needs bun on PATH; the rest of the file does not.
   it.skipIf(!hasBun)(
-    "keeps a session across a restart, and drains on SIGTERM",
+    "keeps a session across a restart, lists it, and drains on SIGTERM",
     async () => {
       const stateDir = mkdtempSync(join(tmpdir(), "flisk-agent-state-"));
       const source = join(dir("support-agent"), "src", "index.ts");
@@ -375,6 +378,17 @@ describe("flisk resource --type agent", () => {
         expect(await turn("first")).toMatchObject({ sessionId: "sess-1", turns: 1 });
         const ready = await fetch(agentUrl(currentPort, "/ready"));
         expect(ready.status).toBe(200);
+        const listed = await fetch(agentUrl(currentPort, "/sessions")).then((r) => r.json());
+        expect(listed.total).toBe(1);
+        expect(listed.sessions).toEqual([
+          {
+            sessionId: "sess-1",
+            lastActivity: expect.any(String),
+            checkpointBytes: expect.any(Number),
+            status: "idle",
+          },
+        ]);
+        expect(listed.sessions[0].checkpointBytes).toBeGreaterThan(0);
 
         running.kill("SIGTERM");
         expect(await exited(running)).toBe(0);

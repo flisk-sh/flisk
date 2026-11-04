@@ -23,13 +23,14 @@ export function parseMaintainers(markdown) {
         const cells = splitRow(line).map((cell) => cell.toLowerCase());
         return REQUIRED_COLUMNS.every((column) => cells.includes(column));
     });
-    if (headerIndex === -1) {
+    const headerLine = lines[headerIndex];
+    if (headerIndex === -1 || !headerLine) {
         return {
             ok: false,
             error: "table with columns Name, GitHub id, Company not found",
         };
     }
-    const header = splitRow(lines[headerIndex]).map((cell) => cell.toLowerCase());
+    const header = splitRow(headerLine).map((cell) => cell.toLowerCase());
     const nameAt = header.indexOf("name");
     const githubAt = header.indexOf("github id");
     const companyAt = header.indexOf("company");

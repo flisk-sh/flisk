@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate } from "../backend-languages/bun.js";
-import type { AgentConfig, CreatableResourceType, PortAssignableResourceType } from "../types/index.js";
+import type { AgentConfig, CreatableResourceType, InfraFramework, PortAssignableResourceType } from "../types/index.js";
+import { DATABASE_RESOURCE_TYPE, QUEUE_RESOURCE_TYPE } from "../types/index.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 export declare const BASE_TEMPLATE: {
     readonly port: 0;
@@ -23,6 +24,22 @@ interface TypeSpecificConfig {
     };
 }
 export declare const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificConfig>;
+/** Options an infrastructure framework cannot take: its image listens on a fixed port inside the container. */
+export declare function assertInfraPresetOptions(framework: InfraFramework, options: {
+    port?: string;
+    image?: string;
+}): void;
+/**
+ * `--framework` for `--type database` (postgres, or an infrastructure framework) and `--type queue`: a wrong id gets the
+ * type that offers it, because the ids of the two types are disjoint.
+ */
+export declare function assertInfraFramework(type: string, framework: string | undefined): void;
+/** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
+export declare function resolveInferencePort(value: string | undefined, resources: Array<{
+    config?: {
+        port?: number;
+    };
+}>): number;
 export declare function resolveByoPort(value: string | undefined, assignedPort: number, resources: Array<{
     config?: {
         port?: number;
@@ -33,7 +50,7 @@ export declare function resolveResourcePort(resourceType: PortAssignableResource
         port?: number;
     };
 }>): number;
-export declare function createServiceJson(name: string, type: CreatableResourceType, stack: string, port: number, extraFeatures?: string[], frameworkId?: string, languageId?: string, agent?: AgentConfig): any;
+export declare function createServiceJson(name: string, type: CreatableResourceType, stack: string, port: number, extraFeatures?: string[], frameworkId?: string, languageId?: string, agent?: AgentConfig, basePath?: string): any;
 export declare function createByoServiceJson(name: string, stack: string, port: number, options: {
     healthCheckPath: string;
     dockerfile: string;
@@ -68,11 +85,11 @@ export declare function createPackageJson(name: string, type: string, frameworkI
     version: string;
     type: string;
     scripts: {
+        start?: string;
         predev?: string | undefined;
         prebuild?: string | undefined;
         dev: string;
         build: string;
-        start?: string | undefined;
         test: string;
         lint: string;
         "lint:fix": string;
@@ -128,8 +145,14 @@ export declare const TSCONFIG_TEMPLATE: {
     exclude: string[];
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
-/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
-export declare function parseResourceType(type: string): CreatableResourceType | "sdk";
+/**
+ * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` is a preset of it.
+ * `database` and `queue` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
+ * container is created. The preset types of 1.4.24 (redis, qdrant, rabbitmq, minio, mlflow) are frameworks now.
+ */
+export declare function parseResourceType(type: string): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE | "sdk";
+/** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */
+export declare function createDatabaseServiceJson(name: string, stack: string): Record<string, unknown>;
 type ExistingServiceConfig = {
     [key: string]: unknown;
     $schema?: string;
@@ -153,4 +176,24 @@ type ExistingServiceConfig = {
  * @throws FliskError When the content is not valid JSON.
  */
 export declare function parseExistingServiceJson(content: string, configPath: string): ExistingServiceConfig;
+/** What `flisk resource --frameworks --json` reports: the same inventory the text listing prints. */
+export declare function frameworkInventoryReport(options: {
+    type?: string;
+    language?: string;
+}, isTypeExplicit: boolean): Record<string, unknown>;
+/**
+ * What `flisk resource <name> --json` reports. `action` is `registered` for a directory that already had a
+ * service.json. `port` is null for an SDK. `discovered` is whether discovery.paths covers `path`, so `flisk up` starts it.
+ */
+export interface ResourceReport {
+    action: "created" | "registered";
+    name: string;
+    type: string;
+    stack: string;
+    port: number | null;
+    path: string;
+    framework: string | null;
+    language: string | null;
+    discovered: boolean;
+}
 export declare const resourceCommand: Command;

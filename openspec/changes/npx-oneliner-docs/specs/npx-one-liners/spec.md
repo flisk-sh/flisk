@@ -49,7 +49,7 @@ Docs SHALL use these blocks, each prefixed `npx -y @flisk-sh/flisk`:
 - **THEN** the npx line comes first and global install / curl follow it
 
 ### Requirement: Files in scope
-The rewrite SHALL cover `README.md`; `README-zh_cn.md`, `README-zh_tw.md`, `README-ja.md`, `README-ko.md` (commands identical, prose translated); `docs/README.md`; example READMEs opening with bare `flisk project` / `flisk up`; the website quickstart; and the `awesome-tdk-framework` install line. It SHALL NOT rewrite generated `service.json`, Tiltfiles, or claims numbers.
+The rewrite SHALL cover `README.md`; `README-zh_cn.md`, `README-zh_tw.md`, `README-ja.md`, `README-ko.md` (commands identical, prose translated); `docs/README.md`; example READMEs opening with bare `flisk project` / `flisk up`; the website quickstart; and the `awesome-flisk-framework` install line. It SHALL NOT rewrite generated `service.json`, Tiltfiles, or claims numbers.
 
 #### Scenario: Doc change is conformant
 - **WHEN** a doc change is reviewed

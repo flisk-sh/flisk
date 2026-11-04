@@ -14,7 +14,7 @@ import YAML from "yaml";
 
 export const GROUPS = ["resource-types", "orm", "journeys", "examples", "platforms", "scale"];
 export const TRIGGERS = ["pr", "main", "nightly", "release", "manual", "weekly"];
-const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "needsSecrets", "checkName", "install", "freePostgres"];
+const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "typicalSeconds", "needsSecrets", "checkName", "install", "freePostgres"];
 const CASE_ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 const isStringArray = (value) => Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
@@ -44,6 +44,10 @@ export function checkSuiteJson(suite, group, name) {
   }
   if (!Number.isInteger(suite.timeoutMinutes) || suite.timeoutMinutes < 1 || suite.timeoutMinutes > 360) {
     problems.push("timeoutMinutes must be an integer from 1 to 360");
+  }
+  // How long a leg usually runs; suite-matrix.mjs starts the longest legs first.
+  if (suite.typicalSeconds !== undefined && (!Number.isInteger(suite.typicalSeconds) || suite.typicalSeconds < 1)) {
+    problems.push("typicalSeconds must be a positive integer");
   }
   // A suite with variants gets one matrix leg per entry; each entry names its id, its example and the case that checks it (#1297).
   if (suite.variants !== undefined) {

@@ -1,4 +1,4 @@
-import type { PortOccupant } from "./port-occupant.js";
+import type { PortOccupant } from "../types/index.js";
 /** The host port a conflict message is about, or null when the message is not a port conflict. */
 export declare function conflictPort(message: string): number | null;
 /**

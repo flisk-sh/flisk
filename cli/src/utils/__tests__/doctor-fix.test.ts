@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ColimaStatus } from "../colima.js";
 import {
   anyTiltAnswers,
@@ -14,11 +14,13 @@ import {
   createDockerFixDeps,
   type DockerNetwork,
   type DoctorFixDeps,
+  dockerFixDeps,
   findFliskInstalls,
   hasFailedActions,
   parseElapsed,
   planDoctorFixes,
   projectTiltPids,
+  runColima,
 } from "../doctor-fix.js";
 
 function fakeDocker(
@@ -32,6 +34,7 @@ function fakeDocker(
 ) {
   const removed: string[] = [];
   const pruned: string[] = [];
+  const trimmed: string[] = [];
   const stopped: number[] = [];
   const colimaActions: string[] = [];
   const colimaState: ColimaStatus = { isColima: false, running: true };
@@ -60,8 +63,11 @@ function fakeDocker(
     prune: async (kind) => {
       pruned.push(kind);
     },
+    trimColima: async () => {
+      trimmed.push("fstrim");
+    },
   };
-  return { deps, removed, stopped, pruned };
+  return { deps, removed, stopped, pruned, trimmed, colimaState };
 }
 
 const net = (name: string, containers = 0): DockerNetwork => ({ name, containers });
@@ -197,6 +203,7 @@ describe("applyDoctorFixes", () => {
       freeDiskGib: () => 100,
       reclaimable: async () => ({ buildCache: null, danglingImages: 0 }),
       prune: async () => {},
+      trimColima: async () => {},
       colima: async () => {},
       colimaStatus: () => ({ isColima: false, running: true }),
       dockerAnswers: () => true,
@@ -384,6 +391,76 @@ describe("createDockerFixDeps", () => {
     const status = await deps.tiltStatus(process.pid);
     expect(["healthy", "stale", "unknown"]).toContain(status);
   });
+
+  it("sends SIGTERM to the target PID in stopProcess", () => {
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
+    try {
+      const deps = createDockerFixDeps();
+      deps.stopProcess(4321);
+      expect(killSpy).toHaveBeenCalledTimes(1);
+      expect(killSpy).toHaveBeenCalledWith(4321, "SIGTERM");
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+});
+
+describe("dockerFixDeps", () => {
+  it("provides the expected default dependency handlers with correct types", () => {
+    const expectedKeys = [
+      "colima",
+      "colimaStatus",
+      "dockerAnswers",
+      "freeDiskGib",
+      "isProcessAlive",
+      "listNetworks",
+      "prune",
+      "reclaimable",
+      "removeNetwork",
+      "stopProcess",
+      "tiltStatus",
+      "trimColima",
+    ];
+
+    const actualKeys = Object.keys(dockerFixDeps).sort();
+    expect(actualKeys).toEqual(expectedKeys.sort());
+
+    for (const key of expectedKeys) {
+      expect(typeof dockerFixDeps[key as keyof DoctorFixDeps]).toBe("function");
+    }
+  });
+
+  it("does not contain duplicate dependency entries in the default dependency list", () => {
+    const keys = Object.keys(dockerFixDeps);
+    const uniqueKeys = Array.from(new Set(keys));
+    expect(keys.length).toBe(uniqueKeys.length);
+    expect(keys).toEqual(uniqueKeys);
+  });
+
+  it("ensures a dependency already present is not duplicated when merging dependencies", () => {
+    const override = {
+      dockerAnswers: () => true,
+    };
+    const combinedDeps: DoctorFixDeps = {
+      ...dockerFixDeps,
+      ...override,
+    };
+    const keys = Object.keys(combinedDeps);
+    const uniqueKeys = Array.from(new Set(keys));
+    expect(keys.length).toBe(uniqueKeys.length);
+    expect(keys.filter((k) => k === "dockerAnswers")).toHaveLength(1);
+    expect(combinedDeps.dockerAnswers()).toBe(true);
+  });
+
+  it("invokes read-only queries safely on the default dependency bundle", () => {
+    expect(dockerFixDeps.isProcessAlive(process.pid)).toBe(true);
+    const free = dockerFixDeps.freeDiskGib();
+    expect(free === null || (typeof free === "number" && free >= 0)).toBe(true);
+    expect(typeof dockerFixDeps.dockerAnswers()).toBe("boolean");
+    const colima = dockerFixDeps.colimaStatus();
+    expect(typeof colima).toBe("object");
+    expect(typeof colima.isColima).toBe("boolean");
+  });
 });
 
 describe("projectTiltPids", () => {
@@ -505,6 +582,96 @@ describe("disk reclaim", () => {
     expect(plan[1]?.reason).toContain("1 untagged image");
   });
 
+  it("plans a trim of the Colima VM after the prunes, so the freed space returns to the Mac", async () => {
+    const { deps, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "3GB", dangling: 2 },
+    );
+    colimaState.isColima = true;
+    const plan = await planDoctorFixes("p", deps);
+    expect(plan.map((a) => a.id)).toEqual(["prune:builder", "prune:images", "trim:colima"]);
+    const trim = plan[2];
+    expect(trim?.command).toBe("colima ssh -- sudo fstrim -av");
+    expect(trim?.scope).toBe("host");
+    expect(trim?.reason).toContain("3.4 GB free");
+  });
+
+  it("plans the trim even when there is nothing left to prune", async () => {
+    const { deps, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "0B", dangling: 0 },
+    );
+    colimaState.isColima = true;
+    expect((await planDoctorFixes("p", deps)).map((a) => a.id)).toEqual(["trim:colima"]);
+  });
+
+  it("does not plan a trim without Colima, when the VM is stopped, or when disk is not low", async () => {
+    const plain = fakeDocker([], [], [], {}, { freeGib: 3.4, buildCache: "3GB", dangling: 0 });
+    expect((await planDoctorFixes("p", plain.deps)).map((a) => a.id)).toEqual(["prune:builder"]);
+
+    const stopped = fakeDocker([], [], [], {}, { freeGib: 3.4, buildCache: "3GB", dangling: 0 });
+    stopped.colimaState.isColima = true;
+    stopped.colimaState.running = false;
+    expect((await planDoctorFixes("p", stopped.deps)).some((a) => a.id === "trim:colima")).toBe(
+      false,
+    );
+
+    const roomy = fakeDocker([], [], [], {}, { freeGib: 100, buildCache: "3GB", dangling: 5 });
+    roomy.colimaState.isColima = true;
+    expect(await planDoctorFixes("p", roomy.deps)).toEqual([]);
+  });
+
+  it("applies the trim once, after the prunes, and reports it", async () => {
+    const { deps, pruned, trimmed, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "3GB", dangling: 1 },
+    );
+    colimaState.isColima = true;
+    const results = await applyDoctorFixes(
+      await planDoctorFixes("p", deps),
+      { dryRun: false, confirm: async () => true },
+      deps,
+    );
+    expect(pruned).toEqual(["builder", "images"]);
+    expect(trimmed).toEqual(["fstrim"]);
+    expect(results.find((a) => a.id === "trim:colima")).toMatchObject({
+      status: "applied",
+      reason: "trimmed",
+    });
+  });
+
+  it("reports a failed trim with the command to run by hand, and does not stop the other repairs", async () => {
+    const { deps, pruned, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "3GB", dangling: 0 },
+    );
+    colimaState.isColima = true;
+    deps.trimColima = async () => {
+      throw new Error("sudo: a password is required");
+    };
+    const results = await applyDoctorFixes(
+      await planDoctorFixes("p", deps),
+      { dryRun: false, confirm: async () => true },
+      deps,
+    );
+    expect(pruned).toEqual(["builder"]);
+    const trim = results.find((a) => a.id === "trim:colima");
+    expect(trim?.status).toBe("failed");
+    expect(trim?.reason).toContain("sudo: a password is required");
+  });
+
   it("skips what has nothing to reclaim, and never plans volumes or a full image prune", async () => {
     const { deps } = fakeDocker([], [], [], {}, { freeGib: 1, buildCache: "0B", dangling: 0 });
     expect(await planDoctorFixes("p", deps)).toEqual([]);
@@ -589,6 +756,7 @@ describe("Colima repairs", () => {
     freeDiskGib: () => 100,
     reclaimable: async () => ({ buildCache: null, danglingImages: 0 }),
     prune: async () => {},
+    trimColima: async () => {},
     colima: async () => {},
     colimaStatus: () => ({ isColima: true, running: false }),
     dockerAnswers: () => false,
@@ -637,5 +805,125 @@ describe("Colima repairs", () => {
     );
     expect(ran).toEqual(["start"]);
     expect(results.find((action) => action.id === "colima:start")?.status).toBe("applied");
+  });
+
+  it("plans and applies native-lima repair and records failure when native-lima throws", async () => {
+    const ran: string[] = [];
+    const deps = baseDeps({
+      colimaStatus: () => ({
+        isColima: true,
+        running: false,
+        problem: "Lima is installed as an x86_64 build",
+      }),
+      colima: async (action) => {
+        ran.push(action);
+      },
+    });
+    const plan = await planDoctorFixes("shop", deps);
+    expect(plan.find((action) => action.id === "colima:native-lima")?.status).toBe("planned");
+    const applied = await applyDoctorFixes(
+      plan,
+      { dryRun: false, confirm: async () => true },
+      deps,
+    );
+    expect(ran).toEqual(["native-lima"]);
+    expect(applied[0]?.status).toBe("applied");
+    expect(applied[0]?.reason).toBe("native lima repaired and colima started");
+
+    const failingDeps = baseDeps({
+      colimaStatus: () => ({
+        isColima: true,
+        running: false,
+        problem: "Lima is installed as an x86_64 build",
+      }),
+      colima: async () => {
+        throw new Error("brew reinstall lima failed");
+      },
+    });
+    const failed = await applyDoctorFixes(
+      plan,
+      { dryRun: false, confirm: async () => true },
+      failingDeps,
+    );
+    expect(failed[0]?.status).toBe("failed");
+    expect(failed[0]?.reason).toBe("Error: brew reinstall lima failed");
+  });
+});
+
+describe("runColima", () => {
+  it("runs colima start with native limactl prepended to PATH when present", async () => {
+    const calls: Array<{ file: string; args: string[]; path?: string }> = [];
+    await runColima(
+      "start",
+      async (file, args, options) => {
+        calls.push({ file, args, path: options.env?.PATH });
+      },
+      () => "/opt/homebrew/bin",
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.file).toBe("colima");
+    expect(calls[0]?.args).toEqual(["start"]);
+    expect(calls[0]?.path?.startsWith("/opt/homebrew/bin:")).toBe(true);
+  });
+
+  it("runs colima restart without modifying PATH when no native limactl is found", async () => {
+    const calls: Array<{ file: string; args: string[]; env?: NodeJS.ProcessEnv }> = [];
+    await runColima(
+      "restart",
+      async (file, args, options) => {
+        calls.push({ file, args, env: options.env });
+      },
+      () => null,
+    );
+    expect(calls).toEqual([{ file: "colima", args: ["restart"], env: process.env }]);
+  });
+
+  it("starts colima directly for native-lima when a native limactl is already installed", async () => {
+    const calls: Array<{ file: string; args: string[]; path?: string }> = [];
+    await runColima(
+      "native-lima",
+      async (file, args, options) => {
+        calls.push({ file, args, path: options.env?.PATH });
+      },
+      () => "/opt/homebrew/bin",
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.file).toBe("colima");
+    expect(calls[0]?.args).toEqual(["start"]);
+    expect(calls[0]?.path?.startsWith("/opt/homebrew/bin:")).toBe(true);
+  });
+
+  it("reinstalls lima via homebrew and starts colima when native-lima initially lacks native limactl", async () => {
+    const calls: Array<{ file: string; args: string[]; path?: string }> = [];
+    let checks = 0;
+    await runColima(
+      "native-lima",
+      async (file, args, options) => {
+        calls.push({ file, args, path: options.env?.PATH });
+      },
+      () => (checks++ === 0 ? null : "/opt/homebrew/bin"),
+      (path) => path === "/opt/homebrew/bin/brew",
+    );
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.file).toBe("/opt/homebrew/bin/brew");
+    expect(calls[0]?.args).toEqual(["reinstall", "lima"]);
+    expect(calls[1]?.file).toBe("colima");
+    expect(calls[1]?.args).toEqual(["start"]);
+    expect(calls[1]?.path?.startsWith("/opt/homebrew/bin:")).toBe(true);
+  });
+
+  it("throws FliskError when brew reinstall lima still does not provide a native limactl", async () => {
+    const calls: Array<{ file: string; args: string[] }> = [];
+    await expect(
+      runColima(
+        "native-lima",
+        async (file, args) => {
+          calls.push({ file, args });
+        },
+        () => null,
+        () => false,
+      ),
+    ).rejects.toThrow("brew reinstall lima did not provide a native limactl");
+    expect(calls).toEqual([{ file: "brew", args: ["reinstall", "lima"] }]);
   });
 });

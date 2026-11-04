@@ -321,6 +321,7 @@ describe("error handling", () => {
           featureOnFromSpecMaster: false,
           focusWouldEnableDatabaseManagement: false,
           dependsOnUsers: [],
+          databaseResources: [],
           willStart: false,
           reason: "none",
           unknownDependsOnNames: [],

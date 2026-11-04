@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="196" viewBox="0 0 240 196" role="img" aria-label="80% fit score: Great fit">
+<title>80% fit score: Great fit</title>
+<style>.tr{stroke:#d1d9e0}.ar{stroke:#1a7f37}.n{fill:#1f2328}.m{fill:#59636e}.p{fill:#1a7f37}.pt{fill:#ffffff}@media (prefers-color-scheme:dark){.tr{stroke:#3d444d}.ar{stroke:#3fb950}.n{fill:#f0f6fc}.m{fill:#9198a1}.p{fill:#3fb950}.pt{fill:#0d1117}}.ar{stroke-dasharray:389.56;stroke-dashoffset:77.91;animation:fill 1.4s cubic-bezier(.2,.7,.2,1) both}@keyframes fill{from{stroke-dashoffset:389.56}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<circle class="tr" cx="120" cy="84" r="62" fill="none" stroke-width="12"/>
+<circle class="ar" cx="120" cy="84" r="62" fill="none" stroke-width="12" stroke-linecap="round" transform="rotate(-90 120 84)"/>
+<text class="n" x="120" y="94" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="34" font-weight="700">80%</text>
+<text class="m" x="120" y="114" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="12">fit score</text>
+<rect class="p" x="83" y="164" width="74" height="26" rx="13"/>
+<text class="pt" x="120" y="181.5" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="13" font-weight="600">Great fit</text>
+</svg>

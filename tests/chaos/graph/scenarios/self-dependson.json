@@ -1,0 +1,16 @@
+{
+  "title": "a service that lists itself in dependsOn",
+  "why": "Fixed. A one-node cycle. Tilt drops the self edge on purpose and flisk up refuses it as circular, but flisk config verify says nothing (the same gap as a longer cycle).",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "orders"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

@@ -35,7 +35,7 @@ export function binaryAssetNameFor(platformName: string, architecture: string): 
   const archName = fliskArchFor(architecture);
   if (!osName || !archName) return null;
   if (osName === "windows" && archName !== "amd64") return null;
-  const base = `tdk-${osName}-${archName}`;
+  const base = `flisk-${osName}-${archName}`;
   return osName === "windows" ? `${base}.exe` : base;
 }
 

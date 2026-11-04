@@ -17,7 +17,7 @@ export function createProgram() {
     const program = new Command();
     program
         .name("flisk")
-        .description("Flisk CLI — start services on your machine.")
+        .description("Flisk: your whole app, running on your computer with one command.")
         .version(pkg.version, "-v, --version", "Display version number")
         .option("--verbose", "Enable verbose output", false)
         .option("--template <name>", "Create a project from a starter template in one command (restaurant, saas, erp, ecommerce, example)")

@@ -20,7 +20,7 @@ Flisk currently targets Linux and macOS, with Unix assumptions in platform detec
 - Keep Windows-specific diagnostics behind platform checks. Reuse the Node port bind probe, add PowerShell/netsh checks for process owners and excluded ranges, check `flisk.localhost` and a sample wildcard host via DNS lookup, and expose numeric loopback URLs alongside routed hostnames on Windows.
 - Keep generated containers Linux-based and preserve project-relative mount conventions. Doctor explains Docker Desktop Linux container mode, project-drive file sharing, and Windows port/DNS issues; it does not silently alter port defaults.
 - Add Windows PowerShell completion in marked, idempotent profile blocks without changing Bash, Zsh, or Fish behavior.
-- Cross-compile `bun-windows-x64` to `tdk-windows-amd64.exe`; include it in checksums and the binary ZIP. Add a PowerShell installer in the website repository that verifies the exe checksum, unpacks the engine beside the executable, supports user-selected install directories, and appends PATH only when needed.
+- Cross-compile `bun-windows-x64` to `flisk-windows-amd64.exe`; include it in checksums and the binary ZIP. Add a PowerShell installer in the website repository that verifies the exe checksum, unpacks the engine beside the executable, supports user-selected install directories, and appends PATH only when needed.
 - Add Windows smoke CI for CLI setup, targeted unit tests, and help output, plus a PE signature check for the cross-compiled asset. Do not claim Docker e2e on a runner where Docker is unavailable.
 - Update platform support language and Windows setup/troubleshooting docs across named repositories; Windows support claims become valid only after Windows CI and the physical-device acceptance checklist pass.
 

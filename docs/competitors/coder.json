@@ -1,0 +1,605 @@
+{
+	"competitor": "coder",
+	"rows": [
+		{
+			"id": "agents-chat-delegation",
+			"name": "Chat UI to delegate coding tasks",
+			"area": "agents",
+			"offer": "A chat interface and API where developers describe work and a self-hosted agent picks a template, provisions a workspace and does the task.",
+			"source": "https://coder.com/docs/ai-coder/agents",
+			"checked": "2026-10-27",
+			"match": [
+				"coder agents",
+				"chat interface",
+				"delegating development work"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is the local runtime a coding agent works against, not a hosted chat product that provisions workspaces for people.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "agents-control-plane-loop",
+			"name": "Agent loop in the control plane",
+			"area": "security",
+			"offer": "The agent loop runs inside the Coder server, so workspaces hold no LLM keys and need no agent software installed.",
+			"source": "https://coder.com/docs/ai-coder/agents",
+			"checked": "2026-10-27",
+			"match": [
+				"control plane",
+				"no api keys in workspaces",
+				"agent loop"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "There is no server-side control plane in a laptop-first runtime; the developer's own agent already runs next to Flisk.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "agents-subagent-delegation",
+			"name": "Sub-agent delegation with own context",
+			"area": "agents",
+			"offer": "A root agent can spawn child agents that each get their own context window and work on independent tasks in parallel.",
+			"source": "https://coder.com/docs/ai-coder/agents",
+			"checked": "2026-10-27",
+			"match": [
+				"sub-agent delegation",
+				"context window"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Sub-agent orchestration belongs to the coding agent itself; Flisk only runs the services those agents call.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "agents-chat-persistence",
+			"name": "Conversation survives workspace rebuild",
+			"area": "agents",
+			"offer": "Chat history lives in the server database, so stopping, deleting or rebuilding a workspace does not lose the conversation.",
+			"source": "https://coder.com/docs/ai-coder/agents",
+			"checked": "2026-10-27",
+			"match": [
+				"chat persistence",
+				"stored in the coder database"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk's agent resource keeps session checkpoints on a named volume that survives flisk down, but it does not store a coding agent's own chat history.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/agents/llms.txt",
+							"contains": "named volume surviving `flisk down`"
+						}
+					},
+					{
+						"mcpTool": "agent_sessions"
+					},
+					{
+						"command": "agent"
+					}
+				]
+			}
+		},
+		{
+			"id": "agents-virtual-desktop",
+			"name": "Virtual desktop for agent computer use",
+			"area": "agents",
+			"offer": "An experimental option that gives agents a graphical desktop in the workspace to drive with screenshots, mouse and keyboard.",
+			"source": "https://coder.com/docs/ai-coder/agents/platform-controls/virtual-desktop",
+			"checked": "2026-10-27",
+			"match": [
+				"virtual desktop",
+				"computer_use",
+				"screenshots, mouse, keyboard"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "A remote GUI desktop inside a cloud workspace has no counterpart in a local service runtime.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "agents-context-skills-discovery",
+			"name": "Workspace skills and instruction discovery",
+			"area": "skills",
+			"offer": "The workspace agent scans for AGENTS.md, CLAUDE.md, skills and .mcp.json and gives chats a pinned snapshot of them.",
+			"source": "https://coder.com/docs/ai-coder/agents/extending-agents",
+			"checked": "2026-10-27",
+			"match": [
+				"extending agents",
+				"agents.md",
+				"skills",
+				"context snapshot"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk publishes portable skills and an AGENTS.md for coding agents to read, but it does not scan a project and push a context snapshot to a running agent.",
+				"evidence": [
+					{
+						"file": "AGENTS.md"
+					},
+					{
+						"text": {
+							"file": "docs/agents/llms.txt",
+							"contains": "Portable Agent Skills"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "agents-mcp-server-registry",
+			"name": "Admin-registered MCP servers for agents",
+			"area": "integrations",
+			"offer": "Organization admins register external MCP servers whose tools are injected into or offered to agent chats under an availability policy.",
+			"source": "https://coder.com/docs/ai-coder/agents/platform-controls/mcp-servers",
+			"checked": "2026-10-27",
+			"match": [
+				"mcp servers",
+				"add server",
+				"availability policy"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk runs MCP servers as a first-class resource type routed over Streamable HTTP, but has no admin-managed registry that decides which agents may use which server.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/agents/llms.txt",
+							"contains": "Standard Model Context Protocol servers over Streamable HTTP"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "agent-relay-cloud-agents",
+			"name": "Cloud agents run in own workspaces",
+			"area": "integrations",
+			"offer": "Agent Relay lets a vendor's cloud agent sessions execute their tool calls inside workspaces on your own Coder deployment.",
+			"source": "https://coder.com/docs/ai-coder/agent-relay",
+			"checked": "2026-10-27",
+			"match": [
+				"agent relay",
+				"cloud-hosted ai coding agent",
+				"self-hosted"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "It bridges hosted agent vendors to remote workspaces; Flisk runs on the developer's machine and has no hosted session to relay.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "ai-gateway-llm-capture",
+			"name": "Capture prompts, tokens and tool calls",
+			"area": "observability",
+			"offer": "A gateway between coding agents and model providers records prompts, token usage, reasoning and every tool call, with Prometheus metrics and a sample Grafana dashboard.",
+			"source": "https://coder.com/docs/ai-coder/ai-gateway/monitoring",
+			"checked": "2026-10-27",
+			"match": [
+				"ai gateway",
+				"token usage",
+				"tool invocation",
+				"prometheus metrics"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "A local record of what each agent resource sent to its model and how many tokens it used would suit people building multi-agent systems on Flisk.",
+				"evidence": []
+			},
+			"acceptance": "flisk logs or a new MCP tool in cli/src/mcp/tools.ts returns per-agent-resource LLM request and token counts; the proof is a file under docs/agents or a tool name in tools.ts.",
+			"ice": {
+				"impact": 6,
+				"confidence": 5,
+				"ease": 3,
+				"basis": "Impact: agent-system builders often ask where tokens go, but Flisk users bring their own model clients. Confidence: Coder's feature is for org-wide governance, so the local mapping is a judgment. Ease: needs a capturing proxy or SDK hook beyond cli/src/commands/logs.ts."
+			}
+		},
+		{
+			"id": "ai-gateway-session-audit",
+			"name": "Per-user AI session audit trail",
+			"area": "enterprise",
+			"offer": "The gateway groups intercepted requests into sessions and threads and attributes each action to an authenticated user for auditors.",
+			"source": "https://coder.com/docs/ai-coder/ai-gateway/audit",
+			"checked": "2026-10-27",
+			"match": [
+				"audit ai sessions",
+				"human vs. agent attribution",
+				"thread"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Attribution to authenticated org users is an administrator need; a local stack has one developer.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "ai-gateway-spend-budgets",
+			"name": "Group and user AI spend budgets",
+			"area": "enterprise",
+			"offer": "Premium admins cap AI spend per group or user over a monthly period and surface the resulting spend to users.",
+			"source": "https://coder.com/docs/ai-coder/agents/platform-controls/spend-management",
+			"checked": "2026-10-27",
+			"match": [
+				"spend management",
+				"budgets",
+				"per-user overrides"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Org-wide budgets and billing controls need a central server and identity, which Flisk does not have.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "agent-firewall-egress-allowlist",
+			"name": "Domain allowlist for agent processes",
+			"area": "security",
+			"offer": "A process-level firewall limits which domains and HTTP verbs an AI agent can reach and logs blocked requests.",
+			"source": "https://coder.com/docs/ai-coder/agent-firewall",
+			"checked": "2026-10-27",
+			"match": [
+				"agent firewall",
+				"process-level firewall",
+				"allowlist",
+				"domain"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Restricting which hosts an agent resource container can call would help people running untrusted or autonomous agents locally.",
+				"evidence": []
+			},
+			"acceptance": "A service.json field or doctor/config verify check for an agent resource's allowed egress domains, proven by a docs page plus a text match in the generated Compose network config.",
+			"ice": {
+				"impact": 5,
+				"confidence": 5,
+				"ease": 3,
+				"basis": "Impact: matters to agent-stack users who run autonomous code, but most local loops do not restrict egress. Confidence: the Coder tool is Linux jail based, so the container-level mapping is uncertain. Ease: needs egress proxy or network policy in runtime/engine/topologies/platform/net, which has none today."
+			}
+		},
+		{
+			"id": "agent-sandbox-network-isolation",
+			"name": "Separate sandbox for the agent",
+			"area": "security",
+			"offer": "A template runs the AI agent in its own pod with a network policy so its file and network access differ from the user's.",
+			"source": "https://coder.com/docs/ai-coder/agents/platform-controls/agent-isolation",
+			"checked": "2026-10-27",
+			"match": [
+				"network isolation",
+				"separate sandbox",
+				"kubernetes"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "It is built on Kubernetes pods and network policies, and Flisk deliberately does not target Kubernetes.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "workspace-process-logging",
+			"name": "System-level process logging",
+			"area": "security",
+			"offer": "A Premium sidecar logs every process started inside a Kubernetes workspace for security review.",
+			"source": "https://coder.com/docs/admin/templates/extending-templates/process-logging",
+			"checked": "2026-10-27",
+			"match": [
+				"workspace process logging",
+				"premium",
+				"sidecar"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Linux-on-Kubernetes auditing for administrators does not fit a laptop runtime.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "audit-logs",
+			"name": "Audit logs of admin and user actions",
+			"area": "enterprise",
+			"offer": "The server records who did what across the deployment, such as workspace and template changes, for review.",
+			"source": "https://coder.com/docs/admin/security/audit-logs",
+			"checked": "2026-10-27",
+			"match": [
+				"audit logs",
+				"audit"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "There is no multi-user control plane in Flisk to audit.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "sso-groups-access-control",
+			"name": "SSO, groups and access control",
+			"area": "enterprise",
+			"offer": "Coder supports OIDC and GitHub sign-in with MFA and groups that control who can use templates.",
+			"source": "https://coder.com/docs/admin/users",
+			"checked": "2026-10-27",
+			"match": [
+				"configure sso",
+				"openid connect",
+				"groups"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk runs as the developer's own user with no accounts, so identity and RBAC do not apply.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "terraform-workspace-templates",
+			"name": "Terraform workspace templates",
+			"area": "environments",
+			"offer": "Administrators define the infrastructure of every workspace as Terraform templates, with parameters and a template builder.",
+			"source": "https://coder.com/docs/admin/templates",
+			"checked": "2026-10-27",
+			"match": [
+				"templates",
+				"terraform",
+				"template builder"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Provisioning cloud infrastructure is the job of Coder's control plane; Flisk generates local Compose and Tilt files instead.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "prebuilt-workspaces",
+			"name": "Pool of prebuilt workspaces",
+			"area": "environments",
+			"offer": "The server keeps a pool of ready workspaces per parameter preset and hands one to a developer who asks, cutting wait time.",
+			"source": "https://coder.com/docs/admin/templates/extending-templates/prebuilt-workspaces",
+			"checked": "2026-10-27",
+			"match": [
+				"prebuilt workspaces",
+				"prebuilds",
+				"pool"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Pre-provisioning cloud machines to hide creation time is not a local-runtime problem.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "dev-containers-integration",
+			"name": "Run devcontainer.json environments",
+			"area": "environments",
+			"offer": "Workspaces build and run dev containers from devcontainer.json using the Dev Containers CLI and Docker, each shown as a sub-agent.",
+			"source": "https://coder.com/docs/user-guides/devcontainers",
+			"checked": "2026-10-27",
+			"match": [
+				"dev containers",
+				"devcontainer.json",
+				"@devcontainers/cli"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk runs inside a Dev Container with Docker-outside-of-Docker, but it does not build or manage environments from devcontainer.json.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/agent-hosts.md",
+							"contains": "Docker-outside-of-Docker"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "workspace-autostop-schedule",
+			"name": "Autostop idle workspaces",
+			"area": "environments",
+			"offer": "Workspaces can start and stop on a schedule and stop after inactivity, to control cloud cost.",
+			"source": "https://coder.com/docs/user-guides/workspace-scheduling",
+			"checked": "2026-10-27",
+			"match": [
+				"workspace schedules",
+				"inactivity timeout",
+				"automatically stop"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "A licensed Flisk extra stops idle services with Sablier, which saves local resources, but there is no schedule-based start and stop.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/FEATURES.md",
+							"contains": "Sablier idle stop"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "shared-workspaces",
+			"name": "Multi-user shared workspace",
+			"area": "collaboration",
+			"offer": "Several users or groups can connect to one workspace for pairing, on-call or handing over an agent's work for review.",
+			"source": "https://coder.com/docs/user-guides/shared-workspaces",
+			"checked": "2026-10-27",
+			"match": [
+				"shared workspaces",
+				"pair programming",
+				"scoped roles"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Sharing needs a remote machine and accounts; a Flisk stack stays on one developer's computer.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "agent-chat-sharing",
+			"name": "Read-only sharing of agent chats",
+			"area": "collaboration",
+			"offer": "A chat can be shared with users or groups who then view messages and stream live updates in read-only mode.",
+			"source": "https://coder.com/docs/ai-coder/agents/chat-sharing",
+			"checked": "2026-10-27",
+			"match": [
+				"chat sharing",
+				"read-only access"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk has no hosted agent conversations to share between accounts.",
+				"evidence": []
+			}
+		},
+		{
+			"id": "workspace-port-forwarding",
+			"name": "Port forwarding to workspace services",
+			"area": "runtime",
+			"offer": "Developers reach processes in a remote workspace from their own machine through several forwarding methods, including shareable ports.",
+			"source": "https://coder.com/docs/user-guides/workspace-access/port-forwarding",
+			"checked": "2026-10-27",
+			"match": [
+				"port forwarding",
+				"workspace ports",
+				"coder desktop"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk routes each service at a local .localhost address and can open it, but it has no remote forwarding or shareable URL.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/security.md",
+							"contains": "<project>.localhost"
+						}
+					},
+					{
+						"command": "open"
+					}
+				]
+			}
+		},
+		{
+			"id": "startup-script-coordination",
+			"name": "Ordered startup with dependencies",
+			"area": "orchestration",
+			"offer": "Startup scripts declare what they depend on so they run in the right order without races, while independent ones run in parallel.",
+			"source": "https://coder.com/docs/admin/templates/startup-coordination",
+			"checked": "2026-10-27",
+			"match": [
+				"startup coordination",
+				"dependencies",
+				"race conditions"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "Services start in health-checked order."
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "resource-oom-disk-monitoring",
+			"name": "Memory and disk alerts",
+			"area": "observability",
+			"offer": "A template block watches the workspace for out-of-memory and out-of-disk conditions and alerts the user.",
+			"source": "https://coder.com/docs/admin/templates/extending-templates/resource-monitoring",
+			"checked": "2026-10-27",
+			"match": [
+				"resource monitoring",
+				"out of memory",
+				"ood"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "flisk doctor checks free disk space, but nothing reports a container killed for running out of memory.",
+				"evidence": [
+					{
+						"file": "cli/src/utils/doctor-host.ts"
+					},
+					{
+						"command": "doctor"
+					}
+				]
+			}
+		},
+		{
+			"id": "user-secrets-injection",
+			"name": "Store and inject user secrets",
+			"area": "security",
+			"offer": "Users store named secrets once and Coder injects them into their workspaces as environment variables or files.",
+			"source": "https://coder.com/docs/user-guides/user-secrets",
+			"checked": "2026-10-27",
+			"match": [
+				"user secrets",
+				"environment variable target",
+				"file target"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk generates secrets into an ignored .env and can read them from Infisical, but has no per-user secret store injecting files.",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "FLISK_SECRET_PROVIDER=infisical"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "web-terminal-browser",
+			"name": "Browser terminal into the workspace",
+			"area": "terminal",
+			"offer": "A web terminal in the dashboard gives shell access to a workspace with no local setup.",
+			"source": "https://coder.com/docs/user-guides/workspace-access/web-terminal",
+			"checked": "2026-10-27",
+			"match": [
+				"web terminal",
+				"xterm.js",
+				"browser-based terminal"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "The services run on the developer's own machine, where a local shell is already available.",
+				"evidence": []
+			}
+		}
+	]
+}

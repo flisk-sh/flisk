@@ -41,6 +41,9 @@
 				},
 				"bring-your-own": {
 					"allow": "#1297"
+				},
+				"database": {
+					"allow": "#2863"
 				}
 			},
 			"interactions": []
@@ -308,7 +311,7 @@
 				"one-backend-python": {
 					"leg": "examples/python"
 				},
-				"tdk-example": {
+				"flisk-example": {
 					"leg": "examples/default"
 				}
 			},

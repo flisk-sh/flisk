@@ -43,7 +43,7 @@ function parseArgs(): Options {
   const tiers = get("--tiers", "5,10,20,50,80,100").split(",").map(Number).filter((n) => n > 0);
   return {
     mode: args.includes("--synthetic") ? "synthetic" : "compose",
-    project: resolve(get("--project", process.env.FLISK_BENCH_PROJECT ?? join(REPO_ROOT, "..", "tdk-erp-system"))),
+    project: resolve(get("--project", process.env.FLISK_BENCH_PROJECT ?? join(REPO_ROOT, "..", "flisk-erp-system"))),
     tiers,
     gate: Number(get("--gate", String(Math.max(...tiers)))),
     timeoutSeconds: Number(get("--timeout", "240")),

@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { captureExit } from "../../test-support/index.js";
+import { captureExit, parseEnvelope, runCommandInProcess } from "../../test-support/index.js";
 import { promptConfirm } from "../../utils/prompt.js";
 import {
   EJECTED_CONTENT,
@@ -29,6 +29,19 @@ const originalCwd = process.cwd();
 
 describe("flisk eject", () => {
   let tempDir: string;
+
+  const pinProjectVersion = () => {
+    const projectJsonPath = join(tempDir, ".flisk", "project.json");
+    const project = JSON.parse(readFileSync(projectJsonPath, "utf-8")) as Record<string, unknown>;
+
+    writeFileSync(
+      projectJsonPath,
+      JSON.stringify({
+        ...project,
+        pinnedFliskVersion: "999.999.999",
+      }),
+    );
+  };
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), "flisk-eject-test-"));
@@ -234,5 +247,71 @@ describe("flisk eject", () => {
     }
     const text = output.join("\n");
     expect(text).not.toContain("Root Tiltfile, left where it is");
+  });
+
+  it("rejects eject when the CLI does not match pinnedFliskVersion", async () => {
+    pinProjectVersion();
+
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { expectExit } = captureExit();
+
+    try {
+      await expect(
+        ejectCommand.parseAsync(["node", "flisk", "--yes"], { from: "node" }),
+      ).rejects.toThrow("process.exit");
+
+      const output = error.mock.calls.flat().join("\n");
+
+      expect(output).toContain("does not match pinnedFliskVersion 999.999.999");
+      expect(output).toContain("npm install -g @flisk-sh/flisk@999.999.999");
+      expect(existsSync(join(tempDir, "EJECTED.md"))).toBe(false);
+
+      expectExit(1);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("allows eject to continue with --ignore-version", async () => {
+    pinProjectVersion();
+
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const output: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...args: unknown[]) => output.push(args.join(" "));
+
+    try {
+      await ejectCommand.parseAsync(["node", "flisk", "--dry-run", "--ignore-version"], {
+        from: "node",
+      });
+
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining("--ignore-version set"));
+      expect(output.join("\n")).toContain("Generated files");
+      expect(existsSync(join(tempDir, "EJECTED.md"))).toBe(false);
+    } finally {
+      console.log = originalLog;
+      warning.mockRestore();
+    }
+  });
+
+  it("emits a valid JSON error envelope when the version pin does not match", async () => {
+    pinProjectVersion();
+
+    const result = await runCommandInProcess(ejectCommand, ["--json"], tempDir);
+
+    expect(result.status).toBe(1);
+
+    expect(parseEnvelope(result.stdout)).toMatchObject({
+      schemaVersion: 1,
+      data: null,
+      errors: [
+        {
+          message: expect.stringContaining("does not match pinnedFliskVersion 999.999.999"),
+        },
+      ],
+    });
+
+    expect(existsSync(join(tempDir, "EJECTED.md"))).toBe(false);
   });
 });

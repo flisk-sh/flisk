@@ -1,10 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import type { DiscoveredResource } from "../../types/index.js";
+import type { DiscoveredResource, HostPortPlan } from "../../types/index.js";
 import { STANDARD_PORTS } from "../constants.js";
-import type { HostPortPlan } from "../host-port-plan.js";
-import { buildServicePorts, buildStackPorts } from "../status-ports.js";
+import { buildServicePorts, buildStackPorts, extraPortsOf } from "../status-ports.js";
 
 const resource = (
   name: string,
@@ -23,6 +22,35 @@ const resource = (
 const plan = { ingressHttp: 8080, ingressHttps: 8443, postgres: 15432 } as HostPortPlan;
 
 describe("buildServicePorts", () => {
+  describe("a project of local processes", () => {
+    it("gives every type a localhost directUrl and no ingress url, since no Traefik runs", () => {
+      for (const appType of ["backend", "frontend", "agent", "mcp", "worker"]) {
+        const ports = buildServicePorts(resource("coordinator", appType, 4100), 8080, {
+          gateway: true,
+          native: true,
+        });
+        expect(ports.url, appType).toBeNull();
+        expect(ports.directUrl, appType).toBe("http://localhost:4100");
+        expect(ports.containerPort, appType).toBe(4100);
+      }
+    });
+
+    it("has no directUrl for a local process without a port", () => {
+      const ports = buildServicePorts(resource("job", "worker"), 8080, { native: true });
+      expect(ports.url).toBeNull();
+      expect(ports.directUrl).toBeNull();
+    });
+
+    it("keeps the ingress route when the project is not native", () => {
+      const ports = buildServicePorts(resource("orders-api", "backend", 4000), 8080, {
+        gateway: true,
+        native: false,
+      });
+      expect(ports.url).toMatch(/^http:\/\/.+:8080\/api\/orders$/);
+      expect(ports.directUrl).toBeNull();
+    });
+  });
+
   describe("routable services", () => {
     it("gives backend services an ingress url, container port, and null hostPort", () => {
       const ports = buildServicePorts(resource("orders-api", "backend", 4000), 8080);
@@ -98,11 +126,30 @@ describe("buildServicePorts", () => {
       expect(ports.containerPort).toBe(6000);
     });
 
-    it("gives bring-your-own app with known port a direct loopback url and null url", () => {
-      const ports = buildServicePorts(resource("sourcing-api", "bring-your-own", 4002), 8080);
+    it("gives a routed bring-your-own app its Traefik url and no loopback url: nothing is published on the host", () => {
+      const ports = buildServicePorts(resource("api", "bring-your-own", 3000), 8080);
+      expect(ports.url).toMatch(/^http:\/\/.+:8080\/api\/api$/);
+      expect(ports.directUrl).toBeNull();
+      expect(ports.containerPort).toBe(3000);
+    });
+
+    it("gives a bring-your-own web UI its own host name instead of the /api/<name> path (#2997)", () => {
+      const ports = buildServicePorts(
+        resource("trek", "bring-your-own", 3000, { webUi: true }),
+        8080,
+      );
+      expect(ports.url).toMatch(/^http:\/\/trek\..+:8080$/);
+      expect(ports.url).not.toContain("/api/");
+    });
+
+    it("gives a private bring-your-own service neither url: it has no route and no host port", () => {
+      const ports = buildServicePorts(
+        resource("db", "bring-your-own", 5432, { exposeViaProxy: false }),
+        8080,
+      );
       expect(ports.url).toBeNull();
-      expect(ports.directUrl).toBe("http://localhost:4002");
-      expect(ports.containerPort).toBe(4002);
+      expect(ports.directUrl).toBeNull();
+      expect(ports.containerPort).toBe(5432);
     });
 
     it("gives migrator with known port a direct loopback url and null url", () => {
@@ -171,5 +218,153 @@ describe("buildStackPorts", () => {
   it("falls back to Tilt UI alone when host port plan is null", () => {
     const ports = buildStackPorts(null, 10355);
     expect(ports).toEqual([{ name: "tilt-ui", hostPort: 10355, purpose: "Tilt UI" }]);
+  });
+
+  describe("Traefik ingress rows", () => {
+    it("includes both HTTP and HTTPS ingress rows with expected host ports", () => {
+      const customPlan: HostPortPlan = {
+        ingressHttp: 9080,
+        ingressHttps: 9443,
+        postgres: 15432,
+      } as HostPortPlan;
+      const ports = buildStackPorts(customPlan);
+
+      expect(ports).toContainEqual({
+        name: "ingress-http",
+        hostPort: 9080,
+        purpose: "Traefik HTTP ingress",
+      });
+      expect(ports).toContainEqual({
+        name: "ingress-https",
+        hostPort: 9443,
+        purpose: "Traefik HTTPS ingress",
+      });
+    });
+
+    it("does not include ingress rows for a project with no ingress plan", () => {
+      const ports = buildStackPorts(null);
+      const ingressRows = ports.filter(
+        (p) => p.name === "ingress-http" || p.name === "ingress-https",
+      );
+      expect(ingressRows).toHaveLength(0);
+      expect(ports.some((p) => p.name === "ingress-http")).toBe(false);
+      expect(ports.some((p) => p.name === "ingress-https")).toBe(false);
+    });
+  });
+});
+
+describe("extraPortsOf", () => {
+  it("lists a bring-your-own proxy's published ports, host port defaulting to the container port", () => {
+    const caddy = resource("caddy", "bring-your-own", 8080, {
+      extraPorts: [{ port: 80, hostPort: 8081 }, { port: 443 }, { port: 443, protocol: "udp" }],
+    });
+    expect(extraPortsOf(caddy)).toEqual([
+      {
+        containerPort: 80,
+        hostPort: 8081,
+        protocol: "tcp",
+        bind: "127.0.0.1",
+        address: "127.0.0.1:8081/tcp",
+      },
+      {
+        containerPort: 443,
+        hostPort: 443,
+        protocol: "tcp",
+        bind: "127.0.0.1",
+        address: "127.0.0.1:443/tcp",
+      },
+      {
+        containerPort: 443,
+        hostPort: 443,
+        protocol: "udp",
+        bind: "127.0.0.1",
+        address: "127.0.0.1:443/udp",
+      },
+    ]);
+    expect(buildServicePorts(caddy, 8080).extraPorts).toHaveLength(3);
+  });
+
+  it("is empty for other resource types and for services without extraPorts", () => {
+    expect(
+      extraPortsOf(resource("api", "backend", 4000, { extraPorts: [{ port: 1080 }] })),
+    ).toEqual([]);
+    expect(buildServicePorts(resource("orders-api", "backend", 4000), 8080).extraPorts).toEqual([]);
+  });
+});
+
+describe("extraPortsOf with bind", () => {
+  it("shows a port opened to the network with its 0.0.0.0 address", () => {
+    const caddy = resource("caddy", "bring-your-own", 8080, {
+      extraPorts: [
+        { port: 80, bind: "0.0.0.0" },
+        { port: 443, bind: "127.0.0.1" },
+      ],
+    });
+    expect(extraPortsOf(caddy).map((p) => p.address)).toEqual([
+      "0.0.0.0:80/tcp",
+      "127.0.0.1:443/tcp",
+    ]);
+  });
+});
+
+describe("extraPortsOf with publish", () => {
+  const caddy = resource("caddy", "bring-your-own", 8080, {
+    extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }],
+  });
+  const lookupOf = (values: Record<string, string>) => (name: string) => values[name];
+
+  it("shows the default of service.json while nothing sets the variable", () => {
+    expect(extraPortsOf(caddy, lookupOf({}))).toEqual([
+      {
+        containerPort: 80,
+        hostPort: 80,
+        protocol: "tcp",
+        bind: "0.0.0.0",
+        address: "0.0.0.0:80/tcp",
+        publish: {
+          template: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}",
+          source: "default",
+          variables: ["TUBEHAUS_HTTP_BIND"],
+        },
+      },
+    ]);
+  });
+
+  it("shows the value the environment or .env sets, like Compose", () => {
+    const [port] = extraPortsOf(caddy, lookupOf({ TUBEHAUS_HTTP_BIND: "127.0.0.1:8080" }));
+    expect(port).toMatchObject({
+      hostPort: 8080,
+      bind: "127.0.0.1",
+      address: "127.0.0.1:8080/tcp",
+      publish: { source: "environment" },
+    });
+  });
+
+  it("treats a bare port as every interface, which is what Docker publishes", () => {
+    const [port] = extraPortsOf(caddy, lookupOf({ TUBEHAUS_HTTP_BIND: "8080" }));
+    expect(port).toMatchObject({ bind: "0.0.0.0", hostPort: 8080 });
+  });
+
+  it("keeps the default's port and reports a value Compose would refuse", () => {
+    const [port] = extraPortsOf(caddy, lookupOf({ TUBEHAUS_HTTP_BIND: "localhost:8080" }));
+    expect(port).toMatchObject({ hostPort: 80, bind: "0.0.0.0" });
+    expect(port?.problem).toContain('resolves to "localhost:8080"');
+  });
+
+  it("skips a template the manifest check refuses", () => {
+    const bad = resource("caddy", "bring-your-own", 8080, {
+      extraPorts: [{ port: 80, publish: "${A}" }],
+    });
+    expect(extraPortsOf(bad, lookupOf({}))).toEqual([]);
+  });
+
+  it("buildServicePorts passes the lookup through", () => {
+    const ports = buildServicePorts(
+      caddy,
+      undefined,
+      undefined,
+      lookupOf({ TUBEHAUS_HTTP_BIND: "127.0.0.1:8080" }),
+    );
+    expect(ports.extraPorts.map((port) => port.address)).toEqual(["127.0.0.1:8080/tcp"]);
   });
 });

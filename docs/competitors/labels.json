@@ -1,0 +1,127 @@
+[
+	{
+		"name": "competitor-gap",
+		"color": "5319e7",
+		"description": "A feature a competitor has and Flisk could reasonably add (docs/competitors/)"
+	},
+	{
+		"name": "enhancement",
+		"color": "a2eeef",
+		"description": "New feature or request"
+	},
+	{
+		"name": "needs-triage",
+		"color": "fbca04",
+		"description": "Not looked at by a maintainer yet"
+	},
+	{
+		"name": "quick-win",
+		"color": "0e8a16",
+		"description": "Small change in existing code (ICE ease 7 or more)"
+	},
+	{
+		"name": "competitor: warp",
+		"color": "c5def5",
+		"description": "Feature gap against Warp"
+	},
+	{
+		"name": "competitor: superset",
+		"color": "c5def5",
+		"description": "Feature gap against Superset (now Paradev)"
+	},
+	{
+		"name": "competitor: skills-sh",
+		"color": "c5def5",
+		"description": "Feature gap against skills.sh"
+	},
+	{
+		"name": "competitor: tilt",
+		"color": "c5def5",
+		"description": "Feature gap against Tilt"
+	},
+	{
+		"name": "competitor: docker-compose",
+		"color": "c5def5",
+		"description": "Feature gap against Docker Compose"
+	},
+	{
+		"name": "competitor: dev-containers",
+		"color": "c5def5",
+		"description": "Feature gap against Dev Containers"
+	},
+	{
+		"name": "competitor: coder",
+		"color": "c5def5",
+		"description": "Feature gap against Coder"
+	},
+	{
+		"name": "competitor: process-compose",
+		"color": "c5def5",
+		"description": "Feature gap against process-compose"
+	},
+	{
+		"name": "competitor: garden",
+		"color": "c5def5",
+		"description": "Feature gap against Garden"
+	},
+	{
+		"name": "area: agents",
+		"color": "1d76db",
+		"description": "Competitor matrix area: agents"
+	},
+	{
+		"name": "area: runtime",
+		"color": "1d76db",
+		"description": "Competitor matrix area: runtime"
+	},
+	{
+		"name": "area: environments",
+		"color": "1d76db",
+		"description": "Competitor matrix area: environments"
+	},
+	{
+		"name": "area: orchestration",
+		"color": "1d76db",
+		"description": "Competitor matrix area: orchestration"
+	},
+	{
+		"name": "area: workflow",
+		"color": "1d76db",
+		"description": "Competitor matrix area: workflow"
+	},
+	{
+		"name": "area: terminal",
+		"color": "1d76db",
+		"description": "Competitor matrix area: terminal"
+	},
+	{
+		"name": "area: collaboration",
+		"color": "1d76db",
+		"description": "Competitor matrix area: collaboration"
+	},
+	{
+		"name": "area: security",
+		"color": "1d76db",
+		"description": "Competitor matrix area: security"
+	},
+	{
+		"name": "area: enterprise",
+		"color": "1d76db",
+		"description": "Competitor matrix area: enterprise"
+	},
+	{
+		"name": "area: integrations",
+		"color": "1d76db",
+		"description": "Competitor matrix area: integrations"
+	},
+	{
+		"name": "area: observability",
+		"color": "1d76db",
+		"description": "Competitor matrix area: observability"
+	},
+	{
+		"name": "area: skills",
+		"color": "1d76db",
+		"description": "Competitor matrix area: skills"
+	}
+]

@@ -252,4 +252,80 @@ describe("resources command", () => {
     expect(output).toContain("resources --no-stack");
     logSpy.mockRestore();
   });
+
+  it("displays empty state when project has no resources", async () => {
+    setupProject([]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("No resources found.");
+    expect(output).toContain("flisk resource <name>");
+    logSpy.mockRestore();
+  });
+
+  it("displays empty state when filtering by type yields no matches", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk", "--type", "worker"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain('No resources found with type "worker".');
+    expect(output).toContain("flisk resource <name>");
+    logSpy.mockRestore();
+  });
+
+  it("displays empty state when filtering by stack and type yields no matches", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk", "--stack", "shop", "--type", "worker"], {
+      from: "node",
+    });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain('No services found in stack "shop" with type "worker".');
+    expect(output).toContain("flisk resource <name> --stack <stack-name>");
+    logSpy.mockRestore();
+  });
+
+  it("reports all resources are assigned to a stack when --no-stack has no matches", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk", "--no-stack"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("All resources are assigned to a stack!");
+    logSpy.mockRestore();
+  });
+
+  it("displays (not assigned) for unassigned resources with --verbose", async () => {
+    setupProject([{ name: "orphan", type: "backend", port: 4002 }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk", "--verbose"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("orphan");
+    expect(output).toContain("Stack: (not assigned)");
+    logSpy.mockRestore();
+  });
+
+  it("filters resources by type in human-readable output", async () => {
+    setupProject([
+      { name: "orders", type: "backend", stack: "shop", port: 4001 },
+      { name: "web", type: "frontend", stack: "shop", port: 3000 },
+    ]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk", "--type", "frontend"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("web");
+    expect(output).not.toContain("orders");
+    logSpy.mockRestore();
+  });
 });

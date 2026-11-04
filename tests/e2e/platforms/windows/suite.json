@@ -1,7 +1,7 @@
 {
   "group": "platforms",
   "suite": "windows",
-  "description": "The native Windows CLI on windows-latest (moved from the retired windows-smoke workflow, #1300): W1 typechecks, builds and runs the CLI's help, W2 runs the Windows platform unit tests, W3 checks that native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing, W4 checks that native Windows refuses the one-command demo before it clones a starter, installs the CLI globally or boots anything.",
+  "description": "The native Windows CLI on windows-latest (moved from the retired windows-smoke workflow, #1300): W1 typechecks, builds and runs the CLI's help, W2 runs the Windows platform unit tests, W3 checks that native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing, W4 checks that native Windows refuses a Docker starter (flisk restaurant) before it clones it, installs the CLI globally or boots anything, W5 checks that `flisk demo` runs the two-service demo without Docker, reuses it on a rerun and stops on flisk down.",
   "paths": [
     "cli/src/cli.ts",
     "cli/src/utils/platform.ts",
@@ -13,8 +13,16 @@
     "tests/e2e/platforms/windows/**",
     ".github/workflows/e2e-platforms.yml"
   ],
-  "cases": ["W1", "W2", "W3", "W4"],
-  "triggers": ["pr"],
+  "cases": [
+    "W1",
+    "W2",
+    "W3",
+    "W4",
+    "W5"
+  ],
+  "triggers": [
+    "pr"
+  ],
   "timeoutMinutes": 20,
   "needsSecrets": []
 }

@@ -1,15 +1,19 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { describe, expect, it } from "vitest";
+import chalk from "chalk";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createDemoStage,
+  DEMO_STAR_URL,
   type DemoState,
   FRAME_ROWS,
+  type FrameRow,
   formatElapsed,
   frameToPlain,
   renderDemoFrame,
   sanitizeCell,
+  styleRow,
 } from "../demo-stage.js";
 
 function baseState(patch: Partial<DemoState> = {}): DemoState {
@@ -97,6 +101,23 @@ describe("renderDemoFrame", () => {
     expect(text).toContain("app.flisk-demo.localhost/reservation-app");
     expect(text).toContain("Edit a file — the browser updates.");
     expect(text).toContain("flisk 1.3.206");
+  });
+
+  it("asks for a star on the last row only when the finished frame carries a star URL", () => {
+    const done = {
+      urls: ["localhost:3000"],
+      summary: "2 services",
+      hint: "Edit a file.",
+      version: "1.4.20",
+    };
+    const withStar = frameToPlain(
+      renderDemoFrame(baseState({ done: { ...done, starUrl: "github.com/flisk-sh/flisk" } }), 80),
+    );
+    expect(withStar).toHaveLength(FRAME_ROWS);
+    expect(withStar.join("\n")).toContain("Like it? A star helps: github.com/flisk-sh/flisk");
+
+    const withoutStar = frameToPlain(renderDemoFrame(baseState({ done }), 80)).join("\n");
+    expect(withoutStar).not.toContain("A star helps");
   });
 
   it("keeps the failure cause, the fix and the log path", () => {
@@ -219,6 +240,47 @@ describe("createDemoStage", () => {
     expect(output).toContain("1m 12s");
   });
 
+  describe("star line on finish", () => {
+    const done = {
+      urls: ["localhost:3000"],
+      summary: "2 services",
+      hint: "Edit a file.",
+      version: "1.4.20",
+    };
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("shows it on an interactive terminal", () => {
+      vi.stubEnv("CI", "");
+      const stream = fakeStream(true);
+      const stage = createDemoStage(baseState(), stream);
+      stage.finish(done);
+      stage.stop();
+      expect(stream.chunks.join("")).toContain(`A star helps: ${DEMO_STAR_URL}`);
+      expect(DEMO_STAR_URL).toBe("github.com/flisk-sh/flisk");
+    });
+
+    it("leaves it out of a piped log", () => {
+      vi.stubEnv("CI", "");
+      const stream = fakeStream(false);
+      const stage = createDemoStage(baseState(), stream);
+      stage.finish(done);
+      stage.stop();
+      expect(stream.chunks.join("")).not.toContain("A star helps");
+    });
+
+    it("leaves it out of a CI run, even with a TTY", () => {
+      vi.stubEnv("CI", "true");
+      const stream = fakeStream(true);
+      const stage = createDemoStage(baseState(), stream);
+      stage.finish(done);
+      stage.stop();
+      expect(stream.chunks.join("")).not.toContain("A star helps");
+    });
+  });
+
   it("marks the active phase failed and shows the message", () => {
     const stream = fakeStream(true);
     const stage = createDemoStage(baseState(), stream);
@@ -228,5 +290,40 @@ describe("createDemoStage", () => {
     const output = stream.chunks.join("");
     expect(output).toContain("✖  Installing dependencies");
     expect(output).toContain("The stack did not come up.");
+  });
+});
+
+describe("styleRow", () => {
+  const originalLevel = chalk.level;
+
+  beforeEach(() => {
+    chalk.level = 1;
+  });
+
+  afterEach(() => {
+    chalk.level = originalLevel;
+  });
+
+  it("formats a normal row with styled segments", () => {
+    const row: FrameRow = [
+      { text: "✔  ", style: "ok" },
+      { text: "Fetching the demo", style: "bold" },
+      { text: " · ", style: "plain" },
+      { text: "0.9s", style: "dim" },
+      { text: " ◐ installing", style: "warn" },
+      { text: " ✖ failed", style: "err" },
+    ];
+    const expected = `${chalk.green("✔  ")}${chalk.bold("Fetching the demo")} · ${chalk.gray("0.9s")}${chalk.yellow(" ◐ installing")}${chalk.red(" ✖ failed")}`;
+    expect(styleRow(row)).toBe(expected);
+  });
+
+  it("handles an empty row without throwing and returns an empty string", () => {
+    expect(() => styleRow([])).not.toThrow();
+    expect(styleRow([])).toBe("");
+  });
+
+  it("formats single-segment rows", () => {
+    expect(styleRow([{ text: "plain text", style: "plain" }])).toBe("plain text");
+    expect(styleRow([{ text: "bold title", style: "bold" }])).toBe(chalk.bold("bold title"));
   });
 });

@@ -2,7 +2,7 @@
 
 Flisk CLI manages local microservice development through project, stack, resource, doctor, status, and Tilt-oriented commands. The current developer workflow is terminal-heavy: developers run commands manually, inspect logs across tools, and infer root causes from mixed CLI, Docker, Bun, Tilt, port, and config output.
 
-The MVP introduces a VS Code-only extension in a new repository/package at `/private/var/www/2025/ollamar1/tdk-vscode-extension` that treats the Flisk CLI as the operational backend. The extension should not fork orchestration logic from the CLI. It should call the CLI, parse structured output where available, preserve raw output for debugging, and present a focused editor-native workflow for orchestration and troubleshooting.
+The MVP introduces a VS Code-only extension in a new repository/package at `/private/var/www/2025/ollamar1/flisk-vscode-extension` that treats the Flisk CLI as the operational backend. The extension should not fork orchestration logic from the CLI. It should call the CLI, parse structured output where available, preserve raw output for debugging, and present a focused editor-native workflow for orchestration and troubleshooting.
 
 Stakeholders are Flisk CLI maintainers, developers using Flisk-managed repositories, and maintainers who need failure reports with enough context to debug quickly.
 
@@ -29,7 +29,7 @@ Stakeholders are Flisk CLI maintainers, developers using Flisk-managed repositor
 
 ## Decisions
 
-1. Create a new extension repo/package at `/private/var/www/2025/ollamar1/tdk-vscode-extension`.
+1. Create a new extension repo/package at `/private/var/www/2025/ollamar1/flisk-vscode-extension`.
 
    Rationale: VS Code extension packaging, activation lifecycle, tests, and release cadence differ from the CLI. A separate package keeps the CLI focused and allows extension-specific dependencies such as `@types/vscode`, `vsce`, and VS Code test harnesses.
 
@@ -84,7 +84,7 @@ Stakeholders are Flisk CLI maintainers, developers using Flisk-managed repositor
 
 ## Migration Plan
 
-1. Scaffold `/private/var/www/2025/ollamar1/tdk-vscode-extension` with TypeScript, VS Code engine constraints, test harness, linting, and basic activation.
+1. Scaffold `/private/var/www/2025/ollamar1/flisk-vscode-extension` with TypeScript, VS Code engine constraints, test harness, linting, and basic activation.
 2. Implement the command runner and workspace detector against the installed or workspace-local Flisk CLI.
 3. Add orchestration commands and tree/status views for projects, stacks, and resources.
 4. Add deterministic diagnostic rules and the troubleshooter webview/tree/detail UI.
@@ -96,7 +96,7 @@ Rollback is simple for the MVP: disable or uninstall the VS Code extension. Foll
 
 ## Fixed MVP Answers
 
-- Repository path: `/private/var/www/2025/ollamar1/tdk-vscode-extension`.
+- Repository path: `/private/var/www/2025/ollamar1/flisk-vscode-extension`.
 - Minimum CLI version: detect and display the installed CLI version when available; do not enforce a minimum version in the MVP unless the CLI command is missing.
 - Repair actions: support command suggestions and confirmed command execution for safe, explicit commands only.
 - Notification history: use VS Code native notifications plus the Troubleshooter view as the persistent issue history.

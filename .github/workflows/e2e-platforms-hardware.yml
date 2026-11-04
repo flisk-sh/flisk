@@ -78,7 +78,7 @@ jobs:
         shell: powershell
         env:
           FLISK_WINDOWS_RELEASE: ${{ github.event.inputs.release || 'latest' }}
-          FLISK_WINDOWS_WORK_DIR: ${{ runner.temp }}\tdk-windows-hardware
+          FLISK_WINDOWS_WORK_DIR: ${{ runner.temp }}\flisk-windows-hardware
           FLISK_HARDWARE_REPORT: ${{ github.workspace }}\artifacts\windows-hardware-findings.md
         run: tests/e2e/platforms/windows-hardware/windows-hardware.ps1 -Case all
 

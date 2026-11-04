@@ -1,0 +1,29 @@
+{
+  "title": "a running Tilt notices a new service.json",
+  "why": "Fixed. The discovery daemon wrote its snapshot outside the watched path and scanned services/product from inside .flisk-out, so a new service.json never reloaded a running Tilt. ",
+  "steps": [
+    {
+      "op": "check",
+      "only": "orders"
+    },
+    {
+      "op": "addService",
+      "name": "search",
+      "stack": "main"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    },
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "search"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

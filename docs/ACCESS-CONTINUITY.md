@@ -10,7 +10,7 @@ The people with merge rights are listed in [MAINTAINERS.md](project/MAINTAINERS.
 | --- | --- | --- | --- |
 | GitHub repository `flisk-sh/flisk` | Code, issues, pull requests, releases | Maintainers with admin or merge rights | Added as a repository admin by an existing admin |
 | npm package `@flisk-sh/flisk` | Publishing the CLI | Maintainers listed as npm owners | Added as an npm package owner by an existing owner |
-| `NPM_TOKEN` repository secret | Automated publish from the release workflow (`release-binaries.yml`, `publish-tdk-import.yml`) | Repository admins | Admins can read and rotate the token in repository settings |
+| `NPM_TOKEN` repository secret | Automated publish from the release workflow (`release-binaries.yml`, `publish-flisk-import.yml`) | Repository admins | Admins can read and rotate the token in repository settings |
 | Release signing | Sigstore keyless signing in the release workflow | No private key; the workflow identity signs | Nothing to hand over: any maintainer who can run the release workflow can produce a signed release |
 | Security advisories | Private vulnerability reports | Repository admins and maintainers with security access | Added as a security manager by an existing admin |
 

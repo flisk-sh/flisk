@@ -128,7 +128,9 @@ describe.skipIf(!hasTilt)("clean project installed from the staged bundle only",
     const vendored = path.join(project, ".flisk", ".flisk-out", "flisk-cli-ext");
     const expected = fingerprint(bundle);
     const actual = fingerprint(vendored);
-    // The vendor step drops the engine's own test files; everything else must match byte for byte.
+    // The vendor step drops the engine's own test files and adds the stamp `flisk up` compares (#2899); everything else
+    // must match byte for byte.
+    delete actual[".source-fingerprint"];
     for (const [file, hash] of Object.entries(actual)) expect(expected[file], file).toBe(hash);
     expect(Object.keys(actual).length).toBeGreaterThan(100);
     expect(actual.Tiltfile).toBe(expected.Tiltfile);

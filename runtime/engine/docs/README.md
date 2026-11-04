@@ -1,4 +1,4 @@
-# Flisk Landscape Tilt SDK
+# Flisk Tilt SDK
 
 ## 🏗️ Architecture Overview
 
@@ -34,7 +34,7 @@ discovery/
 
 ```starlark
 # =============================================================================
-# 🎯 Flisk Landscape TILT ENTRYPOINT
+# 🎯 Flisk TILT ENTRYPOINT
 # =============================================================================
 
 # 1️⃣ LOAD CORE MODULES

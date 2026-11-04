@@ -12,7 +12,9 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// The suites of one group that run for a trigger, as a matrix `include` list. Sorted by name so the matrix is stable.
+// The suites of one group that run for a trigger, as a matrix `include` list. Sorted by name so the matrix is stable, except that
+// a suite with "typicalSeconds" in its suite.json comes first, longest first: with max-parallel capping how many legs run at once,
+// a long leg that starts in the last wave sets the wall time (release candidate 1.4.24: migrator, ~3 min, started last).
 export function selectSuites(e2eDir, group, trigger, languages = [], frameworks = [], frontends = []) {
   const groupDir = path.join(e2eDir, group);
   if (!existsSync(groupDir)) return [];
@@ -22,7 +24,7 @@ export function selectSuites(e2eDir, group, trigger, languages = [], frameworks 
     .filter((file) => existsSync(file))
     .map((file) => JSON.parse(readFileSync(file, "utf8")))
     .filter((suite) => Array.isArray(suite.triggers) && suite.triggers.includes(trigger))
-    .sort((a, b) => a.suite.localeCompare(b.suite))
+    .sort((a, b) => (b.typicalSeconds ?? 0) - (a.typicalSeconds ?? 0) || a.suite.localeCompare(b.suite))
     .flatMap((suite) => legsOf(group, suite, languages, frameworks, frontends));
 }
 

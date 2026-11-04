@@ -1,0 +1,152 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { flisk } from "./project.js";
+
+// Each oracle asks one real consumer of dependsOn what it made of the project on disk. None of them starts a container.
+
+export type TiltGraph =
+  | {
+      ok: true;
+      /** service -> the services among `services` in its resource_deps, sorted. */
+      edges: Record<string, string[]>;
+      /** The services among `services` Tilt enables. */
+      enabled: string[];
+      /** Files and directories a running Tilt watches; editing one re-executes the Tiltfile. */
+      watched: string[];
+    }
+  | { ok: false; error: string };
+
+/**
+ * Execute the generated Tiltfile the way `tilt up` does (`tilt alpha tiltfile-result`) and read the resource graph. With
+ * `focus`, pass `--focus` the way `flisk up --only` does, through tilt_config.json (tiltfile-result takes no Tiltfile args).
+ */
+export function tiltGraph(dir: string, services: string[], focus?: string[]): TiltGraph {
+  const tiltConfig = join(dir, ".flisk/.flisk-out/tilt_config.json");
+  if (focus) writeFileSync(tiltConfig, JSON.stringify({ focus, args: focus }));
+  try {
+    const run = spawnSync(
+      "tilt",
+      ["alpha", "tiltfile-result", "-f", ".flisk/.flisk-out/Tiltfile"],
+      {
+        cwd: dir,
+        encoding: "utf-8",
+        timeout: 180_000,
+        maxBuffer: 256 * 1024 * 1024,
+        env: { ...process.env, FLISK_PROJECT_ROOT: dir },
+      },
+    );
+    if (run.status !== 0) {
+      const text = `${run.stderr}\n${run.stdout}`;
+      // Our Starlark banner names the circle on its own line; keep that, not the banner's last rule line.
+      const circle = /CIRCULAR dependsOn[\s\S]*?\n\s+(\S[^\n]* -> [^\n]+)\n/.exec(text)?.[1];
+      if (circle) return { ok: false, error: `circular dependsOn: ${circle.trim()}` };
+      const lines = text.split("\n").map((line) => line.trim());
+      return { ok: false, error: lines.filter(Boolean).pop() ?? `tilt exited ${run.status}` };
+    }
+    const result = JSON.parse(run.stdout) as {
+      Manifests: { Name: string; ResourceDependencies?: string[] | null }[];
+      EnabledManifests: string[] | null;
+      ConfigFiles: string[] | null;
+    };
+    const known = new Set(services);
+    const edges: Record<string, string[]> = {};
+    for (const manifest of result.Manifests) {
+      if (!known.has(manifest.Name)) continue;
+      const deps = (manifest.ResourceDependencies ?? []).filter((dep) => known.has(dep));
+      edges[manifest.Name] = [...new Set(deps)].sort();
+    }
+    return {
+      ok: true,
+      edges,
+      enabled: (result.EnabledManifests ?? []).filter((name) => known.has(name)).sort(),
+      watched: (result.ConfigFiles ?? []).map((path) => resolve(path)),
+    };
+  } finally {
+    if (focus) rmSync(tiltConfig, { force: true });
+  }
+}
+
+interface Envelope {
+  data?: Record<string, unknown>;
+  errors?: { code?: string; message?: string }[];
+}
+
+function parseEnvelope(stdout: string): Envelope {
+  const text = stdout.trim();
+  try {
+    return JSON.parse(text);
+  } catch {
+    // A command may print a line before the envelope; the envelope starts at the last column-0 `{`.
+    const start = text.lastIndexOf("\n{");
+    return start >= 0 ? JSON.parse(text.slice(start + 1)) : {};
+  }
+}
+
+export interface UpPlan {
+  ok: boolean;
+  services: string[];
+  messages: string[];
+  /** Everything the command printed, to check that a problem is mentioned at all. */
+  output: string;
+}
+
+/** `flisk up --only <name> --dry-run --json`: what the CLI says it would start, or why it refuses. */
+export function upOnly(dir: string, name: string): UpPlan {
+  const run = flisk(dir, ["up", "--only", name, "--dry-run", "--json"]);
+  const envelope = parseEnvelope(run.stdout);
+  return {
+    ok: envelope.data?.ok === true,
+    services: ((envelope.data?.services as string[] | undefined) ?? []).slice().sort(),
+    messages: (envelope.errors ?? []).map((error) => `${error.code}: ${error.message}`),
+    output: `${run.stdout}\n${run.stderr}`,
+  };
+}
+
+/** `flisk config verify --json`: every error and warning it reports. */
+export function verify(dir: string): string[] {
+  const run = flisk(dir, ["config", "verify", "--json"]);
+  const envelope = parseEnvelope(run.stdout);
+  const data = envelope.data ?? {};
+  return [
+    ...((data.errors as string[] | undefined) ?? []),
+    ...((data.warnings as string[] | undefined) ?? []),
+    ...(envelope.errors ?? []).map((error) => error.message ?? ""),
+  ];
+}
+
+/** A frontend's generated env (`KEY=value` lines) as written by the last Tiltfile evaluation, or null if there is none. */
+export function readFrontendEnv(serviceDir: string): Record<string, string> | null {
+  const path = join(serviceDir, ".autogenerated", ".env.frontend.autogenerated");
+  if (!existsSync(path)) return null;
+  const out: Record<string, string> = {};
+  for (const line of readFileSync(path, "utf-8").split("\n")) {
+    const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    if (match) out[match[1]] = match[2];
+  }
+  return out;
+}
+
+/**
+ * Run the discovery daemon's job once, the way the Tiltfile starts it (python3 resource_snapshot.py, working directory
+ * `.flisk/.flisk-out`), and return the absolute service.json paths in the snapshot file the Tiltfile watches. Null when the
+ * script fails or writes nothing there.
+ */
+export function daemonSnapshot(dir: string): string[] | null {
+  const outDir = join(dir, ".flisk/.flisk-out");
+  const script = join(outDir, "flisk-cli-ext/discovery/resource_snapshot.py");
+  const snapshot = join(outDir, "snapshots/resource-snapshot.json");
+  if (!existsSync(script)) return null;
+  rmSync(snapshot, { force: true });
+  const run = spawnSync("python3", [script, "save"], {
+    cwd: outDir,
+    encoding: "utf-8",
+    timeout: 60_000,
+    env: { ...process.env, FLISK_PROJECT_ROOT: "" },
+  });
+  if (run.status !== 0 || !existsSync(snapshot)) return null;
+  const services: unknown = JSON.parse(readFileSync(snapshot, "utf-8")).services;
+  return Array.isArray(services) ? services.map((path) => join(dir, String(path))) : null;
+}

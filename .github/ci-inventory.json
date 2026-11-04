@@ -66,6 +66,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "cancel-dead-queue-runs.yml",
+			"job": "cancel",
+			"tier": "bot",
+			"required": false,
+			"reason": "Cancels runs of merge queue batches whose branch GitHub deleted; they hold runners and block the live batches",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "ci.yml",
 			"job": "changes",
 			"tier": "gate",
@@ -79,6 +87,14 @@
 			"tier": "gate",
 			"required": false,
 			"reason": "Spell check on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Docs links, anchors and generated tab bars on every PR, docs-only ones included",
 			"owner": "maintainers"
 		},
 		{
@@ -194,6 +210,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "competitor-gap-issues.yml",
+			"job": "sync",
+			"tier": "bot",
+			"required": false,
+			"reason": "Dry run by default: prints the competitor feature gaps that clear the ICE quick-win bar and, only when applied, opens at most 5 issues and closes the fixed ones",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "security-alert-issues.yml",
 			"job": "sync",
 			"tier": "bot",
@@ -259,18 +283,10 @@
 		},
 		{
 			"workflow": "codeql.yml",
-			"job": "changes",
-			"tier": "gate",
-			"required": false,
-			"reason": "Workflow change detection; gates the actions leg of analyze on PRs (#1284)",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "codeql.yml",
 			"job": "analyze",
 			"tier": "security",
 			"required": false,
-			"reason": "Code scanning; javascript-typescript on every PR, actions only when workflows change (#1284); weekly",
+			"reason": "Code scanning; javascript-typescript and actions on every PR (the main ruleset waits for both categories); weekly",
 			"owner": "maintainers"
 		},
 		{
@@ -392,6 +408,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "nightly-adopters.yml",
+			"job": "adopter",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Nightly integration testing against three pinned real-world adopter repositories (#3100)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "npm-downloads-graph.yml",
 			"job": "graph",
 			"tier": "report",
@@ -416,6 +440,25 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "publish-golden-images.yml",
+			"job": "publish",
+			"tier": "release",
+			"required": false,
+			"reason": "Manual push of the golden base images to a registry (#2827, #2828)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1279"
+			}
+		},
+		{
+			"workflow": "publish-cli-image.yml",
+			"job": "image",
+			"tier": "release",
+			"required": false,
+			"reason": "Builds, signs and pushes the flisk CLI image from a published release; called by release-binaries.yml publish-image or run by hand",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "publish-service-schema.yml",
 			"job": "publish",
 			"tier": "release",
@@ -427,7 +470,7 @@
 			}
 		},
 		{
-			"workflow": "publish-tdk-import.yml",
+			"workflow": "publish-flisk-import.yml",
 			"job": "token",
 			"tier": "gate",
 			"required": false,
@@ -435,22 +478,22 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "publish-tdk-import.yml",
+			"workflow": "publish-flisk-import.yml",
 			"job": "build",
 			"tier": "release",
 			"required": false,
-			"reason": "Builds tdk-import (manual)",
+			"reason": "Builds flisk-import (manual)",
 			"owner": "maintainers",
 			"exempt": {
 				"check-name": "#1279"
 			}
 		},
 		{
-			"workflow": "publish-tdk-import.yml",
+			"workflow": "publish-flisk-import.yml",
 			"job": "publish",
 			"tier": "release",
 			"required": false,
-			"reason": "Publishes tdk-import (manual)",
+			"reason": "Publishes flisk-import (manual)",
 			"owner": "maintainers",
 			"exempt": {
 				"check-name": "#1279"
@@ -485,18 +528,26 @@
 		},
 		{
 			"workflow": "release-binaries.yml",
-			"job": "publish-github-packages",
-			"tier": "release",
+			"job": "cli-image",
+			"tier": "e2e",
 			"required": false,
-			"reason": "Publishes the already-built release tarball to GitHub Packages",
+			"reason": "Builds the CLI image from the release candidate and runs tests/e2e/platforms/container-image on it",
 			"owner": "maintainers"
 		},
 		{
 			"workflow": "release-binaries.yml",
-			"job": "publish-unscoped-npm",
+			"job": "publish-image",
 			"tier": "release",
 			"required": false,
-			"reason": "Publishes the already-built release tarball to npm under the unscoped name",
+			"reason": "Calls publish-cli-image.yml to push the CLI image after the release is published",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "publish-github-packages",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes the already-built release tarball to GitHub Packages",
 			"owner": "maintainers"
 		},
 		{
@@ -568,6 +619,14 @@
 		},
 		{
 			"workflow": "release-candidate.yml",
+			"job": "release",
+			"tier": "release",
+			"required": false,
+			"reason": "Dispatches the release workflow from a release/* branch once the plan passes (#2945)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
 			"job": "gate",
 			"tier": "release",
 			"required": false,
@@ -583,11 +642,19 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "sync-tdk-skills.yml",
+			"workflow": "sync-flisk-skills.yml",
 			"job": "sync",
 			"tier": "bot",
 			"required": false,
 			"reason": "Syncs shared skills (manual or dispatch)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "sync-llms-demos.yml",
+			"job": "sync-demos",
+			"tier": "bot",
+			"required": false,
+			"reason": "Weekly copy of the demo instructions into the llms files; opens a pull request when they changed",
 			"owner": "maintainers"
 		},
 		{
@@ -733,6 +800,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-scale-enigma36.yml",
+			"job": "enigma36",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Enigma 36: 36 resources drawn by seed from every type, framework and language over six stacks; nightly and manual; suite tests/e2e/scale/enigma36",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "e2e-platforms-hardware.yml",
 			"job": "hosted",
 			"tier": "e2e",
@@ -754,6 +829,38 @@
 			"tier": "e2e",
 			"required": false,
 			"reason": "The WSL2 suite on a Windows runner, dispatched by hand; suite tests/e2e/platforms/wsl2 (#107, #1765)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "service-json-chaos.yml",
+			"job": "chaos",
+			"tier": "test",
+			"required": false,
+			"reason": "service.json chaos tests (tests/chaos): graph, gates and Docker tiers on PRs that touch the code behind them, plus a nightly longer search",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "scoreboard.yml",
+			"job": "report",
+			"tier": "report",
+			"required": false,
+			"reason": "Weekly scoreboard of the files and GitHub-data scorers in scripts/scores/",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "scoreboard.yml",
+			"job": "lighthouse",
+			"tier": "report",
+			"required": false,
+			"reason": "Weekly Lighthouse audit of flisk.sh, scored by scripts/scores/lighthouse.mjs",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "scoreboard.yml",
+			"job": "mutation",
+			"tier": "report",
+			"required": false,
+			"reason": "Weekly Stryker mutation run on the generators, scored by scripts/scores/mutation-score.mjs",
 			"owner": "maintainers"
 		}
 	]

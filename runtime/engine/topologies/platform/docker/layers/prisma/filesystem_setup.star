@@ -48,6 +48,9 @@ def prisma_dir_and_permissions():
     them.  Handles both the standard `node_modules/.prisma/client` path and custom
     output paths like `../src/generated` or `../generated-client`.
 
+    node_modules is not chowned here: it arrives owned by `bun` (`COPY --chown`, see prisma_runtime.star). A `chown -R` over it
+    in its own RUN rewrites every file into a second layer, which doubled the migrator image (332 MB of 1.5 GB).
+
     `/app` itself is owned by `bun` too: `migrate.sh` runs `prisma generate` as `bun`,
     and a generator output such as `../generated/prisma` (the `flisk resource
     --feature prisma` scaffold) makes Prisma create a new directory directly under
@@ -58,7 +61,7 @@ def prisma_dir_and_permissions():
         + "RUN mkdir -p " + APP_NODE_MODULES_DIR + " " + APP_SRC_DIR + " " + APP_GENERATED_CLIENT_DIR
         + " && chown " + BUN_USER + ":" + BUN_USER + " " + APP_DIR
         + " && chown -R " + BUN_USER + ":" + BUN_USER
-        + " " + APP_PRISMA_DIR + " " + APP_NODE_MODULES_DIR + " " + APP_SRC_DIR + " " + APP_GENERATED_CLIENT_DIR
+        + " " + APP_PRISMA_DIR + " " + APP_SRC_DIR + " " + APP_GENERATED_CLIENT_DIR
         + " " + PRISMA_CONFIG_ABS_PATH + " || true\n"
     )
 

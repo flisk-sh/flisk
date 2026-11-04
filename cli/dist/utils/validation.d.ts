@@ -4,7 +4,11 @@ export declare function validateResourceName(name: string): ValidationResult;
 export declare function validateStackName(name: string): ValidationResult;
 export declare function createKebabCaseValidator(context: "resource" | "stack"): (input: string) => true | string;
 export declare function validateOptionalInfraService(service: string): ValidationResult;
-export declare function isValidPort(port: number): boolean;
+/**
+ * Validate that a port is a valid TCP/UDP port number (1-65535).
+ * Accepts either a number or a string representation without leading zeros.
+ */
+export declare function isValidPort(port: number | string): boolean;
 /**
  * Check a filesystem path segment for characters that are unsafe to use in a
  * path (null bytes, or characters that are invalid on common filesystems).

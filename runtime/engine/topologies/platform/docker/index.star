@@ -14,6 +14,8 @@ load(
     "go_live_reload_enabled",
     "is_next_frontend",
     "LANGUAGE_REQUIRED_FILES",
+    "python_test_on_save_enabled",
+    "python_test_on_save_path",
 )
 load("./config/dockerignore.star", "generate_dockerignore")
 load(
@@ -34,6 +36,8 @@ Docker = struct(
     go_live_reload = go_live_reload_enabled,
     next_frontend = generate_next_dockerfile,
     is_next_frontend = is_next_frontend,
+    python_test_on_save = python_test_on_save_enabled,
+    python_test_path = python_test_on_save_path,
     language_required_files = LANGUAGE_REQUIRED_FILES,
     generate_dockerignore = generate_dockerignore,
     frontend_compose = generate_frontend_compose,

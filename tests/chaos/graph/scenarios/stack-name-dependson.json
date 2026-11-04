@@ -1,0 +1,16 @@
+{
+  "title": "a stack name in dependsOn gives no edge",
+  "why": "Fixed. The schema says an entry can be a stack or a resource name and `flisk config verify` accepts `extra`, but Tilt gives orders no edge to users (the only service in stack extra) and `flisk up --only orders` leaves users out.",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "orders",
+      "entry": "extra"
+    },
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

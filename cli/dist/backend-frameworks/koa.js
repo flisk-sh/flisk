@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 export function getKoaIndexTemplate(name) {
     return `import Koa from 'koa';
 
@@ -29,7 +32,7 @@ app.use(async (ctx) => {
   ctx.body = { error: 'not_found' };
 });
 
-const port = Number(process.env.PORT || 3000);
+${portFromEnv()}
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 app.listen(port, '0.0.0.0', () => {

@@ -18,7 +18,7 @@ export function findPrivateStarlarkLoadExports(content: string): string[] {
     // First quoted arg is the module path. Later quoted args are exported names
     // or alias targets, and Starlark refuses to export names beginning with "_".
     for (const value of quotedValues.slice(1)) {
-      if (value.startsWith("_")) {
+      if (value?.startsWith("_")) {
         privateExports.add(value);
       }
     }

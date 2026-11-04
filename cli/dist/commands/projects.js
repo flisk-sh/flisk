@@ -10,13 +10,66 @@ import { errorFactories, requireProjectRoot, runCommand } from "../utils/errors.
 import { formatCount } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { findStaleProjects } from "../utils/stale-projects.js";
 export const projectsCommand = new Command("projects")
     .description("Show project information and configuration status")
     .alias("info")
     .option("--check", "Check if project is properly configured", false)
+    .option("--stale", "List stale projects whose directory is gone but Docker resources remain", false)
     .option("--json", "Output a versioned JSON response")
     .action(async (options) => {
     const action = async () => {
+        if (options.stale) {
+            const report = findStaleProjects();
+            if (options.json) {
+                console.log(JSON.stringify(createMachineEnvelope({
+                    staleProjects: report.staleProjects,
+                    totalContainers: report.totalContainers,
+                    totalVolumes: report.totalVolumes,
+                    totalNetworks: report.totalNetworks,
+                    totalProjects: report.totalProjects,
+                    totalSize: report.totalSize,
+                }), null, 2));
+                if (options.check) {
+                    process.exitCode = report.totalProjects === 0 ? 0 : 1;
+                }
+                return;
+            }
+            console.log(chalk.blue("Stale Projects Discovery\n"));
+            if (report.totalProjects === 0) {
+                console.log(chalk.green("✓ No stale projects found."));
+                console.log(chalk.gray("All active Docker containers and volumes correspond to existing project directories.\n"));
+                if (options.check) {
+                    process.exitCode = 0;
+                }
+                return;
+            }
+            console.log(chalk.yellow(`Found ${formatCount(report.totalProjects, "stale project")} (${report.totalSize} total space used):\n`));
+            for (const proj of report.staleProjects) {
+                console.log(chalk.bold(`• ${proj.name}`));
+                if (proj.recordedPath) {
+                    console.log(chalk.gray(`  Recorded Path:  ${proj.recordedPath} (deleted)`));
+                }
+                if (proj.containerCount > 0) {
+                    console.log(chalk.gray(`  Containers:     ${formatCount(proj.containerCount, "container")}`));
+                }
+                if (proj.volumeCount > 0) {
+                    console.log(chalk.gray(`  Volumes:        ${formatCount(proj.volumeCount, "volume")}`));
+                }
+                if (proj.networkCount > 0) {
+                    console.log(chalk.gray(`  Networks:       ${formatCount(proj.networkCount, "network")}`));
+                }
+                if (proj.estimatedSizeBytes > 0) {
+                    console.log(chalk.gray(`  Estimated Size: ${proj.estimatedSize}`));
+                }
+                console.log(chalk.cyan(`  Cleanup:        ${proj.cleanupCommand}\n`));
+            }
+            console.log(chalk.gray("Run the suggested cleanup command to remove orphaned containers and volumes.\n"));
+            if (options.check) {
+                process.exitCode = 1;
+            }
+            return;
+        }
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
         if (!projectRoot) {
             throw errorFactories.notInProject();

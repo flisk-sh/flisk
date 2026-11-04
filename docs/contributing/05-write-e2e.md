@@ -9,7 +9,7 @@ This page explains when you need one, where it goes, how to write it, and how to
 Add or extend an e2e test when your change:
 
 - adds a resource type, or changes what a type scaffolds or how it runs;
-- adds a command or an MCP tool that talks to a running stack (`flisk agent sessions`, `flisk restart`, `get_agent_sessions`);
+- adds a command or an MCP tool that talks to a running stack (`flisk agent sessions`, `flisk restart`, `agent_sessions`);
 - changes `flisk up`, `flisk down`, Traefik routing, or the engine's generated Compose and Tilt files;
 - adds a backend language, a backend or frontend framework, or another provider that users pick with a flag.
 
@@ -88,7 +88,7 @@ These rules come from real failures in the agent suite. Each one cost a red CI r
 
 Most suites boot a stack. A `platforms` suite checks a host environment instead, so it has no stack, no ports and no project: it runs the CLI on the machine and asserts what it does there.
 
-[`tests/e2e/platforms/windows-hardware`](../../tests/e2e/platforms/windows-hardware/) is the worked example. It runs the **published** `tdk-windows-amd64.exe` on a real Windows 11 AMD64 machine: the release checksums, the official PowerShell installer, the version and the bundled engine, the native-Windows refusal contract, and the host differences a GitHub-hosted runner cannot show (a path with a space, PATH lookup, a path longer than 260 characters).
+[`tests/e2e/platforms/windows-hardware`](../../tests/e2e/platforms/windows-hardware/) is the worked example. It runs the **published** `flisk-windows-amd64.exe` on a real Windows 11 AMD64 machine: the release checksums, the official PowerShell installer, the version and the bundled engine, the native-Windows refusal contract, and the host differences a GitHub-hosted runner cannot show (a path with a space, PATH lookup, a path longer than 260 characters).
 
 Two things make it different from the other suites:
 

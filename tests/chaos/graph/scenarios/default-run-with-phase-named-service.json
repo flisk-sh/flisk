@@ -1,0 +1,28 @@
+{
+  "title": "a service named pre-alpha does not shrink the default run",
+  "why": "With no --focus the default target is the pre-alpha phase. A service called pre-alpha made apply_focus take the target for that service, so the default run enabled only it and dropped every other service. Only an explicit --focus can name a service.",
+  "initial": {
+    "pre-alpha": {
+      "kind": "backend",
+      "stack": "main",
+      "dependsOn": []
+    },
+    "orders": {
+      "kind": "backend",
+      "stack": "main",
+      "dependsOn": []
+    },
+    "users": {
+      "kind": "backend",
+      "stack": "extra",
+      "dependsOn": []
+    }
+  },
+  "steps": [
+    {
+      "op": "check",
+      "only": "orders"
+    }
+  ],
+  "expect": []
+}

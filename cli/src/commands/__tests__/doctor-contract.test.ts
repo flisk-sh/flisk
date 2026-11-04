@@ -29,6 +29,9 @@ import {
   versionMeetsMinimum,
 } from "../doctor.js";
 
+// Stub the host owner lookup so tests never shell out to lsof.
+const noOwner = () => null;
+
 vi.mock("../../utils/windows-doctor.js", () => ({
   checkWindowsRuntimeTools: vi.fn(() => ({
     name: "Windows Runtime Tools",
@@ -57,7 +60,8 @@ describe("doctor environment contract", () => {
     const old = await checkTilt(async () => "v0.24.9");
     const current = await checkTilt(async () => "v0.25.0");
     expect(old.didPass).toBe(false);
-    expect(old.fix).toContain("Tilt v0.25.0 or newer");
+    expect(old.fix).toContain("Upgrade Tilt to v0.25.0 or newer");
+    expect(old.fix).toContain("https://docs.tilt.dev/install.html");
     expect(current.didPass).toBe(true);
   });
 
@@ -182,8 +186,12 @@ describe("doctor environment contract", () => {
   });
 
   it("puts Postgres port 5432 first in the host-port failure details", async () => {
-    const result = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
-      port === 80 || port === 5432 ? "in-use" : "free",
+    const result = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 80 || port === 5432 ? "in-use" : "free"),
+      undefined,
+      noOwner,
     );
 
     expect(result.didPass).toBe(false);
@@ -206,6 +214,10 @@ describe("doctor environment contract", () => {
       expect(error).toHaveBeenCalledWith(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain("WSL2 Ubuntu");
       expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain("docs/wsl2.md");
+      // Local processes run on native Windows; only a Docker stack needs WSL2.
+      expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain(
+        "services that declare a command run as local processes",
+      );
       const text = log.mock.calls.map((call) => String(call[0])).join("\n");
       expect(text).toContain(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(text).toContain("Docker Desktop is using Linux containers");

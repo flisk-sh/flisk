@@ -18,6 +18,18 @@ import { resolveServicePath } from "../utils/service-urls.js";
 import { stackExists } from "../utils/services.js";
 import { isValidPort, sanitizeForShell } from "../utils/validation.js";
 import { findOnPath } from "../utils/which.js";
+/**
+ * A bring-your-own service that Traefik routes as an API: proxied (exposeViaProxy is not false) and not a web UI, which
+ * is routed on its own host. Such services are listed by `flisk networks` at the same URL `flisk up` prints.
+ */
+function isApiRoutedBringYourOwn(service) {
+    const config = service.config;
+    return config?.appType === "bring-your-own" && config.exposeViaProxy !== false && !config.webUi;
+}
+/** `/api/vote` → `/api/vote/`: the URL a browser should open for a page served under a stripped prefix. */
+export function withTrailingSlash(path) {
+    return path.endsWith("/") ? path : `${path}/`;
+}
 function execSafe(command, args, options = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn(findOnPath(command) ?? command, args, {
@@ -46,7 +58,7 @@ function execSafe(command, args, options = {}) {
         });
     });
 }
-function determineDefaultDomain() {
+export function determineDefaultDomain() {
     const projectRoot = findProjectRoot();
     if (projectRoot) {
         const projectConfig = readProjectConfig(projectRoot);
@@ -61,7 +73,8 @@ function determineDefaultDomain() {
         // Capture every Host(`...`) in a rule (multi-host rules included), avoid ReDoS with bounded classes
         const domainRegex = /Host\(`([a-zA-Z0-9_.-]{1,100})`\)/g;
         for (let match = domainRegex.exec(traefikLabels); match !== null; match = domainRegex.exec(traefikLabels)) {
-            domains.add(match[1]);
+            if (match[1])
+                domains.add(match[1]);
         }
     }
     catch (err) {
@@ -88,27 +101,31 @@ function determineDefaultDomain() {
     if (projectDomains.length > 0) {
         // Sort by length - shortest is likely the project domain
         projectDomains.sort((a, b) => a.length - b.length);
-        return projectDomains[0];
+        const firstProjectDomain = projectDomains[0];
+        if (firstProjectDomain)
+            return firstProjectDomain;
     }
     // If only service-specific domains found, extract base from first one
     // e.g., "myapp-api-frontend.localhost" -> try to find "myapp.localhost"
     if (domainList.length > 0) {
         const firstDomain = domainList[0];
-        const localhostMatch = firstDomain.match(/([\w-]+)\.localhost$/);
-        if (localhostMatch) {
-            // If it looks like a service domain, try common project names
-            const commonProjects = ["flisk", "project", "app", "api", "myapp"];
-            for (const project of commonProjects) {
-                const testDomain = `${project}.localhost`;
-                if (domainList.includes(testDomain)) {
-                    return testDomain;
+        if (firstDomain) {
+            const localhostMatch = firstDomain.match(/([\w-]+)\.localhost$/);
+            if (localhostMatch) {
+                // If it looks like a service domain, try common project names
+                const commonProjects = ["flisk", "project", "app", "api", "myapp"];
+                for (const project of commonProjects) {
+                    const testDomain = `${project}.localhost`;
+                    if (domainList.includes(testDomain)) {
+                        return testDomain;
+                    }
                 }
             }
         }
     }
     return "localhost";
 }
-async function checkServiceStatus(serviceName, port, url) {
+export async function checkServiceStatus(serviceName, port, url) {
     if (url) {
         try {
             const validUrl = new URL(url);
@@ -117,7 +134,8 @@ async function checkServiceStatus(serviceName, port, url) {
             }
             const statusCode = await execSafe("curl", ["-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "2", validUrl.toString()], { timeout: 3000 });
             const code = statusCode.trim();
-            if (/^[23]\d\d$/.test(code)) {
+            // 401 and 403 mean the service answered and asked for credentials.
+            if (/^[23]\d\d$/.test(code) || code === "401" || code === "403") {
                 return "running";
             }
             if (/^[45]\d\d$/.test(code)) {
@@ -188,13 +206,18 @@ export const networksCommand = new Command("networks")
         const apiDomain = `api.${bareDomain}`;
         const services = discovery.resources;
         const servicesWithUrls = await Promise.all(services
-            .filter((s) => s.config?.appType === "frontend" || isApiServiceType(s.config?.appType))
+            .filter((s) => s.config?.appType === "frontend" ||
+            isApiServiceType(s.config?.appType) ||
+            isApiRoutedBringYourOwn(s))
             .map(async (s) => {
+            // A bring-your-own service routed as an API is served on the api host at its apiPath, like a backend.
             const resolvedPath = resolveServicePath(s);
             const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
-            const isBackend = isApiServiceType(s.config?.appType);
+            const isBackend = isApiServiceType(s.config?.appType) ||
+                isApiRoutedBringYourOwn(s);
             const host = isBackend ? apiDomain : appDomain;
-            const url = `http://${host}:${httpPort}${basePath}`;
+            // An imported app serves pages whose relative links only resolve under the prefix with its trailing slash.
+            const url = `http://${host}:${httpPort}${isApiRoutedBringYourOwn(s) ? withTrailingSlash(basePath) : basePath}`;
             const port = s.config?.port;
             const status = await checkServiceStatus(s.name, port, url);
             return {

@@ -100,6 +100,54 @@ async function renderPanel(
   }
 }
 
+describe("DetailPanel agent section", () => {
+  const agentProps = (agent: DetailPanelProps["agent"]): DetailPanelProps => ({
+    stack: null,
+    service: makeService({ name: "bot" }),
+    stackMetadata: null,
+    agent,
+    visible: true,
+  });
+  const NEWEST = new Date(Date.now() - 30_000).toISOString();
+
+  it("shows readiness, session count, last activity and the sessions", async () => {
+    const output = await renderPanel(
+      agentProps({
+        state: "up",
+        ready: true,
+        sessions: {
+          total: 7,
+          sessions: [
+            { sessionId: "sess-1", lastActivity: NEWEST, status: "active", checkpointBytes: 10 },
+            { sessionId: "sess-2", lastActivity: NEWEST, status: "idle", checkpointBytes: 10 },
+          ],
+        },
+      }),
+    );
+    expect(output).toContain("Ready: yes");
+    expect(output).toContain("Sessions: 7");
+    expect(output).toMatch(/Last activity: \d+s ago/);
+    expect(output).toMatch(/sess-1 \d+s ago active/);
+    expect(output).toMatch(/sess-2 \d+s ago idle/);
+    expect(output).toContain("... 2 more");
+  });
+
+  it("says when the agent is not running, still checking, or cannot list sessions", async () => {
+    expect(await renderPanel(agentProps({ state: "not-running" }))).toContain("not running");
+    expect(await renderPanel(agentProps(null))).toContain("checking...");
+    const old = await renderPanel(agentProps({ state: "up", ready: false, sessions: null }));
+    expect(old).toContain("Ready: no");
+    expect(old).toContain("not available");
+  });
+
+  it("stays ASCII under NO_COLOR and adds nothing for a service that is not an agent", async () => {
+    const output = await renderPanel(agentProps({ state: "not-running" }));
+    expect([...output].every((ch) => ch.charCodeAt(0) < 128)).toBe(true);
+    const plain = await renderPanel({ ...agentProps(undefined), service: makeService() });
+    expect(plain).not.toContain("Agent");
+  });
+});
+
 describe("DetailPanel", () => {
   describe("with a selected service", () => {
     it("shows the service name, stack, type and the close hint", async () => {

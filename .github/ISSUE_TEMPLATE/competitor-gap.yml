@@ -1,0 +1,95 @@
+name: Competitor feature gap
+description: A feature a competitor has that Flisk could reasonably add. The competitor-gap sync opens these from docs/competitors/; file one by hand in the same shape.
+labels: [competitor-gap, enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Gaps come from the feature matrices in docs/competitors/ (the scorer is `competitor-coverage`).
+        A row that Flisk deliberately does not do is a decision, not a gap: mark it `out-of-scope` with a reason in the
+        matrix instead of opening an issue. Keep the field labels as they are; scripts read them.
+  - type: dropdown
+    id: competitor
+    attributes:
+      label: Competitor
+      options:
+        - Warp
+        - Superset (now Paradev)
+        - skills.sh
+        - Tilt
+        - Docker Compose
+        - Dev Containers
+        - Coder
+        - process-compose
+        - Garden
+    validations:
+      required: true
+  - type: input
+    id: feature
+    attributes:
+      label: Feature
+    validations:
+      required: true
+  - type: textarea
+    id: offer
+    attributes:
+      label: What the competitor offers (source and date checked)
+      description: One sentence in your own words, the page you read and the date.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - agents
+        - runtime
+        - environments
+        - orchestration
+        - workflow
+        - terminal
+        - collaboration
+        - security
+        - enterprise
+        - integrations
+        - observability
+        - skills
+    validations:
+      required: true
+  - type: textarea
+    id: fit
+    attributes:
+      label: Why it may fit Flisk
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence we have today
+      description: Files, commands or MCP tools that already do part of it. Write "none" when missing.
+    validations:
+      required: true
+  - type: dropdown
+    id: decision
+    attributes:
+      label: Decision needed
+      options:
+        - Build it
+        - Finish the partial coverage
+        - Mark the row out-of-scope with a reason
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance check
+      description: How the matrix row becomes `covered`: which evidence file, command or MCP tool proves it.
+    validations:
+      required: true
+  - type: textarea
+    id: ice
+    attributes:
+      label: ICE estimate
+      description: Impact, confidence and ease from 1 to 10, and why. The sync raises only ICE 7.0 or more with ease 7 or more.
+  - type: markdown
+    attributes:
+      value: >-
+        Related scorer: `scripts/scores/competitor-coverage.mjs`. Matrix: docs/competitors/README.md.

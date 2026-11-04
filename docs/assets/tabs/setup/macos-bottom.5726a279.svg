@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="812" height="70" viewBox="0 0 812 70" role="img" aria-label="2 services healthy in 0.8 s · no Docker · Apple M1 · 16 GB · flisk 1.4.7">
+<title>2 services healthy in 0.8 s · no Docker · Apple M1 · 16 GB · flisk 1.4.7</title>
+<style>.bar{fill:#f6f6f6}.txt{fill:#57606a}.ok{fill:#1f883d} @media (prefers-color-scheme:dark){.bar{fill:#232325}.txt{fill:#b8b8b8}.ok{fill:#3fb950}} .s1{opacity:0;animation:s1 6s linear infinite}.s2{animation:s2 6s linear infinite} @keyframes s1{0%,13.3%{opacity:1}13.5%,100%{opacity:0}} @keyframes s2{0%,13.3%{opacity:0}13.5%,100%{opacity:1}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<path d="M0 0h812v38a14 14 0 0 1-14 14H14A14 14 0 0 1 0 38Z" fill="#0e0e10"/>
+<path d="M0 54h812v6a10 10 0 0 1-10 10H10A10 10 0 0 1 0 60Z" fill="#c8c9cc"/>
+<rect x="0" y="54" width="812" height="2" fill="#e4e5e7"/>
+<path d="M350 54h112a6 6 0 0 1-6 6H356a6 6 0 0 1-6-6Z" fill="#a7a9ad"/>
+<rect class="bar" x="14" y="0" width="784" height="30"/>
+<circle class="s1" cx="32" cy="15" r="4" fill="#d4a72c"/>
+<circle class="ok s2" cx="32" cy="15" r="4"/>
+<text class="txt s1" x="44" y="19.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="12">flisk up · starting api and web…</text>
+<text class="txt s2" x="44" y="19.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="12">2 services healthy in 0.8 s · no Docker</text>
+<text class="txt" x="784" y="19.5" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="12">Apple M1 · 16 GB · flisk 1.4.7</text>
+</svg>

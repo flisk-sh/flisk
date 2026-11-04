@@ -21,6 +21,16 @@
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
       "description": "Oldest flisk CLI this project works with, as MAJOR.MINOR.PATCH. flisk doctor fails on an older CLI."
     },
+    "minTdkVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Deprecated alias for minFliskVersion. Use minFliskVersion instead."
+    },
+    "pinnedFliskVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Exact flisk CLI version this project requires, as MAJOR.MINOR.PATCH."
+    },
     "project": {
       "type": "object",
       "additionalProperties": true,
@@ -69,6 +79,62 @@
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "repos": {
+      "type": "array",
+      "description": "External Git repositories whose code belongs to services in this project. flisk up clones any repo whose destination directory is missing.",
+      "items": {
+        "type": "object",
+        "required": [
+          "url",
+          "dir"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Git repository clone URL (e.g. git@github.com:acme/orders-api.git or https://github.com/acme/orders-api.git)."
+          },
+          "dir": {
+            "type": "string",
+            "description": "Destination directory relative to project root (e.g. services/shop/orders-api)."
+          },
+          "branch": {
+            "type": "string",
+            "description": "Optional branch expectation to clone or verify."
+          }
+        }
+      }
+    },
+    "composeProjectNames": {
+      "type": "object",
+      "description": "Stack name to the Compose project name its services ran under before flisk import (docker compose -p), written by flisk import so an existing install can be found. Flisk accepts it; it does not change the generated project name yet.",
+      "propertyNames": { "pattern": "^[A-Za-z0-9_-]+$" },
+      "additionalProperties": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" }
+    },
+    "allowedHosts": {
+      "type": "array",
+      "description": "Hosts outside the local stack that env values may point at on purpose (a payment sandbox, a model API). flisk doctor does not report them. \"*.example.com\" matches every subdomain.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "properties": {
+        "gateway": {
+          "type": "boolean",
+          "description": "Whether to provision the Traefik reverse proxy and gateway routing."
+        },
+        "database": {
+          "type": "boolean",
+          "description": "Whether to provision the bundled shared PostgreSQL (database-management). A service that declares dependsOn postgres still gets it."
+        }
       }
     },
     "optional_infra": {

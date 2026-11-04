@@ -105,6 +105,54 @@ describe("flisk runtime", () => {
     expect(process.exitCode).toBeUndefined();
   });
 
+  it("checks the installed package root when the asset search stops at its cli/ directory", async () => {
+    // The npm package ships cli/shared-platform-engineering/docker-templates, so findCliAssetRoot
+    // returns <package>/cli while the Tiltfile and extension directories sit under <package>/runtime.
+    const cliDir = join(tempDir, "cli");
+    mkdirSync(join(cliDir, "shared-platform-engineering", "docker-templates"), { recursive: true });
+    mkdirSync(join(cliDir, "templates"), { recursive: true });
+    mkdirSync(join(tempDir, "runtime", "shared-platform-engineering", "docker-templates"), {
+      recursive: true,
+    });
+    writeFileSync(join(tempDir, "runtime", "Tiltfile"), "");
+    for (const directory of ["engine", "discovery", "specs", "ext"]) {
+      mkdirSync(join(tempDir, "runtime", directory));
+    }
+    templateEngine.findCliAssetRoot.mockReturnValue(cliDir);
+    templateEngine.loadTemplate.mockReturnValue("");
+
+    const { stdout } = await runRuntime(["--check-assets", "--json"]);
+    const result = JSON.parse(stdout) as CheckAssetsResult;
+
+    expect(result).toEqual({
+      ok: true,
+      assetRoot: resolve(tempDir),
+      missing: [],
+      layoutErrors: [],
+      templateErrors: [],
+    });
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it("still names the missing runtime directory of an installed package", async () => {
+    const cliDir = join(tempDir, "cli");
+    mkdirSync(join(cliDir, "shared-platform-engineering", "docker-templates"), { recursive: true });
+    mkdirSync(join(cliDir, "templates"), { recursive: true });
+    mkdirSync(join(tempDir, "runtime", "shared-platform-engineering", "docker-templates"), {
+      recursive: true,
+    });
+    writeFileSync(join(tempDir, "runtime", "Tiltfile"), "");
+    templateEngine.findCliAssetRoot.mockReturnValue(cliDir);
+
+    const { stdout } = await runRuntime(["--check-assets", "--json"]);
+    const result = JSON.parse(stdout) as CheckAssetsResult;
+
+    expect(result.ok).toBe(false);
+    expect(result.assetRoot).toBe(resolve(tempDir));
+    expect(result.missing).toEqual(["engine", "discovery", "specs", "ext"]);
+    expect(process.exitCode).toBe(1);
+  });
+
   it("reports every missing asset and sets exit code 1 when the asset root is empty", async () => {
     templateEngine.findCliAssetRoot.mockReturnValue(tempDir);
 

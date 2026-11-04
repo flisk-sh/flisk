@@ -1,12 +1,19 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   formatColdPreflight,
+  MACHINE_CHECK_IDS,
   nodeTooOld,
   type PreflightItem,
   type PreflightResult,
+  RUNTIME_CHECK_IDS,
   requireVerifiedDockerVersions,
+  SCAFFOLD_CHECK_IDS,
+  usesPrisma,
 } from "./cold-preflight.js";
 
 function result(items: PreflightItem[], inProject = false): PreflightResult {
@@ -16,6 +23,7 @@ function result(items: PreflightItem[], inProject = false): PreflightResult {
   return {
     ok: items.length === 0,
     inProject,
+    scope: "runtime",
     items,
     header:
       items.length === 0
@@ -28,6 +36,14 @@ function result(items: PreflightItem[], inProject = false): PreflightResult {
 }
 
 describe("cold preflight", () => {
+  // These assertions intentionally pin the cold-preflight check IDs.
+  // Deliberate additions, removals, renames, or ordering changes must be reflected in these tests.
+  it("pins the runtime, scaffold, and machine check ID lists", () => {
+    expect(RUNTIME_CHECK_IDS).toEqual(["docker", "compose", "tilt"]);
+    expect(SCAFFOLD_CHECK_IDS).toEqual(["node", "bun", "ports"]);
+    expect(MACHINE_CHECK_IDS).toEqual(["node", "docker", "compose", "tilt", "bun", "ports"]);
+  });
+
   it("compares Node major and minor against 22.12", () => {
     expect(nodeTooOld("18.20.0")).toBe(true);
     expect(nodeTooOld("22.11.0")).toBe(true);
@@ -84,5 +100,53 @@ describe("cold preflight", () => {
       result([{ id: "tilt", ok: false, message: "Tilt CLI not found" }]),
     );
     expect(output).not.toContain("prisma");
+  });
+
+  describe("usesPrisma", () => {
+    let tmp: string;
+
+    beforeEach(() => {
+      tmp = mkdtempSync(join(tmpdir(), "flisk-cold-preflight-"));
+    });
+
+    afterEach(() => {
+      rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it("returns true for a project whose service declares Prisma", () => {
+      const serviceDir = join(tmp, "services", "api");
+      mkdirSync(serviceDir, { recursive: true });
+      writeFileSync(
+        join(serviceDir, "service.json"),
+        JSON.stringify({
+          appName: "api",
+          appType: "backend",
+          featuresEnabled: ["prisma"],
+        }),
+      );
+      expect(usesPrisma(tmp)).toBe(true);
+    });
+
+    it("returns false for a project whose service does not declare Prisma", () => {
+      const serviceDir = join(tmp, "services", "api");
+      mkdirSync(serviceDir, { recursive: true });
+      writeFileSync(
+        join(serviceDir, "service.json"),
+        JSON.stringify({
+          appName: "api",
+          appType: "backend",
+          featuresEnabled: ["messaging"],
+        }),
+      );
+      expect(usesPrisma(tmp)).toBe(false);
+    });
+
+    it("returns false for a project without services", () => {
+      expect(usesPrisma(tmp)).toBe(false);
+    });
+
+    it("returns false when resource discovery throws an error", () => {
+      expect(usesPrisma(join(tmp, "non-existent-directory"))).toBe(false);
+    });
   });
 });

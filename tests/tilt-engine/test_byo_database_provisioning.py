@@ -36,23 +36,39 @@ def run_starlark(tmp_path: Path, body: str) -> dict:
 
 
 @TILT_REQUIRED
-def test_backend_and_bring_your_own_need_a_database(tmp_path: Path) -> None:
+def test_backend_bring_your_own_and_migrator_need_a_database(tmp_path: Path) -> None:
     result = run_starlark(
         tmp_path,
         "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'resource_needs_database')\n"
-        "r = {t: resource_needs_database({'appType': t}) for t in ['backend', 'bring-your-own', 'frontend', 'worker', 'sdk']}\n"
+        "r = {t: resource_needs_database({'appType': t}) for t in ['backend', 'bring-your-own', 'migrator', 'frontend', 'worker', 'sdk']}\n"
         "r['missing'] = resource_needs_database({})\n"
         "r['none'] = resource_needs_database(None)\n",
     )
     assert result == {
         "backend": True,
         "bring-your-own": True,
+        "migrator": True,
         "frontend": False,
         "worker": False,
         "sdk": False,
         "missing": False,
         "none": False,
     }
+
+
+@TILT_REQUIRED
+def test_agent_needs_a_database_only_with_postgres_durability(tmp_path: Path) -> None:
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'resource_needs_database')\n"
+        "r = {\n"
+        "  'postgres': resource_needs_database({'appType': 'agent', 'agent': {'runtime': 'custom', 'durability': 'postgres'}}),\n"
+        "  'files': resource_needs_database({'appType': 'agent', 'agent': {'runtime': 'custom', 'durability': 'files'}}),\n"
+        "  'no_agent_block': resource_needs_database({'appType': 'agent'}),\n"
+        "  'not_an_agent': resource_needs_database({'appType': 'worker', 'agent': {'durability': 'postgres'}}),\n"
+        "}\n",
+    )
+    assert result == {"postgres": True, "files": False, "no_agent_block": False, "not_an_agent": False}
 
 
 def test_apply_provisions_through_the_shared_check() -> None:

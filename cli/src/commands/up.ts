@@ -1,25 +1,39 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { existsSync } from "node:fs";
 import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
+  areMasterFilesStale,
   ensureProjectRuntimeAssets,
   generateMasterConfigs,
+  isTiltfileOrchestration,
+  isVendoredEngineStale,
+  isWrappedTiltfileStale,
   ProjectConfigNotFoundError,
+  readProjectConfig,
   verifyMasterConfigs,
 } from "../generator/template-engine.js";
-import type { DiscoveredResource } from "../types/index.js";
+import { cliInvocation } from "../mcp/tools.js";
+import type { DiscoveredResource, MachineError } from "../types/index.js";
 import {
   DEVCONTAINER_DOCKER_FIX,
   detectHost,
   isContainerHost,
   WEBCONTAINER_UP_MESSAGE,
 } from "../utils/agent-host.js";
+import {
+  assertGatewayOptOutIsConfigured,
+  disableDatabaseCapability,
+  isDatabaseCapabilityEnabled,
+  isGatewayEnabled,
+} from "../utils/capabilities.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
+import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
 import {
   applyEnvFileSelection,
@@ -35,7 +49,6 @@ import {
   errorFactories,
   FliskError,
   getErrorMessage,
-  handleTiltFailure,
   requireProjectRoot,
   runCommand,
   showError,
@@ -43,8 +56,10 @@ import {
   withTiltCheck,
 } from "../utils/errors.js";
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
-import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { formatCount } from "../utils/formatting.js";
+import { ensureGeneratedSecrets } from "../utils/generated-secrets.js";
+import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import {
   exportHostPortPlan,
   getHostPortPlan,
@@ -53,15 +68,38 @@ import {
 import { formatHostPortPlan } from "../utils/host-port-plan.js";
 import { createJsonEmitter, type JsonError } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
+import { hasNearbyServiceJson } from "../utils/native-project.js";
+import {
+  formatMixedRuntimeRefusal,
+  isNativeProject,
+  isNativeService,
+  resolveRuntimeMode,
+} from "../utils/native-service.js";
+import { runNativeUp } from "../utils/native-up.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
 import { findPortOccupant } from "../utils/port-occupant.js";
+import {
+  applyProfiles,
+  declaredProfiles,
+  describeSkipped,
+  type ProfileSelection,
+} from "../utils/profiles.js";
+import { cloneMissingRepos } from "../utils/project-repos.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
-import { enforceServiceConfigGate, warnSchemaVersions } from "../utils/service-config-checks.js";
-import { appendHealthPath, resolveSubdomainBases } from "../utils/service-urls.js";
+import {
+  enforceServiceConfigGate,
+  warnSchemaVersions,
+  warnSecretConflicts,
+} from "../utils/service-config-checks.js";
+import {
+  appendHealthPath,
+  resolveServiceUrl,
+  resolveSubdomainBases,
+} from "../utils/service-urls.js";
 import {
   type discoverResources,
   discoverResourcesStrict,
@@ -72,6 +110,11 @@ import {
   warnAboutSkippedFiles,
 } from "../utils/services.js";
 import {
+  databaseResourceNames,
+  evaluateSharedPlatformPostgres,
+  namesSharedPlatformPostgres,
+} from "../utils/shared-platform-postgres.js";
+import {
   buildSmokePlans,
   formatSmokeFailure,
   runSmokePlans,
@@ -81,6 +124,7 @@ import {
   buildStartupReport,
   formatStartupReport,
   isStartupStalled,
+  machineProblemFixes,
 } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
@@ -91,20 +135,90 @@ import {
   secondUpAction,
   stopTiltForUp,
 } from "../utils/tilt-startup.js";
+import { cloneForUp, isGitRepoArg } from "../utils/up-from-git.js";
+import { upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
-import { tiltGetUiResources, waitForTiltResourcesReady } from "../utils/up-readiness.js";
-import { enableDiscoveredStacks } from "./project.js";
+import {
+  createUpProgressReporter,
+  fetchWithProgress,
+  shouldRedrawUpProgress,
+} from "../utils/up-progress.js";
+import {
+  tiltGetUiResources,
+  tiltResourceLogs,
+  waitForTiltResourcesReady,
+} from "../utils/up-readiness.js";
+import { defaultUpWaitDeps, parseWaitTimeout, upAndWait } from "../utils/up-wait.js";
+import { enableDiscoveredStacks, writeDefaultProjectConfig } from "./project.js";
 
-export function formatUpSuccess(port: number, appUrls: string[] = []): string[] {
-  return [
-    "Flisk is up.",
-    `Tilt UI: http://localhost:${port}`,
-    "App URLs:",
-    ...(appUrls.length > 0
-      ? appUrls.slice(0, 5).map((url) => `  ${url}`)
-      : ["  run: flisk networks"]),
-    "Stop: flisk down",
-  ];
+export interface ServiceHealth {
+  name: string;
+  status: "ready" | "failed" | "starting";
+  url?: string;
+}
+
+export function formatUpSuccess(
+  port: number,
+  options: {
+    appUrls?: string[];
+    serviceHealth?: ServiceHealth[];
+    showLogsHint?: boolean;
+  } = {},
+): string[] {
+  const { appUrls = [], serviceHealth = [], showLogsHint = serviceHealth.length > 0 } = options;
+  const lines: string[] = [];
+
+  lines.push("Flisk is up.");
+  lines.push(`Tilt UI: http://localhost:${port}`);
+
+  if (serviceHealth.length > 0) {
+    // Services with a URL come first. Tilt lists its own resources ((Tiltfile), golden-layers-build, init-networks, the
+    // *-config-gen steps, ...) in no useful order, and cutting that mix at ten dropped a running service into "and N more"
+    // as soon as one more internal resource existed. Array.prototype.sort is stable, so each group keeps Tilt's order.
+    const services = [...serviceHealth].sort(
+      (a, b) => Number(Boolean(b.url)) - Number(Boolean(a.url)),
+    );
+    lines.push("Services:");
+    for (const svc of services.slice(0, 10)) {
+      const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? "✗" : "⟳";
+      const urlPart = svc.url ? ` → ${svc.url}` : "";
+      lines.push(`  ${icon} ${svc.name}${urlPart}`);
+    }
+    if (services.length > 10) {
+      lines.push(`  … and ${services.length - 10} more`);
+    }
+
+    // Health check URLs for test infrastructure and monitoring: only services that have one, so internals do not use up the ten.
+    const withUrl = services.filter((svc) => svc.url);
+    lines.push("Health checks:");
+    for (const svc of withUrl.slice(0, 10)) {
+      const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? "✗" : "⟳";
+      const healthUrl = svc.url?.endsWith("/health") ? svc.url : `${svc.url}/health`;
+      lines.push(`  ${icon} ${svc.name}: ${healthUrl}`);
+    }
+    if (withUrl.length > 10) {
+      lines.push(`  … and ${withUrl.length - 10} more`);
+    }
+  } else if (appUrls.length > 0) {
+    lines.push("App URLs:");
+    for (const url of appUrls.slice(0, 5)) {
+      lines.push(`  ${url}`);
+    }
+    if (appUrls.length > 5) {
+      lines.push(`   … and ${appUrls.length - 5} more`);
+    }
+  } else {
+    lines.push("App URLs:");
+    lines.push("  run: flisk networks");
+  }
+
+  lines.push("Stop: flisk down");
+  if (showLogsHint) {
+    lines.push("Logs: flisk logs --service <name>");
+  }
+  lines.push("Next: flisk help  # or visit https://flisk.sh/docs");
+
+  return lines;
 }
 
 /**
@@ -125,7 +239,7 @@ export async function hostUpRefusal(
   return null;
 }
 
-async function defaultDockerReachable(): Promise<boolean> {
+export async function defaultDockerReachable(): Promise<boolean> {
   const { execFile } = await import("node:child_process");
   return new Promise((resolve) => {
     execFile("docker", ["ps"], { timeout: 10_000 }, (error) => resolve(!error));
@@ -192,25 +306,20 @@ export function enforceDriftGate(
 }
 
 /**
- * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minFliskVersion` in
- * .flisk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
- * `ignoreVersion` skips the check and says so. No minFliskVersion means no check.
+ * Checks the project's CLI version requirements before anything starts.
+ * Enforces both minFliskVersion and pinnedFliskVersion, including under --dry-run.
+ * Kept as a compatibility wrapper for existing callers and tests.
  */
 export function enforceVersionFloor(
   projectRoot: string,
-  options: { ignoreVersion?: boolean; onFail?: (message: string) => void },
+  options: {
+    ignoreVersion?: boolean;
+    onFail?: (message: string, status: "malformed" | "too-old" | "mismatch") => void;
+  },
   currentVersion: string = getPackageVersion(),
   exit: (code: number) => never = process.exit,
 ): void {
-  if (options.ignoreVersion) {
-    console.warn(chalk.yellow("Warning: --ignore-version set; minFliskVersion was not checked."));
-    return;
-  }
-  const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
-  if (floor.status === "none" || floor.status === "ok") return;
-  options.onFail?.(`${floor.message}\n${floor.fix}`);
-  showError(`${floor.message}\n${floor.fix}`);
-  exit(1);
+  enforceFliskVersionGate(projectRoot, options, currentVersion, exit);
 }
 
 const STARTUP_FAILED = Symbol("startup-failed");
@@ -229,7 +338,7 @@ export async function waitForTiltUnlessStartupFailed<T>(
   return outcome as T;
 }
 
-function waitForTiltUi(port: number, timeoutMs = 30_000): Promise<boolean> {
+export function waitForTiltUi(port: number, timeoutMs = 30_000): Promise<boolean> {
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs;
     const attempt = () => {
@@ -284,10 +393,189 @@ function envFileFailure(error: unknown): { failure: JsonError; exitCode: number 
   };
 }
 
+/** A selection `flisk up` runs as local processes. */
+export interface NativeUpSelection {
+  projectRoot: string;
+  /** No .flisk/project.json yet: `flisk up` adopts the directory as a project. */
+  isNewProject: boolean;
+  all: DiscoveredResource[];
+  selected: DiscoveredResource[];
+  dependencies: string[];
+}
+
+/**
+ * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which
+ * a project without any `command` service always takes. Outside a project, a directory whose services all declare `command`
+ * becomes the project. A project whose .flisk/project.json selects its own Tiltfile (`flisk import tiltfile`) also returns null:
+ * Tilt runs that Tiltfile through the generated wrapper, whatever its services declare. Refuses (through `fail`) an unknown
+ * stack or service, an invalid service.json, and a run that would mix native and container services.
+ */
+export function selectNativeRun(
+  stackName: string | undefined,
+  only: string[] | undefined,
+  fail: (code: string, message: string, suggestions?: string[]) => never,
+  cwd: string = process.cwd(),
+): NativeUpSelection | null {
+  const foundRoot = findProjectRoot(cwd);
+  if (!foundRoot && !hasNearbyServiceJson(cwd)) return null;
+  // The imported Tiltfile is the orchestration: the wrapper only include()s it and never reads `command`, so run Tilt.
+  if (foundRoot && isTiltfileOrchestration(foundRoot)) return null;
+  const projectRoot = foundRoot ?? cwd;
+  let discovered: ReturnType<typeof discoverResourcesWithProblems>;
+  try {
+    discovered = discoverResourcesWithProblems(projectRoot);
+  } catch {
+    return null;
+  }
+  const all = discovered.resources;
+  if (!all.some(isNativeService)) return null;
+  if (!foundRoot && !isNativeProject(all)) return null;
+  if (discovered.problems.length > 0) {
+    fail(
+      "INVALID_SERVICE_CONFIG",
+      discovered.problems
+        .map((problem) => `Invalid service.json at ${problem.path}: ${problem.reason}`)
+        .join("\n"),
+    );
+  }
+
+  let requested = all;
+  if (stackName) {
+    if (!stackExists(stackName, all)) {
+      const error = errorFactories.stackNotFound(
+        stackName,
+        discoverStacks(all).map((s) => s.name),
+      );
+      fail("STACK_NOT_FOUND", error.message, error.suggestions);
+    }
+    requested = getResourcesForStack(stackName, all);
+  }
+  if (only) {
+    const unknown = findUnknownServices(only, requested);
+    if (unknown.length > 0) {
+      const error = errorFactories.unknownServices(
+        unknown,
+        requested.map((service) => service.name),
+      );
+      fail("UNKNOWN_SERVICE", error.message, error.suggestions);
+    }
+  }
+  // A process cannot start before what it depends on, so a stack or --only selection always brings its dependsOn closure.
+  const names = only ?? requested.map((service) => service.name);
+  const selection = resolveOnlySelection(names, all);
+  const { mode, mixed } = resolveRuntimeMode(selection.selected, all);
+  if (mode === "container") {
+    const containerNames = (selection.selected.some(isNativeService) ? selection.selected : all)
+      .filter((service) => !isNativeService(service))
+      .map((service) => service.name);
+    fail("MIXED_RUNTIME", formatMixedRuntimeRefusal(mixed, containerNames));
+  }
+  return {
+    projectRoot,
+    isNewProject: !foundRoot,
+    all,
+    selected: selection.selected,
+    dependencies: only ? selection.dependencies : [],
+  };
+}
+
+/**
+ * `flisk up --wait`: runs `flisk up --json` detached and waits for its one result line, so a script gets an exit code
+ * when the stack is healthy instead of an attached command that never returns.
+ */
+async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Promise<void> {
+  const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up --wait") : undefined;
+  const timeout = parseWaitTimeout(options.waitTimeout);
+  if (!timeout.ok) {
+    emit?.({ ok: false }, [
+      { code: "INVALID_WAIT_TIMEOUT", message: timeout.message, suggestions: [] },
+    ]);
+    showErrorAndExit(timeout.message, 1, []);
+  }
+  const outcome = await upAndWait(
+    process.argv.slice(2),
+    timeout.seconds,
+    defaultUpWaitDeps(cliInvocation),
+    process.cwd(),
+  );
+
+  if (outcome.kind === "ready" || outcome.kind === "failed") {
+    if (options.json) {
+      console.log(outcome.json);
+    } else {
+      const parsed = JSON.parse(outcome.json) as {
+        data?: { tiltUrl?: string; failures?: Array<{ name: string; message: string }> };
+        errors?: Array<{ message?: string }>;
+      };
+      if (outcome.kind === "ready") {
+        console.log(chalk.green("Stack is healthy."));
+        if (parsed.data?.tiltUrl) console.log(chalk.gray(`Tilt: ${parsed.data.tiltUrl}`));
+        console.log(
+          chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."),
+        );
+      } else {
+        const failures = parsed.data?.failures?.map((f) => `${f.name}: ${f.message}`) ?? [];
+        const messages =
+          failures.length > 0 ? failures : (parsed.errors ?? []).map((e) => e.message ?? "");
+        showError(`flisk up failed:\n  ${messages.filter(Boolean).join("\n  ")}`);
+      }
+    }
+    process.exit(outcome.kind === "ready" ? 0 : 1);
+  }
+
+  const reason =
+    outcome.kind === "timeout"
+      ? `the stack was not healthy after ${timeout.seconds} seconds (the log is ${outcome.logFile})`
+      : outcome.kind === "exited"
+        ? `flisk up exited with code ${outcome.exitCode ?? "unknown"} before the stack was ready`
+        : `could not start flisk up: ${outcome.message}`;
+  const code = outcome.kind === "timeout" ? "UP_WAIT_TIMEOUT" : "UP_WAIT_FAILED";
+  const suggestions =
+    outcome.kind === "timeout"
+      ? ["`flisk status` shows which services are not healthy", "`flisk down` stops the stack"]
+      : [];
+  emit?.({ ok: false }, [{ code, message: reason, suggestions }]);
+  if (!options.json) {
+    const tail = "logTail" in outcome ? outcome.logTail.trim() : "";
+    showError(`${reason}${tail ? `\n${tail}` : ""}`, undefined, suggestions);
+  }
+  process.exit(1);
+}
+
+/** Clones the repositories declared in .flisk/project.json that are missing. Returns true when one was cloned. */
+async function cloneDeclaredRepos(projectRoot: string): Promise<boolean> {
+  let repos: ReturnType<typeof readProjectConfig>["repos"];
+  try {
+    repos = readProjectConfig(projectRoot).repos;
+  } catch {
+    // A missing or invalid project.json is reported by the checks that run next.
+  }
+  if (!repos || repos.length === 0) return false;
+  const results = await cloneMissingRepos(projectRoot, repos);
+  return results.some((result) => result.cloned);
+}
+
+/** Directories of declared repositories that do not exist yet. */
+function missingDeclaredRepoDirs(projectRoot: string | null): string[] {
+  if (!projectRoot) return [];
+  let repos: ReturnType<typeof readProjectConfig>["repos"];
+  try {
+    repos = readProjectConfig(projectRoot).repos;
+  } catch {
+    return [];
+  }
+  return (repos ?? []).map((repo) => repo.dir).filter((dir) => !existsSync(join(projectRoot, dir)));
+}
+
 export const upCommand = new Command("up")
-  .description("Start all services (optionally filtered by stack)")
+  .description(
+    "Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster",
+  )
   .alias("deploy")
-  .argument("[stack-name]", "Name of the stack to start (optional - runs all if omitted)")
+  .argument(
+    "[stack-name]",
+    "Name of the stack to start (optional - runs all if omitted), or a git repository URL to clone and start",
+  )
   .option("-v, --verbose", "Enable verbose output", false)
   .option("-q, --quiet", "Suppress non-essential output", false)
   .option("--dry-run", "Show what would be started without starting", false)
@@ -295,29 +583,73 @@ export const upCommand = new Command("up")
   .option("--ignore-drift", "Start even if generated files differ from service.json", false)
   .option(
     "--ignore-version",
-    "Start even if this flisk is older than minFliskVersion in .flisk/project.json",
+    "Start even if this flisk does not satisfy pinnedFliskVersion or minFliskVersion in .flisk/project.json",
     false,
+  )
+  .option(
+    "--no-database",
+    "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)",
   )
   .option(
     "--only <services...>",
     "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks",
   )
   .option(
+    "--profile <names...>",
+    'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)',
+  )
+  .option(
     "--env-file <path>",
     "Use this project env file for the run instead of .env (for example: --env-file .env.integration)",
+  )
+  .option(
+    "--no-gateway",
+    'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it',
   )
   .option(
     "--json",
     "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet",
     false,
   )
+  .option(
+    "--wait",
+    "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it",
+    false,
+  )
+  .option(
+    "--wait-timeout <seconds>",
+    "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)",
+  )
   .action(async (stackName, options) => {
     const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
+    // `flisk up <git-url>`: clone the repository into ./<name> and start it from there, as a plain `flisk up` would.
+    if (isGitRepoArg(stackName)) {
+      try {
+        const dir = await cloneForUp(stackName, {
+          log: options.json || options.quiet ? undefined : (line) => console.log(chalk.gray(line)),
+        });
+        process.chdir(dir);
+      } catch (error) {
+        if (error instanceof FliskError) {
+          if (emit) emit({ ok: false }, [toMachineError(error).error]);
+          return error.exit();
+        }
+        throw error;
+      }
+      stackName = undefined;
+    }
+    if (options.wait) {
+      await runUpWait(options);
+      return;
+    }
     if (options.json) options.quiet = true;
     const portSetting = parseTiltPort(process.env.TILT_PORT);
     if (!portSetting.ok) {
-      emit?.({ ok: false }, [{ code: "INVALID_TILT_PORT", message: portSetting.message }]);
-      showErrorAndExit(portSetting.message);
+      const suggestions = upFailureHints({ kind: "invalid-tilt-port" });
+      emit?.({ ok: false }, [
+        { code: "INVALID_TILT_PORT", message: portSetting.message, suggestions },
+      ]);
+      showErrorAndExit(portSetting.message, 1, suggestions);
     }
     const configuredTiltPort = portSetting.port;
     // First, before the host/Docker checks below: an old CLI must stop with one clear line, not a half-working stack.
@@ -325,8 +657,95 @@ export const upCommand = new Command("up")
     if (versionRoot) {
       enforceVersionFloor(versionRoot, {
         ignoreVersion: options.ignoreVersion,
-        onFail: (message) => emit?.({ ok: false }, [{ code: "FLISK_VERSION_TOO_OLD", message }]),
+        onFail: (message, status) =>
+          emit?.({ ok: false }, [
+            {
+              code: status === "mismatch" ? "FLISK_VERSION_MISMATCH" : "FLISK_VERSION_TOO_OLD",
+              message,
+            },
+          ]),
       });
+    }
+    // Declared repositories are cloned before either path discovers services, so a native run and a container run both see
+    // the services they hold. A dry run never clones: it reports what is missing instead.
+    let hasClonedRepos = false;
+    if (!options.dryRun) {
+      const declaredRoot = findProjectRoot();
+      if (declaredRoot) {
+        try {
+          hasClonedRepos = await cloneDeclaredRepos(declaredRoot);
+        } catch (error) {
+          if (error instanceof FliskError) {
+            if (emit) emit({ ok: false }, [toMachineError(error).error]);
+            return error.exit();
+          }
+          throw error;
+        }
+      }
+    }
+    // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated
+    // files (#2229). Decided before any Docker or Tilt check; a project without `command` services never enters this branch.
+    const nativeRun = selectNativeRun(stackName, options.only, (code, message, suggestions) => {
+      emit?.({ ok: false }, [
+        { code, message, ...(suggestions && suggestions.length > 0 ? { suggestions } : {}) },
+      ]);
+      return showErrorAndExit(message, 1, suggestions);
+    });
+    // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
+    if (nativeRun) {
+      const { projectRoot } = nativeRun;
+      let envFilePath: string | undefined;
+      if (options.envFile !== undefined) {
+        try {
+          envFilePath = selectEnvFile(projectRoot, options.envFile).path;
+        } catch (error) {
+          const { failure, exitCode } = envFileFailure(error);
+          emit?.({ ok: false }, [failure]);
+          showErrorAndExit(failure.message, exitCode, failure.suggestions);
+        }
+      }
+      if (!nativeRun.isNewProject) {
+        enforceSchemaVersionGate(projectRoot, {
+          resources: nativeRun.all,
+          onInvalid: (message) =>
+            emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+        });
+      }
+      enforceServiceConfigGate(projectRoot, {
+        resources: nativeRun.all,
+        onInvalid: (message) =>
+          emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
+      });
+      if (nativeRun.isNewProject && !options.dryRun) {
+        writeDefaultProjectConfig(projectRoot);
+        if (!options.quiet) {
+          console.log(
+            chalk.gray("Created .flisk/project.json (this directory is now a Flisk project)"),
+          );
+        }
+      }
+      const nativeProfiles = applyProfiles(
+        nativeRun.selected,
+        options.profile ?? [],
+        options.only ?? [],
+      );
+      assertKnownProfiles(options.profile, nativeRun.all, emit);
+      if (nativeProfiles.skipped.length > 0 && !options.quiet) {
+        console.log(chalk.gray(skippedProfilesNote(nativeProfiles.skipped)));
+      }
+      await runNativeUp({
+        projectRoot,
+        selected: nativeProfiles.kept,
+        dependencies: nativeRun.dependencies,
+        stackName,
+        only: options.only,
+        envFilePath,
+        dryRun: options.dryRun,
+        quiet: options.quiet,
+        force: options.force,
+        emit,
+      });
+      return;
     }
     // The env file of the run. `--env-file` replaces the project .env for this run, so the file is
     // resolved and read before any prerequisite check, any write and any service starts.
@@ -390,14 +809,26 @@ export const upCommand = new Command("up")
     }
     if (!options.dryRun) {
       const { assertMachineReadyOrExit } = await import("../utils/cold-preflight.js");
-      await assertMachineReadyOrExit();
+      await assertMachineReadyOrExit({ hints: upFailureHints({ kind: "machine" }) });
     }
     const action = async (): Promise<void> => {
       const foundRoot = options.dryRun ? requireProjectRoot() : findProjectRoot();
       const projectRoot = foundRoot ?? process.cwd();
+      if (options.gateway === false) assertGatewayOptOutIsConfigured(foundRoot);
+      // With the gateway off nothing publishes the routed URLs, so none is printed or smoke-checked.
+      const gatewayEnabled = isGatewayEnabled(projectRoot, options);
+
       const discoveredResources = discoverResourcesStrict(
-        foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined,
+        foundRoot && foundRoot === schemaRoot && !hasClonedRepos ? initialDiscovery : undefined,
       );
+      // Services in a repository that was just cloned were not in the discovery the gate above checked.
+      if (foundRoot && hasClonedRepos) {
+        enforceSchemaVersionGate(foundRoot, {
+          resources: discoveredResources,
+          onInvalid: (message) =>
+            emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+        });
+      }
       let discoveredStacks: ReturnType<typeof discoverStacks> | undefined;
       let discoveredStackNames: string[] = [];
       if (!options.only || stackName) {
@@ -415,7 +846,17 @@ export const upCommand = new Command("up")
           ? getResourcesForStack(stackName, discoveredResources)
           : discoveredResources;
         const unknown = findUnknownServices(options.only, candidates);
-        if (unknown.length > 0) {
+        // A dry run does not clone, so a service in a declared repository that is not cloned yet is pending, not unknown.
+        const pendingClone = options.dryRun ? missingDeclaredRepoDirs(foundRoot) : [];
+        if (unknown.length > 0 && pendingClone.length > 0) {
+          if (!emit && !options.quiet) {
+            console.warn(
+              chalk.yellow(
+                `Pending clone: ${unknown.join(", ")} may be in a repository not cloned yet (${pendingClone.join(", ")}). A real run clones it first.`,
+              ),
+            );
+          }
+        } else if (unknown.length > 0) {
           const validNames = candidates.map((service) => service.name);
           const error = errorFactories.unknownServices(unknown, validNames);
           emit?.({ ok: false }, [
@@ -444,12 +885,38 @@ export const upCommand = new Command("up")
             emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
         });
       }
+      // A dependsOn name that is no service, stack or shared Postgres is dropped by the Tiltfile; say so instead of starting without it.
+      const unknownDependsOn = foundRoot
+        ? evaluateSharedPlatformPostgres(foundRoot, discoveredResources).unknownDependsOnNames
+        : [];
+      const unknownBackends = foundRoot ? unknownBackendNames(discoveredResources) : [];
+      if (unknownBackends.length > 0 && !emit && !options.quiet) {
+        for (const { resource, name } of unknownBackends) {
+          console.warn(
+            chalk.yellow(
+              `⚠️  ${resource} has backendName "${name}", which is not a service of this project; it has no backend to wait for or call.`,
+            ),
+          );
+        }
+      }
+      if (unknownDependsOn.length > 0 && !emit && !options.quiet) {
+        for (const { resource, name } of unknownDependsOn) {
+          console.warn(
+            chalk.yellow(
+              `⚠️  ${resource} dependsOn "${name}", which is not a service or stack of this project; it is ignored. Fix the name, or remove it.`,
+            ),
+          );
+        }
+      }
       // A project without schemaVersion keeps working; say how to add it, but only where a person is reading.
       if (foundRoot && !emit && !options.quiet) {
         warnSchemaVersions(foundRoot, discoveredResources);
+        warnSecretConflicts(foundRoot, discoveredResources);
       }
       const hostPortPlan = await getHostPortPlan(projectRoot, {
         inspectDocker: !options.dryRun,
+        database: options.database,
+        gateway: gatewayEnabled,
       });
       if (!options.dryRun) {
         // An older project's .env predates keys such as JWT_SECRET, which Compose now requires. Add what is missing (never
@@ -466,16 +933,102 @@ export const upCommand = new Command("up")
           }
         }
 
+        // Names in secrets.generate are appended to the .env once (#3140); the values are never printed.
+        if (foundRoot && !envFileSelection) {
+          const generatedNames = ensureGeneratedSecrets(projectRoot, discoveredResources);
+          if (generatedNames.length > 0 && !options.quiet) {
+            console.log(
+              chalk.gray(
+                `Generated ${generatedNames.join(", ")} into .env (once; existing values unchanged)`,
+              ),
+            );
+          }
+        }
+
+        // `--no-database` is saved in project.json and the generated files are rebuilt from it, so the flag also takes effect on a
+        // project generated with Postgres, and the next `flisk up` and `flisk config verify` agree with this run.
+        const databaseTurnedOff =
+          Boolean(foundRoot) &&
+          options.database === false &&
+          disableDatabaseCapability(projectRoot);
         // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
-        // Tilt fail on a missing Tiltfile.
+        // Tilt fail on a missing Tiltfile. After `flisk import tiltfile` the generated Tiltfile must be the wrapper that
+        // includes the project's own one, so an older generated Tiltfile is replaced too (the user's Tiltfile is never written),
+        // and a wrapper is replaced by the full Tiltfile once project.json no longer selects one.
         if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
           if (!options.quiet) {
             console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
           }
           await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && isWrappedTiltfileStale(projectRoot)) {
+          // The capability opt-outs above are already saved, so this regeneration also honours them.
+          if (!options.quiet) {
+            console.log(
+              chalk.gray(
+                isTiltfileOrchestration(projectRoot)
+                  ? "Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."
+                  : "project.json no longer wraps a Tiltfile; regenerating .flisk/.flisk-out/ ...",
+              ),
+            );
+          }
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && isVendoredEngineStale(projectRoot)) {
+          // After an upgrade (or a checkout on another commit) the vendored engine and the Tiltfile are the old ones, and a
+          // running Tilt keeps loading them. Regenerating replaces both; a running Tilt reloads them on its own (#2899).
+          if (!options.quiet) {
+            console.log(
+              chalk.gray(
+                "This Flisk ships a different engine or templates than .flisk/.flisk-out/ was generated with; regenerating ...",
+              ),
+            );
+          }
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && areMasterFilesStale(projectRoot)) {
+          // The router and the shared Postgres follow the project's resources, so a resource added or removed since the last
+          // run can change what spec.master starts (#2963).
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (databaseTurnedOff || options.gateway === false) {
+          // `--no-gateway` regenerates too: outputs generated before project.json turned the gateway off still start Traefik.
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        }
+        if (databaseTurnedOff && !options.quiet) {
+          console.log(
+            chalk.gray(
+              "Set capabilities.database to false in .flisk/project.json; regenerated .flisk/.flisk-out/ without the shared Postgres",
+            ),
+          );
+        }
+        if (foundRoot && !isDatabaseCapabilityEnabled(projectRoot)) {
+          // The Tiltfile still force-starts the shared Postgres for a dependsOn on it (or for a database resource), so say so
+          // rather than look ignored.
+          const databaseNames = databaseResourceNames(discoveredResources);
+          const postgresUsers = discoveredResources
+            .filter(
+              (r) =>
+                databaseNames.includes(r.name) ||
+                dependsOnOf(r.config).some((name) =>
+                  namesSharedPlatformPostgres(name, databaseNames),
+                ),
+            )
+            .map((r) => r.name);
+          if (postgresUsers.length > 0 && !options.quiet) {
+            console.warn(
+              chalk.yellow(
+                `Database capability is off, but ${postgresUsers.join(", ")} depend on postgres; the shared Postgres still starts for them.`,
+              ),
+            );
+          }
         }
 
         const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
+        const ignoredGenerated = foundRoot ? ensureGeneratedRootIgnored(projectRoot) : [];
+        if (ignoredGenerated.length > 0 && !options.quiet) {
+          console.log(
+            chalk.gray(
+              `Added to .gitignore (generated, not yours to commit): ${ignoredGenerated.join(", ")}`,
+            ),
+          );
+        }
         if (copiedAssets.length > 0 && options.verbose && !options.quiet) {
           console.log(chalk.gray(`Refreshed runtime assets: ${copiedAssets.join(", ")}`));
         }
@@ -525,6 +1078,19 @@ export const upCommand = new Command("up")
         stackDescription = `${formatCount(options.only.length, "requested service")}${dependencyNames.length > 0 ? ` plus ${dependencyNames.join(", ")}` : ""}`;
       }
 
+      // Services in a profile that was not asked for are left out (#2873); Tilt then gets the remaining names, not whole stacks.
+      assertKnownProfiles(options.profile, discoveredResources, emit);
+      const profileSelection = applyProfiles(
+        servicesToStart,
+        options.profile ?? [],
+        options.only ?? [],
+      );
+      if (profileSelection.skipped.length > 0) {
+        servicesToStart = profileSelection.kept;
+        focusServiceNames = servicesToStart.map((s) => s.name);
+        if (!options.quiet) console.log(chalk.gray(skippedProfilesNote(profileSelection.skipped)));
+      }
+
       if (options.verbose && !options.quiet) {
         console.log(
           chalk.gray(
@@ -546,16 +1112,15 @@ export const upCommand = new Command("up")
         }
 
         const { appBase, apiBase } = resolveSubdomainBases(hostPortPlan.ingressHttp);
-        const frontends = servicesToStart.filter((s) => s.config?.appType === "frontend");
-        const backends = servicesToStart.filter((s) => isApiServiceType(s.config?.appType));
+        const routed = gatewayEnabled ? servicesToStart : [];
+        const frontends = routed.filter((s) => s.config?.appType === "frontend");
+        const backends = routed.filter((s) => isApiServiceType(s.config?.appType));
 
         if (frontends.length > 0) {
           console.log(chalk.blue("\n🌍 Frontend URLs:"));
           for (const svc of frontends) {
             const basePath = svc.config?.basePath ?? `/${svc.name}`;
-            console.log(
-              chalk.gray(`  - ${svc.name}: ${appBase}${chalk.cyan(appendHealthPath(basePath))}`),
-            );
+            console.log(chalk.gray(`  - ${svc.name}: ${appBase}${chalk.cyan(basePath)}`));
           }
         }
 
@@ -578,7 +1143,13 @@ export const upCommand = new Command("up")
         }
       }
 
-      const focusTargets = options.only ?? (stackName ? [stackName] : undefined);
+      const focusTargets =
+        options.only ??
+        (profileSelection.skipped.length > 0
+          ? focusServiceNames
+          : stackName
+            ? [stackName]
+            : undefined);
       const tiltArgs = buildTiltUpArgs(focusServiceNames, {
         verbose: options.verbose,
         quiet: options.quiet,
@@ -602,6 +1173,8 @@ export const upCommand = new Command("up")
           ...(options.only
             ? { requested: options.only, declaredDependencies: dependencyNames }
             : {}),
+          ...(unknownDependsOn.length > 0 ? { unknownDependsOn } : {}),
+          ...(unknownBackends.length > 0 ? { unknownBackendNames: unknownBackends } : {}),
           command: dryRunCommand,
         });
         return;
@@ -683,6 +1256,8 @@ export const upCommand = new Command("up")
       }
 
       process.env.TILT_PORT = port.toString();
+      hostPortPlan.tiltUi = port;
+      writeSavedHostPortPlan(projectRoot, hostPortPlan);
 
       await stopTiltForUp(
         { force, quiet: options.quiet, port },
@@ -706,7 +1281,9 @@ export const upCommand = new Command("up")
 
       // Services that declare `smoke` are checked through the public URL once Tilt is up. A miss stops Tilt (containers stay for
       // inspection; `flisk down` removes them) and fails the command.
-      const smokePlans = buildSmokePlans(servicesToStart, hostPortPlan.ingressHttp);
+      const smokePlans = buildSmokePlans(servicesToStart, hostPortPlan.ingressHttp, {
+        gateway: gatewayEnabled,
+      });
       let smokeFailed = false;
 
       let printedSuccess = false;
@@ -723,12 +1300,26 @@ export const upCommand = new Command("up")
         let startedDependencies = dependencyNames;
         if (uiReady && emit) {
           const deferred = getDeferredResourceNames(discoveredResources);
+          const dependsOn = Object.fromEntries(
+            discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]),
+          );
+          const parsedWaitTimeout =
+            typeof options.waitTimeout !== "undefined"
+              ? parseWaitTimeout(options.waitTimeout)
+              : undefined;
+          const waitTimeoutMs = parsedWaitTimeout?.ok
+            ? parsedWaitTimeout.seconds * 1000
+            : undefined;
           const readiness = await waitForTiltResourcesReady(port, {
+            timeoutMs: waitTimeoutMs,
             deferred,
             // Only what the caller named must be enabled. Dependencies are the Tiltfile's call (it skips some on purpose).
             expected: options.only
               ? options.only.filter((name: string) => !deferred.has(name))
               : undefined,
+            // As for the human output: stop as soon as everything left is blocked by a failure (for example init-networks),
+            // instead of waiting out the whole timeout.
+            isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
           });
           if (readiness.ready) {
             jsonReady = true;
@@ -741,11 +1332,29 @@ export const upCommand = new Command("up")
             }
           } else {
             startupFailed = true;
-            const detail = readiness.failures.map((f) => `${f.name}: ${f.message}`).join("; ");
+            const fixes = await machineProblemFixes(readiness.failures, (name) =>
+              tiltResourceLogs(port, name),
+            );
+            const detail = readiness.failures
+              .map((f) => {
+                const fix = fixes.get(f.name);
+                return `${f.name}: ${f.message}${fix ? `. ${fix}` : ""}`;
+              })
+              .join("; ");
+            const stillBuildingMsg =
+              readiness.stillBuilding && readiness.stillBuilding.length > 0
+                ? ` (${readiness.stillBuilding.join(", ")} still building)`
+                : "";
             emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures: readiness.failures }, [
               {
                 code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
-                message: `${readiness.timedOut ? "Timed out waiting for resources" : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
+                message: `${readiness.timedOut ? `Timed out waiting for resources${stillBuildingMsg}` : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
+                suggestions: upFailureHints({
+                  kind: "services",
+                  failed: readiness.failures.map((failure) => failure.name),
+                  timedOut: readiness.timedOut,
+                  stillBuilding: readiness.stillBuilding,
+                }),
               },
             ]);
           }
@@ -755,12 +1364,32 @@ export const upCommand = new Command("up")
         if (uiReady && !emit) {
           const deferred = getDeferredResourceNames(discoveredResources);
           const dependsOn = Object.fromEntries(
-            discoveredResources.map((r) => [r.name, r.config?.dependsOn ?? []]),
+            discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]),
           );
+          const progress = createUpProgressReporter({
+            write: (text) => process.stdout.write(text),
+            redraw: shouldRedrawUpProgress({
+              isTTY: process.stdout.isTTY,
+              quiet: Boolean(options.quiet),
+              env: process.env,
+            }),
+            deferred,
+            columns: process.stdout.columns,
+          });
+          const parsedWaitTimeout =
+            typeof options.waitTimeout !== "undefined"
+              ? parseWaitTimeout(options.waitTimeout)
+              : undefined;
+          const waitTimeoutMs = parsedWaitTimeout?.ok
+            ? parsedWaitTimeout.seconds * 1000
+            : undefined;
           const readiness = await waitForTiltResourcesReady(port, {
+            timeoutMs: waitTimeoutMs,
             deferred,
             isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
+            fetchJson: fetchWithProgress(tiltGetUiResources, progress),
           });
+          progress.finish();
           if (!readiness.ready) {
             startupFailed = true;
             const resourcesJson = await tiltGetUiResources(port);
@@ -773,17 +1402,62 @@ export const upCommand = new Command("up")
                   })),
                   blocked: [],
                   starting: [],
+                  stillBuilding: readiness.stillBuilding,
                 };
-            const reportLines = formatStartupReport(report, readiness.timedOut, (port) =>
-              findPortOccupant(port),
+            if (readiness.stillBuilding && readiness.stillBuilding.length > 0) {
+              report.stillBuilding = readiness.stillBuilding;
+            }
+            const machineFixes = await machineProblemFixes(report.failed, (name) =>
+              tiltResourceLogs(port, name),
+            );
+            const reportLines = formatStartupReport(
+              report,
+              readiness.timedOut,
+              (port) => findPortOccupant(port),
+              machineFixes,
+              readiness.lastLogs,
             );
             if (reportLines.length > 0) {
-              showError(reportLines.join("\n"));
+              showError(
+                reportLines.join("\n"),
+                undefined,
+                upFailureHints({
+                  kind: "services",
+                  failed: report.failed.map((failure) => failure.name),
+                  timedOut: readiness.timedOut,
+                  stillBuilding: readiness.stillBuilding,
+                }),
+              );
             }
           }
         }
         if (uiReady && !options.quiet && !startupFailed) {
-          for (const line of formatUpSuccess(port)) console.log(chalk.blue(line));
+          const deferred = getDeferredResourceNames(discoveredResources);
+          const dependsOn = Object.fromEntries(
+            discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]),
+          );
+          const readiness = await waitForTiltResourcesReady(port, {
+            deferred,
+            isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
+          });
+          const serviceHealth: ServiceHealth[] = readiness.enabled.map((name) => {
+            const failed = readiness.failures.find((f) => f.name === name);
+            const svc = discoveredResources.find((r) => r.name === name);
+            const isReady = !failed && !readiness.failures.some((f) => f.name === name);
+            const isStarting = !isReady && !failed;
+            const url =
+              svc && gatewayEnabled ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
+            return {
+              name,
+              status: failed ? "failed" : isStarting ? "starting" : "ready",
+              url,
+            };
+          });
+          for (const line of formatUpSuccess(port, {
+            serviceHealth,
+            showLogsHint: true,
+          }))
+            console.log(chalk.blue(line));
           printedSuccess = true;
         }
         if (uiReady && smokePlans.length > 0 && (emit ? jsonReady : !startupFailed)) {
@@ -801,19 +1475,27 @@ export const upCommand = new Command("up")
               envFiles: envFileSelection ? [envFileSelection.path] : [],
             }),
           });
+          const smokeFailures: string[] = [];
           for (const smokeResult of results) {
             if (smokeResult.ok) {
               if (!options.quiet)
                 console.log(chalk.green(`Smoke check passed: ${smokeResult.name}`));
             } else {
               smokeFailed = true;
+              smokeFailures.push(smokeResult.name);
               showError(formatSmokeFailure(smokeResult));
             }
           }
           if (smokeFailed) {
             stopTiltOnPort(port);
+            const suggestions = upFailureHints({ kind: "smoke", failed: smokeFailures });
+            showError("A smoke check failed; Tilt was stopped", undefined, suggestions);
             emit?.({ ok: false }, [
-              { code: "UP_SMOKE_FAILED", message: "A smoke check failed; Tilt was stopped" },
+              {
+                code: "UP_SMOKE_FAILED",
+                message: "A smoke check failed; Tilt was stopped",
+                suggestions,
+              },
             ]);
           }
         }
@@ -836,7 +1518,11 @@ export const upCommand = new Command("up")
       }
 
       if (result.exitCode !== 0) {
-        handleTiltFailure("up", result.exitCode);
+        showErrorAndExit(
+          `tilt up failed with exit code ${result.exitCode}`,
+          result.exitCode,
+          upFailureHints({ kind: "tilt-exited" }),
+        );
       }
 
       if (startupFailed && result.exitCode === 0) {
@@ -844,7 +1530,32 @@ export const upCommand = new Command("up")
       }
 
       if (!options.quiet && result.exitCode === 0 && !printedSuccess) {
-        for (const line of formatUpSuccess(port)) console.log(chalk.blue(line));
+        const deferred = getDeferredResourceNames(discoveredResources);
+        const dependsOn = Object.fromEntries(
+          discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]),
+        );
+        const readiness = await waitForTiltResourcesReady(port, {
+          deferred,
+          isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
+        });
+        const serviceHealth: ServiceHealth[] = readiness.enabled.map((name) => {
+          const failed = readiness.failures.find((f) => f.name === name);
+          const svc = discoveredResources.find((r) => r.name === name);
+          const isReady = !failed && !readiness.failures.some((f) => f.name === name);
+          const isStarting = !isReady && !failed;
+          const url =
+            svc && gatewayEnabled ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
+          return {
+            name,
+            status: failed ? "failed" : isStarting ? "starting" : "ready",
+            url,
+          };
+        });
+        for (const line of formatUpSuccess(port, {
+          serviceHealth,
+          showLogsHint: true,
+        }))
+          console.log(chalk.blue(line));
       }
     };
 
@@ -854,3 +1565,28 @@ export const upCommand = new Command("up")
       await withTiltCheck(action);
     }
   });
+
+/** The note `flisk up` prints for services a profile kept out. */
+function skippedProfilesNote(skipped: ProfileSelection["skipped"]): string {
+  return `Not starting ${describeSkipped(skipped)}: add --profile <name> to start them`;
+}
+
+/** Refuses a --profile name that no service declares, which is almost always a typo. */
+function assertKnownProfiles(
+  requested: readonly string[] | undefined,
+  resources: readonly DiscoveredResource[],
+  emit?: (data: Record<string, unknown>, errors: MachineError[]) => void,
+): void {
+  if (!requested || requested.length === 0) return;
+  const known = declaredProfiles(resources);
+  const unknown = requested.filter((name) => !known.includes(name));
+  if (unknown.length === 0) return;
+  const message = `No service declares the profile ${unknown.map((name) => `"${name}"`).join(", ")}.`;
+  const suggestions = [
+    known.length > 0
+      ? `Profiles in this project: ${known.join(", ")}`
+      : 'No service has "profiles" in its service.json yet',
+  ];
+  emit?.({ ok: false }, [{ code: "UNKNOWN_PROFILE", message, suggestions }]);
+  showErrorAndExit(message, 1, suggestions);
+}

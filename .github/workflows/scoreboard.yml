@@ -1,0 +1,95 @@
+# Weekly scoreboard of the deterministic scorers in scripts/scores/ (see scripts/scores/README.md): the files scorers
+# with the GitHub-data ones (competitors reads other tools' public repositories), a Lighthouse audit of flisk.sh and a
+# Stryker mutation run on the generators. Report only; pull requests are gated by `make test-shell` (files scorers) and
+# ci.yml's Pack CLI job (install weight).
+name: 📊 CI | Scoreboard
+
+on:
+  schedule:
+    - cron: "0 10 * * 1" # Monday, after the Code health report
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: 📊 Report
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read # issue-form answers (UMUX-Lite, PMF, SEQ, first boot time, what broke)
+      pull-requests: read # first response time and the contributor funnel
+      actions: read # workflow run pass rates (example boot, agent and mcp resources, WSL2)
+      security-events: read # open code-scanning alerts
+      vulnerability-alerts: read # open Dependabot alerts
+      discussions: read # launch-inbound: discussions opened by outsiders
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      # The files scorers read the CLI's command tree from cli/dist and parse cli/src with TypeScript.
+      - run: bun install --frozen-lockfile
+        working-directory: cli
+      - name: Scoreboard (files and GitHub data)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/scores/run.mjs --source files,gh --markdown >> "$GITHUB_STEP_SUMMARY"
+
+  lighthouse:
+    name: 🔦 Lighthouse
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - name: Audit https://flisk.sh
+        run: |
+          npx -y lighthouse@13.5.0 https://flisk.sh/ --quiet --output=json --output-path="$RUNNER_TEMP/lhr.json" \
+            --chrome-flags="--headless=new --no-sandbox"
+      - name: Score
+        run: node scripts/scores/run.mjs --only lighthouse --lighthouse "$RUNNER_TEMP/lhr.json" --markdown >> "$GITHUB_STEP_SUMMARY"
+
+  mutation:
+    name: 🧬 Mutation
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      # Stryker is added for this job only: --no-save leaves package.json and the lockfiles alone.
+      - run: bun add --no-save @stryker-mutator/core@10.0.0 @stryker-mutator/vitest-runner@10.0.0
+      # Run the installed binary: `npx --no-install` checks package.json, which --no-save leaves without Stryker.
+      # Options live in cli/stryker.config.json: Stryker's CLI rejects plugin options such as vitest.configFile.
+      # - inPlace: a sandbox makes Stryker rewrite tsconfig.json with the TypeScript compiler API, which TypeScript 7 in cli/
+      #   does not have (ts.parseConfigFileTextToJson is not a function); cli/tsconfig.json has nothing to rewrite anyway.
+      # - plugins: the default "@stryker-mutator/*" glob only looks beside Stryker's own package, which bun's isolated
+      #   node_modules/.bun layout keeps apart from the vitest runner.
+      # - vitest.configFile: only the pure unit tests of the mutated files (see cli/vitest.stryker.config.ts).
+      - name: Stryker on the generators
+        run: ./node_modules/.bin/stryker run
+      - name: Score
+        if: ${{ !cancelled() }}
+        run: node ../scripts/scores/run.mjs --only mutation-score --mutation reports/mutation/mutation.json --markdown >> "$GITHUB_STEP_SUMMARY"

@@ -105,6 +105,9 @@ A4() { # a checkpoint through Traefik, read back with flisk agent sessions
   assert check "$OUT/a4-sessions.out" "j.data.agent === '$AGENT' && Number.isInteger(j.data.port)" "data.agent and data.port are set by the CLI"
   assert check "$OUT/a4-sessions.out" "j.data.session && j.data.session.sessionId === 's1' && j.data.session.messages.length === 2" "the checkpoint is nested under data.session"
   assert check "$OUT/a4-sessions.out" "!('messages' in j.data) && !('sessionId' in j.data)" "checkpoint fields are not spread into data"
+  run a4-list agent sessions "$AGENT" --json
+  [ "$RC" -eq 0 ] || die "flisk agent sessions (list) exited $RC"
+  assert check "$OUT/a4-list.out" "j.data.agent === '$AGENT' && j.data.total >= 1 && j.data.sessions.some(s => s.sessionId === 's1' && s.checkpointBytes > 0)" "without --session-id the sessions are listed under data.sessions"
 }
 
 A5() { # sticky routing: same session id -> same instance
@@ -272,11 +275,11 @@ B5() { # TILT_TRIGGER_FAILED (Tilt is up)
   assert check "$OUT/b5.out" "j.errors[0].message.includes('no-such-resource')" "Tilt's error text names the resource"
 }
 
-B6() { # SESSION_ID_REQUIRED: nothing listens, so any request would have produced AGENT_NOT_RUNNING instead
-  log "B6 SESSION_ID_REQUIRED before any request"
+B6() { # no --session-id is the list case: it makes a request, so with nothing listening it is AGENT_NOT_RUNNING
+  log "B6 list without --session-id is no longer SESSION_ID_REQUIRED"
   run b6 agent sessions "$AGENT" --json
   [ "$RC" -eq 1 ] || die "expected exit 1, got $RC"
-  assert envelope "$OUT/b6.out" SESSION_ID_REQUIRED
+  assert envelope "$OUT/b6.out" AGENT_NOT_RUNNING
 }
 
 B7() { # UNKNOWN_RESOURCE, NOT_AN_AGENT, NO_PORT: one smoke each
@@ -311,23 +314,24 @@ B8() { # TILT_NOT_RUNNING after flisk down
 C1() {
   log "C1 flisk mcp: initialize and tools/list"
   mcp_session c1 '[]'
-  assert check "$OUT/c1.out" "['list_agents','get_agent_sessions','restart_resource'].every(n => j.tools.some(t => t.name === n))" "tools/list includes list_agents, get_agent_sessions, restart_resource"
-  assert check "$OUT/c1.out" "j.tools.find(t => t.name === 'get_agent_sessions').inputSchema.required.includes('sessionId')" "get_agent_sessions requires sessionId"
+  assert check "$OUT/c1.out" "['agent_list','agent_sessions','resource_restart'].every(n => j.tools.some(t => t.name === n))" "tools/list includes agent_list, agent_sessions, resource_restart"
+  assert check "$OUT/c1.out" "!['list_agents','get_agent_sessions','restart_resource'].some(n => j.tools.some(t => t.name === n))" "tools/list does not list the former names"
+  assert check "$OUT/c1.out" "j.tools.find(t => t.name === 'agent_sessions').inputSchema.required.join() === 'resource'" "agent_sessions requires only resource; sessionId is optional"
 }
 
 C2() { # each tool's payload equals the CLI --json envelope
   log "C2 MCP tool payloads equal the CLI --json envelopes"
-  mcp_session c2 '[{"tool":"list_agents"},{"tool":"get_agent_sessions","arguments":{"resource":"bot","sessionId":"s1"}}]'
-  assert check "$OUT/c2.out" "j.calls.every(c => c.result && c.result.isError === false)" "list_agents and get_agent_sessions succeed"
+  mcp_session c2 '[{"tool":"agent_list"},{"tool":"agent_sessions","arguments":{"resource":"bot","sessionId":"s1"}}]'
+  assert check "$OUT/c2.out" "j.calls.every(c => c.result && c.result.isError === false)" "agent_list and agent_sessions succeed"
   mcp_structured c2 0; mcp_structured c2 1
   run c2-cli-list resources --type=agent --json
   run c2-cli-sessions agent sessions "$AGENT" --session-id s1 --json
   assert equal "$OUT/c2.0.json" "$OUT/c2-cli-list.out"
   assert equal "$OUT/c2.1.json" "$OUT/c2-cli-sessions.out"
   local before; before="$(agent_container)"
-  mcp_session c2r '[{"tool":"restart_resource","arguments":{"resource":"bot"}}]'
+  mcp_session c2r '[{"tool":"resource_restart","arguments":{"resource":"bot"}}]'
   mcp_structured c2r 0
-  assert check "$OUT/c2r.out" "j.calls[0].result.isError === false" "restart_resource succeeds"
+  assert check "$OUT/c2r.out" "j.calls[0].result.isError === false" "resource_restart succeeds"
   agent_restarted "$before"
   before="$(agent_container)"
   run c2-cli-restart restart "$AGENT" --json
@@ -338,16 +342,18 @@ C2() { # each tool's payload equals the CLI --json envelope
 C3() { # projectPath from another cwd; an unknown resource is a structured tool error and the server survives
   log "C3 MCP projectPath from another cwd, and structured errors"
   local elsewhere; elsewhere="$(mktemp -d)"
-  mcp_session c3a "[{\"tool\":\"get_agent_sessions\",\"arguments\":{\"projectPath\":\"$DIR\",\"resource\":\"bot\",\"sessionId\":\"s1\"}}]" "$elsewhere"
+  mcp_session c3a "[{\"tool\":\"agent_sessions\",\"arguments\":{\"projectPath\":\"$DIR\",\"resource\":\"bot\",\"sessionId\":\"s1\"}}]" "$elsewhere"
   mcp_structured c3a 0
   assert check "$OUT/c3a.0.json" "j.errors.length === 0 && j.data.agent === '$AGENT' && j.data.session.sessionId === 's1'" "projectPath resolves the project from a different cwd"
-  mcp_session c3b '[{"tool":"get_agent_sessions","arguments":{"resource":"no-such-resource","sessionId":"s1"}},{"tool":"get_agent_sessions","arguments":{"resource":"bot"}},{"tool":"restart_resource","arguments":{"resource":"no-such-resource"}},{"tool":"list_agents"}]'
+  # The last call uses a former name (list_agents): tools/call still accepts it.
+  mcp_session c3b '[{"tool":"agent_sessions","arguments":{"resource":"no-such-resource","sessionId":"s1"}},{"tool":"agent_sessions","arguments":{"resource":"bot"}},{"tool":"resource_restart","arguments":{"resource":"no-such-resource"}},{"tool":"list_agents"}]'
   mcp_structured c3b 0; mcp_structured c3b 2
   assert check "$OUT/c3b.0.json" "j.errors[0].code === 'UNKNOWN_RESOURCE'" "unknown resource: structured error envelope"
   assert check "$OUT/c3b.out" "j.calls[0].result.isError === true" "unknown resource: isError is true"
-  assert check "$OUT/c3b.out" "j.calls[1].result.isError === true && j.calls[1].result.content[0].text.includes('sessionId is required')" "missing sessionId is a tool error naming the field"
-  assert check "$OUT/c3b.2.json" "j.errors[0].code === 'TILT_TRIGGER_FAILED'" "restart_resource on an unknown resource: structured error"
-  assert check "$OUT/c3b.out" "j.calls[3].result.isError === false" "the server still answers after the failed calls"
+  mcp_structured c3b 1
+  assert check "$OUT/c3b.1.json" "j.errors.length === 0 && Array.isArray(j.data.sessions) && j.data.sessions.some(s => s.sessionId === 's1')" "no sessionId lists the agent's sessions"
+  assert check "$OUT/c3b.2.json" "j.errors[0].code === 'TILT_TRIGGER_FAILED'" "resource_restart on an unknown resource: structured error"
+  assert check "$OUT/c3b.out" "j.calls[3].result.isError === false" "the server still answers after the failed calls, under a former tool name"
   rm -rf "$elsewhere"
 }
 

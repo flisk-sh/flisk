@@ -19,7 +19,7 @@ A maintainer is removed when they ask to step down, or after a year without revi
 
 ## Foundation applications
 
-A foundation application requires at least 3 maintainers from at least 2 employers, listed in MAINTAINERS.md before the application is filed. `flisk maintainers check` reports whether the file meets that bar. It is a gate, not a promise to apply, and it is expected to fail while the project has one employer. No application is filed until it exits 0 on real rows and [ADOPTERS.md](ADOPTERS.md) lists teams other than the health fixture.
+A foundation application requires at least 3 maintainers from at least 2 employers, listed in MAINTAINERS.md before the application is filed. `flisk maintainers check` reports whether the file meets that bar. It is a gate, not a promise to apply, and it is expected to fail while the project has fewer than three maintainers. No application is filed until it exits 0 on real rows and [ADOPTERS.md](ADOPTERS.md) lists teams other than the health fixture.
 
 ## License boundary and donation scope
 

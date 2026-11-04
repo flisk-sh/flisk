@@ -1,15 +1,76 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+
 import type { DiscoveredResource } from "../types/index.js";
-import { PROJECT_JSON } from "./constants.js";
+import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { findProjectRoot } from "./paths.js";
+import { readProjectNameWithFallback } from "./project-reader.js";
 import { isApiServiceType } from "./resource-kind.js";
+
+/**
+ * A bring-your-own service with a Traefik route (the default; `exposeViaProxy: false` turns it off). The engine routes it like a
+ * backend, at the API host under /api/<name>, and publishes nothing on the host, so this route is the only address it has.
+ */
+export function isRoutedBringYourOwn(resource: DiscoveredResource): boolean {
+  return (
+    resource.config?.appType === BRING_YOUR_OWN_TYPE && resource.config?.exposeViaProxy !== false
+  );
+}
+
+/**
+ * A routed bring-your-own service that serves a web UI (`webUi: true`). Its pages and assets live at `/`, which no path prefix can
+ * serve, so the engine routes it on its own host name, `<name>.<project>.localhost` (#2997).
+ */
+export function isWebUiBringYourOwn(resource: DiscoveredResource): boolean {
+  return isRoutedBringYourOwn(resource) && resource.config?.webUi === true;
+}
+
+/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services that are not a web UI. */
+export function routesAsApi(resource: DiscoveredResource): boolean {
+  return (
+    isApiServiceType(resource.config?.appType) ||
+    (isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource))
+  );
+}
+
+/**
+ * The base URL of a web UI service: `http://<name>.<project>.localhost[:port]`. It follows the app host of
+ * `resolveSubdomainBases` (`app.<project>.localhost`) when there is one, and the project name otherwise. Keep in step with
+ * byo_ui_host in runtime/engine/topologies/platform/docker/networking/traefik_helpers.star.
+ */
+export function resolveUiBase(
+  resource: DiscoveredResource,
+  ingressPort?: number,
+  projectRoot?: string | null,
+): string {
+  const { appBase } = resolveSubdomainBases(ingressPort, projectRoot);
+  try {
+    const u = new URL(appBase);
+    if (u.hostname.startsWith("app.")) {
+      u.hostname = `${resource.name}.${u.hostname.slice("app.".length)}`;
+      return u.origin;
+    }
+    const project = getProjectNameFor(projectRoot ?? findProjectRoot());
+    return `${u.protocol}//${resource.name}.${project}.localhost${u.port ? `:${u.port}` : ""}`;
+  } catch {
+    return `http://${resource.name}.${getProjectNameFor(projectRoot ?? findProjectRoot())}.localhost`;
+  }
+}
+
+/** The base URL a routed service answers on, before its path: the app host, the API host, or a web UI's own host. */
+export function resolveRouteBase(
+  resource: DiscoveredResource,
+  ingressPort?: number,
+  projectRoot?: string | null,
+): string {
+  if (isWebUiBringYourOwn(resource)) return resolveUiBase(resource, ingressPort, projectRoot);
+  const { appBase, apiBase } = resolveSubdomainBases(ingressPort, projectRoot);
+  return routesAsApi(resource) ? apiBase : appBase;
+}
 
 export interface HealthTarget {
   name: string;
-  appType: "frontend" | "backend" | "mcp" | "agent";
+  appType: "frontend" | "backend" | "mcp" | "agent" | typeof BRING_YOUR_OWN_TYPE;
   url: string;
 }
 
@@ -27,16 +88,7 @@ export function getProjectName(): string {
 
 /** The project name of a specific project root, for tools that work outside the current directory. */
 export function getProjectNameFor(root: string | null): string {
-  if (root) {
-    try {
-      const content = readFileSync(join(root, ".flisk", PROJECT_JSON), "utf-8");
-      const parsed = JSON.parse(content);
-      if (parsed?.project?.name) {
-        return parsed.project.name;
-      }
-    } catch {}
-  }
-  return "flisk-project";
+  return readProjectNameWithFallback(root, "flisk-project");
 }
 
 export function resolveSubdomainBases(
@@ -80,11 +132,31 @@ export function appendHealthPath(path: string): string {
 
 /** The route `flisk up` advertises for a service, without the /health suffix. */
 export function resolveServicePath(resource: DiscoveredResource): string {
-  if (isApiServiceType(resource.config?.appType)) {
+  // A web UI owns its host name, so its route has no path.
+  if (isWebUiBringYourOwn(resource)) return "";
+  if (routesAsApi(resource)) {
     const servicePathName = resource.name.replace(/-api$/, "");
     return resource.config?.apiPath ?? `/api/${servicePathName}`;
   }
   return resource.config?.basePath ?? `/${resource.name}`;
+}
+
+/**
+ * The ingress URL of one service (no /health suffix), or undefined for services with no Traefik route. This is where the service
+ * answers, unlike the Tilt UI port, which serves its own page for any path.
+ */
+export function resolveServiceUrl(
+  resource: DiscoveredResource,
+  ingressPort?: number,
+): string | undefined {
+  const appType = resource.config?.appType;
+  if (appType !== "frontend" && !routesAsApi(resource) && !isWebUiBringYourOwn(resource))
+    return undefined;
+  const base =
+    appType === "frontend"
+      ? resolveSubdomainBases(ingressPort).appBase
+      : resolveRouteBase(resource, ingressPort);
+  return `${base}${resolveServicePath(resource)}`;
 }
 
 /**
@@ -107,26 +179,30 @@ export function buildAdvertisedTargets(
   resources: DiscoveredResource[],
   ingressPort?: number,
 ): HealthTarget[] {
-  return routableTargets(resources, ingressPort, (path) => path);
+  // A routed bring-your-own service is advertised too: its route is the only address it has. It is not a health target, because
+  // its health path is its own (often /), not /health.
+  return routableTargets(resources, ingressPort, (path) => path, true);
 }
 
 function routableTargets(
   resources: DiscoveredResource[],
   ingressPort: number | undefined,
   toPath: (path: string) => string,
+  includeBringYourOwn = false,
 ): HealthTarget[] {
-  const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
-
   return resources
     .filter(
       (
         resource,
       ): resource is DiscoveredResource & {
-        config: { appType: "frontend" | "backend" | "mcp" | "agent" };
-      } => resource.config?.appType === "frontend" || isApiServiceType(resource.config?.appType),
+        config: { appType: HealthTarget["appType"] };
+      } =>
+        resource.config?.appType === "frontend" ||
+        isApiServiceType(resource.config?.appType) ||
+        (includeBringYourOwn && isRoutedBringYourOwn(resource)),
     )
     .map((resource) => {
-      const base = isApiServiceType(resource.config.appType) ? apiBase : appBase;
+      const base = resolveRouteBase(resource, ingressPort);
       return {
         name: resource.name,
         appType: resource.config.appType,
@@ -147,12 +223,14 @@ export async function pingHealthTarget(
     });
     return { ...target, ok: response.ok, status: response.status };
   } catch (err: unknown) {
-    const error =
-      err instanceof Error && err.name === "TimeoutError"
-        ? `no response within ${timeoutMs}ms`
-        : err instanceof Error
-          ? err.message
-          : String(err);
+    let error: string;
+    if (err instanceof Error && err.name === "TimeoutError") {
+      error = `no response within ${timeoutMs}ms`;
+    } else if (err instanceof Error) {
+      error = err.message;
+    } else {
+      error = String(err);
+    }
     return { ...target, ok: false, error };
   }
 }

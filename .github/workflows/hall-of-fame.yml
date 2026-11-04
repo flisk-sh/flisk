@@ -39,7 +39,7 @@ jobs:
               return m ? { name: `${m[1]} ${m[2]}`, value: m[2] === 'dan' ? 100 + Number(m[1]) : 100 - Number(m[1]) } : null;
             };
 
-            // The search query below is heavy, and GitHub sometimes answers it with a
+            // The query below is heavy, and GitHub sometimes answers it with a
             // 5xx (a 502 from the GraphQL gateway is the common one) or a 429. That is
             // transient, so retry it instead of failing the run. github-script itself
             // runs with retries: 0, so without this the first 502 loses the table.
@@ -60,14 +60,18 @@ jobs:
 
             const people = new Map();
             let after = null;
+            // Not search: it stops at 1000 results, so past 1000 merged PRs the table
+            // silently lost the rest. The pullRequests connection pages through all of them.
             for (;;) {
-              const res = await retry('hall-of-fame search', () => github.graphql(
-                `query($q:String!,$after:String){search(query:$q,type:ISSUE,first:100,after:$after){
-                   pageInfo{hasNextPage endCursor}
-                   nodes{... on PullRequest{number author{login __typename} authorAssociation
-                     closingIssuesReferences(first:10){nodes{number labels(first:30){nodes{name}}}}}}}}`,
-                { q: `repo:${owner}/${repo} is:pr is:merged`, after }));
-              for (const pr of res.search.nodes) {
+              const res = await retry('hall-of-fame query', () => github.graphql(
+                `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){
+                   pullRequests(states:MERGED,first:100,after:$after){
+                     pageInfo{hasNextPage endCursor}
+                     nodes{number author{login __typename} authorAssociation
+                       closingIssuesReferences(first:10){nodes{number labels(first:30){nodes{name}}}}}}}}`,
+                { owner, repo, after }));
+              const page = res.repository.pullRequests;
+              for (const pr of page.nodes) {
                 if (!pr.author || pr.author.__typename !== 'User') continue;
                 // The Actions token often reports maintainers as CONTRIBUTOR, so list them by name too.
                 if (MAINTAINERS.includes(pr.author.login)) continue;
@@ -83,8 +87,12 @@ jobs:
                 }
                 people.set(pr.author.login, p);
               }
-              if (!res.search.pageInfo.hasNextPage) break;
-              after = res.search.pageInfo.endCursor;
+              if (!page.pageInfo.hasNextPage) break;
+              // A cursor that does not move would refetch the same page until the job times out.
+              if (!page.pageInfo.endCursor || page.pageInfo.endCursor === after) {
+                throw new Error(`Pagination cursor did not advance (after=${after}).`);
+              }
+              after = page.pageInfo.endCursor;
             }
 
             const rows = [...people.entries()].sort((a, b) =>

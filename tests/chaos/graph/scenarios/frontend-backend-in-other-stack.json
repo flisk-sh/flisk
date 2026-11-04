@@ -1,0 +1,17 @@
+{
+  "title": "a frontend whose backendName lives in another stack",
+  "why": "Tilt looked the backend up among the frontend's own stack only, so the wait edge was dropped, and `flisk up --only` left the backend out.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "addService",
+      "name": "console",
+      "stack": "extra"
+    },
+    {
+      "op": "check",
+      "only": "console"
+    }
+  ],
+  "expect": []
+}

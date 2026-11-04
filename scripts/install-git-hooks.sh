@@ -14,4 +14,9 @@ if ! git -C "${ROOT_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
   exit 0
 fi
 
+# Do not disable a contributor's existing hooks when the repository ships none.
+if [[ ! -d "${ROOT_DIR}/.githooks" ]]; then
+  exit 0
+fi
+
 git -C "${ROOT_DIR}" config core.hooksPath .githooks

@@ -1,4 +1,4 @@
-# Flisk Landscape Tilt Architecture - C4 Model
+# Flisk Tilt Architecture - C4 Model
 
 ## Level 1: System Context
 

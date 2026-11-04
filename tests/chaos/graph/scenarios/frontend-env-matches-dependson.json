@@ -1,0 +1,39 @@
+{
+  "title": "generated frontend env follows dependsOn",
+  "why": "VITE_<DEP>_API_URL used to be written for any entry (typos, stacks, Postgres) with a guessed /api/<dep>-management route that differed from VITE_API_URL for the same backend.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "addDep",
+      "owner": "storefront",
+      "entry": "ghost"
+    },
+    {
+      "op": "addDep",
+      "owner": "storefront",
+      "entry": "postgres"
+    },
+    {
+      "op": "addDep",
+      "owner": "storefront",
+      "entry": "billing"
+    },
+    {
+      "op": "check",
+      "only": "storefront"
+    },
+    {
+      "op": "removeDep",
+      "owner": "storefront",
+      "entry": "billing"
+    },
+    {
+      "op": "check",
+      "only": "storefront"
+    },
+    {
+      "op": "coldCheck"
+    }
+  ],
+  "expect": []
+}

@@ -6,7 +6,7 @@
 ## 2. Examples and external surfaces
 - [ ] 2.1 Rewrite example READMEs that open with bare `flisk project` / `flisk up`.
 - [ ] 2.2 Update the website quickstart install options (npx line first).
-- [ ] 2.3 Update the `awesome-tdk-framework` install line.
+- [ ] 2.3 Update the `awesome-flisk-framework` install line.
 
 ## 3. Verification
 - [ ] 3.1 Grep public markdown for `flisk flisk ` and npx commands with trailing `-y`; expect no hits.

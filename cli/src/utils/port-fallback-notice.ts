@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import type { HostPortPlan } from "./host-port-plan.js";
+import type { HostPortPlan } from "../types/index.js";
 
 const PORT_KEYS = [
   { key: "ingressHttp", label: "HTTP", env: "FLISK_HTTP_PORT" },

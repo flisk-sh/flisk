@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { dependsOnOf } from "./dependency-graph.js";
 import { getDeferredResourceNames } from "./doctor-runtime.js";
 import { deriveServiceStates } from "./service-runtime-state.js";
 import { deriveStackStatus } from "./stack-status.js";
@@ -8,7 +11,7 @@ export async function fetchServiceStates(services, tiltPort) {
         const text = await tiltGetUiResources(tiltPort);
         if (!text)
             return {};
-        return deriveServiceStates(text, Object.fromEntries(services.map((r) => [r.name, r.config?.dependsOn ?? []])), getDeferredResourceNames());
+        return deriveServiceStates(text, Object.fromEntries(services.map((r) => [r.name, dependsOnOf(r.config)])), getDeferredResourceNames());
     }
     catch {
         return {};

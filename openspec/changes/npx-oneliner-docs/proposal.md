@@ -6,7 +6,7 @@ Public markdown opens with bare `flisk project` / `flisk up` or with a global in
 
 - Define the canonical form `npx -y @flisk-sh/flisk <flisk-args>` (npx flags first, package name is the bin, no second `flisk` token).
 - Specify per-command host requirements so docs do not imply npx removes Docker or Tilt.
-- Rewrite first-run commands in README (all locales), `docs/README.md`, example READMEs, the website quickstart, and the `awesome-tdk-framework` install line to lead with npx; global install and curl follow as keep-it options.
+- Rewrite first-run commands in README (all locales), `docs/README.md`, example READMEs, the website quickstart, and the `awesome-flisk-framework` install line to lead with npx; global install and curl follow as keep-it options.
 
 ## Capabilities
 
@@ -26,4 +26,4 @@ Public markdown opens with bare `flisk project` / `flisk up` or with a global in
 
 - `README.md`, `README-zh_cn.md`, `README-zh_tw.md`, `README-ja.md`, `README-ko.md` (same commands, translated prose only), `docs/README.md`.
 - Example READMEs that open with bare `flisk project` / `flisk up`.
-- Website quickstart install options; `awesome-tdk-framework` install line.
+- Website quickstart install options; `awesome-flisk-framework` install line.

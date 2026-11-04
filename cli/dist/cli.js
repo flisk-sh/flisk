@@ -12,7 +12,8 @@ import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
-import { stopDemoStack } from "./utils/demo-reset.js";
+import { readProjectName, removeStaleProjectVolumes, stopDemoStack } from "./utils/demo-reset.js";
+import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
 import { bareTemplateArg } from "./utils/project-templates.js";
 const program = createProgram();
@@ -22,7 +23,7 @@ if (process.argv.length === 2) {
     console.log(formatColdPreflight(result));
     console.log("\nCommands: flisk doctor | flisk project --yes | flisk --help");
     console.log("\nOne command from scratch (clones, boots and opens the browser):");
-    console.log(`  npx -y @flisk-sh/flisk@latest demo`);
+    console.log(`  npx -y @flisk-sh/flisk@latest demo   (no Docker? it runs a small demo as local processes)`);
     console.log(`  npx -y @flisk-sh/flisk@latest restaurant --project=my-stack`);
     process.exit(result.ok ? 0 : 1);
 }
@@ -30,6 +31,23 @@ if (process.argv.length === 2) {
 // It clones a starter, installs the CLI globally, boots the stack and opens the frontend.
 const templateArg = readOptionValue(process.argv, "--template") ?? bareTemplateArg(process.argv);
 const projectArg = readOptionValue(process.argv, "--project");
+if (templateArg === "demo") {
+    // No Docker or Tilt (or native Windows, or --no-docker): run the small demo as local processes. It needs only Node, so it is
+    // decided before the Windows refusal and the Bun preflight below.
+    const { NATIVE_DEMO_DIR, nativeDemoReason, runNativeDemo } = await import("./utils/native-demo.js");
+    const reason = await nativeDemoReason({
+        argv: process.argv,
+        platform: process.platform,
+        env: process.env,
+    });
+    const binPath = process.argv[1];
+    if (reason && binPath) {
+        const destination = projectArg
+            ? resolve(cwd(), projectArg)
+            : join(homedir(), ".flisk", NATIVE_DEMO_DIR);
+        process.exit(await runNativeDemo({ destination, binPath, reason, version: pkg.version }));
+    }
+}
 if (templateArg) {
     // Native Windows cannot boot a stack, so the one-command flow refuses before it clones a
     // template, installs the CLI globally or writes into the home directory.
@@ -69,6 +87,7 @@ if (templateArg) {
         }
     }
     const destination = isAbsolute(targetName) ? targetName : resolve(cwd(), targetName);
+    console.log(chalk.gray(`📁 Demo folder: ${destination}`));
     // Reusing an existing checkout is what keeps a second take free: the clone and the
     // dependency install are skipped, so the recording starts on the interesting part.
     let reused = false;
@@ -88,7 +107,7 @@ if (templateArg) {
         }
         // Take the old stack down before its folder goes, so a Traefik left behind does not keep port 80.
         try {
-            stopDemoStack(destination);
+            await stopDemoStack(destination);
         }
         catch (error) {
             console.log(chalk.yellow(`Could not stop the previous demo stack: ${error.message}`));
@@ -167,6 +186,16 @@ if (templateArg) {
         process.exit(1);
     }
     setPhase("config", "done", Date.now() - configStarted);
+    // The setup above wrote a new database password. Data a previous run left in Docker was initialised with
+    // the old one, and Postgres would keep it, so the migrator could not log in. A kept demo keeps its password.
+    if (!reused) {
+        const projectName = readProjectName(destination);
+        if (projectName) {
+            const removed = removeStaleProjectVolumes(projectName);
+            if (removed.length > 0)
+                logLines.push(`removed stale volumes: ${removed.join(", ")}`);
+        }
+    }
     // The true service count comes from the project on disk, so the frame says "0 of 6"
     // while the stack is starting instead of "no services found".
     const discovered = discoverResourcesWithProblems(destination).resources.length;
@@ -188,6 +217,16 @@ if (templateArg) {
     // project may hold the default), so the ports that answer are looked at.
     const startStarted = Date.now();
     setPhase("start", "active");
+    // Docker out of network ranges fails `init-networks` at once and blocks every service behind it, so make room first.
+    const { ensureNetworkCapacity } = await import("./utils/demo-networks.js");
+    const capacity = await ensureNetworkCapacity();
+    if (capacity.removed.length > 0)
+        logLines.push(`removed unused networks: ${capacity.removed.join(", ")}`);
+    if (!capacity.ok) {
+        stage.fail("Docker has no free network ranges left, so the demo cannot start.", "Run `docker network prune`, or `flisk down --prune-networks` in your other Flisk projects, then run the demo again.", writeLog(logLines));
+        stage.stop();
+        process.exit(1);
+    }
     const { readStackProgress } = await import("./utils/stack-progress.js");
     const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
     const candidates = Array.from({ length: 10 }, (_, index) => 10350 + index);
@@ -258,7 +297,8 @@ if (templateArg) {
 }
 if (process.argv[2] === "--doctor")
     process.argv[2] = "doctor";
-if (process.argv.length === 3 && ["-h", "--help", "help"].includes(process.argv[2])) {
+const helpArg = process.argv[2];
+if (process.argv.length === 3 && helpArg && ["-h", "--help", "help"].includes(helpArg)) {
     showHelp();
     process.exit(0);
 }
@@ -269,12 +309,16 @@ if (unknownHelp) {
         code: "commander.unknownCommand",
     });
 }
-program.parse();
+// An async action that throws (a corrupt project.json read deep inside a command) used to end as an unhandled rejection with a
+// raw runtime stack trace; every command now fails with one error line.
+program.parseAsync().catch(handleCommandError);
 /** Reads `--name value` and `--name=value` out of the raw arguments. */
 function readOptionValue(args, name) {
     const prefix = `${name}=`;
     for (let index = 0; index < args.length; index += 1) {
         const arg = args[index];
+        if (!arg)
+            continue;
         if (arg.startsWith(prefix))
             return arg.slice(prefix.length);
         if (arg === name)

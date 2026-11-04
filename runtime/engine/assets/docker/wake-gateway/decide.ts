@@ -38,7 +38,7 @@ export interface WakeAction {
    * only queues the resource: with Tilt's build slots busy (e.g. 100+
    * resources rebuilding after a re-vendor), a triggered resource waited
    * behind them and the request timed out (observed live against
-   * tdk-erp-system, see tasks.md 7.2). server.ts falls back to `tilt trigger`
+   * flisk-erp-system, see tasks.md 7.2). server.ts falls back to `tilt trigger`
    * when no image exists yet to start from.
    */
   useComposeStart: boolean;

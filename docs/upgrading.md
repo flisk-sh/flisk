@@ -35,13 +35,13 @@ If PATH contains more than one Flisk install, run `flisk upgrade --all` to updat
 
 | Thing | Version | Where |
 | --- | --- | --- |
-| CLI, bundled engine and binaries | One number, the npm package version | `flisk version`, [CHANGELOG](../CHANGELOG.md) |
+| CLI, bundled engine and binaries | One number, the npm package version | `flisk version`, [CHANGELOG](CHANGELOG.md) |
 | `service.json` format | `schemaVersion` (currently `1`); `flisk doctor` rejects an unsupported value | [configuration](configuration.md) |
-| `--json` output of `status`, `resources`, `networks`, `doctor`, `config verify` | `schemaVersion` in the envelope | [CHANGELOG](../CHANGELOG.md) |
+| `--json` output of `status`, `resources`, `networks`, `doctor`, `config verify` | `schemaVersion` in the envelope | [CHANGELOG](CHANGELOG.md) |
 | `.flisk/project.json` | No format version; optional `minFliskVersion` | this page |
 
 ## Compatibility policy
 
 There is no written semver promise yet. What the changelog shows in practice: a flag that is going away is kept for a while and named with its removal version (for example `networks --json-legacy`, kept through 1.4.x and scheduled for removal in 1.5.0). Read the changelog's **Unreleased** and version sections before bumping `minFliskVersion`.
 
-Not written down yet: how long a deprecated field keeps working, and whether an older `service.json` is migrated automatically. After an upgrade, run `flisk config verify` and `flisk doctor`; they report generated files that drifted and manifests that no longer validate.
+Not written down yet: how long a deprecated field keeps working, and whether an older `service.json` is migrated automatically. After an upgrade, run `flisk config verify` and `flisk doctor`; they report generated files that drifted and manifests that no longer validate. If a stack is already running when you run `flisk config regenerate`, restart it (`flisk down && flisk up`) so Tilt applies any changes to the enabled resource list (`flisk status` reports resources that stayed `Disabled` in `tilt.staleDisabled`, and `flisk doctor` lists them in its Tilt check message).

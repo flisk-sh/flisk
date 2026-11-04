@@ -16,7 +16,7 @@ This RFC resolves [#1757](https://github.com/flisk-sh/flisk/issues/1757) by eval
 
 ### Modified Capabilities
 
-- `native-windows-cli`: Formally codifies the inspection-only scope for native Windows AMD64 and preserves the `TDK_ALLOW_NATIVE_WINDOWS=1` escape hatch for experimental exploration.
+- `native-windows-cli`: Formally codifies the inspection-only scope for native Windows AMD64 and preserves the `FLISK_ALLOW_NATIVE_WINDOWS=1` escape hatch for experimental exploration.
 
 ## Non-goals
 

@@ -6,10 +6,21 @@
  * published CLI small; the protocol surface used here is stable across the listed protocol versions.
  */
 
+/** Behavior hints a client shows or uses to decide whether to ask before calling a tool (MCP 2025-03-26 and later). */
+export interface McpToolAnnotations {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 export interface McpTool {
   name: string;
+  /** Former names that tools/call still accepts, so older agent configs keep working; tools/list shows only `name`. */
+  aliases?: readonly string[];
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: McpToolAnnotations;
   handler: (args: Record<string, unknown>) => Promise<McpToolResult>;
 }
 
@@ -48,11 +59,21 @@ export interface McpServer {
   handleLine(line: string): Promise<string | null>;
 }
 
+/** An icon a client may show next to the server (MCP Implementation.icons). */
+export interface McpIcon {
+  src: string;
+  mimeType?: string;
+  sizes?: string[];
+}
+
 export function createMcpServer(
   tools: McpTool[],
-  info: { name: string; version: string },
+  info: { name: string; version: string; icons?: McpIcon[] },
 ): McpServer {
-  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  // Aliases first, so a tool's own name always wins over another tool's former name.
+  const byName = new Map<string, McpTool>();
+  for (const tool of tools) for (const alias of tool.aliases ?? []) byName.set(alias, tool);
+  for (const tool of tools) byName.set(tool.name, tool);
 
   async function handle(message: JsonRpcRequest): Promise<string | null> {
     const isNotification = message.id === undefined;
@@ -77,10 +98,11 @@ export function createMcpServer(
         return reply(message.id, {});
       case "tools/list":
         return reply(message.id, {
-          tools: tools.map(({ name, description, inputSchema }) => ({
+          tools: tools.map(({ name, description, inputSchema, annotations }) => ({
             name,
             description,
             inputSchema,
+            ...(annotations ? { annotations } : {}),
           })),
         });
       case "tools/call": {
@@ -104,8 +126,18 @@ export function createMcpServer(
         } catch (error) {
           // A tool failure is a tool result, not a protocol error, so the model can read and react to it.
           const text = error instanceof Error ? error.message : String(error);
+          // A FliskError carries what to try next; read it by shape so this module stays dependency-free.
+          const suggestions = (error as { suggestions?: unknown } | null)?.suggestions;
+          const hints = Array.isArray(suggestions)
+            ? suggestions.filter((s): s is string => typeof s === "string")
+            : [];
           return reply(message.id, {
-            content: [{ type: "text", text }],
+            content: [
+              {
+                type: "text",
+                text: hints.length > 0 ? `${text}\n${hints.map((s) => `- ${s}`).join("\n")}` : text,
+              },
+            ],
             isError: true,
           });
         }

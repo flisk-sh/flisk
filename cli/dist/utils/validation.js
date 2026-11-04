@@ -1,5 +1,6 @@
 import { OPTIONAL_INFRA_SERVICES } from "./constants.js";
-export const KEBAB_CASE_REGEX = /^[a-z0-9-]+$/;
+// Starts and ends with a letter or digit: "-x" and "--json" (an option swallowed as a value) are not names.
+export const KEBAB_CASE_REGEX = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 function isKebabCase(value) {
     return KEBAB_CASE_REGEX.test(value);
 }
@@ -42,8 +43,18 @@ export function validateOptionalInfraService(service) {
         error: `Invalid service. Must be one of: ${OPTIONAL_INFRA_SERVICES.join(", ")}`,
     };
 }
+/**
+ * Validate that a port is a valid TCP/UDP port number (1-65535).
+ * Accepts either a number or a string representation without leading zeros.
+ */
 export function isValidPort(port) {
-    return Number.isInteger(port) && port > 0 && port <= 65535;
+    if (typeof port === "number") {
+        return Number.isInteger(port) && port >= 1 && port <= 65535;
+    }
+    if (typeof port === "string") {
+        return /^[1-9]\d{0,4}$/.test(port) && Number(port) <= 65535;
+    }
+    return false;
 }
 /**
  * Check a filesystem path segment for characters that are unsafe to use in a

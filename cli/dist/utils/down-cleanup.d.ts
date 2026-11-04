@@ -28,7 +28,31 @@ export declare function pruneProjectNetworks(projectName: string, commandRunner?
  * project's Tilt (or a Tilt the user started by hand) untouched.
  */
 export declare function findProjectTiltUpPids(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
+/**
+ * Roots of the Flisk projects that have a `tilt up` running, read from each process's `-f <root>/.flisk/.flisk-out/Tiltfile`
+ * (the Tiltfile `flisk up` passes). Lets `flisk down` find the project when it runs outside one. A root counts only while
+ * it still has `.flisk/project.json`.
+ */
+export declare function findRunningFliskProjects(platform?: NodeJS.Platform, commandRunner?: CommandRunner, isProject?: (root: string) => boolean): string[];
 export declare function stopProjectTiltUp(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
 /** Wait (up to `timeoutMs`) for the `tilt up` processes to exit after TERM, so `tilt down` does not race a live Tilt. */
 export declare function waitForTiltUpExit(tiltfilePath: string, timeoutMs?: number, findPids?: (tiltfilePath: string) => number[]): Promise<boolean>;
+/**
+ * The Compose projects Flisk generated for this project, read from the containers' `com.docker.compose.project.working_dir`
+ * label (the folder of the first compose file). Matching the folder, not the project name, keeps a project named `shop`
+ * from taking `shop-admin`'s containers.
+ */
+export declare function projectComposeProjects(projectRoot: string, commandRunner?: CommandRunner): string[];
+export interface ComposeFallbackResult {
+    stopped: string[];
+    failed: {
+        name: string;
+        reason: string;
+    }[];
+}
+/**
+ * Stops and removes this project's containers with `docker compose -p <name> down`, for when `tilt down` cannot (its Tiltfile
+ * fails to evaluate, #2899). Volumes are kept, as `tilt down` keeps them.
+ */
+export declare function stopProjectComposeProjects(projectRoot: string, commandRunner?: CommandRunner): ComposeFallbackResult;
 export {};

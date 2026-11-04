@@ -8,7 +8,7 @@
 # ⚠️  DEVELOPER NOTICE: This is a SYSTEM CONFIG file.
 #    For human-friendly docs, see: TILT_CONFIG.md
 #
-# This file defines service discovery settings for the Flisk Landscape platform.
+# This file defines service discovery settings for the Flisk platform.
 # Discovery automatically finds and registers services from the filesystem.
 #
 # 📖 TO EDIT DISCOVERY SETTINGS:

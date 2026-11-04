@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { createConnection, createServer } from "node:net";
 import { PORT_RANGES } from "./constants.js";
+import { FliskError } from "./errors.js";
 function isPortAvailable(port) {
     return new Promise((resolve) => {
         const server = createConnection({ port, host: "127.0.0.1" }, () => {
@@ -68,8 +69,11 @@ export function assignPort(resourceType, existingResources) {
     const portRange = PORT_RANGES[resourceType];
     const assignedPort = findNextAvailablePort(usedPorts, portRange);
     if (assignedPort === null) {
-        throw new Error(`No available ports in range ${portRange.base}-${portRange.max}. ` +
-            "Check TILT_RESOURCE_DEFAULTS.star for port configuration.");
+        throw new FliskError(`No available ports in range ${portRange.base}-${portRange.max}. ` +
+            "Check TILT_RESOURCE_DEFAULTS.star for port configuration.", [
+            "See which ports are assigned with: flisk resources",
+            "Remove a resource you no longer use, or set a free port with --port",
+        ]);
     }
     return assignedPort;
 }

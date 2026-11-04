@@ -1,6 +1,6 @@
 ## Context
 
-Flisk targets fast, deterministic local development using Docker and Tilt. Native Windows AMD64 CLI support (`tdk.exe`) provides full inspection, diagnostics (`doctor`), scaffolding (`project`), upgrade, and completions. However, running multi-service topologies locally on native Windows introduces significant orchestration frictions due to differences in process signalling, filesystem watching, Starlark POSIX execution, Docker named pipes, and wildcard DNS.
+Flisk targets fast, deterministic local development using Docker and Tilt. Native Windows AMD64 CLI support (`flisk.exe`) provides full inspection, diagnostics (`doctor`), scaffolding (`project`), upgrade, and completions. However, running multi-service topologies locally on native Windows introduces significant orchestration frictions due to differences in process signalling, filesystem watching, Starlark POSIX execution, Docker named pipes, and wildcard DNS.
 
 ## Decisions
 
@@ -11,4 +11,4 @@ Flisk targets fast, deterministic local development using Docker and Tilt. Nativ
 3. **Establish a Strict Acceptance Matrix for Future Re-evaluation:**
    Any future reconsideration of native Windows runtime execution must satisfy gates G1–G6 covering POSIX-free Tilt topologies, Windows Job Object cancellation, volume path mapping, non-elevated loopback DNS, dynamic port exclusion handling, and passing Windows hardware E2E CI.
 4. **Preserve the Escape Hatch:**
-   `TDK_ALLOW_NATIVE_WINDOWS=1` is preserved for experimental testing and contributor investigation.
+   `FLISK_ALLOW_NATIVE_WINDOWS=1` is preserved for experimental testing and contributor investigation.

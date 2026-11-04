@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, DoctorAction, HostPortPlan } from "../types/index.js";
 import type { HostInfo } from "./agent-host.js";
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
-import type { DoctorAction } from "./doctor-fix.js";
-import type { HostPortPlan } from "./host-port-plan.js";
+import type { DockerBuildCacheReport } from "./docker-build-cache.js";
+import { type RankedFix, rankDoctorFixes } from "./doctor-fix-first.js";
 import { SCHEMA_VERSION } from "./machine-output.js";
 
 export interface DoctorError {
@@ -18,14 +18,19 @@ export interface DoctorReport {
     ready: boolean;
     inProject: boolean;
     checks: CheckResult[];
+    capabilities?: string[];
+    /** Present only when a failing check has a runnable command: most blocking first. */
+    fixFirst?: RankedFix[];
     /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
     actions?: DoctorAction[];
     host?: HostInfo & { containerRuntimeReachable: boolean | null };
+    buildCache?: DockerBuildCacheReport;
     ports?: {
       http: { requested: number; chosen: number | null; explicit: boolean; reason: string };
       https: { requested: number; chosen: number | null; explicit: boolean; reason: string };
-      postgres: { requested: number; chosen: number | null; explicit: boolean; reason: string };
+      postgres?: { requested: number; chosen: number | null; explicit: boolean; reason: string };
     };
+    observed?: unknown;
   };
   errors: DoctorError[];
 }
@@ -70,7 +75,18 @@ export function createDoctorReport(
   errors: DoctorError[] = [],
   portPlan?: HostPortPlan | null,
   host?: HostInfo,
+  capabilities?: string[],
+  buildCache?: DockerBuildCacheReport,
 ): DoctorReport {
+  const fixFirst = rankDoctorFixes(checks);
+  const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
+  const detectedBuildCache =
+    buildCache ??
+    (
+      checks.find((check) => check.name === "Docker Build Cache") as
+        | (CheckResult & { buildCache?: DockerBuildCacheReport })
+        | undefined
+    )?.buildCache;
   return {
     schemaVersion: SCHEMA_VERSION,
     data: {
@@ -79,6 +95,10 @@ export function createDoctorReport(
         checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
       inProject,
       checks,
+      ...(capabilities ? { capabilities } : {}),
+      ...(observedOwner ? { observed: observedOwner } : {}),
+      ...(fixFirst.length > 0 ? { fixFirst } : {}),
+      ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
       ...(host
         ? {
             host: {
@@ -92,23 +112,28 @@ export function createDoctorReport(
         ? {
             ports: {
               http: {
-                requested: portPlan?.requested.ingressHttp ?? 80,
+                requested: portPlan?.requested?.ingressHttp ?? 80,
                 chosen: portPlan?.ingressHttp ?? null,
-                explicit: portPlan?.explicit.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
-                reason: portPlan?.reason.ingressHttp ?? "port planning failed",
+                explicit: portPlan?.explicit?.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
+                reason: portPlan?.reason?.ingressHttp ?? "port planning failed",
               },
               https: {
-                requested: portPlan?.requested.ingressHttps ?? 443,
+                requested: portPlan?.requested?.ingressHttps ?? 443,
                 chosen: portPlan?.ingressHttps ?? null,
-                explicit: portPlan?.explicit.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
-                reason: portPlan?.reason.ingressHttps ?? "port planning failed",
+                explicit: portPlan?.explicit?.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
+                reason: portPlan?.reason?.ingressHttps ?? "port planning failed",
               },
-              postgres: {
-                requested: portPlan?.requested.postgres ?? 5432,
-                chosen: portPlan?.postgres ?? null,
-                explicit: portPlan?.explicit.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
-                reason: portPlan?.reason.postgres ?? "port planning failed",
-              },
+              ...(capabilities && !capabilities.includes("database")
+                ? {}
+                : {
+                    postgres: {
+                      requested: portPlan?.requested?.postgres ?? 5432,
+                      chosen: portPlan?.postgres ?? null,
+                      explicit:
+                        portPlan?.explicit?.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
+                      reason: portPlan?.reason?.postgres ?? "port planning failed",
+                    },
+                  }),
             },
           }
         : {}),
@@ -119,5 +144,6 @@ export function createDoctorReport(
 
 /** 0: ready (warnings permitted), 1: blocking findings, 2: usage/internal failure. */
 export function getDoctorExitCode(report: DoctorReport): 0 | 1 | 2 {
-  return report.errors.length > 0 ? 2 : report.data.ready ? 0 : 1;
+  if (report.errors.length > 0) return 2;
+  return report.data.ready ? 0 : 1;
 }

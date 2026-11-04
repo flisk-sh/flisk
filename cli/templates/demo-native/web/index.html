@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menu Radar</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #08080c; --surface: #111117; --surface-2: #17171f; --text: #ececf1;
+    --muted: rgba(236, 236, 241, 0.7); --faint: rgba(236, 236, 241, 0.48);
+    --line: rgba(255, 255, 255, 0.08); --line-strong: rgba(255, 255, 255, 0.2); --grid: rgba(255, 255, 255, 0.05);
+    --accent: #22c55e; --accent-text: #6ee7a0; --accent-tint: rgba(34, 197, 94, 0.12);
+    --chef: #22c55e; --popular: #38bdf8; --new: #f59e0b; --soldout: #f43f5e;
+    --starters: #f59e0b; --pizza: #f43f5e; --mains: #38bdf8; --desserts: #a855f7; --drinks: #2dd4bf;
+    --font-body: "Satoshi", "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #f6f6f4; --surface: #ffffff; --surface-2: #f0f0ed; --text: #16161a; --muted: #52525b; --faint: #71717a;
+      --line: rgba(0, 0, 0, 0.09); --line-strong: rgba(0, 0, 0, 0.22); --grid: rgba(0, 0, 0, 0.06);
+      --accent-text: #15803d; --accent-tint: rgba(34, 197, 94, 0.1);
+      --chef: #16a34a; --popular: #0284c7; --new: #d97706; --soldout: #e11d48;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text); font: 15px/1.5 var(--font-body);
+    background-color: var(--bg);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  .logo { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: #04120a; font: 700 13px var(--font-mono); }
+  header b { font-weight: 700; }
+  header .count { color: var(--faint); font-size: 13px; }
+  .badge { margin-left: auto; padding: 5px 12px; border-radius: 999px; background: var(--accent-tint); color: var(--accent-text); border: 1px solid rgba(34, 197, 94, 0.35); font: 500 12px var(--font-mono); }
+  main { max-width: 92rem; margin: 0 auto; padding: 18px 20px 40px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .lede { margin: 0 0 16px; color: var(--muted); }
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: 500 14px var(--font-body); cursor: pointer; }
+  .pill:hover { border-color: var(--line-strong); }
+  .pill[aria-pressed="true"] { background: var(--accent-tint); border-color: var(--accent); }
+  .pill .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .pill .n { color: var(--faint); font: 12px var(--font-mono); }
+  .total { margin-left: auto; color: var(--faint); font: 13px var(--font-mono); }
+  .card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 20px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--surface) 80%, transparent); }
+  svg { width: 100%; height: auto; max-height: 560px; display: block; }
+  .ring-label { fill: var(--faint); font: 600 9px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+  .sector-label { font: 600 9px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; }
+  .blip { cursor: pointer; transition: r 0.15s; }
+  .blip:hover, .blip.hot { r: 7; }
+  .blip.dim { opacity: 0.15; }
+  .rings { display: flex; flex-direction: column; gap: 18px; max-height: 560px; overflow: auto; }
+  .ring h2 { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 16px; }
+  .ring h2 span { color: var(--faint); font: 12px var(--font-mono); }
+  .ring p { margin: 2px 0 8px; color: var(--muted); font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid; background: var(--surface-2); font-size: 13px; cursor: default; }
+  .chip .price { color: var(--faint); font: 11px var(--font-mono); }
+  .chip.hot { background: var(--accent-tint); }
+  .chip.soldout { text-decoration: line-through; color: var(--faint); }
+  .error { color: var(--soldout); }
+  footer { margin-top: 18px; color: var(--faint); font-size: 13px; }
+  code { padding: 1px 6px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); font: 12px var(--font-mono); color: var(--text); }
+  @media (max-width: 820px) { .card { grid-template-columns: 1fr; } .rings { max-height: none; } .badge { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">&gt;_</span>
+  <b>Flisk Bistro</b>
+  <span class="count" id="count">loading…</span>
+  <span class="badge">2 services · local processes · no Docker</span>
+</header>
+<main>
+  <h1>Tonight's menu</h1>
+  <p class="lede">This page and the menu API are two services Flisk started as local processes. The dishes come from <code>/api/menu</code>.</p>
+  <div class="filters" id="filters"></div>
+  <div class="card">
+    <svg id="radar" viewBox="-300 -300 600 600" role="img" aria-label="Menu radar: dishes by course and status"></svg>
+    <div class="rings" id="rings"><p>Loading the menu from the API…</p></div>
+  </div>
+  <footer>
+    The dishes live in <code>api/server.mjs</code>. Stop the demo with <code>flisk down</code>.
+    With Docker and Tilt installed, <code>npx @flisk-sh/flisk demo</code> starts the full restaurant demo with Postgres and live reload.
+  </footer>
+</main>
+<script>
+  const RINGS = [
+    { id: "chef", label: "Chef's pick", blurb: "What the kitchen is proudest of tonight." },
+    { id: "popular", label: "Popular", blurb: "Ordered at most tables this week." },
+    { id: "new", label: "New", blurb: "On the menu since this week. Try it first." },
+    { id: "soldout", label: "Sold out", blurb: "Gone for tonight. Back tomorrow." },
+  ];
+  const COURSES = ["Starters", "Pizza", "Mains", "Desserts", "Drinks"];
+  const color = (name) => `var(--${name.toLowerCase()})`;
+  const svgNs = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs = {}, text) => {
+    const node = document.createElementNS(svgNs, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    if (text) node.textContent = text;
+    return node;
+  };
+  // A stable pseudo-random number per dish, so a dish keeps its place on every load.
+  const seeded = (text, salt) => {
+    let hash = 2166136261 ^ salt;
+    for (const char of text) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    return ((hash >>> 0) % 1000) / 1000;
+  };
+
+  let menu = [];
+  let course = "All";
+
+  function drawRadar() {
+    const svg = document.getElementById("radar");
+    svg.replaceChildren();
+    const radii = [80, 150, 210, 260];
+    radii.slice().reverse().forEach((radius, index) => {
+      svg.append(el("circle", { r: radius, fill: `rgba(34,197,94,${0.025 + index * 0.012})`, stroke: "var(--line)" }));
+    });
+    RINGS.forEach((ring, index) => {
+      svg.append(el("text", { x: 0, y: -radii[index] + 14, "text-anchor": "middle", class: "ring-label" }, ring.label));
+    });
+    const step = (Math.PI * 2) / COURSES.length;
+    COURSES.forEach((name, index) => {
+      const angle = -Math.PI / 2 + index * step;
+      svg.append(el("line", { x1: 0, y1: 0, x2: Math.cos(angle) * 262, y2: Math.sin(angle) * 262, stroke: "var(--line)" }));
+      const mid = angle + step / 2;
+      svg.append(el("text", {
+        x: Math.cos(mid) * 282, y: Math.sin(mid) * 282, "text-anchor": "middle", "dominant-baseline": "middle",
+        class: "sector-label", fill: color(name),
+      }, name));
+    });
+    for (const dish of menu) {
+      const ring = RINGS.findIndex((r) => r.id === dish.status);
+      const sector = COURSES.indexOf(dish.course);
+      const inner = ring === 0 ? 14 : radii[ring - 1] + 12;
+      const outer = radii[ring] - 22;
+      const radius = inner + seeded(dish.name, 1) * (outer - inner);
+      const angle = -Math.PI / 2 + sector * step + (0.15 + seeded(dish.name, 2) * 0.7) * step;
+      const blip = el("circle", {
+        cx: (Math.cos(angle) * radius).toFixed(1), cy: (Math.sin(angle) * radius).toFixed(1), r: 5,
+        fill: color(dish.course), class: "blip", "data-name": dish.name,
+      });
+      blip.append(el("title", {}, `${dish.name} · ${dish.course} · €${dish.price.toFixed(2)}`));
+      if (course !== "All" && dish.course !== course) blip.classList.add("dim");
+      blip.addEventListener("mouseenter", () => highlight(dish.name, true));
+      blip.addEventListener("mouseleave", () => highlight(dish.name, false));
+      svg.append(blip);
+    }
+  }
+
+  function drawRings() {
+    const box = document.getElementById("rings");
+    box.replaceChildren();
+    for (const ring of RINGS) {
+      const dishes = menu.filter((d) => d.status === ring.id && (course === "All" || d.course === course));
+      const section = document.createElement("section");
+      section.className = "ring";
+      section.innerHTML = `<h2 style="color: var(--${ring.id})">${ring.label} <span>${dishes.length}</span></h2><p>${ring.blurb}</p>`;
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      for (const dish of dishes) {
+        const chip = document.createElement("span");
+        chip.className = `chip${dish.status === "soldout" ? " soldout" : ""}`;
+        chip.style.borderColor = `color-mix(in srgb, ${color(dish.course)} 55%, transparent)`;
+        chip.dataset.name = dish.name;
+        chip.textContent = dish.name;
+        const price = document.createElement("span");
+        price.className = "price";
+        price.textContent = `€${dish.price.toFixed(2)}`;
+        chip.append(price);
+        chip.addEventListener("mouseenter", () => highlight(dish.name, true));
+        chip.addEventListener("mouseleave", () => highlight(dish.name, false));
+        chips.append(chip);
+      }
+      section.append(chips);
+      box.append(section);
+    }
+  }
+
+  function drawFilters() {
+    const box = document.getElementById("filters");
+    box.replaceChildren();
+    for (const name of ["All", ...COURSES]) {
+      const button = document.createElement("button");
+      button.className = "pill";
+      button.setAttribute("aria-pressed", String(name === course));
+      const count = name === "All" ? menu.length : menu.filter((d) => d.course === name).length;
+      button.innerHTML = `<span class="dot" style="background: ${name === "All" ? "conic-gradient(var(--starters), var(--pizza), var(--mains), var(--desserts), var(--drinks), var(--starters))" : color(name)}"></span>${name} <span class="n">${count}</span>`;
+      button.addEventListener("click", () => { course = name; render(); });
+      box.append(button);
+    }
+    const total = document.createElement("span");
+    total.className = "total";
+    total.textContent = `${menu.length} dishes`;
+    box.append(total);
+  }
+
+  function highlight(name, on) {
+    for (const node of document.querySelectorAll(`[data-name="${CSS.escape(name)}"]`)) node.classList.toggle("hot", on);
+  }
+
+  function render() { drawFilters(); drawRadar(); drawRings(); }
+
+  fetch("/api/menu")
+    .then((response) => response.json())
+    .then((data) => {
+      menu = data.menu;
+      document.getElementById("count").textContent = `${menu.length} dishes · ${COURSES.length} courses · served by the API (pid ${data.pid})`;
+      render();
+    })
+    .catch(() => {
+      document.getElementById("rings").innerHTML = '<p class="error">The menu API is not answering. Run flisk status in the demo folder.</p>';
+    });
+</script>
+</body>
+</html>

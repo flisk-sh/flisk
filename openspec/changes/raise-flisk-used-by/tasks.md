@@ -6,27 +6,27 @@ The repositories below are audit candidates, not yet-confirmed consumers. The su
 
 | Repository | URL | Why it belongs | Suggested disposition |
 |---|---|---|---|
-| `tdk-example` | https://github.com/flisk-sh/tdk-example | Smallest official multi-service example | `devDependency` if genuine use is confirmed |
-| `tdk-saas-starter` | https://github.com/flisk-sh/tdk-saas-starter | Polished SaaS dashboard + checkout starter | `devDependency` if genuine use is confirmed |
-| `tdk-restaurant-example` | https://github.com/flisk-sh/tdk-restaurant-example | Restaurant ops example (reservations, kitchen, floor) | `devDependency` if genuine use is confirmed |
-| `tdk-user-management` | https://github.com/flisk-sh/tdk-user-management | Enterprise identity / SCIM / OIDC example | `devDependency` if genuine use is confirmed |
-| `tdk-ecommerce-example` | https://github.com/flisk-sh/tdk-ecommerce-example | Vue + Hono storefront example | `devDependency` if genuine use is confirmed |
-| `tdk-erp-system` | https://github.com/flisk-sh/tdk-erp-system | 100-service scale fixture | `devDependency` if genuine use is confirmed |
+| `flisk-example` | https://github.com/flisk-sh/flisk-example | Smallest official multi-service example | `devDependency` if genuine use is confirmed |
+| `flisk-saas-starter` | https://github.com/flisk-sh/flisk-saas-starter | Polished SaaS dashboard + checkout starter | `devDependency` if genuine use is confirmed |
+| `flisk-restaurant-example` | https://github.com/flisk-sh/flisk-restaurant-example | Restaurant ops example (reservations, kitchen, floor) | `devDependency` if genuine use is confirmed |
+| `flisk-user-management` | https://github.com/flisk-sh/flisk-user-management | Enterprise identity / SCIM / OIDC example | `devDependency` if genuine use is confirmed |
+| `flisk-ecommerce-example` | https://github.com/flisk-sh/flisk-ecommerce-example | Vue + Hono storefront example | `devDependency` if genuine use is confirmed |
+| `flisk-erp-system` | https://github.com/flisk-sh/flisk-erp-system | 100-service scale fixture | `devDependency` if genuine use is confirmed |
 | `flisk-cli-starter` | https://github.com/flisk-sh/flisk-cli-starter | Cloud-dev starter / template | `devDependency` if genuine use is confirmed |
 | `create-flisk` | https://github.com/flisk-sh/create-flisk | Landing page / create-app style starter | `devDependency` if genuine use is confirmed |
-| `tdk-agent-stack` | https://github.com/flisk-sh/tdk-agent-stack | AI agent + MCP + Postgres + NATS template | `devDependency` if genuine use is confirmed |
-| `tdk-auth-queue-email-example` | https://github.com/flisk-sh/tdk-auth-queue-email-example | OIDC + NATS + Mailpit example | `devDependency` if genuine use is confirmed |
-| `tdk-thor-storefront` | https://github.com/flisk-sh/tdk-thor-storefront | Thor Commerce storefront landscape | `devDependency` if genuine use is confirmed |
-| `tdk-person-crud-example` | https://github.com/flisk-sh/tdk-person-crud-example | Person CRUD (React/Express/Mongo/Redis/RabbitMQ) | `devDependency` if genuine use is confirmed |
+| `flisk-agent-stack` | https://github.com/flisk-sh/flisk-agent-stack | AI agent + MCP + Postgres + NATS template | `devDependency` if genuine use is confirmed |
+| `flisk-auth-queue-email-example` | https://github.com/flisk-sh/flisk-auth-queue-email-example | OIDC + NATS + Mailpit example | `devDependency` if genuine use is confirmed |
+| `flisk-thor-storefront` | https://github.com/flisk-sh/flisk-thor-storefront | Thor Commerce storefront landscape | `devDependency` if genuine use is confirmed |
+| `flisk-person-crud-example` | https://github.com/flisk-sh/flisk-person-crud-example | Person CRUD (React/Express/Mongo/Redis/RabbitMQ) | `devDependency` if genuine use is confirmed |
 | `vercel-store` | https://github.com/flisk-sh/vercel-store | Vercel-style storefront landscape | `devDependency` if genuine use is confirmed |
-| `tdk-docker-compose-example` | https://github.com/flisk-sh/tdk-docker-compose-example | CLI-in-Compose example | Audit; may be an exception |
+| `flisk-docker-compose-example` | https://github.com/flisk-sh/flisk-docker-compose-example | CLI-in-Compose example | Audit; may be an exception |
 
 Secondary audit-only candidates, generally expected not to need a package declaration:
 
-- `tdk-skills` — agent skills catalog
-- `awesome-tdk-framework` — curated links
+- `flisk-skills` — agent skills catalog
+- `awesome-flisk-framework` — curated links
 - `flisk-sh/website` / `flisk.sh` — docs and install site
-- `tdk-demo-animation` — walkthrough assets
+- `flisk-demo-animation` — walkthrough assets
 - `flisk-sh/releases` — binary releases only
 - `flisk-service-definitions` — `service.json` registry
 - `flisk-import` / `flisk-app` — related tools; audit if they invoke the CLI as a package

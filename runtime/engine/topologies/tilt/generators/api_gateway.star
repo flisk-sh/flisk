@@ -8,6 +8,7 @@
 # =============================================================================
 
 load('../../../../discovery/registry.star', 'get_app_resources', 'get_resource_aliases')
+load("../common/dependencies.star", "declared_dependencies")
 
 
 def _extract_referer_pattern(base_path, stack):
@@ -33,18 +34,17 @@ def _collect_backend_dependencies(frontend_manifest):
     if frontend_backend:
         allowed[frontend_backend] = True
 
-    manifest_deps = frontend_manifest.get('dependencies')
-    if manifest_deps == None:
-        manifest_deps = frontend_manifest.get('dependsOn', [])
-
     aliases = get_resource_aliases()
-    for dep in manifest_deps:
-        dep_name = str(dep)
+    for dep_name in declared_dependencies(frontend_manifest):
         if dep_name.endswith('-backend'):
             allowed[dep_name] = True
             continue
 
+        # RESOURCE_ALIASES maps a stack or service name to its path (a string), not to a list of resources. Iterating
+        # that string failed the whole Tiltfile for a frontend whose dependsOn named a stack.
         alias_targets = aliases.get(dep_name, [])
+        if type(alias_targets) != 'list':
+            continue
         for target in alias_targets:
             if target.endswith('-backend'):
                 allowed[target] = True

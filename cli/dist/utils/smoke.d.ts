@@ -62,7 +62,9 @@ export declare const DEFAULT_SMOKE_TIMEOUT_SECONDS = 60;
 export declare const SMOKE_RECORD_BODY_MAX_BYTES: number;
 export declare function validateSmoke(smoke: unknown): string[];
 /** One plan per routable service that declares `smoke`. Workers and BYO with exposeViaProxy false have no public route. */
-export declare function buildSmokePlans(resources: DiscoveredResource[], ingressPort?: number): SmokePlan[];
+export declare function buildSmokePlans(resources: DiscoveredResource[], ingressPort?: number, options?: {
+    gateway?: boolean;
+}): SmokePlan[];
 /**
  * The GET-only part of each smoke block, for `flisk doctor`. Doctor must never write to a service, and a step whose path reads
  * a value saved by an earlier write (`{{name}}`) cannot run on its own, so both are dropped. A service with no such steps is left out.

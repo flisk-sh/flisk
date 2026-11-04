@@ -1,0 +1,570 @@
+{
+	"competitor": "skills-sh",
+	"rows": [
+		{
+			"id": "one-command-install",
+			"name": "One-command skill install",
+			"area": "skills",
+			"offer": "One npx command downloads a skill or a whole skills repository and wires it into the user's coding agent.",
+			"source": "https://www.skills.sh/docs/cli",
+			"checked": "2026-10-27",
+			"match": [
+				"npx skills add",
+				"owner/repo"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk skills install with this command via flisk-sh/flisk-skills and `flisk project` writes its bundled skills, but Flisk has no installer for arbitrary third-party skills.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/agents/llms.txt",
+							"contains": "npx skills add flisk-sh/flisk-skills"
+						}
+					},
+					{
+						"file": "cli/src/utils/agent-skills.ts"
+					}
+				]
+			}
+		},
+		{
+			"id": "multi-agent-targets",
+			"name": "Install to many coding agents",
+			"area": "agents",
+			"offer": "The CLI detects installed agents (Claude Code, Codex, Cursor and dozens more) and writes the skill into each one's own skills folder.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/README.md",
+			"checked": "2026-10-27",
+			"match": [
+				"supports",
+				"75 more",
+				"-a, --agent"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk writes both .claude/skills (Claude Code) and .agents/skills (Codex, Cursor and others) but does not target each of the other agents' own folders.",
+				"evidence": [
+					{
+						"text": {
+							"file": "cli/src/utils/agent-skills.ts",
+							"contains": ".agents/skills"
+						}
+					},
+					{
+						"file": "docs/agents/codex.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "symlink-or-copy",
+			"name": "Symlink or copy install mode",
+			"area": "skills",
+			"offer": "Skills are installed as symlinks to one canonical copy by default, or as independent copies with a flag.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"symlink",
+				"--copy",
+				"canonical copy"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "The Flisk repo links .agents/skills to .claude/skills with symlinks, but the files `flisk project` writes into a new project are plain copies with no mode choice.",
+				"evidence": [
+					{
+						"text": {
+							"file": "scripts/sync-flisk-skills.sh",
+							"contains": "ln -sfn"
+						}
+					},
+					{
+						"file": "tests/e2e/static/skills-and-docs.sh"
+					}
+				]
+			}
+		},
+		{
+			"id": "project-or-global-scope",
+			"name": "Project or global skill scope",
+			"area": "skills",
+			"offer": "Skills install into the current project by default, or into the user's home with -g so every project sees them.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"installation scope",
+				"-g, --global"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk skills describe one project's stack and are written into that project; a global skills location is the installer's concern, not the runtime's."
+			}
+		},
+		{
+			"id": "skill-update-check",
+			"name": "Check and update installed skills",
+			"area": "skills",
+			"offer": "`skills check` reports which installed skills have newer upstream versions and `skills update` pulls only the changed ones.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"skills check",
+				"skills update",
+				"only skills that changed"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Skills `flisk project` copies into a project go stale after `flisk upgrade`, and agents then follow old command syntax, so a refresh step fits Flisk."
+			},
+			"acceptance": "`flisk upgrade` (cli/src/commands/upgrade.ts) or a `flisk project` refresh flag rewrites the project's agent skills from cli/templates/agent-skills; proved by a text check for agent-skills in upgrade.ts and a CLI test.",
+			"ice": {
+				"impact": 6,
+				"confidence": 6,
+				"ease": 5,
+				"basis": "Impact: stale skills make agents emit wrong flisk commands in every project created before an upgrade. Confidence: skills.sh docs describe update clearly, and upgrade.ts has no skills handling today. Ease: installAgentSkills in cli/src/utils/agent-skills.ts already writes the files, but upgrade needs project detection and overwrite rules."
+			}
+		},
+		{
+			"id": "npm-packaged-skills",
+			"name": "Skills shipped inside npm packages",
+			"area": "integrations",
+			"offer": "An experimental sync command links skills that a dependency ships (a root SKILL.md or skills/<name>/SKILL.md) into the project and keeps them tied to the installed version.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"experimental_sync",
+				"npm packages",
+				"skills-lock.json"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "The @flisk-sh/flisk package ships its skills only under templates/agent-skills, not at skills/<name>/SKILL.md, so npm-based skill sync cannot find them; shipping them there would keep skills versioned with the CLI."
+			},
+			"acceptance": "cli/package.json `files` includes a skills/ folder with each Flisk SKILL.md and scripts/check-npm-package.mjs asserts it; proved by file and text evidence.",
+			"ice": {
+				"impact": 4,
+				"confidence": 5,
+				"ease": 6,
+				"basis": "Impact: only users who adopt the experimental npm sync benefit, and Flisk already has flisk project and flisk-skills. Confidence: the feature is flagged experimental in the CLI docs. Ease: the skills already exist in cli/templates/agent-skills, so it is a files entry plus a package check in scripts/check-npm-package.mjs."
+			}
+		},
+		{
+			"id": "skill-md-format",
+			"name": "SKILL.md name and description format",
+			"area": "skills",
+			"offer": "A skill is a folder with a SKILL.md whose frontmatter requires a name and a description, so any agent can load it.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/creating-skills.md",
+			"checked": "2026-10-27",
+			"match": [
+				"skill.md",
+				"required fields",
+				"frontmatter"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": ".claude/skills/flisk-up/SKILL.md",
+							"contains": "name: flisk-up"
+						}
+					},
+					{
+						"text": {
+							"file": ".claude/skills/flisk-up/SKILL.md",
+							"contains": "description:"
+						}
+					},
+					{
+						"file": "scripts/scores/skills-parity.mjs"
+					}
+				]
+			}
+		},
+		{
+			"id": "skill-folder-discovery",
+			"name": "Standard skill folder discovery",
+			"area": "skills",
+			"offer": "The CLI finds skills in skills/, .claude/skills, .agents/skills and many agent-specific folders in a repository.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/creating-skills.md",
+			"checked": "2026-10-27",
+			"match": [
+				"skill discovery",
+				"skills/",
+				"skills/.curated"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": "tests/e2e/static/skills-and-docs.sh"
+					},
+					{
+						"file": ".claude/skills/flisk-up/SKILL.md"
+					},
+					{
+						"text": {
+							"file": "scripts/sync-flisk-skills.sh",
+							"contains": "skills/$name"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "claude-plugin-manifest",
+			"name": "Claude plugin manifest discovery",
+			"area": "integrations",
+			"offer": "Skills declared in .claude-plugin/marketplace.json or plugin.json are discovered too, for compatibility with Claude Code plugin marketplaces.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/creating-skills.md",
+			"checked": "2026-10-27",
+			"match": [
+				"plugin manifest discovery",
+				".claude-plugin/marketplace.json"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": ".claude-plugin/marketplace.json"
+					},
+					{
+						"text": {
+							"file": ".claude-plugin/marketplace.json",
+							"contains": "./plugins/flisk"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "internal-skill-hiding",
+			"name": "Hide work-in-progress skills",
+			"area": "skills",
+			"offer": "A metadata.internal flag in the frontmatter keeps a skill out of normal discovery unless an env var is set.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/creating-skills.md",
+			"checked": "2026-10-27",
+			"match": [
+				"metadata.internal",
+				"internal skills"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk keeps repo-only skills out of the shared set with a LOCAL list that the sync script honours, not with a per-skill frontmatter flag.",
+				"evidence": [
+					{
+						"file": ".claude/skills/LOCAL"
+					},
+					{
+						"text": {
+							"file": "scripts/sync-flisk-skills.sh",
+							"contains": "LOCAL"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "shareable-skill-bundle",
+			"name": "Whole skill set in one install",
+			"area": "skills",
+			"offer": "A repository or pack of many skills installs in one command, and users can pick individual skills with --skill.",
+			"source": "https://www.skills.sh/docs/packs",
+			"checked": "2026-10-27",
+			"match": [
+				"install every skill",
+				"one install command",
+				"--skill"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "flisk-sh/flisk-skills installs as one set and `flisk project` writes the full Flisk set, but a single skill cannot be selected through Flisk itself.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/agents/llms.txt",
+							"contains": "npx skills add flisk-sh/flisk-skills"
+						}
+					},
+					{
+						"text": {
+							"file": "cli/src/utils/agent-skills.ts",
+							"contains": "PROJECT_AGENT_SKILLS"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "hosted-pack-builder",
+			"name": "Hosted pack builder with sign-in",
+			"area": "skills",
+			"offer": "Signed-in teams build unlisted packs that mix public skills, private files and GitHub repositories behind a shareable install URL.",
+			"source": "https://www.skills.sh/docs/packs",
+			"checked": "2026-10-27",
+			"match": [
+				"create pack",
+				"sign in with vercel",
+				"unlisted"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "A hosted account service for sharing skill bundles is a directory product; Flisk is a local runtime and shares skills through a plain Git repository."
+			}
+		},
+		{
+			"id": "skills-search-find",
+			"name": "Search for skills",
+			"area": "skills",
+			"offer": "`skills find` searches the catalog interactively or by keyword, optionally limited to an owner.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"skills find",
+				"search skills",
+				"--owner"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Discovering third-party skills is the directory's job; Flisk only needs its own skills found, and llms.txt already points agents to them."
+			}
+		},
+		{
+			"id": "use-without-install",
+			"name": "Run a skill without installing",
+			"area": "skills",
+			"offer": "`skills use` prints a prompt for one skill or launches an agent with it, without writing files into the project.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"skills use",
+				"without installing"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk skills are plain Markdown an agent can read from the repository, so a separate ephemeral-use mode does not belong in the runtime."
+			}
+		},
+		{
+			"id": "skill-init-template",
+			"name": "Skill authoring template",
+			"area": "skills",
+			"offer": "`skills init` scaffolds a SKILL.md template so authors can start a new skill.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"skills init",
+				"skill template"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Authoring generic skills is not a runtime task; Flisk's own skills are written in flisk-sh/flisk-skills."
+			}
+		},
+		{
+			"id": "any-git-source",
+			"name": "Install from any Git host or archive",
+			"area": "integrations",
+			"offer": "Sources can be GitHub shorthand, any Git URL including private repositories, local paths, or zip and tar downloads.",
+			"source": "https://raw.githubusercontent.com/vercel-labs/skills/main/docs/commands.md",
+			"checked": "2026-10-27",
+			"match": [
+				"private repositories",
+				"source formats",
+				"azure repos"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Fetching skills from arbitrary sources is installer logic; Flisk does not install third-party skills."
+			}
+		},
+		{
+			"id": "leaderboard-ranking",
+			"name": "Install-based leaderboard",
+			"area": "observability",
+			"offer": "Skills are ranked all-time, trending in 24 hours and hot by install counts the CLI reports.",
+			"source": "https://www.skills.sh/",
+			"checked": "2026-10-27",
+			"match": [
+				"leaderboard",
+				"trending (24h)",
+				"hot"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Ranking public skills by usage needs a hosted service and install telemetry; Flisk is local-only and deliberately collects none."
+			}
+		},
+		{
+			"id": "telemetry-opt-out",
+			"name": "Anonymous telemetry with opt-out",
+			"area": "observability",
+			"offer": "The CLI reports anonymous install data that feeds the leaderboard, and DISABLE_TELEMETRY=1 turns it off.",
+			"source": "https://www.skills.sh/docs/cli",
+			"checked": "2026-10-27",
+			"match": [
+				"telemetry",
+				"disable_telemetry=1"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"reason": "Flisk goes further than an opt-out: the CLI sends no telemetry at all.",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/security.md",
+							"contains": "Flisk has no telemetry or analytics"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "skill-security-audits",
+			"name": "Per-skill security audit ratings",
+			"area": "security",
+			"offer": "Each listed skill gets combined audit results from three scanners, shown as safe, low, medium or high risk.",
+			"source": "https://www.skills.sh/audits",
+			"checked": "2026-10-27",
+			"match": [
+				"security audits",
+				"socket",
+				"snyk"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Auditing a public catalog of third-party skills is the directory's role; Flisk installs only its own skills."
+			}
+		},
+		{
+			"id": "own-skills-scanning",
+			"name": "Scan own skills for malicious content",
+			"area": "security",
+			"offer": "The directory runs routine audits on skill contents for malicious material and points reporters to a security contact.",
+			"source": "https://www.skills.sh/docs",
+			"checked": "2026-10-27",
+			"match": [
+				"security audits",
+				"malicious content"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk's own skills ship inside the npm package that Socket and Snyk already scan, and a scorer checks that every command in a skill exists, but no scanner reads the skill text itself.",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "badge.socket.dev"
+						}
+					},
+					{
+						"file": "scripts/scores/skills-parity.mjs"
+					}
+				]
+			}
+		},
+		{
+			"id": "catalog-api",
+			"name": "Public catalog and search API",
+			"area": "integrations",
+			"offer": "A JSON API lists the leaderboard, searches skills and returns per-skill details and audit results, authenticated with Vercel OIDC tokens.",
+			"source": "https://www.skills.sh/docs/api",
+			"checked": "2026-10-27",
+			"match": [
+				"/api/v1/skills",
+				"oidc",
+				"rate limits"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Exposing a skills catalog over an API is a hosted-directory feature, and Flisk's machine interface is its MCP server."
+			}
+		},
+		{
+			"id": "repo-page-grouping",
+			"name": "Group skills on the repo page",
+			"area": "skills",
+			"offer": "A skills.sh.json file at the repository root groups a repo's skills into titled sections on its skills.sh page.",
+			"source": "https://www.skills.sh/docs/customize",
+			"checked": "2026-10-27",
+			"match": [
+				"skills.sh.json",
+				"groupings"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "flisk-sh/flisk-skills has 20+ skills, and sections such as setup, recipes and operations would make its skills.sh page scannable."
+			},
+			"acceptance": "A skills.sh.json with groupings is mirrored by scripts/sync-flisk-skills.sh or a test checks that every grouped name exists in .claude/skills; proved by file evidence.",
+			"ice": {
+				"impact": 2,
+				"confidence": 7,
+				"ease": 5,
+				"basis": "Impact: only changes how one directory page looks. Confidence: the format is fully specified on the customize page. Ease: the file belongs in the separate flisk-skills repo, so this repo only needs a sync or parity check in scripts/sync-flisk-skills.sh."
+			}
+		},
+		{
+			"id": "install-count-badge",
+			"name": "Install count README badge",
+			"area": "observability",
+			"offer": "Repos can embed a skills.sh badge in their README that shows the install count and links to the skill page.",
+			"source": "https://www.skills.sh/docs",
+			"checked": "2026-10-27",
+			"match": [
+				"badge",
+				"skills.sh/b/owner/repo"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Flisk already shows several npm and CI badges in its README, and one for its skills would show agent-skill reach."
+			},
+			"acceptance": "README.md contains a skills.sh/b/flisk-sh/flisk-skills badge; proved by a text evidence on README.md.",
+			"ice": {
+				"impact": 2,
+				"confidence": 7,
+				"ease": 8,
+				"basis": "Impact: a small social-proof signal only. Confidence: the badge URL pattern is documented. Ease: one line in the README badge block."
+			}
+		},
+		{
+			"id": "official-publisher-listing",
+			"name": "Official publisher listing",
+			"area": "skills",
+			"offer": "An Official page lists skills published by the makers of each technology, with repository and skill counts.",
+			"source": "https://www.skills.sh/official",
+			"checked": "2026-10-27",
+			"match": [
+				"official",
+				"creator"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Being featured is an editorial decision of the directory, not something Flisk can build."
+			}
+		}
+	]
+}

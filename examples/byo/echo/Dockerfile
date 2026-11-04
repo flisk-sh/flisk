@@ -1,5 +1,5 @@
 # A minimal Echo v4 app (Echo has no project generator, so the app is the two files next to this Dockerfile).
-FROM golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 AS build
+FROM golang:1.26-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba AS build
 WORKDIR /src
 COPY go.mod main.go ./
 # `go mod tidy` resolves Echo and writes go.sum at build time, so no go.sum is committed.

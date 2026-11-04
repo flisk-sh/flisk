@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendLanguageProvider } from "./types.js";
 
 export const NODE_DEV_COMMAND = "node --watch src/index.js";
@@ -53,7 +54,7 @@ export const nodeBackendProvider: BackendLanguageProvider = {
         content: `import http from "node:http";
 
 const name = "${name}";
-const port = Number(process.env.PORT) || 3000;
+${portFromEnv()}
 
 function sendJson(res, status, data) {
   res.writeHead(status, { "Content-Type": "application/json" });

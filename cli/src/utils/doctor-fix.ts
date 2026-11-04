@@ -5,7 +5,7 @@ import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, DoctorAction } from "../types/index.js";
 import { type ColimaStatus, checkColima, nativeLimaPath, planColimaRepair } from "./colima.js";
 import { DISK_WARN_GIB } from "./doctor-host.js";
 import {
@@ -14,6 +14,7 @@ import {
   fliskNetworkPrefixes,
   projectNetworkNames,
 } from "./down-cleanup.js";
+import { FliskError } from "./errors.js";
 import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
 
@@ -22,24 +23,6 @@ const DOCKER_TIMEOUT_MS = 15_000;
 
 /** The networks `flisk doctor` creates to test capacity; an interrupted run leaves one behind. */
 const PROBE_NETWORK = /^flisk_doctor_probe_(\d+)$/;
-
-export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
-
-/** One repair `flisk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
-export interface DoctorAction {
-  id: string;
-  check: string;
-  /**
-   * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
-   * Flisk project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
-   * (Docker build cache, dangling images), only planned while free disk space is low.
-   */
-  scope: "project" | "probe" | "machine" | "host";
-  /** The exact command a user could run by hand. */
-  command: string;
-  status: DoctorActionStatus;
-  reason: string;
-}
 
 export interface DockerNetwork {
   name: string;
@@ -60,6 +43,11 @@ export interface DoctorFixDeps {
   /** What `docker builder prune` and `docker image prune` (dangling only) would reclaim. */
   reclaimable(): Promise<{ buildCache: string | null; danglingImages: number }>;
   prune(kind: "builder" | "images"): Promise<void>;
+  /**
+   * Gives the space Docker freed inside the Colima VM back to the host. Pruning only frees space inside the VM; its disk
+   * image keeps its size on the Mac until the free blocks are trimmed (`fstrim`).
+   */
+  trimColima(): Promise<void>;
   /** Starts, restarts, or repairs (native lima) the Colima VM, with a native limactl first on PATH when there is one. */
   colima(action: "start" | "restart" | "native-lima"): Promise<void>;
   /** The state of the Colima VM behind Docker. */
@@ -185,7 +173,10 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
       try {
         await run(["network", "rm", name]);
       } catch (error) {
-        throw new Error(firstLine(error));
+        throw new FliskError(firstLine(error), [
+          `See what still uses it with: docker network inspect ${name}`,
+          `Remove it by hand with: docker network rm ${name}`,
+        ]);
       }
     },
     freeDiskGib() {
@@ -222,7 +213,24 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         // Never `volume prune`, never `-a`: only the build cache and untagged images.
         await run(kind === "builder" ? ["builder", "prune", "-f"] : ["image", "prune", "-f"]);
       } catch (error) {
-        throw new Error(firstLine(error));
+        throw new FliskError(firstLine(error), [
+          `Run it by hand: docker ${kind === "builder" ? "builder" : "image"} prune -f`,
+          "Check the container engine with: flisk doctor",
+        ]);
+      }
+    },
+    async trimColima() {
+      try {
+        await execFilePromise("colima", ["ssh", "--", "sudo", "fstrim", "-av"], {
+          encoding: "utf-8",
+          timeout: 300_000,
+          windowsHide: true,
+        });
+      } catch (error) {
+        throw new FliskError(firstLine(error), [
+          "Run it by hand: colima ssh -- sudo fstrim -av",
+          "Check the container engine with: flisk doctor",
+        ]);
       }
     },
     async tiltStatus(pid) {
@@ -245,33 +253,47 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
 
 export const dockerFixDeps = createDockerFixDeps();
 
+export type ColimaRunner = (
+  file: string,
+  args: string[],
+  options: { encoding: "utf-8"; timeout: number; env?: NodeJS.ProcessEnv },
+) => Promise<unknown>;
+
 /** Starts or restarts Colima, with a native limactl first on PATH when one is installed. */
-async function runColima(action: "start" | "restart" | "native-lima"): Promise<void> {
+export async function runColima(
+  action: "start" | "restart" | "native-lima",
+  run: ColimaRunner = execFilePromise,
+  findNativeLima: () => string | undefined | null = nativeLimaPath,
+  hasFile: (path: string) => boolean = existsSync,
+): Promise<void> {
   if (action === "native-lima") {
-    let nativeDir = nativeLimaPath();
+    let nativeDir = findNativeLima();
     if (!nativeDir) {
       // No native limactl on PATH: reinstall Lima through the native Homebrew, which pulls a native build on Apple Silicon.
-      const brewBin = existsSync("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
-      await execFilePromise(brewBin, ["reinstall", "lima"], {
+      const brewBin = hasFile("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
+      await run(brewBin, ["reinstall", "lima"], {
         encoding: "utf-8",
         timeout: 300_000,
       });
-      nativeDir = nativeLimaPath();
+      nativeDir = findNativeLima();
       if (!nativeDir) {
-        throw new Error("brew reinstall lima did not provide a native limactl");
+        throw new FliskError("brew reinstall lima did not provide a native limactl", [
+          "Reinstall Lima with the arm64 Homebrew in /opt/homebrew: brew reinstall lima",
+          "Check the container engine with: flisk doctor",
+        ]);
       }
     }
     const env = nativeDir
       ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
       : process.env;
-    await execFilePromise("colima", ["start"], { encoding: "utf-8", timeout: 300_000, env });
+    await run("colima", ["start"], { encoding: "utf-8", timeout: 300_000, env });
     return;
   }
-  const nativeDir = nativeLimaPath();
+  const nativeDir = findNativeLima();
   const env = nativeDir
     ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
     : process.env;
-  await execFilePromise("colima", [action], { encoding: "utf-8", timeout: 300_000, env });
+  await run("colima", [action], { encoding: "utf-8", timeout: 300_000, env });
 }
 
 export interface PlanContext {
@@ -376,6 +398,19 @@ export async function planDoctorFixes(
         reason: `${low}; ${danglingImages} untagged image${danglingImages === 1 ? "" : "s"}`,
       });
     }
+    // Docker's data lives in the Colima VM; its disk image does not shrink by itself, so the freed space stays
+    // unavailable to macOS until the VM trims it. This runs after the prunes above.
+    const colima = deps.colimaStatus();
+    if (colima.isColima && colima.running) {
+      actions.push({
+        id: "trim:colima",
+        check: "Disk Space",
+        scope: "host",
+        command: "colima ssh -- sudo fstrim -av",
+        status: "planned",
+        reason: `${low}; Docker data lives in the Colima VM, whose disk image keeps its size on the Mac until it is trimmed`,
+      });
+    }
   }
   const own = new Set(projectName ? projectNetworkNames(projectName) : []);
   const prefixes = fliskNetworkPrefixes(networks.map((network) => network.name));
@@ -459,6 +494,11 @@ export async function applyDoctorFixes(
       continue;
     }
     try {
+      if (action.id === "trim:colima") {
+        await deps.trimColima();
+        results.push({ ...action, status: "applied", reason: "trimmed" });
+        continue;
+      }
       if (action.id.startsWith("prune:")) {
         await deps.prune(action.id === "prune:builder" ? "builder" : "images");
         results.push({ ...action, status: "applied", reason: "pruned" });

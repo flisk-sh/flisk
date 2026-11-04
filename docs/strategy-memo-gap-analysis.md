@@ -114,7 +114,7 @@ Status key: **Shipped**, **Partial**, **Not shipped**, **Not recommended / low v
 
 ### 7a. `flisk agent context`: Not shipped
 
-- **Current state:** `flisk agent` has one subcommand: `sessions <resource>` (`cli/src/commands/agent.ts:63`). The MCP server exposes `list_agents` and `get_agent_sessions` (`cli/src/mcp/tools.ts:365,378`). No context emitter.
+- **Current state:** `flisk agent` has one subcommand: `sessions <resource>` (`cli/src/commands/agent.ts:63`). The MCP server exposes `list_agents` and `get_agent_sessions` (`cli/src/mcp/tools.ts:365,378`; since renamed `agent_list` and `agent_sessions`, with the old names still accepted). No context emitter.
 - **Evidence:** `cli/src/commands/agent.ts`; `cli/src/commands/__tests__/agent-sessions.test.ts`, `resource-agent.test.ts`; `cli/src/mcp/tools.ts`.
 - **Gap:** The data is mostly already computed. `agent.ts` imports `buildServicePorts`, `getHostPortPlan`, and `createDiscoveryContext`. A compact topology file (services, ports, dependencies, health URLs) could be built from those.
 - **User-visible benefit:** Coding agents get a constrained, accurate description of the local stack. This is the memo's main wedge.

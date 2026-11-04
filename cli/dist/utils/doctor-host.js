@@ -8,9 +8,13 @@ const GIB = 1024 ** 3;
 // stops answering while the Docker Desktop app keeps running, so `flisk up` waits with no visible error.
 export const DISK_FAIL_GIB = 2;
 export const DISK_WARN_GIB = 10;
+/** The first cleanup offered: Docker's build cache only, safe while a stack is running. */
+export const DISK_SAFE_CLEANUP = "docker builder prune -f";
 export const DISK_CLEANUP_FIX = [
-    "Free disk space, then retry: flisk doctor",
-    "  docker system prune -af        # unused images and build cache (needs Docker running)",
+    "This is about the machine, not the project: free disk space, then retry: flisk doctor",
+    `  ${DISK_SAFE_CLEANUP}        # build cache only; keeps images, containers and volumes`,
+    "  docker image prune -f          # dangling images only",
+    "  docker system prune -af        # last resort: every unused image, rebuilt on the next flisk up",
     "  npm cache clean --force",
     "  bun pm cache rm",
     "  brew cleanup -s",

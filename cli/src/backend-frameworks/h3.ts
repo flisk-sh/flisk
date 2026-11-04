@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
 export function getH3IndexTemplate(name: string) {
@@ -22,7 +23,7 @@ router.get('/', defineEventHandler(() => ({
 
 app.use(router);
 
-const port = Number(process.env.PORT || 3000);
+${portFromEnv()}
 
 // node:http works on Bun. Bind beyond loopback: Traefik reaches the container over the Docker network.
 createServer(toNodeListener(app)).listen(port, '0.0.0.0', () => {

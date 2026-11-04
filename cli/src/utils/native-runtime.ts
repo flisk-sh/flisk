@@ -1,0 +1,969 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { connect } from "node:net";
+import { basename, join } from "node:path";
+import chalk from "chalk";
+import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
+import { dependsOnOf } from "./dependency-graph.js";
+import { parseEnv } from "./env-validator.js";
+import { FliskError } from "./errors.js";
+import {
+  clearMigratorOutputs,
+  getMigratorOutputPath,
+  parseMigratorOutputFile,
+  prepareMigratorOutputFile,
+  resolveMigratorOutputsInEnv,
+  validateMigratorOutputReferences,
+} from "./migrator-output.js";
+import {
+  dockerRunArgs,
+  dockerRunLine,
+  isNativeContainerService,
+  nativeContainerName,
+  removeNativeContainers,
+} from "./native-container.js";
+import { commandProgram } from "./native-service.js";
+import { findProjectRoot } from "./paths.js";
+import {
+  healthCheckPathOf,
+  isHealthCheckDisabled,
+  type ReadinessProbe,
+  readinessProbeOf,
+} from "./service-manifest.js";
+import { findOnPath } from "./which.js";
+
+/**
+ * The native runtime (#2229): `flisk up` starts every selected `command` service as a local process and supervises it, with no
+ * Docker and no Tilt. It runs in the foreground like `tilt up` does: Ctrl+C (or `flisk down` from another terminal) stops it.
+ *
+ * - Services start in `dependsOn` order: a service starts once everything it depends on is ready.
+ * - Ready means the health URL answers (`healthCheckPath` on `port`), else the port accepts connections, else the process is
+ *   still alive after a second.
+ * - Output is prefixed with the service name and also appended to `.flisk/native/logs/<service>.log`.
+ * - A process that exits is restarted with a growing delay, unless the service sets `"restart": "no"`. Five quick crashes in a
+ *   row stop the restarts.
+ * - `.flisk/native/run.json` records the supervisor and service process ids so `flisk down` can stop a run it did not start.
+ */
+
+/** Everything the supervisor needs to start one service. */
+export interface NativeServicePlan {
+  name: string;
+  command: string;
+  /** The service directory: the command runs from where its service.json is. */
+  cwd: string;
+  port?: number;
+  /** The service's own environment (`env` from service.json, expanded) plus PORT. The process also inherits the shell's. */
+  env: Record<string, string>;
+  /** Raw unexpanded env map from service.json, preserved so ${migrator:KEY} can be resolved at runtime. */
+  rawEnv?: Record<string, string>;
+  dependsOn: string[];
+  /** Polled until it answers below 400 before dependents start. */
+  healthUrl?: string;
+  /** What `flisk up` prints for the service. */
+  url?: string;
+  restart: boolean;
+  /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
+  healthCheckDisabled?: boolean;
+  /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
+  readiness?: ReadinessProbe;
+  /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
+  job?: boolean;
+  /** The container name when the service is a ready-made `image` that `docker run` starts in a mixed run. */
+  container?: string;
+}
+
+/** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
+export function isOneShotJob(config: ResourceConfig | undefined): boolean {
+  if (!config) return false;
+  if (config.appType === "migrator") return true;
+  return config.appType === "bring-your-own" && config.restart === "no";
+}
+
+/** The directory, under the project's .flisk/, that holds the run state and log files. */
+export const NATIVE_DIR = join(".flisk", "native");
+const RUN_FILE = "run.json";
+
+const DEFAULT_READY_TIMEOUT_MS = 60_000;
+const ALIVE_GRACE_MS = 1_000;
+const STOP_TIMEOUT_MS = 5_000;
+const MAX_QUICK_CRASHES = 5;
+/** A process that ran at least this long before exiting crashed "slowly": its restart delay starts over. */
+const QUICK_CRASH_MS = 10_000;
+
+/** `http://localhost:<port>` for display and health checks. Built here so callers never hold a URL literal. */
+export function localUrl(port: number, path = ""): string {
+  return `http://localhost:${port}${path}`;
+}
+
+/**
+ * Expands `${VAR}` and `${VAR:-default}` from `vars`. An unknown variable without a default becomes an empty string, the way a
+ * shell expands it, and is reported through `onMissing` so `flisk up` can say which one.
+ */
+export function expandEnvValue(
+  value: string,
+  vars: Readonly<Record<string, string | undefined>>,
+  onMissing: (name: string) => void = () => {},
+): string {
+  return value.replace(
+    /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g,
+    (_match, name: string, fallback?: string) => {
+      const found = vars[name];
+      if (found !== undefined && found !== "") return found;
+      if (fallback !== undefined) return fallback;
+      onMissing(name);
+      return "";
+    },
+  );
+}
+
+/**
+ * Start order as waves: every service in a wave depends only on services in earlier waves. Names in `dependsOn` that are not
+ * part of the selection are ignored here (planNativeRun reports them). Throws on a cycle; the service config gate refuses
+ * cycles first, so this is a safety net.
+ */
+export function dependencyWaves(
+  services: ReadonlyArray<{ name: string; dependsOn: readonly string[] }>,
+): string[][] {
+  const names = new Set(services.map((service) => service.name));
+  const remaining = new Map(
+    services.map((service) => [service.name, service.dependsOn.filter((dep) => names.has(dep))]),
+  );
+  const done = new Set<string>();
+  const waves: string[][] = [];
+  while (remaining.size > 0) {
+    const wave = [...remaining.entries()]
+      .filter(([, deps]) => deps.every((dep) => done.has(dep)))
+      .map(([name]) => name)
+      .sort();
+    if (wave.length === 0) {
+      throw new FliskError(
+        `circular dependsOn between ${[...remaining.keys()].sort().join(", ")}`,
+        ["Remove one dependsOn entry from the cycle in those services' service.json"],
+      );
+    }
+    for (const name of wave) {
+      remaining.delete(name);
+      done.add(name);
+    }
+    waves.push(wave);
+  }
+  return waves;
+}
+
+/** The service directory's own `.env`, read only to expand `${VAR}`. A missing or unreadable file is ignored; values are never printed. */
+function readServiceDotenv(dir: string | undefined): Record<string, string> {
+  if (!dir) return {};
+  try {
+    return Object.fromEntries(parseEnv(readFileSync(join(dir, ".env"), "utf-8")));
+  } catch {
+    return {};
+  }
+}
+
+export interface NativeRunPlan {
+  services: NativeServicePlan[];
+  /** Problems that stop the run before anything starts, each naming the service. */
+  errors: string[];
+  /** `${VAR}` references that expanded to nothing, as "service: VAR". */
+  missingVars: string[];
+}
+
+/**
+ * Turns the selected `command` services into start plans and reports what would stop the run: a dependsOn that is not a service
+ * of the selection (a database or the gateway needs Docker for now), and two services on one port.
+ */
+export function planNativeRun(
+  selected: readonly DiscoveredResource[],
+  vars: Readonly<Record<string, string | undefined>> = process.env,
+  projectRoot?: string,
+  projectName?: string,
+): NativeRunPlan {
+  const root = projectRoot ?? findProjectRoot(selected[0]?.path ?? process.cwd()) ?? process.cwd();
+  const containerProject = projectName ?? basename(root);
+  const errors: string[] = [];
+  const missingVars: string[] = [];
+  const names = new Set(selected.map((resource) => resource.name));
+  const byStack = new Map<string, string[]>();
+  for (const resource of selected) {
+    if (resource.stack)
+      byStack.set(resource.stack, [...(byStack.get(resource.stack) ?? []), resource.name]);
+  }
+  const portOwners = new Map<number, string>();
+  const services = selected.map((resource): NativeServicePlan => {
+    const config = resource.config ?? ({} as NonNullable<DiscoveredResource["config"]>);
+    // The same reading as the Docker path: dependsOn plus the deprecated `dependencies`, and a stack name means its services.
+    const dependsOn: string[] = [];
+    for (const dep of dependsOnOf(config)) {
+      if (names.has(dep)) {
+        dependsOn.push(dep);
+      } else if (byStack.has(dep)) {
+        for (const member of byStack.get(dep) ?? [])
+          if (member !== resource.name) dependsOn.push(member);
+      } else {
+        errors.push(
+          `service "${resource.name}" dependsOn "${dep}", which is not a service in this project. Add a "${dep}" service with a command, or with an "image" to run it as a container (a database, a cache), or remove it from dependsOn.`,
+        );
+      }
+    }
+    const port = typeof config.port === "number" ? config.port : undefined;
+    if (port !== undefined) {
+      const owner = portOwners.get(port);
+      if (owner) errors.push(`services "${owner}" and "${resource.name}" both use port ${port}`);
+      else portOwners.set(port, resource.name);
+    }
+    const rawEnv: Record<string, string> = {};
+    for (const [key, value] of Object.entries(config.env ?? {})) {
+      rawEnv[key] = String(value);
+    }
+    try {
+      validateMigratorOutputReferences(resource.name, rawEnv, dependsOn);
+    } catch (err) {
+      if (err instanceof FliskError) errors.push(err.message);
+      else throw err;
+    }
+    const env: Record<string, string> = {};
+    // `vars` is already shell over project .env; the service directory's .env ranks below both and above the default.
+    const serviceDotenv = readServiceDotenv(resource.path);
+    for (const [key, value] of Object.entries(config.env ?? {})) {
+      env[key] = expandEnvValue(String(value), { ...serviceDotenv, ...vars, ...env }, (name) =>
+        missingVars.push(`${resource.name}: ${name}`),
+      );
+    }
+    const containerName = isNativeContainerService(resource)
+      ? nativeContainerName(containerProject, resource.name)
+      : undefined;
+    let command = String(config.command);
+    if (containerName) {
+      const run = dockerRunArgs(resource, {
+        projectName: containerProject,
+        projectRoot: root,
+        envKeys: Object.keys(env),
+      });
+      errors.push(...run.errors);
+      command = dockerRunLine(run.args, containerName);
+    }
+    const job = isOneShotJob(config) && port === undefined;
+    if (job) {
+      env.FLISK_OUTPUT = getMigratorOutputPath(root, resource.name);
+    }
+    if (port !== undefined && !containerName) env.PORT = String(port);
+    // Without a health path a service is ready once its port listens, which is what gates its dependents.
+    const healthDisabled = isHealthCheckDisabled(config);
+    const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
+    const probe = readinessProbeOf(config);
+    // A container's healthCheck.command runs inside it, as the Compose health check does.
+    const readiness =
+      containerName && probe?.kind === "command"
+        ? { kind: "command" as const, command: ["docker", "exec", containerName, ...probe.command] }
+        : probe;
+    // A one-shot job with no port (every migrator, and a "restart": "no" process that serves nothing) is ready once it exits 0.
+    // One that has a port keeps the port or health check as its readiness, like any other service.
+    return {
+      name: resource.name,
+      command,
+      cwd: resource.path,
+      port,
+      env,
+      ...(Object.keys(rawEnv).length > 0 ? { rawEnv } : {}),
+      dependsOn: [...new Set(dependsOn)],
+      healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
+      // A container with no HTTP health path is a database or a cache: print its address, not a web link.
+      url:
+        port === undefined
+          ? undefined
+          : containerName && !healthPath
+            ? `localhost:${port}`
+            : localUrl(port),
+      restart: config.restart !== "no" && !job,
+      ...(healthDisabled ? { healthCheckDisabled: true } : {}),
+      ...(readiness ? { readiness } : {}),
+      ...(job ? { job: true } : {}),
+      ...(containerName ? { container: containerName } : {}),
+    };
+  });
+  try {
+    dependencyWaves(services);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+  return { services, errors, missingVars };
+}
+
+/** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
+export function findMissingPrograms(
+  plans: readonly NativeServicePlan[],
+  find: (program: string) => string | null = findOnPath,
+  exists: (path: string) => boolean = existsSync,
+): Array<{ name: string; program: string }> {
+  const missing: Array<{ name: string; program: string }> = [];
+  for (const plan of plans) {
+    const program = commandProgram(plan.command);
+    // A shell builtin or an expression we cannot parse is left to the shell to report.
+    if (!program || ["cd", ".", "source", "true", ":"].includes(program)) continue;
+    const found = program.includes("/") ? exists(join(plan.cwd, program)) : Boolean(find(program));
+    if (!found) missing.push({ name: plan.name, program });
+  }
+  return missing;
+}
+
+/** True when something accepts TCP connections on localhost:port. */
+export function isPortListening(port: number, timeoutMs = 1_000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect({ host: "localhost", port });
+    const finish = (listening: boolean) => {
+      socket.destroy();
+      resolve(listening);
+    };
+    socket.setTimeout(timeoutMs, () => finish(false));
+    socket.once("connect", () => finish(true));
+    socket.once("error", () => finish(false));
+  });
+}
+
+async function healthAnswers(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(2_000), redirect: "manual" });
+    await response.body?.cancel();
+    return response.status < 400;
+  } catch {
+    return false;
+  }
+}
+
+/** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
+export async function waitForServiceReady(
+  plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled"> &
+    Partial<Pick<NativeServicePlan, "readiness" | "cwd" | "env">>,
+  options: { isAlive: () => boolean; timeoutMs?: number; intervalMs?: number },
+): Promise<boolean> {
+  const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS);
+  const interval = options.intervalMs ?? 250;
+  const readiness = plan.healthCheckDisabled ? undefined : plan.readiness;
+  if (!readiness && (plan.healthCheckDisabled || (!plan.healthUrl && plan.port === undefined))) {
+    await sleep(ALIVE_GRACE_MS);
+    return options.isAlive();
+  }
+  while (Date.now() < deadline) {
+    if (!options.isAlive()) return false;
+    const ready =
+      readiness?.kind === "port"
+        ? await isPortListening(readiness.port)
+        : readiness?.kind === "command"
+          ? await readinessCommandPasses(readiness.command, plan)
+          : plan.healthUrl
+            ? await healthAnswers(plan.healthUrl)
+            : await isPortListening(plan.port as number);
+    if (ready) return true;
+    await sleep(interval);
+  }
+  return false;
+}
+
+/** What a service that never became ready was waiting for. */
+function notReadyReason(plan: NativeServicePlan): string {
+  if (plan.readiness?.kind === "port") return `nothing listening on port ${plan.readiness.port}`;
+  if (plan.readiness?.kind === "command") {
+    return `healthCheck.command never exited 0: ${plan.readiness.command.join(" ")}`;
+  }
+  return plan.healthUrl
+    ? `no answer from ${plan.healthUrl}`
+    : `nothing listening on port ${plan.port}`;
+}
+
+/** How long one run of a `healthCheck.command` may take before it counts as a failed probe. */
+const READINESS_COMMAND_TIMEOUT_MS = 10_000;
+
+/** Runs a `healthCheck.command` once from the service folder with its env; true when it exits 0. */
+function readinessCommandPasses(
+  command: readonly string[],
+  plan: Partial<Pick<NativeServicePlan, "cwd" | "env">>,
+): Promise<boolean> {
+  const [file, ...args] = command;
+  if (!file) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const child = spawn(file, args, {
+      cwd: plan.cwd,
+      env: { ...process.env, ...(plan.env ?? {}) },
+      stdio: "ignore",
+    });
+    const timer = setTimeout(() => child.kill("SIGKILL"), READINESS_COMMAND_TIMEOUT_MS);
+    child.once("error", () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+    child.once("exit", (code) => {
+      clearTimeout(timer);
+      resolve(code === 0);
+    });
+  });
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+/** What `.flisk/native/run.json` holds while a native run is up. */
+export interface NativeRunState {
+  /** The `flisk up` process supervising the services. */
+  pid: number;
+  startedAt: string;
+  /** `job`: a one-shot job (a migrator, or `"restart": "no"` with no port); once it exits 0 it stays `ready` with no process. */
+  services: Record<
+    string,
+    {
+      pid?: number;
+      port?: number;
+      url?: string;
+      ready?: boolean;
+      job?: boolean;
+      /** A container started with `docker run` in a mixed run. */
+      container?: string;
+    }
+  >;
+}
+
+export function nativeRunStatePath(projectRoot: string): string {
+  return join(projectRoot, NATIVE_DIR, RUN_FILE);
+}
+
+export function nativeLogPath(projectRoot: string, service: string): string {
+  return join(projectRoot, NATIVE_DIR, "logs", `${service}.log`);
+}
+
+export function readNativeRunState(projectRoot: string): NativeRunState | null {
+  try {
+    const state = JSON.parse(readFileSync(nativeRunStatePath(projectRoot), "utf-8"));
+    return state && typeof state.pid === "number" && state.services ? state : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeNativeRunState(projectRoot: string, state: NativeRunState): void {
+  const dir = join(projectRoot, NATIVE_DIR);
+  mkdirSync(join(dir, "logs"), { recursive: true });
+  // Run state and logs are this machine's, never the project's: keep them out of git without touching the user's .gitignore.
+  const ignore = join(dir, ".gitignore");
+  if (!existsSync(ignore)) writeFileSync(ignore, "*\n");
+  writeFileSync(nativeRunStatePath(projectRoot), `${JSON.stringify(state, null, 2)}\n`);
+}
+
+/** True while the process exists (a zombie or another user's process counts as existing). */
+export function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/** Ends a process and every process it started, with `taskkill /T /F`: Windows has no process groups to signal. */
+function killWindowsTree(pid: number): void {
+  try {
+    execFileSync("taskkill", ["/pid", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+  } catch {
+    // Already gone.
+  }
+}
+
+/**
+ * Signals a service's whole process group (the shell and what it started), falling back to the process alone. On Windows a
+ * kill reaches only the shell (cmd.exe) and leaves the service it started running, so the whole process tree is ended instead.
+ */
+export function signalGroup(
+  pid: number,
+  signal: NodeJS.Signals,
+  platform: NodeJS.Platform = process.platform,
+  killTree: (pid: number) => void = killWindowsTree,
+): void {
+  if (platform === "win32") {
+    killTree(pid);
+    return;
+  }
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    try {
+      process.kill(pid, signal);
+    } catch {
+      // Already gone.
+    }
+  }
+}
+
+async function waitForExit(pid: number, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!isProcessAlive(pid)) return true;
+    await sleep(100);
+  }
+  return !isProcessAlive(pid);
+}
+
+/** SIGTERM to the process group, SIGKILL after the timeout. */
+async function stopProcessGroup(pid: number, timeoutMs = STOP_TIMEOUT_MS): Promise<void> {
+  signalGroup(pid, "SIGTERM");
+  if (!(await waitForExit(pid, timeoutMs))) signalGroup(pid, "SIGKILL");
+}
+
+/**
+ * Stops the native run recorded for this project: asks the supervising `flisk up` to stop its services, then stops any service
+ * process still alive (a supervisor killed with SIGKILL cannot stop them itself). Returns the services that were stopped.
+ */
+export async function stopNativeRun(
+  projectRoot: string,
+  options: { timeoutMs?: number } = {},
+): Promise<{ wasRunning: boolean; services: string[]; supervisorPid?: number }> {
+  const state = readNativeRunState(projectRoot);
+  if (!state) return { wasRunning: false, services: [] };
+  const timeoutMs = options.timeoutMs ?? STOP_TIMEOUT_MS * 2;
+  if (state.pid !== process.pid && isProcessAlive(state.pid)) {
+    try {
+      process.kill(state.pid, "SIGTERM");
+    } catch {
+      // Gone between the check and the signal.
+    }
+    await waitForExit(state.pid, timeoutMs);
+  }
+  for (const service of Object.values(state.services)) {
+    if (service.pid && isProcessAlive(service.pid)) await stopProcessGroup(service.pid);
+  }
+  // A `docker run` killed before it passed the stop on leaves its container running.
+  if (Object.values(state.services).some((service) => service.container)) {
+    removeNativeContainers(projectRoot);
+  }
+  rmSync(nativeRunStatePath(projectRoot), { force: true });
+  clearMigratorOutputs(projectRoot);
+  return { wasRunning: true, services: Object.keys(state.services), supervisorPid: state.pid };
+}
+
+/**
+ * Each service's state from the run on record, in the shape `flisk status` reports Tilt's: ready once it passed its readiness
+ * check, pending while it starts or the supervisor restarts it, unknown when nothing runs.
+ */
+export function nativeServiceStates(
+  projectRoot: string,
+  services: readonly string[],
+): Record<string, { status: "ready" | "pending" | "unknown"; reason?: string }> {
+  const state = readNativeRunState(projectRoot);
+  const isUp = state !== null && isProcessAlive(state.pid);
+  return Object.fromEntries(
+    services.map((name) => {
+      const service = state?.services[name];
+      if (!isUp || !service) return [name, { status: "unknown", reason: "not running" }];
+      if (!service.pid || !isProcessAlive(service.pid)) {
+        // A one-shot job is not restarted: one that exited 0 is done, one that did not has failed.
+        if (service.job) {
+          return service.ready
+            ? [name, { status: "ready", reason: "finished" }]
+            : [name, { status: "pending", reason: "the job did not exit 0" }];
+        }
+        return [name, { status: "pending", reason: "restarting" }];
+      }
+      return service.ready
+        ? [name, { status: "ready" }]
+        : [name, { status: "pending", reason: "starting" }];
+    }),
+  );
+}
+
+/** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
+export interface NativeLogLine {
+  time: string | null;
+  resource: string;
+  level: null;
+  source: null;
+  text: string;
+}
+
+/**
+ * The last `tail` lines the given services wrote, oldest first, merged across services by time. `sinceMs` drops lines older
+ * than that many milliseconds. A service that wrote nothing yet has no log file and contributes no lines.
+ */
+export function readNativeLogLines(
+  projectRoot: string,
+  services: readonly string[],
+  options: { tail: number; sinceMs?: number; now?: number },
+): NativeLogLine[] {
+  const cutoff =
+    options.sinceMs === undefined ? null : (options.now ?? Date.now()) - options.sinceMs;
+  const lines: NativeLogLine[] = [];
+  for (const resource of services) {
+    let content: string;
+    try {
+      content = readFileSync(nativeLogPath(projectRoot, resource), "utf-8");
+    } catch {
+      continue;
+    }
+    for (const raw of content.split("\n")) {
+      if (!raw) continue;
+      const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (.*)$/.exec(raw);
+      const time = match?.[1] ?? null;
+      if (cutoff !== null && (!time || Date.parse(time) < cutoff)) continue;
+      lines.push({ time, resource, level: null, source: null, text: match?.[2] ?? raw });
+    }
+  }
+  // Stable sort: lines of one service keep their order when two share a millisecond.
+  lines.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
+  return lines.slice(-options.tail);
+}
+
+const PREFIX_COLORS = [chalk.cyan, chalk.magenta, chalk.green, chalk.yellow, chalk.blue, chalk.red];
+
+/** Reports from the supervisor, so `flisk up` decides what reaches the terminal. */
+export interface SupervisorEvents {
+  /** One line of service output (no trailing newline). */
+  onLine?: (service: string, line: string, stream: "stdout" | "stderr") => void;
+  /** A lifecycle note: started, ready, exited, restarting, gave up. */
+  onNote?: (service: string, message: string) => void;
+}
+
+interface RunningService {
+  plan: NativeServicePlan;
+  child?: ChildProcess;
+  startedAt: number;
+  quickCrashes: number;
+  /** Passed its readiness check since it last started; recorded so `flisk status` can tell ready from starting. */
+  isReady: boolean;
+  gaveUp: boolean;
+  restartTimer?: NodeJS.Timeout;
+  /** Resolves with the exit code of the current process (null when a signal ended it). */
+  exited?: Promise<number | null>;
+}
+
+/** Starts and supervises the planned services. One instance per `flisk up`. */
+/**
+ * How a service.json `command` line is run: the platform shell, invoked the way Node's `shell: true` does it (`/bin/sh -c`,
+ * or `%ComSpec% /d /s /c "<line>"` on Windows), spelled out so the call does not hand an opaque flag to spawn.
+ */
+export function shellInvocation(
+  command: string,
+  platform: NodeJS.Platform = process.platform,
+  comSpec: string | undefined = process.env.ComSpec,
+): { file: string; args: string[]; windowsVerbatimArguments: boolean } {
+  if (platform === "win32") {
+    return {
+      file: comSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", `"${command}"`],
+      windowsVerbatimArguments: true,
+    };
+  }
+  return { file: "/bin/sh", args: ["-c", command], windowsVerbatimArguments: false };
+}
+
+export class NativeSupervisor {
+  private readonly services = new Map<string, RunningService>();
+  private readonly migratorOutputs = new Map<string, Record<string, string>>();
+  private readonly startedAt = new Date().toISOString();
+  private stopping = false;
+
+  constructor(
+    private readonly projectRoot: string,
+    plans: readonly NativeServicePlan[],
+    private readonly events: SupervisorEvents = {},
+    private readonly options: {
+      readyTimeoutMs?: number;
+      restartDelayMs?: number;
+      /** The environment every service starts with, before its own `env`. Defaults to the shell's. */
+      baseEnv?: Readonly<Record<string, string | undefined>>;
+    } = {},
+  ) {
+    for (const plan of plans) {
+      this.services.set(plan.name, {
+        plan,
+        startedAt: 0,
+        quickCrashes: 0,
+        gaveUp: false,
+        isReady: false,
+      });
+    }
+  }
+
+  /** The width service names are padded to in prefixed output. */
+  get prefixWidth(): number {
+    return Math.max(...[...this.services.keys()].map((name) => name.length));
+  }
+
+  /**
+   * Starts every service once its dependencies are ready. Resolves with the services that never became ready (empty when the
+   * whole selection is up); a service whose dependency failed is reported as blocked and never started.
+   */
+  async start(): Promise<Array<{ name: string; reason: string }>> {
+    this.saveState();
+    const plans = [...this.services.values()].map((service) => service.plan);
+    const ready = new Map<string, Promise<boolean>>();
+    const failures: Array<{ name: string; reason: string }> = [];
+    for (const name of dependencyWaves(plans).flat()) {
+      const service = this.services.get(name) as RunningService;
+      ready.set(
+        name,
+        (async () => {
+          const deps = await Promise.all(service.plan.dependsOn.map((dep) => ready.get(dep)));
+          if (!deps.every(Boolean)) {
+            const blockedBy = service.plan.dependsOn.filter((_dep, index) => !deps[index]);
+            failures.push({ name, reason: `not started: ${blockedBy.join(", ")} did not start` });
+            return false;
+          }
+          if (this.stopping) return false;
+          try {
+            this.resolveServiceEnv(service);
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            failures.push({ name, reason });
+            return false;
+          }
+          this.spawn(service);
+          // A one-shot job is ready when it has run to completion with exit code 0.
+          const isReady = service.plan.job
+            ? (await service.exited) === 0 && !this.stopping
+            : await waitForServiceReady(service.plan, {
+                isAlive: () => !this.stopping && !service.gaveUp,
+                timeoutMs: this.options.readyTimeoutMs,
+              });
+          if (isReady) {
+            service.isReady = true;
+            this.saveState();
+            this.events.onNote?.(name, "ready");
+          } else if (!this.stopping) {
+            failures.push({
+              name,
+              reason: service.plan.job
+                ? "the job did not exit 0; see its output above"
+                : service.gaveUp
+                  ? "kept exiting; see its output above"
+                  : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
+            });
+          }
+          return isReady;
+        })(),
+      );
+    }
+    await Promise.all(ready.values());
+    return failures;
+  }
+
+  /** Stops every service, dependents before what they depend on, and removes the run state. */
+  async stop(): Promise<void> {
+    if (this.stopping) return;
+    this.stopping = true;
+    const order = dependencyWaves([...this.services.values()].map((s) => s.plan))
+      .flat()
+      .reverse();
+    for (const name of order) {
+      const service = this.services.get(name) as RunningService;
+      if (service.restartTimer) clearTimeout(service.restartTimer);
+      const pid = service.child?.pid;
+      if (pid && service.child?.exitCode === null && service.child.signalCode === null) {
+        await stopProcessGroup(pid);
+      }
+    }
+    if ([...this.services.values()].some((service) => service.plan.container)) {
+      removeNativeContainers(this.projectRoot);
+    }
+    rmSync(nativeRunStatePath(this.projectRoot), { force: true });
+    clearMigratorOutputs(this.projectRoot);
+  }
+
+  /** The current process id of a service, for tests and diagnostics. */
+  pidOf(name: string): number | undefined {
+    return this.services.get(name)?.child?.pid;
+  }
+
+  /** Parsed outputs produced by finished migrators (for inspection and tests). */
+  outputsOf(migratorName: string): Record<string, string> | undefined {
+    return this.migratorOutputs.get(migratorName);
+  }
+
+  private resolveServiceEnv(service: RunningService): void {
+    if (!service.plan.rawEnv) return;
+    const outputsRecord: Record<string, Record<string, string>> = {};
+    for (const [k, v] of this.migratorOutputs) {
+      outputsRecord[k] = v;
+    }
+    const resolved = resolveMigratorOutputsInEnv(
+      service.plan.name,
+      service.plan.rawEnv,
+      service.plan.dependsOn,
+      outputsRecord,
+    );
+    // Only keys that reference a migrator are replaced; every other key keeps the value planNativeRun already expanded.
+    for (const [k, v] of Object.entries(resolved)) {
+      if (v === service.plan.rawEnv[k]) continue;
+      service.plan.env[k] = expandEnvValue(v, { ...process.env, ...service.plan.env });
+    }
+  }
+
+  private spawn(service: RunningService): void {
+    const { plan } = service;
+    if (plan.job) {
+      plan.env.FLISK_OUTPUT = prepareMigratorOutputFile(this.projectRoot, plan.name);
+      this.migratorOutputs.delete(plan.name);
+    }
+    service.startedAt = Date.now();
+    // `command` is a shell command line the project owner wrote in their own service.json (`PORT=1 node s.js`, `$PORT`,
+    // `a && b`), run with the same trust as an npm script or a Procfile entry; nothing from outside the project reaches it.
+    const shell = shellInvocation(plan.command);
+    const child = spawn(shell.file, shell.args, {
+      cwd: plan.cwd,
+      env: { ...(this.options.baseEnv ?? process.env), ...plan.env },
+      windowsVerbatimArguments: shell.windowsVerbatimArguments,
+      // Its own process group, so a stop reaches what the shell started too, and a Ctrl+C in the terminal reaches only
+      // `flisk up`, which then stops the services in order.
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    service.child = child;
+    service.exited = new Promise((resolve) => {
+      child.once("exit", (code) => resolve(code));
+      child.once("error", () => resolve(null));
+    });
+    this.events.onNote?.(
+      plan.name,
+      `started: ${plan.command}${child.pid ? ` (pid ${child.pid})` : ""}`,
+    );
+    this.pipeLines(plan.name, child.stdout, "stdout");
+    this.pipeLines(plan.name, child.stderr, "stderr");
+    child.once("error", (error) => {
+      this.events.onNote?.(plan.name, `could not start: ${error.message}`);
+    });
+    child.once("exit", (code, signal) => this.onExit(service, child, code, signal));
+    this.saveState();
+  }
+
+  private onExit(
+    service: RunningService,
+    child: ChildProcess,
+    code: number | null,
+    signal: NodeJS.Signals | null,
+  ): void {
+    if (this.stopping || service.child !== child) return;
+    service.isReady = false;
+    this.saveState();
+    const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
+    if (service.plan.job) {
+      service.gaveUp = code !== 0;
+      service.isReady = code === 0;
+      if (code === 0) {
+        try {
+          const outputPath = getMigratorOutputPath(this.projectRoot, service.plan.name);
+          const outputs = parseMigratorOutputFile(outputPath);
+          this.migratorOutputs.set(service.plan.name, outputs);
+        } catch (err) {
+          service.gaveUp = true;
+          service.isReady = false;
+          this.events.onNote?.(
+            service.plan.name,
+            `output file error: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      } else {
+        this.migratorOutputs.delete(service.plan.name);
+        clearMigratorOutputs(this.projectRoot, service.plan.name);
+      }
+      this.saveState();
+      this.events.onNote?.(
+        service.plan.name,
+        service.isReady ? "finished (exit code 0)" : `${how}; a job is not restarted`,
+      );
+      return;
+    }
+    if (!service.plan.restart) {
+      // A "restart": "no" service with no port that exits 0 has simply finished (a migration under another appType): not a failure.
+      service.gaveUp = !(code === 0 && service.plan.port === undefined);
+      this.events.onNote?.(service.plan.name, `${how}; not restarting ("restart": "no")`);
+      return;
+    }
+    const ranFor = Date.now() - service.startedAt;
+    service.quickCrashes = ranFor < QUICK_CRASH_MS ? service.quickCrashes + 1 : 1;
+    if (service.quickCrashes >= MAX_QUICK_CRASHES) {
+      service.gaveUp = true;
+      this.events.onNote?.(
+        service.plan.name,
+        `${how}; it exited ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`,
+      );
+      return;
+    }
+    const delay = (this.options.restartDelayMs ?? 1_000) * 2 ** (service.quickCrashes - 1);
+    this.events.onNote?.(service.plan.name, `${how}; restarting in ${delay / 1000}s`);
+    service.restartTimer = setTimeout(() => {
+      if (this.stopping) return;
+      this.spawn(service);
+      void waitForServiceReady(service.plan, {
+        isAlive: () => !this.stopping && service.child?.exitCode === null,
+        timeoutMs: this.options.readyTimeoutMs,
+      }).then((isReady) => {
+        if (!isReady || this.stopping) return;
+        service.isReady = true;
+        this.saveState();
+        this.events.onNote?.(service.plan.name, "ready again");
+      });
+    }, delay);
+  }
+
+  private pipeLines(
+    name: string,
+    stream: NodeJS.ReadableStream | null,
+    kind: "stdout" | "stderr",
+  ): void {
+    if (!stream) return;
+    const logPath = nativeLogPath(this.projectRoot, name);
+    let pending = "";
+    const emit = (line: string) => {
+      try {
+        // A timestamp per line lets `flisk logs` merge services in order and honour --since.
+        appendFileSync(logPath, `${new Date().toISOString()} ${line}\n`);
+      } catch {
+        // A full disk must not stop the service; the terminal still shows the line.
+      }
+      this.events.onLine?.(name, line, kind);
+    };
+    stream.setEncoding?.("utf-8");
+    stream.on("data", (chunk: string) => {
+      const lines = (pending + chunk).split(/\r?\n/);
+      pending = lines.pop() ?? "";
+      for (const line of lines) emit(line);
+    });
+    stream.on("end", () => {
+      if (pending) emit(pending);
+      pending = "";
+    });
+  }
+
+  private saveState(): void {
+    const services: NativeRunState["services"] = {};
+    for (const [name, service] of this.services) {
+      services[name] = {
+        pid: service.child?.pid,
+        port: service.plan.port,
+        url: service.plan.url,
+        ready: service.isReady,
+        ...(service.plan.job ? { job: true } : {}),
+        ...(service.plan.container ? { container: service.plan.container } : {}),
+      };
+    }
+    writeNativeRunState(this.projectRoot, {
+      pid: process.pid,
+      startedAt: this.startedAt,
+      services,
+    });
+  }
+}
+
+/** `name | ` in the service's color, padded so the output of several services lines up. */
+export function formatPrefix(name: string, index: number, width: number): string {
+  const color = PREFIX_COLORS[index % PREFIX_COLORS.length] ?? chalk.cyan;
+  return color(`${name.padEnd(width)} | `);
+}

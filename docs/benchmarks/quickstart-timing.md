@@ -94,3 +94,18 @@ end point. The end point is the first 200 from the orders route.
 - True cold start (empty Docker cache, first `bun install` on a fresh machine).
 - Other hosts, Docker runtimes, or CI runners.
 - Whether the 3-second claim could hold with the stack already running or with prebuilt images.
+
+## No-Docker path: two local processes
+
+Measured on 2026-10-27 for the macOS frame in the setup tabs ([`docs/tabs.json`](../tabs.json)).
+
+| Run | `flisk up` launch → both services return 200 |
+| --- | --- |
+| 1 | **0.82 s** |
+| 2 | **0.82 s** |
+| 3 | **0.98 s** |
+
+- Machine: Apple M1, 16 GB, macOS 26.5.1. flisk 1.4.7 from npm.
+- Project: the two services from the [simplest path](../start/simplest.md), an `api` (`healthCheckPath: /health`, port 4000) and a `web` that `dependsOn` it (port 3000), each a one-line `node:http` server started with `node server.js`.
+- Method: start `flisk up`, poll `http://localhost:4000/health` and `http://localhost:3000/` every 50 ms until both return 200, then `flisk down`. Three runs in a row.
+- This times Flisk starting two tiny processes. A real app's own start-up time adds to it.

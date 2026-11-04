@@ -7,8 +7,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DetailPanel, FileTree, ResourceSelectInput, ResourceTable, ServiceIssues, TabBar, TUIHeader, } from "../components/index.js";
 import { TABS } from "../components/TabBar.js";
 import { createTUITheme, sectionTitle, TUIThemeContext, useTUITheme, } from "../components/ui-theme.js";
+import { fetchAgentOverview } from "../utils/agent-sessions.js";
 import { errorFactories, requireProjectRoot } from "../utils/errors.js";
 import { readSavedHostPortPlan } from "../utils/host-port-config.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { describeSearch } from "../utils/search-status.js";
@@ -16,6 +18,7 @@ import { buildAdvertisedTargets } from "../utils/service-urls.js";
 import { clearMetadataCache, discoverResources, discoverStacks, getResourceMetadata, getStackMetadata, } from "../utils/services.js";
 import { singleFlight } from "../utils/single-flight.js";
 import { createStatusMessageController } from "../utils/status-message.js";
+import { buildServicePorts } from "../utils/status-ports.js";
 import { getListRowFromMouseY, getTerminalRuleWidth } from "../utils/terminal-layout.js";
 import { isTiltAvailable } from "../utils/tilt.js";
 import { loadTiltEvents, stripTerminalControls, TiltEventsLoadError, } from "../utils/tilt-events.js";
@@ -80,6 +83,19 @@ function formatEventDetails(value, width) {
         ? normalized.slice(0, maxLength - suffix.length).trimEnd() + suffix
         : normalized;
 }
+/**
+ * The address the agent panel reads the selected agent through: its ingress route, or localhost at its own port when every
+ * service runs as a local process. Null when the selection is not an agent or it has no address.
+ */
+export function agentRouteOf(services, selectedService, ingressPort) {
+    const resource = services.find((s) => s.name === selectedService);
+    if (!resource || (resource.config?.appType ?? resource.type) !== "agent")
+        return null;
+    const native = isNativeProject(services);
+    const ports = buildServicePorts(resource, ingressPort, { native });
+    const url = native ? ports.directUrl : ports.url;
+    return url ? { name: resource.name, url } : null;
+}
 export const TUIApp = ({ animated = true }) => {
     const theme = useTUITheme();
     const { exit } = useApp();
@@ -134,12 +150,39 @@ export const TUIApp = ({ animated = true }) => {
         });
         const poll = () => run(() => fetchServiceStates(services, tiltPort));
         void poll();
-        const timer = setInterval(() => void poll(), 5000);
+        // The agent panel rides on this same timer: the selected agent is read once per tick, never one loop per agent.
+        const timer = setInterval(() => {
+            void poll();
+            void agentPollRef.current();
+        }, 5000);
         return () => {
             cancelled = true;
             clearInterval(timer);
         };
     }, [services]);
+    // Readiness and sessions of the selected agent resource, read from the agent itself through its ingress route.
+    const [agentOverview, setAgentOverview] = useState(null);
+    const agentRoute = useMemo(() => agentRouteOf(services, selectedService, ingressPort), [services, selectedService, ingressPort]);
+    const agentPollRef = useRef(async () => { });
+    useEffect(() => {
+        if (!agentRoute) {
+            agentPollRef.current = async () => { };
+            setAgentOverview(null);
+            return;
+        }
+        let cancelled = false;
+        const run = singleFlight((overview) => {
+            if (!cancelled)
+                setAgentOverview({ name: agentRoute.name, overview });
+        });
+        agentPollRef.current = () => run(() => fetchAgentOverview(agentRoute.url));
+        setAgentOverview(null);
+        void agentPollRef.current();
+        return () => {
+            cancelled = true;
+            agentPollRef.current = async () => { };
+        };
+    }, [agentRoute]);
     // Re-read service.json files from disk. An empty project is not an error:
     // it renders EmptyState. Only a failed discovery shows ErrorScreen.
     const refresh = useCallback(() => {
@@ -648,7 +691,11 @@ export const TUIApp = ({ animated = true }) => {
                                                                                 ? theme.info
                                                                                 : theme.success, children: [formatEventTime(event.occurredAt), " ", event.resourceName, " ", event.title] }), event.details && (_jsx(Text, { color: theme.muted, children: formatEventDetails(event.details, mainPanelWidth) }))] }, event.id))) })) : (_jsx(Text, { color: theme.muted, children: "No recent build events are available from Tilt yet." }))] }))] })), activeTab === "config" && (_jsxs(_Fragment, { children: [_jsx(Box, { marginBottom: 1, children: _jsx(Text, { bold: true, color: theme.muted, children: sectionTitle(theme, "Configuration") }) }), selectedServiceData ? (_jsxs(Box, { marginTop: 1, flexDirection: "column", children: [_jsx(Text, { color: theme.accent, children: selectedServiceData.service.configPath }), _jsx(Box, { marginTop: 1, ...(theme.ascii
                                                             ? {}
-                                                            : { borderStyle: "single", borderColor: theme.border }), paddingX: 1, children: _jsx(Text, { color: theme.muted, wrap: "wrap", children: JSON.stringify(selectedServiceData.service.config, null, 2).slice(0, 1000) }) })] })) : (_jsxs(_Fragment, { children: [_jsx(Text, { color: theme.muted, children: "Select a service to view configuration" }), _jsx(Box, { marginTop: 1, children: _jsx(ResourceSelectInput, { items: items, onSelect: handleSelect, highlightedIndex: highlightedIndex, isActive: !isSearching, maxVisibleItems: pageSize, width: mainPanelWidth, onLayout: handleListLayout }) })] }))] }))] }), showSidebar && (_jsx(Box, { marginLeft: 2, children: _jsx(DetailPanel, { stack: selectedStackData?.stack || null, service: selectedServiceData?.service || null, stackMetadata: selectedStackData?.metadata || null, visible: !!selectedStack || !!selectedService }) }))] }), _jsxs(Box, { ...(theme.ascii ? {} : { borderStyle: "single", borderColor: theme.border }), paddingX: 1, height: 3, flexDirection: "column", marginTop: 1, children: [_jsxs(Box, { justifyContent: "space-between", children: [_jsxs(Text, { color: theme.accent, bold: true, children: [theme.bannerStart, " ", activeTab] }), _jsxs(Text, { color: theme.success, children: [theme.ascii ? "[+]" : "\u25cf", " ", services.filter((s) => s.stack).length, " in stack"] }), _jsxs(Text, { color: theme.warning, children: [theme.ascii ? "-" : "\u25cb", " ", services.filter((s) => !s.stack).length, " no stack"] })] }), _jsxs(Box, { justifyContent: "space-between", children: [_jsxs(Text, { color: theme.muted, children: ["Stacks: ", stacks.length] }), _jsxs(Text, { color: theme.muted, children: ["Services: ", services.length] }), _jsxs(Text, { color: theme.muted, children: [theme.ascii ? "Mouse" : "🖱️", " ", mouseEnabled ? "ON" : "OFF", theme.separator, theme.ascii ? "Info" : "ℹ️", " ", showTooltips ? "ON" : "OFF", theme.separator, _jsx(Text, { color: showEnabledOnly ? theme.success : theme.warning, children: showEnabledOnly
+                                                            : { borderStyle: "single", borderColor: theme.border }), paddingX: 1, children: _jsx(Text, { color: theme.muted, wrap: "wrap", children: JSON.stringify(selectedServiceData.service.config, null, 2).slice(0, 1000) }) })] })) : (_jsxs(_Fragment, { children: [_jsx(Text, { color: theme.muted, children: "Select a service to view configuration" }), _jsx(Box, { marginTop: 1, children: _jsx(ResourceSelectInput, { items: items, onSelect: handleSelect, highlightedIndex: highlightedIndex, isActive: !isSearching, maxVisibleItems: pageSize, width: mainPanelWidth, onLayout: handleListLayout }) })] }))] }))] }), showSidebar && (_jsx(Box, { marginLeft: 2, children: _jsx(DetailPanel, { stack: selectedStackData?.stack || null, service: selectedServiceData?.service || null, stackMetadata: selectedStackData?.metadata || null, agent: agentRoute && selectedServiceData
+                                        ? agentOverview?.name === agentRoute.name
+                                            ? agentOverview.overview
+                                            : null
+                                        : undefined, visible: !!selectedStack || !!selectedService }) }))] }), _jsxs(Box, { ...(theme.ascii ? {} : { borderStyle: "single", borderColor: theme.border }), paddingX: 1, height: 3, flexDirection: "column", marginTop: 1, children: [_jsxs(Box, { justifyContent: "space-between", children: [_jsxs(Text, { color: theme.accent, bold: true, children: [theme.bannerStart, " ", activeTab] }), _jsxs(Text, { color: theme.success, children: [theme.ascii ? "[+]" : "\u25cf", " ", services.filter((s) => s.stack).length, " in stack"] }), _jsxs(Text, { color: theme.warning, children: [theme.ascii ? "-" : "\u25cb", " ", services.filter((s) => !s.stack).length, " no stack"] })] }), _jsxs(Box, { justifyContent: "space-between", children: [_jsxs(Text, { color: theme.muted, children: ["Stacks: ", stacks.length] }), _jsxs(Text, { color: theme.muted, children: ["Services: ", services.length] }), _jsxs(Text, { color: theme.muted, children: [theme.ascii ? "Mouse" : "🖱️", " ", mouseEnabled ? "ON" : "OFF", theme.separator, theme.ascii ? "Info" : "ℹ️", " ", showTooltips ? "ON" : "OFF", theme.separator, _jsx(Text, { color: showEnabledOnly ? theme.success : theme.warning, children: showEnabledOnly
                                                     ? theme.ascii
                                                         ? "[+] enabled"
                                                         : "\u2713 enabled"

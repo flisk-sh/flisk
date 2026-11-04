@@ -1,0 +1,582 @@
+{
+	"competitor": "superset",
+	"rows": [
+		{
+			"id": "parallel-agents-worktrees",
+			"name": "Parallel agents in worktrees",
+			"area": "orchestration",
+			"offer": "Runs many coding agents side by side, each task in its own git worktree and branch.",
+			"source": "https://paradev.com/",
+			"checked": "2026-10-27",
+			"match": [
+				"parallel coding agents",
+				"own git worktree",
+				"100+"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk runs the services agents work against, not the agents or their worktrees; a workspace manager is an ADE job."
+			}
+		},
+		{
+			"id": "any-cli-agent",
+			"name": "Works with any CLI agent",
+			"area": "agents",
+			"offer": "Launches and tracks any terminal coding agent (Claude Code, Codex, OpenCode, Gemini CLI and others) plus custom ones.",
+			"source": "https://docs.paradev.com/supported-agents",
+			"checked": "2026-10-27",
+			"match": [
+				"any cli agent",
+				"claude code",
+				"codex",
+				"opencode"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk does not launch agents, but any agent that can run shell commands or speak MCP can drive it.",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "Any other agent that can run terminal commands works too"
+						}
+					},
+					{
+						"file": "docs/agents/codex.md"
+					},
+					{
+						"file": "docs/agents/cursor.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "mcp-server",
+			"name": "MCP server for agents",
+			"area": "integrations",
+			"offer": "Exposes tasks, workspaces, terminals, pages and automations to other agents over a hosted MCP server.",
+			"source": "https://docs.paradev.com/mcp-server",
+			"checked": "2026-10-27",
+			"match": [
+				"mcp server",
+				"model context protocol",
+				"launch an agent session"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk mcp"
+					},
+					{
+						"mcpTool": "up"
+					},
+					{
+						"mcpTool": "status"
+					},
+					{
+						"mcpTool": "logs"
+					}
+				]
+			}
+		},
+		{
+			"id": "agent-skills",
+			"name": "Skills agents get automatically",
+			"area": "skills",
+			"offer": "Ships skills that teach agents to set up a repo, orchestrate, automate, diagnose and file feedback, installed with the app or via npx skills.",
+			"source": "https://docs.paradev.com/skills",
+			"checked": "2026-10-27",
+			"match": [
+				"skills",
+				"npx skills add",
+				"superset:setup",
+				"superset:doctor"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"file": ".claude/skills/flisk-up/SKILL.md"
+					},
+					{
+						"file": ".claude/skills/flisk-doctor/SKILL.md"
+					},
+					{
+						"text": {
+							"file": "docs/agents/llms.txt",
+							"contains": "npx skills add flisk-sh/flisk-skills"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "repo-setup-skill",
+			"name": "Agent makes repo ready",
+			"area": "workflow",
+			"offer": "A setup skill has the agent author the project config and scripts, then verifies them in a real workspace.",
+			"source": "https://docs.paradev.com/skills",
+			"checked": "2026-10-27",
+			"match": [
+				"makes a repo",
+				"authors",
+				"config.json"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk scaffolds a project and its skills with one command, but it has no agent-authored setup that is then verified end to end.",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "`flisk project` writes the Flisk skills to `.claude/skills/`"
+						}
+					},
+					{
+						"command": "flisk project"
+					},
+					{
+						"mcpTool": "project_init"
+					}
+				]
+			}
+		},
+		{
+			"id": "doctor-diagnose",
+			"name": "Diagnose problems skill",
+			"area": "observability",
+			"offer": "A doctor skill finds expired auth, offline hosts and stale versions and fixes them one step at a time.",
+			"source": "https://docs.paradev.com/skills",
+			"checked": "2026-10-27",
+			"match": [
+				"superset:doctor",
+				"diagnoses",
+				"stale versions"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk doctor"
+					},
+					{
+						"mcpTool": "doctor"
+					},
+					{
+						"file": ".claude/skills/flisk-troubleshoot/SKILL.md"
+					}
+				]
+			}
+		},
+		{
+			"id": "activity-strip",
+			"name": "Running state per workspace",
+			"area": "observability",
+			"offer": "Shows running agents, open ports and PR state inline on each workspace in the sidebar.",
+			"source": "https://docs.paradev.com/agent-status",
+			"checked": "2026-10-27",
+			"match": [
+				"activity strip",
+				"running agents",
+				"open ports"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk status"
+					},
+					{
+						"mcpTool": "status"
+					},
+					{
+						"command": "flisk logs"
+					}
+				]
+			}
+		},
+		{
+			"id": "port-discovery",
+			"name": "Port discovery and management",
+			"area": "runtime",
+			"offer": "Discovers listening ports per workspace, lets you open or kill their process, and labels them from a committed ports file.",
+			"source": "https://docs.paradev.com/ports",
+			"checked": "2026-10-27",
+			"match": [
+				"port management",
+				"listening ports",
+				"ports.json",
+				"kill processes"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"text": {
+							"file": "docs/agents/llms.txt",
+							"contains": "Zero-Config Port Management"
+						}
+					},
+					{
+						"command": "flisk status"
+					},
+					{
+						"command": "flisk down"
+					},
+					{
+						"command": "flisk restart"
+					}
+				]
+			}
+		},
+		{
+			"id": "restartable-run",
+			"name": "Restartable run command",
+			"area": "runtime",
+			"offer": "A Run button starts long-lived dev commands in a dedicated pane that can be stopped and restarted without recreating the workspace.",
+			"source": "https://docs.paradev.com/setup-teardown-scripts",
+			"checked": "2026-10-27",
+			"match": [
+				"run button",
+				"restartable",
+				"dedicated pane"
+			],
+			"flisk": {
+				"status": "covered",
+				"scope": "in",
+				"evidence": [
+					{
+						"command": "flisk up"
+					},
+					{
+						"command": "flisk restart"
+					},
+					{
+						"mcpTool": "resource_restart"
+					}
+				]
+			}
+		},
+		{
+			"id": "lifecycle-hooks",
+			"name": "Setup and teardown scripts",
+			"area": "workflow",
+			"offer": "Runs project-defined commands in order when a workspace is created or deleted, with per-user overrides.",
+			"source": "https://docs.paradev.com/setup-teardown-scripts",
+			"checked": "2026-10-27",
+			"match": [
+				"setup",
+				"teardown",
+				"config.json"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "Flisk has no user-defined pre-up or post-down commands; one-off steps like migrations are meant to be a migrator resource, but a small hook list could cover env copying and cleanup."
+			},
+			"acceptance": "A documented hooks key in service.json or the project config, proved by a file under docs/ and an up/down test in cli/src/commands/__tests__ that runs it.",
+			"ice": {
+				"impact": 4,
+				"confidence": 5,
+				"ease": 5,
+				"basis": "impact: migrator resources already cover the main use, so only env-copy and cleanup chores gain; confidence: setup scripts are documented well but Flisk's workaround is real; ease: needs a new manifest field plus up.ts and down.ts wiring and schema docs."
+			}
+		},
+		{
+			"id": "agent-notifications",
+			"name": "Agent attention notifications",
+			"area": "observability",
+			"offer": "Notifies you with sound and dock badge when an agent finishes or waits for your input.",
+			"source": "https://docs.paradev.com/agent-status",
+			"checked": "2026-10-27",
+			"match": [
+				"finished",
+				"waiting for input",
+				"notifications",
+				"dock badge"
+			],
+			"flisk": {
+				"status": "missing",
+				"scope": "in",
+				"reason": "A desktop or terminal notice when flisk up becomes ready or a resource turns unhealthy would help people who tab away while a stack boots."
+			},
+			"acceptance": "flisk up or status --watch emits a notification, shown by a file under docs/ and a test in cli/src/commands/__tests__ for the ready and unhealthy cases.",
+			"ice": {
+				"impact": 5,
+				"confidence": 5,
+				"ease": 4,
+				"basis": "impact: waiting on a slow boot is a common annoyance but not a blocker; confidence: Paradev notifies on agent state, not service health, so the mapping is indirect; ease: no notification code exists in the CLI outside the MCP server, so it needs a new cross-platform path."
+			}
+		},
+		{
+			"id": "session-resume-fork",
+			"name": "Resume, fork and hand off sessions",
+			"area": "agents",
+			"offer": "Resumes crashed agent sessions automatically and can fork a session or pass its context to another agent.",
+			"source": "https://docs.paradev.com/agent-sessions",
+			"checked": "2026-10-27",
+			"match": [
+				"resume",
+				"fork session",
+				"continue with another agent"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk agent resources keep checkpoints that survive restarts and can be listed and read, but there is no fork or hand-off.",
+				"evidence": [
+					{
+						"mcpTool": "agent_sessions"
+					},
+					{
+						"command": "flisk agent"
+					},
+					{
+						"text": {
+							"file": "AGENTS.md",
+							"contains": "checkpoints survive restarts"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "parallel-stacks",
+			"name": "Parallel isolated environments",
+			"area": "environments",
+			"offer": "Gives each task its own workspace with its own directory, terminals and ports so many can run at once.",
+			"source": "https://docs.paradev.com/superset-model",
+			"checked": "2026-10-27",
+			"match": [
+				"workspaces",
+				"own ports",
+				"isolated"
+			],
+			"flisk": {
+				"status": "partial",
+				"scope": "in",
+				"reason": "Flisk picks collision-free host ports from bounded ranges, but running one project from several worktrees at once is not a documented workflow.",
+				"evidence": [
+					{
+						"text": {
+							"file": "README.md",
+							"contains": "Flisk selects host ports from bounded fallback ranges"
+						}
+					},
+					{
+						"command": "flisk doctor"
+					}
+				]
+			}
+		},
+		{
+			"id": "agent-orchestration",
+			"name": "Coordinator agent fans out work",
+			"area": "orchestration",
+			"offer": "A skill lets one agent create workspaces and run worker agents, reading their terminals and verifying results.",
+			"source": "https://docs.paradev.com/orchestration",
+			"checked": "2026-10-27",
+			"match": [
+				"coordinator",
+				"workers",
+				"fan out"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Coordinating several coding agents across worktrees is workspace management, not something a local service runtime does."
+			}
+		},
+		{
+			"id": "automations",
+			"name": "Scheduled and event automations",
+			"area": "workflow",
+			"offer": "Starts agent sessions on a schedule or from GitHub, Slack, Linear, Sentry, Notion, Teams or webhook events (Pro).",
+			"source": "https://docs.paradev.com/automations",
+			"checked": "2026-10-27",
+			"match": [
+				"automations",
+				"schedule",
+				"webhook",
+				"sentry"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "A hosted trigger service that dispatches agent runs belongs to a control plane, which Flisk deliberately is not."
+			}
+		},
+		{
+			"id": "cloud-workspaces",
+			"name": "Cloud workspaces",
+			"area": "environments",
+			"offer": "Runs workspaces in cloud sandboxes from per-repo environments so agents continue with the laptop closed (early access).",
+			"source": "https://docs.paradev.com/cloud-workspaces",
+			"checked": "2026-10-27",
+			"match": [
+				"cloud workspace",
+				"sandbox",
+				"environment"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is local by design and does not host sandboxes."
+			}
+		},
+		{
+			"id": "remote-access-relay",
+			"name": "Remote access through a relay",
+			"area": "environments",
+			"offer": "Reaches workspaces on another machine through a hosted relay, with forwarded ports.",
+			"source": "https://docs.paradev.com/remote-access",
+			"checked": "2026-10-27",
+			"match": [
+				"remote access",
+				"relay",
+				"another machine"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk runs on the machine in front of you; reaching other hosts is a hosted-service concern."
+			}
+		},
+		{
+			"id": "in-app-browser-design",
+			"name": "In-app browser and design mode",
+			"area": "workflow",
+			"offer": "A built-in browser previews running services and lets you click an element to send its DOM, styles and screenshot to an agent.",
+			"source": "https://docs.paradev.com/browser",
+			"checked": "2026-10-27",
+			"match": [
+				"in-app browser",
+				"design mode",
+				"element picker"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is a CLI and runtime with no GUI workspace; it does expose service URLs through status."
+			}
+		},
+		{
+			"id": "diff-and-pr-review",
+			"name": "Diff viewer and PR pane",
+			"area": "collaboration",
+			"offer": "Reviews changes, commits, pushes and merges pull requests with checks and review threads from one dashboard.",
+			"source": "https://docs.paradev.com/pull-requests",
+			"checked": "2026-10-27",
+			"match": [
+				"diff review",
+				"pull requests",
+				"review threads"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Code review is a git host and IDE job, not a local runtime job."
+			}
+		},
+		{
+			"id": "pages-reports",
+			"name": "Shareable agent Pages",
+			"area": "collaboration",
+			"offer": "Agents publish HTML reports as shareable pages with version history and pinned team comments.",
+			"source": "https://docs.paradev.com/pages",
+			"checked": "2026-10-27",
+			"match": [
+				"pages",
+				"pinned comments",
+				"publish"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Publishing and commenting on documents is a hosted collaboration product outside a local runtime."
+			}
+		},
+		{
+			"id": "persistent-terminals",
+			"name": "Persistent terminals",
+			"area": "terminal",
+			"offer": "Terminals live in a background daemon so agents keep running after the app closes and reattach with scrollback.",
+			"source": "https://docs.paradev.com/keep-agents-running",
+			"checked": "2026-10-27",
+			"match": [
+				"persistent terminals",
+				"terminal daemon",
+				"scrollback"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is not a terminal emulator; its services already keep running under Tilt or Docker."
+			}
+		},
+		{
+			"id": "mobile-app",
+			"name": "Mobile app for agents",
+			"area": "collaboration",
+			"offer": "An iPhone and iPad app to check on agents, reply and review diffs, with Live Activities.",
+			"source": "https://paradev.com/",
+			"checked": "2026-10-27",
+			"match": [
+				"iphone",
+				"ipad",
+				"live activity"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "A mobile client is a hosted product surface that does not fit a local CLI."
+			}
+		},
+		{
+			"id": "computer-control",
+			"name": "Computer control",
+			"area": "agents",
+			"offer": "Lets agents operate native desktop apps through an accessibility-first driver.",
+			"source": "https://docs.paradev.com/skills",
+			"checked": "2026-10-27",
+			"match": [
+				"computer",
+				"native desktop apps",
+				"accessibility"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Desktop automation is an agent capability, not a service runtime feature."
+			}
+		},
+		{
+			"id": "soc2-sso-audit",
+			"name": "SOC 2, SSO, SCIM and audit logs",
+			"area": "enterprise",
+			"offer": "Offers a SOC 2 Type II audited service plus SSO, SCIM, audit logs and an SLA on the Enterprise plan.",
+			"source": "https://paradev.com/enterprise",
+			"checked": "2026-10-27",
+			"match": [
+				"soc 2 type ii",
+				"sso",
+				"scim",
+				"audit logs"
+			],
+			"flisk": {
+				"status": "out-of-scope",
+				"scope": "out",
+				"reason": "Flisk is a local open-source tool with no hosted account, so tenant-level enterprise controls do not apply."
+			}
+		}
+	]
+}

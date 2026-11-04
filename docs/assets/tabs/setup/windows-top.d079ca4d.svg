@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="812" height="66" viewBox="0 0 812 66" role="img" aria-label="Retro window: Flisk Setup - Ubuntu on WSL2">
+<title>Retro window: Flisk Setup - Ubuntu on WSL2</title>
+<defs><linearGradient id="t" x1="0" x2="1"><stop offset="0" stop-color="#000080"/><stop offset="1" stop-color="#1084d0"/></linearGradient></defs>
+<path d="M0 10a10 10 0 0 1 10-10h792a10 10 0 0 1 10 10v56H0Z" fill="#d6cfbb"/>
+<rect x="14" y="14" width="784" height="52" fill="#c0c0c0"/>
+<rect x="17" y="17" width="778" height="22" fill="url(#t)"/>
+<rect x="22" y="21" width="14" height="14" fill="#c0c0c0" stroke="#000" stroke-width="1"/><rect x="22" y="21" width="14" height="4" fill="#000080"/>
+<text fill="#ffffff" x="44" y="32.5" font-family="'MS Sans Serif','Microsoft Sans Serif',Tahoma,Geneva,Verdana,sans-serif" font-size="12" font-weight="700">Flisk Setup - Ubuntu on WSL2</text>
+<rect x="738" y="25" width="16" height="14" fill="#c0c0c0"/><path d="M738 39V25H754" fill="none" stroke="#ffffff" stroke-width="1"/><path d="M754 25V39H738" fill="none" stroke="#404040" stroke-width="1"/><rect x="742" y="34" width="7" height="2" fill="#000"/>
+<rect x="755" y="25" width="16" height="14" fill="#c0c0c0"/><path d="M755 39V25H771" fill="none" stroke="#ffffff" stroke-width="1"/><path d="M771 25V39H755" fill="none" stroke="#404040" stroke-width="1"/><rect x="758.5" y="28.5" width="9" height="7" fill="none" stroke="#000" stroke-width="1"/><rect x="758.5" y="28" width="9" height="2" fill="#000"/>
+<rect x="774" y="25" width="16" height="14" fill="#c0c0c0"/><path d="M774 39V25H790" fill="none" stroke="#ffffff" stroke-width="1"/><path d="M790 25V39H774" fill="none" stroke="#404040" stroke-width="1"/><path d="M778.5 28.5l7 7M785.5 28.5l-7 7" stroke="#000" stroke-width="1.6"/>
+<text fill="#000" x="24" y="56" font-family="'MS Sans Serif','Microsoft Sans Serif',Tahoma,Geneva,Verdana,sans-serif" font-size="12">File</text><rect x="24" y="58" width="7" height="1" fill="#000"/>
+<text fill="#000" x="72" y="56" font-family="'MS Sans Serif','Microsoft Sans Serif',Tahoma,Geneva,Verdana,sans-serif" font-size="12">Edit</text><rect x="72" y="58" width="7" height="1" fill="#000"/>
+<text fill="#000" x="120" y="56" font-family="'MS Sans Serif','Microsoft Sans Serif',Tahoma,Geneva,Verdana,sans-serif" font-size="12">View</text><rect x="120" y="58" width="7" height="1" fill="#000"/>
+<text fill="#000" x="168" y="56" font-family="'MS Sans Serif','Microsoft Sans Serif',Tahoma,Geneva,Verdana,sans-serif" font-size="12">Help</text><rect x="168" y="58" width="7" height="1" fill="#000"/>
+</svg>

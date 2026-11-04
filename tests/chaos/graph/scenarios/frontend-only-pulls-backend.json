@@ -1,0 +1,17 @@
+{
+  "title": "flisk up --only on a frontend starts its backendName",
+  "why": "`--only storefront` listed only storefront although Tilt waits for its backend.",
+  "initial": "wide",
+  "steps": [
+    {
+      "op": "setDeps",
+      "owner": "storefront",
+      "entries": []
+    },
+    {
+      "op": "check",
+      "only": "storefront"
+    }
+  ],
+  "expect": []
+}

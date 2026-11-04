@@ -1,0 +1,92 @@
+# Chaos tests for how Flisk reads service.json (tests/chaos), three tiers:
+#   graph:  random dependsOn edits, each followed by a look through Tilt (tilt alpha tiltfile-result), flisk up --dry-run and
+#           flisk config verify, compared with a reference model. A failure prints the steps as a scenario to save under
+#           tests/chaos/graph/scenarios/.
+#   gates:  millions of good and corrupted service.json sets through the checks that stop flisk up.
+#   docker: one field changed to a good or bad value; each value flisk up accepts is followed into the generated Compose file
+#           (docker compose config) and Dockerfile (docker buildx build --check). No image is built, no container starts.
+# A pull request that touches the code behind them runs the scenarios, a few random sequences, 3 million sets and the Docker
+# tier; the nightly run tries many more.
+name: 🌀 Chaos | service.json
+
+on:
+  pull_request:
+    paths:
+      - "runtime/discovery/**"
+      - "runtime/engine/topologies/tilt/config/profiles.star"
+      - "runtime/engine/topologies/tilt/resources/orchestrator/**"
+      - "cli/templates/Tiltfile.hbs"
+      - "cli/src/utils/up-only.ts"
+      - "cli/src/utils/dependency-graph.ts"
+      - "cli/src/utils/service-manifest.ts"
+      - "cli/src/utils/service-config-checks.ts"
+      - "cli/src/utils/shared-platform-postgres.ts"
+      - "cli/src/commands/up.ts"
+      - "cli/src/commands/config.ts"
+      - "tests/chaos/**"
+      - ".github/workflows/service-json-chaos.yml"
+  schedule:
+    - cron: "30 5 * * *" # nightly: a longer random search
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "Random sequences to run"
+        type: string
+        default: "40"
+      sets:
+        description: "service.json sets for the gates tier"
+        type: string
+        default: "30000000"
+      seed:
+        description: "fast-check seed to replay (empty for a random one)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: service-json-chaos${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.pull_request.number) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  chaos:
+    name: 🌀 service.json chaos
+    runs-on: ubuntu-26.04
+    # A pull request: about 2 minutes of graph tier, under 1 for the gates, 6 for the Docker tier. The nightly 40 sequences and
+    # 30 million sets take about 30 minutes, so only the nightly run gets an hour.
+    timeout-minutes: ${{ github.event_name == 'schedule' && 60 || 30 }}
+    defaults:
+      run:
+        working-directory: tests/chaos
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      # The suite runs cli/bin/flisk.js, which imports the committed cli/dist and the CLI's dependencies.
+      - run: bun install --frozen-lockfile
+        working-directory: cli
+      - run: bun install --frozen-lockfile
+      - run: bun run chaos
+        env:
+          FLISK_REQUIRE_TILT: "1"
+          CHAOS_RUNS: ${{ github.event_name == 'pull_request' && '4' || inputs.runs || '40' }}
+          CHAOS_STEPS: "14"
+          CHAOS_SEED: ${{ inputs.seed }}
+      # The gates tier imports cli/src and spreads the sets over the runner's cores with worker threads. The seed changes every run, so each run
+      # looks at new sets; a failure prints the seed of an example set.
+      - name: Gates tier (good and corrupted service.json sets)
+        # The input goes through env, not into the command line: a workflow_dispatch input expanded into `run:` is a template injection.
+        env:
+          CHAOS_SETS: ${{ github.event_name == 'pull_request' && '3000000' || inputs.sets || '30000000' }}
+          CHAOS_RUN_ID: ${{ github.run_id }}
+        run: bun gates/bulk.ts --count "$CHAOS_SETS" --seed "$CHAOS_RUN_ID"
+      - name: Docker tier (values flisk up accepts, followed into Compose and the Dockerfile)
+        run: bun docker/run.ts --jobs 3
+      - name: Docker tier, frontend
+        run: bun docker/run.ts --service storefront --jobs 3

@@ -111,9 +111,9 @@ def generate_frontend(manifest, backend_manifest=None, write_fn=None):
     stack = manifest.get('stack', 'app')
     port = manifest.get('port', BASE_PORT_FRONTEND)
     hmr_port = port + 1000  # HMR port is always port + 1000
-    base_path = get_frontend_base_path(manifest)
-    vite_base_path = _normalize_vite_base_path(base_path)
     app_name = manifest.get('appName', 'unknown')
+    base_path = get_frontend_base_path(manifest, app_name)
+    vite_base_path = _normalize_vite_base_path(base_path)
 
     backend_port = BASE_PORT_BACKEND
     if backend_manifest:

@@ -33,9 +33,9 @@ Q1() { # scaffold the quickstart project: a backend, a React frontend and a Vue 
   if flisk resource --help | grep -q -- '--framework'; then
     # No --path: this exercises the default folder (which flisk picks so that project.json discovery finds it) and the public/ folder the
     # frontend Docker build copies.
-    printf 'y\n' | flisk resource storefront --type frontend --stack shop
-    printf 'y\n' | flisk resource vue-app --type frontend --framework vue --stack shop
-    FRONTENDS="storefront:root vue-app:app"
+printf 'y\n' | flisk resource storefront --type frontend --stack shop --base-path /storefront
+  printf 'y\n' | flisk resource vue-app --type frontend --framework vue --stack shop --base-path /vue-app
+  FRONTENDS="storefront:root vue-app:app"
     export FRONTENDS
     echo "FRONTENDS=storefront:root vue-app:app" >> "${GITHUB_ENV:-/dev/null}"
   else

@@ -21,7 +21,7 @@ DEFAULTS = {}
 # === END INLINED CONSTANTS ===
 
 
-load("./parser.star", "generated_string_error")
+load("./parser.star", "generated_string_error", "normalize_depends_on")
 load("./constants.star",
     "MANIFEST_FILENAME",
     "MANIFEST_DEFAULTS",
@@ -72,6 +72,7 @@ def load_from_file(path):
         unsafe_field_error = generated_string_error(manifest, path)
         if unsafe_field_error:
             fail(unsafe_field_error)
+        normalize_depends_on(manifest, path)
     
     # An `mcp` resource is a Model Context Protocol server: an HTTP service on Bun that is built, routed and health-checked
     # exactly like a backend. Every backend code path keys off appType == 'backend', so normalise here, once, at the single

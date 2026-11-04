@@ -1,0 +1,28 @@
+{
+  "title": "flisk up --only on a service named like a release phase starts everything",
+  "why": "Fixed. Tilt's focus swaps the targets pre-alpha, alpha and beta for that phase's stack list (profiles.star apply_focus). For a service named beta the list is empty, focus mode turns off, and every service starts although beta depends on nothing.",
+  "initial": {
+    "beta": {
+      "stack": "main",
+      "dependsOn": [],
+      "kind": "backend"
+    },
+    "orders": {
+      "stack": "main",
+      "dependsOn": [],
+      "kind": "backend"
+    },
+    "users": {
+      "stack": "extra",
+      "dependsOn": [],
+      "kind": "backend"
+    }
+  },
+  "steps": [
+    {
+      "op": "check",
+      "only": "beta"
+    }
+  ],
+  "expect": []
+}

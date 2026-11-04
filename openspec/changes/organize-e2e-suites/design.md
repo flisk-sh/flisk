@@ -74,8 +74,8 @@ Measured over 1,000 workflow runs from 2026-10-16 21:32 to 2026-10-17 11:54 UTC 
 | `benchmarks.yml` / `publish` | after `measure` | skipped | report | Keep |
 | `scorecard.yml` / `scorecard` | every push to `main`, weekly | 18 runs, 0.8 med | report | Weekly and manual only |
 | `publish-service-schema.yml` / `publish` | push (paths), dispatch | 0.1 | release | Keep |
-| `publish-tdk-import.yml` / `build`, `publish` | manual | none | release | Keep |
-| `sync-tdk-skills.yml` / `sync` | dispatch, repository_dispatch | none | bot | Keep; keeps repo-local skills (see below) |
+| `publish-flisk-import.yml` / `build`, `publish` | manual | none | release | Keep |
+| `sync-flisk-skills.yml` / `sync` | dispatch, repository_dispatch | none | bot | Keep; keeps repo-local skills (see below) |
 | `npm-downloads-graph.yml` / `graph` | schedule | none in window | report | Keep |
 | `ai-conflict-buttons.yml` / `comment` | PR target: opened, reopened, synchronize, edited | 68 runs | bot | Keep `synchronize` (conflicts change with commits); drop `edited` |
 | `ai-conflict-buttons.yml` / `backfill` | dispatch | skipped 28 of 28 | bot | Keep (manual) |
@@ -142,7 +142,7 @@ The axes found in the code today, which seed `tests/e2e/axes.json`:
 | `feature` | `featuresEnabled` | prisma | — |
 | `infraService` | `OPTIONAL_INFRA_SERVICES` | monitoring, elk, debezium, golden_image, verdaccio | no live coverage today |
 | `byoVariant` | `examples/byo*`, `scripts/verify-byo-*.sh` | python, example, job, pair, flisk | `byo-e2e.yml`, `byo-boot-e2e.yml`, four unrun scripts |
-| `example` | `examples/*` plus the saas-starter and restaurant repositories | default (`tdk-example`), one-backend, one-backend-python, one-backend-helm, saas-starter, restaurant | `example-e2e.yml`, `examples-e2e.yml`, `python-example-e2e.yml` |
+| `example` | `examples/*` plus the saas-starter and restaurant repositories | default (`flisk-example`), one-backend, one-backend-python, one-backend-helm, saas-starter, restaurant | `example-e2e.yml`, `examples-e2e.yml`, `python-example-e2e.yml` |
 | `platform` | runner labels | ubuntu, windows, wsl2 | `windows-smoke.yml`, `wsl2-smoke.yml`, the Windows job in `release-binaries.yml` |
 | `installChannel` | how the CLI under test is installed | pr-tarball, npm, release-binary | install steps copied across e2e workflows |
 | `journey` | `tests/e2e/journeys/*` | quickstart, smoke, dev-loop, cold-start | four workflows |
@@ -168,7 +168,7 @@ The original plan gave each group its own pull request trigger. That makes every
 Retries turn flaky tests green and hide them. The CI report detects flakiness by finding a failure and a pass on the same commit, and a quarantine needs an issue link.
 
 ### Repo-local skills survive the sync
-`scripts/sync-tdk-skills.sh` currently deletes every directory in `.claude/skills` and every link in `.agents/skills`, then restores only the upstream ones. It will keep any skill listed in `.claude/skills/LOCAL` (one name per line) and re-create its `.agents/skills` link. `flisk-e2e-author` is the first entry. The D2 case of the agent suite extends to cover this. The alternative, putting the skill in the upstream `tdk-skills` repository, would make a contributor-only skill ship to every Flisk user.
+`scripts/sync-flisk-skills.sh` currently deletes every directory in `.claude/skills` and every link in `.agents/skills`, then restores only the upstream ones. It will keep any skill listed in `.claude/skills/LOCAL` (one name per line) and re-create its `.agents/skills` link. `flisk-e2e-author` is the first entry. The D2 case of the agent suite extends to cover this. The alternative, putting the skill in the upstream `flisk-skills` repository, would make a contributor-only skill ship to every Flisk user.
 
 ### Migration order
 1. (#1272 has merged.) Extract `tests/e2e/lib/` and move the agent suite, then prove it green on CI.

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
+import { CLI_REPOSITORY } from "./cli-command.js";
 import { stripTerminalControls } from "./tilt-events.js";
 /**
  * Rows the frame always occupies.
@@ -9,6 +10,8 @@ import { stripTerminalControls } from "./tilt-events.js";
  * demo is recorded: a frame that grows pushes everything off the screen.
  */
 export const FRAME_ROWS = 12;
+/** Where the finished frame points someone who liked the demo. */
+export const DEMO_STAR_URL = CLI_REPOSITORY.replace(/^https:\/\//, "");
 /** The narrowest frame that still reads. Below this the labels are truncated to nothing. */
 const MIN_FRAME_WIDTH = 24;
 const STYLES = {
@@ -164,6 +167,12 @@ export function renderDemoFrame(state, columns = 80) {
             { text: " ", style: "plain" },
             { text: `flisk ${sanitizeCell(state.done.version)}`, style: "dim" },
         ]);
+        if (state.done.starUrl) {
+            push([
+                { text: " ", style: "plain" },
+                { text: `Like it? A star helps: ${sanitizeCell(state.done.starUrl)}`, style: "dim" },
+            ]);
+        }
     }
     else if (state.failure) {
         const failed = state.phases.find((phase) => phase.status === "failed");
@@ -303,7 +312,9 @@ export function createDemoStage(initial, stream = process.stderr, now = Date.now
             paint();
         },
         finish(done) {
-            state = { ...state, elapsedMs: now() - startedAt, done };
+            // A piped log or a CI run is not a person who could star the repo.
+            const starUrl = animate && !process.env.CI ? DEMO_STAR_URL : undefined;
+            state = { ...state, elapsedMs: now() - startedAt, done: { ...done, starUrl } };
             paint();
         },
         stop() {

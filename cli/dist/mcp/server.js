@@ -19,7 +19,13 @@ function fail(id, code, message) {
     return JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 }
 export function createMcpServer(tools, info) {
-    const byName = new Map(tools.map((tool) => [tool.name, tool]));
+    // Aliases first, so a tool's own name always wins over another tool's former name.
+    const byName = new Map();
+    for (const tool of tools)
+        for (const alias of tool.aliases ?? [])
+            byName.set(alias, tool);
+    for (const tool of tools)
+        byName.set(tool.name, tool);
     async function handle(message) {
         const isNotification = message.id === undefined;
         if (message.jsonrpc !== "2.0" || typeof message.method !== "string") {
@@ -41,10 +47,11 @@ export function createMcpServer(tools, info) {
                 return reply(message.id, {});
             case "tools/list":
                 return reply(message.id, {
-                    tools: tools.map(({ name, description, inputSchema }) => ({
+                    tools: tools.map(({ name, description, inputSchema, annotations }) => ({
                         name,
                         description,
                         inputSchema,
+                        ...(annotations ? { annotations } : {}),
                     })),
                 });
             case "tools/call": {
@@ -68,8 +75,18 @@ export function createMcpServer(tools, info) {
                 catch (error) {
                     // A tool failure is a tool result, not a protocol error, so the model can read and react to it.
                     const text = error instanceof Error ? error.message : String(error);
+                    // A FliskError carries what to try next; read it by shape so this module stays dependency-free.
+                    const suggestions = error?.suggestions;
+                    const hints = Array.isArray(suggestions)
+                        ? suggestions.filter((s) => typeof s === "string")
+                        : [];
                     return reply(message.id, {
-                        content: [{ type: "text", text }],
+                        content: [
+                            {
+                                type: "text",
+                                text: hints.length > 0 ? `${text}\n${hints.map((s) => `- ${s}`).join("\n")}` : text,
+                            },
+                        ],
                         isError: true,
                     });
                 }

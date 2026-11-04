@@ -1,6 +1,6 @@
 # Windows hardware checks
 
-Native Windows is **inspection-only** today: `flisk --version`, `flisk doctor` and `flisk up --dry-run` work, and `flisk up` refuses with a pointer to WSL2 Ubuntu. That is the claim in the [README](../README.md#requirements-and-support), and this page does not change it. The decision on whether native Windows gets a runtime is recorded in [Maintainers' Decision: Native Windows Runtime Execution](design/native-windows-runtime-decision.md) (RFC [#1757](https://github.com/flisk-sh/flisk/issues/1757)); the decision keeps the inspection-only boundary and the acceptance gates required for any future reconsideration are defined there.
+On native Windows, `flisk demo` and projects whose services each declare a `command` run as local processes (since 1.4.23). For a Docker stack native Windows is **inspection-only**: `flisk --version`, `flisk doctor` and `flisk up --dry-run` work, and `flisk up` refuses with a pointer to WSL2 Ubuntu. That is the claim in the [README](../README.md#requirements-and-support), and this page does not change it. The decision on whether native Windows gets a runtime is recorded in [Maintainers' Decision: Native Windows Runtime Execution](design/native-windows-runtime-decision.md) (RFC [#1757](https://github.com/flisk-sh/flisk/issues/1757)); the decision keeps the inspection-only boundary and the acceptance gates required for any future reconsideration are defined there.
 
 What this page covers is the **evidence** behind the claim on a real Windows machine, which the CI runners cannot provide. Issue [#1765](https://github.com/flisk-sh/flisk/issues/1765) asks for that inventory and for a reproducible way to run it.
 
@@ -11,7 +11,7 @@ What this page covers is the **evidence** behind the claim on a real Windows mac
 | [`tests/e2e/platforms/windows`](../tests/e2e/platforms/windows/) (W1–W4) | `windows-latest` | The CLI typechecks, builds and runs on Windows; the platform unit tests pass; native Windows runs `doctor` and `up --dry-run` as inspection commands; native Windows refuses `up shop` with WSL2 guidance and starts nothing; native Windows refuses the one-command demo before it clones, installs or boots anything. | It runs a **source build** (`node bin/flisk.js`), not the published `flisk.exe`. It has no antivirus, no Docker Desktop, no user PATH, no PowerShell profile, and the project lives in the runner's temp directory. |
 | [`tests/e2e/platforms/windows-binary`](../tests/e2e/platforms/windows-binary/) (WB1) | `windows-latest`, in the release workflow | The **release candidate** matches `checksums.txt`, reports its version and finds its bundled engine next to the exe. | It runs the candidate that was just built, not the artifact a user downloads. The engine is unpacked by the test, not by the installer. |
 | [`tests/e2e/platforms/wsl2`](../tests/e2e/platforms/wsl2/) (WS1–WS5) | by hand, under WSL2 | The full stack boots under Ubuntu in WSL2. | It says nothing about native Windows. |
-| [`tests/e2e/platforms/windows-hardware`](../tests/e2e/platforms/windows-hardware/) (WH1–WH6) | a real Windows machine, by hand or on a self-hosted runner | The **published** `tdk-windows-amd64.exe`: its checksums, the official installer, its version and bundled engine, the refusal contract, the one-command demo flow, and the host differences a runner does not have. | It does not boot a stack. Native Windows cannot. |
+| [`tests/e2e/platforms/windows-hardware`](../tests/e2e/platforms/windows-hardware/) (WH1–WH6) | a real Windows machine, by hand or on a self-hosted runner | The **published** `flisk-windows-amd64.exe`: its checksums, the official installer, its version and bundled engine, the refusal contract, the one-command demo flow, and the host differences a runner does not have. | It does not boot a stack. Native Windows cannot. |
 
 ## What a real machine adds
 
@@ -43,7 +43,7 @@ The suite works without Git Bash. It writes a findings report to `%TEMP%\flisk-w
 
 | Case | What it checks |
 | --- | --- |
-| WH1 | The published `tdk-windows-amd64.exe` and `tdk-cli-engine.tar.gz` match `checksums.txt`, and the exe is a PE binary. |
+| WH1 | The published `flisk-windows-amd64.exe` and `flisk-cli-engine.tar.gz` match `checksums.txt`, and the exe is a PE binary. |
 | WH2 | The official installer runs on this machine: the exe lands in the install directory, the engine sits beside it, the install directory joins the user PATH (restored afterwards) and the installed exe reports its version and its runtime assets. It runs the installer with the PATH a normal PowerShell window has, and records what the same installer does with the PATH this machine actually has. |
 | WH3 | The exe reports the release version and finds its own engine next to it. |
 | WH4 | `doctor`, `doctor --json`, `up`, `up --dry-run` and `up shop` all refuse with WSL2 and Ubuntu guidance, the JSON report carries the native-Windows finding, and nothing starts: no Tilt, no Docker daemon, no container. |
@@ -55,7 +55,7 @@ One case at a time, and other inputs:
 ```powershell
 pwsh -NoProfile -File tests/e2e/platforms/windows-hardware/windows-hardware.ps1 -Case WH4
 $env:FLISK_WINDOWS_RELEASE = 'v1.3.204'   # pin a release instead of "latest"
-$env:FLISK_WINDOWS_EXE = 'C:\build\tdk-windows-amd64.exe'   # test a local build instead of the published one
+$env:FLISK_WINDOWS_EXE = 'C:\build\flisk-windows-amd64.exe'   # test a local build instead of the published one
 ```
 
 On a machine with Git Bash, the same suite runs through its wrapper, which is what CI calls:

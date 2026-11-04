@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { portFromEnv } from "../utils/generated-port.js";
 import { getKoaIndexTemplate, koaBackendProvider } from "./koa.js";
 
 describe("koaBackendProvider", () => {
@@ -39,7 +40,7 @@ describe("getKoaIndexTemplate", () => {
   });
 
   it("binds to port and 0.0.0.0", () => {
-    expect(template).toContain("const port = Number(process.env.PORT || 3000);");
+    expect(template).toContain(portFromEnv());
     expect(template).toContain("app.listen(port, '0.0.0.0', () => {");
     expect(template).toContain(
       "console.log('\\n🚀 auth-service running on http://localhost:' + port);",

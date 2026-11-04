@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # The published Windows binary on a real Windows host (#1765). The Windows CI suites (tests/e2e/platforms/windows and
 # tests/e2e/platforms/windows-binary) prove the contract on a GitHub-hosted runner: a source build and the release candidate.
-# This script proves it on the machine a developer actually uses: the published tdk-windows-amd64.exe, installed the way a
+# This script proves it on the machine a developer actually uses: the published flisk-windows-amd64.exe, installed the way a
 # user installs it, with the paths, PATH lookup and filesystem that a runner never has.
 #
 # Run it on Windows, from the repository root:
@@ -222,13 +222,13 @@ function Get-PeSignature {
 }
 
 function Get-ReleaseLayout {
-  # The published layout: tdk.exe with the flisk-cli engine directory beside it, the way install.ps1 leaves it.
+  # The published layout: flisk.exe with the flisk-cli engine directory beside it, the way install.ps1 leaves it.
   $tag = Get-ReleaseTag
-  $exeAsset = Get-ReleaseAsset $tag 'tdk-windows-amd64.exe'
-  $engineAsset = Get-ReleaseAsset $tag 'tdk-cli-engine.tar.gz'
+  $exeAsset = Get-ReleaseAsset $tag 'flisk-windows-amd64.exe'
+  $engineAsset = Get-ReleaseAsset $tag 'flisk-cli-engine.tar.gz'
   $checksums = Get-ReleaseAsset $tag 'checksums.txt'
   $dir = Join-Path $script:WorkDir 'release'
-  $exe = Join-Path $dir 'tdk.exe'
+  $exe = Join-Path $dir 'flisk.exe'
   Copy-Item -LiteralPath $exeAsset -Destination $exe -Force
   $engine = Join-Path $dir 'flisk-cli'
   if (-not (Test-Path -LiteralPath (Join-Path $engine 'shared-platform-engineering'))) {
@@ -349,18 +349,18 @@ function Invoke-Wh1 {
       Observations = @('the local exe is not a published release, so checksums.txt does not cover it')
     }
   }
-  $tag = Get-ReleaseTag
-  $checksums = Get-ReleaseAsset $tag 'checksums.txt'
-  $exeAsset = Get-ReleaseAsset $tag 'tdk-windows-amd64.exe'
-  $engineAsset = Get-ReleaseAsset $tag 'tdk-cli-engine.tar.gz'
-  $exeHash = (Get-FileHash -LiteralPath $exeAsset -Algorithm SHA256).Hash.ToLowerInvariant()
-  $engineHash = (Get-FileHash -LiteralPath $engineAsset -Algorithm SHA256).Hash.ToLowerInvariant()
-  $expectedExe = Get-ExpectedHash $checksums 'tdk-windows-amd64.exe'
-  $expectedEngine = Get-ExpectedHash $checksums 'tdk-cli-engine.tar.gz'
-  if ($exeHash -ne $expectedExe) { throw "SHA-256 mismatch for tdk-windows-amd64.exe: expected $expectedExe, got $exeHash" }
-  if ($engineHash -ne $expectedEngine) { throw "SHA-256 mismatch for tdk-cli-engine.tar.gz: expected $expectedEngine, got $engineHash" }
-  $header = Get-PeSignature $exeAsset
-  if ($header[0] -ne 0x4D -or $header[1] -ne 0x5A) { throw 'tdk-windows-amd64.exe is not a PE executable (missing MZ signature)' }
+$tag = Get-ReleaseTag
+$checksums = Get-ReleaseAsset $tag 'checksums.txt'
+$exeAsset = Get-ReleaseAsset $tag 'flisk-windows-amd64.exe'
+$engineAsset = Get-ReleaseAsset $tag 'flisk-cli-engine.tar.gz'
+$exeHash = (Get-FileHash -LiteralPath $exeAsset -Algorithm SHA256).Hash.ToLowerInvariant()
+$engineHash = (Get-FileHash -LiteralPath $engineAsset -Algorithm SHA256).Hash.ToLowerInvariant()
+$expectedExe = Get-ExpectedHash $checksums 'flisk-windows-amd64.exe'
+$expectedEngine = Get-ExpectedHash $checksums 'flisk-cli-engine.tar.gz'
+if ($exeHash -ne $expectedExe) { throw "SHA-256 mismatch for flisk-windows-amd64.exe: expected $expectedExe, got $exeHash" }
+if ($engineHash -ne $expectedEngine) { throw "SHA-256 mismatch for flisk-cli-engine.tar.gz: expected $expectedEngine, got $engineHash" }
+$header = Get-PeSignature $exeAsset
+if ($header[0] -ne 0x4D -or $header[1] -ne 0x5A) { throw 'flisk-windows-amd64.exe is not a PE executable (missing MZ signature)' }
   return @{
     Detail = "release $tag, exe sha256 $exeHash"
     Observations = @("engine archive sha256 $engineHash")
@@ -383,7 +383,7 @@ function Invoke-Installer {
   $userPathBefore = [Environment]::GetEnvironmentVariable('Path', 'User')
   $pathBefore = $env:PATH
   try {
-    $env:TDK_INSTALL_DIR = $InstallDir
+    $env:FLISK_INSTALL_DIR = $InstallDir
     $env:PATH = $Path
     $process = Start-Process -FilePath $shellExe -ArgumentList @('-NoProfile', '-File', "`"$installer`"") -NoNewWindow -PassThru `
       -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
@@ -402,7 +402,7 @@ function Invoke-Installer {
       UserPathAfter = [Environment]::GetEnvironmentVariable('Path', 'User')
     }
   } finally {
-    Remove-Item Env:TDK_INSTALL_DIR -ErrorAction SilentlyContinue
+    Remove-Item Env:FLISK_INSTALL_DIR -ErrorAction SilentlyContinue
     $env:PATH = $pathBefore
     # The installer appends the install directory to the user PATH. Put the machine back the way it was.
     [Environment]::SetEnvironmentVariable('Path', $userPathBefore, 'User')
@@ -423,20 +423,20 @@ function Invoke-Wh2 {
   $result = Invoke-Installer $installDir $nativePath
   if ($result.ExitCode -ne 0) { throw "install.ps1 exited $($result.ExitCode): $($result.StdErr)" }
 
-  $exe = Join-Path $installDir 'tdk.exe'
-  if (-not (Test-Path -LiteralPath $exe)) { throw "the installer did not place tdk.exe in $installDir" }
+  $exe = Join-Path $installDir 'flisk.exe'
+  if (-not (Test-Path -LiteralPath $exe)) { throw "the installer did not place flisk.exe in $installDir" }
   $engine = Join-Path $installDir 'flisk-cli'
   if (-not (Test-Path -LiteralPath (Join-Path $engine 'shared-platform-engineering'))) {
-    throw 'the installer did not unpack the flisk-cli engine next to tdk.exe'
+    throw 'the installer did not unpack the flisk-cli engine next to flisk.exe'
   }
   $pathEntries = @(([string]$result.UserPathAfter) -split ';' | Where-Object { $_ })
   $onPath = @($pathEntries | Where-Object { $_.TrimEnd('\') -ieq $installDir.TrimEnd('\') }).Count -gt 0
   if (-not $onPath) { throw 'the installer did not add the install directory to the user PATH' }
 
   $version = Invoke-Exe $exe @('--version')
-  if ($version.ExitCode -ne 0) { throw "tdk.exe --version exited $($version.ExitCode): $($version.Text)" }
+  if ($version.ExitCode -ne 0) { throw "flisk.exe --version exited $($version.ExitCode): $($version.Text)" }
   $assets = Invoke-Exe $exe @('runtime', '--check-assets', '--json')
-  if ($assets.ExitCode -ne 0) { throw "tdk.exe runtime --check-assets exited $($assets.ExitCode): $($assets.Text)" }
+  if ($assets.ExitCode -ne 0) { throw "flisk.exe runtime --check-assets exited $($assets.ExitCode): $($assets.Text)" }
   $report = $assets.StdOut | ConvertFrom-Json
   if (-not $report.ok) { throw "the installed runtime assets are incomplete: $($assets.StdOut)" }
 
@@ -475,17 +475,17 @@ function Invoke-Wh3 {
     $expected = Get-ExpectedVersion $layout.Tag
   }
   $version = Invoke-Exe $exe @('--version')
-  if ($version.ExitCode -ne 0) { throw "tdk.exe --version exited $($version.ExitCode): $($version.Text)" }
+  if ($version.ExitCode -ne 0) { throw "flisk.exe --version exited $($version.ExitCode): $($version.Text)" }
   $printed = $version.StdOut.Trim()
-  if (-not $printed) { throw 'tdk.exe --version printed nothing' }
-  if ($expected -and $printed -ne $expected) { throw "tdk.exe --version printed $printed, but the release is $expected" }
+  if (-not $printed) { throw 'flisk.exe --version printed nothing' }
+  if ($expected -and $printed -ne $expected) { throw "flisk.exe --version printed $printed, but the release is $expected" }
 
   $assets = Invoke-Exe $exe @('runtime', '--check-assets', '--json')
-  if ($assets.ExitCode -ne 0) { throw "tdk.exe runtime --check-assets exited $($assets.ExitCode): $($assets.Text)" }
+  if ($assets.ExitCode -ne 0) { throw "flisk.exe runtime --check-assets exited $($assets.ExitCode): $($assets.Text)" }
   $report = $assets.StdOut | ConvertFrom-Json
   if (-not $report.ok) { throw "the bundled runtime assets are incomplete: $($assets.StdOut)" }
   $assetRoot = [string]$report.assetRoot
-  if (-not $assetRoot) { throw 'tdk.exe runtime --check-assets --json printed no assetRoot' }
+  if (-not $assetRoot) { throw 'flisk.exe runtime --check-assets --json printed no assetRoot' }
   # The engine sits in the flisk-cli directory next to the exe, the way install.ps1 leaves it.
   $expectedRoot = (Resolve-Path -LiteralPath (Join-Path (Split-Path -Parent $exe) 'flisk-cli')).Path
   $actualRoot = (Resolve-Path -LiteralPath $assetRoot).Path
@@ -493,7 +493,7 @@ function Invoke-Wh3 {
     throw "the engine root is $actualRoot, but it must sit next to the exe in $expectedRoot"
   }
   $text = Invoke-Exe $exe @('runtime', '--check-assets')
-  if ($text.ExitCode -ne 0) { throw "tdk.exe runtime --check-assets exited $($text.ExitCode): $($text.Text)" }
+  if ($text.ExitCode -ne 0) { throw "flisk.exe runtime --check-assets exited $($text.ExitCode): $($text.Text)" }
   return @{
     Detail = "version $printed, engine root $actualRoot"
     Observations = @()
@@ -513,22 +513,22 @@ function Invoke-Wh4 {
   New-Item -ItemType Directory -Force -Path $workDir | Out-Null
 
   $doctor = Invoke-Exe $exe @('doctor') $workDir
-  if ($doctor.ExitCode -eq 0) { throw 'tdk doctor succeeded on native Windows; it must refuse' }
-  Assert-Text $doctor.Text 'WSL2' 'tdk doctor did not point at WSL2'
-  Assert-Text $doctor.Text 'Ubuntu' 'tdk doctor did not point at WSL2 Ubuntu'
+  if ($doctor.ExitCode -eq 0) { throw 'flisk doctor succeeded on native Windows; it must refuse' }
+  Assert-Text $doctor.Text 'WSL2' 'flisk doctor did not point at WSL2'
+  Assert-Text $doctor.Text 'Ubuntu' 'flisk doctor did not point at WSL2 Ubuntu'
   # This case runs the published release (run.sh), which does not contain unreleased
   # doctor diagnostics. Those are asserted on the source build in native-refusal.ps1.
 
   $doctorJson = Invoke-Exe $exe @('doctor', '--json') $workDir
-  if ($doctorJson.ExitCode -eq 0) { throw 'tdk doctor --json succeeded on native Windows; it must refuse' }
+  if ($doctorJson.ExitCode -eq 0) { throw 'flisk doctor --json succeeded on native Windows; it must refuse' }
   try {
     $report = $doctorJson.StdOut | ConvertFrom-Json
   } catch {
-    throw "tdk doctor --json did not print one JSON report on stdout: $($doctorJson.StdOut)"
+    throw "flisk doctor --json did not print one JSON report on stdout: $($doctorJson.StdOut)"
   }
   $nativeCheck = @($report.data.checks | Where-Object { $_.name -eq 'Native Windows support' })
-  if ($nativeCheck.Count -ne 1) { throw 'tdk doctor --json did not report the native Windows finding' }
-  if ($nativeCheck[0].didPass -ne $false) { throw 'tdk doctor --json reported the native Windows finding as passing' }
+  if ($nativeCheck.Count -ne 1) { throw 'flisk doctor --json did not report the native Windows finding' }
+  if ($nativeCheck[0].didPass -ne $false) { throw 'flisk doctor --json reported the native Windows finding as passing' }
 
   $processesBefore = Get-RuntimeProcesses
   $containersBefore = Get-ContainerIds
@@ -540,12 +540,13 @@ function Invoke-Wh4 {
     , @('up', 'shop')
   )
   foreach ($arguments in $refusals) {
-    $label = "tdk $($arguments -join ' ')"
+    $label = "flisk $($arguments -join ' ')"
     $result = Invoke-Exe $exe $arguments $workDir
     if ($result.ExitCode -eq 0) { throw "$label succeeded on native Windows; it must refuse" }
     Assert-Text $result.Text 'WSL2' "$label did not point at WSL2"
     Assert-Text $result.Text 'Ubuntu' "$label did not point at WSL2 Ubuntu"
-    Assert-Text $result.Text '(?i)inspect-only' "$label did not say that native Windows is inspect-only"
+    # The published release may predate the wording change of #2857; up.test.ts asserts the current wording on the source build.
+    Assert-Text $result.Text '(?i)declare a command|inspect-only' "$label did not say what native Windows runs"
     Assert-Text $result.Text '(?im)^(Starting|Running tilt up)' "$label printed a landscape startup message" -NotMatch
   }
 
@@ -576,7 +577,7 @@ function Invoke-Wh5 {
 
   $installDir = Join-Path $script:WorkDir 'flisk install with spaces'
   New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-  $spacedExe = Join-Path $installDir 'tdk.exe'
+  $spacedExe = Join-Path $installDir 'flisk.exe'
   Copy-Item -LiteralPath $exe -Destination $spacedExe -Force
   $sourceEngine = Join-Path (Split-Path -Parent $exe) 'flisk-cli'
   if (Test-Path -LiteralPath $sourceEngine) {
@@ -586,17 +587,17 @@ function Invoke-Wh5 {
   }
 
   $version = Invoke-Exe $spacedExe @('--version')
-  if ($version.ExitCode -ne 0) { throw "tdk.exe did not start from a path with a space: $($version.Text)" }
+  if ($version.ExitCode -ne 0) { throw "flisk.exe did not start from a path with a space: $($version.Text)" }
   $observations += "the exe starts from '$installDir'"
 
   $pathBefore = $env:PATH
   try {
     $env:PATH = "$installDir;$env:PATH"
-    $resolved = Get-Command 'tdk.exe' -ErrorAction SilentlyContinue
-    if (-not $resolved) { throw 'tdk.exe did not resolve through PATH' }
-    $throughPath = Invoke-Exe 'tdk.exe' @('--version')
-    if ($throughPath.ExitCode -ne 0) { throw "tdk.exe from PATH exited $($throughPath.ExitCode): $($throughPath.Text)" }
-    $observations += "PATH lookup resolves tdk.exe to $($resolved.Source)"
+    $resolved = Get-Command 'flisk.exe' -ErrorAction SilentlyContinue
+    if (-not $resolved) { throw 'flisk.exe did not resolve through PATH' }
+    $throughPath = Invoke-Exe 'flisk.exe' @('--version')
+    if ($throughPath.ExitCode -ne 0) { throw "flisk.exe from PATH exited $($throughPath.ExitCode): $($throughPath.Text)" }
+    $observations += "PATH lookup resolves flisk.exe to $($resolved.Source)"
   } finally {
     $env:PATH = $pathBefore
   }
@@ -604,14 +605,14 @@ function Invoke-Wh5 {
   $projectDir = Join-Path $script:WorkDir 'my project with spaces'
   New-Item -ItemType Directory -Force -Path $projectDir | Out-Null
   $dryRun = Invoke-Exe $spacedExe @('up', '--dry-run') $projectDir
-  if ($dryRun.ExitCode -eq 0) { throw 'tdk up --dry-run succeeded in a project directory with a space' }
-  Assert-Text $dryRun.Text 'WSL2' 'tdk up --dry-run did not point at WSL2 in a project directory with a space'
+  if ($dryRun.ExitCode -eq 0) { throw 'flisk up --dry-run succeeded in a project directory with a space' }
+  Assert-Text $dryRun.Text 'WSL2' 'flisk up --dry-run did not point at WSL2 in a project directory with a space'
 
   if (Get-Command bun -ErrorAction SilentlyContinue) {
     $scaffold = Invoke-Exe $spacedExe @('project', '--yes') $projectDir
-    if ($scaffold.ExitCode -ne 0) { throw "tdk project --yes exited $($scaffold.ExitCode): $($scaffold.Text)" }
-    if (-not (Test-Path -LiteralPath (Join-Path $projectDir '.tdk\project.json'))) {
-      throw 'tdk project --yes did not write .tdk/project.json'
+    if ($scaffold.ExitCode -ne 0) { throw "flisk project --yes exited $($scaffold.ExitCode): $($scaffold.Text)" }
+    if (-not (Test-Path -LiteralPath (Join-Path $projectDir '.flisk\project.json'))) {
+      throw 'flisk project --yes did not write .flisk/project.json'
     }
     $observations += 'the exe scaffolds a project in a directory whose path has a space'
   } else {
@@ -628,7 +629,7 @@ function Invoke-Wh5 {
     $observations += "a path longer than 260 characters could not be created on this host: $($_.Exception.Message)"
   }
   if ($longDir -and (Test-Path -LiteralPath $longDir)) {
-    $longExe = Join-Path $longDir 'tdk.exe'
+    $longExe = Join-Path $longDir 'flisk.exe'
     Copy-Item -LiteralPath $exe -Destination $longExe -Force
     $longRun = Invoke-Exe $longExe @('--version')
     if ($longRun.ExitCode -eq 0) {
@@ -664,7 +665,7 @@ function Invoke-Wh6 {
   $homeBefore = $env:USERPROFILE
   $homeEnvBefore = $env:HOME
   $prefixBefore = $env:npm_config_prefix
-  $allowBefore = $env:TDK_ALLOW_NATIVE_WINDOWS
+  $allowBefore = $env:FLISK_ALLOW_NATIVE_WINDOWS
   $tempHome = Join-Path $script:WorkDir 'demo home'
   $tempPrefix = Join-Path $script:WorkDir 'demo npm prefix'
   New-Item -ItemType Directory -Force -Path $tempHome | Out-Null
@@ -676,13 +677,13 @@ function Invoke-Wh6 {
     $env:USERPROFILE = $tempHome
     $env:HOME = $tempHome
     $env:npm_config_prefix = $tempPrefix
-    Remove-Item Env:TDK_ALLOW_NATIVE_WINDOWS -ErrorAction SilentlyContinue
+    Remove-Item Env:FLISK_ALLOW_NATIVE_WINDOWS -ErrorAction SilentlyContinue
     $result = Invoke-Exe $exe @('demo') $workDir 600
   } finally {
     if ($null -eq $homeBefore) { Remove-Item Env:USERPROFILE -ErrorAction SilentlyContinue } else { $env:USERPROFILE = $homeBefore }
     if ($null -eq $homeEnvBefore) { Remove-Item Env:HOME -ErrorAction SilentlyContinue } else { $env:HOME = $homeEnvBefore }
     if ($null -eq $prefixBefore) { Remove-Item Env:npm_config_prefix -ErrorAction SilentlyContinue } else { $env:npm_config_prefix = $prefixBefore }
-    if ($allowBefore) { $env:TDK_ALLOW_NATIVE_WINDOWS = $allowBefore }
+    if ($allowBefore) { $env:FLISK_ALLOW_NATIVE_WINDOWS = $allowBefore }
   }
 
   if ($result.ExitCode -eq 0) { throw 'the demo command succeeded on native Windows; it must not boot a stack' }

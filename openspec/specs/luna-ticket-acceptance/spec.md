@@ -101,7 +101,7 @@ Flisk supports Ubuntu on WSL2. Native Windows is not supported.
 curl -fsSL https://flisk.sh/install.sh | sh
 flisk doctor
 flisk project example
-cd tdk-example
+cd flisk-example
 flisk up
 
 Open the URL printed by flisk networks from Windows browser. *.localhost should work on recent Windows.

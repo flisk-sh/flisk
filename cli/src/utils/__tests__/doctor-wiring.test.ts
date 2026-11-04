@@ -13,12 +13,15 @@ import {
   checkDuplicateResourceNames,
   checkDuplicateResourcePorts,
   checkFrontendBackendUrls,
+  checkInfraFrameworks,
   checkMigrationsInApi,
   checkNatsBroker,
+  checkPostgresCredentials,
   checkPrismaConsistency,
   checkResourcePackageJson,
   checkServiceUrlPorts,
   checkSharedPlatformPostgres,
+  checkSharedStackRoutes,
   checkTiltInstances,
   parseTiltProcesses,
 } from "../doctor-wiring.js";
@@ -209,6 +212,32 @@ describe("checkFrontendBackendUrls", () => {
   });
 });
 
+describe("checkSharedStackRoutes", () => {
+  it("reports sibling backends that lose the shared stack route", () => {
+    resource("store", "catalog-api", { appType: "backend", port: 4300 });
+    resource("store", "orders-api", { appType: "backend", port: 4400 });
+
+    const result = checkSharedStackRoutes(root);
+
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain(
+      'stack "store": catalog-api, orders-api lose the shared /api/store-management route',
+    );
+    expect(result.message).toContain("they are routed at /api/<name> only");
+  });
+
+  it("says nothing about the stack route for imported bring-your-own services, which never had it", () => {
+    resource("voting", "vote", { appType: "bring-your-own", port: 80 });
+    resource("voting", "result", { appType: "bring-your-own", port: 80 });
+
+    const result = checkSharedStackRoutes(root);
+
+    expect(result.message).not.toContain("lose the shared");
+    expect(result.didPass).toBe(true);
+  });
+});
+
 describe("checkNatsBroker", () => {
   it("is skipped when nothing uses nats", () => {
     resource("app", "api", { appType: "backend", port: 4000 });
@@ -222,6 +251,20 @@ describe("checkNatsBroker", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("worker enable the nats feature");
     expect(result.fix).toContain("reports_demo_nats");
+  });
+
+  it("uses flisk-project fallback when project.json is missing or has no project name", () => {
+    const noNameRoot = mkdtempSync(join(tmpdir(), "flisk-nats-no-name-"));
+    const dir = join(noNameRoot, "services", "app", "worker");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "service.json"),
+      JSON.stringify({ appName: "worker", appType: "worker", featuresEnabled: ["nats"] }),
+    );
+    const result = checkNatsBroker(noNameRoot);
+    expect(result.didPass).toBe(false);
+    expect(result.fix).toContain("container_name flisk_project_nats");
+    expect(result.fix).toContain("network flisk_project_backend");
   });
 
   it("passes when the messaging compose file is there", () => {
@@ -585,7 +628,34 @@ describe("checkPrismaConsistency", () => {
     );
     const result = checkPrismaConsistency(root);
     expect(result.didPass).toBe(false);
-    expect(result.message).toContain("migrator must depend on postgres or database-management");
+    expect(result.message).toContain(
+      "migrator must depend on postgres, database-management or a database resource",
+    );
+  });
+
+  it("accepts a database resource as the Postgres dependency of the migrator", () => {
+    validProject();
+    mkdirSync(join(root, "services/app/shop-db"), { recursive: true });
+    writeFileSync(
+      join(root, "services/app/shop-db/service.json"),
+      JSON.stringify({
+        appName: "shop-db",
+        appType: "database",
+        framework: "postgres",
+        stack: "app",
+      }),
+    );
+    writeFileSync(
+      join(root, "services/app/orders-api-migrator/service.json"),
+      JSON.stringify({
+        appName: "orders-api-migrator",
+        appType: "migrator",
+        port: 7000,
+        featuresEnabled: ["prisma"],
+        dependsOn: ["shop-db"],
+      }),
+    );
+    expect(checkPrismaConsistency(root).didPass).toBe(true);
   });
 
   it("accepts database-management as the Postgres dependency of the migrator", () => {
@@ -756,7 +826,7 @@ describe("checkDockerNetworkCapacity", async () => {
     }) as unknown as ExecAsync;
     const result = await checkDockerNetworkCapacity(exec);
     expect(result.didPass).toBe(false);
-    expect(result.fix).toContain("docker network prune");
+    expect(result.fix).toContain("flisk doctor --fix --scope=machine");
   });
 
   it("does not fail on unrelated Docker errors", async () => {
@@ -897,10 +967,13 @@ describe("checkDuplicateResourcePorts", () => {
     expect(result.message).toContain("port 4000: api, orders");
   });
 
-  it("warns for a backend and a bring-your-own resource on one port", () => {
+  it("passes for bring-your-own resources on one port: each port is inside its own container", () => {
     resource("app", "api", { appType: "backend", port: 4000 });
     resource("app", "legacy", { appType: "bring-your-own", port: 4000 });
-    expect(checkDuplicateResourcePorts(root).isWarning).toBe(true);
+    resource("app", "db", { appType: "bring-your-own", port: 5432 });
+    resource("app", "db-replica", { appType: "bring-your-own", port: 5432 });
+    expect(checkDuplicateResourcePorts(root).didPass).toBe(true);
+    expect(checkDuplicateResourcePorts(root).isWarning).toBeUndefined();
   });
 
   it("passes for distinct ports", () => {
@@ -920,5 +993,155 @@ describe("checkDuplicateResourcePorts", () => {
     resource("app", "noport", { appType: "backend" });
     resource("app", "noport2", { appType: "backend" });
     expect(checkDuplicateResourcePorts(root).didPass).toBe(true);
+  });
+});
+
+describe("checkInfraFrameworks", () => {
+  const old = {
+    appType: "bring-your-own",
+    port: 6379,
+    image: "redis:7.4-alpine",
+    exposeViaProxy: false,
+  };
+
+  it("warns, not fails, about a preset file written before the frameworks, with the migration command", () => {
+    resource("app", "cache", { ...old, provides: { REDIS_URL: "redis://cache:6379" } });
+    resource("app", "vectors", { ...old, provides: { QDRANT_URL: "http://vectors:6333" } });
+    resource("app", "broker", { ...old, provides: { AMQP_URL: "amqp://guest:guest@broker:5672" } });
+    const result = checkInfraFrameworks(root);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain("flisk resource cache --type database --framework redis");
+    expect(result.message).toContain("flisk resource vectors --type database --framework qdrant");
+    expect(result.message).toContain("flisk resource broker --type queue --framework rabbitmq");
+  });
+
+  it("passes for a file that records its framework, a hand-written provides and other resources", () => {
+    resource("app", "cache", {
+      ...old,
+      framework: "redis",
+      provides: { REDIS_URL: "redis://cache:6379" },
+    });
+    resource("app", "bus", { ...old, provides: { NATS_URL: "nats://bus:4222" } });
+    resource("app", "api", { appType: "backend", port: 4000, provides: { REDIS_URL: "x" } });
+    expect(checkInfraFrameworks(root)).toMatchObject({ didPass: true });
+    expect(checkInfraFrameworks(root).isWarning).toBeUndefined();
+  });
+});
+
+describe("checkPostgresCredentials", () => {
+  const PASSWORD = "p4ssw0rd-from-env";
+  const VOLUME = "reports-demo-database-management_reports_demo_postgres_data";
+
+  function writeEnv(content = `DB_PASSWORD=${PASSWORD}\n`): void {
+    writeFileSync(join(root, ".env"), content);
+  }
+
+  /** Answers the docker commands the check runs; `login` decides what the psql attempt does. */
+  function stubExec(
+    login: () => string,
+    calls: string[] = [],
+    options: { isRunning?: boolean } = {},
+  ): ExecAsync {
+    return async (command) => {
+      calls.push(command);
+      if (command.includes("State.Running")) {
+        if (options.isRunning === false) throw new Error("No such object: reports_demo_postgres");
+        return "true\n";
+      }
+      if (command.includes("IPAddress")) return "172.20.0.5 172.21.0.5 \n";
+      if (command.includes(".Mounts")) return `${VOLUME} \n`;
+      if (command.includes("psql")) return login();
+      throw new Error(`unexpected command: ${command}`);
+    };
+  }
+
+  const refusePassword = (): string => {
+    throw Object.assign(new Error("Command failed: docker exec"), {
+      stderr:
+        'psql: error: connection to server at "172.20.0.5", port 5432 failed: FATAL:  password authentication failed for user "reports_demo"',
+    });
+  };
+
+  afterEach(() => {
+    delete process.env.PGPASSWORD;
+  });
+
+  it("skips when .env has no DB_PASSWORD", async () => {
+    const calls: string[] = [];
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => "1\n", calls),
+    );
+    expect(result.isSkipped).toBe(true);
+    expect(result.didPass).toBe(true);
+    expect(calls).toEqual([]);
+  });
+
+  it("skips when the Postgres container is not running", async () => {
+    writeEnv();
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => "1\n", [], { isRunning: false }),
+    );
+    expect(result.isSkipped).toBe(true);
+    expect(result.message).toContain("reports_demo_postgres is not running");
+  });
+
+  it("passes when the login works, tried from the container address with the password kept off the command line", async () => {
+    writeEnv();
+    const calls: string[] = [];
+    let passwordSeenByDocker: string | undefined;
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => {
+        passwordSeenByDocker = process.env.PGPASSWORD;
+        return "1\n";
+      }, calls),
+    );
+    expect(result.didPass).toBe(true);
+    expect(result.isSkipped).toBeUndefined();
+    const login = calls.find((command) => command.includes("psql")) ?? "";
+    // The official image trusts 127.0.0.1 without a password, so a loopback test would pass whatever DB_PASSWORD is.
+    expect(login).toContain("-h 172.20.0.5");
+    expect(login).not.toContain("127.0.0.1");
+    expect(login).toContain("-U reports_demo");
+    expect(calls.some((command) => command.includes(PASSWORD))).toBe(false);
+    expect(passwordSeenByDocker).toBe(PASSWORD);
+    expect(process.env.PGPASSWORD).toBeUndefined();
+  });
+
+  it("fails, and names the volume to remove, when the volume was created with a different password", async () => {
+    writeEnv();
+    const result = await checkPostgresCredentials(root, stubExec(refusePassword));
+    expect(result.didPass).toBe(false);
+    expect(result.name).toBe("Postgres credentials");
+    expect(result.message).toContain("reports_demo_postgres refuses the DB_PASSWORD in .env");
+    expect(result.message).toContain("recreated project folder");
+    expect(result.fix).toContain("flisk down");
+    expect(result.fix).toContain(`docker volume rm ${VOLUME}`);
+    expect(result.fix).toContain("deletes its data");
+    expect(`${result.message} ${result.fix}`).not.toContain(PASSWORD);
+  });
+
+  it("restores a PGPASSWORD that was already set, even when the login is refused", async () => {
+    writeEnv();
+    process.env.PGPASSWORD = "set-by-the-user";
+    await checkPostgresCredentials(root, stubExec(refusePassword));
+    expect(process.env.PGPASSWORD).toBe("set-by-the-user");
+  });
+
+  it("skips rather than blaming the password when the login fails for another reason", async () => {
+    writeEnv();
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => {
+        throw Object.assign(new Error("Command failed"), {
+          stderr: "psql: error: connection to server failed: Connection refused",
+        });
+      }),
+    );
+    expect(result.didPass).toBe(true);
+    expect(result.isSkipped).toBe(true);
   });
 });

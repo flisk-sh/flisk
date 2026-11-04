@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="812" height="124" viewBox="0 0 812 124" role="img" aria-label="Agent chat input: Build me a small online shop with a storefront and an orders API…">
+<title>Agent chat input: Build me a small online shop with a storefront and an orders API…</title>
+<style>@keyframes ty{0%,6%{transform:translateX(0);animation-timing-function:steps(65,end)}50%,100%{transform:translateX(378px)}} .ty{transform:translateX(378px);animation:ty 10s linear infinite} .caret{animation:blink 1s steps(1) infinite}@keyframes blink{50%{opacity:0}}.send{animation:send 10s linear infinite}@keyframes send{0%,50%{opacity:.45}52%,100%{opacity:1}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<path d="M0 0h812v92a14 14 0 0 1-14 14H14A14 14 0 0 1 0 92Z" fill="#0e0e10"/>
+<path d="M0 108h812v6a10 10 0 0 1-10 10H10A10 10 0 0 1 0 114Z" fill="#c8c9cc"/>
+<rect x="0" y="108" width="812" height="2" fill="#e4e5e7"/>
+<path d="M350 108h112a6 6 0 0 1-6 6H356a6 6 0 0 1-6-6Z" fill="#a7a9ad"/>
+<rect x="14" y="0" width="784" height="84" fill="#181818"/>
+<rect x="26" y="6" width="760" height="70" rx="10" fill="#202020" stroke="#3a3a3a" stroke-width="1"/>
+<text x="40" y="30" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="13" fill="#e6e6e6" textLength="378" lengthAdjust="spacingAndGlyphs">Build me a small online shop with a storefront and an orders API…</text><clipPath id="tyc"><rect x="39" y="17" width="387" height="19"/></clipPath><g clip-path="url(#tyc)"><g class="ty"><rect x="40" y="17" width="387" height="19" fill="#202020"/><rect class="caret" x="40" y="18" width="7" height="17" fill="#e6e6e6" opacity="0.85"/></g></g>
+<rect x="38" y="44" width="78" height="22" rx="11" fill="#2d2d2d"/>
+<text fill="#d0d0d0" x="50" y="59" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="12">∞ Agent ⌄</text>
+<text fill="#9a9a9a" x="128" y="59" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif" font-size="12">Auto ⌄</text>
+<circle class="send" cx="760" cy="55" r="11" fill="#e6e6e6"/><path d="M760 60v-10M755.5 54.5 760 50l4.5 4.5" fill="none" stroke="#181818" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

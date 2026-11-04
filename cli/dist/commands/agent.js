@@ -1,57 +1,65 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import * as http from "node:http";
 import chalk from "chalk";
 import { Command } from "commander";
+import { formatAge } from "../utils/agent-format.js";
+import { agentSessionListRequest, agentSessionRequest, fetchAgent, parseAgentSessionList, } from "../utils/agent-sessions.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
+import { formatBytes } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { buildServicePorts } from "../utils/status-ports.js";
-const SESSION_REQUEST_TIMEOUT_MS = 10_000;
-/** GET with node:http because fetch silently drops a custom Host header, which is what Traefik routes on. */
-export function httpGet(url, headers, timeoutMs) {
-    return new Promise((resolve, reject) => {
-        // One signal covers the connection and the body read, so a hung agent cannot block the CLI.
-        const req = http.get(url, { headers, signal: AbortSignal.timeout(timeoutMs) }, (res) => {
-            const chunks = [];
-            res.on("data", (chunk) => chunks.push(chunk));
-            res.on("end", () => {
-                const status = res.statusCode ?? 0;
-                resolve({
-                    ok: status >= 200 && status < 300,
-                    status,
-                    text: Buffer.concat(chunks).toString("utf-8"),
-                });
-            });
-            res.on("error", reject);
-        });
-        req.on("error", reject);
-    });
-}
-/**
- * Agent containers publish no host port; the only way in is the Traefik route that `flisk status` prints as `url`
- * (for example http://api.<project>.localhost:8080/api/bot). `*.localhost` does not resolve everywhere (glibc without
- * systemd-resolved), so connect to loopback and keep the route's host in the Host header, which is all Traefik matches on.
- */
-export function agentSessionRequest(routeUrl, sessionId) {
-    const route = new URL(routeUrl);
-    const headers = { "x-session-id": sessionId };
-    if (route.hostname.endsWith(".localhost")) {
-        headers.host = route.host;
-        route.hostname = "127.0.0.1";
+export { formatAge } from "../utils/agent-format.js";
+export { agentSessionRequest, httpGet } from "../utils/agent-sessions.js";
+const WATCH_INTERVAL_MS = 2_000;
+/** The plain-text table `flisk agent sessions <resource>` prints, one line per session. */
+export function formatSessionTable(list, now = Date.now()) {
+    if (list.sessions.length === 0)
+        return ["No sessions yet."];
+    const rows = list.sessions.map((s) => [
+        s.sessionId,
+        formatAge(s.lastActivity, now),
+        s.status,
+        s.checkpointBytes === null ? "-" : formatBytes(s.checkpointBytes),
+    ]);
+    const header = ["SESSION", "LAST ACTIVITY", "STATUS", "CHECKPOINT"];
+    const widths = header.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
+    const line = (cells) => cells
+        .map((c, i) => (i === cells.length - 1 ? c : c.padEnd(widths[i])))
+        .join("  ")
+        .trimEnd();
+    const lines = [line(header), ...rows.map(line)];
+    if (list.total > list.sessions.length) {
+        lines.push(`... ${list.total - list.sessions.length} more not shown`);
     }
-    return { url: `${route.origin}${route.pathname.replace(/\/$/, "")}/session`, headers };
+    return lines;
 }
 export const agentCommand = new Command("agent").description("Inspect and operate AI agent resources");
 agentCommand
     .command("sessions <resource>")
-    .description("Inspect session checkpoints from a running AI agent resource")
-    .option("--session-id <id>", "Session ID to fetch (required)")
+    .description("List the sessions of a running AI agent resource, or inspect one session's checkpoint")
+    .option("--session-id <id>", "Session ID to fetch; without it, list all sessions")
+    .option("--watch", "Refresh the output every 2 seconds until interrupted", false)
     .option("--json", "Output one JSON object and exit", false)
     .action(async (resourceName, options) => {
+    // JSON mode prints its envelope and exits 1; human mode throws, and runCommand prints the message and hints.
+    const fail = ({ code, message, hints }) => {
+        if (options.json) {
+            console.log(JSON.stringify(createMachineEnvelope(null, [{ code, message }])));
+            process.exit(1);
+        }
+        throw new FliskError(message, hints);
+    };
     const action = async () => {
+        if (options.watch && options.json) {
+            fail({
+                code: "USAGE",
+                message: "--watch refreshes a table on the terminal and cannot be combined with --json.",
+            });
+        }
         const root = findProjectRoot();
         if (!root) {
             const error = errorFactories.notInProject();
@@ -62,112 +70,129 @@ agentCommand
         const discovery = createDiscoveryContext();
         const resource = discovery.resources.find((r) => r.name === resourceName);
         if (!resource) {
-            const msg = `Resource "${resourceName}" not found in project.`;
-            if (options.json) {
-                console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "UNKNOWN_RESOURCE", message: msg }])));
-                process.exit(1);
-            }
-            throw new FliskError(msg);
+            fail({
+                code: "UNKNOWN_RESOURCE",
+                message: `Resource "${resourceName}" not found in project.`,
+            });
+            return;
         }
         const appType = resource.config?.appType ?? resource.type;
         if (appType !== "agent") {
-            const msg = `Resource "${resourceName}" is of type "${appType}", not "agent".`;
-            if (options.json) {
-                console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "NOT_AN_AGENT", message: msg }])));
-                process.exit(1);
-            }
-            throw new FliskError(msg);
+            fail({
+                code: "NOT_AN_AGENT",
+                message: `Resource "${resourceName}" is of type "${appType}", not "agent".`,
+            });
         }
         const port = resource.port;
         if (!port) {
-            const msg = `Agent "${resourceName}" has no assigned port.`;
-            if (options.json) {
-                console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "NO_PORT", message: msg }])));
-                process.exit(1);
-            }
-            throw new FliskError(msg);
-        }
-        // The agent runtime keys GET /session by x-session-id and has no list endpoint, so a missing id
-        // would only come back as a confusing 400. Fail before any request. Checked after resource
-        // validation so UNKNOWN_RESOURCE, NOT_AN_AGENT and NO_PORT keep their precedence.
-        const sessionId = typeof options.sessionId === "string" ? options.sessionId.trim() : "";
-        if (!sessionId) {
-            const msg = `--session-id is required: the agent "${resourceName}" returns the checkpoint of one session.`;
-            if (options.json) {
-                console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "SESSION_ID_REQUIRED", message: msg }])));
-                process.exit(1);
-            }
-            throw new FliskError(msg, [`Run: flisk agent sessions ${resourceName} --session-id <id>`]);
+            fail({ code: "NO_PORT", message: `Agent "${resourceName}" has no assigned port.` });
         }
         const portPlan = root
             ? await getHostPortPlan(root, { inspectDocker: false }).catch(() => null)
             : null;
-        const routeUrl = buildServicePorts(resource, portPlan?.ingressHttp).url;
+        // A local process has no ingress route: it answers on localhost at its own port.
+        const native = isNativeProject(discovery.resources);
+        const ports = buildServicePorts(resource, portPlan?.ingressHttp, { native });
+        const routeUrl = native ? ports.directUrl : ports.url;
         if (!routeUrl) {
-            const msg = `Agent "${resourceName}" has no ingress route to reach it through.`;
-            if (options.json) {
-                console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "NO_ROUTE", message: msg }])));
-                process.exit(1);
-            }
-            throw new FliskError(msg);
-        }
-        const request = agentSessionRequest(routeUrl, sessionId);
-        // Nothing answered, or Traefik answered for a missing backend: either way the agent is not up.
-        const notRunning = () => {
-            const msg = `Agent "${resourceName}" is not responding at ${routeUrl}. Is the stack running?`;
-            if (options.json) {
-                console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "AGENT_NOT_RUNNING", message: msg }])));
-                process.exit(1);
-            }
-            throw new FliskError(msg, ["Start the stack with: flisk up"]);
-        };
-        let res;
-        let bodyText;
-        try {
-            const reply = await httpGet(request.url, request.headers, SESSION_REQUEST_TIMEOUT_MS);
-            res = reply;
-            bodyText = reply.text;
-        }
-        catch {
-            return notRunning();
-        }
-        let body = {};
-        try {
-            body = bodyText ? JSON.parse(bodyText) : {};
-        }
-        catch {
-            body = { raw: bodyText };
-        }
-        // Traefik answers 502/503/504 when the route has no live container and a plain-text 404 when it has no route at
-        // all. An agent's own errors are JSON, so a non-JSON 404 is the gateway, not the agent.
-        const gatewayText = typeof body === "object" && body !== null && "raw" in body;
-        if (!res.ok &&
-            ([502, 503, 504].includes(res.status) || (res.status === 404 && gatewayText))) {
-            return notRunning();
-        }
-        if (!res.ok) {
-            const detail = body?.error ?? bodyText;
-            if (options.json) {
-                console.log(JSON.stringify(createMachineEnvelope(null, [
-                    {
-                        code: "AGENT_REQUEST_FAILED",
-                        message: `Agent returned ${res.status}: ${detail}`,
-                    },
-                ])));
-                process.exit(1);
-            }
-            throw new FliskError(`Agent error (${res.status}): ${detail}`);
-        }
-        if (options.json) {
-            console.log(JSON.stringify(createMachineEnvelope({
-                agent: resourceName,
-                port,
-                session: body,
-            })));
+            fail({
+                code: "NO_ROUTE",
+                message: `Agent "${resourceName}" has no ingress route to reach it through.`,
+            });
             return;
         }
-        console.log(chalk.bold(`Sessions for ${resourceName}:`));
-        console.log(JSON.stringify(body, null, 2));
+        // With an id: the one checkpoint that GET /session returns. Without: the list from GET /sessions.
+        const sessionId = typeof options.sessionId === "string" ? options.sessionId.trim() : "";
+        const notRunning = {
+            code: "AGENT_NOT_RUNNING",
+            message: `Agent "${resourceName}" is not responding at ${routeUrl}. Is the stack running?`,
+            hints: ["Start the stack with: flisk up"],
+        };
+        const requestFailed = (reply) => ({
+            code: "AGENT_REQUEST_FAILED",
+            message: `Agent returned ${reply.status}: ${reply.detail}`,
+        });
+        /** One request and its rendering: the data for --json, or the lines a human sees. */
+        const load = async () => {
+            if (sessionId) {
+                const reply = await fetchAgent(agentSessionRequest(routeUrl, sessionId));
+                if (reply.kind === "not-running")
+                    return { ok: false, failure: notRunning };
+                if (reply.kind === "not-found") {
+                    const detail = reply.body?.error;
+                    return {
+                        ok: false,
+                        failure: requestFailed({
+                            kind: "error",
+                            status: 404,
+                            detail: typeof detail === "string" ? detail : JSON.stringify(reply.body),
+                        }),
+                    };
+                }
+                if (reply.kind === "error")
+                    return { ok: false, failure: requestFailed(reply) };
+                return {
+                    ok: true,
+                    data: { agent: resourceName, port, session: reply.body },
+                    lines: [
+                        chalk.bold(`Sessions for ${resourceName}:`),
+                        JSON.stringify(reply.body, null, 2),
+                    ],
+                };
+            }
+            const reply = await fetchAgent(agentSessionListRequest(routeUrl));
+            if (reply.kind === "not-running")
+                return { ok: false, failure: notRunning };
+            // The agent answered, but not for /sessions: it was scaffolded before the list endpoint existed.
+            const list = reply.kind === "ok" ? parseAgentSessionList(reply.body) : null;
+            if (reply.kind === "not-found" || (reply.kind === "ok" && !list)) {
+                return {
+                    ok: false,
+                    failure: {
+                        code: "SESSION_LIST_UNSUPPORTED",
+                        message: `Agent "${resourceName}" does not serve GET /sessions; it was created before Flisk could list agent sessions.`,
+                        hints: [
+                            `Read one session with: flisk agent sessions ${resourceName} --session-id <id>`,
+                            "Or copy the /sessions handler from a new scaffold (flisk resource <name> --type agent) into the agent's src/index.ts",
+                        ],
+                    },
+                };
+            }
+            if (reply.kind === "error")
+                return { ok: false, failure: requestFailed(reply) };
+            const sessions = list;
+            return {
+                ok: true,
+                data: { agent: resourceName, port, sessions: sessions.sessions, total: sessions.total },
+                lines: [chalk.bold(`Sessions for ${resourceName}:`), ...formatSessionTable(sessions)],
+            };
+        };
+        if (!options.watch) {
+            const result = await load();
+            if (!result.ok) {
+                fail(result.failure);
+                return;
+            }
+            if (options.json) {
+                console.log(JSON.stringify(createMachineEnvelope(result.data)));
+                return;
+            }
+            for (const line of result.lines)
+                console.log(line);
+            return;
+        }
+        // --watch: redraw on a timer. A failed refresh (the agent restarting, say) is shown and retried, not fatal.
+        for (;;) {
+            const result = await load();
+            const lines = result.ok
+                ? result.lines
+                : [chalk.red(result.failure.message), ...(result.failure.hints ?? [])];
+            process.stdout.write("\x1b[2J\x1b[H");
+            for (const line of lines)
+                console.log(line);
+            console.log(chalk.dim(`\nRefreshing every ${WATCH_INTERVAL_MS / 1000}s. Ctrl+C to stop.`));
+            await new Promise((resolve) => setTimeout(resolve, WATCH_INTERVAL_MS));
+        }
     };
     if (options.json) {
         try {

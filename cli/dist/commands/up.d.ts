@@ -2,7 +2,16 @@ import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
 import { type SelectedEnvFile } from "../utils/env-selection.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
-export declare function formatUpSuccess(port: number, appUrls?: string[]): string[];
+export interface ServiceHealth {
+    name: string;
+    status: "ready" | "failed" | "starting";
+    url?: string;
+}
+export declare function formatUpSuccess(port: number, options?: {
+    appUrls?: string[];
+    serviceHealth?: ServiceHealth[];
+    showLogsHint?: boolean;
+}): string[];
 /**
  * The native Windows boundary for a command that starts a stack.
  *
@@ -12,6 +21,7 @@ export declare function formatUpSuccess(port: number, appUrls?: string[]): strin
 export declare const nativeWindowsUpRefusal: typeof nativeWindowsStackRefusal;
 /** Why `flisk up` cannot work on this host, or null when it may proceed. Docker reachability is only probed in container hosts. */
 export declare function hostUpRefusal(host?: import("../utils/agent-host.js").HostInfo, dockerReachable?: () => Promise<boolean>): Promise<string | null>;
+export declare function defaultDockerReachable(): Promise<boolean>;
 /** Exit status for `flisk up` when generated files no longer match service.json / project.json. */
 export declare const DRIFT_EXIT_CODE = 2;
 /**
@@ -29,19 +39,20 @@ export declare function enforceDriftGate(projectRoot: string, options: {
     resources?: DiscoveredResource[];
 }, exit?: (code: number) => never): void;
 /**
- * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minFliskVersion` in
- * .flisk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
- * `ignoreVersion` skips the check and says so. No minFliskVersion means no check.
+ * Checks the project's CLI version requirements before anything starts.
+ * Enforces both minFliskVersion and pinnedFliskVersion, including under --dry-run.
+ * Kept as a compatibility wrapper for existing callers and tests.
  */
 export declare function enforceVersionFloor(projectRoot: string, options: {
     ignoreVersion?: boolean;
-    onFail?: (message: string) => void;
+    onFail?: (message: string, status: "malformed" | "too-old" | "mismatch") => void;
 }, currentVersion?: string, exit?: (code: number) => never): void;
 /**
  * Waits for Tilt to exit, unless startup has already failed. A readiness failure reports and exits 1 at once: Tilt keeps
  * running (`flisk down` stops it), so waiting for its exit would hang the command.
  */
 export declare function waitForTiltUnlessStartupFailed<T>(tiltRun: Promise<T>, startupFailure: Promise<void>, exit?: (code: number) => never): Promise<T>;
+export declare function waitForTiltUi(port: number, timeoutMs?: number): Promise<boolean>;
 /**
  * The env file of the run. `flisk up --env-file <path>` replaces the project `.env` for the run, so the
  * file is resolved, read and checked before anything is written or started. Without the option the
@@ -50,4 +61,21 @@ export declare function waitForTiltUnlessStartupFailed<T>(tiltRun: Promise<T>, s
  * @throws FliskError when the file cannot be used; the run stops before it starts
  */
 export declare function selectRunEnvFile(projectRoot: string | null, requested: string | undefined): SelectedEnvFile | undefined;
+/** A selection `flisk up` runs as local processes. */
+export interface NativeUpSelection {
+    projectRoot: string;
+    /** No .flisk/project.json yet: `flisk up` adopts the directory as a project. */
+    isNewProject: boolean;
+    all: DiscoveredResource[];
+    selected: DiscoveredResource[];
+    dependencies: string[];
+}
+/**
+ * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which
+ * a project without any `command` service always takes. Outside a project, a directory whose services all declare `command`
+ * becomes the project. A project whose .flisk/project.json selects its own Tiltfile (`flisk import tiltfile`) also returns null:
+ * Tilt runs that Tiltfile through the generated wrapper, whatever its services declare. Refuses (through `fail`) an unknown
+ * stack or service, an invalid service.json, and a run that would mix native and container services.
+ */
+export declare function selectNativeRun(stackName: string | undefined, only: string[] | undefined, fail: (code: string, message: string, suggestions?: string[]) => never, cwd?: string): NativeUpSelection | null;
 export declare const upCommand: Command;

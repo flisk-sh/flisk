@@ -5,13 +5,19 @@ import { Command } from "commander";
 import { createMcpServer } from "../mcp/server.js";
 import { createFliskTools } from "../mcp/tools.js";
 import { getPackageVersion } from "../utils/paths.js";
+import { createMcpCheckCommand } from "./mcp-check.js";
 
 export const mcpCommand = new Command("mcp")
   .description("Run a Model Context Protocol server over stdio for coding agents")
+  // `flisk mcp` with no subcommand is still the stdio server; `flisk mcp check` is the only subcommand.
+  .addCommand(createMcpCheckCommand())
   .action(async () => {
     const server = createMcpServer(createFliskTools(), {
       name: "flisk",
       version: getPackageVersion(),
+      icons: [
+        { src: "https://mcp.flisk.sh/icon-512.png", mimeType: "image/png", sizes: ["512x512"] },
+      ],
     });
     // Stdout is the protocol channel. Nothing else may write to it; diagnostics go to stderr.
     const lines = createInterface({ input: process.stdin });

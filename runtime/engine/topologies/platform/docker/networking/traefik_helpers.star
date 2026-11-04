@@ -64,6 +64,25 @@ def frontend_rule(res_name, base_path, traefik_host):
     return " || ".join(parts)
 
 
+def byo_web_ui(manifest):
+    """True for a bring-your-own resource that serves a web UI and has a Traefik route (`webUi: true`, #2997).
+
+    Its pages and assets are served from `/`, so a path prefix such as /api/<name> cannot work: it is routed on its own host name,
+    `<name>.<project>.localhost`, with no prefix stripped. Everything else (APIs, `webUi` unset) keeps the path-prefix route.
+    """
+    if not manifest or manifest.get('appType') != 'bring-your-own':
+        return False
+    web_ui = manifest.get('webUi')
+    if web_ui != None and type(web_ui) != 'bool':
+        fail("MANIFEST ERROR: 'webUi' must be true or false")
+    return bool(web_ui) and bool(manifest.get('exposeViaProxy', True))
+
+
+def byo_ui_host(resource_name):
+    """The host name a `webUi` bring-your-own resource answers on: <name>.<project>.localhost. Keep in step with resolveUiBase in cli/src/utils/service-urls.ts."""
+    return resource_name + "." + TRAEFIK_PROJECT_HOST
+
+
 def backend_rule(traefik_host, traefik_path):
     parts = []
     if TRAEFIK_ENABLE_BACKEND_HOST_RULE and traefik_host:

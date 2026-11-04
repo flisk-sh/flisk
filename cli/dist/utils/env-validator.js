@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeTextFileAtomic } from "./atomic-write.js";
+import { FliskError } from "./errors.js";
 const REQUIRED_ENV_VARS = [
     {
         name: "VERDACCIO_URL_DOCKER",
@@ -240,7 +241,9 @@ export function completeEnvFile(projectRoot) {
                 lineIndex = index;
         }
         if (lineIndex < 0) {
-            throw new Error(`Could not locate empty .env assignment for ${envVar.name}`);
+            throw new FliskError(`Could not locate empty .env assignment for ${envVar.name}`, [
+                `Set ${envVar.name}=<value> in .env by hand`,
+            ]);
         }
         lines[lineIndex] = replaceEmptyEnvValue(lines[lineIndex], envVar.name, generatedValue(envVar.name, password));
     }

@@ -1,0 +1,61 @@
+# Turns the quick-win gaps of docs/competitors/ (what a competitor has and Flisk could reasonably add) into
+# feature-request issues. A gap becomes an issue only when its ICE score is 7.0 or more AND its ease is 7 or more;
+# everything else stays in docs/competitors/MATRIX.md. At most 5 new issues per run, never reopens an issue a
+# maintainer closed, never touches an issue without its hidden marker.
+#
+# DRY RUN IS THE DEFAULT. The weekly run and a manual run only print what they would do (see the job log) until
+# someone opts in: a manual run has an `apply` input (default false), and the schedule applies only when you change
+# `SCHEDULE_APPLY` below from "false" to "true". That one line is the whole switch.
+# The script is the single implementation, so a contributor can run it locally:
+#   node scripts/competitor-gap-issues.mjs            (dry run)
+name: 🧭 Competitors | Gap issues
+
+on:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Create and close issues (false prints what would happen)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  # Change to "true" to let the weekly run create issues (still capped at 5 per run).
+  SCHEDULE_APPLY: "false"
+
+# One sync at a time: two runs would both create the same issue.
+concurrency:
+  group: competitor-gap-issues
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync competitor gap issues
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # persist-credentials: false keeps the job from leaving a write-capable git credential on disk;
+      # the script talks to the API with GH_TOKEN.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Open or close the issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_APPLY: ${{ inputs.apply }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then apply="$INPUT_APPLY"; else apply="$SCHEDULE_APPLY"; fi
+          if [ "$apply" = "true" ]; then
+            node scripts/competitor-gap-issues.mjs --apply
+          else
+            node scripts/competitor-gap-issues.mjs
+          fi

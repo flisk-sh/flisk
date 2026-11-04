@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="760" viewBox="0 0 1270 760" role="img" aria-label="Flisk for AI agents: free, local, MIT">
+<title>Flisk for AI agents: free, local, MIT</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101827"/><stop offset="1" stop-color="#192b3d"/></linearGradient>
+<linearGradient id="glow" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#61f0d3"/><stop offset="1" stop-color="#69a8ff"/></linearGradient>
+</defs>
+<rect width="1270" height="760" fill="url(#bg)"/>
+<text x="64" y="76" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="3" fill="#91a8bf">FLISK FOR AI AGENTS</text>
+<rect x="64" y="90" width="72" height="4" rx="2" fill="url(#glow)"/>
+<text x="64" y="170" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="64" font-weight="750" fill="#edf5ff" text-anchor="start">Free, local, MIT</text>
+<rect x="64" y="250" width="1142" height="96" rx="18" fill="#111d2b" stroke="#2d4358" stroke-width="1.5" />
+<text x="100" y="310" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="34" font-weight="750" fill="#61f0d3" text-anchor="start">Free</text>
+<text x="280" y="309" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="24" font-weight="400" fill="#edf5ff" text-anchor="start">The core CLI and flisk mcp are MIT. No key, no account.</text>
+<rect x="64" y="370" width="1142" height="96" rx="18" fill="#111d2b" stroke="#2d4358" stroke-width="1.5" />
+<text x="100" y="430" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="34" font-weight="750" fill="#61f0d3" text-anchor="start">Local</text>
+<text x="280" y="429" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="24" font-weight="400" fill="#edf5ff" text-anchor="start">Runs on your machine on Docker and Tilt. Not a hosted service, not a deploy tool.</text>
+<rect x="64" y="490" width="1142" height="96" rx="18" fill="#111d2b" stroke="#2d4358" stroke-width="1.5" />
+<text x="100" y="550" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="34" font-weight="750" fill="#61f0d3" text-anchor="start">Yours</text>
+<text x="280" y="549" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="24" font-weight="400" fill="#edf5ff" text-anchor="start">Plain service.json per service. Generated files you can read; flisk eject removes them.</text>
+<text x="64" y="650" xml:space="preserve" font-family="'JetBrains Mono','Hack',ui-monospace,Menlo,monospace" font-size="26" font-weight="400" fill="#cfe3f7" text-anchor="start">npm install -g @flisk-sh/flisk</text>
+<text x="64" y="740" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#91a8bf">github.com/flisk-sh/flisk · MIT · runs on your machine</text>
+</svg>

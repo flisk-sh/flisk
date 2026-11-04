@@ -4,7 +4,19 @@ export interface ProjectTemplate {
   repo: string;
   description: string;
   bundledPath?: string;
+  /** Written by the CLI itself from `cli/templates`, with no clone: `swarm` or `security`. */
+  generated?: "swarm" | "security" | "super-agent" | "langgraph" | "tool-loop";
   fixedDir?: string;
+  /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
+  ref?: string;
+}
+
+/** One row of the template catalog that `flisk project --list --json` and the `project_templates` MCP tool return. */
+export interface ProjectTemplateEntry {
+  key: string;
+  repo: string;
+  description: string;
+  ref?: string;
 }
 
 /** Public starter repositories plus the bundled default product example. */
@@ -37,14 +49,85 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
   },
   example: {
     repo: "https://github.com/flisk-sh/flisk-example.git",
-    bundledPath: "examples/tdk-example",
+    bundledPath: "examples/flisk-example",
     description: "Hono + Postgres + NATS worker + Vite example with a routed write path",
   },
   "agent-stack": {
     repo: "https://github.com/flisk-sh/flisk-agent-stack.git",
     description: "AI agent stack: Bun agent + MCP tool server + Postgres + NATS",
   },
+  swarm: {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "swarm",
+    description:
+      "Multi-agent swarm: a coordinator splits a goal, three workers pull and finish subtasks (local processes, no Docker)",
+  },
+  security: {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "security",
+    description:
+      "Security agents: a scanner, a triage agent and a reporter in a line (local processes, no Docker)",
+  },
+  "super-agent": {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "super-agent",
+    description:
+      "Super agent: a planner, an MCP tool server and researcher, writer and checker sub-agents; plans with Claude when ANTHROPIC_API_KEY is set (local processes, no Docker)",
+  },
+  langgraph: {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "langgraph",
+    description:
+      "LangGraph agent: a StateGraph (plan, research, write, check) with durable checkpoints and retries, and an MCP tool server (local processes, no Docker)",
+  },
+  "tool-loop": {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "tool-loop",
+    description:
+      "Plain agent loop: the Anthropic SDK tool runner over an MCP tool server, with a local mock model so it runs offline (local processes, no Docker)",
+  },
+  launch: {
+    repo: "https://github.com/flisk-sh/flisk-template-launch.git",
+    ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
+    description:
+      "Launch-ready web tool: one Bun + Hono service with SEO, icons, a JSON API and an /mcp endpoint; no database",
+  },
+  portal: {
+    repo: "https://github.com/flisk-sh/flisk-template-portal.git",
+    ref: "0d57988acca78ff6649d861edcc683ece2afff22",
+    description:
+      "API portal and model gateway: GitHub sign-in, API keys, usage and a metered OpenAI-style /v1 proxy (one Bun service)",
+  },
+  // Not "stack": that is a command name, and `flisk <template>` is the one-command flow.
+  fullstack: {
+    repo: "https://github.com/flisk-sh/flisk-stack.git",
+    ref: "fff53f3c77d0daea1f34498c70fe48a9e372b682",
+    description:
+      "Full-stack app skeleton: Hono API, Postgres job worker, Prisma migrator and Vue 3 web app",
+  },
 };
+
+/** The template catalog in registration order: key, repo, description and, for a pinned template, its ref. */
+export function listProjectTemplates(): ProjectTemplateEntry[] {
+  return Object.entries(PROJECT_TEMPLATES).map(([key, template]) => ({
+    key,
+    repo: template.repo,
+    description: template.description,
+    ...(template.ref ? { ref: template.ref } : {}),
+  }));
+}
+
+/**
+ * The git invocations that fetch a repository template into `destination`: a clone and, for a pinned template, a
+ * detached checkout of its exact commit.
+ */
+export function templateGitCommands(template: ProjectTemplate, destination: string): string[][] {
+  const commands = [["clone", template.repo, destination]];
+  if (template.ref) {
+    commands.push(["-C", destination, "checkout", "--quiet", "--detach", template.ref]);
+  }
+  return commands;
+}
 
 /**
  * The template of the one-command flow (`flisk demo`), read from the raw arguments.

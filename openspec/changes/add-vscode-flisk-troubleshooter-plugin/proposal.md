@@ -4,7 +4,7 @@ Flisk CLI already provides project, stack, resource, health, and Tilt orchestrat
 
 ## What Changes
 
-- Create a new VS Code extension repository/package at `/private/var/www/2025/ollamar1/tdk-vscode-extension` for a Flisk IDE plugin instead of embedding extension code in the CLI package.
+- Create a new VS Code extension repository/package at `/private/var/www/2025/ollamar1/flisk-vscode-extension` for a Flisk IDE plugin instead of embedding extension code in the CLI package.
 - Add VS Code commands and panels for Flisk project detection, stack/resource orchestration, status inspection, logs, and doctor checks.
 - Add a real troubleshooter that classifies common Flisk/Tilt/Docker/Bun/port/config failures, explains likely causes, and offers safe, explicit repair actions.
 - Add notification management so normal background polling remains quiet, while actionable failures surface with deduplicated severity, context, and next steps.
@@ -24,7 +24,7 @@ Flisk CLI already provides project, stack, resource, health, and Tilt orchestrat
 
 ## Impact
 
-- Adds a new VS Code extension repo/package at `/private/var/www/2025/ollamar1/tdk-vscode-extension`.
+- Adds a new VS Code extension repo/package at `/private/var/www/2025/ollamar1/flisk-vscode-extension`.
 - Uses the existing Flisk CLI as the source of truth for project status, orchestration, health checks, and remediation commands.
 - The one-shot MVP MUST NOT require changing the Flisk CLI. If structured CLI output is missing, the extension must use mocked adapters in tests and conservative raw-output parsing at runtime, then document follow-up CLI improvements.
 - Adds extension tests, command-runner tests, diagnostic classifier tests, and manual VS Code extension smoke testing.

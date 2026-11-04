@@ -1,0 +1,296 @@
+{
+	"$comment": "The competitors Flisk is measured against and the feature areas their rows use. Add one with docs/competitors/README.md. `watch` lists the public pages the weekly competitor-watch reads (plain HTTP, robots.txt honoured).",
+	"areas": [
+		"agents",
+		"runtime",
+		"environments",
+		"orchestration",
+		"workflow",
+		"terminal",
+		"collaboration",
+		"security",
+		"enterprise",
+		"integrations",
+		"observability",
+		"skills"
+	],
+	"competitors": [
+		{
+			"id": "warp",
+			"name": "Warp",
+			"url": "https://www.warp.dev/",
+			"category": "terminal-ade",
+			"why": "The terminal that became an Agentic Development Environment; named by the maintainers and shown in the README demo. Different category (a workspace), but its agent platform overlaps what Flisk gives agents.",
+			"watch": [
+				{
+					"url": "https://www.warp.dev/agents",
+					"kind": "features"
+				},
+				{
+					"url": "https://www.warp.dev/pricing",
+					"kind": "pricing"
+				},
+				{
+					"url": "https://docs.warp.dev/changelog/2026/",
+					"kind": "changelog"
+				},
+				{
+					"url": "https://docs.warp.dev/agents/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.warp.dev/platform/overview/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.warp.dev/factories/",
+					"kind": "docs"
+				}
+			]
+		},
+		{
+			"id": "superset",
+			"name": "Superset (now Paradev)",
+			"url": "https://paradev.com/",
+			"category": "terminal-ade",
+			"why": "An ADE that runs many coding agents in parallel in isolated worktrees; on the maintainers' ADE list. Flisk is the runtime those agents run services in.",
+			"watch": [
+				{
+					"url": "https://paradev.com/",
+					"kind": "features"
+				},
+				{
+					"url": "https://paradev.com/changelog",
+					"kind": "changelog"
+				},
+				{
+					"url": "https://paradev.com/pricing",
+					"kind": "pricing"
+				},
+				{
+					"url": "https://docs.paradev.com/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://paradev.com/enterprise",
+					"kind": "features"
+				}
+			]
+		},
+		{
+			"id": "skills-sh",
+			"name": "skills.sh",
+			"url": "https://skills.sh/",
+			"category": "skills-directory",
+			"why": "The directory and installer for agent skills that Flisk publishes its own skills through (flisk-sh/flisk-skills).",
+			"watch": [
+				{
+					"url": "https://www.skills.sh/docs",
+					"kind": "docs"
+				},
+				{
+					"url": "https://www.skills.sh/docs/cli",
+					"kind": "docs"
+				},
+				{
+					"url": "https://www.skills.sh/docs/packs",
+					"kind": "docs"
+				},
+				{
+					"url": "https://www.skills.sh/docs/api",
+					"kind": "docs"
+				},
+				{
+					"url": "https://www.skills.sh/docs/faq",
+					"kind": "docs"
+				},
+				{
+					"url": "https://www.skills.sh/audits",
+					"kind": "features"
+				}
+			]
+		},
+		{
+			"id": "tilt",
+			"name": "Tilt",
+			"url": "https://tilt.dev/",
+			"category": "orchestrator",
+			"why": "Flisk's inner loop runs on Tilt; the comparison tab Compose and Tilt in docs/compare. What plain Tilt offers that Flisk does not surface is a real gap.",
+			"watch": [
+				{
+					"url": "https://tilt.dev/",
+					"kind": "features"
+				},
+				{
+					"url": "https://docs.tilt.dev/api.html",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.tilt.dev/live_update_reference.html",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.tilt.dev/buttons.html",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.tilt.dev/snapshots.html",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.tilt.dev/tiltfile_config.html",
+					"kind": "docs"
+				}
+			]
+		},
+		{
+			"id": "docker-compose",
+			"name": "Docker Compose",
+			"url": "https://docs.docker.com/compose/",
+			"category": "local-dev-runtime",
+			"why": "The default for a multi-container local stack and the first comparison tab; most Flisk users come from a compose.yaml.",
+			"watch": [
+				{
+					"url": "https://docs.docker.com/compose/intro/features-uses/",
+					"kind": "features"
+				},
+				{
+					"url": "https://docs.docker.com/compose/how-tos/file-watch/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.docker.com/ai/compose/models-and-compose/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.docker.com/compose/how-tos/provider-services/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.docker.com/reference/cli/docker/compose/",
+					"kind": "docs"
+				}
+			]
+		},
+		{
+			"id": "dev-containers",
+			"name": "Dev Containers",
+			"url": "https://containers.dev/",
+			"category": "local-dev-runtime",
+			"why": "Reproducible dev environments in containers (comparison tab Dev Containers and Devbox); overlaps Flisk on the one-command, same-everywhere environment.",
+			"watch": [
+				{
+					"url": "https://containers.dev/implementors/json_reference/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://containers.dev/supporting",
+					"kind": "features"
+				},
+				{
+					"url": "https://containers.dev/implementors/features/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://code.visualstudio.com/docs/devcontainers/containers",
+					"kind": "docs"
+				},
+				{
+					"url": "https://code.visualstudio.com/updates",
+					"kind": "changelog"
+				}
+			]
+		},
+		{
+			"id": "coder",
+			"name": "Coder",
+			"url": "https://coder.com/",
+			"category": "agent-platform",
+			"why": "Self-hosted cloud development environments that now run AI coding agents; in the repo's cloud-workspaces comparison tab and on the maintainers' ADE list.",
+			"watch": [
+				{
+					"url": "https://coder.com/docs/ai-coder/agents",
+					"kind": "docs"
+				},
+				{
+					"url": "https://coder.com/docs/ai-coder/agent-firewall",
+					"kind": "docs"
+				},
+				{
+					"url": "https://coder.com/docs/ai-coder/ai-gateway",
+					"kind": "docs"
+				},
+				{
+					"url": "https://coder.com/solutions/agents",
+					"kind": "features"
+				},
+				{
+					"url": "https://coder.com/pricing",
+					"kind": "pricing"
+				}
+			]
+		},
+		{
+			"id": "process-compose",
+			"name": "process-compose",
+			"url": "https://f1bonacc1.github.io/process-compose/",
+			"category": "local-dev-runtime",
+			"why": "A process runner with dependencies, health checks and a TUI (comparison tab process runners); overlaps Flisk's native, Docker-free mode.",
+			"watch": [
+				{
+					"url": "https://f1bonacc1.github.io/process-compose/launcher/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://f1bonacc1.github.io/process-compose/health/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://f1bonacc1.github.io/process-compose/configuration/",
+					"kind": "docs"
+				},
+				{
+					"url": "https://f1bonacc1.github.io/process-compose/watch/",
+					"kind": "features"
+				},
+				{
+					"url": "https://f1bonacc1.github.io/process-compose/mcp-server/",
+					"kind": "features"
+				},
+				{
+					"url": "https://f1bonacc1.github.io/process-compose/blog/",
+					"kind": "changelog"
+				}
+			]
+		},
+		{
+			"id": "garden",
+			"name": "Garden",
+			"url": "https://garden.io/",
+			"category": "orchestrator",
+			"why": "Dev, test and preview orchestration for multi-service apps, named with Skaffold and DevSpace in docs/compare-honest.md.",
+			"watch": [
+				{
+					"url": "https://docs.garden.io/overview/what-is-garden",
+					"kind": "features"
+				},
+				{
+					"url": "https://docs.garden.io/overview/use-cases",
+					"kind": "features"
+				},
+				{
+					"url": "https://docs.garden.io/overview/garden-vs-other-tools",
+					"kind": "features"
+				},
+				{
+					"url": "https://docs.garden.io/features/workflows",
+					"kind": "docs"
+				},
+				{
+					"url": "https://docs.garden.io/reference/commands",
+					"kind": "docs"
+				}
+			]
+		}
+	]
+}

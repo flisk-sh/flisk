@@ -2,7 +2,7 @@
 
 ## 1. Preflight checks
 
-- [x] 1.1 Search every Flisk project in the workspace (`tdk-erp-system`, `tdk-saas-starter`, `tdk-restaurant-example`, `tdk-user-management`) for services that use `hugo` without listing it in `featuresEnabled`. Record the result under design D5. Verify by attaching the search command and its (expected empty) output to the design note.
+- [x] 1.1 Search every Flisk project in the workspace (`flisk-erp-system`, `flisk-saas-starter`, `flisk-restaurant-example`, `flisk-user-management`) for services that use `hugo` without listing it in `featuresEnabled`. Record the result under design D5. Verify by attaching the search command and its (expected empty) output to the design note.
 - [x] 1.2 Determine whether any `l4_migrator_golden`-based container runs long-lived or all are one-shot jobs. Record the answer under design D4 and keep or switch the D4 decision accordingly. Verify that design.md is updated with the evidence (compose `restart` policy and Tilt resource type).
 
 ## 2. Single-process runtime (D1, D2)
@@ -10,7 +10,7 @@
 - [x] 2.1 Add one start-command resolver to the engine. It returns `bun <file>` for a `start` script of exactly `bun run <file>` or `bun <file>`, and `bun run start` otherwise. Verify with a new pytest in `tests/tilt-engine/` that generates Dockerfiles for fixture services with these start scripts: `bun run dist/index.js`, `bun dist/index.js`, `bun run dist/index.js --port 4000`, `NODE_ENV=x bun run dist/index.js`, `tsc && bun dist/index.js`, and no `start`. Assert the resulting `CMD` for each.
 - [x] 2.2 Apply the resolver where every Bun `CMD` is emitted: the backend runtime (plain and Infisical-entrypoint paths) and the Bun-static frontend in `l4_runtime_layers.star`. Upstream `cmd` defaults stay as the no-override value and explicit overrides are kept (design D1). Verify with `test_backend_cmd_follows_start_script` (both paths) and `test_explicit_cmd_override_is_kept`.
 - [x] 2.3 Emit `init: true` for generated backend and frontend runtime services in `compose.star`. Verify with a pytest asserting `init: true` on both service kinds in a generated compose file.
-- [ ] 2.4 Build one real backend (`cash-management-api` in `tdk-erp-system`) from the new layers. Verify that `docker top` lists exactly one Bun process running `dist/index.js`, and that `docker stop` finishes in under 3 s.
+- [ ] 2.4 Build one real backend (`cash-management-api` in `flisk-erp-system`) from the new layers. Verify that `docker top` lists exactly one Bun process running `dist/index.js`, and that `docker stop` finishes in under 3 s.
 
 ## 3. Healthchecks (D3, D4)
 
@@ -32,5 +32,5 @@
 
 ## 6. Integration
 
-- [ ] 6.1 Re-vendor into `tdk-erp-system` (`flisk project --yes`, touch the Tiltfile, rebuild golden layers) and run `flisk up finance`. Verify that every finance service is healthy and answers HTTP 200, and record per-container idle memory next to the baseline in proposal.md.
-- [ ] 6.2 Measurement only: start the full `tdk-erp-system` landscape on the 16 GB reference machine. Record load average, free memory, and `docker ps` latency against the 2026-09-25 baseline, then add the numbers to proposal.md. This informs the separate default-startup-scope change and is not a pass/fail gate.
+- [ ] 6.1 Re-vendor into `flisk-erp-system` (`flisk project --yes`, touch the Tiltfile, rebuild golden layers) and run `flisk up finance`. Verify that every finance service is healthy and answers HTTP 200, and record per-container idle memory next to the baseline in proposal.md.
+- [ ] 6.2 Measurement only: start the full `flisk-erp-system` landscape on the 16 GB reference machine. Record load average, free memory, and `docker ps` latency against the 2026-09-25 baseline, then add the numbers to proposal.md. This informs the separate default-startup-scope change and is not a pass/fail gate.

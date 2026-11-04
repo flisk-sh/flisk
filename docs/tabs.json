@@ -1,0 +1,270 @@
+{
+  "$comment": "Tab bars in the docs. Run `node scripts/docs/tabs.mjs` after editing; the docs check fails until you do. Each tab has a page at <dir>/<slug>.md. hosts are other pages that show one tab inline. icon is a key of ICONS in scripts/docs/tabs.mjs. frame draws a device around a tab's panel (kinds in scripts/docs/frames.mjs). A number in a frame must be measured and recorded in docs/benchmarks/: the macOS 0.8 s is in docs/benchmarks/quickstart-timing.md.",
+  "groups": [
+    {
+      "id": "agents",
+      "count": "agents",
+      "dir": "docs/agents",
+      "back": "README.md#pick-your-agent",
+      "hosts": [
+        {
+          "file": "README.md",
+          "selected": "claude-code"
+        }
+      ],
+      "tabs": [
+        {
+          "slug": "claude-code",
+          "label": "Claude Code",
+          "icon": "terminal",
+          "title": "Use Flisk with Claude Code",
+          "frame": {
+            "kind": "claude-code",
+            "title": "~/my-shop",
+            "prompt": "Build me a small online shop with a storefront and an orders API…"
+          }
+        },
+        {
+          "slug": "codex",
+          "label": "Codex",
+          "icon": "code",
+          "title": "Use Flisk with Codex",
+          "frame": {
+            "kind": "codex",
+            "title": "~/my-shop",
+            "prompt": "Build me a small online shop with a storefront and an orders API…"
+          }
+        },
+        {
+          "slug": "cursor",
+          "label": "Cursor",
+          "icon": "pointer",
+          "title": "Use Flisk with Cursor",
+          "frame": {
+            "kind": "cursor",
+            "title": "my-shop",
+            "prompt": "Build me a small online shop with a storefront and an orders API…"
+          }
+        }
+      ]
+    },
+    {
+      "id": "compare",
+      "count": "comparisons",
+      "dir": "docs/compare",
+      "back": "README.md#why-flisk-cli",
+      "hosts": [
+        {
+          "file": "README.md",
+          "selected": "compose-tilt"
+        }
+      ],
+      "tabs": [
+        {
+          "slug": "compose-tilt",
+          "label": "Compose & Tilt",
+          "icon": "package",
+          "title": "Flisk vs Docker Compose and Tilt"
+        },
+        {
+          "slug": "kubernetes-dev",
+          "label": "Kubernetes loops",
+          "icon": "sliders",
+          "title": "Flisk vs Skaffold and DevSpace"
+        },
+        {
+          "slug": "local-kubernetes",
+          "label": "Local clusters",
+          "icon": "server",
+          "title": "Flisk vs kind and minikube"
+        },
+        {
+          "slug": "process-runners",
+          "label": "Process runners",
+          "icon": "play",
+          "title": "Flisk vs process-compose and Overmind"
+        },
+        {
+          "slug": "dev-environments",
+          "label": "Dev environments",
+          "icon": "terminal",
+          "title": "Flisk vs Dev Containers and Devbox"
+        },
+        {
+          "slug": "cloud-workspaces",
+          "label": "Cloud workspaces",
+          "icon": "cloud",
+          "title": "Flisk vs GitHub Codespaces and Coder"
+        },
+        {
+          "slug": "app-frameworks",
+          "label": "App frameworks",
+          "icon": "code",
+          "title": "Flisk vs .NET Aspire and Encore"
+        },
+        {
+          "slug": "monorepo-tools",
+          "label": "Monorepo tools",
+          "icon": "tiles",
+          "title": "Flisk vs Nx and Turborepo"
+        },
+        {
+          "slug": "cluster-bridges",
+          "label": "Cluster bridges",
+          "icon": "link",
+          "title": "Flisk vs Telepresence and mirrord"
+        },
+        {
+          "slug": "ai-agents",
+          "label": "AI agents",
+          "icon": "sparkle",
+          "title": "Flisk vs LangGraph and Mastra"
+        }
+      ],
+      "panel": false
+    },
+    {
+      "id": "start",
+      "count": "ways to start",
+      "dir": "docs/start",
+      "back": "README.md#quick-start",
+      "hosts": [
+        {
+          "file": "README.md",
+          "selected": "simplest"
+        },
+        {
+          "file": "docs/quickstart.md",
+          "selected": "simplest"
+        }
+      ],
+      "tabs": [
+        {
+          "slug": "simplest",
+          "label": "Simplest",
+          "icon": "play",
+          "title": "Simplest path: run your services as local processes"
+        },
+        {
+          "slug": "demo",
+          "label": "One-command demo",
+          "icon": "sparkle",
+          "title": "One-command demo"
+        },
+        {
+          "slug": "manual",
+          "label": "Full control",
+          "icon": "sliders",
+          "title": "Full control: set up a project by hand"
+        },
+        {
+          "slug": "guided",
+          "label": "Guided setup",
+          "icon": "chat",
+          "title": "Guided setup: answer a few questions"
+        }
+      ]
+    },
+    {
+      "id": "setup",
+      "count": "systems",
+      "dir": "docs/setup",
+      "back": "README.md#prerequisites-install-once",
+      "hosts": [
+        {
+          "file": "README.md",
+          "selected": "macos"
+        }
+      ],
+      "tabs": [
+        {
+          "slug": "macos",
+          "label": "macOS",
+          "icon": "laptop",
+          "title": "Set up macOS for Flisk",
+          "frame": {
+            "kind": "macos",
+            "title": "flisk up — ~/my-shop",
+            "left": "2 services healthy in 0.8 s · no Docker",
+            "right": "Apple M1 · 16 GB · flisk 1.4.7",
+            "seconds": 0.8
+          }
+        },
+        {
+          "slug": "linux",
+          "label": "Ubuntu",
+          "icon": "server",
+          "title": "Set up Ubuntu for Flisk",
+          "frame": {
+            "kind": "ubuntu",
+            "title": "flisk@ubuntu: ~/my-shop",
+            "left": "flisk@ubuntu:~/my-shop$ flisk up",
+            "right": "Docker Engine · Tilt · Node.js 22"
+          }
+        },
+        {
+          "slug": "windows",
+          "label": "Windows (WSL2)",
+          "icon": "window",
+          "title": "Set up Windows for Flisk (WSL2)",
+          "frame": {
+            "kind": "win95",
+            "title": "Flisk Setup - Ubuntu on WSL2",
+            "left": "Run every flisk command inside Ubuntu",
+            "right": "WSL 2 · Docker Desktop"
+          }
+        },
+        {
+          "slug": "omarchy",
+          "label": "Omarchy",
+          "icon": "tiles",
+          "title": "Set up Omarchy for Flisk",
+          "frame": {
+            "kind": "omarchy",
+            "title": "~/my-shop",
+            "left": "~/my-shop ❯ flisk up",
+            "right": "Omarchy · Arch Linux + Hyprland"
+          }
+        }
+      ]
+    },
+    {
+      "id": "install",
+      "count": "ways to install",
+      "dir": "docs/install",
+      "back": "README.md#installation",
+      "hosts": [
+        {
+          "file": "README.md",
+          "selected": "npm"
+        }
+      ],
+      "tabs": [
+        {
+          "slug": "npm",
+          "label": "npm",
+          "icon": "package",
+          "title": "Install Flisk with npm"
+        },
+        {
+          "slug": "bun",
+          "label": "Bun",
+          "icon": "zap",
+          "title": "Install Flisk with Bun"
+        },
+        {
+          "slug": "binary",
+          "label": "Prebuilt binary",
+          "icon": "download",
+          "title": "Install the Flisk binary"
+        },
+        {
+          "slug": "container",
+          "label": "Container image",
+          "icon": "server",
+          "title": "Run Flisk from its container image"
+        }
+      ]
+    }
+  ]
+}

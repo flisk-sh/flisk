@@ -52,9 +52,9 @@ def prepare_resource_manifests(resource_config, ctx):
     for resource in resource_config.get('resources', []):
         manifest = resource_manifests.get(resource['name'], {})
         app_type = manifest.get('appType', 'backend')
-        # infra services (verdaccio, etc.) are loaded by dedicated infra loaders —
-        # do not generate golden app Dockerfiles/configs for them.
-        if app_type in ['library', 'sdk', 'infra']:
+        # infra services (verdaccio, etc.) are loaded by dedicated infra loaders, and a `database`
+        # resource is the shared platform Postgres: do not generate golden app Dockerfiles/configs for them.
+        if app_type in ['library', 'sdk', 'infra', 'database']:
             print("   [Tilt] ⏭  Skipping config-gen for {} (appType={})".format(resource['name'], app_type))
             continue
 

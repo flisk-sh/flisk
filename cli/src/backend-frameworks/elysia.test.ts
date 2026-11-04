@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { portFromEnv } from "../utils/generated-port.js";
 import { elysiaBackendProvider, getElysiaIndexTemplate } from "./elysia.js";
 
 describe("elysiaBackendProvider", () => {
@@ -22,7 +23,7 @@ describe("getElysiaIndexTemplate", () => {
   });
 
   it("reads port from environment variable with fallback to 3000", () => {
-    expect(template).toContain("const port = Number(process.env.PORT || 3000);");
+    expect(template).toContain(portFromEnv());
   });
 
   it("registers required health check endpoints with the service name", () => {

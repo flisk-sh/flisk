@@ -148,7 +148,7 @@ jobs:
 
             const fixed = issues.map((i) => `#${i.number}`).join(', ');
             const lines = [MARK_PR, `Merged, thank you @${author}! 🎉`];
-            if (fixed) lines.push('', `This fixes ${fixed}. It will ship in the next release and appear in the [CHANGELOG](${base}/blob/main/CHANGELOG.md).`);
+            if (fixed) lines.push('', `This fixes ${fixed}. It will ship in the next release and appear in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`);
             const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
             const MILESTONES = {
               1: 'This is your first merged PR here. Welcome to Flisk! 💜',
@@ -207,7 +207,7 @@ jobs:
               if (await hasMark(i.number, MARK_ISSUE)) continue;
               const issueLines = [
                 MARK_ISSUE,
-                `Fixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. This closes the issue. The fix ships in the next release and appears in the [CHANGELOG](${base}/blob/main/CHANGELOG.md).`,
+                `Fixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. This closes the issue. The fix ships in the next release and appears in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`,
                 '',
                 `Thank you @${author}! 💜 If you want to keep up with Flisk:`,
                 `- 🔔 [Watch ${owner}/${repo}](${base}) to hear about the next release.`,

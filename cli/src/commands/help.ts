@@ -4,7 +4,7 @@ import chalk from "chalk";
 import pkg from "../../package.json" with { type: "json" };
 
 const FLISK_BANNER = `
-  ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Flisk CLI — start services on your machine.")}
+  ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Your whole app, running on your computer with one command.")}
 `;
 
 const COMMAND_GROUPS = [
@@ -27,6 +27,16 @@ const COMMAND_GROUPS = [
         name: "eject",
         desc: "Write EJECTED.md describing the generated Tilt files",
         alias: "--dry-run --yes",
+      },
+      {
+        name: "repos",
+        desc: "Manage declared Git service repositories",
+        alias: "clone",
+      },
+      {
+        name: "export",
+        desc: "Write render.yaml, wrangler.toml or docker-compose.yml from service.json (runs flisk-export; never deploys)",
+        alias: "render|wrangler|compose --dry-run",
       },
     ],
   },
@@ -58,6 +68,11 @@ const COMMAND_GROUPS = [
       { name: "up, deploy", desc: "Start services (optionally by stack)", alias: "[stack-name]" },
       { name: "down", desc: "Stop all tilt resources", alias: "" },
       { name: "restart", desc: "Restart a running resource in the stack", alias: "<resource>" },
+      {
+        name: "run",
+        desc: "Run a one-off command with a service's stack environment",
+        alias: "<service> -- <command>",
+      },
       { name: "status", desc: "Show status of services and stacks", alias: "" },
       { name: "open", desc: "Open the first ready frontend in your browser", alias: "" },
       { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },
@@ -80,12 +95,32 @@ const COMMAND_GROUPS = [
     commands: [
       { name: "ui, interactive", desc: "Interactive TUI for managing services", alias: "" },
       {
+        name: "os",
+        desc: "Start FliskOS, the local desktop app for projects and agents",
+        alias: "--port, --no-open",
+      },
+      {
         name: "config",
         desc: "Manage project configuration and regenerate master files",
         alias: "regenerate, verify, edit",
       },
       { name: "doctor", desc: "Check environment readiness", alias: "" },
+      {
+        name: "distribute",
+        desc: "Board, listing kit and channel status for getting an app to users",
+        alias: "board, kit, status",
+      },
       { name: "mcp", desc: "Run an MCP server over stdio for coding agents", alias: "" },
+      {
+        name: "mcp check",
+        desc: "Check an MCP server's protocol, local or remote (read-only)",
+        alias: "<url|resource> --call, --json",
+      },
+      {
+        name: "connect",
+        desc: "Connect a coding agent: MCP server entry and Flisk skills",
+        alias: "<claude|cursor|codex> --dry-run",
+      },
       {
         name: "runtime",
         desc: "Inspect packaged engine and template assets",

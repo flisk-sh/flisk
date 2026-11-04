@@ -1,0 +1,46 @@
+{
+  "name": "flisk",
+  "version": "1.0.0",
+  "description": "Flisk App Builder. Tell your AI what app you want (an online shop, a website, a booking app, an AI helper) and it builds the whole app and runs it on your own computer with one command.",
+  "author": {
+    "name": "Flisk",
+    "url": "https://flisk.sh"
+  },
+  "homepage": "https://flisk.sh",
+  "repository": "https://github.com/flisk-sh/flisk",
+  "license": "MIT",
+  "keywords": [
+    "flisk",
+    "local-development",
+    "dev-environment",
+    "microservices",
+    "docker",
+    "tilt",
+    "mcp",
+    "agents"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Flisk",
+    "shortDescription": "Run your whole app locally",
+    "longDescription": "Flisk runs your whole app on your own computer with one command: frontends, APIs, workers, AI agents and MCP servers, with their databases. Ask for a shop, a SaaS or an AI agent and your agent scaffolds the services with flisk resource, starts them with flisk up, checks every URL and fixes what fails with flisk doctor. Free and open source (MIT), no signup and no API key. Flisk never calls a model itself. Needs the Flisk CLI on your computer: npm install -g @flisk-sh/flisk.",
+    "developerName": "Flisk",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://flisk.sh",
+    "defaultPrompt": [
+      "Build me a small online shop with a storefront and an orders API, and run it on my laptop with Flisk.",
+      "Start my Flisk stack and tell me which URLs are up.",
+      "My Flisk app is broken: run flisk doctor, find the cause and fix it."
+    ],
+    "brandColor": "#1f9d6b",
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.png",
+    "screenshots": []
+  }
+}

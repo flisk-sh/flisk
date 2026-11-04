@@ -1,0 +1,14 @@
+{
+  "name": "flisk",
+  "owner": {
+    "name": "Flisk",
+    "url": "https://flisk.sh"
+  },
+  "plugins": [
+    {
+      "name": "flisk",
+      "description": "Flisk App Builder. Tell your AI what app you want (an online shop, a website, a booking app, an AI helper) and it builds the whole app and runs it on your own computer with one command.",
+      "source": "plugins/flisk"
+    }
+  ]
+}
