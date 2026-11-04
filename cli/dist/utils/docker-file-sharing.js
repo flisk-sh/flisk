@@ -26,6 +26,7 @@ function probeStartedAndFailed(error, detail) {
         !DOCKER_RUN_PRE_START_CODES.has(code) &&
         !DOCKER_PRE_START.test(detail));
 }
+/** The text of a failed `docker run`: its stderr and message, which is where Docker explains why. */
 function probeErrorText(error) {
     if (!error || typeof error !== "object")
         return String(error ?? "");

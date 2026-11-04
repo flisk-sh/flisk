@@ -45,6 +45,7 @@ function probeStartedAndFailed(error: unknown, detail: string): boolean {
   );
 }
 
+/** The text of a failed `docker run`: its stderr and message, which is where Docker explains why. */
 function probeErrorText(error: unknown): string {
   if (!error || typeof error !== "object") return String(error ?? "");
   const { stderr, message } = error as { stderr?: unknown; message?: unknown };

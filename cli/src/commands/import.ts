@@ -333,6 +333,11 @@ export function resolveImportOptions(options: ImportOptions = {}, cmd?: Command)
   };
 }
 
+/**
+ * Runs `flisk import` (and its `compose` / `tiltfile` subcommands). With `--json` the importer runs captured and never
+ * prompts; otherwise it inherits the terminal, and a run that would write is refused when there is no terminal to ask in.
+ * Sets `process.exitCode` to the importer's exit code, or 1 for a refusal.
+ */
 export async function executeImport(
   args: string[],
   options: ImportOptions = {},

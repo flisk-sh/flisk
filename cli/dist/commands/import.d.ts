@@ -97,6 +97,11 @@ export interface ImportOptions {
     json?: boolean;
 }
 export declare function resolveImportOptions(options?: ImportOptions, cmd?: Command): ImportOptions;
+/**
+ * Runs `flisk import` (and its `compose` / `tiltfile` subcommands). With `--json` the importer runs captured and never
+ * prompts; otherwise it inherits the terminal, and a run that would write is refused when there is no terminal to ask in.
+ * Sets `process.exitCode` to the importer's exit code, or 1 for a refusal.
+ */
 export declare function executeImport(args: string[], options?: ImportOptions, commandName?: string): Promise<void>;
 /**
  * Without a terminal the importer cannot ask its (Y/n) question: it wrote nothing and exited 0, which a coding agent or CI

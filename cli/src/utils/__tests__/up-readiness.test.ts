@@ -45,15 +45,23 @@ describe("waitForTiltResourcesReady", () => {
   });
   it("reports a runtime failure that has not recovered once the grace window is over", async () => {
     let clock = 0;
+    let polls = 0;
     const result = await waitForTiltResourcesReady(1, {
       ...opts,
       failureGraceMs: 5_000,
-      now: () => (clock += 1_000),
-      fetchJson: async () => json(item("api", "ok", "ok"), unhealthy("db")),
+      now: () => clock,
+      // One second per poll; the clock moves only here, so the poll count is the elapsed time.
+      fetchJson: async () => {
+        polls += 1;
+        clock = polls * 1_000;
+        return json(item("api", "ok", "ok"), unhealthy("db"));
+      },
     });
     expect(result).toMatchObject({ ready: false, timedOut: false });
     expect(result.failures.map((f) => f.name)).toEqual(["db"]);
-    expect(clock).toBeGreaterThanOrEqual(5_000);
+    // db fails from the first poll (t=1s) and is given up on at the first poll 5s later (t=6s): exactly the window.
+    expect(clock).toBe(6_000);
+    expect(polls).toBe(6);
   });
   it("gives a container that turns unhealthy later its own grace window", async () => {
     // db is unhealthy from t=1s; cache turns unhealthy at t=4s; db recovers at t=5s. With one shared timestamp cache
