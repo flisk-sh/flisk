@@ -23,7 +23,9 @@ export default defineConfig({
   plugins: [${provider.vite.plugins.join(", ")}],
   server: {
     host: 'localhost',
-    port: Number(process.env.PORT ?? ${options.port}),${proxy}
+    port: Number(process.env.PORT ?? ${options.port}),
+    // Flisk checks and opens this exact port: if it is taken, fail instead of moving to the next one.
+    strictPort: true,${proxy}
   },
 });
 `;
