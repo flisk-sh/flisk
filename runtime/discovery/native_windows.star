@@ -156,6 +156,20 @@ def relative_path(path, start):
 
 _PS = ["powershell", "-NoProfile", "-NonInteractive", "-Command"]
 
+# Public alias for the PowerShell prefix, for command_bat / cmd_bat / serve_cmd_bat at call sites outside this file.
+POWERSHELL = _PS
+
+def file_mtime(path):
+    """Modification time of path as Unix seconds, 0 when it does not exist (stat -f %m || stat -c %Y || 0)."""
+    out = str(local(
+        ["sh", "-c", 'stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0', "sh", path],
+        command_bat = _PS + ["if (Test-Path -LiteralPath $env:FLISK_PATH) { ([DateTimeOffset](Get-Item -LiteralPath $env:FLISK_PATH).LastWriteTimeUtc).ToUnixTimeSeconds() } else { 0 }"],
+        env = {"FLISK_PATH": path},
+        quiet = True,
+        echo_off = True,
+    )).strip()
+    return int(out) if out.isdigit() else 0
+
 def ensure_dir(path):
     """mkdir -p"""
     local(

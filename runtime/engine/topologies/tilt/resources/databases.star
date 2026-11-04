@@ -22,7 +22,9 @@
 # Pattern used at: Uber, Airbnb, Stripe, Netflix
 # =============================================================================
 
+load('../../../../discovery/native_windows.star', 'POWERSHELL')
 load('../../platform/docker/constants.star', 'PlatformDockerConstants')
+load('../common/windows_scripts.star', 'provision_database_script', 'db_status_script', 'memory_summary_script')
 
 # =============================================================================
 # 🗃️ DATABASE PROVISIONING
@@ -132,6 +134,14 @@ echo "🗃️ ══════════════════════
     return local_resource(
         resource_name,
         cmd=['bash', '-c', provision_cmd],
+        cmd_bat=POWERSHELL + [provision_database_script()],
+        env={
+            'FLISK_DB_NAME': db_name,
+            'FLISK_DB_USER': PlatformDockerConstants.DB_USER,
+            'FLISK_DB_HOST': PlatformDockerConstants.DB_HOST,
+            'FLISK_DB_PREFIX': PlatformDockerConstants.PROJECT_NAME + '_',
+            'FLISK_RESOURCE': resource_name,
+        },
         labels=['infra.database', 'virtualization'],
         resource_deps=['postgres'],
         allow_parallel=True,
@@ -197,6 +207,13 @@ echo "   📉 SAVINGS: ~98% RAM reduction!"
 echo ""
 echo "🗃️ ═══════════════════════════════════════════════════════════════"
 ''', 'sh', PlatformDockerConstants.DB_HOST, PlatformDockerConstants.DB_USER, PlatformDockerConstants.get_db_name('example'), PlatformDockerConstants.PROJECT_NAME],
+        cmd_bat=POWERSHELL + [db_status_script()],
+        env={
+            'FLISK_DB_HOST': PlatformDockerConstants.DB_HOST,
+            'FLISK_DB_USER': PlatformDockerConstants.DB_USER,
+            'FLISK_DB_NAME': PlatformDockerConstants.get_db_name('example'),
+            'FLISK_DB_PREFIX': PlatformDockerConstants.PROJECT_NAME,
+        },
         labels=['infra.database', 'virtualization'],
         resource_deps=['postgres'] if should_enable_db_management else [],
         auto_init=False
@@ -240,6 +257,7 @@ echo "   • Netflix: Database-per-service virtualization"
 echo ""
 echo "🗃️ ═══════════════════════════════════════════════════════════════"
 ''',
+        cmd_bat=POWERSHELL + [memory_summary_script()],
         resource_deps=[],
         labels=['mac-m1', 'virtualization'],
         auto_init=False
