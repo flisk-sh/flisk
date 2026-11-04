@@ -16,18 +16,21 @@ export interface EnvVariable {
   complete?: boolean;
 }
 
-/** The keys Flisk generates for its own platform services; a bring-your-own-only project does not use them (#3200). */
-// DATABASE_URL is built from the generated DB_PASSWORD, so it goes with it.
-const PLATFORM_SECRET_NAMES: readonly string[] = ["DB_PASSWORD", "DATABASE_URL", "JWT_SECRET"];
+/**
+ * The keys that exist only for the shared PostgreSQL. A project that does not use it does not need them (#3200).
+ * DATABASE_URL is built from the generated DB_PASSWORD, so it goes with it. JWT_SECRET is not listed: every Compose entry
+ * requires it, so it is always kept.
+ */
+const SHARED_DATABASE_KEY_NAMES: readonly string[] = ["DB_PASSWORD", "DATABASE_URL"];
 
 export interface EnvKeyOptions {
-  /** False for a project that runs none of the platform services reading the generated keys: they are neither added nor required. */
-  platformSecrets?: boolean;
+  /** False for a project that does not use the shared PostgreSQL: DB_PASSWORD and DATABASE_URL are then neither added nor required. */
+  databaseKeys?: boolean;
 }
 
 function keysFor(options?: EnvKeyOptions): EnvVariable[] {
-  return options?.platformSecrets === false
-    ? REQUIRED_ENV_VARS.filter((v) => !PLATFORM_SECRET_NAMES.includes(v.name))
+  return options?.databaseKeys === false
+    ? REQUIRED_ENV_VARS.filter((v) => !SHARED_DATABASE_KEY_NAMES.includes(v.name))
     : REQUIRED_ENV_VARS;
 }
 

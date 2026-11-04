@@ -8,8 +8,8 @@ export interface EnvVariable {
     complete?: boolean;
 }
 export interface EnvKeyOptions {
-    /** False for a project that runs none of the platform services reading the generated keys: they are neither added nor required. */
-    platformSecrets?: boolean;
+    /** False for a project that does not use the shared PostgreSQL: DB_PASSWORD and DATABASE_URL are then neither added nor required. */
+    databaseKeys?: boolean;
 }
 /**
  * The keys `completeEnvFile` keeps complete in the project `.env`. An env file that replaces the

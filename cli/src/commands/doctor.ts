@@ -21,7 +21,7 @@ import {
   getEnabledCapabilities,
   isDatabaseCapabilityEnabled,
   isGatewayEnabled,
-  projectNeedsPlatformSecrets,
+  projectNeedsDatabaseKeys,
 } from "../utils/capabilities.js";
 import { checkColima as checkColimaState } from "../utils/colima.js";
 import {
@@ -740,7 +740,7 @@ export async function checkBun(exec: ExecAsync = execAsync): Promise<CheckResult
 function checkEnvironmentVariables(): CheckResult {
   const projectRoot = findProjectRoot() ?? process.cwd();
   const validation = validateEnvFile(projectRoot, {
-    platformSecrets: projectNeedsPlatformSecrets(projectRoot),
+    databaseKeys: projectNeedsDatabaseKeys(projectRoot),
   });
 
   if (validation.missing.length > 0) {

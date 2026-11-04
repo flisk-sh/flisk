@@ -22,9 +22,10 @@ export interface PlatformServiceNeeds {
  */
 export declare function evaluatePlatformServiceNeeds(resources: readonly DiscoveredResource[]): PlatformServiceNeeds;
 /**
- * Whether the project's `.env` needs the keys Flisk generates for its own platform (`DB_PASSWORD` for the shared Postgres,
- * `JWT_SECRET` for local-jwt auth and Infisical) (#3200). A project of only bring-your-own containers that do not use the
- * shared Postgres runs none of the services that read them, so adding them only makes users think the app needs them.
- * Conservative like {@link evaluatePlatformServiceNeeds}: any other resource type, or no resource at all, keeps both.
+ * Whether the project's `.env` needs the database keys Flisk generates for the shared PostgreSQL: `DB_PASSWORD`, and
+ * `DATABASE_URL` built from it (#3200). A project of only bring-your-own containers that do not use the shared PostgreSQL
+ * runs nothing that reads them. `JWT_SECRET` is not decided here: every Compose entry requires it (local-jwt is the default
+ * auth mode), so it is always kept. Conservative like {@link evaluatePlatformServiceNeeds}: any other resource type, or no
+ * resource at all, keeps the keys.
  */
-export declare function needsPlatformSecrets(resources: readonly DiscoveredResource[]): boolean;
+export declare function needsDatabaseKeys(resources: readonly DiscoveredResource[]): boolean;

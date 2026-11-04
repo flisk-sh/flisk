@@ -30,7 +30,7 @@ import {
   disableDatabaseCapability,
   isDatabaseCapabilityEnabled,
   isGatewayEnabled,
-  projectNeedsPlatformSecrets,
+  projectNeedsDatabaseKeys,
 } from "../utils/capabilities.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
@@ -924,9 +924,9 @@ export const upCommand = new Command("up")
         // changing an existing value) before anything starts. Only inside a real project, so a stray run never writes a .env.
         // A selected env file replaces the project .env for this run: the run does not read it, so it is not completed either.
         if (foundRoot && !envFileSelection) {
-          // A project of only bring-your-own containers runs none of the services that read DB_PASSWORD or JWT_SECRET (#3200).
+          // A project of only bring-your-own containers that do not use the shared PostgreSQL needs no DB_PASSWORD (#3200).
           const addedEnvKeys = completeEnvFile(projectRoot, {
-            platformSecrets: projectNeedsPlatformSecrets(projectRoot),
+            databaseKeys: projectNeedsDatabaseKeys(projectRoot),
           });
           if (addedEnvKeys.length > 0 && !options.quiet) {
             console.log(

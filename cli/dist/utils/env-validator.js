@@ -5,12 +5,15 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeTextFileAtomic } from "./atomic-write.js";
 import { FliskError } from "./errors.js";
-/** The keys Flisk generates for its own platform services; a bring-your-own-only project does not use them (#3200). */
-// DATABASE_URL is built from the generated DB_PASSWORD, so it goes with it.
-const PLATFORM_SECRET_NAMES = ["DB_PASSWORD", "DATABASE_URL", "JWT_SECRET"];
+/**
+ * The keys that exist only for the shared PostgreSQL. A project that does not use it does not need them (#3200).
+ * DATABASE_URL is built from the generated DB_PASSWORD, so it goes with it. JWT_SECRET is not listed: every Compose entry
+ * requires it, so it is always kept.
+ */
+const SHARED_DATABASE_KEY_NAMES = ["DB_PASSWORD", "DATABASE_URL"];
 function keysFor(options) {
-    return options?.platformSecrets === false
-        ? REQUIRED_ENV_VARS.filter((v) => !PLATFORM_SECRET_NAMES.includes(v.name))
+    return options?.databaseKeys === false
+        ? REQUIRED_ENV_VARS.filter((v) => !SHARED_DATABASE_KEY_NAMES.includes(v.name))
         : REQUIRED_ENV_VARS;
 }
 const REQUIRED_ENV_VARS = [
