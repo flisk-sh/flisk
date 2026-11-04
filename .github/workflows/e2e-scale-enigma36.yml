@@ -2,7 +2,7 @@
 # language, over six stacks, booted with one flisk up. Each night draws a new combination; the seed is the first line of the
 # K1 step and in the job summary, and a manual run with that seed replays the same project.
 # Nightly and manual only: 36 resources build about 30 images, too slow for a pull request.
-name: 🎰 E2E | Enigma 36
+name: 🌙 NIGHTLY | 🧬 ENIGMA | 36 random resource mix
 
 on:
   workflow_dispatch:

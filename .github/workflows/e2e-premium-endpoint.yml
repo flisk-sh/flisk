@@ -1,7 +1,7 @@
 # Live check that the CLI's default premium endpoint reaches the distribution worker (the default host once pointed at a
 # dead hostname and silently dropped every licensed user to the free tier). Nightly and by hand, on main only. The unknown-key
 # check needs no secret; the granted-key check runs when the FLISK_E2E_LICENSE_KEY secret is set and is skipped otherwise.
-name: 🧩 E2E | Premium endpoint
+name: 🌙 NIGHTLY | E2E | Premium endpoint
 
 on:
   workflow_dispatch:

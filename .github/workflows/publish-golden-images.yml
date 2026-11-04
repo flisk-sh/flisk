@@ -1,4 +1,4 @@
-name: 🐳 Release | Publish golden images
+name: 🏷️ RELEASE | Image | Publish golden images
 
 # Builds the eight golden layers from the Dockerfile that `flisk up` generates and pushes them to GitHub's registry
 # (ghcr.io/flisk-sh/golden-<layer>:<hash12>) and to Docker Hub (docker.io/alexdykyi), the same image in both. A project

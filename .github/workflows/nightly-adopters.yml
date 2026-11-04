@@ -6,7 +6,7 @@
 # - biolend83/tubehaus@749379107361318e04ec162f7419f30afef93895
 # - dilolabs/nosia@42796ffb30b48b5aeece234383b71e3d51badc7e
 # - LycheeOrg/Lychee@7145b37ff66ea7990cc9b8dbbf779ba1d34c0b64
-name: 🌍 E2E | Real adopter repositories (nightly)
+name: 🌙 NIGHTLY | E2E | Real adopter repositories
 
 on:
   workflow_dispatch:

@@ -2,7 +2,7 @@
 # with the GitHub-data ones (competitors reads other tools' public repositories), a Lighthouse audit of flisk.sh and a
 # Stryker mutation run on the generators. Report only; pull requests are gated by `make test-shell` (files scorers) and
 # ci.yml's Pack CLI job (install weight).
-name: 📊 CI | Scoreboard
+name: 📅 WEEKLY | CI | Scoreboard
 
 on:
   schedule:

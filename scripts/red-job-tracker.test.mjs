@@ -3,7 +3,7 @@
 // Unit tests for scripts/red-job-tracker.mjs. Run by `make test-shell`.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decide, lastErrorLine, TRACKED } from "./red-job-tracker.mjs";
+import { decide, issueTitle, lastErrorLine, legacyIssueTitle, TRACKED } from "./red-job-tracker.mjs";
 
 test("TRACKED includes nightly-adopters.yml (#3100)", () => {
 	assert.ok(TRACKED.includes("nightly-adopters.yml"));
@@ -96,4 +96,9 @@ test("GitHub's generic exit-code line is not reported as the error; the real err
 		lastErrorLine(log),
 		"##[error]Error: FLISK_LICENSE_KEY does not grant sablier",
 	);
+});
+
+test("issue titles key on the workflow file, not its display name", () => {
+	assert.equal(issueTitle("benchmarks.yml"), "Red job: benchmarks.yml failed 3 runs in a row on main");
+	assert.equal(legacyIssueTitle("📊 CI | Benchmarks report"), "Red job: 📊 CI | Benchmarks report failed 3 runs in a row on main");
 });

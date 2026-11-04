@@ -8,7 +8,7 @@
 # `SCHEDULE_APPLY` below from "false" to "true". That one line is the whole switch.
 # The script is the single implementation, so a contributor can run it locally:
 #   node scripts/competitor-gap-issues.mjs            (dry run)
-name: 🧭 Competitors | Gap issues
+name: 🤖 BOT | Competitors | Gap issues
 
 on:
   schedule:

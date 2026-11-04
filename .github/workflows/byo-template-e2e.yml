@@ -3,7 +3,7 @@
 #   with: { flisk-ref: <same sha> }
 # It registers the calling repository's template in a throwaway Flisk project, runs a real `flisk up`, and expects
 # HTTP 200 on the template's healthCheckPath through Traefik (scripts/e2e/verify-byo-template.sh).
-name: BYO template e2e
+name: ♻️ REUSE | E2E | BYO template
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: 📦 Release | Publish existing npm version to GitHub Packages
+name: 🏷️ RELEASE | Package | Publish existing npm version to GitHub Packages
 
 on:
   workflow_dispatch:

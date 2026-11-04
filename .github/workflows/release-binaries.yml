@@ -1,4 +1,4 @@
-name: 🚀 Release | Binaries and npm package
+name: 🏷️ RELEASE | Package | Binaries and npm package
 
 on:
   workflow_dispatch:

@@ -7,7 +7,7 @@
 #           (docker compose config) and Dockerfile (docker buildx build --check). No image is built, no container starts.
 # A pull request that touches the code behind them runs the scenarios, a few random sequences, 3 million sets and the Docker
 # tier; the nightly run tries many more.
-name: 🌀 Chaos | service.json
+name: 🔀 PR | Chaos | service.json
 
 on:
   pull_request:

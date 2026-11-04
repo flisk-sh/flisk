@@ -2,7 +2,7 @@
 # and dispatches release-candidate.yml with release=true. The candidate then starts release-binaries.yml itself, and that
 # publishes only if every candidate job passed (docs/releasing.md). This replaces the manual "create the branch with
 # gh api, then dispatch" steps. It does not approve the version-bump PR: main's merge queue ruleset requires a person.
-name: 🚀 Release | One click
+name: 🏷️ RELEASE | Validation | One click
 
 on:
   workflow_dispatch:
