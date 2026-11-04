@@ -720,6 +720,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "report-post-merge-failures.yml",
+			"job": "report",
+			"tier": "report",
+			"required": false,
+			"reason": "Comments on a merged pull request and opens one issue when a check fails for its head commit after the merge (#2897)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "red-job-tracker.yml",
 			"job": "track",
 			"tier": "report",
