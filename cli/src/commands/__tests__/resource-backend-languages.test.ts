@@ -61,7 +61,7 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // the range, so `npm install` in the scaffold no longer fails with ERESOLVE. That is the only file that differs.
 const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "068f15a55176c3960bae240a370244f1976879f126fddb01920c3eca3af5dd89",
-  "package.json": "9c4f08f8b6013c40292474df42d29b04ba620b9d03a5bb9b2f204fbb7831afc4",
+  "package.json": "d1614a133b3f74c3829c8d55ade1f125dfb11873c9f4a7ea7545e6bf16e47b8b",
   "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "0a59131aaa6763472c901d2a121e34a23f4259af28ff0b426bb01fd0bc3071e3",
   "tests/orders-api.test.ts": "acbe72a5661b26a5f26a3a3cd3372a7139b90daab19da88f587fe0e5bd815620",
