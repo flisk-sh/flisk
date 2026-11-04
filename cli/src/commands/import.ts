@@ -350,7 +350,8 @@ export function carryOverBuildCommand(
     ? rawCommand.map(String)
     : typeof rawCommand === "string" && rawCommand.trim() !== ""
       ? (rawCommand.trim().match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? []).map((token) =>
-          (token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))
+          (token.startsWith('"') && token.endsWith('"')) ||
+          (token.startsWith("'") && token.endsWith("'"))
             ? token.slice(1, -1)
             : token,
         )

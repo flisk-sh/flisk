@@ -745,7 +745,10 @@ describe("flisk import --json", () => {
         appType: "bring-your-own",
         buildContext: "./api",
       };
-      const quotedResult = carryOverBuildCommand(manifest, "node server.js --title 'hello world' --env \"test env\"");
+      const quotedResult = carryOverBuildCommand(
+        manifest,
+        "node server.js --title 'hello world' --env \"test env\"",
+      );
       expect(quotedResult.container).toEqual({
         command: ["node", "server.js", "--title", "hello world", "--env", "test env"],
       });
