@@ -92,6 +92,9 @@ _GENERATED_STRING_RULES = [
     (['databaseName'], _ALPHANUM + '_-', ''),
     (['stack'], _ALPHANUM + '_-', ''),
     (['basePath'], _PATH_CHARS, '/'),
+    # Same set as the CLI's service.json check (/^\/[A-Za-z0-9._~/-]*$/). apiPath reaches the slash-redirect regex in
+    # traefik.star, so a `+`, `*`, `(` or `[` is refused here rather than changing what the regex matches.
+    (['apiPath'], _ALPHANUM + '._~/-', '/'),
 ]
 
 _IMAGE_CHARS = _ALPHANUM + '._/:@-'

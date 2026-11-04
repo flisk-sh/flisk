@@ -5,6 +5,7 @@ import { isStartupStalled } from "../startup-report.js";
 import {
   checkExpectedResources,
   evaluateTiltReadiness,
+  failureGraceFromEnv,
   isAdvisoryResource,
   waitForTiltResourcesReady,
 } from "../up-readiness.js";
@@ -14,9 +15,104 @@ const item = (name: string, updateStatus: string, runtimeStatus: string) => ({
   status: { updateStatus, runtimeStatus },
 });
 const json = (...items: unknown[]) => JSON.stringify({ items });
-const opts = { intervalMs: 1, deferred: new Set<string>() };
+const opts = { intervalMs: 1, deferred: new Set<string>(), failureGraceMs: 0 };
 
 describe("waitForTiltResourcesReady", () => {
+  const unhealthy = (name: string) => ({
+    metadata: { name },
+    status: {
+      updateStatus: "ok",
+      runtimeStatus: "ok",
+      composeResourceInfo: { healthStatus: "unhealthy" },
+    },
+  });
+  it("keeps waiting while a container that built is failing at runtime, and reports it ready once it recovers", async () => {
+    // First start of a database: its health check fails while it initialises, then it comes up.
+    let clock = 0;
+    const responses = [
+      json(item("api", "ok", "ok"), unhealthy("db")),
+      json(item("api", "ok", "ok"), unhealthy("db")),
+      json(item("api", "ok", "ok"), item("db", "ok", "ok")),
+    ];
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 60_000,
+      now: () => (clock += 1_000),
+      fetchJson: async () => responses.shift() ?? null,
+    });
+    expect(result.ready).toBe(true);
+    expect(result.failures).toEqual([]);
+  });
+  it("reports a runtime failure that has not recovered once the grace window is over", async () => {
+    let clock = 0;
+    let polls = 0;
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 5_000,
+      now: () => clock,
+      // One second per poll; the clock moves only here, so the poll count is the elapsed time.
+      fetchJson: async () => {
+        polls += 1;
+        clock = polls * 1_000;
+        return json(item("api", "ok", "ok"), unhealthy("db"));
+      },
+    });
+    expect(result).toMatchObject({ ready: false, timedOut: false });
+    expect(result.failures.map((f) => f.name)).toEqual(["db"]);
+    // db fails from the first poll (t=1s) and is given up on at the first poll 5s later (t=6s): exactly the window.
+    expect(clock).toBe(6_000);
+    expect(polls).toBe(6);
+  });
+  it("gives a container that turns unhealthy later its own grace window", async () => {
+    // db is unhealthy from t=1s; cache turns unhealthy at t=4s; db recovers at t=5s. With one shared timestamp cache
+    // inherited db's start and failed at t=6s (grace 5s); now it fails at t=9s.
+    let clock = 0;
+    const db = (t: number) => (t < 5_000 ? unhealthy("db") : item("db", "ok", "ok"));
+    const cache = (t: number) => (t < 4_000 ? item("cache", "ok", "ok") : unhealthy("cache"));
+    let reads = 0;
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 5_000,
+      now: () => clock,
+      fetchJson: async () => {
+        reads += 1;
+        clock = reads * 1_000;
+        return json(db(clock), cache(clock));
+      },
+    });
+    expect(result.failures.map((f) => f.name)).toEqual(["cache"]);
+    expect(clock).toBe(9_000);
+  });
+  it("gives no grace to an exited container that kept its last unhealthy status", async () => {
+    let clock = 0;
+    const exited = {
+      metadata: { name: "db" },
+      status: {
+        updateStatus: "ok",
+        runtimeStatus: "error",
+        composeResourceInfo: { healthStatus: "unhealthy" },
+      },
+    };
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 60_000,
+      now: () => (clock += 1_000),
+      fetchJson: async () => json(item("api", "ok", "ok"), exited),
+    });
+    expect(result.ready).toBe(false);
+    expect(clock).toBeLessThan(5_000);
+  });
+  it("stops at once on a build error: it cannot recover by itself", async () => {
+    let clock = 0;
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 60_000,
+      now: () => (clock += 1_000),
+      fetchJson: async () => json(item("api", "ok", "ok"), item("db", "error", "none")),
+    });
+    expect(result.ready).toBe(false);
+    expect(clock).toBeLessThan(5_000);
+  });
   it("waits for pending resources, then reports ready", async () => {
     const responses = [
       json(item("api", "pending", "pending")),
@@ -53,7 +149,11 @@ describe("waitForTiltResourcesReady", () => {
     expect(responses).toEqual([]);
     expect(result).toMatchObject({ ready: false, timedOut: false });
     expect(result.failures).toEqual([
-      { name: "postgres", message: "container is running, but its health check is failing" },
+      {
+        name: "postgres",
+        message: "container is running, but its health check is failing",
+        runtime: true,
+      },
     ]);
   });
   it("ignores deferred resources", async () => {
@@ -262,6 +362,16 @@ describe("a migrator, a one-shot job", () => {
     expect(result).toMatchObject({ ready: false, timedOut: false });
     expect(result.failures).toEqual([{ name: "migrations", message: "ok/error" }]);
     expect(Date.now() - started).toBeLessThan(5_000);
+  });
+});
+
+describe("failureGraceFromEnv", () => {
+  it("uses a finite, non-negative value and falls back to the default otherwise", () => {
+    expect(failureGraceFromEnv("30000")).toBe(30_000);
+    expect(failureGraceFromEnv("0")).toBe(0);
+    for (const bad of [undefined, "", "120000ms", "-5", "Infinity"]) {
+      expect(failureGraceFromEnv(bad)).toBe(120_000);
+    }
   });
 });
 

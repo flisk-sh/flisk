@@ -63,8 +63,10 @@ describe("rankDoctorFixes", () => {
       "  1. Container Runtime",
       "     open -a Docker",
       "  2. Disk Space",
-      "     docker system prune -af",
+      "     docker builder prune -f",
     ]);
+    // The headline fix on a working stack must not delete its images (`docker system prune -af` did).
+    expect(lines.join("\n")).not.toContain("system prune");
   });
 });
 

@@ -2,6 +2,8 @@ import type { CheckResult } from "../types/index.js";
 export declare const DISK_SPACE_CHECK = "Disk Space";
 export declare const DISK_FAIL_GIB = 2;
 export declare const DISK_WARN_GIB = 10;
+/** The first cleanup offered: Docker's build cache only, safe while a stack is running. */
+export declare const DISK_SAFE_CLEANUP = "docker builder prune -f";
 export declare const DISK_CLEANUP_FIX: string;
 type StatFs = (path: string) => {
     bavail: number | bigint;
