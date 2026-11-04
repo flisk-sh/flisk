@@ -4,6 +4,11 @@
 // npm package. It speaks to a throwaway Postgres on 127.0.0.1 that accepts trust authentication (no password, no secret).
 import net from "node:net";
 
+// A stalled database must fail the case with a message, not hang the CI job until its timeout.
+const CONNECT_TIMEOUT_MS = Number(process.env.PG_CONNECT_TIMEOUT_MS ?? 10_000);
+/** How long the client waits for the next message of an answer. */
+const READ_TIMEOUT_MS = Number(process.env.PG_READ_TIMEOUT_MS ?? 30_000);
+
 /** A SQL string literal. Values from the outside (a gig's text) go through here; standard_conforming_strings is on. */
 export function lit(value) {
   return `'${String(value).replaceAll("\0", "").replaceAll("'", "''")}'`;
@@ -47,10 +52,20 @@ function reader(socket) {
     notify();
   });
   return async () => {
+    const deadline = Date.now() + READ_TIMEOUT_MS;
     while (queue.length === 0) {
       if (failure) throw failure;
+      const left = deadline - Date.now();
+      if (left <= 0) {
+        socket.destroy();
+        throw new Error(`postgres sent nothing for ${READ_TIMEOUT_MS} ms`);
+      }
       await new Promise((resolve) => {
-        wake = resolve;
+        const timer = setTimeout(resolve, left);
+        wake = () => {
+          clearTimeout(timer);
+          resolve();
+        };
       });
     }
     return queue.shift();
@@ -65,8 +80,18 @@ function cstrings(body) {
 export async function connect({ port, user, database, host = "127.0.0.1" }) {
   const socket = net.connect({ port: Number(port), host });
   await new Promise((resolve, reject) => {
-    socket.once("connect", resolve);
-    socket.once("error", reject);
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error(`postgres did not accept a connection on ${host}:${port} within ${CONNECT_TIMEOUT_MS} ms`));
+    }, CONNECT_TIMEOUT_MS);
+    socket.once("connect", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    socket.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
   });
   const next = reader(socket);
   const params = Buffer.from(`user\0${user}\0database\0${database}\0\0`);

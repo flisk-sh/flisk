@@ -25,16 +25,22 @@ export function plan(title) {
 }
 
 async function tick() {
-  const { gigs } = await (await fetch(`${netwatch}/gigs?status=open`)).json();
+  const listed = await fetch(`${netwatch}/gigs?status=open`);
+  if (!listed.ok) throw new Error(`GET /gigs?status=open answered HTTP ${listed.status}`);
+  const { gigs } = await listed.json();
   for (const gig of gigs) {
     const jobs = plan(gig.title);
     if (jobs.length === 0) continue;
-    // Netwatch accepts the jobs once: a second dispatcher (or this one after a restart) gets 409 and moves on.
-    await fetch(`${netwatch}/gigs/${gig.id}/jobs`, {
+    const response = await fetch(`${netwatch}/gigs/${gig.id}/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ jobs }),
     });
+    // 201: dispatched. 409: another dispatcher (or this one before a restart) already did it. Anything else is a failure to show.
+    if (response.status === 201) console.log(`dispatcher: gig ${gig.id} split into ${jobs.length} jobs`);
+    else if (response.status !== 409) {
+      throw new Error(`gig ${gig.id}: POST /gigs/${gig.id}/jobs answered HTTP ${response.status}: ${await response.text()}`);
+    }
   }
 }
 
@@ -43,11 +49,16 @@ createServer((request, response) => {
   response.end(request.url === "/health" ? "ok" : "dispatcher");
 }).listen(Number(process.env.PORT));
 
+let lastError = "";
 for (;;) {
   try {
     await tick();
-  } catch {
-    // Netwatch is not up yet or restarting; try again.
+    lastError = "";
+  } catch (error) {
+    // Netwatch may not be up yet or may be restarting: try again, but say why once, so a real failure is in the log.
+    const message = error instanceof Error ? error.message : String(error);
+    if (message !== lastError) console.error(`dispatcher: ${message}`);
+    lastError = message;
   }
   await new Promise((resolve) => setTimeout(resolve, 400));
 }

@@ -14,25 +14,38 @@ async function post(path, body) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  return response.json();
+  return { status: response.status, body: await response.json().catch(() => ({})) };
 }
 
+let lastError = "";
 async function loop() {
   for (;;) {
     try {
-      const { task } = await post("/claim", { worker: name });
+      const claimed = await post("/claim", { worker: name });
+      if (claimed.status !== 200) throw new Error(`POST /claim answered HTTP ${claimed.status}`);
+      const { task } = claimed.body;
+      lastError = "";
       if (task) {
         await new Promise((resolve) => setTimeout(resolve, workMs));
-        await post("/complete", {
+        const done = await post("/complete", {
           id: task.id,
           attempt: task.attempt,
           worker: name,
           result: `${name} finished ${task.kind} job "${task.text}"`,
         });
+        if (done.status === 409) {
+          // The claim expired and another attempt owns the job now: this work does not count.
+          console.log(`${name}: job ${task.id} attempt ${task.attempt} was no longer mine (stale claim)`);
+        } else if (done.status !== 200) {
+          console.error(`${name}: completing job ${task.id} attempt ${task.attempt} answered HTTP ${done.status}: ${JSON.stringify(done.body)}`);
+        }
         continue;
       }
-    } catch {
-      // Netwatch is not up yet or restarting; try again.
+    } catch (error) {
+      // Netwatch may not be up yet or may be restarting: try again, but say why once.
+      const message = error instanceof Error ? error.message : String(error);
+      if (message !== lastError) console.error(`${name}: ${message}`);
+      lastError = message;
     }
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
