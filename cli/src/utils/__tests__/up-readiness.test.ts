@@ -5,6 +5,7 @@ import { isStartupStalled } from "../startup-report.js";
 import {
   checkExpectedResources,
   evaluateTiltReadiness,
+  failureGraceFromEnv,
   isAdvisoryResource,
   waitForTiltResourcesReady,
 } from "../up-readiness.js";
@@ -53,6 +54,45 @@ describe("waitForTiltResourcesReady", () => {
     expect(result).toMatchObject({ ready: false, timedOut: false });
     expect(result.failures.map((f) => f.name)).toEqual(["db"]);
     expect(clock).toBeGreaterThanOrEqual(5_000);
+  });
+  it("gives a container that turns unhealthy later its own grace window", async () => {
+    // db is unhealthy from t=1s; cache turns unhealthy at t=4s; db recovers at t=5s. With one shared timestamp cache
+    // inherited db's start and failed at t=6s (grace 5s); now it fails at t=9s.
+    let clock = 0;
+    const db = (t: number) => (t < 5_000 ? unhealthy("db") : item("db", "ok", "ok"));
+    const cache = (t: number) => (t < 4_000 ? item("cache", "ok", "ok") : unhealthy("cache"));
+    let reads = 0;
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 5_000,
+      now: () => clock,
+      fetchJson: async () => {
+        reads += 1;
+        clock = reads * 1_000;
+        return json(db(clock), cache(clock));
+      },
+    });
+    expect(result.failures.map((f) => f.name)).toEqual(["cache"]);
+    expect(clock).toBe(9_000);
+  });
+  it("gives no grace to an exited container that kept its last unhealthy status", async () => {
+    let clock = 0;
+    const exited = {
+      metadata: { name: "db" },
+      status: {
+        updateStatus: "ok",
+        runtimeStatus: "error",
+        composeResourceInfo: { healthStatus: "unhealthy" },
+      },
+    };
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 60_000,
+      now: () => (clock += 1_000),
+      fetchJson: async () => json(item("api", "ok", "ok"), exited),
+    });
+    expect(result.ready).toBe(false);
+    expect(clock).toBeLessThan(5_000);
   });
   it("stops at once on a build error: it cannot recover by itself", async () => {
     let clock = 0;
@@ -314,6 +354,16 @@ describe("a migrator, a one-shot job", () => {
     expect(result).toMatchObject({ ready: false, timedOut: false });
     expect(result.failures).toEqual([{ name: "migrations", message: "ok/error" }]);
     expect(Date.now() - started).toBeLessThan(5_000);
+  });
+});
+
+describe("failureGraceFromEnv", () => {
+  it("uses a finite, non-negative value and falls back to the default otherwise", () => {
+    expect(failureGraceFromEnv("30000")).toBe(30_000);
+    expect(failureGraceFromEnv("0")).toBe(0);
+    for (const bad of [undefined, "", "120000ms", "-5", "Infinity"]) {
+      expect(failureGraceFromEnv(bad)).toBe(120_000);
+    }
   });
 });
 

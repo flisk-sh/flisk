@@ -17,9 +17,21 @@ export interface DockerFileSharingOptions {
   image?: string;
 }
 
-/** What Docker prints when it refuses a bind mount, as opposed to failing to run the probe at all. */
+/**
+ * What Docker prints when it refuses the bind mount before the probe starts. A bare "permission denied" is not here: before
+ * the container starts it is usually the daemon socket, which says nothing about file sharing.
+ */
 const MOUNT_DENIED =
-  /mounts? denied|not shared from the host|file sharing|invalid mount|bind source path|error while creating mount|permission denied/i;
+  /mounts? denied|not shared from the host|file sharing|invalid mount|bind source path|error while creating mount/i;
+
+/** `docker run` exits 125 when the daemon fails it, 126/127 when the command cannot run: the probe never started. */
+const DOCKER_RUN_PRE_START_CODES = new Set([125, 126, 127]);
+
+/** True when the probe container started and its write into the mount failed (a read-only or denied mount). */
+function probeStartedAndFailed(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "number" && code !== 0 && !DOCKER_RUN_PRE_START_CODES.has(code);
+}
 
 function probeErrorText(error: unknown): string {
   if (!error || typeof error !== "object") return String(error ?? "");
@@ -27,13 +39,16 @@ function probeErrorText(error: unknown): string {
   return [stderr, message].filter((part) => typeof part === "string" && part).join("\n");
 }
 
-function firstLine(text: string): string {
-  return (
-    text
-      .split("\n")
-      .map((line) => line.trim())
-      .find(Boolean) ?? ""
-  );
+/** The non-empty lines of a Docker error on one line, so the cause after "Unable to find image" is not lost. */
+function summarizeLines(text: string): string {
+  return [
+    ...new Set(
+      text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    ),
+  ].join(" / ");
 }
 
 export function formatDockerFileSharingFix(projectFolder: string): string {
@@ -87,7 +102,7 @@ export async function checkDockerFileSharing(
       // If docker run fails (e.g. Docker explicitly denies the mount), check if the file was created
       if (!existsSync(probeHostPath)) {
         const detail = probeErrorText(error);
-        if (!MOUNT_DENIED.test(detail)) {
+        if (!probeStartedAndFailed(error) && !MOUNT_DENIED.test(detail)) {
           // The probe container never ran (the image could not be pulled, the engine refused it, it timed out), so this
           // says nothing about file sharing. Reporting it as a sharing failure sent WSL2 users to a setting that does not
           // apply to them while their bind mounts worked.
@@ -95,7 +110,7 @@ export async function checkDockerFileSharing(
             name: DOCKER_FILE_SHARING_CHECK,
             didPass: true,
             isSkipped: true,
-            message: `Could not run the file sharing probe (${firstLine(detail) || "docker run failed"}); file sharing was not tested`,
+            message: `Could not run the file sharing probe (${summarizeLines(detail) || "docker run failed"}); file sharing was not tested`,
           };
         }
         return {

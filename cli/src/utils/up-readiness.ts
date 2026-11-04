@@ -279,6 +279,8 @@ function unhealthyRunningNames(jsonText: string): Set<string> {
         .filter(
           (item) =>
             item.status?.updateStatus !== "error" &&
+            // A container that exited keeps its last health status; only a running one can still turn healthy.
+            item.status?.runtimeStatus === "ok" &&
             (item.status as { composeResourceInfo?: { healthStatus?: string } } | undefined)
               ?.composeResourceInfo?.healthStatus === "unhealthy",
         )
@@ -293,20 +295,44 @@ function unhealthyRunningNames(jsonText: string): Set<string> {
 export const DEFAULT_FAILURE_GRACE_MS = 120_000;
 
 /**
- * True while every failure is a runtime one (the image built; the container is unhealthy or restarting) and the failures
- * began less than `graceMs` ago. A database on its first start initialises its data directory and fails its health check
+ * True while every failure is a runtime one (the container is running; its health check fails) and each of them began
+ * less than `graceMs` ago. `failingSince` holds when each resource started failing, so a container that turns unhealthy
+ * late gets its own full window instead of inheriting an earlier container's. A database on its first start initialises its data directory and fails its health check
  * for a while: `flisk up` used to print "db failed" and stop waiting, and a few minutes later every container was healthy.
  * A build error never recovers by itself, so it still ends the wait at once.
  */
 export function withinFailureGrace(
   result: ReadinessResult,
-  failingSince: number | null,
+  failingSince: ReadonlyMap<string, number>,
   now: number,
   graceMs: number,
 ): boolean {
-  if (failingSince === null || result.failures.length === 0) return false;
-  if (!result.failures.every((failure) => failure.runtime === true)) return false;
-  return now - failingSince < graceMs;
+  if (result.failures.length === 0) return false;
+  return result.failures.every((failure) => {
+    const since = failingSince.get(failure.name);
+    return failure.runtime === true && since !== undefined && now - since < graceMs;
+  });
+}
+
+/** Records when each currently failing resource started failing and forgets the ones that recovered. */
+export function trackFailingSince(
+  failingSince: Map<string, number>,
+  failures: ReadinessResult["failures"],
+  now: number,
+): void {
+  const current = new Set(failures.map((failure) => failure.name));
+  for (const name of [...failingSince.keys()]) {
+    if (!current.has(name)) failingSince.delete(name);
+  }
+  for (const name of current) {
+    if (!failingSince.has(name)) failingSince.set(name, now);
+  }
+}
+
+/** FLISK_UP_FAILURE_GRACE_MS when it is a finite, non-negative number; otherwise the default. */
+export function failureGraceFromEnv(value: string | undefined): number {
+  const parsed = value === undefined || value.trim() === "" ? Number.NaN : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_FAILURE_GRACE_MS;
 }
 
 /**
@@ -345,9 +371,8 @@ export async function waitForTiltResourcesReady(
   const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
   const now = options.now ?? Date.now;
   const failureGraceMs =
-    options.failureGraceMs ??
-    Number(process.env.FLISK_UP_FAILURE_GRACE_MS ?? DEFAULT_FAILURE_GRACE_MS);
-  let failingSince: number | null = null;
+    options.failureGraceMs ?? failureGraceFromEnv(process.env.FLISK_UP_FAILURE_GRACE_MS);
+  const failingSince = new Map<string, number>();
 
   let lastProgressAt = now();
   let previousFingerprint = "";
@@ -368,7 +393,7 @@ export async function waitForTiltResourcesReady(
       try {
         const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth);
         last = evaluation.result;
-        failingSince = last.failures.length > 0 ? (failingSince ?? now()) : null;
+        trackFailingSince(failingSince, last.failures, now());
         if (evaluation.settled && !withinFailureGrace(last, failingSince, now(), failureGraceMs)) {
           return last;
         }

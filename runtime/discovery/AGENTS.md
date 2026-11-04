@@ -197,7 +197,7 @@ The discovery system now validates all manifests during the scan process:
 | `appName` | Required, 3-64 chars, kebab-case (lowercase, numbers, hyphens) |
 | `appType` | Required, must be: backend, frontend, library, migrator, sdk, worker, bring-your-own |
 | `domain` | Required, must be a valid domain from `constants.star` |
-| `port` | Required, integer 3000-9999, appType-specific ranges enforced |
+| `port` | Required, integer 3000-9999 (`bring-your-own`: integer 1-65535, the port its own container listens on), appType-specific ranges enforced |
 | `features` | Optional, each must be a valid feature from `constants.star` |
 | `replicas` | Optional, integer 1-10 |
 

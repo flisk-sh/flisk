@@ -28,9 +28,11 @@ def _run(tmp_path: Path, enabled: bool) -> str:
     (tmp_path / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": "starter"}}))
     tiltfile = tmp_path / "Tiltfile"
     tiltfile.write_text(
-        "load('{}', 'load_verdaccio')\nload_verdaccio(lambda name: {} and name == 'verdaccio')\nfail('DONE')\n".format(
-            STUB, "True" if enabled else "False"
-        )
+        "load('{}', 'load_verdaccio')\n"
+        "def should_enable(name):\n"
+        "    return {} and name == 'verdaccio'\n"
+        "load_verdaccio(should_enable)\n"
+        "fail('DONE')\n".format(STUB, "True" if enabled else "False")
     )
     proc = subprocess.run(
         ["tilt", "alpha", "tiltfile-result", "-f", str(tiltfile)],

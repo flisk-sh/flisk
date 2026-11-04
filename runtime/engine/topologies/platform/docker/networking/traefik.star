@@ -211,8 +211,21 @@ def _byo_web_ui_labels(resource_entry_name, traefik_resource_name, internal_port
 
 
 def _regex_literal(path):
-    """`path` as a Go regexp literal for a Traefik label. `[.]` instead of `\\.`: a backslash is an escape in a YAML string."""
-    return path.replace(".", "[.]")
+    """`path` as a Go regexp literal for a Traefik label: every character that is not a letter, digit, `/`, `-` or `_` goes
+    in a one-character class (`[.]`, `[+]`), so an `apiPath` such as `/api/a+b` matches itself. A class rather than a
+    backslash, because a backslash is an escape in a YAML string. `$` is left out: Compose would read it as a variable.
+    """
+    out = ""
+    for ch in path.elems():
+        if ch.isalnum() or ch in "/-_":
+            out += ch
+        elif ch == "$":
+            fail("apiPath may not contain '$': " + path)
+        elif ch in "]^\\":
+            out += "[\\" + ch + "]"
+        else:
+            out += "[" + ch + "]"
+    return out
 
 
 def _trailing_slash_redirect_labels(router_name, service_name, api_path, entrypoints, base_priority):

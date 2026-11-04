@@ -127,7 +127,47 @@ describe("checkDockerFileSharing", () => {
     expect(result.isSkipped).toBe(true);
     expect(result.message).toContain("file sharing was not tested");
     expect(result.message).toContain("Unable to find image 'alpine:latest' locally");
+    // The cause on the next line is kept, not only the first line.
+    expect(result.message).toContain("TLS handshake timeout");
     expect(result.fix).toBeUndefined();
+  });
+
+  it("does not blame file sharing for a daemon permission error before the probe starts", async () => {
+    // docker run exits 125 when the daemon fails it: no container started, so the mount was never tried.
+    const fakeRunner = async () => {
+      throw Object.assign(new Error("Command failed: docker run"), {
+        code: 125,
+        stderr: "permission denied while trying to connect to the Docker daemon socket",
+      });
+    };
+
+    const result = await checkDockerFileSharing({
+      projectRoot: tempDir,
+      runner: fakeRunner,
+      hasDocker: true,
+    });
+
+    expect(result.isSkipped).toBe(true);
+    expect(result.message).toContain("permission denied while trying to connect");
+  });
+
+  it("fails when the probe started but could not write into the mount", async () => {
+    const fakeRunner = async () => {
+      throw Object.assign(new Error("Command failed: docker run"), {
+        code: 2,
+        stderr: "sh: can't create /flisk-probe/x: Read-only file system",
+      });
+    };
+
+    const result = await checkDockerFileSharing({
+      projectRoot: tempDir,
+      runner: fakeRunner,
+      hasDocker: true,
+    });
+
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("Docker cannot access the project folder");
+    expect(result.fix).toContain("File sharing");
   });
 
   it("skips when Docker CLI is not installed", async () => {
