@@ -154,7 +154,7 @@ describe("collectAnswers with a terminal", () => {
       backend: { language: defaultLanguage?.id, framework: defaultFramework },
     });
     const messages = prompts.arrowSelect.mock.calls.map((call) => call[0].message);
-    expect(messages[0]).toBe("What do you want to build?");
+    expect(messages[0]).toBe("What are you building?");
     expect(messages).toHaveLength(3);
     // Extras and the name come after every menu, and Enter takes their defaults.
     expect(prompts.arrowMultiSelect.mock.invocationCallOrder[0]).toBeGreaterThan(
@@ -188,7 +188,7 @@ describe("collectAnswers with a terminal", () => {
     await collectAnswers(undefined, {}, true);
     const menu = prompts.arrowSelect.mock.calls[1]?.[0];
     const offered = menu.choices.map((c: { value: string }) => c.value);
-    expect(offered).toEqual(frontends.filter((f) => f.local).map((f) => f.id));
+    expect(offered).toEqual(frontends.map((f) => f.id));
     expect(menu.choices[0].title).toMatch(/default/);
   });
 

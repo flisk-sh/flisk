@@ -22,12 +22,12 @@ import { installServiceDependencies } from "../utils/one-command.js";
 import { findOnPath } from "../utils/which.js";
 const SHAPE_CHOICES = [
     {
-        title: "Website and API",
+        title: "A website + API",
         value: "both",
-        hint: "A website that talks to an API (recommended).",
+        hint: "A website that talks to an API (default).",
     },
     { title: "A website", value: "web", hint: "Just the front end." },
-    { title: "An API", value: "api", hint: "Just the back end." },
+    { title: "Just an API", value: "api", hint: "Just the back end." },
     {
         title: "A ready-made starter…",
         value: "starter",
@@ -141,7 +141,7 @@ export async function collectAnswers(nameArg, options, interactive) {
     }
     else if (interactive) {
         shape = await arrowSelect({
-            message: "What do you want to build?",
+            message: "What are you building?",
             choices: SHAPE_CHOICES,
         });
     }
@@ -417,17 +417,36 @@ async function runCreate(nameArg, options) {
         for (const line of review)
             console.log(`  ${line}`);
         console.log("");
-        const go = await arrowSelect({
-            message: "Create it?",
-            choices: [
-                { title: "Yes, create it", value: "create" },
-                { title: "No, cancel", value: "cancel" },
-            ],
-        });
-        if (go === "cancel") {
-            console.log(chalk.dim("\nCancelled. Nothing was written."));
-            process.exitCode = 130;
-            return;
+        // Only ask "Create it?" when the user made a non-default choice; otherwise they
+        // pressed Enter through everything and the review already says what will happen.
+        const defaultFrontend = frontendCatalog()[0]?.id;
+        const defaultBackend = backendCatalog()[0];
+        const defaultBackendFramework = defaultBackend?.frameworks[0]?.id;
+        const hasFrontend = !!answers.frontend;
+        const hasBackend = !!answers.backend;
+        const frontendDefault = !hasFrontend || answers.frontend === defaultFrontend;
+        const backendDefault = !hasBackend ||
+            (answers.backend?.language === defaultBackend?.id &&
+                answers.backend?.framework === defaultBackendFramework);
+        const allDefaults = answers.runtime === "local" &&
+            !answers.starter &&
+            frontendDefault &&
+            backendDefault &&
+            answers.extras.length === 0 &&
+            answers.name === "my-app";
+        if (!allDefaults) {
+            const go = await arrowSelect({
+                message: "Create it?",
+                choices: [
+                    { title: "Yes, create it", value: "create" },
+                    { title: "No, cancel", value: "cancel" },
+                ],
+            });
+            if (go === "cancel") {
+                console.log(chalk.dim("\nCancelled. Nothing was written."));
+                process.exitCode = 130;
+                return;
+            }
         }
     }
     else {
