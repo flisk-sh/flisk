@@ -75,3 +75,11 @@ def test_apply_provisions_through_the_shared_check() -> None:
     source = APPLY.read_text()
     assert "resource_needs_database(resource.get('_manifest', {}))" in source
     assert "manifest.get('appType') == 'backend'" not in source
+
+
+def test_provision_script_retries_until_the_database_exists() -> None:
+    """A createdb that races the postgres image's temporary init server must not leave the stack without its database."""
+    source = (REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "databases.star").read_text()
+    assert "db_exists()" in source
+    assert "could not be created" in source
+    assert "Could not create database (may already exist)" not in source
