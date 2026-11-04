@@ -9,7 +9,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languages/registry.js";
@@ -269,6 +269,29 @@ export function assertFolderIsFree(dir) {
         "Or remove the folder first.",
     ]);
 }
+/**
+ * Claim the project folder right before anything is written. The earlier check ran before the
+ * confirmation, so this re-checks it and creates the folder without `recursive` on the last
+ * segment: if another process made it in the meantime, mkdir fails (EEXIST) and create aborts
+ * instead of writing into a folder it no longer owns.
+ */
+export function claimFolder(dir) {
+    assertFolderIsFree(dir);
+    if (existsSync(dir))
+        return; // an empty folder the user made; just re-checked as empty
+    mkdirSync(dirname(dir), { recursive: true });
+    try {
+        mkdirSync(dir);
+    }
+    catch (error) {
+        if (error.code === "EEXIST") {
+            throw new FliskError(`The folder ${dir} appeared while create was starting.`, [
+                "Nothing was written. Pick another name: flisk create <name>",
+            ]);
+        }
+        throw error;
+    }
+}
 /** One line per step for the dry run and the failure report. */
 export function renderStep(step) {
     return `flisk ${step.args.join(" ")}`;
@@ -352,7 +375,8 @@ export function recoveryMessage(projectDir, steps, failedIndex) {
         `The project in ${projectDir} is incomplete${failed ? `: "${failed.label}" did not finish` : ""}.`,
         ...steps.slice(0, failedIndex).map((step) => `  done: ${step.label}`),
         ...steps.slice(failedIndex + 1).map((step) => `  not run: ${step.label}`),
-        `To start over: rm -rf ${projectDir}, then run flisk create again.`,
+        `Project folder (absolute path): ${JSON.stringify(projectDir)}`,
+        "flisk create made this folder just now. Look inside it, delete it yourself if you no longer need it, then run flisk create again.",
     ];
 }
 export const createCommand = addYesOption(new Command("create"))
@@ -459,8 +483,11 @@ async function runCreate(nameArg, options) {
             "Reinstall the Flisk CLI and run the command again.",
         ]);
     }
-    if (!answers.starter)
-        mkdirSync(projectDir, { recursive: true });
+    // Re-check right before writing: the folder may have changed since the first check and the confirmation.
+    if (answers.starter)
+        assertFolderIsFree(projectDir);
+    else
+        claimFolder(projectDir);
     for (const [index, step] of steps.entries()) {
         process.stdout.write(`  ${step.label}... `);
         const result = runStep(binPath, step, step.inProject ? projectDir : process.cwd());

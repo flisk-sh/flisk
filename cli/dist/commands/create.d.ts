@@ -23,6 +23,13 @@ export declare function isInteractive(options: CreateOptions, tty: {
 export declare function collectAnswers(nameArg: string | undefined, options: CreateOptions, interactive: boolean): Promise<CreateAnswers>;
 /** The project folder must not exist, or must be empty, so a create never overwrites anything. */
 export declare function assertFolderIsFree(dir: string): void;
+/**
+ * Claim the project folder right before anything is written. The earlier check ran before the
+ * confirmation, so this re-checks it and creates the folder without `recursive` on the last
+ * segment: if another process made it in the meantime, mkdir fails (EEXIST) and create aborts
+ * instead of writing into a folder it no longer owns.
+ */
+export declare function claimFolder(dir: string): void;
 /** One line per step for the dry run and the failure report. */
 export declare function renderStep(step: CreateStep): string;
 /** What gets created, what it needs, and what was chosen, shown before anything is written. */

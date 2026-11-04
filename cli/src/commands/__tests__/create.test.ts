@@ -35,6 +35,7 @@ import {
 import { asksToStart, buildCreatePlan } from "../../utils/create-plan.js";
 import {
   assertFolderIsFree,
+  claimFolder,
   collectAnswers,
   generatedServices,
   isInteractive,
@@ -315,7 +316,23 @@ describe("the review, the recovery message and the folder guard", () => {
     expect(lines[0]).toContain("/work/shop is incomplete");
     expect(lines).toContain(`  done: ${steps[0]?.label}`);
     expect(lines).toContain(`  not run: ${steps[2]?.label}`);
-    expect(lines.at(-1)).toContain("rm -rf /work/shop");
+    expect(lines.join("\n")).not.toContain("rm -rf");
+    expect(lines.join("\n")).toContain('"/work/shop"');
+  });
+
+  it("claimFolder re-checks the folder, so files that appear after the first check are never written over", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk create guard "));
+    try {
+      const target = join(dir, "my app");
+      assertFolderIsFree(target); // first check passes
+      mkdirSync(target); // another process fills it before create writes
+      writeFileSync(join(target, "keep.txt"), "mine");
+      expect(() => claimFolder(target)).toThrow(/already exists and is not empty/);
+      expect(readFileSync(join(target, "keep.txt"), "utf8")).toBe("mine");
+      expect(claimFolder(join(dir, "nested", "fresh app"))).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("refuses a folder that already has files, but accepts a missing or empty one", () => {
