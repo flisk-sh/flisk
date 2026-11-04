@@ -34,7 +34,7 @@ Variables`, `Master Configs`) and never the Docker, Tilt or host ones, so its ve
 
 ## Invariants (`lib/invariants.mjs`)
 
-1. `surfaces-ran`: status, doctor and config verify each print one JSON envelope.
+1. `surfaces-ran`: status, doctor, config verify and resources each print one JSON envelope. A command with no envelope is a failure, never a pass.
 2. `database-need-matches-scenario`: status enables PostgreSQL exactly when the scenario needs it.
 3. `gateway-need-matches-scenario`: same for the router.
 4. `status-capabilities-match-platform-services`: `capabilities` lists exactly the enabled platform services.
@@ -51,7 +51,7 @@ Variables`, `Master Configs`) and never the Docker, Tilt or host ones, so its ve
 15. `verify-notices-unapplied-infra`: before `regenerate`, `config verify` reports the changed infra flags as out of sync.
 16. `dependson-graph-agrees`: a `dependsOn` cycle is refused by verify, doctor and `up --dry-run` alike; a dangling name is named by both verify and `up --dry-run`.
 17. `resources-command-matches-status`: `flisk resources` and `flisk status` list the same resources.
-18. `up-dry-run-lists-every-resource`: `flisk up --dry-run` would start every resource (none when a cycle makes it refuse).
+18. `up-dry-run-lists-every-resource`: `flisk up --dry-run` would start every resource. A missing services list fails; only a `dependsOn` cycle (which up refuses on purpose) is skipped.
 19. `up-stack-focus-matches-stacks`: `flisk up --dry-run <stack>` starts exactly that stack's resources (multi-stack shape).
 20. `render-exports-http-resources`: `flisk export render` lists every HTTP-serving resource (backend, mcp, agent, frontend, bring-your-own) and no other.
 21. `compose-matches-database-need`: exported Compose lists every bring-your-own resource and does not reference PostgreSQL or
@@ -87,7 +87,7 @@ Failures use the shared bug-memory shape so a later PHANTOM step can turn them i
 
 - Known gap [#3243](https://github.com/flisk-sh/flisk/issues/3243), found by ORACLE: `flisk export render` refuses a python, go or rust
   backend that `flisk resource` just scaffolded (no Dockerfile until `flisk up`). `render-exports-http-resources` tolerates that
-  one message; delete the exemption when the issue is fixed.
+  one message, only for the resource the error names and only when that resource is a python, go or rust backend; delete the exemption when the issue is fixed.
 - A dangling `dependsOn` name: `flisk up` warns and ignores it (`up --dry-run` exits 0), while `config verify` reports it as an
   error (`valid: false`). The two agree on the name, so ORACLE passes it; whether the severities should match is a product
   decision.

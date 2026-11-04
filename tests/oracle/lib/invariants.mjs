@@ -13,10 +13,10 @@ const fail = (invariant, expected, actual, surfaces) => ({ invariant, expected, 
 export const INVARIANTS = [
 	{
 		id: "surfaces-ran",
-		surfaces: ["status", "doctor", "config verify"],
+		surfaces: ["status", "doctor", "config verify", "resources"],
 		check: (s) => {
-			const bad = ["status", "doctor", "verify"].filter((k) => !s[k]?.json);
-			return bad.length ? fail("surfaces-ran", "status, doctor and config verify each print a JSON envelope", `no envelope from: ${bad.join(", ")}${s[bad[0]]?.error ? ` (${s[bad[0]].error})` : ""}`, bad) : null;
+			const bad = ["status", "doctor", "verify", "resources"].filter((k) => !s[k]?.json);
+			return bad.length ? fail("surfaces-ran", "status, doctor, config verify and resources each print a JSON envelope", `no envelope from: ${bad.join(", ")}${s[bad[0]]?.error ? ` (${s[bad[0]].error})` : ""}`, bad) : null;
 		},
 	},
 	{
@@ -206,9 +206,10 @@ export const INVARIANTS = [
 		id: "up-dry-run-lists-every-resource",
 		surfaces: ["up --dry-run --json services", "status --json resources"],
 		check: (s, sc) => {
-			const services = s.up?.json?.data?.services;
-			if (!services || sc.expect.cycle) return null; // up refuses a cycle
+			if (sc.expect.cycle) return null; // up refuses a cycle on purpose; dependson-graph-agrees checks that
 			const want = sc.resources.map((r) => r.name).sort().join(" ");
+			const services = s.up?.json?.data?.services;
+			if (!Array.isArray(services)) return fail("up-dry-run-lists-every-resource", `up would start ${want}`, `up --dry-run gave no services list (exit ${s.up?.code}${s.up?.error ? `, ${s.up.error}` : ""})`, ["up"]);
 			const got = [...services].sort().join(" ");
 			return want === got ? null : fail("up-dry-run-lists-every-resource", `up would start ${want}`, `up would start ${got}`, ["up"]);
 		},
@@ -234,9 +235,11 @@ export const INVARIANTS = [
 			if (!s.render) return null;
 			const http = ["backend", "mcp", "agent", "frontend", "bring-your-own"]; // `export render` exports every resource that serves HTTP
 			const want = sc.resources.filter((r) => http.includes(r.kind)).map((r) => r.name).sort().join(" ");
-			// Known gap #3243: a python, go or rust backend has no Dockerfile until `flisk up`, and export render refuses it.
-			const noDockerfile = sc.resources.some((r) => r.kind === "backend" && r.args.some((a) => ["python", "go", "rust"].includes(a)));
-			if (s.render.code !== 0 && noDockerfile && /has neither a Dockerfile nor a package\.json/.test(s.render.stderr ?? "")) return null;
+			// Known gap #3243: a python, go or rust backend has no Dockerfile until `flisk up`, and export render refuses it. The
+			// exemption belongs to the resource the error names, so another backend's refusal is never excused by it.
+			const refused = /Resource "([^"]+)" has neither a Dockerfile nor a package\.json/.exec(s.render.stderr ?? "")?.[1];
+			const culprit = sc.resources.find((r) => r.name === refused);
+			if (s.render.code !== 0 && culprit?.kind === "backend" && culprit.args.some((a) => ["python", "go", "rust"].includes(a))) return null;
 			if (s.render.code !== 0) return want ? fail("render-exports-http-resources", `render.yaml lists ${want}`, `export render exited ${s.render.code}`, ["render"]) : null;
 			const got = [...s.render.stdout.matchAll(/^ {2}- type: \w+\n {4}name: "([^"]+)"/gm)].map((m) => m[1]).sort().join(" ");
 			return want === got ? null : fail("render-exports-http-resources", `render.yaml lists ${want}`, `render.yaml lists ${got}`, ["render"]);

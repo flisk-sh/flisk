@@ -201,14 +201,50 @@ test("up --dry-run leaving out a resource is flagged", () => {
 	assert.deepEqual(ids(s), ["up-dry-run-lists-every-resource"]);
 });
 
-test("up --dry-run <stack> must start exactly that stack's resources", () => {
+test("a missing services list from up --dry-run fails unless the scenario has a cycle", () => {
 	const s = agreeing();
-	s.upByStack = { main: { code: 0, json: { data: { services: ["w"] } } } };
-	assert.deepEqual(ids(s), []);
-	s.upByStack.main.json.data.services = [];
-	assert.deepEqual(ids(s), ["up-stack-focus-matches-stacks"]);
+	s.up = { code: 1, error: "no JSON envelope" };
+	assert.ok(ids(s).includes("up-dry-run-lists-every-resource"));
+	s.up = { code: 0, json: { data: { ok: true } } };
+	assert.deepEqual(ids(s), ["up-dry-run-lists-every-resource"]);
+	const [f] = checkScenario(s, scenario);
+	assert.match(f.expected, /w/);
+	assert.match(f.actual, /exit 0/);
+	const cyc = { ...scenario, expect: { ...scenario.expect, cycle: true } };
+	assert.ok(!ids(s, cyc).includes("up-dry-run-lists-every-resource"));
+});
+
+test("a failed flisk resources run is a surfaces-ran failure", () => {
+	const s = agreeing();
+	s.resources = { code: 1, error: "no JSON envelope" };
+	assert.deepEqual(ids(s), ["surfaces-ran"]);
+});
+
+test("up --dry-run <stack> must start exactly that stack's resources", () => {
+	const sc = { ...scenario, shape: "multi-stack", expect: { database: true, gateway: true, cycle: false, dangling: false },
+		resources: [["api", "main"], ["worker", "main"], ["dashboard", "admin"]].map(([name, stack]) => ({ name, kind: "backend", stack, args: [] })) };
+	const s = agreeing();
+	s.status.json.data.platformServices = services(true);
+	s.status.json.data.capabilities = ["gateway", "database"];
+	s.verify.json.data.sharedPlatformPostgres.willStart = true;
+	s.doctor.json.data.checks[0].isSkipped = false;
+	s.status.json.data.resources = sc.resources.map((r) => ({ name: r.name, type: "backend" }));
+	s.resources.json.data.resources = sc.resources.map((r) => ({ name: r.name }));
+	s.status.json.data.stacks = [{ name: "main", resourceCount: 2, resources: ["api", "worker"] }, { name: "admin", resourceCount: 1, resources: ["dashboard"] }];
+	s.stacks.json.data.stacks = [{ name: "main", resourceCount: 2 }, { name: "admin", resourceCount: 1 }];
+	s.up.json.data.services = ["api", "worker", "dashboard"];
+	s.compose = { code: 1, text: "" };
+	s.render.stdout = `services:\n${sc.resources.map((r) => `  - type: web\n    name: "${r.name}"\n`).join("")}`;
+	const run = (services) => ({ code: 0, json: { data: { services } } });
+	s.upByStack = { main: run(["api", "worker"]), admin: run(["dashboard"]) };
+	assert.deepEqual(ids(s, sc), []);
+	s.upByStack.admin = run(["api", "worker", "dashboard"]); // the whole project instead of the stack
+	assert.deepEqual(ids(s, sc), ["up-stack-focus-matches-stacks"]);
+	s.upByStack.admin = run(["dashboard"]);
+	s.upByStack.main = run(["api"]);
+	assert.deepEqual(ids(s, sc), ["up-stack-focus-matches-stacks"]);
 	s.upByStack.main = { code: 1, error: "no envelope" };
-	assert.deepEqual(ids(s), ["up-stack-focus-matches-stacks"]);
+	assert.deepEqual(ids(s, sc), ["up-stack-focus-matches-stacks"]);
 });
 
 test("render.yaml must list the HTTP resources and nothing else", () => {
@@ -227,18 +263,36 @@ test("render.yaml must list the HTTP resources and nothing else", () => {
 	assert.deepEqual(ids(t, sc), [], "a worker serves no HTTP, so no render.yaml is right");
 });
 
-test("known gap #3243: export render refusing a python/go/rust backend is not a failure, any other refusal is", () => {
-	const sc = { ...scenario, resources: [{ name: "svc", kind: "backend", stack: "main", args: ["--language", "rust"] }] };
-	const s = agreeing();
-	s.status.json.data.resources = [{ name: "svc", type: "backend" }];
-	s.status.json.data.stacks = [{ name: "main", resourceCount: 1, resources: ["svc"] }];
-	s.resources.json.data.resources = [{ name: "svc" }];
-	s.up.json.data.services = ["svc"];
-	s.render = { code: 1, stdout: "", stderr: 'Error: Resource "svc" has neither a Dockerfile nor a package.json, so Render has nothing to build' };
-	assert.deepEqual(ids(s, sc), []);
-	s.render.stderr = "Error: something else";
-	assert.deepEqual(ids(s, sc), ["render-exports-http-resources"]);
-	s.render.stderr = 'Error: Resource "svc" has neither a Dockerfile nor a package.json';
-	const bun = { ...sc, resources: [{ ...sc.resources[0], args: [] }] };
-	assert.deepEqual(ids(s, bun), ["render-exports-http-resources"], "a bun backend has a Dockerfile, so the gap does not apply");
+test("known gap #3243 belongs to the resource the error names, never to a neighbour", () => {
+	const mk = (lang) => ({ ...scenario, resources: [
+		{ name: "odd", kind: "backend", stack: "main", args: ["--language", lang] },
+		{ name: "plain", kind: "backend", stack: "main", args: [] },
+	] });
+	const base = (sc) => {
+		const s = agreeing();
+		s.status.json.data.resources = sc.resources.map((r) => ({ name: r.name, type: "backend" }));
+		s.status.json.data.stacks = [{ name: "main", resourceCount: 2, resources: ["odd", "plain"] }];
+		s.resources.json.data.resources = sc.resources.map((r) => ({ name: r.name }));
+		s.up.json.data.services = ["odd", "plain"];
+		s.compose = { code: 1, text: "" };
+		s.stacks.json.data.stacks = [{ name: "main", resourceCount: 2 }];
+		return s;
+	};
+	const err = (name) => `Error: Resource "${name}" has neither a Dockerfile nor a package.json, so Render has nothing to build`;
+	for (const lang of ["python", "rust", "go"]) {
+		const sc = mk(lang);
+		const s = base(sc);
+		s.render = { code: 1, stdout: "", stderr: err("odd") };
+		assert.deepEqual(ids(s, sc), [], `${lang}: the resource that lacks a Dockerfile is excused`);
+		s.render = { code: 1, stdout: "", stderr: err("plain") };
+		assert.deepEqual(ids(s, sc), ["render-exports-http-resources"], `${lang} must not excuse the bun backend`);
+		s.render = { code: 1, stdout: "", stderr: err("ghost") };
+		assert.deepEqual(ids(s, sc), ["render-exports-http-resources"], "an error naming no scenario resource is never excused");
+		s.render = { code: 1, stdout: "", stderr: "Error: something else" };
+		assert.deepEqual(ids(s, sc), ["render-exports-http-resources"]);
+	}
+	const sc = mk("node");
+	const s = base(sc);
+	s.render = { code: 1, stdout: "", stderr: err("odd") };
+	assert.deepEqual(ids(s, sc), ["render-exports-http-resources"], "a node backend has a package.json, so the gap does not apply");
 });
