@@ -10,6 +10,7 @@
 # Priority: service.json → synthesize from path
 # =============================================================================
 
+load('../native_windows.star', 'dir_exists', 'file_exists')
 load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('../../engine/topologies/tilt/manifest/constants.star',
      'MANIFEST_DEFAULTS',
@@ -27,9 +28,7 @@ def _check_prisma_folder(resource_path):
     Check if prisma/ directory exists in resource path (silent).
     Used to auto-detect has_migrator when not in features.
     """
-    check_cmd = ["sh", "-c", 'test -d "$1/prisma" && echo yes || echo no', "sh", resource_path]
-    result = str(local(check_cmd, quiet=True, echo_off=True)).strip()
-    return result == 'yes'
+    return dir_exists(resource_path + "/prisma")
 
 
 def check_prisma_folder(resource_path):
@@ -256,11 +255,7 @@ def _apply_manifest_defaults(manifest, resource_path):
             dockerfile_path = resource_path + '/' + custom_dockerfile
         # BUG FIX: Run check from project root since Tilt may run from .flisk/.flisk-out/
         project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
-        if project_root:
-            dockerfile_exists = local(["sh", "-c", 'cd "$1" && test -f "$2" && echo yes || echo no', "sh", project_root, dockerfile_path], quiet=True, echo_off=True)
-        else:
-            dockerfile_exists = local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", dockerfile_path], quiet=True, echo_off=True)
-        if str(dockerfile_exists).strip() != 'yes':
+        if not file_exists(dockerfile_path, cwd=project_root):
             fail("""
 ❌ ═══════════════════════════════════════════════════════════════════
 ❌  CUSTOM DOCKERFILE NOT FOUND
@@ -418,7 +413,7 @@ def get_manifest_filename(resource_path):
     """
     # Check for manifest file (service.json)
     manifest_path = resource_path + '/' + MANIFEST_FILENAME
-    if local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", manifest_path], quiet=True, echo_off=True) == 'yes':
+    if file_exists(manifest_path):
         return MANIFEST_FILENAME
     
     # Manifest not found - synthesis will be used

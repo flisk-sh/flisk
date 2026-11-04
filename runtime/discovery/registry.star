@@ -22,6 +22,7 @@ load(
     "Config",
     "DDD_LIBS",
 )
+load("./native_windows.star", "IS_NATIVE_WINDOWS", "ensure_dir", "find_files", "find_files_in_glob_dirs", "is_absolute", "read_text", "write_text")
 load("./discovery_orchestrator.star", "initialize_discovery")
 load("../engine/topologies/tilt/manifest/loader.star", "ManifestLoader")
 load("./libraries.star", "autodiscover_libraries", "get_platform_libs", "get_product_libs")
@@ -311,10 +312,10 @@ def _write_file_if_changed(path, content):
         fail("Flisk discovery refused to write outside its generated-file allowlist: " + path)
 
     # Read existing file (returns empty string on error via shell)
-    existing = str(local(["sh", "-c", 'cat "$1" 2>/dev/null || echo ""', "sh", path], quiet=True, echo_off=True))
+    existing = read_text(path)
     
     if existing != content:
-        local(["sh", "-c", 'mkdir -p "$(dirname "$1")" && echo "$2" > "$1"', "sh", path, content], quiet=True, echo_off=True)
+        write_text(path, content)
         return True
     return False
 
@@ -324,7 +325,7 @@ def _render_star_file(description, var_name, data):
 
 def generate_product_stack_topology():
     """Generate product stack topology folders."""
-    local(["mkdir", "-p", PRODUCT_TOPOLOGY_DIR], quiet=True)
+    ensure_dir(PRODUCT_TOPOLOGY_DIR)
     
     changes = 0
     for resource in APP_RESOURCES:
@@ -344,7 +345,7 @@ def generate_product_stack_topology():
 
 def generate_product_snapshot_topology():
     """Generate product snapshot topology files."""
-    local(["mkdir", "-p", PRODUCT_SNAPSHOT_DIR], quiet=True)
+    ensure_dir(PRODUCT_SNAPSHOT_DIR)
     
     services_path = PRODUCT_SNAPSHOT_DIR + "/services.star"
     deps_path = PRODUCT_SNAPSHOT_DIR + "/dependencies.star"
@@ -422,7 +423,13 @@ def _find_manifest_files(root, manifest_filename):
     
     # Check if root contains glob patterns
     project_root = os.environ.get('FLISK_PROJECT_ROOT', '.')
-    if '*' in root or '?' in root:
+    if IS_NATIVE_WINDOWS:
+        if '*' in root or '?' in root:
+            result = "\n".join(find_files_in_glob_dirs(project_root, root, manifest_filename))
+        else:
+            full_path = root if is_absolute(root) else project_root + "/" + root
+            result = "\n".join(find_files(full_path, manifest_filename))
+    elif '*' in root or '?' in root:
         # Use bash to expand glob and find files
         cmd = "cd " + project_root + " && bash -c 'for dir in " + root + "; do if [ -d \"$dir\" ]; then find \"$dir\" -maxdepth 3 -type f -name \"" + manifest_filename + "\" 2>/dev/null; fi; done'"
         result = str(local(cmd, quiet=True, echo_off=True)).strip()

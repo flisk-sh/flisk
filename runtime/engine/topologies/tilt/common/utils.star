@@ -7,6 +7,7 @@
 # Purpose: Foundational helper functions, constants, and shared API surface.
 # =============================================================================
 
+load('../../../../discovery/native_windows.star', 'write_text_exact')
 load('./utils_env.star',
     'load_dotenv',
     'project_env_file',
@@ -291,8 +292,7 @@ def _write_generated_file(file_path, content):
     dir_path = file_path.rsplit('/', 1)[0]
     if not dir_path:
         dir_path = '/'
-    cmd = ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dir_path, expected + '\n', file_path]
-    local(cmd, quiet=True, echo_off=True)
+    write_text_exact(dir_path, file_path, expected + '\n')
 
 def write_file_if_changed(file_path, content):
     """

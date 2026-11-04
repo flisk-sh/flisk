@@ -5,6 +5,7 @@
 # =============================================================================
 
 # Import manifest filename from local manifest folder (self-contained)
+load("./native_windows.star", "file_exists")
 load("./manifest/constants.star", 
     _manifest_file="MANIFEST_FILENAME", 
     _manifest_file_yaml="MANIFEST_FILENAME_YAML"
@@ -33,8 +34,7 @@ def _get_project_discovery_roots():
     ]
     
     for spec_path in spec_paths:
-        check_cmd = ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", spec_path]
-        exists = str(local(check_cmd, quiet=True, echo_off=True)).strip() == 'yes'
+        exists = file_exists(spec_path)
         if exists:
             # Read and parse spec.master for RESOURCE_PATTERNS
             spec_content = str(read_file(spec_path, default=""))
@@ -66,7 +66,7 @@ def _get_enabled_project_stacks():
         return []
 
     project_config_path = project_root + "/.flisk/project.json"
-    exists = str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", project_config_path], quiet=True, echo_off=True)).strip() == 'yes'
+    exists = file_exists(project_config_path)
     if not exists:
         return []
 

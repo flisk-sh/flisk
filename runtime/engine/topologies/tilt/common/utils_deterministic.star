@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
+load('../../../../discovery/native_windows.star', 'IS_NATIVE_WINDOWS', 'find_files')
 # =============================================================================
 # 📋 DETERMINISTIC TILT UTILITIES
 # =============================================================================
@@ -46,6 +47,8 @@ def deterministic_find(path, pattern):
     Returns:
         Sorted list of files (alphabetical, cross-platform consistent)
     """
+    if IS_NATIVE_WINDOWS:
+        return find_files(path, pattern)
     cmd = ["sh", "-c", 'find "$1" -type f -name "$2" 2>/dev/null | sort', "sh", path, pattern]
     result = str(local(cmd, quiet=True, echo_off=True)).strip()
     if result:

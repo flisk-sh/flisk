@@ -2,7 +2,7 @@
 
 On Windows, you run Flisk inside the **Ubuntu** app. Ubuntu is a free version of Linux, and [WSL2](start/words.md#wsl2) (Windows Subsystem for Linux) is the part of Windows that runs it, next to your usual Windows apps. You install it once with one command, then type every Flisk command in the Ubuntu app, which is your [terminal](start/words.md#terminal) on Windows.
 
-Why the extra step? Flisk starts your app with Linux tools: Linux [containers](start/words.md#container), [Docker](start/words.md#docker) and [Tilt](start/words.md#tilt). Windows cannot run Linux containers without WSL2.
+Why the extra step? Flisk starts your app with Linux tools: Linux [containers](start/words.md#container), [Docker](start/words.md#docker) and [Tilt](start/words.md#tilt). Docker Desktop and Tilt both run on Windows, but Flisk's Tilt engine runs POSIX shell commands on the host (see [why native Windows cannot start a Docker stack](design/native-windows-runtime-decision.md#37-evidence-from-the-engine-2026-11-04)), and Ubuntu on WSL2 provides that environment.
 
 Just want the short version? [Set up Windows](setup/windows.md) has three steps. Never written code? [Start here](start/first-time.md). This page has every step in detail, an example app to try, and fixes for common problems.
 
@@ -110,7 +110,7 @@ In WSL2 Ubuntu with Docker running, this clones the starter, installs dependenci
 | `flisk demo` | ✅ Small demo, local processes | ✅ Full demo flow |
 | `flisk restaurant` and other Docker starters | ❌ Refuses before cloning | ✅ |
 
-**Why?** A Docker stack needs Linux containers, Docker, and Tilt. Native Windows cannot run Linux containers without WSL2, so the CLI refuses early to avoid partial or confusing state. Local processes need none of that.
+**Why?** Docker Desktop (Linux containers) and `tilt.exe` do run on native Windows. The blocker is Flisk's own Tilt engine: its Starlark discovery and build steps run `sh -c`, `find`, `test -f`, `mkdir -p` and `.sh` scripts on the host, which `cmd.exe` and PowerShell do not provide (Windows has its own `find.exe`, but it is not POSIX `find`). The CLI therefore refuses early to avoid partial or confusing state. Local processes need none of that.
 
 If you are on native Windows and see:
 ```

@@ -20,6 +20,7 @@
 #   Infra.load_all(should_enable_fn)
 # =============================================================================
 
+load('../../../../discovery/native_windows.star', 'file_exists')
 load("../common/utils_debug.star", "debug_log")
 load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
@@ -35,8 +36,7 @@ load("../../platform/registries/verdaccio_loader.star", "load_verdaccio")
 
 def _file_exists(path):
     """Check if a file exists."""
-    result = str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path], quiet=True, echo_off=True)).strip()
-    return result == 'yes'
+    return file_exists(path)
 
 
 def _compose_has_service(compose_path, service_name):

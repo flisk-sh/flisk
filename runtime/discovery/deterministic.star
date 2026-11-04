@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
+load("./native_windows.star", "IS_NATIVE_WINDOWS", "find_files")
 # Deterministic Tilt Configuration for Flisk
 # Inspired by Mira Murati's "Defeating Nondeterminism" philosophy
 # Goal: Same filesystem state + same environment = identical Tilt output
@@ -35,6 +36,8 @@ def deterministic_find(path, pattern):
     """
     # Always use | sort to ensure alphabetical ordering
     # This makes output invariant to filesystem ordering (ext4 vs APFS vs NTFS)
+    if IS_NATIVE_WINDOWS:
+        return find_files(path, pattern)
     cmd = ["sh", "-c", 'find "$1" -type f -name "$2" 2>/dev/null | sort', "sh", path, pattern]
     result = str(local(cmd, quiet=True, echo_off=True)).strip()
     if result:
