@@ -35,7 +35,7 @@ jobs:
   benchmark:
     name: ⏱️ ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 30
     continue-on-error: true # experiment: never turns the workflow or a PR red
     strategy:
       fail-fast: false

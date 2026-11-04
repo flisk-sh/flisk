@@ -27,6 +27,9 @@ const opt = (name, def) => {
   return i >= 0 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : def;
 };
 const RUNS = Number(opt("runs", process.env.BENCH_RUNS ?? "5"));
+if (!Number.isSafeInteger(RUNS) || RUNS < 1 || RUNS > 20) {
+  throw new Error(`--runs must be an integer between 1 and 20 (got "${opt("runs", process.env.BENCH_RUNS ?? "5")}")`);
+}
 const ONLY = new Set(opt("only", "perf,correctness").split(","));
 const DROP_CACHES = args.includes("--drop-caches") || process.env.DROP_CACHES === "1";
 const OUT = path.resolve(opt("out", path.join(HERE, "results", new Date().toISOString().replace(/[:.]/g, "-"))));
@@ -95,6 +98,14 @@ function run(c, tscArgs, cwd) {
   };
 }
 
+// Compiler order is shuffled per round (seeded, so reproducible) to avoid a fixed ordering bias.
+function shuffled(list, seed) {
+  let t = (seed + 0x6d2b79f5) >>> 0;
+  const rnd = () => { t = (t + 0x6d2b79f5) >>> 0; let x = Math.imul(t ^ (t >>> 15), 1 | t); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
 const median = (a) => {
   const s = [...a].sort((x, y) => x - y);
   const m = s.length >> 1;
@@ -155,6 +166,8 @@ const env = {
   node: process.version,
   flisk: { commit: sh("git", ["-C", ROOT, "rev-parse", "HEAD"]), cliVersion: JSON.parse(fs.readFileSync(path.join(CLI, "package.json"), "utf8")).version },
   runs: RUNS,
+  order: "compiler order shuffled per round with a fixed seed",
+  bun: sh("bun", ["--version"]) || null,
   dropCaches: DROP_CACHES,
   timeBinary: TIME_BIN,
   ci: !!process.env.GITHUB_ACTIONS,
@@ -188,7 +201,7 @@ function perf() {
     console.log(`\n== perf: ${s.id}`);
     const samples = Object.fromEntries(available.map((c) => [c.id, []]));
     for (let i = 0; i < RUNS + 1; i++) {
-      for (const c of available) {
+      for (const c of shuffled(available, i * 131 + s.id.length)) {
         if (s.reset && s.out) rmrf(s.out(c));
         if (i === 0) dropCaches();
         const r = run(c, s.args(c), s.cwd);
@@ -203,13 +216,47 @@ function perf() {
     save();
   }
 
+  // Bun workflow: the repo runs `bun run typecheck`. bun puts cli/node_modules/.bin first on PATH, so a
+  // candidate cannot be swapped in by PATH; instead each compiler is invoked by `bun run` through a throwaway
+  // package.json with the same flags as the real "typecheck" script. The baseline also runs the real script.
+  if (sh("bun", ["--version"])) {
+    console.log("\n== perf: bun-run-typecheck");
+    const bunDir = path.join(TMP, "bunrun");
+    fs.mkdirSync(bunDir, { recursive: true });
+    const q = (x) => JSON.stringify(x);
+    const samples = Object.fromEntries([...available.map((c) => [c.id, []]), ["tsc-real-script", []]]);
+    const bunRun = (cwd) => {
+      const t0 = process.hrtime.bigint();
+      const w = TIME_BIN ? [TIME_BIN, IS_MAC ? "-l" : "-v", "bun", "run", "typecheck"] : ["bun", "run", "typecheck"];
+      const r = spawnSync(w[0], w.slice(1), { cwd, encoding: "utf8", maxBuffer: 1 << 29, timeout: 900_000 });
+      const wallS = Number(process.hrtime.bigint() - t0) / 1e9;
+      const t = TIME_BIN ? parseTime(r.stderr ?? "") : { userS: null, sysS: null, rssBytes: null };
+      return { wallS, userS: t.userS, sysS: t.sysS, cpuUtil: t.userS != null ? (t.userS + t.sysS) / wallS : null, rssMB: t.rssBytes != null ? t.rssBytes / 1048576 : null, exit: r.status ?? -1, err: (r.stdout ?? "").split("\n").slice(0, 4).join("\n") };
+    };
+    for (const c of available) {
+      const d = path.join(bunDir, c.id);
+      fs.mkdirSync(d, { recursive: true });
+      const cmd = [...c.cmd, ...(c.extra ?? []), "--pretty", "false", "-p", path.join(CLI, "tsconfig.typecheck.json"), "--noEmit"].map(q).join(" ");
+      fs.writeFileSync(path.join(d, "package.json"), JSON.stringify({ name: "bench", private: true, scripts: { typecheck: cmd } }));
+    }
+    for (let i = 0; i < RUNS + 1; i++) {
+      for (const id of shuffled([...available.map((c) => c.id), "tsc-real-script"], i * 53 + 3)) {
+        const r = bunRun(id === "tsc-real-script" ? CLI : path.join(bunDir, id));
+        samples[id].push({ ...r, cold: i === 0 });
+        process.stdout.write(`  bun run ${id} #${i}: ${r.wallS.toFixed(2)}s exit=${r.exit}\n`);
+      }
+    }
+    results.perf["bun-run-typecheck"] = { desc: "`bun run typecheck` launching each compiler (tsc-real-script = the repo's actual cli package.json script)", byCompiler: summarize(samples) };
+    save();
+  }
+
   // incremental: cold build -> no-change rebuild -> one-file edit rebuild
   console.log("\n== perf: incremental");
   const inc = Object.fromEntries(available.map((c) => [c.id, { cold: [], nochange: [], edit: [], behaviour: null }]));
   const original = fs.readFileSync(LEAF, "utf8");
   try {
     for (let i = 0; i < RUNS; i++) {
-      for (const c of available) {
+      for (const c of shuffled(available, i * 977 + 7)) {
         const out = path.join(TMP, `out-inc-${c.id}`);
         rmrf(out);
         fs.writeFileSync(LEAF, original);
@@ -380,9 +427,11 @@ function renderMd() {
   const inc = results.perf.incremental;
   if (inc) {
     L.push(`\n### incremental\n${inc.desc}\n`);
-    L.push("| compiler | cold med s | no-change med s | 1-file edit med s | RSS MB (edit) | files rewritten: no-change / edit (of total) |\n|---|---:|---:|---:|---:|---|");
+    L.push("| compiler | cold med s | no-change med s | 1-file edit med s | RSS MB (edit) | failed runs (cold/no-change/edit) | files rewritten: no-change / edit (of total) |\n|---|---:|---:|---:|---:|---|---|");
     for (const [id, v] of Object.entries(inc.byCompiler)) {
-      L.push(`| ${id} | ${f2(v.cold.wallS?.median)} | ${f2(v.nochange.wallS?.median)} | ${f2(v.edit.wallS?.median)} | ${f2(v.edit.rssMB?.median)} | ${v.behaviour?.filesRewrittenOnNoChange} / ${v.behaviour?.filesRewrittenOnOneFileEdit} (of ${v.behaviour?.totalOutputFiles}) |`);
+      const bad = v.cold.failures + v.nochange.failures + v.edit.failures;
+      const m = (x, f) => (f ? `FAILED (${f}/${env.runs})` : f2(x));
+      L.push(`| ${id}${bad ? " ⚠️" : ""} | ${m(v.cold.wallS?.median, v.cold.failures)} | ${m(v.nochange.wallS?.median, v.nochange.failures)} | ${m(v.edit.wallS?.median, v.edit.failures)} | ${f2(v.edit.rssMB?.median)} | ${v.cold.failures}/${v.nochange.failures}/${v.edit.failures} | ${v.behaviour?.filesRewrittenOnNoChange} / ${v.behaviour?.filesRewrittenOnOneFileEdit} (of ${v.behaviour?.totalOutputFiles}) |`);
     }
   }
   if (results.correctness?.cases) {
