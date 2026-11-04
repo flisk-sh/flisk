@@ -54,7 +54,7 @@ export function findTiltProcessIdsOnPort(
     try {
       const name = commandRunner("ps", ["-p", String(pid), "-o", "comm="]).trim();
       return name.split(/[\\/]/).at(-1) === "tilt";
-    } catch (err) {
+    } catch {
       throw new FliskError(
         `Unable to identify the process listening on port ${port}.`,
         ["Check process inspection permissions"],
