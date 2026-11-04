@@ -82,8 +82,13 @@ describe("generated spec.master", () => {
         encoding: "utf-8",
         timeout: 60_000,
       });
+      // The Tiltfile returns its answer through fail(), so Tilt exits non-zero by design. What must hold: tilt ran (no
+      // spawn error, not killed by the timeout) and it reached the RESULT line, not a load or syntax error first.
+      expect(run.error).toBeUndefined();
+      expect(run.signal).toBeNull();
+      expect(run.status).not.toBe(0);
       const output = `${run.stdout}${run.stderr}`;
-      expect(output).toContain(`RESULT${enabled ? "True" : "False"}`);
+      expect(output, output.slice(-2000)).toContain(`RESULT${enabled ? "True" : "False"}`);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

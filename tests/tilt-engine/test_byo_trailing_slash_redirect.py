@@ -67,18 +67,18 @@ def test_a_scaffolded_backend_api_gets_no_redirect(tmp_path):
 REGEX_BODY = """
 load('@NETWORKING/traefik.star', 'get_backend_traefik_labels')
 
-manifest = {'appType': 'bring-your-own', 'stack': 'voting', 'port': 80, 'apiPath': '/api/a+b.c'}
+manifest = {'appType': 'bring-your-own', 'stack': 'voting', 'port': 80, 'apiPath': '/api/v1.2~x'}
 r = {'labels': get_backend_traefik_labels('vote', 'vote.voting.local', '', 'vote', 80, '', manifest=manifest)}
 """
 
 
-def test_regex_characters_in_an_api_path_match_themselves(tmp_path):
+def test_an_api_path_with_a_dot_matches_only_itself(tmp_path):
+    """`.` and `~` are valid in apiPath (the parser accepts them); the regex must treat them as literal characters."""
     labels = run_traefik_labels(tmp_path, "starter", REGEX_BODY)
 
     regex = labels["traefik.http.middlewares.starter-vote-slash.redirectregex.regex"].replace("$$", "$")
-    assert re.match(regex, "http://api.starter.localhost/api/a+b.c")
-    assert not re.match(regex, "http://api.starter.localhost/api/aab.c")
-    assert not re.match(regex, "http://api.starter.localhost/api/a+bxc")
+    assert re.match(regex, "http://api.starter.localhost/api/v1.2~x")
+    assert not re.match(regex, "http://api.starter.localhost/api/v1x2~x")
 
 
 
