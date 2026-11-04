@@ -7,7 +7,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { candidateState, checkCandidates, COMPARE_FILE_CAP, releaseInputFor } from "./check-release-candidate.mjs";
+import {
+  candidateState,
+  checkCandidates,
+  COMPARE_FILE_CAP,
+  releaseInputFor,
+  shouldKeepWaiting,
+} from "./check-release-candidate.mjs";
 
 const RELEASE = "a".repeat(40);
 const OLD = "b".repeat(40);
@@ -189,6 +195,16 @@ test("cli: a release input change fails with exit 1 and names the candidate and 
 test("cli: a failed candidate run never counts", () => {
   const out = runCli(RELEASE, [{ conclusion: "failure", head_sha: RELEASE }]);
   assert.equal(out.status, 1);
+});
+
+test("shouldKeepWaiting: retries a pending or just-passed candidate until the deadline, never a failed one", () => {
+  assert.equal(shouldKeepWaiting("pending", 1, 2), true);
+  // The candidate finished between reading the green runs and reading the runs on the commit (the 1.4.35 publish race).
+  assert.equal(shouldKeepWaiting("passed", 1, 2), true);
+  assert.equal(shouldKeepWaiting("pending", 2, 2), false);
+  assert.equal(shouldKeepWaiting("passed", 3, 2), false);
+  assert.equal(shouldKeepWaiting("failed", 1, 2), false);
+  assert.equal(shouldKeepWaiting("none", 1, 2), false);
 });
 
 test("candidateState: passed, pending, failed or none", () => {

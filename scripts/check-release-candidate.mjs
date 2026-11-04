@@ -17,6 +17,9 @@ export const RELEASE_INPUTS = [
   "bun.lock",
   "cli/**",
   "scripts/release-binaries.sh",
+  "scripts/release/**",
+  "tests/e2e/platforms/container-image/**",
+  ".github/workflows/publish-cli-image.yml",
   "runtime/**",
 ];
 
@@ -73,6 +76,10 @@ export const candidateState = (runs) => {
   return runs.length > 0 ? "failed" : "none";
 };
 
+// Whether to poll again. "pending" waits for the run to finish. "passed" can appear here when the candidate finished after
+// this pass read the list of green runs but before it read the runs on the commit: the next pass sees it, so retry then too.
+export const shouldKeepWaiting = (state, now, deadline) => (state === "pending" || state === "passed") && now < deadline;
+
 const gh = (...args) => execFileSync("gh", ["api", ...args], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -114,8 +121,12 @@ const main = async () => {
         gh(`repos/${repo}/actions/workflows/release-candidate.yml/runs?head_sha=${sha}&per_page=20`),
       ).workflow_runs;
       const state = candidateState(onCommit);
-      if (state === "pending" && Date.now() < deadline) {
-        console.log(`A Release candidate is still running on ${sha}; waiting for it (up to ${waitMinutes} min).`);
+      if (shouldKeepWaiting(state, Date.now(), deadline)) {
+        console.log(
+          state === "passed"
+            ? `A Release candidate just passed on ${sha}; checking again.`
+            : `A Release candidate is still running on ${sha}; waiting for it (up to ${waitMinutes} min).`,
+        );
         await sleep(Number(process.env.RC_POLL_MS) || 20_000);
         continue;
       }
