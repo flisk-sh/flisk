@@ -325,6 +325,3 @@ export async function runNativeDemo(input: NativeDemoInput): Promise<number> {
   stage.stop();
   return 0;
 }
-
-const __flisk_bench_0 = 0;
-void __flisk_bench_0;
