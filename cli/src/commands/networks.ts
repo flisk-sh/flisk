@@ -38,6 +38,11 @@ function isApiRoutedBringYourOwn(service: {
   return config?.appType === "bring-your-own" && config.exposeViaProxy !== false && !config.webUi;
 }
 
+/** `/api/vote` → `/api/vote/`: the URL a browser should open for a page served under a stripped prefix. */
+export function withTrailingSlash(path: string): string {
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
 function execSafe(
   command: string,
   args: string[],
@@ -274,7 +279,8 @@ export const networksCommand = new Command("networks")
               isApiServiceType((s.config as { appType?: string })?.appType) ||
               isApiRoutedBringYourOwn(s);
             const host = isBackend ? apiDomain : appDomain;
-            const url = `http://${host}:${httpPort}${basePath}`;
+            // An imported app serves pages whose relative links only resolve under the prefix with its trailing slash.
+            const url = `http://${host}:${httpPort}${isApiRoutedBringYourOwn(s) ? withTrailingSlash(basePath) : basePath}`;
             const port = s.config?.port;
             const status = await checkServiceStatus(s.name, port, url);
 

@@ -3,7 +3,7 @@
 // `flisk import tiltfile` runs flisk-import's `tiltfile` subcommand, like `compose`. The import itself (what it writes to
 // .flisk/project.json and what it refuses) is tested in flisk-import; this file checks only what core forwards and reports.
 import { EventEmitter } from "node:events";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn(),
@@ -80,6 +80,16 @@ const IMPORTER_OUTPUT = [
 ].join("\n");
 
 describe("flisk import tiltfile", () => {
+  // These runs stand for a person at a terminal; flisk import refuses a run without one that would write.
+  const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  beforeAll(() => {
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+  });
+  afterAll(() => {
+    if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+  });
+
   describe("registration", () => {
     it("is a subcommand of import with its own description", () => {
       expect(importCommand.commands.find((c) => c.name() === "tiltfile")).toBe(tiltfileCommand);

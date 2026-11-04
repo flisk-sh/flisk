@@ -108,7 +108,17 @@ export declare function carryOverBuildCommand(manifest: Record<string, unknown>,
  * ensuring container.command is populated.
  */
 export declare function syncImportedManifestCommands(writtenPaths: string[]): void;
+/**
+ * Runs `flisk import` (and its `compose` / `tiltfile` subcommands). With `--json` the importer runs captured and never
+ * prompts; otherwise it inherits the terminal, and a run that would write is refused when there is no terminal to ask in.
+ * Sets `process.exitCode` to the importer's exit code, or 1 for a refusal.
+ */
 export declare function executeImport(args: string[], options?: ImportOptions, commandName?: string): Promise<void>;
+/**
+ * Without a terminal the importer cannot ask its (Y/n) question: it wrote nothing and exited 0, which a coding agent or CI
+ * job reads as success. A run that would write, with no `--yes` and no stdin TTY, is refused with exit 1 before it starts.
+ */
+export declare function nonInteractiveRefusal(forwardedArgs: string[], commandName?: string, isTTY?: boolean): string | null;
 export declare const composeCommand: Command;
 /**
  * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.1 or later)

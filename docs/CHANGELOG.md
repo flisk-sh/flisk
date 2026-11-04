@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.34 (2026-11-04)
+
 - `flisk up <git-url>` (#3188): a git URL in place of the stack name is shallow-cloned into `./<repo name>` and started from there; an existing checkout in that folder is reused.
 
 ## 1.4.33 (2026-11-02)

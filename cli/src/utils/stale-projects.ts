@@ -41,7 +41,7 @@ export function parseSizeToBytes(sizeStr: string): number {
   const match = /^([0-9.]+)\s*([A-Za-z]+)$/.exec(target);
   if (!match) return 0;
   const num = parseFloat(match[1]);
-  if (isNaN(num)) return 0;
+  if (Number.isNaN(num)) return 0;
   const unit = match[2].toLowerCase();
   if (unit === "b") return num;
   if (unit === "kb" || unit === "k" || unit === "kib") return num * 1024;
@@ -179,8 +179,8 @@ export function findStaleProjects(options?: {
           entry.volumes.push(volName);
         }
       } else if (projectName && projectsByName.has(projectName)) {
-        const entry = projectsByName.get(projectName)!;
-        if (!entry.volumes.includes(volName)) {
+        const entry = projectsByName.get(projectName);
+        if (entry && !entry.volumes.includes(volName)) {
           entry.volumes.push(volName);
         }
       }
@@ -211,8 +211,8 @@ export function findStaleProjects(options?: {
           entry.networks.push(netName);
         }
       } else if (projectName && projectsByName.has(projectName)) {
-        const entry = projectsByName.get(projectName)!;
-        if (!entry.networks.includes(netName)) {
+        const entry = projectsByName.get(projectName);
+        if (entry && !entry.networks.includes(netName)) {
           entry.networks.push(netName);
         }
       }
