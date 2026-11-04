@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "appName": "netwatch",
+  "appType": "backend",
+  "command": "node server.mjs",
+  "port": 4600,
+  "healthCheckPath": "/health",
+  "env": { "PG_PORT":"4650","PG_USER":"nc","PG_DATABASE":"nightcity", "CLAIM_MS": "6000" },
+  "dependsOn": ["db-migrate"]
+}

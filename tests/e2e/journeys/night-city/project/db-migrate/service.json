@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "appName": "db-migrate",
+  "appType": "migrator",
+  "command": "node migrate.mjs",
+  "env": { "PG_PORT":"4650","PG_USER":"nc","PG_DATABASE":"nightcity" },
+  "dependsOn": ["neon-db"]
+}

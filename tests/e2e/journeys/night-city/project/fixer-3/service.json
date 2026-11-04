@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "appName": "fixer-3",
+  "appType": "worker",
+  "command": "node ../fixer/server.mjs",
+  "port": 4613,
+  "healthCheckPath": "/health",
+  "env": { "WORKER_NAME": "fixer-3", "NETWATCH_URL": "http://localhost:4600", "WORK_MS": "2000" },
+  "dependsOn": ["netwatch"]
+}

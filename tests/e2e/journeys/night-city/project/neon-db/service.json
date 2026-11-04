@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "appName": "neon-db",
+  "appType": "bring-your-own",
+  "image": "postgres:16-alpine",
+  "port": 4650,
+  "exposeViaProxy": false,
+  "env": {
+    "POSTGRES_USER": "nc",
+    "POSTGRES_DB": "nightcity",
+    "POSTGRES_HOST_AUTH_METHOD": "trust",
+    "PGPORT": "4650"
+  },
+  "healthCheck": { "command": ["pg_isready", "-h", "127.0.0.1", "-p", "4650", "-U", "nc", "-d", "nightcity"] }
+}

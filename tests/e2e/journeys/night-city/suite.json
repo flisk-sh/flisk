@@ -1,0 +1,22 @@
+{
+  "group": "journeys",
+  "suite": "night-city",
+  "description": "Night City: a human + agent showcase on the native runtime with a real PostgreSQL container. A gig posted over HTTP is split into jobs by a rule-based dispatcher agent, three fixer workers claim them concurrently (no job claimed twice), and PostgreSQL records every claim and result. Chaos cases kill -9 the API (the gig survives in PostgreSQL) and a fixer holding a claim (the claim expires, another attempt finishes the job). flisk down must leave no process, port, container or run state behind. Needs Docker for the PostgreSQL image only; no secrets, no model.",
+  "paths": [
+    "cli/src/utils/native-*.ts",
+    "cli/src/commands/up.ts",
+    "cli/src/commands/down.ts",
+    "cli/src/commands/status.ts",
+    "cli/dist/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/journeys/night-city/**",
+    ".github/workflows/e2e-journeys.yml"
+  ],
+  "cases": ["NC1", "NC2", "NC3", "NC4", "NC5", "NC6", "NC7"],
+  "triggers": ["pr", "nightly", "manual"],
+  "timeoutMinutes": 25,
+  "typicalSeconds": 240,
+  "needsSecrets": [],
+  "checkName": "🌃 Night City, human + agents + PostgreSQL",
+  "install": true
+}
