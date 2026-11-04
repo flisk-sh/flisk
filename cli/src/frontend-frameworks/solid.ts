@@ -5,6 +5,10 @@ import type { FrontendFrameworkProvider } from "./types.js";
 export const solidFrontendProvider: FrontendFrameworkProvider = {
   id: "solid",
   label: "Solid + Vite",
+  vite: {
+    imports: ["import solid from 'vite-plugin-solid';"],
+    plugins: ["solid()"],
+  },
   dependencies: {
     "solid-js": "^1.9.0",
   },

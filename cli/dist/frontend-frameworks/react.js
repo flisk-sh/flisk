@@ -78,6 +78,10 @@ export default App;
 export const reactFrontendProvider = {
     id: "react",
     label: "React + Vite",
+    vite: {
+        imports: ["import react from '@vitejs/plugin-react';"],
+        plugins: ["react()"],
+    },
     dependencies: {
         react: "^19.0.0",
         "react-dom": "^19.0.0",

@@ -1,6 +1,10 @@
 export const solidFrontendProvider = {
     id: "solid",
     label: "Solid + Vite",
+    vite: {
+        imports: ["import solid from 'vite-plugin-solid';"],
+        plugins: ["solid()"],
+    },
     dependencies: {
         "solid-js": "^1.9.0",
     },

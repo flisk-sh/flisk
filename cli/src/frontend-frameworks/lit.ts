@@ -5,6 +5,7 @@ import type { FrontendFrameworkProvider } from "./types.js";
 export const litFrontendProvider: FrontendFrameworkProvider = {
   id: "lit",
   label: "Lit + Vite",
+  vite: { imports: [], plugins: [] },
   dependencies: {
     lit: "^3.2.0",
   },

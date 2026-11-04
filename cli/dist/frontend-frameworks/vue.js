@@ -79,6 +79,10 @@ ${STARTER_STYLE}
 export const vueFrontendProvider = {
     id: "vue",
     label: "Vue + Vite",
+    vite: {
+        imports: ["import vue from '@vitejs/plugin-vue';"],
+        plugins: ["vue()"],
+    },
     dependencies: {
         vue: "^3.5.0",
     },

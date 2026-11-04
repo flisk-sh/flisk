@@ -26,6 +26,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
+import { applyLocalScaffold } from "../utils/resource-local.js";
 import { healthCheckPathOf, isHealthCheckDisabled, SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
 import { createKebabCaseValidator, isPathSafe, validateResourceName, validateStackName, } from "../utils/validation.js";
@@ -550,6 +551,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
     .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
     .option("--durability <kind>", "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
+    .option("--local", "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
     .action(async (name, options, command) => {
     // The frontend listing is the historical default; `--type` selects the listing when it is given.
@@ -1187,6 +1189,24 @@ This file contains the resource configuration for Flisk.
                     task.filename.endsWith(".test.ts")));
             tasks.length = 0;
             tasks.push(...sharedTasks, ...languageFiles.map((file) => ({ ...file, type: "text" })));
+        }
+        // --local: the same scaffold, made to run on the host (no Dockerfile, a plain Vite config, a command in service.json).
+        if (options.local) {
+            if (resourceType !== "frontend" && resourceType !== "backend") {
+                throw new FliskError(`--local applies to frontend and backend resources, not ${resourceType}.`, ["Leave --local out to scaffold it for Docker and Tilt."]);
+            }
+            const backendResource = allResources.find((resource) => resource.name === frontendBackendName);
+            applyLocalScaffold({
+                resourceName,
+                resourceType,
+                port: assignedPort,
+                tasks,
+                frontendFramework,
+                backendLanguage: options.language === undefined ? undefined : backendLanguage,
+                backendUrl: backendResource?.config?.port
+                    ? `http://localhost:${backendResource.config.port}`
+                    : undefined,
+            });
         }
         // Execute all file writes with progress
         console.log(chalk.blue("💻 Generating source files..."));

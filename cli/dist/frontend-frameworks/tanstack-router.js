@@ -3,6 +3,10 @@
 export const tanstackRouterFrontendProvider = {
     id: "tanstack-router",
     label: "TanStack Router + React + Vite",
+    vite: {
+        imports: ["import react from '@vitejs/plugin-react';"],
+        plugins: ["react()"],
+    },
     dependencies: {
         "@tanstack/react-router": "^1.0.0",
         react: "^19.0.0",

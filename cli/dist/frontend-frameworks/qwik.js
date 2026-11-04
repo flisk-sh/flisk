@@ -1,6 +1,10 @@
 export const qwikFrontendProvider = {
     id: "qwik",
     label: "Qwik + Vite",
+    vite: {
+        imports: ["import { qwikVite } from '@builder.io/qwik/optimizer';"],
+        plugins: ["qwikVite({ csr: true })"],
+    },
     dependencies: {
         "@builder.io/qwik": "^1.12.0",
     },
