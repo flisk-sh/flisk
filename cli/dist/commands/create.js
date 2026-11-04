@@ -374,9 +374,20 @@ export function generatedServices(projectDir, answers) {
                     ? getBackendLanguage(language).installHint
                     : undefined,
             run: scripts.dev ? "npm run dev" : String(service.command ?? ""),
+            ...(typeof service.port === "number" ? { port: service.port } : {}),
         });
     }
     return found;
+}
+/** Where to look once it runs: the website's page, or the API's health check when there is no website. */
+export function whereToOpen(services) {
+    const web = services.find((service) => service.dir === LOCAL_FRONTEND_DIR && service.port);
+    if (web)
+        return `Then open http://localhost:${web.port} in your browser.`;
+    const api = services.find((service) => service.dir === LOCAL_BACKEND_DIR && service.port);
+    if (api)
+        return `Then check it works: http://localhost:${api.port}/health`;
+    return undefined;
 }
 /** The commands to run next, from what was generated. */
 export function nextSteps(projectDir, answers, services = generatedServices(projectDir, answers)) {
@@ -385,13 +396,20 @@ export function nextSteps(projectDir, answers, services = generatedServices(proj
     if (answers.runtime === "docker")
         return [`cd ${answers.name}`, "flisk up app"];
     const [only] = services;
+    const open = whereToOpen(services);
     if (services.length === 1 && only) {
-        return [`cd ${answers.name}/${only.dir}`, ...(only.install ? [only.install] : []), only.run];
+        return [
+            `cd ${answers.name}/${only.dir}`,
+            ...(only.install ? [only.install] : []),
+            only.run,
+            ...(open ? [open] : []),
+        ];
     }
     return [
         `cd ${answers.name}`,
         ...services.flatMap((service) => service.install ? [`(cd ${service.dir} && ${service.install})`] : []),
         "flisk up        # starts both",
+        ...(open ? [open] : []),
     ];
 }
 /** Runs one planned command with this CLI, quietly. Returns its output on failure. */
@@ -597,6 +615,9 @@ async function runCreate(nameArg, options) {
         }
         console.log(chalk.green("done"));
     }
+    const open = answers.runtime === "local" ? whereToOpen(services) : undefined;
+    if (open)
+        console.log(`\n${chalk.bold(open)}\n`);
     const upArgs = answers.runtime === "docker" ? ["up", "app"] : ["up"];
     const up = spawnSync(process.execPath, [binPath, ...upArgs], {
         cwd: projectDir,

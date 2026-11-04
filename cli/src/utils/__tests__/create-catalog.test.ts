@@ -16,6 +16,7 @@ import {
   extraCatalog,
   frontendCatalog,
   localRequirements,
+  plainStarterText,
   starterCatalog,
 } from "../create-catalog.js";
 import { frameworksOfType } from "../infra-presets.js";
@@ -68,7 +69,9 @@ describe("the catalog is read from the registries, not kept here", () => {
       expect(starter.local, starter.id).toBe(
         PROJECT_TEMPLATES[starter.id]?.generated !== undefined,
       );
-      expect(starter.hint).toBe(PROJECT_TEMPLATES[starter.id]?.description);
+      expect(starter).toMatchObject(
+        plainStarterText(starter.id, PROJECT_TEMPLATES[starter.id]?.description ?? ""),
+      );
     }
     expect(starters.some((o) => o.local)).toBe(true);
   });
@@ -142,5 +145,18 @@ describe("create does not keep a catalogue of its own", () => {
     } finally {
       delete (FRONTEND_FRAMEWORKS as Record<string, unknown>).zzz;
     }
+  });
+});
+
+describe("plainStarterText", () => {
+  it("turns the description's lead into the title, and keeps the id when there is none", () => {
+    expect(plainStarterText("saas", "SaaS starter: account dashboard")).toEqual({
+      title: "SaaS starter",
+      hint: "account dashboard",
+    });
+    expect(plainStarterText("demo", "A demo with no lead")).toEqual({
+      title: "demo",
+      hint: "A demo with no lead",
+    });
   });
 });

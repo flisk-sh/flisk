@@ -14,6 +14,14 @@ export interface LanguageOption extends CatalogOption {
 }
 /** The backend languages, each with the frameworks it can be combined with, the registry's default first. */
 export declare function backendCatalog(): LanguageOption[];
+/**
+ * A starter's menu row in plain words: the description's lead (a "Name: what it does" description)
+ * becomes the title and the rest the hint, so nobody has to know the internal id.
+ */
+export declare function plainStarterText(id: string, description: string): {
+    title: string;
+    hint: string;
+};
 /** The ready-made starter projects. A starter the CLI writes itself (`generated`) runs as local processes. */
 export declare function starterCatalog(): CatalogOption[];
 export interface ExtraOption {

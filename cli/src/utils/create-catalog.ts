@@ -74,12 +74,23 @@ export function backendCatalog(): LanguageOption[] {
   return defaultFirst(options, DEFAULT_BACKEND_LANGUAGE);
 }
 
+/**
+ * A starter's menu row in plain words: the description's lead (a "Name: what it does" description)
+ * becomes the title and the rest the hint, so nobody has to know the internal id.
+ */
+export function plainStarterText(id: string, description: string): { title: string; hint: string } {
+  const colon = description.indexOf(": ");
+  if (colon > 0 && colon <= 40) {
+    return { title: description.slice(0, colon), hint: description.slice(colon + 2) };
+  }
+  return { title: id, hint: description };
+}
+
 /** The ready-made starter projects. A starter the CLI writes itself (`generated`) runs as local processes. */
 export function starterCatalog(): CatalogOption[] {
   return Object.entries(PROJECT_TEMPLATES).map(([key, template]) => ({
     id: key,
-    title: key,
-    hint: template.description,
+    ...plainStarterText(key, template.description),
     local: template.generated !== undefined,
   }));
 }

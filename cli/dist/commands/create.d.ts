@@ -42,9 +42,12 @@ export interface GeneratedService {
     /** The install command, or the generator's own hint for a language without a package.json. */
     install?: string;
     run: string;
+    port?: number;
 }
 /** The local services a project actually contains, read from the files the generators wrote. */
 export declare function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[];
+/** Where to look once it runs: the website's page, or the API's health check when there is no website. */
+export declare function whereToOpen(services: GeneratedService[]): string | undefined;
 /** The commands to run next, from what was generated. */
 export declare function nextSteps(projectDir: string, answers: CreateAnswers, services?: GeneratedService[]): string[];
 /** What to tell someone when a step fails halfway: what finished, what did not run, how to start over. */

@@ -42,6 +42,7 @@ import {
   nextSteps,
   recoveryMessage,
   reviewLines,
+  whereToOpen,
 } from "../create.js";
 
 const frontends = frontendCatalog();
@@ -365,6 +366,31 @@ describe("the review, the recovery message and the folder guard", () => {
     expect(lines[0]).toBe("Creating shop: shop-api, shop-web");
     expect(lines[1]).toContain("Not found on this machine: npm");
     expect(lines[2]).toMatch(/^Chosen: runtime: local · website: /);
+  });
+
+  it("says which address to open: the website, or the API's health check without one", () => {
+    expect(
+      whereToOpen([
+        { dir: "api", run: "npm run dev", port: 4000 },
+        { dir: "web", run: "npm run dev", port: 3000 },
+      ]),
+    ).toBe("Then open http://localhost:3000 in your browser.");
+    expect(whereToOpen([{ dir: "api", run: "npm run dev", port: 4000 }])).toContain(
+      "http://localhost:4000/health",
+    );
+    expect(whereToOpen([])).toBeUndefined();
+  });
+
+  it.each([
+    ["devops engineer", "api"],
+    ["html developer", "web"],
+  ])("%s gets a local project from one plain choice", async (_who, pick) => {
+    prompts.arrowSelect.mockReset();
+    prompts.arrowSelect.mockResolvedValueOnce(pick);
+    prompts.arrowText.mockResolvedValueOnce("my-app");
+    const result = await collectAnswers(undefined, {}, true);
+    expect(prompts.arrowSelect).toHaveBeenCalledTimes(1);
+    expect(result.runtime).toBe("local");
   });
 
   it("tells a person how to get each missing program", () => {
