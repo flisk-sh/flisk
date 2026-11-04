@@ -282,6 +282,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "typescript-compiler-benchmark.yml",
+			"job": "benchmark",
+			"tier": "report",
+			"required": false,
+			"reason": "Experimental, non-blocking tsc vs tsgo vs ts-rust benchmark; evidence only, no compiler change",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "codeql.yml",
 			"job": "analyze",
 			"tier": "security",

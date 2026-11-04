@@ -1,0 +1,11 @@
+{
+  "name": "flisk-ts-compiler-benchmark-tools",
+  "private": true,
+  "description": "Experimental compilers for the CI | TypeScript Compiler Benchmark. Installed only by that workflow (npm install --no-package-lock). Not part of the Flisk developer setup.",
+  "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "tsc-rs": "0.8.0",
+    "typescript-6": "npm:typescript@6.0.3",
+    "typescript-71beta": "npm:typescript@7.1.0-beta"
+  }
+}

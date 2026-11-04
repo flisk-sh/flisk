@@ -1,0 +1,1 @@
+{ "compilerOptions": { "strict": true, "outDir": "out", "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext", "declaration": true, "sourceMap": true, "skipLibCheck": true, "lib": ["ES2022"], "resolveJsonModule": true }, "include": ["*.ts"] }
