@@ -54,6 +54,14 @@ The `publish` job, in order:
 - `BINARY_RELEASE_TOKEN` (write to `flisk-sh/releases`) and optionally `RELEASE_PAT` (opens the bump PR as a user so its checks run).
 - `main` is protected by the **main merge queue** ruleset: the bump PR needs the required checks and approvals before auto-merge lands it. Check open PRs afterwards; approve it.
 
+Checklist before you press anything:
+
+- **Your access:** write access to `flisk-sh/flisk`. Without it the **Run workflow** button does not appear at all (the page looks like the signed-out screenshots below). Sign in first.
+- **A branch to run on:** the candidate and the release run on a `release/<version>-rc<n>` branch, never on `main` (see step 2). Create it first.
+- **Green `main`:** pick the newest `main` commit whose push CI is green, so the candidate does not fail on a bug `main` already fixed.
+- **Settings and secrets:** the two secrets and the npm trust above are normally already set; [Settings and secrets](#settings-and-secrets) says how to check.
+- **Time:** block about 40 minutes (see [why it takes this long](#why-a-release-takes-so-long)). Do not start one you cannot watch to the end: a half-finished release needs [repair](#repair-a-half-finished-release).
+
 ### 1. Land the code
 
 Merge what you want to ship. If `cli/src` changed, `cli/dist` must be rebuilt in the same merge or the `📦 Pack CLI` job fails on `main`:
@@ -83,6 +91,8 @@ gh run watch <candidate-run-id> --exit-status   # ~6-10 min: 30 jobs, 10 at a ti
 ```
 
 Cut the branch from the newest green `main`, not from an older release branch: a fix that landed after the branch was cut (for example #2498, which made `flisk up` print ingress URLs instead of the Tilt UI port) is not in the candidate, and a candidate failure that `main` already fixed costs a full cycle.
+
+**Pressing the button instead of using `gh`:** open [Actions → Release | Candidate](https://github.com/flisk-sh/flisk/actions/workflows/release-candidate.yml), click **Run workflow** (a button above the runs list, on the right; it is missing when you are signed out or lack write access), choose your `release/<version>-rc<n>` branch under **Use workflow from**, tick **release** if the release should start by itself once the candidate is green, then click the green **Run workflow** button in the dropdown. Refresh the page: your run appears at the top within a few seconds. The same button on [Release | Binaries and npm package](https://github.com/flisk-sh/flisk/actions/workflows/release-binaries.yml) starts step 3.
 
 A passing candidate run is a green check on a `release/<version>-rc<n>` branch in the [Release | Candidate runs](https://github.com/flisk-sh/flisk/actions/workflows/release-candidate.yml) list (1.4.33 needed four attempts; 1.4.34 and 1.4.35 passed first time):
 
@@ -133,6 +143,19 @@ Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, wh
 The bump PR for 1.4.34 (merged; `bun.lock` and `cli/package.json` only):
 
 ![Release 1.4.34 (automatic version bump) pull request, merged](assets/releasing/3-bump-pr.png)
+
+## Why a release takes so long
+
+A release is a chain, and each link waits for the one before it. Real numbers from 1.4.34 (2026-11-04):
+
+| Stage | Time | Why |
+| --- | --- | --- |
+| Release candidate | 6-22 min | Packs the CLI, then boots real stacks for the quickstart and every release-blocking suite on clean runners, 10 at a time. 1.4.34 took 22 min, 1.4.35 only 6 min; the difference is runner queueing. |
+| Release run | ~10 min | `build`, then `windows-binary`, then `publish` (npm, signing, binaries), then GitHub Packages and the image. Each needs the previous one. `publish` also waits for the candidate (at most 45 min), so starting both together saves the binaries' ~2 min. |
+| Bump PR | a few min | `main` requires checks and an approval; auto-merge lands it only after both. |
+| Tag and publish draft | ~5 min | The merge triggers `tag-bumped-release`, which queues behind other runs of the same workflow. |
+
+That is why a release is about 40 minutes end to end and why a red candidate costs a full cycle: it is a gate, not a formality, and nothing publishes without it. Do not re-dispatch while a run is queued or in progress: the workflow picks the next free version, so a second dispatch after `publish` succeeded publishes the *next* version.
 
 ## Where to look
 
