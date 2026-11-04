@@ -26,7 +26,12 @@ vi.mock("../../utils/arrow-prompt.js", async (importOriginal) => ({
 
 import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 import { freePort, runFlisk } from "../../test-support/index.js";
-import { backendCatalog, frontendCatalog, starterCatalog } from "../../utils/create-catalog.js";
+import {
+  backendCatalog,
+  extraCatalog,
+  frontendCatalog,
+  starterCatalog,
+} from "../../utils/create-catalog.js";
 import { asksToStart, buildCreatePlan } from "../../utils/create-plan.js";
 import {
   assertFolderIsFree,
@@ -134,13 +139,12 @@ describe("collectAnswers without a terminal", () => {
 });
 
 describe("collectAnswers with a terminal", () => {
-  it("asks what to build, how to run it, the website, the API language and framework, then the name", async () => {
+  it("asks what to build, the website, the API stack, extras, then the name — never how to run it", async () => {
     prompts.arrowSelect
       .mockResolvedValueOnce("both")
-      .mockResolvedValueOnce("local")
       .mockResolvedValueOnce(frontends[1]?.id)
-      .mockResolvedValueOnce(defaultLanguage?.id)
-      .mockResolvedValueOnce(defaultFramework);
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
     prompts.arrowText.mockResolvedValueOnce("storefront");
     const result = await collectAnswers(undefined, {}, true);
     expect(result).toMatchObject({
@@ -151,10 +155,13 @@ describe("collectAnswers with a terminal", () => {
     });
     const messages = prompts.arrowSelect.mock.calls.map((call) => call[0].message);
     expect(messages[0]).toBe("What do you want to build?");
-    expect(messages).toHaveLength(5);
-    // The name is asked after every menu, and Enter takes its default.
-    expect(prompts.arrowText.mock.invocationCallOrder[0]).toBeGreaterThan(
+    expect(messages).toHaveLength(3);
+    // Extras and the name come after every menu, and Enter takes their defaults.
+    expect(prompts.arrowMultiSelect.mock.invocationCallOrder[0]).toBeGreaterThan(
       Math.max(...prompts.arrowSelect.mock.invocationCallOrder),
+    );
+    expect(prompts.arrowText.mock.invocationCallOrder[0]).toBeGreaterThan(
+      prompts.arrowMultiSelect.mock.invocationCallOrder[0],
     );
     expect(prompts.arrowText.mock.calls[0]?.[0].initial).toBe("my-app");
   });
@@ -162,39 +169,102 @@ describe("collectAnswers with a terminal", () => {
   it("every long menu can be filtered by typing", async () => {
     prompts.arrowSelect
       .mockResolvedValueOnce("both")
-      .mockResolvedValueOnce("local")
       .mockResolvedValueOnce(frontends[0]?.id)
-      .mockResolvedValueOnce(defaultLanguage?.id)
-      .mockResolvedValueOnce(defaultFramework);
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
     prompts.arrowText.mockResolvedValueOnce("shop");
     await collectAnswers(undefined, {}, true);
     const calls = prompts.arrowSelect.mock.calls.map((call) => call[0]);
-    for (const menu of calls.slice(2)) expect(menu.filterable, menu.message).toBe(true);
+    for (const menu of calls.slice(1)) expect(menu.filterable, menu.message).toBe(true);
   });
 
-  it("the menus are the registries' rows, the default first and marked", async () => {
+  it("the website menu is the registry's rows, the default first and marked", async () => {
     prompts.arrowSelect
       .mockResolvedValueOnce("web")
-      .mockResolvedValueOnce("local")
-      .mockResolvedValueOnce(frontends[0]?.id);
+      .mockResolvedValueOnce(frontends[0]?.id)
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
     prompts.arrowText.mockResolvedValueOnce("shop");
     await collectAnswers(undefined, {}, true);
-    const menu = prompts.arrowSelect.mock.calls[2]?.[0];
+    const menu = prompts.arrowSelect.mock.calls[1]?.[0];
     const offered = menu.choices.map((c: { value: string }) => c.value);
     expect(offered).toEqual(frontends.filter((f) => f.local).map((f) => f.id));
     expect(menu.choices[0].title).toMatch(/default/);
   });
 
-  it("a language that owns its runtime asks no framework question", async () => {
+  it("the API stack menu is one flat list of language + framework rows, default first", async () => {
+    prompts.arrowSelect
+      .mockResolvedValueOnce("both")
+      .mockResolvedValueOnce(frontends[0]?.id)
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
+    prompts.arrowText.mockResolvedValueOnce("shop");
+    const result = await collectAnswers(undefined, {}, true);
+    expect(result.backend).toEqual({
+      language: defaultLanguage?.id,
+      framework: defaultFramework,
+    });
+    const rows = prompts.arrowSelect.mock.calls[2]?.[0].choices as {
+      title: string;
+      value: string;
+      hint: string;
+    }[];
+    // One row per combination; the first row is the registry's default stack.
+    const expected = backends.flatMap((language) =>
+      language.frameworks.length === 0
+        ? [`${language.id}`]
+        : language.frameworks.map((framework) => `${language.id}/${framework.id}`),
+    );
+    expect(rows.map((row) => row.value)).toEqual(expected);
+    // The default row keeps the language's label; the other frameworks keep their own ("Bun + Express").
+    expect(rows[0]?.title).toMatch(/default/);
+    expect(rows[0]?.title).toContain(`${defaultLanguage?.title}`);
+    const second = backends[0]?.frameworks[1];
+    const secondRow = rows.find((row) => row.value === `${defaultLanguage?.id}/${second?.id}`);
+    expect(secondRow?.title).toBe(`${second?.title}`);
+    // A language that owns its runtime is a single row without a slash.
+    expect(rows.some((row) => !row.value.includes("/"))).toBe(true);
+  });
+
+  it("a language that owns its runtime asks no framework question and takes the bare row", async () => {
     const owner = backends.find((b) => b.frameworks.length === 0);
     prompts.arrowSelect
       .mockResolvedValueOnce("api")
-      .mockResolvedValueOnce("local")
-      .mockResolvedValueOnce(owner?.id);
+      .mockResolvedValueOnce(owner?.id)
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
     prompts.arrowText.mockResolvedValueOnce("shop");
     const result = await collectAnswers(undefined, {}, true);
     expect(result.backend).toEqual({ language: owner?.id });
-    expect(prompts.arrowSelect).toHaveBeenCalledTimes(3);
+    expect(prompts.arrowSelect).toHaveBeenCalledTimes(2); // the shape and the stack, nothing between
+    prompts.arrowSelect.mockReset();
+    prompts.arrowMultiSelect.mockReset();
+    prompts.arrowSelect.mockResolvedValueOnce("api").mockResolvedValueOnce(owner?.id ?? "");
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
+    const bare = await collectAnswers(undefined, {}, true);
+    expect(bare.backend).toEqual({ language: owner?.id });
+  });
+
+  it("extras decide the runtime: an empty answer stays on this computer, a pick becomes a Docker project", async () => {
+    prompts.arrowSelect
+      .mockResolvedValueOnce("both")
+      .mockResolvedValueOnce(frontends[0]?.id)
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
+    prompts.arrowText.mockResolvedValueOnce("shop");
+    expect((await collectAnswers(undefined, {}, true)).runtime).toBe("local");
+    prompts.arrowSelect.mockReset();
+    prompts.arrowMultiSelect.mockReset();
+    prompts.arrowSelect
+      .mockResolvedValueOnce("both")
+      .mockResolvedValueOnce(frontends[0]?.id)
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    const firstExtra = extraCatalog()[0]?.id;
+    prompts.arrowMultiSelect.mockResolvedValueOnce([firstExtra ?? ""]);
+    prompts.arrowText.mockResolvedValueOnce("shop");
+    const withExtra = await collectAnswers(undefined, {}, true);
+    expect(withExtra.runtime).toBe("docker");
+    expect(withExtra.extras).toEqual([firstExtra]);
   });
 
   it("a ready-made starter asks nothing about how it runs", async () => {
@@ -210,11 +280,14 @@ describe("collectAnswers with a terminal", () => {
   it("does not ask for the name when it is given, and fails on a bad one before any question", async () => {
     prompts.arrowSelect
       .mockResolvedValueOnce("web")
-      .mockResolvedValueOnce("local")
-      .mockResolvedValueOnce(frontends[0]?.id);
+      .mockResolvedValueOnce(frontends[0]?.id)
+      .mockResolvedValueOnce(`${defaultLanguage?.id}/${defaultFramework}`);
+    prompts.arrowMultiSelect.mockResolvedValueOnce([]);
     await collectAnswers("bot", {}, true);
     expect(prompts.arrowText).not.toHaveBeenCalled();
+    expect(prompts.arrowSelect).toHaveBeenCalledTimes(2); // a website only: no API stack menu
     prompts.arrowSelect.mockReset();
+    prompts.arrowMultiSelect.mockReset();
     await expect(collectAnswers("My_App", {}, true)).rejects.toThrow(/not a usable project name/);
     expect(prompts.arrowSelect).not.toHaveBeenCalled();
   });

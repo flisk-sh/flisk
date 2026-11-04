@@ -34,18 +34,6 @@ const SHAPE_CHOICES = [
         hint: "SaaS, AI agents, a storefront and more.",
     },
 ];
-const RUNTIME_CHOICES = [
-    {
-        title: "On my computer (recommended)",
-        value: "local",
-        hint: "Plain processes. No Docker, no Tilt, no database.",
-    },
-    {
-        title: "With Docker and Tilt",
-        value: "docker",
-        hint: "Containers, one gateway and live reload; for databases and queues.",
-    },
-];
 /** A flag value must be one of the ids the catalog offers; the error lists them. */
 function oneOf(flag, value, ids, extra = []) {
     const allowed = [...ids, ...extra];
@@ -60,15 +48,42 @@ function oneOf(flag, value, ids, extra = []) {
 export function isInteractive(options, tty) {
     return Boolean(tty.in && tty.out && !options.yes);
 }
-/** Catalog options as menu rows; a Docker-only option is marked so nobody picks it by surprise. */
-function toChoices(options, runtime) {
-    return options
-        .filter((option) => runtime === "docker" || option.local)
-        .map((option, index) => ({
+/** Catalog options as menu rows; a Docker-only option is marked and its pick switches the runtime. */
+function toChoices(options) {
+    return options.map((option, index) => ({
         title: index === 0 ? `${option.title} (default)` : option.title,
         value: option.id,
-        hint: `${option.hint}${option.local ? "" : " · Docker only"}`.trim(),
+        hint: `${option.hint}${option.local ? "" : " · needs Docker"}`.trim(),
     }));
+}
+/** One row per language + framework: picking a row writes the whole stack, so one Enter replaces two questions.
+ *
+ * The registries bake the language into every label ("Bun + Hono" for the language, "Bun + Express" for the
+ * framework), so a row title is exactly the label of what the row is: the default framework keeps the language's
+ * label, any other framework keeps its own. A language with no frameworks keeps its label as a bare row.
+ */
+function backendChoices(catalog) {
+    const rows = [];
+    for (const language of catalog) {
+        if (language.frameworks.length === 0) {
+            rows.push({ title: language.title, value: language.id, hint: language.hint });
+            continue;
+        }
+        for (const [index, framework] of language.frameworks.entries()) {
+            const globalDefault = index === 0 && language.id === catalog[0]?.id;
+            rows.push({
+                title: `${globalDefault ? language.title : framework.title}${globalDefault ? " (default)" : ""}`,
+                value: `${language.id}/${framework.id}`,
+                hint: language.hint,
+            });
+        }
+    }
+    return rows;
+}
+/** "bun/hono" is the backend answer; a lone id is a language that owns its runtime. */
+function splitStackChoice(pick) {
+    const [language, framework] = pick.split("/");
+    return { language, ...(framework ? { framework } : {}) };
 }
 /** Resolves `--backend` and `--language` into the API choice the catalog allows, or throws with what it allows. */
 function resolveBackend(framework, language) {
@@ -146,21 +161,9 @@ export async function collectAnswers(nameArg, options, interactive) {
             });
     }
     const starterLocal = starters.find((option) => option.id === starter)?.local ?? false;
-    // 3. How to run it. Asked only for an app, where it changes what is generated.
-    const extrasImplyDocker = options.extras !== undefined && options.extras !== "none";
+    // 3. How to run it is never asked: starters decide for themselves, extras and Docker-only parts turn
+    //    the app into a Docker project, and everything else runs on the computer with --runtime docker as the escape hatch.
     let runtime = starter ? (starterLocal ? "local" : "docker") : "local";
-    if (!starter) {
-        if (options.runtime)
-            runtime = oneOf("runtime", options.runtime, CREATE_RUNTIMES);
-        else if (extrasImplyDocker)
-            runtime = "docker";
-        else if (interactive) {
-            runtime = await arrowSelect({
-                message: "How do you want to run it?",
-                choices: RUNTIME_CHOICES,
-            });
-        }
-    }
     // 4. The website.
     let frontend;
     if (!starter && shape !== "api") {
@@ -168,23 +171,19 @@ export async function collectAnswers(nameArg, options, interactive) {
             frontend = oneOf("frontend", options.frontend, frontends.map((option) => option.id), ["none"]);
         }
         else if (!options.frontend) {
-            const offered = frontends.filter((option) => runtime === "docker" || option.local);
             frontend = interactive
                 ? await arrowSelect({
                     message: "Which website framework?",
                     filterable: true,
-                    choices: toChoices(frontends, runtime),
+                    choices: toChoices(frontends),
                 })
-                : offered[0]?.id;
+                : frontends.find((option) => option.local)?.id;
         }
         const picked = frontends.find((option) => option.id === frontend);
-        if (picked && runtime === "local" && !picked.local) {
-            throw new FliskError(`The ${picked.id} frontend cannot run on your computer yet.`, [
-                "Use --runtime docker for it, or pick another framework.",
-            ]);
-        }
+        if (picked && !picked.local)
+            runtime = "docker";
     }
-    // 5. The API: a language, then a framework when the language takes them.
+    // 5. The API: one menu of language + framework rows, so a stack is chosen with a single Enter.
     let backend;
     if (!starter && shape !== "web") {
         if (flagged.backend && options.backend !== "none") {
@@ -192,27 +191,19 @@ export async function collectAnswers(nameArg, options, interactive) {
         }
         else if (!flagged.backend) {
             if (interactive) {
-                const language = await arrowSelect({
-                    message: "Which language for the API?",
+                const stack = await arrowSelect({
+                    message: "Which API stack?",
                     filterable: true,
-                    choices: toChoices(backends, runtime),
+                    choices: backendChoices(backends),
                 });
-                const entry = backends.find((candidate) => candidate.id === language);
-                const framework = entry && entry.frameworks.length > 0
-                    ? await arrowSelect({
-                        message: "Which API framework?",
-                        filterable: true,
-                        choices: toChoices(entry.frameworks, runtime),
-                    })
-                    : undefined;
-                backend = { language, ...(framework ? { framework } : {}) };
+                backend = splitStackChoice(stack);
             }
             else {
                 backend = resolveBackend(undefined, undefined);
             }
         }
     }
-    // 6. Extras: infrastructure, only on the Docker route.
+    // 6. Extras: infrastructure. Empty keeps the app on your computer; a pick makes it a Docker project.
     let extras = [];
     if (options.extras !== undefined) {
         extras =
@@ -224,9 +215,9 @@ export async function collectAnswers(nameArg, options, interactive) {
                     .filter(Boolean)
                     .map((value) => oneOf("extras", value, extrasCatalog.map((extra) => extra.id), ["none"]));
     }
-    else if (interactive && !starter && runtime === "docker") {
+    else if (interactive && !starter) {
         extras = await arrowMultiSelect({
-            message: "Add anything else?",
+            message: "Add anything else?  Leaving it empty runs the app on this computer.",
             choices: extrasCatalog.map((extra) => ({
                 title: extra.title,
                 value: extra.id,
@@ -234,6 +225,10 @@ export async function collectAnswers(nameArg, options, interactive) {
             })),
         });
     }
+    if (options.runtime)
+        runtime = oneOf("runtime", options.runtime, CREATE_RUNTIMES);
+    else if (extras.length > 0 && !starter)
+        runtime = "docker";
     if (runtime === "local" && extras.length > 0 && !starter) {
         throw new FliskError("--extras (queues, databases, workers) need the Docker runtime.", [
             "Use --runtime docker, or leave --extras out to run on your computer.",
@@ -283,11 +278,17 @@ export function reviewLines(answers, steps, onPath = (program) => findOnPath(pro
     const chosen = describeAnswers(answers)
         .filter((line) => !line.startsWith("name:"))
         .join(" · ");
-    return [
+    const lines = [
         `Creating ${answers.name}: ${describeParts(answers, steps)}`,
         `Needs: ${describeRequirements(answers, onPath)}`,
         `Chosen: ${chosen}`,
     ];
+    // The runtime is never a question: an app runs on this computer unless the parts say otherwise,
+    // so the Docker route stays reachable as a one-flag switch.
+    if (answers.runtime === "local" && !answers.starter) {
+        lines.push(`Runs on this computer. --runtime docker switches to containers, one gateway and live reload.`);
+    }
+    return lines;
 }
 function readJson(path) {
     try {
@@ -490,7 +491,7 @@ async function runCreate(nameArg, options) {
             const run = spawnSync(pm, ["install"], {
                 cwd: join(projectDir, service.dir),
                 stdio: "ignore",
-                shell: process.platform === "win32",
+                shell: false,
             });
             if (run.error || run.status !== 0) {
                 console.log(chalk.red("failed"));

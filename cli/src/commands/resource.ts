@@ -453,9 +453,9 @@ export function createPackageJson(
       // vitest 5 peers on @types/node ^22 || >=24 and npm enforces that range: ^20 failed `npm install` with ERESOLVE.
       "@types/node": "^22.0.0",
       typescript: "^7.0.2",
-      // The same version the CLI tests itself with (cli/package.json devDependencies.vitest).
-      // Dependabot pins it exactly to keep CVE-2026-112950 fixed, and the scaffold follows.
-      vitest: "5.0.5",
+      // vitest 5.0.x crashes npm 10's arborist (loadPeerSet, edgesOut null) when a peer edge is missing,
+      // even though `vite` is declared. vitest 5.1.0 fixed it, so users' `npm install` on npm 10 works.
+      vitest: "5.1.0",
       "@biomejs/biome": "^2.5.13",
 
       // vitest 5 peers on vite ^6.4.0 || ^7 || ^8; vite 5 makes `vitest run` fail at startup with
