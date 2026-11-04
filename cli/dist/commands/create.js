@@ -673,12 +673,14 @@ async function runCreate(nameArg, options) {
         const pm = findOnPath("npm") ? "npm" : (defaultInstall.split(" ")[0] ?? "npm");
         for (const service of services.filter((entry) => entry.install === "npm install")) {
             process.stdout.write(`  Installing ${service.dir}... `);
-            const run = spawnSync(pm, ["install"], {
+            // On Windows npm is a .cmd file, which Node cannot start directly, so cmd.exe runs it. The program and its
+            // arguments are fixed strings (never anything a person typed), and no shell option is involved.
+            const [program, args] = isWindows()
+                ? ["cmd.exe", ["/d", "/s", "/c", pm, "install"]]
+                : [pm, ["install"]];
+            const run = spawnSync(program, args, {
                 cwd: join(projectDir, service.dir),
                 stdio: "ignore",
-                // On Windows npm (and bun's shims) are .cmd files, which Node can only start through a shell. The command and
-                // its arguments are fixed strings, so nothing a person typed reaches the shell.
-                shell: isWindows(),
             });
             if (run.error || run.status !== 0) {
                 console.log(chalk.red("failed"));
