@@ -152,6 +152,18 @@ describe("build-info", () => {
     expect(getBuildCommit()).toBe("github-sha");
   });
 
+  it("getBuildCommit treats a bundled \"unknown\" commit as missing and falls back to GITHUB_SHA", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-build-test-"));
+    const file = join(tempDir, "build-info.json");
+    writeFileSync(file, JSON.stringify({ commit: "unknown" }));
+
+    process.env.FLISK_BUILD_INFO_PATH = file;
+    delete process.env.FLISK_BUILD_COMMIT;
+    process.env.GITHUB_SHA = "github-sha";
+
+    expect(getBuildCommit()).toBe("github-sha");
+  });
+
   it("getBuildCommit returns unknown when no commit is available", () => {
     tempDir = mkdtempSync(join(tmpdir(), "flisk-build-test-"));
     process.env.FLISK_BUILD_INFO_PATH = join(tempDir, "missing.json");

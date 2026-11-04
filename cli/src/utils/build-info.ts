@@ -100,7 +100,7 @@ export function getBuildCommit(customPath?: string): string {
     return process.env.FLISK_BUILD_COMMIT.trim();
   }
   const info = getBuildInfo(customPath);
-  if (info?.commit) {
+  if (info?.commit && info.commit !== "unknown") {
     return info.commit;
   }
   if (process.env.GITHUB_SHA?.trim()) {
