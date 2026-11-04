@@ -35,7 +35,9 @@ RESOURCES=()
 
 http_ok() { local code; code="$(traefik_request "$1" "$2" -o /dev/null -w '%{http_code}')"; [[ "$code" == 2?? ]]; } # <resource> <path>
 worker_started() { local c; c="$(running_container "$1")"; [ -n "$c" ] && docker logs "$c" 2>&1 | grep -q "$1 worker started"; }
-container_running() { [ -n "$(running_container "$1")" ]; }
+# A `database` resource is the project's shared Postgres (flisk runs it; there is no container named for the resource), so its
+# contract is: listed as a database, and the project's own ${PROJECT}_postgres container is healthy.
+database_ready() { common_listed "$1" database && [ -n "$(docker ps -q --filter "name=^${PROJECT}_postgres$" --filter health=healthy)" ]; }
 all_listed() { # every entry of the plan is in flisk status with its type
   status_json | jq -e --slurpfile plan "$PLAN" \
     '[.data.resources[] | "\(.name)=\(.type)"] as $have | all($plan[0].entries[]; ("\(.name)=\(.kind)") as $want | $have | index($want))' >/dev/null
@@ -49,7 +51,7 @@ contract() { # <entry json>
     agent) http_ok "$name" /ready ;;
     frontend) http_ok "$name" / ;;
     worker) worker_started "$name" ;;
-    database) container_running "$name" ;;
+    database) database_ready "$name" ;;
     sdk) common_listed "$name" sdk ;;
   esac
 }
