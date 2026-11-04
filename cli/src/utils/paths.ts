@@ -69,8 +69,8 @@ export function getPackageVersion(): string {
 }
 
 export {
+  type BuildInfo,
   clearBuildInfoCache,
   getBuildCommit,
   getBuildInfo,
-  type BuildInfo,
 } from "./build-info.js";

@@ -8,9 +8,7 @@ export const versionCommand = new Command("version")
     .option("-v, --verbose", "Display verbose version with build commit SHA", false)
     .action((options) => {
     const version = getPackageVersion();
-    const isVerbose = Boolean(options.verbose ||
-        versionCommand.opts().verbose ||
-        versionCommand.parent?.opts().verbose);
+    const isVerbose = Boolean(options.verbose || versionCommand.opts().verbose || versionCommand.parent?.opts().verbose);
     if (isVerbose) {
         const commit = getBuildCommit();
         console.log(`${version} (${commit})`);

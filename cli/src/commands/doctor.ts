@@ -2107,10 +2107,7 @@ export const doctorCommand = new Command("doctor")
             createDoctorReport(
               [],
               inProject,
-              [
-                ...errors,
-                { code: "ENV_UNREADABLE", message: error.message },
-              ],
+              [...errors, { code: "ENV_UNREADABLE", message: error.message }],
               undefined,
               undefined,
               undefined,

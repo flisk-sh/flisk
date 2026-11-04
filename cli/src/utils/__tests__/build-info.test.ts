@@ -5,11 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  clearBuildInfoCache,
-  getBuildCommit,
-  getBuildInfo,
-} from "../build-info.js";
+import { clearBuildInfoCache, getBuildCommit, getBuildInfo } from "../build-info.js";
 
 describe("build-info", () => {
   let tempDir: string | null = null;

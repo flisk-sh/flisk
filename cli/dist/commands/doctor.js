@@ -1732,10 +1732,7 @@ export const doctorCommand = new Command("doctor")
             if (!(error instanceof EnvUnreadableError))
                 throw error;
             // Without the values the report cannot be published safely, so it is replaced by a structured error.
-            console.log(JSON.stringify(createDoctorReport([], inProject, [
-                ...errors,
-                { code: "ENV_UNREADABLE", message: error.message },
-            ], undefined, undefined, undefined, undefined, buildCommit)));
+            console.log(JSON.stringify(createDoctorReport([], inProject, [...errors, { code: "ENV_UNREADABLE", message: error.message }], undefined, undefined, undefined, undefined, buildCommit)));
             console.error(error.message);
             process.exit(1);
         }

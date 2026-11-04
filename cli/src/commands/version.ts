@@ -10,9 +10,7 @@ export const versionCommand = new Command("version")
   .action((options: { verbose?: boolean }) => {
     const version = getPackageVersion();
     const isVerbose = Boolean(
-      options.verbose ||
-        versionCommand.opts().verbose ||
-        versionCommand.parent?.opts().verbose,
+      options.verbose || versionCommand.opts().verbose || versionCommand.parent?.opts().verbose,
     );
     if (isVerbose) {
       const commit = getBuildCommit();

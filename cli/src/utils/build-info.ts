@@ -12,7 +12,7 @@ export interface BuildInfo {
   [key: string]: unknown;
 }
 
-let buildInfoCache: BuildInfo | null | undefined = undefined;
+let buildInfoCache: BuildInfo | null | undefined;
 
 export function clearBuildInfoCache(): void {
   buildInfoCache = undefined;
