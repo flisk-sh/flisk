@@ -70,7 +70,7 @@ A thorough spike evaluated the mechanical and orchestration differences between 
 
 ### 3.7 Evidence from the engine (2026-11-04)
 
-Re-checked against Docker Desktop and Tilt documentation and the code at `ba242170`:
+Re-checked against Docker Desktop and Tilt documentation and the code on main on 2026-11-04:
 
 - **Works natively:** Docker Desktop runs Linux containers on Windows with the default WSL 2 backend (no administrator rights for a per-user install); `docker` and `docker compose` work from PowerShell. Tilt installs as `tilt.exe` (`install.ps1`, Scoop or zip). The CLI already handles Windows for Docker mode, ports, DNS and process teardown (`windows-doctor.ts`, `tilt-process.ts`).
 - **Tilt shell semantics:** `local()` and `local_resource()` run a string command through `cmd /S /C` on Windows (`sh -c` elsewhere); list commands run directly, and `cmd_bat`/`serve_cmd_bat` are Windows-only overrides.
