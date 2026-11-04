@@ -152,7 +152,7 @@ describe("build-info", () => {
     expect(getBuildCommit()).toBe("github-sha");
   });
 
-  it("getBuildCommit treats a bundled \"unknown\" commit as missing and falls back to GITHUB_SHA", () => {
+  it('getBuildCommit treats a bundled "unknown" commit as missing and falls back to GITHUB_SHA', () => {
     tempDir = mkdtempSync(join(tmpdir(), "flisk-build-test-"));
     const file = join(tempDir, "build-info.json");
     writeFileSync(file, JSON.stringify({ commit: "unknown" }));
