@@ -36,7 +36,12 @@ const GENERATED: Array<{ file: string; sha256: string; contains: string[] }> = [
     file: ".flisk/.flisk-out/spec.master",
     // Re-captured when spec.master started carrying "golden-image" from optional_infra.golden_image.
     sha256: "7ec1922dd9db9503afea158140ecb6679732022026e8b643701cd4bca3a33769",
-    contains: ["PROJECT SPEC", "PRE_ALPHA_RESOURCES = {", "OPTIONAL_INFRA_RESOURCES = {", '"golden-image": '],
+    contains: [
+      "PROJECT SPEC",
+      "PRE_ALPHA_RESOURCES = {",
+      "OPTIONAL_INFRA_RESOURCES = {",
+      '"golden-image": ',
+    ],
   },
   {
     file: ".flisk/.flisk-out/TILT_TECH_STACK.star",
