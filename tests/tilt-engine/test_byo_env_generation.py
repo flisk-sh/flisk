@@ -104,4 +104,4 @@ def test_discovery_checks_the_dockerfile_relative_to_build_context():
     ).read_text()
     check = source[source.index("if 'dockerfile' in result:") :]
     assert "result.get('buildContext')" in check[:600]
-    assert check.index("buildContext") < check.index("test -f")
+    assert check.index("buildContext") < check.index("file_exists(dockerfile_path")

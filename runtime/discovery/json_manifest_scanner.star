@@ -45,11 +45,11 @@ def discover_json_manifests(root_path):
         # emit absolute paths; stripping the leading "/" later produces bogus
         # Docker context paths like `private/var/www/.../platform/verdaccio`.
         if root_path.startswith('/'):
-            cmd = "find " + root_path + " -type f -name '" + MANIFEST_FILENAME + "' 2>/dev/null | sort"
+            cmd = "find '" + root_path + "' -type f -name '" + MANIFEST_FILENAME + "' 2>/dev/null | sort"
         else:
             cmd = (
-                "cd " + project_root +
-                " && find " + root_path +
+                "cd '" + project_root + "'" +
+                " && find '" + root_path + "'" +
                 " -type f -name '" + MANIFEST_FILENAME + "' 2>/dev/null | sort"
             )
         result = str(local(cmd, quiet=True, echo_off=True))
