@@ -68,6 +68,18 @@ A thorough spike evaluated the mechanical and orchestration differences between 
 ### 3.6 Teardown and Network Cleanup
 - Aborting a stack run on native Windows leaves Docker bridge networks and container port mappings locked if the child process termination is not cleanly orchestrated via Windows Job Objects.
 
+### 3.7 Evidence from the engine (2026-11-04)
+
+Re-checked against Docker Desktop and Tilt documentation and the code at `ba242170`:
+
+- **Works natively:** Docker Desktop runs Linux containers on Windows with the default WSL 2 backend (no administrator rights for a per-user install); `docker` and `docker compose` work from PowerShell. Tilt installs as `tilt.exe` (`install.ps1`, Scoop or zip). The CLI already handles Windows for Docker mode, ports, DNS and process teardown (`windows-doctor.ts`, `tilt-process.ts`).
+- **Tilt shell semantics:** `local()` and `local_resource()` run a string command through `cmd /S /C` on Windows (`sh -c` elsewhere); list commands run directly, and `cmd_bat`/`serve_cmd_bat` are Windows-only overrides.
+- **The real blocker is the engine:** 92 `local()`/`local_resource()` call sites in 29 Starlark files under `runtime/` (discovery, golden-image build, infra loader, databases), none with a `cmd_bat`, and about 197 POSIX idioms (`sh -c 'test -f ...'`, `cat ... 2>/dev/null || true`, `mkdir -p`, `find`, `ls -d`, `sleep`, `date +%s`). Manifest discovery fails before any container starts. 14 `.sh` scripts run on the host; `traefik_standalone.star` mounts `/var/run/docker.sock`.
+- **Why Git Bash is not a fix:** its `usr\bin` would shadow Windows `find.exe` and `sort.exe` with different behaviour.
+- **Not verifiable in CI:** GitHub `windows-latest` runners cannot run Linux containers, so G6 needs a real or self-hosted Windows machine.
+
+Smallest future path: gate G1 (replace host `sh` with Starlark built-ins or `cmd_bat` equivalents, or have the CLI do discovery in TypeScript), then G3 to G6 on hardware. Until then the refusal and the unsupported `FLISK_ALLOW_NATIVE_WINDOWS=1` escape hatch stay as they are.
+
 ---
 
 ## 4. The Maintainers' Decision
