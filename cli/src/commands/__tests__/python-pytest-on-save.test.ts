@@ -518,7 +518,9 @@ describe.skipIf(!hasPytest)(
       const server = createServer((req, res) => {
         if (req.url === "/health") {
           appRequestsHandled++;
-          res.writeHead(200, { "Content-Type": "application/json" });
+          // spawnSync below blocks this event loop for seconds; a kept-alive socket would time out meanwhile and the next fetch
+          // would hit ECONNRESET (#2898), so every answer closes its connection.
+          res.writeHead(200, { "Content-Type": "application/json", Connection: "close" });
           res.end(JSON.stringify({ status: "ok", service: "py-api" }));
         } else {
           res.writeHead(404);

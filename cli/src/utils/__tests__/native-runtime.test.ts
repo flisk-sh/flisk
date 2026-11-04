@@ -397,7 +397,11 @@ describe("native supervisor", () => {
 
   it("stops restarting a service that keeps exiting, and reports it", async () => {
     const root = createTempDir();
-    const plan = planNativeRun([nativeService(root, "job", { command: "exit 3" })]);
+    // A port that never opens makes start() poll until the supervisor gives up, instead of calling a process that is still alive
+    // after the 1s grace "ready": five fast restarts can take longer than that grace on a loaded machine (#2898).
+    const plan = planNativeRun([
+      nativeService(root, "job", { command: "exit 3", port: await freePort() }),
+    ]);
     const notes: string[] = [];
     const supervisor = new NativeSupervisor(
       root,
