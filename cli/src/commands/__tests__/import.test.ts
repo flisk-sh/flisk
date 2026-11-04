@@ -893,7 +893,7 @@ describe("flisk import --json", () => {
       fs.mkdirSync(stackDir, { recursive: true });
 
       const serviceJsonPath = path.join(stackDir, "service.json");
-      // Simulate importer writing a service that has both build and command
+      // What the importer writes for a Compose service with both build: and command: (a top-level command)
       const initialManifest = {
         $schema: "https://flisk.sh/schema.service.json",
         schemaVersion: 1,
@@ -903,18 +903,19 @@ describe("flisk import --json", () => {
         port: 3000,
         buildContext: "../../..",
         dockerfile: "Dockerfile",
-        container: {
-          command: ["node", "server.js", "--port", "3000"],
-        },
+        command: "node server.js --port 3000",
       };
       fs.writeFileSync(serviceJsonPath, JSON.stringify(initialManifest, null, 2));
 
-      // Assert container.command is retained with build
+      // The post-import sync moves it into container.command and keeps the build settings
+      syncImportedManifestCommands([serviceJsonPath]);
+
       const readManifest = JSON.parse(fs.readFileSync(serviceJsonPath, "utf-8"));
       expect(readManifest.buildContext).toBe("../../..");
       expect(readManifest.dockerfile).toBe("Dockerfile");
       expect(readManifest.container).toBeDefined();
       expect(readManifest.container.command).toEqual(["node", "server.js", "--port", "3000"]);
+      expect(readManifest.command).toBeUndefined();
     });
   });
 });
