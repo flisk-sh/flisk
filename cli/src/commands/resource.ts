@@ -1664,7 +1664,8 @@ This file contains the resource configuration for Flisk.
 
       // Execute all file writes with progress
       console.log(chalk.blue("💻 Generating source files..."));
-      writeFilesWithProgress(fullPath, tasks);
+      // A new resource's folder did not exist when it was checked, so nothing in it may be overwritten.
+      writeFilesWithProgress(fullPath, tasks, undefined, { exclusive: !isExistingResource });
 
       if (prismaEnabled && resourceType === "backend") {
         mkdirSync(resolve(fullPath, "prisma"), { recursive: true });

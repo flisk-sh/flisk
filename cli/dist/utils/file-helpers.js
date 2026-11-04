@@ -3,10 +3,30 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import chalk from "chalk";
-export function writeFilesWithProgress(basePath, tasks, onProgress) {
+import { FliskError } from "./errors.js";
+/**
+ * Writes generated files. With `exclusive`, a file that already exists is never overwritten: the write fails
+ * with a FliskError naming it, so a file that appeared after the folder was checked is left as it is.
+ */
+export function writeFilesWithProgress(basePath, tasks, onProgress, options = {}) {
     for (const [i, task] of tasks.entries()) {
         console.log(chalk.blue(`${task.emoji} ${task.description}...`));
-        if (task.type === "json") {
+        if (options.exclusive) {
+            const content = task.type === "json" ? `${JSON.stringify(task.content, null, 2)}\n` : String(task.content);
+            const filePath = resolve(basePath, task.filename);
+            mkdirSync(dirname(filePath), { recursive: true });
+            try {
+                writeFileSync(filePath, content, { encoding: "utf-8", flag: "wx" });
+            }
+            catch (error) {
+                if (error.code !== "EEXIST")
+                    throw error;
+                throw new FliskError(`${filePath} appeared while it was being created and was left as it is.`, [
+                    "Something else is writing into this folder. Pick another folder or name and run the command again.",
+                ]);
+            }
+        }
+        else if (task.type === "json") {
             writeJsonFileInDir(basePath, task.filename, task.content);
         }
         else {
