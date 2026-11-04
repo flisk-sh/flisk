@@ -69,9 +69,10 @@ def test_no_separate_l3_migrator_image_is_built(golden):
     assert "AS l3_migrator_golden" not in golden["df"]
 
 
-def test_migrator_runtime_copies_prisma_from_l3_backend(golden):
+def test_migrator_runtime_does_not_copy_unreadable_root_global_install(golden):
+    # /root is 0700, so the bun user cannot read a global install copied from l3-backend.
     stage = golden["df"].split("AS l4_migrator_golden", 1)[1].split("\nFROM ", 1)[0]
-    assert "COPY --from=l3_backend_golden /root/.bun/install/global" in stage
+    assert "COPY --from=l3_backend_golden" not in stage
 
 
 def test_old_l3_migrator_name_resolves_to_l3_backend(golden):
