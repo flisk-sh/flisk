@@ -15,6 +15,11 @@
 # =============================================================================
 
 
-def load_verdaccio(_should_enable, _root_prefix="", _env_file=None):
-    """Free-tier stub - see module header. Always skipped."""
-    print("ℹ️  Verdaccio skipped — requires a Flisk Premium license (run `flisk upgrade`)")
+def load_verdaccio(should_enable, _root_prefix="", _env_file=None):
+    """Free-tier stub - see module header. Always skipped.
+
+    The license note is printed only when the project turned Verdaccio on (optional_infra.verdaccio): on a free run of a
+    project that never asked for it, "requires a Premium license" read as something wrong with the project.
+    """
+    if should_enable("verdaccio"):
+        print("ℹ️  Verdaccio skipped — requires a Flisk Premium license (run `flisk upgrade`)")

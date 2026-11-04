@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { EventEmitter } from "node:events";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn(),
@@ -25,6 +25,7 @@ import {
   importReport,
   isVersionAtLeast,
   MIN_CORE_VERSION,
+  nonInteractiveRefusal,
   parseSemver,
   RECOMMENDED_CORE_VERSION,
   runImport,
@@ -45,6 +46,16 @@ function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
 }
 
 describe("flisk import", () => {
+  // These runs stand for a person at a terminal; a run without one is refused (see "flisk import without a terminal").
+  const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  beforeAll(() => {
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+  });
+  afterAll(() => {
+    if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+  });
+
   it("forwards every argument, including flags, to flisk-import", () => {
     const inv = importInvocation([".", "--dry-run", "--force"], {}, "linux");
     expect(inv).toEqual({
@@ -732,5 +743,54 @@ describe("flisk import --json", () => {
         reset();
       }
     });
+  });
+});
+
+describe("flisk import without a terminal", () => {
+  it("refuses a run that would write, instead of exiting 0 with nothing written", () => {
+    const message = nonInteractiveRefusal(["."], "flisk import", false);
+    expect(message).toContain("nothing was written");
+    expect(message).toContain("flisk import --dry-run");
+    expect(message).toContain("flisk import --yes");
+  });
+
+  it.each([["--yes"], ["--dry-run"], ["--help"]])("lets %s through: it needs no answer", (flag) => {
+    expect(nonInteractiveRefusal([".", flag], "flisk import", false)).toBeNull();
+  });
+
+  it.each([
+    [["."], false, 1],
+    [[".", "--dry-run"], true, 0],
+    [[".", "--yes"], true, 0],
+  ])(
+    "flisk import %j without a terminal: importer spawned %s, exit %i",
+    async (args, spawned, exitCode) => {
+      for (const name of ["yes", "force", "dryRun", "json"])
+        importCommand.setOptionValue(name, false);
+      const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+      Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      const previousExitCode = process.exitCode;
+      try {
+        process.exitCode = undefined;
+        await importCommand.parseAsync(["node", "flisk", ...args], { from: "node" });
+
+        expect(calls.length > 0).toBe(spawned);
+        expect(process.exitCode ?? 0).toBe(exitCode);
+        if (!spawned) expect(err.mock.calls.flat().join("\n")).toContain("nothing was written");
+      } finally {
+        process.exitCode = previousExitCode;
+        err.mockRestore();
+        mocks.spawn.mockReset();
+        if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+        else delete (process.stdin as { isTTY?: boolean }).isTTY;
+      }
+    },
+  );
+
+  it("asks as before in a terminal", () => {
+    expect(nonInteractiveRefusal(["."], "flisk import", true)).toBeNull();
   });
 });

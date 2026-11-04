@@ -299,7 +299,8 @@ describe("networksCommand and helpers", () => {
 
       const output = stripVTControlCharacters(lines.join("\n"));
       expect(output).not.toContain("No routable services found");
-      expect(output).toContain("http://api.localhost:80/api/vote");
+      // With the trailing slash: the page's relative links only resolve under the prefix with it.
+      expect(output).toContain("http://api.localhost:80/api/vote/");
     });
 
     it("lists a proxied bring-your-own service at its apiPath", async () => {

@@ -585,6 +585,7 @@ stdout holds one JSON document; diagnostics go to stderr. See [machine-readable 
 | `TILT_PORT` | Tilt UI port (default 10350) |
 | `FLISK_SERVICE_BASE_URL` | Base URL for doctor pings and `up` smoke checks (default `<project>.localhost`) |
 | `FLISK_UP_READY_TIMEOUT_MS` | How long `flisk up --json` waits for readiness (default 15 minutes) |
+| `FLISK_UP_FAILURE_GRACE_MS` | How long `flisk up` keeps waiting on a container that is running but failing its health check, such as a database on its first start, before reporting it failed (default 2 minutes) |
 | `FLISK_ALLOW_NATIVE_WINDOWS` | Set to `1` to allow `flisk up` on native Windows |
 | `FLISK_LICENSE_KEY` | Unlocks premium features such as `--ddd` |
 | `FLISK_DEBUG` | Set to `1` with `flisk up --verbose` to include Starlark debug logs |
