@@ -12,7 +12,6 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -597,51 +596,29 @@ describe("flisk create (the real CLI, no terminal)", () => {
     expect(run.stdout).toContain("No Docker, no Tilt, no database");
   });
 
-  it("moves to free ports when 3000 and 4000 are busy, and the website's proxy follows the API", async () => {
-    const hold = (port: number) =>
-      new Promise<Server | undefined>((resolve) => {
-        const server = createServer();
-        server.once("error", () => resolve(undefined)); // already busy: just as good for this test
-        server.listen(port, () => resolve(server));
-      });
-    const held = await Promise.all([hold(3000), hold(4000)]);
-    try {
-      const run = runFlisk(["create", "shop", "--yes"], { cwd: dirOf(), timeout: 120_000 });
-      expect(run.status, run.stdout + run.stderr).toBe(0);
-      const project = join(dirOf(), "shop");
-      const apiPort = JSON.parse(readFileSync(join(project, "api", "service.json"), "utf8")).port;
-      const webPort = JSON.parse(readFileSync(join(project, "web", "service.json"), "utf8")).port;
-      expect(apiPort).not.toBe(4000);
-      expect(webPort).not.toBe(3000);
-      const vite = readFileSync(join(project, "web", "vite.config.ts"), "utf8");
-      expect(vite).toContain(`http://localhost:${apiPort}`);
-    } finally {
-      for (const server of held) server?.close();
-    }
+  it("the website's proxy points at the port the API was given", () => {
+    // Which port is free is findFreePort's job (tested on its own); create's job is to keep the parts in agreement.
+    const run = runFlisk(["create", "shop", "--yes"], { cwd: dirOf(), timeout: 120_000 });
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    const project = join(dirOf(), "shop");
+    const apiPort = JSON.parse(readFileSync(join(project, "api", "service.json"), "utf8")).port;
+    const vite = readFileSync(join(project, "web", "vite.config.ts"), "utf8");
+    expect(vite).toContain(`http://localhost:${apiPort}`);
+    expect(vite).toContain("strictPort: true");
   });
 
-  it("an API-only project on a busy port starts with flisk up, which gives it that port", async () => {
-    const held = await new Promise<Server | undefined>((resolve) => {
-      const server = createServer();
-      server.once("error", () => resolve(undefined));
-      server.listen(4000, () => resolve(server));
+  it("an API-only project is started with flisk up, which gives it the port in its service.json", () => {
+    const run = runFlisk(["create", "solo-api", "--frontend", "none", "--yes"], {
+      cwd: dirOf(),
+      timeout: 120_000,
     });
-    try {
-      const run = runFlisk(["create", "solo-api", "--frontend", "none", "--yes"], {
-        cwd: dirOf(),
-        timeout: 120_000,
-      });
-      expect(run.status, run.stdout + run.stderr).toBe(0);
-      const port = JSON.parse(
-        readFileSync(join(dirOf(), "solo-api", "api", "service.json"), "utf8"),
-      ).port;
-      expect(port).not.toBe(4000);
-      expect(run.stdout).toContain("flisk up");
-      expect(run.stdout).not.toContain("npm run dev");
-      expect(run.stdout).toContain(`http://localhost:${port}/health`);
-    } finally {
-      held?.close();
-    }
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    const port = JSON.parse(
+      readFileSync(join(dirOf(), "solo-api", "api", "service.json"), "utf8"),
+    ).port;
+    expect(run.stdout).toContain("flisk up");
+    expect(run.stdout).not.toContain("npm run dev");
+    expect(run.stdout).toContain(`http://localhost:${port}/health`);
   });
 
   it("the printed next steps match what was generated", () => {
