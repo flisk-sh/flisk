@@ -4,8 +4,19 @@
 // (interrupted up) need a running stack, so they live in tests/e2e/journeys/broken-project.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import { createTempProject, runFlisk } from "../../test-support/index.js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  createTempProject,
+  installFakeContainerTools,
+  runFlisk,
+} from "../../test-support/index.js";
+
+// `flisk up` stops at the missing-Docker preflight before it reads service.json; stub the tools so the test reaches the check it names.
+let restoreTools = () => {};
+beforeAll(() => {
+  restoreTools = installFakeContainerTools();
+});
+afterAll(() => restoreTools());
 
 interface DoctorCheck {
   name: string;

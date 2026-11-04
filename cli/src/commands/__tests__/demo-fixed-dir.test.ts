@@ -4,6 +4,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installFakeContainerTools } from "../../test-support/fake-container-tools.js";
 import { createTempDir } from "../../test-support/temp-project.js";
 
 const dirs = vi.hoisted(() => ({ home: "", cwd: "" }));
@@ -113,8 +114,11 @@ async function runDemoCli(...args: string[]): Promise<number | undefined> {
 
 describe("flisk demo fixed directory", () => {
   let demoDir: string;
+  let restoreTools = () => {};
 
   beforeEach(() => {
+    // The demo runs the machine checks before it starts the stack; stub docker and tilt so they pass without them installed (#2898).
+    restoreTools = installFakeContainerTools();
     dirs.home = createTempDir("flisk-home-");
     dirs.cwd = createTempDir("flisk-cwd-");
     demoDir = join(dirs.home, ".flisk", "flisk-demo");
@@ -132,6 +136,7 @@ describe("flisk demo fixed directory", () => {
   });
 
   afterEach(() => {
+    restoreTools();
     process.argv = originalArgv;
     vi.restoreAllMocks();
   });

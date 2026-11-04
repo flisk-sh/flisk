@@ -360,14 +360,17 @@ register_python_test_resource(config_collision, 'services/shop', 'flisk-shop', T
 });
 
 describe("python test container diagnostics and execution safety", () => {
-  it("handles missing pytest in container with actionable error guidance using generated cmd", () => {
-    const dir = mkdtempSync(join(tmpdir(), "flisk-tilt-diag-"));
-    dirs.push(dir);
-    const tiltfilePath = join(dir, "Tiltfile");
+  // Evaluates a Tiltfile with the real `tilt` binary, which a hosted macOS runner does not have (#2898).
+  it.skipIf(!hasTilt)(
+    "handles missing pytest in container with actionable error guidance using generated cmd",
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), "flisk-tilt-diag-"));
+      dirs.push(dir);
+      const tiltfilePath = join(dir, "Tiltfile");
 
-    writeFileSync(
-      tiltfilePath,
-      `load('${repoRoot}/runtime/engine/topologies/platform/docker/index.star', 'Docker')
+      writeFileSync(
+        tiltfilePath,
+        `load('${repoRoot}/runtime/engine/topologies/platform/docker/index.star', 'Docker')
 load('${repoRoot}/runtime/engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star', 'register_python_test_resource')
 
 config = {
@@ -384,32 +387,32 @@ config = {
 local_resource('api-backend', cmd=['true'])
 register_python_test_resource(config, 'services/shop', 'flisk-shop', True)
 `,
-    );
+      );
 
-    const tiltResult = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", tiltfilePath], {
-      encoding: "utf-8",
-      timeout: 30_000,
-    });
-    expect(tiltResult.status, tiltResult.stderr).toBe(0);
-    const parsed = JSON.parse(tiltResult.stdout);
-    const testManifest = parsed.Manifests.find(
-      (m: { Name: string }) => m.Name === "api-backend-test",
-    );
-    expect(testManifest).toBeDefined();
+      const tiltResult = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", tiltfilePath], {
+        encoding: "utf-8",
+        timeout: 30_000,
+      });
+      expect(tiltResult.status, tiltResult.stderr).toBe(0);
+      const parsed = JSON.parse(tiltResult.stdout);
+      const testManifest = parsed.Manifests.find(
+        (m: { Name: string }) => m.Name === "api-backend-test",
+      );
+      expect(testManifest).toBeDefined();
 
-    // Verify generated shell script handles stopped container, non-existent test dir, and missing pytest
-    const cmdArgs = testManifest.DeployTarget.UpdateCmdSpec.args;
-    expect(cmdArgs[0]).toBe("sh");
-    expect(cmdArgs[1]).toBe("-c");
+      // Verify generated shell script handles stopped container, non-existent test dir, and missing pytest
+      const cmdArgs = testManifest.DeployTarget.UpdateCmdSpec.args;
+      expect(cmdArgs[0]).toBe("sh");
+      expect(cmdArgs[1]).toBe("-c");
 
-    const mockBinDir = join(dir, "bin");
-    mkdirSync(mockBinDir, { recursive: true });
-    const mockDocker = join(mockBinDir, "docker");
+      const mockBinDir = join(dir, "bin");
+      mkdirSync(mockBinDir, { recursive: true });
+      const mockDocker = join(mockBinDir, "docker");
 
-    // 1. Mock docker when container is not running (ps prints nothing)
-    writeFileSync(
-      mockDocker,
-      `#!/bin/sh
+      // 1. Mock docker when container is not running (ps prints nothing)
+      writeFileSync(
+        mockDocker,
+        `#!/bin/sh
 for arg in "$@"; do
   if [ "$arg" = "ps" ]; then
     exit 0
@@ -417,23 +420,23 @@ for arg in "$@"; do
 done
 exit 0
 `,
-      { mode: 0o755 },
-    );
+        { mode: 0o755 },
+      );
 
-    const runStopped = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
-      cwd: dir,
-      env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
-      encoding: "utf-8",
-    });
-    expect(runStopped.status).toBe(0);
-    expect(runStopped.stdout).toContain(
-      "Container api-backend is not currently running; skipping pytest",
-    );
+      const runStopped = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
+        cwd: dir,
+        env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
+        encoding: "utf-8",
+      });
+      expect(runStopped.status).toBe(0);
+      expect(runStopped.stdout).toContain(
+        "Container api-backend is not currently running; skipping pytest",
+      );
 
-    // 2. Mock docker when container is running but test directory does not exist on host
-    writeFileSync(
-      mockDocker,
-      `#!/bin/sh
+      // 2. Mock docker when container is running but test directory does not exist on host
+      writeFileSync(
+        mockDocker,
+        `#!/bin/sh
 for arg in "$@"; do
   if [ "$arg" = "ps" ]; then
     echo "mock-container-id-1234"
@@ -442,24 +445,26 @@ for arg in "$@"; do
 done
 exit 0
 `,
-      { mode: 0o755 },
-    );
+        { mode: 0o755 },
+      );
 
-    const runMissingHostDir = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
-      cwd: dir,
-      env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
-      encoding: "utf-8",
-    });
-    expect(runMissingHostDir.status).toBe(0);
-    expect(runMissingHostDir.stdout).toContain("Test path 'tests' does not exist; skipping pytest");
+      const runMissingHostDir = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
+        cwd: dir,
+        env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
+        encoding: "utf-8",
+      });
+      expect(runMissingHostDir.status).toBe(0);
+      expect(runMissingHostDir.stdout).toContain(
+        "Test path 'tests' does not exist; skipping pytest",
+      );
 
-    // 3. Mock docker when container is running, test directory exists on host, but pytest is not in container
-    const testHostDir = join(dir, cmdArgs[8]);
-    mkdirSync(testHostDir, { recursive: true });
+      // 3. Mock docker when container is running, test directory exists on host, but pytest is not in container
+      const testHostDir = join(dir, cmdArgs[8]);
+      mkdirSync(testHostDir, { recursive: true });
 
-    writeFileSync(
-      mockDocker,
-      `#!/bin/sh
+      writeFileSync(
+        mockDocker,
+        `#!/bin/sh
 is_exec=0
 for arg in "$@"; do
   if [ "$arg" = "ps" ]; then
@@ -484,22 +489,23 @@ if [ "$is_exec" -eq 1 ]; then
 fi
 exit 0
 `,
-      { mode: 0o755 },
-    );
+        { mode: 0o755 },
+      );
 
-    const runMissingPytest = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
-      cwd: dir,
-      env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
-      encoding: "utf-8",
-    });
-    expect(runMissingPytest.status).toBe(1);
-    expect(runMissingPytest.stdout).toContain(
-      "Error: pytest is not installed in container api-backend.",
-    );
-    expect(runMissingPytest.stdout).toContain(
-      "Hint: Add pytest to pyproject.toml dev dependencies",
-    );
-  });
+      const runMissingPytest = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
+        cwd: dir,
+        env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
+        encoding: "utf-8",
+      });
+      expect(runMissingPytest.status).toBe(1);
+      expect(runMissingPytest.stdout).toContain(
+        "Error: pytest is not installed in container api-backend.",
+      );
+      expect(runMissingPytest.stdout).toContain(
+        "Hint: Add pytest to pyproject.toml dev dependencies",
+      );
+    },
+  );
 });
 
 describe.skipIf(!hasPytest)(
