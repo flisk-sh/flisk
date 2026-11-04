@@ -83,7 +83,14 @@ vi.mock("../../utils/errors.js", async (importOriginal) => {
 
 import { TUIApp, uiCommand } from "../ui.js";
 
-function createTestStreams() {
+interface TestStreams {
+  stdin: NodeJS.ReadStream;
+  stdout: NodeJS.WriteStream;
+  stderr: NodeJS.WriteStream;
+  output: () => string;
+}
+
+function createTestStreams(): TestStreams {
   const stdin = new PassThrough() as unknown as NodeJS.ReadStream;
   Object.assign(stdin, {
     isTTY: true,
@@ -252,6 +259,39 @@ describe("ui TUI render and interaction", () => {
       const rendered = io.output();
       expect(rendered).toContain("No Services Found");
       expect(rendered).toContain("No service.json files found");
+
+      io.stdin.write("q");
+      await app.waitUntilExit();
+    } finally {
+      app.unmount();
+      io.stdin.destroy();
+      io.stdout.destroy();
+      io.stderr.destroy();
+    }
+  });
+
+  it("renders error state when discovering resources fails, and exits on q", async () => {
+    discoverResourcesMock.mockImplementationOnce(() => {
+      throw new Error("Failed to read project resources");
+    });
+
+    const io = createTestStreams();
+    const app = render(<TUIApp animated={false} />, {
+      stdin: io.stdin,
+      stdout: io.stdout,
+      stderr: io.stderr,
+      interactive: true,
+      exitOnCtrlC: false,
+      patchConsole: false,
+    });
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await app.waitUntilRenderFlush();
+
+      const rendered = io.output();
+      expect(rendered).toContain("Could Not Load Services");
+      expect(rendered).toContain("Failed to read project resources");
 
       io.stdin.write("q");
       await app.waitUntilExit();
