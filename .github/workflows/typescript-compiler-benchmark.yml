@@ -19,10 +19,6 @@ on:
         description: "Warm runs per compiler and scenario (one extra cold run is always added)"
         type: string
         default: "5"
-  pull_request:
-    paths:
-      - "scripts/benchmarks/ts-compilers/**"
-      - ".github/workflows/typescript-compiler-benchmark.yml"
 
 permissions:
   contents: read
@@ -50,7 +46,7 @@ jobs:
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: 22
       # The repo's own tsc (typescript 7.0.2 from bun.lock) is the baseline.
       - run: bun install --frozen-lockfile
       # Experimental compilers: exact pins, own directory, no lockfile written, cached by the pin file.
