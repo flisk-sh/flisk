@@ -64,21 +64,42 @@ export function scaffold(scenario, dir) {
       writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
     }
   }
+  // Services that depend on each other are wired by editing service.json, as a developer does.
+  for (const res of scenario.resources.filter((r) => r.dependsOn?.length)) {
+    const file = path.join(dir, "services", res.stack, res.name, "service.json");
+    const json = JSON.parse(readFileSync(file, "utf8"));
+    json.dependsOn = res.dependsOn;
+    writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
+  }
+  let stale = null;
+  for (const [name, on] of Object.entries(scenario.infra ?? {})) {
+    must(`flisk config ${on ? "enable" : "disable"}-infra ${name}`, runFlisk(dir, ["config", on ? "enable-infra" : "disable-infra", name, "--json"]));
+  }
+  if (scenario.infra) stale = readOnly(dir, ["config", "verify", "--json"]); // before regenerate: verify must notice the change
   // service.json is the source of the generated project files; a flisk up regenerates them, so the scenario does too.
   must("flisk config regenerate", runFlisk(dir, ["config", "regenerate"]));
+  return { staleVerify: stale };
+}
+
+function readOnly(dir, args) {
+  const r = runFlisk(dir, args);
+  try { return { code: r.code, json: parseEnvelope(r.stdout) }; } catch (e) { return { code: r.code, error: String(e.message) }; }
 }
 
 // Every surface for one scaffolded project. A command that fails is recorded, not thrown: a crash is itself a finding.
-export function collectSurfaces(dir) {
-  const read = (args) => {
-    const r = runFlisk(dir, args);
-    try { return { code: r.code, json: parseEnvelope(r.stdout) }; } catch (e) { return { code: r.code, error: String(e.message) }; }
-  };
+export function collectSurfaces(dir, extra = {}) {
+  const read = (args) => readOnly(dir, args);
+  const text = (file) => { try { return readFileSync(path.join(dir, file), "utf8"); } catch { return null; } };
   const compose = runFlisk(dir, ["export", "compose", "--dry-run"]);
   return {
     verify: read(["config", "verify", "--json"]),
     status: read(["status", "--json"]),
     doctor: read(["doctor", "--json", "--no-ping"]),
+    stacks: read(["stacks", "--json"]),
+    up: read(["up", "--dry-run", "--json"]),
+    projectJson: JSON.parse(text(".flisk/project.json") ?? "{}"),
+    specMaster: text(".flisk/.flisk-out/spec.master"),
+    staleVerify: extra.staleVerify ?? null,
     compose: { code: compose.code, text: compose.stdout },
     env: parseEnv(readFileSync(path.join(dir, ".env"), "utf8")),
   };
