@@ -7,7 +7,7 @@ import { PROJECT_JSON } from "./constants.js";
 import { FliskError } from "./errors.js";
 import { writeJsonFile } from "./file-helpers.js";
 import { findProjectRoot } from "./paths.js";
-import { evaluatePlatformServiceNeeds } from "./platform-services.js";
+import { evaluatePlatformServiceNeeds, needsPlatformSecrets } from "./platform-services.js";
 import { discoverResourcesWithProblems } from "./services.js";
 function readProjectJson(projectRoot) {
     try {
@@ -69,6 +69,27 @@ function applyUnusedPlatformServices(caps, configObj, projectRoot) {
     for (const name of inferable) {
         if (!needs[name].isNeeded)
             caps[name] = false;
+    }
+}
+/**
+ * False when the project at `projectRoot` only has bring-your-own containers that do not use the shared Postgres (#3200):
+ * its `.env` then needs no generated `DB_PASSWORD` or `JWT_SECRET`. True when that cannot be established (no project.json,
+ * a wrapped Tiltfile, no resources yet, a discovery error), so an older project keeps the keys it had.
+ */
+export function projectNeedsPlatformSecrets(projectRoot) {
+    const configObj = readProjectJson(projectRoot);
+    if (!configObj || configObj.orchestration)
+        return true;
+    // An explicit `database: true` asks for the shared Postgres and the password it needs.
+    const declared = (configObj.capabilities ?? {});
+    if (declared.database === true)
+        return true;
+    try {
+        const { resources } = discoverResourcesWithProblems(projectRoot);
+        return needsPlatformSecrets(resources);
+    }
+    catch {
+        return true;
     }
 }
 /**

@@ -7,6 +7,10 @@ export interface EnvVariable {
     /** Written by `completeEnvFile` when a project's .env lacks it (a generated value, or the default). */
     complete?: boolean;
 }
+export interface EnvKeyOptions {
+    /** False for a project that runs none of the platform services reading the generated keys: they are neither added nor required. */
+    platformSecrets?: boolean;
+}
 /**
  * The keys `completeEnvFile` keeps complete in the project `.env`. An env file that replaces the
  * project `.env` for a run (`flisk up --env-file`) carries the same keys, so it is read from here
@@ -15,8 +19,8 @@ export interface EnvVariable {
 export declare const COMPLETED_ENV_VARS: string[];
 /** Parses the Compose-compatible subset used by Flisk for project environment files. */
 export declare function parseEnv(content: string): Map<string, string>;
-export declare function generateEnvFile(): string;
-export declare function validateEnvFile(projectRoot: string): {
+export declare function generateEnvFile(options?: EnvKeyOptions): string;
+export declare function validateEnvFile(projectRoot: string, options?: EnvKeyOptions): {
     missing: string[];
     invalid: string[];
     warnings: string[];
@@ -27,5 +31,5 @@ export declare function validateEnvFile(projectRoot: string): {
  *
  * @returns the names that were added or filled in, empty when the file was already complete
  */
-export declare function completeEnvFile(projectRoot: string): string[];
+export declare function completeEnvFile(projectRoot: string, options?: EnvKeyOptions): string[];
 export declare function ensureEnvFile(projectRoot: string): boolean;

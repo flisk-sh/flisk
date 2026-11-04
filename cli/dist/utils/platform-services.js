@@ -49,3 +49,16 @@ export function evaluatePlatformServiceNeeds(resources) {
         },
     };
 }
+/**
+ * Whether the project's `.env` needs the keys Flisk generates for its own platform (`DB_PASSWORD` for the shared Postgres,
+ * `JWT_SECRET` for local-jwt auth and Infisical) (#3200). A project of only bring-your-own containers that do not use the
+ * shared Postgres runs none of the services that read them, so adding them only makes users think the app needs them.
+ * Conservative like {@link evaluatePlatformServiceNeeds}: any other resource type, or no resource at all, keeps both.
+ */
+export function needsPlatformSecrets(resources) {
+    if (resources.length === 0)
+        return true;
+    if (!resources.every(isBringYourOwn))
+        return true;
+    return evaluatePlatformServiceNeeds(resources).database.isNeeded;
+}

@@ -8,7 +8,7 @@ import { Command } from "commander";
 import { areMasterFilesStale, ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isVendoredEngineStale, isWrappedTiltfileStale, ProjectConfigNotFoundError, readProjectConfig, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
-import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, } from "../utils/capabilities.js";
+import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, projectNeedsPlatformSecrets, } from "../utils/capabilities.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
@@ -684,7 +684,10 @@ export const upCommand = new Command("up")
             // changing an existing value) before anything starts. Only inside a real project, so a stray run never writes a .env.
             // A selected env file replaces the project .env for this run: the run does not read it, so it is not completed either.
             if (foundRoot && !envFileSelection) {
-                const addedEnvKeys = completeEnvFile(projectRoot);
+                // A project of only bring-your-own containers runs none of the services that read DB_PASSWORD or JWT_SECRET (#3200).
+                const addedEnvKeys = completeEnvFile(projectRoot, {
+                    platformSecrets: projectNeedsPlatformSecrets(projectRoot),
+                });
                 if (addedEnvKeys.length > 0 && !options.quiet) {
                     console.log(chalk.gray(`Added ${addedEnvKeys.join(", ")} to .env (generated; existing values unchanged)`));
                 }

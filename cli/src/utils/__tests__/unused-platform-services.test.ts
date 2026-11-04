@@ -15,8 +15,9 @@ import {
   describePlatformServices,
   isDatabaseCapabilityEnabled,
   isGatewayEnabled,
+  projectNeedsPlatformSecrets,
 } from "../capabilities.js";
-import { evaluatePlatformServiceNeeds } from "../platform-services.js";
+import { evaluatePlatformServiceNeeds, needsPlatformSecrets } from "../platform-services.js";
 
 const roots: string[] = [];
 
@@ -194,5 +195,49 @@ describe("platform services follow the resources (#2963)", () => {
     ]);
     expect(needs.gateway).toMatchObject({ isNeeded: true, users: ["web"] });
     expect(needs.database.users).toEqual(["db"]);
+  });
+});
+
+describe("generated platform secrets follow the resources (#3200)", () => {
+  it("a bring-your-own-only project needs no DB_PASSWORD or JWT_SECRET, routed or not", () => {
+    expect(projectNeedsPlatformSecrets(project({ caddy: byo(), app: byo({ port: 4101 }) }))).toBe(
+      false,
+    );
+    expect(projectNeedsPlatformSecrets(project({ web: byo({ exposeViaProxy: true }) }))).toBe(
+      false,
+    );
+  });
+
+  it("keeps them when a resource uses the shared Postgres or is not bring-your-own", () => {
+    expect(projectNeedsPlatformSecrets(project({ app: byo({ dependsOn: ["postgres"] }) }))).toBe(
+      true,
+    );
+    expect(projectNeedsPlatformSecrets(project({ db: { appType: "database" }, app: byo() }))).toBe(
+      true,
+    );
+    expect(
+      projectNeedsPlatformSecrets(project({ api: { appType: "backend" }, caddy: byo() })),
+    ).toBe(true);
+  });
+
+  it("keeps them for an empty project, a wrapped Tiltfile, an explicit database: true and a missing project", () => {
+    expect(projectNeedsPlatformSecrets(project({}))).toBe(true);
+    expect(projectNeedsPlatformSecrets(project({ app: byo() }, { database: true }))).toBe(true);
+    const wrapped = project({ app: byo() });
+    const file = join(wrapped, ".flisk", "project.json");
+    const config = JSON.parse(readFileSync(file, "utf-8"));
+    writeFileSync(file, JSON.stringify({ ...config, orchestration: { tiltfile: "Tiltfile" } }));
+    expect(projectNeedsPlatformSecrets(wrapped)).toBe(true);
+    const nothing = mkdtempSync(join(tmpdir(), "flisk-no-project-"));
+    roots.push(nothing);
+    expect(projectNeedsPlatformSecrets(nothing)).toBe(true);
+  });
+
+  it("is decided on the resources alone by needsPlatformSecrets", () => {
+    expect(needsPlatformSecrets([])).toBe(true);
+    expect(needsPlatformSecrets([makeResource("a", "bring-your-own")])).toBe(false);
+    expect(
+      needsPlatformSecrets([makeResource("a", "bring-your-own"), makeResource("b", "worker")]),
+    ).toBe(true);
   });
 });

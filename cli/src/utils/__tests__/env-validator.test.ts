@@ -386,3 +386,47 @@ describe("validateEnvFile coverage", () => {
     expect(result.missing).toContain("DB_PASSWORD");
   });
 });
+
+describe("a project that runs no platform service (#3200)", () => {
+  const noSecrets = { platformSecrets: false };
+
+  it("creates a .env without DB_PASSWORD, DATABASE_URL or JWT_SECRET", () => {
+    const added = envValidator.completeEnvFile(root, noSecrets);
+    const content = readEnv();
+    expect(added).toContain("TILT_ENV");
+    expect(added).not.toEqual(
+      expect.arrayContaining(["DB_PASSWORD", "DATABASE_URL", "JWT_SECRET"]),
+    );
+    expect(envValue(content, "TILT_ENV")).toBe("dev");
+    expect(content).not.toContain("DB_PASSWORD");
+    expect(content).not.toContain("DATABASE_URL");
+    expect(content).not.toContain("JWT_SECRET");
+    expect(content).not.toContain("postgres");
+  });
+
+  it("adds nothing to a .env the user already has", () => {
+    writeEnv("TILT_ENV=dev\nAPP_COLOR=blue\n");
+    const before = readEnv();
+    expect(envValidator.completeEnvFile(root, noSecrets)).toEqual([]);
+    expect(readEnv()).toBe(before);
+  });
+
+  it("keeps a DB_PASSWORD or JWT_SECRET the project already has", () => {
+    writeEnv("TILT_ENV=dev\nDB_PASSWORD=keep-me\nJWT_SECRET=keep-me-too\n");
+    envValidator.completeEnvFile(root, noSecrets);
+    expect(envValue(readEnv(), "DB_PASSWORD")).toBe("keep-me");
+    expect(envValue(readEnv(), "JWT_SECRET")).toBe("keep-me-too");
+  });
+
+  it("does not report the unused keys as missing", () => {
+    writeEnv("TILT_ENV=dev\n");
+    expect(envValidator.validateEnvFile(root, noSecrets).missing).toEqual([]);
+    expect(envValidator.validateEnvFile(root).missing).toContain("DB_PASSWORD");
+  });
+
+  it("still generates the keys when no option is given, as before", () => {
+    envValidator.completeEnvFile(root);
+    expect(envValue(readEnv(), "DB_PASSWORD")).toMatch(/^[0-9a-f]{32}$/);
+    expect(envValue(readEnv(), "JWT_SECRET")).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
