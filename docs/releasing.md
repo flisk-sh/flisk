@@ -48,6 +48,10 @@ The `publish` job, in order:
 
 ## Cutting a release
 
+### The short way: one click
+
+Run [**Release | One click**](https://github.com/flisk-sh/flisk/actions/workflows/release-one-click.yml) (Actions → Run workflow; optionally give a commit). It does steps 2 and 3 for you: it picks the newest `main` commit whose `E2E | Journeys` run passed, creates the next free `release/<version>-rc<n>` branch there, and starts the candidate with `release=true`, which starts the release once the candidate is green. It refuses to start while a release run is queued or in progress. What stays manual is [step 4](#4-merge-the-version-bump-pr): `main` requires an approval on the bump PR, and the workflow does not approve it. The sections below describe each step in detail.
+
 ### 0. Preconditions
 
 - npm trusted publisher on `@flisk-sh/flisk` for this repo and `release-binaries.yml` (`npm trust list @flisk-sh/flisk`), or the `NPM_TOKEN` secret set.
