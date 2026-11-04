@@ -216,7 +216,7 @@ export async function arrowSelect<T extends string>(
       ...(options.filterable ? { filter } : {}),
     });
     if (shown.length === 0)
-      rows.splice(options.filterable ? 2 : 1, 0, chalk.dim("│   nothing matches"));
+      rows.splice(options.filterable ? 2 : 1, 0, chalk.dim("│   nothing matches · Backspace clears what you typed"));
     const width = output.columns ?? 80;
     const fitted = rows.map((row) => fitRow(row, width));
     output.write(`${fitted.join("\n")}\n`);

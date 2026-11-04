@@ -10,7 +10,7 @@
  *  - **docker**: containers behind one gateway, for databases, queues and the rest of Flisk's infrastructure.
  */
 import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
-import { extraCatalog, localRequirements } from "./create-catalog.js";
+import { extraCatalog, localRequirements, starterCatalog } from "./create-catalog.js";
 export const CREATE_RUNTIMES = ["local", "docker"];
 /** The stack the Docker route assigns its resources to. */
 export const CREATE_STACK = "app";
@@ -21,6 +21,24 @@ const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 /** Returns true when `name` is a usable project folder name. */
 export function isValidProjectName(name) {
     return KEBAB.test(name) && name.length <= 48;
+}
+/**
+ * Turns what a person typed ("My Shop!") into a folder name ("my-shop"). Only the interactive prompt uses it;
+ * a name given on the command line must already be valid, so scripts never get a surprise rename.
+ */
+export function toProjectName(raw) {
+    return raw
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48)
+        .replace(/-+$/, "");
+}
+/** A starter's name in plain words, and whether it runs on this computer without Docker. */
+export function starterInfo(id) {
+    const found = starterCatalog().find((option) => option.id === id);
+    return { title: found?.title ?? id, local: found?.local ?? false };
 }
 /** The suffix a resource name gets from an extras id: its `type:framework` colon becomes a dash. */
 const extraSuffix = (id) => id.replace(":", "-");
@@ -35,7 +53,7 @@ export function buildCreatePlan(answers) {
     if (starter) {
         return [
             {
-                label: `Writing the ${starter} starter`,
+                label: `Writing the "${starterInfo(starter).title}" starter`,
                 args: ["project", starter, "--path", name, "--yes"],
                 inProject: false,
             },
@@ -126,8 +144,11 @@ export function asksToStart(answers) {
 }
 /** What the project needs on the machine, in a sentence. Starter requirements come from the starter itself. */
 export function describeRequirements(answers, onPath = () => true) {
-    if (answers.starter)
-        return "see the starter's README for its prerequisites";
+    if (answers.starter) {
+        return starterInfo(answers.starter).local
+            ? "runs on this computer; no Docker, no database"
+            : "Docker (its README says what else)";
+    }
     if (answers.runtime === "docker")
         return "Docker and Tilt (`flisk doctor` checks what is missing)";
     const programs = localRequirements({
@@ -150,7 +171,7 @@ export function missingPrograms(answers, onPath = () => true) {
 /** The parts the plan creates, for the review. */
 export function describeParts(answers, steps) {
     if (answers.starter)
-        return `the ${answers.starter} starter`;
+        return `the "${starterInfo(answers.starter).title}" starter`;
     const parts = steps
         .filter((step) => step.args[0] === "resource")
         .map((step) => String(step.args[1]));
@@ -160,7 +181,7 @@ export function describeParts(answers, steps) {
 export function describeAnswers(answers) {
     const lines = [`name: ${answers.name}`];
     if (answers.starter)
-        return [...lines, `starter: ${answers.starter}`];
+        return [...lines, `starter: ${starterInfo(answers.starter).title}`];
     lines.push(`runtime: ${answers.runtime}`);
     lines.push(`website: ${answers.frontend ?? "none"}`);
     if (answers.backend) {

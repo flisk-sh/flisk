@@ -160,7 +160,7 @@ describe("the review sentences", () => {
   it("lists the parts the plan creates, and only what was chosen", () => {
     const local = answers();
     expect(describeParts(local, buildCreatePlan(local))).toBe("shop-api, shop-web");
-    expect(describeParts(answers({ starter: "x" }), [])).toBe("the x starter");
+    expect(describeParts(answers({ starter: "x" }), [])).toBe('the "x" starter');
     expect(describeAnswers(answers({ backend: undefined })).join("\n")).toContain("api: none");
     expect(describeAnswers(answers({ starter: "x" }))).toEqual(["name: shop", "starter: x"]);
     expect(describeAnswers(answers({ runtime: "docker" })).join("\n")).toContain("extras: none");

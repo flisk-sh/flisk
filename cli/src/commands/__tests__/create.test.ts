@@ -32,11 +32,17 @@ import {
   frontendCatalog,
   starterCatalog,
 } from "../../utils/create-catalog.js";
-import { asksToStart, buildCreatePlan, isEmptyApp } from "../../utils/create-plan.js";
+import {
+  asksToStart,
+  buildCreatePlan,
+  isEmptyApp,
+  toProjectName,
+} from "../../utils/create-plan.js";
 import {
   assertFolderIsFree,
   claimFolder,
   collectAnswers,
+  firstPort,
   generatedServices,
   isInteractive,
   nextSteps,
@@ -391,6 +397,41 @@ describe("the review, the recovery message and the folder guard", () => {
     const result = await collectAnswers(undefined, {}, true);
     expect(prompts.arrowSelect).toHaveBeenCalledTimes(1);
     expect(result.runtime).toBe("local");
+  });
+
+  it("turns a typed name into a folder name instead of refusing it", async () => {
+    expect(toProjectName("My Shop!")).toBe("my-shop");
+    expect(toProjectName("  Grandma's Recipes  ")).toBe("grandma-s-recipes");
+    expect(toProjectName("!!!")).toBe("");
+    prompts.arrowSelect.mockReset();
+    prompts.arrowText.mockReset();
+    prompts.arrowSelect.mockResolvedValueOnce("web");
+    prompts.arrowText.mockResolvedValueOnce("My Shop!");
+    expect((await collectAnswers(undefined, {}, true)).name).toBe("my-shop");
+    const validate = prompts.arrowText.mock.calls[0]?.[0].validate;
+    expect(validate("My Shop!")).toBe(true);
+    expect(validate("!!!")).toMatch(/at least one letter/);
+  });
+
+  it("a starter that runs on this computer ends with flisk up and the page to open", () => {
+    const local = starterCatalog().find((s) => s.local);
+    const dir = mkdtempSync(join(tmpdir(), "flisk-create-starter-"));
+    try {
+      mkdirSync(join(dir, "coordinator"));
+      writeFileSync(join(dir, "coordinator", "service.json"), JSON.stringify({ port: 4100 }));
+      expect(firstPort(dir)).toBe(4100);
+      const steps = nextSteps(dir, {
+        name: "shop",
+        starter: local?.id,
+        runtime: "local",
+        extras: [],
+      });
+      expect(steps.join("\n")).toContain("flisk up");
+      expect(steps.join("\n")).toContain("http://localhost:4100");
+      expect(steps.join("\n")).not.toContain("README");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("tells a person how to get each missing program", () => {

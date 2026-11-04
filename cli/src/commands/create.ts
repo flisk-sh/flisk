@@ -47,6 +47,8 @@ import {
   LOCAL_BACKEND_DIR,
   LOCAL_FRONTEND_DIR,
   missingPrograms,
+  starterInfo,
+  toProjectName,
 } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
@@ -345,16 +347,18 @@ export async function collectAnswers(
   }
 
   // 7. The name comes last and has a default, so a first run is arrows and Enter, never typing.
-  const name =
-    nameArg ??
-    (interactive
-      ? await arrowText({
-          message: "Project name?",
-          initial: "my-app",
-          validate: (value) =>
-            isValidProjectName(value) || "Use lowercase letters, digits and dashes, e.g. my-app.",
-        })
-      : "my-app");
+  let name = nameArg ?? "my-app";
+  if (nameArg === undefined && interactive) {
+    const typed = await arrowText({
+      message: "Project name?",
+      initial: "my-app",
+      // Anything readable is fine: "My Shop!" becomes the folder my-shop.
+      validate: (value) =>
+        isValidProjectName(toProjectName(value)) ||
+        "Type a name with at least one letter, e.g. my-shop.",
+    });
+    name = toProjectName(typed ?? "my-app");
+  }
 
   const answers: CreateAnswers = {
     name,
@@ -477,6 +481,21 @@ export function generatedServices(projectDir: string, answers: CreateAnswers): G
   return found;
 }
 
+/** The first port a starter's services declare, so the next steps can say where to look. */
+export function firstPort(projectDir: string): number | undefined {
+  let entries: string[] = [];
+  try {
+    entries = readdirSync(projectDir).sort();
+  } catch {
+    return undefined;
+  }
+  for (const dir of entries) {
+    const port = readJson(join(projectDir, dir, "service.json"))?.port;
+    if (typeof port === "number") return port;
+  }
+  return undefined;
+}
+
 /** Where to look once it runs: the website's page, or the API's health check when there is no website. */
 export function whereToOpen(services: GeneratedService[]): string | undefined {
   const web = services.find((service) => service.dir === LOCAL_FRONTEND_DIR && service.port);
@@ -492,8 +511,16 @@ export function nextSteps(
   answers: CreateAnswers,
   services: GeneratedService[] = generatedServices(projectDir, answers),
 ): string[] {
-  if (answers.starter)
-    return [`cd ${answers.name}`, "Read its README for what it needs, then run it."];
+  if (answers.starter) {
+    if (!starterInfo(answers.starter).local)
+      return [`cd ${answers.name}`, "Read its README for what it needs, then run it."];
+    const port = firstPort(projectDir);
+    return [
+      `cd ${answers.name}`,
+      "flisk up        # starts it",
+      ...(port ? [`Then open http://localhost:${port} in your browser.`] : []),
+    ];
+  }
   if (answers.runtime === "docker") return [`cd ${answers.name}`, "flisk up app"];
   const [only] = services;
   const open = whereToOpen(services);
@@ -711,10 +738,10 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
   if (!start && interactive && asksToStart(answers)) {
     start =
       (await arrowSelect<"yes" | "no">({
-        message: "Install dependencies and start it now?",
+        message: "Start it now?",
         choices: [
-          { title: "Yes, start it", value: "yes" },
-          { title: "No, I'll do it later", value: "no" },
+          { title: "Yes, start it", value: "yes", hint: "Downloads what it needs, then runs it." },
+          { title: "No, I'll do it later", value: "no", hint: "Shows the commands instead." },
         ],
       })) === "yes";
   }

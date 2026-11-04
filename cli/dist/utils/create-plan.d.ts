@@ -34,6 +34,16 @@ export declare const LOCAL_BACKEND_DIR = "api";
 /** Returns true when `name` is a usable project folder name. */
 export declare function isValidProjectName(name: string): boolean;
 /**
+ * Turns what a person typed ("My Shop!") into a folder name ("my-shop"). Only the interactive prompt uses it;
+ * a name given on the command line must already be valid, so scripts never get a surprise rename.
+ */
+export declare function toProjectName(raw: string): string;
+/** A starter's name in plain words, and whether it runs on this computer without Docker. */
+export declare function starterInfo(id: string): {
+    title: string;
+    local: boolean;
+};
+/**
  * The commands that build the project.
  *
  * A starter is one `flisk project <template>`. An app is `flisk project --yes` and one `flisk resource` per part: the API

@@ -46,6 +46,8 @@ export interface GeneratedService {
 }
 /** The local services a project actually contains, read from the files the generators wrote. */
 export declare function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[];
+/** The first port a starter's services declare, so the next steps can say where to look. */
+export declare function firstPort(projectDir: string): number | undefined;
 /** Where to look once it runs: the website's page, or the API's health check when there is no website. */
 export declare function whereToOpen(services: GeneratedService[]): string | undefined;
 /** The commands to run next, from what was generated. */

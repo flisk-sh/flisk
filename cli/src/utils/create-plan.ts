@@ -12,7 +12,7 @@
  */
 
 import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
-import { extraCatalog, localRequirements } from "./create-catalog.js";
+import { extraCatalog, localRequirements, starterCatalog } from "./create-catalog.js";
 
 export type CreateRuntime = "local" | "docker";
 export const CREATE_RUNTIMES: readonly CreateRuntime[] = ["local", "docker"];
@@ -60,6 +60,26 @@ export function isValidProjectName(name: string): boolean {
   return KEBAB.test(name) && name.length <= 48;
 }
 
+/**
+ * Turns what a person typed ("My Shop!") into a folder name ("my-shop"). Only the interactive prompt uses it;
+ * a name given on the command line must already be valid, so scripts never get a surprise rename.
+ */
+export function toProjectName(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+    .replace(/-+$/, "");
+}
+
+/** A starter's name in plain words, and whether it runs on this computer without Docker. */
+export function starterInfo(id: string): { title: string; local: boolean } {
+  const found = starterCatalog().find((option) => option.id === id);
+  return { title: found?.title ?? id, local: found?.local ?? false };
+}
+
 /** The suffix a resource name gets from an extras id: its `type:framework` colon becomes a dash. */
 const extraSuffix = (id: string) => id.replace(":", "-");
 
@@ -75,7 +95,7 @@ export function buildCreatePlan(answers: CreateAnswers): CreateStep[] {
   if (starter) {
     return [
       {
-        label: `Writing the ${starter} starter`,
+        label: `Writing the "${starterInfo(starter).title}" starter`,
         args: ["project", starter, "--path", name, "--yes"],
         inProject: false,
       },
@@ -177,7 +197,11 @@ export function describeRequirements(
   answers: CreateAnswers,
   onPath: (program: string) => boolean = () => true,
 ): string {
-  if (answers.starter) return "see the starter's README for its prerequisites";
+  if (answers.starter) {
+    return starterInfo(answers.starter).local
+      ? "runs on this computer; no Docker, no database"
+      : "Docker (its README says what else)";
+  }
   if (answers.runtime === "docker")
     return "Docker and Tilt (`flisk doctor` checks what is missing)";
   const programs = localRequirements({
@@ -203,7 +227,7 @@ export function missingPrograms(
 
 /** The parts the plan creates, for the review. */
 export function describeParts(answers: CreateAnswers, steps: CreateStep[]): string {
-  if (answers.starter) return `the ${answers.starter} starter`;
+  if (answers.starter) return `the "${starterInfo(answers.starter).title}" starter`;
   const parts = steps
     .filter((step) => step.args[0] === "resource")
     .map((step) => String(step.args[1]));
@@ -213,7 +237,7 @@ export function describeParts(answers: CreateAnswers, steps: CreateStep[]): stri
 /** The answers, one line each, skipping what was not chosen. */
 export function describeAnswers(answers: CreateAnswers): string[] {
   const lines = [`name: ${answers.name}`];
-  if (answers.starter) return [...lines, `starter: ${answers.starter}`];
+  if (answers.starter) return [...lines, `starter: ${starterInfo(answers.starter).title}`];
   lines.push(`runtime: ${answers.runtime}`);
   lines.push(`website: ${answers.frontend ?? "none"}`);
   if (answers.backend) {
