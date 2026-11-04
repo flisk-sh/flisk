@@ -67,7 +67,8 @@ def file_exists(path, cwd = ""):
 def dir_exists(path):
     """test -d path."""
     if IS_NATIVE_WINDOWS:
-        return os.path.exists(path)
+        # os.path.exists is also true for files; listdir reports files only, so ask _is_file.
+        return os.path.exists(path) and not _is_file(path)
     return str(local(["sh", "-c", 'test -d "$1" && echo yes || echo no', "sh", path], quiet = True, echo_off = True)).strip() == "yes"
 
 def exists(path):
@@ -125,7 +126,21 @@ def find_files_in_glob_dirs(project_root, patterns, name, max_depth = 3):
     return sorted(found)
 
 def list_subdirs(root, prefix):
-    """Names of directories directly under root that start with prefix (ls -d root/prefix*/)."""
+    """Names of directories directly under root that start with prefix (ls -d root/prefix*/).
+
+    Tilt's listdir returns files only, so on real Windows this asks PowerShell, which also finds empty
+    directories like `ls -d` does. Under FLISK_DISCOVERY_PORTABLE=1 on POSIX (tests only) there is no
+    PowerShell, so directories are inferred from the files below them and empty ones are missed.
+    """
+    if os.name == "nt":
+        out = str(local(
+            ["true"],
+            command_bat = _PS + ["Get-ChildItem -LiteralPath $env:FLISK_ROOT -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name.StartsWith($env:FLISK_PREFIX) } | Sort-Object Name | ForEach-Object { $_.Name }"],
+            env = {"FLISK_ROOT": root, "FLISK_PREFIX": prefix},
+            quiet = True,
+            echo_off = True,
+        ))
+        return [n.strip() for n in out.split("\n") if n.strip()]
     names = {}
     for rel, _ in _relative_files(root):
         parts = rel.split("/")

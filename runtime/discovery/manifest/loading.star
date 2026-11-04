@@ -10,7 +10,7 @@
 # Priority: service.json → synthesize from path
 # =============================================================================
 
-load('../native_windows.star', 'IS_NATIVE_WINDOWS', 'dir_exists', 'file_exists')
+load('../native_windows.star', 'dir_exists', 'file_exists')
 load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('../../engine/topologies/tilt/manifest/constants.star',
      'MANIFEST_DEFAULTS',
@@ -413,9 +413,7 @@ def get_manifest_filename(resource_path):
     """
     # Check for manifest file (service.json)
     manifest_path = resource_path + '/' + MANIFEST_FILENAME
-    # local() returns a Blob, which never equals the string 'yes', so this branch has always been
-    # skipped and synthesis is used. Native Windows skips it too (no `sh` there) to keep one behavior.
-    if not IS_NATIVE_WINDOWS and local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", manifest_path], quiet=True, echo_off=True) == 'yes':
+    if file_exists(manifest_path):
         return MANIFEST_FILENAME
     
     # Manifest not found - synthesis will be used

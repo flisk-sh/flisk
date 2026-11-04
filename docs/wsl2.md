@@ -110,7 +110,7 @@ In WSL2 Ubuntu with Docker running, this clones the starter, installs dependenci
 | `flisk demo` | ✅ Small demo, local processes | ✅ Full demo flow |
 | `flisk restaurant` and other Docker starters | ❌ Refuses before cloning | ✅ |
 
-**Why?** Docker Desktop (Linux containers) and `tilt.exe` do run on native Windows. The blocker is Flisk's own Tilt engine: its Starlark discovery and build steps run `sh -c`, `find`, `test -f`, `mkdir -p` and `.sh` scripts on the host, which `cmd.exe` and PowerShell do not have. The CLI therefore refuses early to avoid partial or confusing state. Local processes need none of that.
+**Why?** Docker Desktop (Linux containers) and `tilt.exe` do run on native Windows. The blocker is Flisk's own Tilt engine: its Starlark discovery and build steps run `sh -c`, `find`, `test -f`, `mkdir -p` and `.sh` scripts on the host, which `cmd.exe` and PowerShell do not provide (Windows has its own `find.exe`, but it is not POSIX `find`). The CLI therefore refuses early to avoid partial or confusing state. Local processes need none of that.
 
 If you are on native Windows and see:
 ```

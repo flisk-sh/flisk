@@ -24,11 +24,16 @@ BODY = """
 load('@DISCOVERY/libraries.star', 'autodiscover_libraries')
 load('@DISCOVERY/native_windows.star', 'file_exists', 'dir_exists')
 load('@DISCOVERY/json_manifest_scanner.star', 'discover_json_manifests')
+load('@DISCOVERY/manifest/loading.star', 'get_manifest_filename')
 r = {
     'missing': discover_json_manifests('nope'),
     'libs': autodiscover_libraries('libs', 'shared-'),
     'file': [file_exists('services/product/a/service.json'), file_exists('services/product/zzz'), file_exists('services/product/a')],
-    'dir': [dir_exists('services/product/a'), dir_exists('services/product/zzz')],
+    'dir': [dir_exists('services/product/a'), dir_exists('services/product/zzz'), dir_exists('services/product/a/service.json')],
+    'manifest_name': [get_manifest_filename('services/product/a'), get_manifest_filename('services/product/zzz')],
+    'spaces': discover_json_manifests('services/my team'),
+    'unicode': discover_json_manifests('services/caf\u00e9'),
+    'glob_dupes': discover_json_manifests('services/pro* services/product'),
     'scan': discover_json_manifests('services/product'),
     'glob': discover_json_manifests('services/pro*'),
 }
@@ -37,9 +42,9 @@ r = {
 
 def _project(root: Path) -> Path:
     project = root / "proj"
-    for rel in ["services/product/a", "services/product/b/c", "services/other/d", "libs/shared-x", "libs/shared-y", "libs/other-z"]:
+    for rel in ["services/product/a", "services/product/b/c", "services/other/d", "services/my team/svc one", "services/café/svc", "libs/shared-empty", "libs/shared-x", "libs/shared-y", "libs/other-z"]:
         (project / rel).mkdir(parents=True)
-    for rel in ["services/product/a/service.json", "services/product/b/c/service.json", "services/other/d/service.json", "libs/shared-x/index.ts", "libs/shared-y/index.ts"]:
+    for rel in ["services/product/a/service.json", "services/product/b/c/service.json", "services/other/d/service.json", "services/my team/svc one/service.json", "services/café/svc/service.json", "libs/shared-x/index.ts", "libs/shared-y/index.ts"]:
         (project / rel).write_text("{}")
     (project / ".flisk").mkdir()
     (project / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": "proj"}}))
@@ -73,6 +78,20 @@ def test_portable_discovery_matches_posix(tmp_path):
     portable = _run(project, portable=True)
     assert posix["scan"], posix
     for key in posix:
-        assert sorted(portable[key]) == sorted(posix[key]), (key, posix[key], portable[key])
-    assert portable["libs"] == ["shared-x", "shared-y"]
+        if key == "libs":
+            continue
+        if key == "glob_dupes":
+            # the POSIX shell loop lists a manifest once per matching pattern; the portable path never repeats one
+            assert set(portable[key]) == set(posix[key]), (key, posix[key], portable[key])
+            continue
+        assert sorted(portable[key], key=str) == sorted(posix[key], key=str), (key, posix[key], portable[key])
     assert portable["missing"] == []
+    # a directory is not a file, a file is not a directory
+    assert posix["dir"] == [True, False, False] == portable["dir"]
+    # an existing service.json is detected, a missing one falls back to synthesis (None)
+    assert posix["manifest_name"] == ["service.json", None] == portable["manifest_name"]
+    assert len(posix["spaces"]) == 1 and len(posix["unicode"]) == 1
+    assert len(set(portable["glob_dupes"])) == len(portable["glob_dupes"])
+    # `ls -d` lists an empty directory; the file-based portable fallback (tests only) cannot see it
+    assert posix["libs"] == ["shared-empty", "shared-x", "shared-y"]
+    assert portable["libs"] == ["shared-x", "shared-y"]
