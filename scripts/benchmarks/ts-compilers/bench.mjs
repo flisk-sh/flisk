@@ -35,9 +35,8 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-tsbench-"));
 
 // ---- compilers -------------------------------------------------------------------------------------------
 const node = process.execPath;
-// Windows npm shims are .cmd files and need a shell; /usr/bin/time does not exist there (wall time only, RSS/CPU n/a).
-const IS_WIN = process.platform === "win32";
-const bin = (n) => path.join(NM, ".bin", IS_WIN ? `${n}.cmd` : n);
+// Windows is intentionally not supported here (untested): npm .cmd shims would need a shell, and /usr/bin/time is absent.
+const bin = (n) => path.join(NM, ".bin", n);
 const COMPILERS = [
   { id: "tsc", label: "tsc 7.0.2 (repo pin)", role: "baseline", cmd: [node, path.join(CLI, "node_modules/typescript/bin/tsc")] },
   { id: "tsgo", label: "tsgo (native-preview)", role: "candidate", cmd: [bin("tsgo")] },
@@ -79,7 +78,7 @@ function run(c, tscArgs, cwd) {
   const full = tscArgs[0] === "-b" ? [...c.cmd, "-b", ...(c.extra ?? []), ...tscArgs.slice(1)] : [...c.cmd, ...(c.extra ?? []), ...tscArgs];
   const wrapped = TIME_BIN ? [TIME_BIN, IS_MAC ? "-l" : "-v", ...full] : full;
   const t0 = process.hrtime.bigint();
-  const r = spawnSync(wrapped[0], wrapped.slice(1), { cwd, encoding: "utf8", maxBuffer: 1 << 29, timeout: 900_000, shell: IS_WIN, env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" } });
+  const r = spawnSync(wrapped[0], wrapped.slice(1), { cwd, encoding: "utf8", maxBuffer: 1 << 29, timeout: 900_000, env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" } });
   const wallS = Number(process.hrtime.bigint() - t0) / 1e9;
   const stderrRaw = r.stderr ?? "";
   const t = TIME_BIN ? parseTime(stderrRaw) : { userS: null, sysS: null, rssBytes: null };

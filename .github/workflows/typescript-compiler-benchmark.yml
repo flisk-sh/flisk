@@ -5,7 +5,8 @@
 # only (scripts/benchmarks/ts-compilers/package.json, --no-package-lock). No Rust or Go toolchain is installed on any
 # runner, and nothing is added to Flisk's developer setup or its installed CLI.
 #
-# Linux benchmarks all compilers. macOS and Windows run the same prebuilt binaries; Windows is best-effort.
+# Linux and macOS run the same prebuilt binaries. Windows is deliberately untested: it needs a shell for npm shims
+# and has no /usr/bin/time, and it would not change the recommendation for the JS-only Flisk distribution.
 # Each OS is a separate job with continue-on-error, so a broken experimental compiler cannot affect other CI.
 name: ⏱️ CI | TypeScript Compiler Benchmark
 
@@ -39,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     env:
       BENCH_RUNS: ${{ inputs.runs || '5' }}
     steps:
