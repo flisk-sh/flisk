@@ -47,6 +47,7 @@
     "typecheck": "cd cli && npm run typecheck",
     "lint": "cd cli && npm run lint",
     "lint:fix": "cd cli && npm run lint:fix",
+    "check": "npm run lint && npm run typecheck",
     "test": "cd cli && npm run test",
     "clean": "cd cli && npm run clean",
     "test:scripts": "node --test 'scripts/**/*.test.mjs' 'cli/scripts/**/*.test.mjs' 'tests/e2e/lib/**/*.test.mjs' 'tests/e2e/journeys/night-city/project/lib/*.test.mjs' 'tests/oracle/**/*.test.mjs' 'tests/falsifier/**/*.test.mjs'",
