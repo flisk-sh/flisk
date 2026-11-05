@@ -70,6 +70,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test tests/e2e/lib/__tests__/enigma36-plan.test.mjs
 	node --test tests/e2e/journeys/night-city/project/lib/pg.test.mjs
 	node --test tests/oracle/__tests__/*.test.mjs
+	node --test tests/falsifier/__tests__/*.test.mjs
 	node --test scripts/red-job-tracker.test.mjs
 	node --test scripts/report-post-merge-failures.test.mjs
 	node --test scripts/security-alert-issues.test.mjs

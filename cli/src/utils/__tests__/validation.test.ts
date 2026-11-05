@@ -269,3 +269,15 @@ describe("VALID_RESOURCE_TYPES", () => {
     expect(VALID_RESOURCE_TYPES.sort()).toEqual(expected.sort());
   });
 });
+
+describe("name length (found by FALSIFIER: a 64-character name was scaffolded)", () => {
+  it("accepts 63 characters and rejects 64 for resources and stacks", () => {
+    expect(validateResourceName("x".repeat(63)).valid).toBe(true);
+    expect(validateStackName("x".repeat(63)).valid).toBe(true);
+    for (const validate of [validateResourceName, validateStackName]) {
+      const result = validate("x".repeat(64));
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("64 characters");
+    }
+  });
+});
