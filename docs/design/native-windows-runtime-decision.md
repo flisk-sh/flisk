@@ -82,6 +82,8 @@ Re-checked against Docker Desktop and Tilt documentation and the code on main on
 
 Smallest future path: gate G1 (finish replacing host `sh`: the `local_resource` scripts), then G3 to G6 on hardware. Until then the refusal and the unsupported `FLISK_ALLOW_NATIVE_WINDOWS=1` escape hatch stay as they are.
 
+**Trying the engine on a Windows machine (contributors, unsupported):** with Docker Desktop in Linux-container mode, `tilt.exe` and `powershell.exe` on PATH, run `flisk doctor` (it now fails when `powershell.exe` is missing, because the engine runs its host scripts with it), then `FLISK_ALLOW_NATIVE_WINDOWS=1 flisk up`. No PowerShell branch has been verified yet. Please report the first failing resource name and its Tilt log; the PowerShell for each resource is in `runtime/engine/topologies/tilt/common/windows_scripts.star` and `runtime/engine/scripts/*.ps1`. Not designed yet: the sablier wake gateway with Windows compose paths. `flisk up` still refuses native Windows without the opt-in, so W3 and W4 in `tests/e2e/platforms/windows` stay as they are.
+
 ---
 
 ## 4. The Maintainers' Decision
