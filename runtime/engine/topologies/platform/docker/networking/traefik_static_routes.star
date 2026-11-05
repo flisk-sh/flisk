@@ -32,6 +32,8 @@ load("./traefik_constants.star",
 STATIC_ROUTE_PRIORITY = 1
 
 
+load('../../../../../discovery/native_windows.star', 'IS_NATIVE_WINDOWS')
+
 def normalize_abs_path(path):
     """Absolute path with `.`/`..` segments collapsed, or "" for "".
 
@@ -43,8 +45,16 @@ def normalize_abs_path(path):
     """
     if not path:
         return ""
+    full = os.path.abspath(path)
+    drive = ""
+    if IS_NATIVE_WINDOWS:
+        # C:\Users\me\proj -> drive "C:" plus /Users/me/proj, so the drive letter survives the segment walk below.
+        full = full.replace("\\", "/")
+        if len(full) > 1 and full[1] == ":":
+            drive = full[:2]
+            full = full[2:]
     parts = []
-    for segment in os.path.abspath(path).split("/"):
+    for segment in full.split("/"):
         if segment == "" or segment == ".":
             continue
         if segment == "..":
@@ -52,7 +62,7 @@ def normalize_abs_path(path):
                 parts.pop()
             continue
         parts.append(segment)
-    return "/" + "/".join(parts)
+    return drive + "/" + "/".join(parts)
 
 
 def _container_name(compose_project_name, res_name):

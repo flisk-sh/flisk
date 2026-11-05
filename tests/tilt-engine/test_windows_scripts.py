@@ -25,17 +25,18 @@ TILT = RUNTIME / "engine" / "topologies" / "tilt"
 
 BODY = """
 load('@RT/engine/topologies/tilt/resources/databases.star', 'Database')
-load('@RT/engine/topologies/tilt/common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script', 'provision_database_script', 'db_status_script', 'memory_summary_script')
+load('@RT/engine/topologies/tilt/common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script', 'provision_database_script', 'db_status_script', 'memory_summary_script', 'prebuild_image_script', 'pytest_script', 'healthy_script', 'job_done_script', 'typecheck_script', 'golden_build_script', 'tilt_image_tags_script')
+load('@RT/engine/topologies/platform/docker/networking/traefik_static_routes.star', 'normalize_abs_path')
 load('@RT/discovery/native_windows.star', 'file_mtime', 'POWERSHELL')
 Database.provision('users')
 Database.status_resource(True)
 Database.memory_summary()
-scripts = [init_networks_script(), healthy_postgres_script(), provision_database_script(), db_status_script(), memory_summary_script()]
-fail('RESULT' + encode_json({'scripts': scripts, 'ps': POWERSHELL, 'mtime': [file_mtime('a.txt'), file_mtime('missing.txt')]}))
+scripts = [init_networks_script(), healthy_postgres_script(), provision_database_script(), db_status_script(), memory_summary_script(), prebuild_image_script(), pytest_script(), healthy_script(), job_done_script(), typecheck_script(), golden_build_script(), tilt_image_tags_script()]
+fail('RESULT' + encode_json({'scripts': scripts, 'ps': POWERSHELL, 'norm': [normalize_abs_path('/a/./b/../c'), normalize_abs_path('')], 'mtime': [file_mtime('a.txt'), file_mtime('missing.txt')]}))
 """
 
 
-def _run(tmp_path: Path) -> dict:
+def _run(tmp_path: Path, portable: bool = False) -> dict:
     project = tmp_path / "proj"
     (project / ".flisk").mkdir(parents=True)
     (project / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": "proj"}}))
@@ -45,7 +46,7 @@ def _run(tmp_path: Path) -> dict:
     proc = subprocess.run(
         ["tilt", "alpha", "tiltfile-result", "-f", str(project / "Tiltfile")],
         capture_output=True, text=True, timeout=180, cwd=project,
-        env={**os.environ, "FLISK_PROJECT_ROOT": str(project)},
+        env={**os.environ, "FLISK_PROJECT_ROOT": str(project), **({"FLISK_DISCOVERY_PORTABLE": "1"} if portable else {})},
     )
     out = proc.stdout + proc.stderr
     assert "Error in fail: RESULT" in out, out[-3000:]
@@ -58,9 +59,12 @@ def test_scripts_follow_authoring_rules_and_mtime_matches_stat(tmp_path):
     for script in result["scripts"]:
         assert script.isascii(), script
         assert '"' not in script, script
-        assert "/bin/" not in script and "bash" not in script and " sh " not in script
+        if "exec -T" not in script:  # the pytest script runs sh inside the Linux container on purpose
+            assert "/bin/" not in script and "bash" not in script and " sh " not in script
         assert script.count("{") == script.count("}") or "{{" in script, script
     assert result["mtime"] == [1700000000, 0]
+    assert len(result["scripts"]) == 12
+    assert result["norm"] == ["/a/c", ""]
 
 
 def test_posix_commands_of_converted_resources_are_unchanged():
@@ -76,3 +80,26 @@ def test_posix_commands_of_converted_resources_are_unchanged():
     manifest = (TILT / "resources" / "orchestrator" / "generators" / "manifest_resource.star").read_text()
     assert "if IS_NATIVE_WINDOWS:" in manifest and "file_mtime(json_path)" in manifest
     assert 'stat -f %m \\"$1\\" 2>/dev/null || stat -c %Y' in manifest
+
+
+def test_path_normalizing_is_the_same_on_the_portable_path(tmp_path):
+    # FLISK_DISCOVERY_PORTABLE=1 takes the Windows branch of normalize_abs_path; on a POSIX path it must change nothing
+    posix = _run(tmp_path / "a")
+    portable = _run(tmp_path / "b", portable=True)
+    assert posix["norm"] == portable["norm"] == ["/a/c", ""]
+
+
+def test_posix_commands_of_step_one_remainder_are_unchanged():
+    orch = (TILT / "resources" / "orchestrator" / "apply_compose_resource_registration.star").read_text()
+    for needle in [
+        "'RUNNING_ID=$(docker compose -p \"$1\" -f \"$2\" ps --status running -q \"$3\" 2>/dev/null); ' +",
+        "argv = ['sh', '-c', _HEALTHY_SCRIPT, 'sh', config['res_name'], str(timeout_s)]",
+        "argv = ['sh', '-c', _JOB_DONE_SCRIPT, 'sh', config['res_name']]",
+        "'sh', service_dir, typecheck_cmd,",
+        "cmd_bat=POWERSHELL + [pytest_script()]",
+        "cmd_bat=POWERSHELL + [prebuild_image_script()]",
+    ]:
+        assert needle in orch, needle
+    assert "cmd=cmd,\n        cmd_bat=POWERSHELL + [golden_build_script()]," in (TILT.parent / "platform" / "docker" / "build" / "golden_image_build.star").read_text()
+    assert "cmd=publish_cmd," in (TILT / "resources" / "libs_resource_definition.star").read_text()
+    assert "serve_cmd=['sh', '-c', TILT_IMAGE_TAGS_SCRIPT, 'sh', repo_prefix]," in (TILT / "resources" / "tilt_image_tags.star").read_text()
