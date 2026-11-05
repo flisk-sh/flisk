@@ -968,3 +968,40 @@ describe("flisk import without a terminal", () => {
     expect(nonInteractiveRefusal(["."], "flisk import", true)).toBeNull();
   });
 });
+
+describe("flisk import on native Windows", () => {
+  it.each([
+    ["win32", undefined, true],
+    ["win32", "1", false],
+    ["linux", undefined, false],
+  ])(
+    "platform %s, FLISK_ALLOW_NATIVE_WINDOWS=%s: notice printed %s, import still runs",
+    async (platform, allow, printed) => {
+      for (const name of ["yes", "force", "dryRun", "json"])
+        importCommand.setOptionValue(name, false);
+      const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+      const previousAllow = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      const previousExitCode = process.exitCode;
+      try {
+        Object.defineProperty(process, "platform", { configurable: true, value: platform });
+        if (allow === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+        else process.env.FLISK_ALLOW_NATIVE_WINDOWS = allow;
+        process.exitCode = undefined;
+        await importCommand.parseAsync(["node", "flisk", ".", "--dry-run"], { from: "node" });
+
+        expect(calls.length).toBeGreaterThan(0);
+        expect(err.mock.calls.flat().join("\n").includes("needs Ubuntu on WSL2")).toBe(printed);
+      } finally {
+        if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+        if (previousAllow === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+        else process.env.FLISK_ALLOW_NATIVE_WINDOWS = previousAllow;
+        process.exitCode = previousExitCode;
+        err.mockRestore();
+        mocks.spawn.mockReset();
+      }
+    },
+  );
+});

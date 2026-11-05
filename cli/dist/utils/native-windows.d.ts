@@ -20,3 +20,11 @@ export declare const NATIVE_WINDOWS_REFUSAL_WITH_NEXT_STEP: string;
  * `FLISK_ALLOW_NATIVE_WINDOWS=1` is the unsupported escape hatch that lets it try anyway.
  */
 export declare function nativeWindowsStackRefusal(platform: string, allowNativeWindows?: string): string | null;
+/**
+ * What `flisk import` tells someone on native Windows before it imports, or null elsewhere.
+ *
+ * Import itself works in PowerShell, so it is not refused. But Windows users who forked a Docker app read this nowhere until
+ * `flisk up` refused, after they had imported and set up the project on the Windows side (#3246). This says it up front.
+ * `FLISK_ALLOW_NATIVE_WINDOWS=1` (the unsupported escape hatch) silences it, like the refusal.
+ */
+export declare function nativeWindowsImportNotice(platform: string, allowNativeWindows?: string): string | null;

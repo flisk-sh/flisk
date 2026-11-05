@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
+import { nativeWindowsImportNotice } from "../utils/native-windows.js";
 import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
@@ -321,6 +322,10 @@ export function syncImportedManifestCommands(writtenPaths) {
  * Sets `process.exitCode` to the importer's exit code, or 1 for a refusal.
  */
 export async function executeImport(args, options = {}, commandName = "flisk import") {
+    // stderr, so `--json` keeps a clean envelope on stdout.
+    const windowsNotice = nativeWindowsImportNotice(process.platform, process.env.FLISK_ALLOW_NATIVE_WINDOWS);
+    if (windowsNotice)
+        console.error(windowsNotice);
     if (options.json) {
         await runJsonCommand("IMPORT_FAILED", commandName, async () => {
             // Without a terminal the importer cannot ask, so --json writes without a prompt, like --yes.

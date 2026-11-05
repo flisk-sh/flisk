@@ -42,3 +42,24 @@ export function nativeWindowsStackRefusal(
   if (platform !== "win32" || allowNativeWindows === "1") return null;
   return NATIVE_WINDOWS_REFUSAL_WITH_NEXT_STEP;
 }
+
+/**
+ * What `flisk import` tells someone on native Windows before it imports, or null elsewhere.
+ *
+ * Import itself works in PowerShell, so it is not refused. But Windows users who forked a Docker app read this nowhere until
+ * `flisk up` refused, after they had imported and set up the project on the Windows side (#3246). This says it up front.
+ * `FLISK_ALLOW_NATIVE_WINDOWS=1` (the unsupported escape hatch) silences it, like the refusal.
+ */
+export function nativeWindowsImportNotice(
+  platform: string,
+  allowNativeWindows?: string,
+): string | null {
+  if (platform !== "win32" || allowNativeWindows === "1") return null;
+  return [
+    "Note for Windows: import works here, but `flisk up` for container services (an image or a Dockerfile) needs Ubuntu on WSL2.",
+    "  Services that declare a command run on Windows as local processes.",
+    "  To start the imported app, clone it inside Ubuntu (~/, not /mnt/c or D:\\) with Docker Desktop's WSL integration on,",
+    "  and install Node and Tilt in Ubuntu too.",
+    `  Windows guide: ${WINDOWS_GUIDE_URL}`,
+  ].join("\n");
+}

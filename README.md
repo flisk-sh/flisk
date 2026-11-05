@@ -86,6 +86,8 @@ flisk import .
 flisk up
 ```
 
+**On Windows:** a Compose app runs its services as containers, so do both steps inside Ubuntu on WSL2, not in PowerShell. Clone the app into your Ubuntu home folder (`~/`, not `/mnt/c` or `D:\`), turn on Docker Desktop's WSL integration for Ubuntu, and install Node and Tilt in Ubuntu: [Start here on Windows](docs/start-here-on-windows.md).
+
 <sub>A plain Compose app (a Node API and Postgres) answered through Flisk's router **49 s after `flisk import`** on a clean Ubuntu CI runner, images pulled and built from scratch, install not counted ([run](https://github.com/flisk-sh/flisk/actions/runs/40660606705), [claims](docs/claims.md)). CI repeats it on every pull request.</sub>
 
 **Rather ask your AI helper?** It runs these commands for you: [copy a prompt](#use-flisk-with-your-ai-agent). **Never written code?** [Start here](docs/start/first-time.md), step by step · [Words you'll see](docs/start/words.md)
