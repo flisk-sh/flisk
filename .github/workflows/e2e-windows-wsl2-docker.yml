@@ -1,0 +1,98 @@
+# Experiment for gate G6 of docs/design/native-windows-runtime-decision.md on a free GitHub-hosted runner.
+#
+# Hosted Windows runners cannot run Docker Desktop (no nested virtualization), so this job installs WSL2 Ubuntu, runs the Docker
+# Engine inside it, and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
+# PowerShell host scripts then run natively on Windows, which is what the gate needs to prove. The approach follows
+# https://dwozny.com/posts/windows-2025-docker-wsl2/ and is reported to work on windows-2025 only, in beta. It has NEVER been run
+# here: the first run is expected to fail during setup, and the findings artifact says where.
+#
+# Manual only: it is a long, network-heavy run and it must not gate pull requests.
+name: 🪟 E2E | Windows live stack (hosted, WSL2 engine)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-windows-wsl2-docker
+  cancel-in-progress: false
+
+jobs:
+  live-stack:
+    name: windows-live-stack-wsl2-engine
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      DOCKER_CLI_VERSION: "27.3.1"
+      COMPOSE_VERSION: "v2.29.7"
+      TILT_VERSION: "0.35.0"
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install WSL2 Ubuntu and keep it alive
+        shell: powershell
+        run: |
+          wsl --install Ubuntu --no-launch
+          wsl --set-default-version 2
+          wsl -d Ubuntu --exec dbus-launch true
+          wsl -d Ubuntu --exec uname -a
+
+      - name: Run the Docker Engine inside WSL2 on tcp 2375
+        shell: powershell
+        run: |
+          wsl -d Ubuntu -u root -- bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io"
+          wsl -d Ubuntu -u root -- bash -c "nohup dockerd -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375 > /var/log/dockerd.log 2>&1 &"
+          for ($i = 0; $i -lt 30; $i++) {
+            try { Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping | Out-Null; break } catch { Start-Sleep -Seconds 2 }
+          }
+          Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping
+
+      - name: Install the Windows docker CLI, compose plugin and tilt.exe
+        shell: powershell
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'tools'
+          New-Item -ItemType Directory -Force -Path $tools | Out-Null
+          Invoke-WebRequest -UseBasicParsing -Uri "https://download.docker.com/win/static/stable/x86_64/docker-$env:DOCKER_CLI_VERSION.zip" -OutFile "$tools\docker.zip"
+          Expand-Archive -Path "$tools\docker.zip" -DestinationPath $tools -Force
+          $plugins = Join-Path $env:USERPROFILE '.docker\cli-plugins'
+          New-Item -ItemType Directory -Force -Path $plugins | Out-Null
+          Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/docker/compose/releases/download/$env:COMPOSE_VERSION/docker-compose-windows-x86_64.exe" -OutFile "$plugins\docker-compose.exe"
+          Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/tilt-dev/tilt/releases/download/v$env:TILT_VERSION/tilt.$env:TILT_VERSION.windows.x86_64.zip" -OutFile "$tools\tilt.zip"
+          Expand-Archive -Path "$tools\tilt.zip" -DestinationPath "$tools\tilt" -Force
+          Add-Content -Path $env:GITHUB_PATH -Value "$tools\docker"
+          Add-Content -Path $env:GITHUB_PATH -Value "$tools\tilt"
+          Add-Content -Path $env:GITHUB_ENV -Value "DOCKER_HOST=tcp://127.0.0.1:2375"
+
+      - name: Check the engine from Windows
+        shell: powershell
+        run: |
+          docker version
+          docker compose version
+          tilt version
+          docker info --format '{{.OSType}}'
+          npm install -g bun
+
+      - name: Start the demo stack from the committed CLI build
+        shell: powershell
+        run: tests/e2e/platforms/windows-live/live-stack.ps1
+
+      - name: Collect the engine log
+        if: always()
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\flisk-windows-live\findings" | Out-Null
+          wsl -d Ubuntu -u root -- bash -c "tail -n 200 /var/log/dockerd.log" *> "$env:RUNNER_TEMP\flisk-windows-live\findings\dockerd.log"
+
+      - name: Upload the findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows-live-stack-wsl2-findings-${{ github.run_id }}
+          path: ${{ runner.temp }}/flisk-windows-live/findings
+          if-no-files-found: warn
+          retention-days: 14
