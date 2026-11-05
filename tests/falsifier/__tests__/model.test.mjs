@@ -37,6 +37,7 @@ test("minimize reaches a local minimum within budget", () => {
   const r = minimize([1, 2, 3, 4, 5], shrink, (xs) => xs.includes(3));
   assert.deepEqual(r.scenario, [3]);
   assert.ok(minimize([1, 2, 3], shrink, () => true, 1).trials <= 1);
+  assert.equal(minimize([1, 2, 3], shrink, () => false, 1).trials, 1);
 });
 
 test("every property draws the same scenario for the same seed and has an id, a bug and a weight", () => {
@@ -48,6 +49,8 @@ test("every property draws the same scenario for the same seed and has an id, a 
   }
   assert.equal(PROPERTIES.length, 5);
 });
+
+test("an unknown property id is refused", () => assert.throws(() => plan(5, "cycles"), /unknown property/));
 
 test("the default plan is 100 scenarios; --property takes all of them", () => {
   const total = plan(100).reduce((s, x) => s + x.n, 0);

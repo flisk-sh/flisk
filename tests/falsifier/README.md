@@ -6,7 +6,7 @@ workflow: run it locally (and nightly later, once its run time and yield are mea
 
 ```bash
 node tests/falsifier/run.mjs                                   # 100 scenarios, seed 1
-node tests/falsifier/run.mjs --seed 40 --scenarios 20 --property cycles
+node tests/falsifier/run.mjs --seed 40 --scenarios 20 --property dependency-cycles-detected
 node tests/falsifier/run.mjs --out /tmp/falsifier --save-regressions
 node tests/falsifier/run.mjs --replay tests/falsifier/regressions/<file>.json
 node --test tests/falsifier/__tests__/*.test.mjs

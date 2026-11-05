@@ -8,7 +8,8 @@ export function minimize(scenario, candidates, stillFails, budget = 24) {
   for (let progress = true; progress && trials < budget; ) {
     progress = false;
     for (const c of candidates(best)) {
-      if (trials++ >= budget) break;
+      if (trials >= budget) break;
+      trials++;
       if (stillFails(c)) { best = c; progress = true; break; }
     }
   }

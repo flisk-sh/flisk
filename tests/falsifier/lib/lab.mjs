@@ -18,21 +18,28 @@ function must(label, r) {
 
 export function makeLab() {
   const root = mkdtempSync(path.join(os.tmpdir(), "falsifier-"));
-  const init = (dir) => {
-    mkdirSync(dir, { recursive: true });
-    spawnSync("git", ["init", "-q", "."], { cwd: dir });
-    must("flisk project", runFlisk(dir, ["project", "--yes", "--json"]));
-  };
-  const base = path.join(root, "base");
-  init(base);
-  // Templates come from a throwaway project, so `base` stays exactly what `flisk project` wrote.
-  const tplProject = path.join(root, "tpl-project");
-  init(tplProject);
-  must("template backend", runFlisk(tplProject, ["resource", "tpl-backend", "--type", "backend", "--stack", "main", "--json"]));
-  must("template byo", runFlisk(tplProject, ["resource", "tpl-byo", "--type", "bring-your-own", "--stack", "main", "--dockerfile", "Dockerfile", "--json"]));
-  const templates = { backend: path.join(root, "t-backend"), byo: path.join(root, "t-byo") };
-  cpSync(path.join(tplProject, "services/main/tpl-backend"), templates.backend, { recursive: true });
-  cpSync(path.join(tplProject, "services/main/tpl-byo"), templates.byo, { recursive: true });
+  let templates;
+  let base;
+  try {
+    const init = (dir) => {
+      mkdirSync(dir, { recursive: true });
+      spawnSync("git", ["init", "-q", "."], { cwd: dir });
+      must("flisk project", runFlisk(dir, ["project", "--yes", "--json"]));
+    };
+    base = path.join(root, "base");
+    init(base);
+    // Templates come from a throwaway project, so `base` stays exactly what `flisk project` wrote.
+    const tplProject = path.join(root, "tpl-project");
+    init(tplProject);
+    must("template backend", runFlisk(tplProject, ["resource", "tpl-backend", "--type", "backend", "--stack", "main", "--json"]));
+    must("template byo", runFlisk(tplProject, ["resource", "tpl-byo", "--type", "bring-your-own", "--stack", "main", "--dockerfile", "Dockerfile", "--json"]));
+    templates = { backend: path.join(root, "t-backend"), byo: path.join(root, "t-byo") };
+    cpSync(path.join(tplProject, "services/main/tpl-backend"), templates.backend, { recursive: true });
+    cpSync(path.join(tplProject, "services/main/tpl-byo"), templates.byo, { recursive: true });
+  } catch (e) {
+    rmSync(root, { recursive: true, force: true });
+    throw e;
+  }
   const enigma = new Map();
   let shared = null;
   const scratch = [];

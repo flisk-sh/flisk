@@ -17,6 +17,7 @@ export const commit = () => spawnSync("git", ["rev-parse", "--short", "HEAD"], {
 // 100 scenarios split by each property's weight; scenario i of a property is seed + i, so any one replays on its own.
 export function plan(total, only) {
   const props = only ? PROPERTIES.filter((p) => p.id === only) : PROPERTIES;
+  if (only && props.length === 0) throw new Error(`unknown property "${only}"; expected one of ${PROPERTIES.map((p) => p.id).join(", ")}`);
   const sum = props.reduce((s, p) => s + p.weight, 0);
   return props.map((p) => ({ property: p, n: only ? total : Math.max(1, Math.round((total * p.weight) / sum)) }));
 }
@@ -51,7 +52,7 @@ export function falsify(total = 100, seed0 = 1, { only, log = console.log } = {}
       for (const b of bugs) { const key = `${b.property}|${b.actual.replace(/\d+/g, "N").slice(0, 80)}`; if (!seen.has(key)) { seen.add(key); found.push(b); } }
     }
   } finally { lab.dispose(); }
-  return { found, seconds: (Date.now() - t0) / 1000 };
+  return { found, seconds: (Date.now() - t0) / 1000, ran: plan(total, only).reduce((sum, x) => sum + x.n, 0) };
 }
 
 function main(argv) {
@@ -68,9 +69,9 @@ function main(argv) {
   }
   const seed = Number(arg("--seed") ?? 1);
   const total = Number(arg("--scenarios") ?? 100);
-  const { found, seconds } = falsify(total, seed, { only: arg("--property") });
+  const { found, seconds, ran } = falsify(total, seed, { only: arg("--property") });
   for (const b of found) console.log(`\nFALSIFIED ${b.property} (seed ${b.seed}, commit ${b.commit})\n  expected: ${b.expected}\n  actual:   ${b.actual}\n  minimal:  ${JSON.stringify(b.minimized)}\n  replay:   ${b.reproduction}`);
-  console.log(`\n${total} scenarios, ${found.length} distinct defect(s), ${seconds.toFixed(0)}s`);
+  console.log(`\n${ran} scenarios, ${found.length} distinct defect(s), ${seconds.toFixed(0)}s`);
   const out = arg("--out");
   if (out) { mkdirSync(out, { recursive: true }); writeFileSync(path.join(out, "falsifier-failures.json"), `${JSON.stringify(found, null, 2)}\n`); }
   if (argv.includes("--save-regressions")) for (const b of found) writeFileSync(path.join(here, "regressions", `${b.property}-${b.seed}.json`), `${JSON.stringify({ ...b, status: "open" }, null, 2)}\n`);

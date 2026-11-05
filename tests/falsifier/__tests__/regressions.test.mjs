@@ -20,7 +20,11 @@ test("FALSIFIER regressions", { timeout: 300_000 }, () => {
       const result = PROPERTIES.find((p) => p.id === fx.property).run(fx.minimized, lab);
       lab.sweep();
       if (fx.status === "fixed") assert.equal(result, null, `${file} regressed: ${result?.actual}`);
-      else assert.ok(result, `${file} is marked open but now passes; set its status to "fixed"`);
+      else {
+        assert.ok(result, `${file} is marked open but now passes; set its status to "fixed"`);
+        const norm = (t) => String(t).replace(/\d+/g, "N");
+        assert.equal(norm(result.actual), norm(fx.actual), `${file} now fails differently: ${result.actual}`);
+      }
     }
   } finally { lab.dispose(); }
 });
