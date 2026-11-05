@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   NATIVE_WINDOWS_NEXT_STEP,
   NATIVE_WINDOWS_REFUSAL_WITH_NEXT_STEP,
+  nativeWindowsImportNotice,
   nativeWindowsStackRefusal,
 } from "../native-windows.js";
 
@@ -27,5 +28,21 @@ describe("nativeWindowsStackRefusal", () => {
   it("leaves macOS and Linux alone", () => {
     expect(nativeWindowsStackRefusal("darwin")).toBeNull();
     expect(nativeWindowsStackRefusal("linux")).toBeNull();
+  });
+});
+
+describe("nativeWindowsImportNotice", () => {
+  it("tells native Windows before import that flisk up for containers needs WSL2", () => {
+    const notice = nativeWindowsImportNotice("win32");
+    expect(notice).toContain("import works here");
+    expect(notice).toContain("needs Ubuntu on WSL2");
+    expect(notice).toContain("command run on Windows as local processes");
+    expect(notice).toContain("docs/setup/windows.md");
+  });
+
+  it("says nothing off Windows or with the unsupported escape hatch", () => {
+    expect(nativeWindowsImportNotice("linux")).toBeNull();
+    expect(nativeWindowsImportNotice("darwin")).toBeNull();
+    expect(nativeWindowsImportNotice("win32", "1")).toBeNull();
   });
 });
