@@ -1,7 +1,7 @@
 # Experiment for gate G6 of docs/design/native-windows-runtime-decision.md on a free GitHub-hosted runner.
 #
 # Hosted Windows runners cannot run Docker Desktop (no nested virtualization), so this job installs WSL2 Ubuntu, runs the Docker
-# Engine inside it (listening on loopback only), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
+# Engine inside it under systemd (listening on loopback only, tests/e2e/platforms/windows-live/wsl-docker-engine.sh), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
 # PowerShell host scripts then run natively on Windows, which is what the gate needs to prove. The approach follows
 # https://dwozny.com/posts/windows-2025-docker-wsl2/ and is reported to work on windows-2025 only, in beta. It has NEVER been run
 # here: the first run is expected to fail during setup, and the findings artifact says where.
@@ -46,11 +46,13 @@ jobs:
       - name: Run the Docker Engine inside WSL2 on tcp 2375
         shell: powershell
         run: |
-          wsl -d Ubuntu -u root -- bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io && (systemctl disable --now docker.service docker.socket 2>/dev/null || true)"
-          wsl -d Ubuntu -u root -- bash -c "nohup dockerd -H unix:///var/run/docker.sock -H tcp://127.0.0.1:2375 > /var/log/dockerd.log 2>&1 &"
+          # Inside WSL first, so a failure says whether the engine or the localhost forwarding to Windows is at fault.
+          wsl -d Ubuntu -u root -- bash ./tests/e2e/platforms/windows-live/wsl-docker-engine.sh
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           for ($i = 0; $i -lt 30; $i++) {
             try { Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping | Out-Null; break } catch { Start-Sleep -Seconds 2 }
           }
+          Write-Output 'From Windows:'
           Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping
 
       - name: Install the Windows docker CLI, compose plugin and tilt.exe
@@ -97,7 +99,8 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\flisk-windows-live\findings" | Out-Null
-          wsl -d Ubuntu -u root -- bash -c "tail -n 200 /var/log/dockerd.log" *> "$env:RUNNER_TEMP\flisk-windows-live\findings\dockerd.log"
+          wsl -d Ubuntu -u root -- bash ./tests/e2e/platforms/windows-live/wsl-docker-engine.sh diagnose *> "$env:RUNNER_TEMP\flisk-windows-live\findings\dockerd.log"
+          Get-Content "$env:RUNNER_TEMP\flisk-windows-live\findings\dockerd.log" -Tail 80
 
       - name: Upload the findings
         if: always()
