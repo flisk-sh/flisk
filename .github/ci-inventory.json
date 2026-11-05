@@ -864,6 +864,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-windows-wsl2-docker.yml",
+			"job": "live-stack",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Experiment for gate G6 (#3246): native Windows Flisk and Tilt against a WSL2 Docker engine on windows-latest, dispatched by hand",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "e2e-platforms-wsl2.yml",
 			"job": "wsl2",
 			"tier": "e2e",
