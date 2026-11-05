@@ -840,6 +840,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "bug-hunt.yml",
+			"job": "falsifier",
+			"tier": "test",
+			"required": false,
+			"reason": "FALSIFIER (tests/falsifier) with a fresh seed every night, then the bug-hunt ledger; nightly and manual; issues are filed only on a dispatch with file_issues",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "e2e-platforms-hardware.yml",
 			"job": "hosted",
 			"tier": "e2e",
