@@ -24,6 +24,8 @@ def _engine_resources():
     """Returns (cpus, memory_bytes) from `docker info`, or None when unavailable."""
     out = str(local(
         "docker info --format '{{.NCPU}} {{.MemTotal}}' 2>/dev/null || true",
+        # cmd.exe has no /dev/null or `|| true`: on Windows ask docker directly and let a failure read as unavailable.
+        command_bat=["powershell", "-NoProfile", "-NonInteractive", "-Command", "docker info --format '{{.NCPU}} {{.MemTotal}}' 2>$null; exit 0"],
         quiet=True,
         echo_off=True,
     )).strip()

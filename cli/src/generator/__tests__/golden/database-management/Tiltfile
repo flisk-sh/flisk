@@ -156,7 +156,7 @@ if _LOG_LEVEL == "verbose":
 # =============================================================================
 # 🌍 ENVIRONMENT SETUP
 # =============================================================================
-is_macos = str(local('uname -s', quiet=True)).strip() == 'Darwin'
+is_macos = os.name != 'nt' and str(local('uname -s', quiet=True)).strip() == 'Darwin'
 Utils.load_dotenv(PROJECT_ROOT)
 
 # =============================================================================
