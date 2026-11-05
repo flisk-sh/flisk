@@ -83,6 +83,16 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/ai-conflict-buttons-comment.test.mjs
 	node --test scripts/hacktoberfest-embed.test.mjs
 	node --test scripts/demo-svgs.test.mjs
+	node --test scripts/ai-conflict-buttons.test.mjs
+	node --test scripts/ai-review-buttons.test.mjs
+	node --test scripts/ai-spec-buttons.test.mjs
+	node --test 'scripts/benchmark/**/*.test.mjs'
+	node --test scripts/check-cli-dist.test.mjs
+	node --test scripts/check-npm-package.test.mjs
+	node --test scripts/check-pr-review-readiness.test.mjs
+	node --test scripts/check-release-candidate.test.mjs
+	node --test scripts/coverage-badge.test.mjs
+	node --test scripts/stage-npm-engine.test.mjs
 
 ade-score: ## Print the deterministic ADE score (no AI, files only); add ARGS="--markdown" or ARGS="--json"
 	node scripts/ade-score.mjs $(ARGS)
