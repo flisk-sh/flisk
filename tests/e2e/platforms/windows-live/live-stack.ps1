@@ -65,6 +65,23 @@ Step 'Diagnostics' {
     cmd /c ($base + ' up --no-deps --remove-orphans --no-build -d traefik > "' + (Join-Path $Out 'traefik-up.txt') + '" 2>&1')
     cmd /c ($base + ' config > "' + (Join-Path $Out 'traefik-config.txt') + '" 2>&1')
     cmd /c ('tilt logs traefik > "' + (Join-Path $Out 'tilt-traefik.txt') + '" 2>&1')
+    # Tilt's API is gone once the demo exits, so run the discovery daemon by hand for a few seconds and keep what it prints.
+    $daemon = Join-Path $flisk 'flisk-cli-ext\discovery\resource_snapshot.py'
+    $note = Join-Path $Out 'daemon-manual.txt'
+    ('script exists: ' + (Test-Path -LiteralPath $daemon) + ' (' + $daemon + ')') | Out-File -FilePath $note -Encoding utf8
+    foreach ($n in 'python3', 'python', 'py') {
+      foreach ($c in @(Get-Command $n -All -ErrorAction SilentlyContinue)) {
+        $v = cmd /c ('"' + $c.Source + '" --version 2>&1')
+        ($n + ' -> ' + $c.Source + ' : exit ' + $LASTEXITCODE + ' : ' + $v) | Out-File -FilePath $note -Append -Encoding utf8
+      }
+    }
+    if (Test-Path -LiteralPath $daemon) {
+      $d = Start-Process -FilePath 'python' -ArgumentList @(('"' + $daemon + '"'), 'watch') -WorkingDirectory $flisk -NoNewWindow -PassThru `
+        -RedirectStandardOutput (Join-Path $Out 'daemon-manual.out') -RedirectStandardError (Join-Path $Out 'daemon-manual.err')
+      $null = $d.Handle
+      if (-not $d.WaitForExit(15000)) { $d.Kill(); 'still running after 15s (no crash)' | Out-File -FilePath $note -Append -Encoding utf8 }
+      else { ('exited ' + $d.ExitCode) | Out-File -FilePath $note -Append -Encoding utf8 }
+    }
     cmd /c ('tilt logs service-discovery-daemon > "' + (Join-Path $Out 'tilt-discovery-daemon.txt') + '" 2>&1')
     cmd /c ('tilt get uiresource service-discovery-daemon -o json > "' + (Join-Path $Out 'tilt-discovery-daemon.json') + '" 2>&1')
     cmd /c ('tilt get cmd -o json > "' + (Join-Path $Out 'tilt-cmds.json') + '" 2>&1')
