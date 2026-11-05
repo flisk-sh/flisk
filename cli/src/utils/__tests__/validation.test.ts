@@ -6,6 +6,7 @@ import {
   createKebabCaseValidator,
   includes,
   isPathSafe,
+  isTargetDirSafe,
   isValidPort,
   sanitizeForShell,
   validateOptionalInfraService,
@@ -279,5 +280,37 @@ describe("name length (found by FALSIFIER: a 64-character name was scaffolded)",
       expect(result.valid).toBe(false);
       expect(result.error).toContain("64 characters");
     }
+  });
+});
+
+describe("isTargetDirSafe", () => {
+  it.each([
+    "D:\\a\\_temp\\flisk-windows-live\\demo project",
+    "C:/Users/me/demo",
+    "c:\\x",
+    "demo",
+    "../demo",
+    "/home/me/demo",
+  ])("accepts a destination directory: %j", (path) => {
+    expect(isTargetDirSafe(path)).toBe(true);
+  });
+
+  it.each([
+    "a:b",
+    "C::\\x",
+    "1:\\x",
+    "C:",
+    "C:x",
+    "D:\\a<b",
+    "D:\\a\0b",
+    "D:\\what?",
+    "x\\C:\\y",
+    ":\\x",
+  ])("still rejects anything but a leading drive prefix: %j", (path) => {
+    expect(isTargetDirSafe(path)).toBe(false);
+  });
+
+  it("leaves isPathSafe strict for paths that must stay inside the project", () => {
+    expect(isPathSafe("C:\\temp\\x")).toBe(false);
   });
 });
