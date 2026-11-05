@@ -28,6 +28,7 @@ jobs:
       DOCKER_CLI_VERSION: "27.3.1"
       COMPOSE_VERSION: "v2.29.7"
       TILT_VERSION: "0.35.0"
+      DOCKER_HOST: tcp://127.0.0.1:2375
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -66,7 +67,6 @@ jobs:
           Expand-Archive -Path "$tools\tilt.zip" -DestinationPath "$tools\tilt" -Force
           Add-Content -Path $env:GITHUB_PATH -Value "$tools\docker"
           Add-Content -Path $env:GITHUB_PATH -Value "$tools\tilt"
-          Add-Content -Path $env:GITHUB_ENV -Value "DOCKER_HOST=tcp://127.0.0.1:2375"
 
       - name: Check the engine from Windows
         shell: powershell
