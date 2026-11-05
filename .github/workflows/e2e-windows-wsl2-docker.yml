@@ -22,7 +22,7 @@ concurrency:
 jobs:
   live-stack:
     name: windows-live-stack-wsl2-engine
-    runs-on: windows-2025
+    runs-on: windows-latest # Windows Server 2025 image; the WSL2 route is reported to work there only
     timeout-minutes: 60
     env:
       DOCKER_CLI_VERSION: "27.3.1"
