@@ -61,6 +61,18 @@ Step 'L3 down leaves nothing behind (G2)' {
   if ($left.Count -gt 0) { throw ('containers still running after flisk down: ' + ($left -join ',')) }
 }
 
+# Always collect what the engine and Flisk say, so a failed run names the failing resource (run 42069367765 showed only
+# "Resources failed (traefik: ...)" with the command cut off).
+Step 'Diagnostics' {
+  $logs = Join-Path $env:USERPROFILE '.flisk\logs'
+  if (Test-Path -LiteralPath $logs) { Copy-Item -Path (Join-Path $logs '*') -Destination $Out -Force -ErrorAction SilentlyContinue }
+  cmd /c ('docker ps -a --format "{{.Names}} {{.Status}} {{.Ports}}" > "' + (Join-Path $Out 'docker-ps.txt') + '" 2>&1')
+  cmd /c ('docker network ls > "' + (Join-Path $Out 'docker-networks.txt') + '" 2>&1')
+  foreach ($c in @(docker ps -a --format '{{.Names}}' 2>$null | Where-Object { $_ -match 'traefik' })) {
+    cmd /c ('docker logs --tail 80 ' + $c + ' > "' + (Join-Path $Out ('logs-' + $c + '.txt')) + '" 2>&1')
+  }
+}
+
 if ($failures.Count -gt 0) { Write-Output ''; Write-Output 'FAILED:'; $failures | ForEach-Object { Write-Output ('  ' + $_) }; exit 1 }
 Write-Output 'windows live stack: all steps passed'
 exit 0
