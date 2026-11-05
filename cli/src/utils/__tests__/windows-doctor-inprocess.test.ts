@@ -88,6 +88,16 @@ describe("checkWindowsRuntimeTools", () => {
     expect(result.fix).toContain("https://docs.tilt.dev/install.html");
   });
 
+  it("fails when powershell.exe is missing, because the engine's host scripts need it", () => {
+    mocks.findOnPath.mockImplementation((name: string) =>
+      name === "powershell" ? null : `C:\\bin\\${name}.exe`,
+    );
+    const result = checkWindowsRuntimeTools();
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("powershell.exe not found");
+    expect(result.fix).toContain("Verify: powershell");
+  });
+
   it("requires node.exe only for an npm installation", () => {
     mocks.findOnPath.mockImplementation((name: string) =>
       name === "node" ? null : `C:\\bin\\${name}.exe`,
