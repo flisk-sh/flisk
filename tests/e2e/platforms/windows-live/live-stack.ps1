@@ -23,8 +23,12 @@ function Step([string]$Name, [scriptblock]$Body) {
 }
 
 Step 'L1 doctor' {
-  & node $Cli doctor --json *> (Join-Path $Out 'doctor.json')
-  $report = Get-Content -Raw (Join-Path $Out 'doctor.json') | ConvertFrom-Json
+  # doctor exits 1 on native Windows by design (its "Native Windows support" finding), so only its JSON matters. PowerShell
+  # 5.1 turns a native command's stderr into an error under $ErrorActionPreference = 'Stop' and writes `*>` files as UTF-16,
+  # so run it through cmd.exe: stdout goes to the file as bytes, stderr to a separate file.
+  $json = Join-Path $Out 'doctor.json'
+  cmd /c ('node "' + $Cli + '" doctor --json > "' + $json + '" 2> "' + (Join-Path $Out 'doctor.err') + '"')
+  $report = Get-Content -Raw -LiteralPath $json | ConvertFrom-Json
   $tools = @($report.data.checks | Where-Object { $_.name -eq 'Windows Runtime Tools' -or $_.name -eq 'Docker container mode' })
   if ($tools.Count -lt 2) { throw 'doctor did not report the Windows tool checks' }
   foreach ($t in $tools) { if (-not $t.didPass) { throw ($t.name + ' failed: ' + $t.message) } }
@@ -35,8 +39,14 @@ Step 'L2 demo reaches ready' {
   Remove-Item -Recurse -Force -LiteralPath $Project -ErrorAction SilentlyContinue
   $proc = Start-Process -FilePath 'node' -ArgumentList @($Cli, 'demo', '--project', ('"' + $Project + '"')) -NoNewWindow -PassThru `
     -RedirectStandardOutput (Join-Path $Out 'demo.out') -RedirectStandardError (Join-Path $Out 'demo.err')
+  # Without reading .Handle, ExitCode stays empty for a process started with -PassThru (run 42067874152 printed "exited ").
+  $null = $proc.Handle
   if (-not $proc.WaitForExit($DemoTimeoutSeconds * 1000)) { $proc.Kill(); throw 'flisk demo did not finish in time' }
-  if ($proc.ExitCode -ne 0) { throw ('flisk demo exited ' + $proc.ExitCode) }
+  $proc.WaitForExit()
+  if ($proc.ExitCode -ne 0) {
+    $tail = (Get-Content -LiteralPath (Join-Path $Out 'demo.err') -Tail 12 -ErrorAction SilentlyContinue) -join ' | '
+    throw ('flisk demo exited ' + $proc.ExitCode + ': ' + $tail)
+  }
 }
 
 Step 'L3 down leaves nothing behind (G2)' {
