@@ -65,6 +65,9 @@ Step 'Diagnostics' {
     cmd /c ($base + ' up --no-deps --remove-orphans --no-build -d traefik > "' + (Join-Path $Out 'traefik-up.txt') + '" 2>&1')
     cmd /c ($base + ' config > "' + (Join-Path $Out 'traefik-config.txt') + '" 2>&1')
     cmd /c ('tilt logs traefik > "' + (Join-Path $Out 'tilt-traefik.txt') + '" 2>&1')
+    cmd /c ('tilt logs service-discovery-daemon > "' + (Join-Path $Out 'tilt-discovery-daemon.txt') + '" 2>&1')
+    cmd /c ('tilt get uiresource service-discovery-daemon -o json > "' + (Join-Path $Out 'tilt-discovery-daemon.json') + '" 2>&1')
+    cmd /c ('tilt get cmd -o json > "' + (Join-Path $Out 'tilt-cmds.json') + '" 2>&1')
   }
   foreach ($c in @(docker ps -a --format '{{.Names}}' 2>$null | Where-Object { $_ -match 'traefik' })) {
     cmd /c ('docker logs --tail 80 ' + $c + ' > "' + (Join-Path $Out ('logs-' + $c + '.txt')) + '" 2>&1')
