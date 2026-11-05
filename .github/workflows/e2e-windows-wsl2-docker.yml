@@ -1,7 +1,7 @@
 # Experiment for gate G6 of docs/design/native-windows-runtime-decision.md on a free GitHub-hosted runner.
 #
 # Hosted Windows runners cannot run Docker Desktop (no nested virtualization), so this job installs WSL2 Ubuntu, runs the Docker
-# Engine inside it, and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
+# Engine inside it (listening on loopback only), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
 # PowerShell host scripts then run natively on Windows, which is what the gate needs to prove. The approach follows
 # https://dwozny.com/posts/windows-2025-docker-wsl2/ and is reported to work on windows-2025 only, in beta. It has NEVER been run
 # here: the first run is expected to fail during setup, and the findings artifact says where.
@@ -46,8 +46,8 @@ jobs:
       - name: Run the Docker Engine inside WSL2 on tcp 2375
         shell: powershell
         run: |
-          wsl -d Ubuntu -u root -- bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io"
-          wsl -d Ubuntu -u root -- bash -c "nohup dockerd -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375 > /var/log/dockerd.log 2>&1 &"
+          wsl -d Ubuntu -u root -- bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io && (systemctl disable --now docker.service docker.socket 2>/dev/null || true)"
+          wsl -d Ubuntu -u root -- bash -c "nohup dockerd -H unix:///var/run/docker.sock -H tcp://127.0.0.1:2375 > /var/log/dockerd.log 2>&1 &"
           for ($i = 0; $i -lt 30; $i++) {
             try { Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping | Out-Null; break } catch { Start-Sleep -Seconds 2 }
           }
@@ -75,6 +75,14 @@ jobs:
           docker compose version
           tilt version
           docker info --format '{{.OSType}}'
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - name: Install dependencies (cli/dist imports them)
+        # Same flags as e2e-platforms.yml: the repo has no package-lock.json, and vitest 5.1.0 needs --legacy-peer-deps on npm 10.9.9.
+        run: npm install --ignore-scripts --legacy-peer-deps
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:

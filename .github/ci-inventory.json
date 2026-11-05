@@ -856,6 +856,22 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-windows-live-stack.yml",
+			"job": "live-stack",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Gate G6 for native Windows flisk up (#3246): demo stack on a self-hosted Windows x64 runner with Docker Desktop, dispatched by hand",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-windows-wsl2-docker.yml",
+			"job": "live-stack",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Experiment for gate G6 (#3246): native Windows Flisk and Tilt against a WSL2 Docker engine on windows-latest, dispatched by hand",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "e2e-platforms-wsl2.yml",
 			"job": "wsl2",
 			"tier": "e2e",
