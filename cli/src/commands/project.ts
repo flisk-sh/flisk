@@ -39,7 +39,7 @@ import { discoverStackNames } from "../utils/services.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
-import { isPathSafe } from "../utils/validation.js";
+import { isTargetDirSafe } from "../utils/validation.js";
 
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
@@ -159,7 +159,7 @@ export async function cloneProjectTemplate(
 
   const dirName = templateTargetDir(templateName, targetDir);
 
-  if (!isPathSafe(dirName)) {
+  if (!isTargetDirSafe(dirName)) {
     errorFactories.invalidPath(dirName).exit();
   }
 
