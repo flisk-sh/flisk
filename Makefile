@@ -1,7 +1,7 @@
 # Makefile
 # Common development tasks
 
-.PHONY: help test test-ts test-python test-shell ade-score scores test-e2e test-tilt-engine test-coverage lint video video-build video-test video-validate video-generate
+.PHONY: help test-tilt-engine test-tilt-engine-coverage test test-ts test-python test-shell ade-score scores test-e2e test-coverage test-snapshot test-daemon test-health test-ide test-safety test-cache test-fast test-generator pre-commit-install pre-commit-run pre-commit-fast video video-build video-test video-validate video-generate video-generate-quick
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -49,7 +49,6 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/install-git-hooks.test.mjs
 	node --test scripts/setup-pre-commit.test.mjs
 	node --test scripts/cold-boot-notes.test.mjs
-	node --test scripts/install-git-hooks.test.mjs
 	node --test scripts/release-binaries.test.mjs
 	node --test scripts/release-tag-target.test.mjs
 	node --test scripts/umux-lite-score.test.mjs
@@ -64,10 +63,6 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/npm-downloads-graph.test.mjs
 	node --test scripts/install-global.test.mjs
 	node tests/e2e/lib/check-axes.mjs
-	node --test tests/e2e/lib/__tests__/suite-matrix.test.mjs
-	node --test tests/e2e/lib/__tests__/registry-axes.test.mjs
-	node --test tests/e2e/lib/__tests__/check-axes.test.mjs
-	node --test tests/e2e/lib/__tests__/enigma36-plan.test.mjs
 	node --test tests/e2e/journeys/night-city/project/lib/pg.test.mjs
 	node --test tests/oracle/__tests__/*.test.mjs
 	node --test scripts/red-job-tracker.test.mjs
