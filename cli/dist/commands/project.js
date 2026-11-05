@@ -27,7 +27,7 @@ import { discoverStackNames } from "../utils/services.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
-import { isPathSafe } from "../utils/validation.js";
+import { isTargetDirSafe } from "../utils/validation.js";
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
  * cloned starter template). Tilt's discovery groups app resources by this
@@ -114,7 +114,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         process.exit(1);
     }
     const dirName = templateTargetDir(templateName, targetDir);
-    if (!isPathSafe(dirName)) {
+    if (!isTargetDirSafe(dirName)) {
         errorFactories.invalidPath(dirName).exit();
     }
     // If targetDir is an absolute path, use it directly as the destination

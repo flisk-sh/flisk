@@ -76,6 +76,15 @@ export function isValidPort(port) {
 export function isPathSafe(path) {
     return !path.includes("\0") && !/[<>:"|?*]/.test(path);
 }
+/**
+ * Like {@link isPathSafe}, for a destination directory that may be absolute: a Windows drive prefix (`D:\` or `D:/`) is
+ * allowed, because its colon is not a special character. Any other colon, and every other reserved character, is still
+ * refused. Without this `flisk demo --project D:\...` failed with "Invalid path" on a Windows runner. Use isPathSafe, not
+ * this, for paths that must stay inside the project (resource paths).
+ */
+export function isTargetDirSafe(path) {
+    return isPathSafe(path.replace(/^[A-Za-z]:(?=[\\/])/, ""));
+}
 export function sanitizeForShell(value, replacement = "_") {
     return value.replace(/[^a-zA-Z0-9-]/g, replacement).substring(0, 100);
 }
