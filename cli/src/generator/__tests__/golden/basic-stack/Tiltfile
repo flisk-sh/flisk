@@ -18,16 +18,28 @@ print("🚀 Loading basic-stack...")
 #   1. Vendored in-project copy (default - works offline, no GitHub needed)
 #   2. $FLISK_EXTENSION_PATH (explicit override to any flisk-cli checkout)
 #   3. Clear failure with instructions (no endless git retry on a missing repo)
+# `test -d` / `test -f` through sh on Linux, macOS and WSL2 (unchanged). Native Windows has no sh unless Git Bash happens to be on
+# PATH, so there Tilt's own os.path.exists answers instead.
+def _flisk_dir_exists(path):
+    if os.name == 'nt':
+        return os.path.exists(path)
+    return str(local(["sh", "-c", 'test -d "$1" && echo yes || echo no', "sh", path], quiet=True, echo_off=True)).strip() == 'yes'
+
+def _flisk_file_exists(path):
+    if os.name == 'nt':
+        return os.path.exists(path)
+    return str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path], quiet=True, echo_off=True)).strip() == 'yes'
+
 _vendored_flisk_path = config.main_dir + "/flisk-cli-ext"
 _use_local = False
 _local_flisk_path = ""
 
-if str(local(["sh", "-c", 'test -d "$1" && echo yes || echo no', "sh", _vendored_flisk_path], quiet=True, echo_off=True)).strip() == 'yes':
+if _flisk_dir_exists(_vendored_flisk_path):
     _use_local = True
     _local_flisk_path = _vendored_flisk_path
 else:
     _env_flisk_path = os.environ.get('FLISK_EXTENSION_PATH', '')
-    if len(_env_flisk_path) > 0 and str(local(["sh", "-c", 'test -d "$1" && echo yes || echo no', "sh", _env_flisk_path], quiet=True, echo_off=True)).strip() == 'yes':
+    if len(_env_flisk_path) > 0 and _flisk_dir_exists(_env_flisk_path):
         _use_local = True
         _local_flisk_path = _env_flisk_path
 
@@ -368,7 +380,7 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
         _ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres')
         _ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres-healthy')
     _messaging_compose_path = PROJECT_ROOT + '/services/platform/messaging/docker-compose.yml'
-    if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", _messaging_compose_path], quiet=True, echo_off=True)).strip() == 'yes':
+    if _flisk_file_exists(_messaging_compose_path):
         # infra-loader.star only creates these Tilt resources when this file
         # exists, so only add them here when they actually exist to add.
         _messaging_compose_doc = read_yaml(_messaging_compose_path, default={})
@@ -404,8 +416,9 @@ if _AUTO_DISCOVER_ENABLED:
     # The two paths go in as single-quoted PowerShell strings (a quote inside one is doubled).
     daemon_cmd_bat = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
         "Set-Location -LiteralPath '" + config.main_dir.replace("'", "''") + "'; "
-        + "$py = Get-Command python3 -ErrorAction SilentlyContinue; if (-not $py) { $py = Get-Command python -ErrorAction SilentlyContinue }; "
-        + "if (-not $py) { $py = Get-Command py -ErrorAction SilentlyContinue }; "
+        # A Microsoft Store "App Execution Alias" resolves for python3 yet runs nothing, so each candidate must answer --version.
+        + "$py = $null; foreach ($n in 'python3', 'python', 'py') { foreach ($c in @(Get-Command $n -All -ErrorAction SilentlyContinue)) { "
+        + "& $c.Source --version *> $null; if ($LASTEXITCODE -eq 0) { $py = $c; break } }; if ($py) { break } }; "
         + "if (-not $py) { Write-Output 'python3, python or py is needed on PATH for the service discovery daemon'; exit 1 }; "
         + "& $py.Source '" + daemon_script.replace("'", "''") + "' watch; exit $LASTEXITCODE"]
 
