@@ -860,7 +860,7 @@
 			"job": "live-stack",
 			"tier": "e2e",
 			"required": false,
-			"reason": "Gate G6 for native Windows flisk up (#3246): demo stack on a self-hosted Windows x64 runner with Docker Desktop, dispatched by hand",
+			"reason": "Gate G6: the demo stack on a self-hosted Windows machine with Docker Desktop, dispatched by hand, never on a pull request; suite tests/e2e/platforms/windows-live (#3253)",
 			"owner": "maintainers"
 		},
 		{
