@@ -1,0 +1,12 @@
+{
+  "engine": "FALSIFIER",
+  "property": "invalid-resources-rejected",
+  "seed": 10,
+  "commit": "72d7cebf",
+  "minimized": { "kind": "name", "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
+  "expected": "a 64-character resource name is rejected and nothing is scaffolded (a name is a container hostname; a DNS label is at most 63 characters)",
+  "actual": "exit 0, 6 files created under services/main/<64 x's>",
+  "reproduction": "node tests/falsifier/run.mjs --property invalid-resources-rejected --seed 10 --scenarios 1",
+  "status": "fixed",
+  "fixed_by": "cli/src/utils/validation.ts MAX_NAME_LENGTH"
+}

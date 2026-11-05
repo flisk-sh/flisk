@@ -10,11 +10,18 @@ function isKebabCase(value: string): boolean {
   return KEBAB_CASE_REGEX.test(value);
 }
 
+// A resource or stack name becomes a container hostname, and a DNS label is at most 63 characters.
+export const MAX_NAME_LENGTH = 63;
+
 const KEBAB_RULE = "Use lowercase letters, numbers, and hyphens only";
 
 function invalidNameMessage(label: "Resource name" | "Stack name", value: string): string {
   const example = label === "Resource name" ? "my-service" : "my-stack";
   return `${label} "${value}" is not valid. ${KEBAB_RULE}, e.g. "${example}".`;
+}
+
+function tooLongMessage(label: "Resource name" | "Stack name", value: string): string {
+  return `${label} "${value.slice(0, 20)}..." is ${value.length} characters; the limit is ${MAX_NAME_LENGTH} (it becomes a container hostname).`;
 }
 
 export function validateResourceName(name: string): ValidationResult {
@@ -23,6 +30,9 @@ export function validateResourceName(name: string): ValidationResult {
   }
   if (!isKebabCase(name)) {
     return { valid: false, error: invalidNameMessage("Resource name", name) };
+  }
+  if (name.length > MAX_NAME_LENGTH) {
+    return { valid: false, error: tooLongMessage("Resource name", name) };
   }
   return { valid: true };
 }
@@ -33,6 +43,9 @@ export function validateStackName(name: string): ValidationResult {
   }
   if (!isKebabCase(name)) {
     return { valid: false, error: invalidNameMessage("Stack name", name) };
+  }
+  if (name.length > MAX_NAME_LENGTH) {
+    return { valid: false, error: tooLongMessage("Stack name", name) };
   }
   return { valid: true };
 }
