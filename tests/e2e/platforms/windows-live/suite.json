@@ -1,0 +1,18 @@
+{
+  "group": "platforms",
+  "suite": "windows-live",
+  "description": "Gate G6 of the native Windows runtime decision: `flisk demo` (a Docker + Tilt stack) on a real self-hosted Windows machine with Docker Desktop in Linux-container mode. LIVE runs live-stack.ps1: L1 doctor passes its Windows tool checks, L2 the demo reaches ready, L3 `flisk down` leaves no tilt.exe and no project containers. Manual only: a self-hosted runner must never execute pull-request code, and the script has not been run on Windows yet.",
+  "paths": [
+    "tests/e2e/lib/**",
+    "tests/e2e/platforms/windows-live/**",
+    ".github/workflows/e2e-windows-live-stack.yml"
+  ],
+  "cases": [
+    "LIVE"
+  ],
+  "triggers": [
+    "manual"
+  ],
+  "timeoutMinutes": 60,
+  "needsSecrets": []
+}
