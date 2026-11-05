@@ -49,18 +49,6 @@ Step 'L2 demo reaches ready' {
   }
 }
 
-Step 'L3 down leaves nothing behind (G2)' {
-  if (Test-Path -LiteralPath (Join-Path $Project '.flisk\project.json')) {
-    Push-Location -LiteralPath $Project
-    try { & node $Cli down --yes *> (Join-Path $Out 'down.out') } finally { Pop-Location }
-  }
-  Start-Sleep -Seconds 5
-  $tilt = @(Get-Process -Name 'tilt' -ErrorAction SilentlyContinue)
-  if ($tilt.Count -gt 0) { throw ('tilt.exe still running after flisk down: ' + (($tilt | ForEach-Object { $_.Id }) -join ',')) }
-  $left = @(docker ps -q --filter ('name=' + (Split-Path -Leaf $Project)))
-  if ($left.Count -gt 0) { throw ('containers still running after flisk down: ' + ($left -join ',')) }
-}
-
 # Always collect what the engine and Flisk say, so a failed run names the failing resource (run 42069367765 showed only
 # "Resources failed (traefik: ...)" with the command cut off).
 Step 'Diagnostics' {
@@ -71,6 +59,18 @@ Step 'Diagnostics' {
   foreach ($c in @(docker ps -a --format '{{.Names}}' 2>$null | Where-Object { $_ -match 'traefik' })) {
     cmd /c ('docker logs --tail 80 ' + $c + ' > "' + (Join-Path $Out ('logs-' + $c + '.txt')) + '" 2>&1')
   }
+}
+
+Step 'L3 down leaves nothing behind (G2)' {
+  if (Test-Path -LiteralPath (Join-Path $Project '.flisk\project.json')) {
+    Push-Location -LiteralPath $Project
+    try { & node $Cli down --yes *> (Join-Path $Out 'down.out') } finally { Pop-Location }
+  }
+  Start-Sleep -Seconds 5
+  $tilt = @(Get-Process -Name 'tilt' -ErrorAction SilentlyContinue)
+  if ($tilt.Count -gt 0) { throw ('tilt.exe still running after flisk down: ' + (($tilt | ForEach-Object { $_.Id }) -join ',')) }
+  $left = @(docker ps -q --filter ('name=' + (Split-Path -Leaf $Project)))
+  if ($left.Count -gt 0) { throw ('containers still running after flisk down: ' + ($left -join ',')) }
 }
 
 if ($failures.Count -gt 0) { Write-Output ''; Write-Output 'FAILED:'; $failures | ForEach-Object { Write-Output ('  ' + $_) }; exit 1 }
