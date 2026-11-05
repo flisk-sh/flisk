@@ -26,73 +26,10 @@ test-python: ## Run Python tests
 	@echo "🧪 Running Python tests..."
 	pytest tests/ -v --tb=short
 
-test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventory and e2e helper unit tests (no Docker/Tilt execution)
-	@echo "🧪 Checking shell verification script syntax..."
-	for script in $(wildcard scripts/verify-*.sh) tests/e2e/lib/lib.sh tests/e2e/*/*/*.sh tests/e2e/resource-types/common.sh; do bash -n "$$script" || exit 1; done
-	node tests/e2e/lib/validate-suites.mjs
-	bash tests/e2e/static/skills-and-docs.sh >/dev/null
-	node --test scripts/docs/tabs.test.mjs
-	node --test scripts/docs/fit.test.mjs
-	node --test scripts/docs/llms-demo-links.test.mjs
-	node --test scripts/sync-llms-demos.test.mjs
-	node --test scripts/agent-plugin.test.mjs
-	node --test scripts/windows/setup-wsl.test.mjs
-	node scripts/check-ci-inventory.mjs
-	node --test scripts/check-ci-inventory.test.mjs
-	node --test scripts/check-ruleset-snapshots.test.mjs
-	node --test scripts/check-test-helper-allowlist.test.mjs
-	node --test cli/scripts/pin-module-location.test.mjs
-	node --test scripts/check-published-service-schema.test.mjs
-	node --test scripts/pilot-scorecard.test.mjs
-	node --test scripts/package-lifecycle-smoke.test.mjs
-	node --test scripts/wsl2-demo.test.mjs
-	node --test scripts/wsl2-smoke.test.mjs
-	node --test scripts/install-git-hooks.test.mjs
-	node --test scripts/setup-pre-commit.test.mjs
-	node --test scripts/cold-boot-notes.test.mjs
-	node --test scripts/release-binaries.test.mjs
-	node --test scripts/release-tag-target.test.mjs
-	node --test scripts/umux-lite-score.test.mjs
-	node --test scripts/ade-score.test.mjs
-	node --test 'scripts/scores/*.test.mjs'
-	node scripts/scores/run.mjs --check
-	node --test scripts/autoresearch/layer-eval.test.mjs
-	node --test scripts/e2e-gate-expectations.test.mjs
-	node --test scripts/wait-for-e2e-gates.test.mjs
-	node --test scripts/cancel-dead-queue-runs.test.mjs
-	node --test scripts/wait-for-npm-version.test.mjs
-	node --test scripts/npm-downloads-graph.test.mjs
-	node --test scripts/install-global.test.mjs
-	node tests/e2e/lib/check-axes.mjs
-	node --test tests/e2e/journeys/night-city/project/lib/pg.test.mjs
-	node --test tests/oracle/__tests__/*.test.mjs
-	node --test tests/falsifier/__tests__/*.test.mjs
-	node --test scripts/red-job-tracker.test.mjs
-	node --test scripts/report-post-merge-failures.test.mjs
-	node --test scripts/security-alert-issues.test.mjs
-	node --test scripts/competitor-gap-issues.test.mjs
-	node --test scripts/competitor-matrix.test.mjs
-	node scripts/competitor-matrix.mjs --check
-	node --test scripts/ci-report.test.mjs
-	node --test scripts/test-summary.test.mjs
-	node --test scripts/sync-byo-templates.test.mjs
-	node --test scripts/journey-map.test.mjs
-	node --test scripts/sync-flisk-skills.test.mjs
-	node --test scripts/audit-codebase.test.mjs
-	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
-	node --test scripts/ai-conflict-buttons-comment.test.mjs
-	node --test scripts/hacktoberfest-embed.test.mjs
-	node --test scripts/demo-svgs.test.mjs
-	node --test scripts/ai-conflict-buttons.test.mjs
-	node --test scripts/ai-review-buttons.test.mjs
-	node --test scripts/ai-spec-buttons.test.mjs
-	node --test 'scripts/benchmark/**/*.test.mjs'
-	node --test scripts/check-cli-dist.test.mjs
-	node --test scripts/check-npm-package.test.mjs
-	node --test scripts/check-pr-review-readiness.test.mjs
-	node --test scripts/check-release-candidate.test.mjs
-	node --test scripts/coverage-badge.test.mjs
-	node --test scripts/stage-npm-engine.test.mjs
+test-shell: ## Shell syntax, static repo checks and every Node *.test.mjs (npm run check:shell, check:static, test:scripts); no Docker/Tilt
+	npm run check:shell
+	npm run check:static
+	npm run test:scripts
 
 ade-score: ## Print the deterministic ADE score (no AI, files only); add ARGS="--markdown" or ARGS="--json"
 	node scripts/ade-score.mjs $(ARGS)
