@@ -62,6 +62,15 @@ export function checkWindowsRuntimeTools(): CheckResult {
       fix: "Install Tilt:\n  curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash\nOr download from: https://docs.tilt.dev/install.html\nVerify: tilt version",
     };
   }
+  // The engine runs PowerShell (cmd_bat) wherever the POSIX shell scripts would run, so a host without it cannot start a stack.
+  if (!findOnPath("powershell")) {
+    return {
+      name: "Windows Runtime Tools",
+      didPass: false,
+      message: "powershell.exe not found on PATH; the Tilt engine runs its host scripts with it.",
+      fix: "Windows PowerShell 5.1 ships with Windows. Add C:\\Windows\\System32\\WindowsPowerShell\\v1.0 to PATH.\nVerify: powershell -NoProfile -Command $PSVersionTable.PSVersion",
+    };
+  }
   const bun = findOnPath("bun");
   const npmInstall = (process.argv[1] ?? "").toLowerCase().includes("node_modules");
   const node = npmInstall ? findOnPath("node") : true;

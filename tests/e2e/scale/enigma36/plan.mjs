@@ -73,9 +73,16 @@ export function checkPlan(plan, count = COUNT) {
     const n = entries.filter((e) => e.kind === kind).length;
     if (n > max) problems.push(`${n} ${kind} resources, at most ${max}`);
   }
-  // An agent checkpointing to Postgres needs the project's database in the draw.
-  if (entries.some((e) => e.variant === "agent-postgres") && !entries.some((e) => e.kind === "database")) {
+  // An agent checkpointing to Postgres needs the project's database in the draw, and in its own stack: the database resource
+  // provisions <project>_<stack>, so an agent in another stack gets "database does not exist" and never answers /ready.
+  const database = entries.find((e) => e.kind === "database");
+  if (entries.some((e) => e.variant === "agent-postgres") && !database) {
     problems.push("an agent-postgres without a database resource");
+  }
+  for (const e of entries) {
+    if (e.variant === "agent-postgres" && database && e.stack !== database.stack) {
+      problems.push(`${e.name} is on ${e.stack} but the database is on ${database.stack}`);
+    }
   }
   return problems;
 }
@@ -98,6 +105,18 @@ export function drawPlan(seed, { count = COUNT, axes = registryAxes(path.resolve
     [drawn[i], drawn[j]] = [drawn[j], drawn[i]];
   }
   const stacks = drawn.map((_, i) => (i < STACKS.length ? STACKS[i] : pick(STACKS)));
+  // The database resource provisions one database per stack, so every Postgres-checkpointed agent joins the database's stack.
+  const dbIndex = drawn.findIndex((p) => p.kind === "database");
+  const emptied = (i) => stacks.filter((s, k) => k !== i && s === stacks[i]).length === 0;
+  drawn.forEach((p, i) => {
+    if (p.variant !== "agent-postgres" || dbIndex < 0 || stacks[i] === stacks[dbIndex]) return;
+    if (emptied(i)) {
+      // Moving this agent would empty its stack; swap stacks with a non-database, non-postgres-agent resource instead.
+      const j = drawn.findIndex((q, k) => k !== dbIndex && q.variant !== "agent-postgres" && stacks[k] === stacks[dbIndex]);
+      if (j < 0) return;
+      [stacks[i], stacks[j]] = [stacks[j], stacks[i]];
+    } else stacks[i] = stacks[dbIndex];
+  });
   const entries = drawn.map((p, i) => ({
     name: `e${String(i + 1).padStart(2, "0")}-${p.variant}`,
     kind: p.kind,

@@ -45,6 +45,20 @@ test("the diagonal board rejects contradictory plans", () => {
   assert.ok(checkPlan({ entries: plan.entries.slice(1) }).some((p) => p.startsWith("plan has 35")));
 });
 
+test("a Postgres-checkpointed agent shares the database's stack", () => {
+  // The database resource provisions <project>_<stack>; an agent on another stack never answers /ready (nightly 42002912060).
+  const plan = drawPlan(2145695131);
+  const db = plan.entries.find((e) => e.kind === "database");
+  const agents = plan.entries.filter((e) => e.variant === "agent-postgres");
+  assert.ok(agents.length > 0);
+  for (const a of agents) assert.equal(a.stack, db.stack);
+  const stray = {
+    ...plan,
+    entries: plan.entries.map((e) => (e === agents[0] ? { ...e, stack: STACKS.find((s) => s !== db.stack) } : e)),
+  };
+  assert.ok(checkPlan(stray).some((p) => p.includes("but the database is on")));
+});
+
 test("a smaller count still draws a sound plan", () => {
   const plan = drawPlan(42, { count: 12 });
   assert.equal(plan.entries.length, 12);
