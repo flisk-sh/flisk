@@ -49,6 +49,28 @@ Step 'L2 demo reaches ready' {
   }
 }
 
+# The demo's exit code alone proved too little (run 42093138026: "6 of 6 services ready" while `docker ps` listed only Traefik),
+# so ask the gateway for the pages the demo printed. *.localhost does not resolve to loopback on Windows, so the Host header
+# carries the name and curl.exe (shipped with Windows) talks to 127.0.0.1.
+Step 'L2b the stack answers through the gateway' {
+  $port = '8080'
+  $paths = @('reservation-app', 'floor-app')
+  $bad = @()
+  foreach ($path in $paths) {
+    $code = '000'
+    for ($i = 0; $i -lt 12; $i++) {
+      $code = (cmd /c ('curl.exe -s -o NUL -w "%{http_code}" -H "Host: app.flisk-restaurant-example.localhost" http://127.0.0.1:' + $port + '/' + $path + ' 2>&1')).Trim()
+      if ($code -match '^[23]') { break }
+      Start-Sleep -Seconds 5
+    }
+    ($path + ' -> HTTP ' + $code) | Out-File -FilePath (Join-Path $Out 'gateway-check.txt') -Append -Encoding utf8
+    if ($code -notmatch '^[23]') { $bad += ($path + ' answered ' + $code) }
+  }
+  $names = @(docker ps --format '{{.Names}}' 2>$null)
+  ('containers running: ' + ($names -join ', ')) | Out-File -FilePath (Join-Path $Out 'gateway-check.txt') -Append -Encoding utf8
+  if ($bad.Count -gt 0) { throw ('the gateway did not serve: ' + ($bad -join '; ') + ' (containers: ' + ($names -join ', ') + ')') }
+}
+
 # Always collect what the engine and Flisk say, so a failed run names the failing resource (run 42069367765 showed only
 # "Resources failed (traefik: ...)" with the command cut off).
 Step 'Diagnostics' {
