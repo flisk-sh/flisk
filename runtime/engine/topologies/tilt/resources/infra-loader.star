@@ -20,7 +20,9 @@
 #   Infra.load_all(should_enable_fn)
 # =============================================================================
 
-load('../../../../discovery/native_windows.star', 'file_exists')
+load('../../../../discovery/native_windows.star', 'file_exists', 'POWERSHELL')
+load('../common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script')
+load('../common/utils.star', 'PLATFORM_NETWORKS')
 load("../common/utils_debug.star", "debug_log")
 load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
@@ -190,6 +192,8 @@ def _register_platform_postgres(should_enable, root_prefix="", env_file=None, wr
         local_resource(
             name='postgres-healthy',
             cmd=['sh', '-c', _HEALTHY_POSTGRES_SCRIPT, 'sh', PlatformDockerConstants.PROJECT_NAME],
+            cmd_bat=POWERSHELL + [healthy_postgres_script()],
+            env={'FLISK_PROJECT': PlatformDockerConstants.PROJECT_NAME},
             labels=['infra.tools', 'health'],
             resource_deps=['postgres'],
             auto_init=True,
@@ -423,6 +427,8 @@ def _init_networks(fix_docker_networks_fn):
     """Initialize Docker networks."""
     local_resource('init-networks',
         cmd=fix_docker_networks_fn(),
+        cmd_bat=POWERSHELL + [init_networks_script()],
+        env={'FLISK_NETWORKS': ','.join(PLATFORM_NETWORKS)},
         labels=['infra.setup'],
         auto_init=True,
         resource_deps=[]
