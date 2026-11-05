@@ -400,8 +400,18 @@ if _AUTO_DISCOVER_ENABLED:
     daemon_script = discovery_path + '/resource_snapshot.py'
     daemon_cmd = ["sh", "-c", 'cd "$1" && python3 "$2" watch', "sh", config.main_dir, daemon_script]
     
+    # Native Windows has no sh: the same daemon through PowerShell, using python3 or, failing that, python or the py launcher.
+    daemon_cmd_bat = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+        "Set-Location -LiteralPath $env:FLISK_SNAPSHOT_DIR; "
+        + "$py = Get-Command python3 -ErrorAction SilentlyContinue; if (-not $py) { $py = Get-Command python -ErrorAction SilentlyContinue }; "
+        + "if (-not $py) { $py = Get-Command py -ErrorAction SilentlyContinue }; "
+        + "if (-not $py) { Write-Output 'python3, python or py is needed on PATH for the service discovery daemon'; exit 1 }; "
+        + "& $py.Source $env:FLISK_SNAPSHOT_SCRIPT watch; exit $LASTEXITCODE"]
+
     local_resource('service-discovery-daemon',
         serve_cmd=daemon_cmd,
+        serve_cmd_bat=daemon_cmd_bat,
+        serve_env={'FLISK_SNAPSHOT_DIR': config.main_dir, 'FLISK_SNAPSHOT_SCRIPT': daemon_script},
         deps=[daemon_script],
         auto_init=True, labels=['discovery'],
         links=[link('file:///snapshots/resource-snapshot.json', 'Resource Snapshot')]
