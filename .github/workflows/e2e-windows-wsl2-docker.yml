@@ -75,7 +75,10 @@ jobs:
           docker compose version
           tilt version
           docker info --format '{{.OSType}}'
-          npm install -g bun
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
 
       - name: Start the demo stack from the committed CLI build
         shell: powershell
