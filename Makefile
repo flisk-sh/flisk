@@ -36,6 +36,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/docs/llms-demo-links.test.mjs
 	node --test scripts/sync-llms-demos.test.mjs
 	node --test scripts/agent-plugin.test.mjs
+	node --test scripts/windows/setup-wsl.test.mjs
 	node scripts/check-ci-inventory.mjs
 	node --test scripts/check-ci-inventory.test.mjs
 	node --test scripts/check-ruleset-snapshots.test.mjs

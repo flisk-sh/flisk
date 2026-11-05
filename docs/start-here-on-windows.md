@@ -6,6 +6,14 @@ Windows cannot run the full Flisk stack by itself, so `flisk doctor` tells you t
 
 Short on time? The two-service demo (`npx @flisk-sh/flisk demo`) runs on plain Windows without any of this. You need the steps below for the full Docker stack. [Windows & WSL2](wsl2.md) has the reference version.
 
+**One command instead:** in PowerShell, this runs steps 1 and 3 to 6 for you and checks step 2, skipping whatever is already done. Pass your repository's URL to clone it into Ubuntu as well:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/flisk-sh/flisk/main/scripts/windows/setup-wsl.ps1))) -Repo https://github.com/<you>/<your-repository>
+```
+
+It stops with one next step when something needs you: PowerShell as administrator to install Ubuntu (then a restart), or turning on Docker Desktop's WSL integration. The steps below are what it does, one by one.
+
 | Step | Where you type it | Done when |
 |------|-------------------|-----------|
 | [1. Install Ubuntu](#1-install-ubuntu-on-wsl2) | PowerShell as administrator | The Ubuntu app opens |
