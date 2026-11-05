@@ -1,0 +1,41 @@
+# Gate G6 of docs/design/native-windows-runtime-decision.md: a Docker + Tilt stack started with `flisk demo` on a real Windows
+# machine (Docker Desktop, Linux containers). GitHub's windows-latest cannot run Linux containers, so this job needs a runner
+# registered with the labels "self-hosted", "windows" and "x64" and Docker Desktop in Linux-container mode.
+#
+# It never runs on a pull request: a self-hosted runner would execute untrusted pull-request code. A maintainer dispatches it by
+# hand. The script has not been run on Windows yet; the first run is expected to find failures.
+name: 🪟 E2E | Windows live stack
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-windows-live-stack
+  cancel-in-progress: false
+
+jobs:
+  live-stack:
+    name: windows-live-stack
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 60
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Start the demo stack from the committed CLI build
+        shell: powershell
+        run: tests/e2e/platforms/windows-live/live-stack.ps1
+
+      - name: Upload the findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows-live-stack-findings-${{ github.run_id }}
+          path: ${{ runner.temp }}/flisk-windows-live/findings
+          if-no-files-found: warn
+          retention-days: 14
