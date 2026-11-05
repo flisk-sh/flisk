@@ -856,6 +856,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-windows-live-stack.yml",
+			"job": "live-stack",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Gate G6: the demo stack on a self-hosted Windows machine with Docker Desktop, dispatched by hand, never on a pull request; suite tests/e2e/platforms/windows-live (#3253)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "e2e-platforms-wsl2.yml",
 			"job": "wsl2",
 			"tier": "e2e",
