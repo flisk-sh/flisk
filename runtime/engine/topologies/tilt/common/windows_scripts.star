@@ -123,3 +123,215 @@ def memory_summary_script():
         "Write-Output 'AFTER: one shared PostgreSQL container with a logical database per service (about 512MB-1GB total).';",
         "exit 0;",
     ])
+
+def prebuild_image_script():
+    """Copy the Dockerfile, write its allowlist .dockerignore and docker build it.
+
+    env: FLISK_DOCKERFILE, FLISK_PREBUILD, FLISK_IGNORE, FLISK_TARGET, FLISK_TAG, FLISK_BUILD_CONTEXT.
+    """
+    return _join([
+        "Copy-Item -LiteralPath $env:FLISK_DOCKERFILE -Destination $env:FLISK_PREBUILD -Force;",
+        "if (-not $?) { exit 1; }",
+        "[IO.File]::WriteAllText($env:FLISK_PREBUILD + '.dockerignore', $env:FLISK_IGNORE, (New-Object Text.UTF8Encoding($false)));",
+        "docker build --network host --target $env:FLISK_TARGET -f $env:FLISK_PREBUILD -t $env:FLISK_TAG $env:FLISK_BUILD_CONTEXT;",
+        "exit $LASTEXITCODE;",
+    ])
+
+def pytest_script():
+    """pytest-on-save inside the service container.
+
+    env: FLISK_PROJECT, FLISK_COMPOSE_FILE, FLISK_SERVICE, FLISK_TEST_PATH, FLISK_TEST_DIR (empty when the test path is .), FLISK_RES_PATH.
+    """
+    inner = (
+        "if ! command -v pytest >/dev/null 2>&1; then "
+        + "echo '[flisk] Error: pytest is not installed in container '$1'.'; "
+        + "echo '[flisk] Hint: Add pytest to pyproject.toml dev dependencies.'; "
+        + "exit 1; fi; exec pytest $2"
+    ).replace("'", "''")
+    return _join([
+        "$p = $env:FLISK_PROJECT; $f = $env:FLISK_COMPOSE_FILE; $svc = $env:FLISK_SERVICE; $tp = $env:FLISK_TEST_PATH; $td = $env:FLISK_TEST_DIR; $rp = $env:FLISK_RES_PATH;",
+        "$running = docker compose -p $p -f $f ps --status running -q $svc 2>$null | Select-Object -First 1;",
+        "if (-not $running) { Write-Output ('[flisk] Container ' + $svc + ' is not currently running; skipping pytest'); exit 0; }",
+        "if (($tp -ne '.') -and $td -and -not (Test-Path -LiteralPath $td)) { Write-Output ('[flisk] Test path ' + $tp + ' does not exist; skipping pytest'); exit 0; }",
+        "if (($tp -ne '.') -and $td -and (Test-Path -LiteralPath $td -PathType Container)) {",
+        "  docker compose -p $p -f $f cp ($td + '/.') ($svc + ':/app/' + $rp + '/' + $tp) 2>$null;",
+        "  if ($LASTEXITCODE -ne 0) { docker cp ($td + '/.') ($running + ':/app/' + $rp + '/' + $tp) 2>$null; }",
+        "}",
+        "$inner = '" + inner + "';",
+        "docker compose -p $p -f $f exec -T $svc sh -c $inner sh $svc $tp;",
+        "exit $LASTEXITCODE;",
+    ])
+
+def healthy_script():
+    """Wait until a Compose service container is healthy.
+
+    env: FLISK_JOB, FLISK_MAX_POLLS, FLISK_COMPOSE (JSON array of the `docker` arguments, without the leading docker).
+    """
+    return _join([
+        "$job = $env:FLISK_JOB; $max = [int]$env:FLISK_MAX_POLLS; $ca = @(ConvertFrom-Json $env:FLISK_COMPOSE); $exited = 0;",
+        "for ($i = 0; $i -lt $max; $i++) {",
+        "  $id = docker @ca ps -q $job 2>$null | Select-Object -First 1;",
+        "  if (-not $id) { $id = docker @ca ps -a -q $job 2>$null | Select-Object -First 1; }",
+        "  if (-not $id) { Start-Sleep -Seconds 1; continue; }",
+        "  $state = docker inspect --format '{{.State.Status}}' $id 2>$null;",
+        "  $code = docker inspect --format '{{.State.ExitCode}}' $id 2>$null;",
+        "  if ($state -eq 'dead') { Write-Output ('ERROR: container ' + $job + ' is dead (exit code ' + $code + ')'); exit 1; }",
+        "  if ($state -eq 'exited') {",
+        "    $policy = docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' $id 2>$null;",
+        "    if ((-not $policy) -or $policy -eq 'no') {",
+        "      $exited++;",
+        "      if ($exited -ge 5) { Write-Output ('ERROR: container ' + $job + ' exited with code ' + $code + ' and will not restart (restart: ' + $policy + ')'); exit 1; }",
+        "    } else { $exited = 0; }",
+        "  } else { $exited = 0; }",
+        "  $hasHealth = docker inspect --format '{{if .State.Health}}yes{{else}}no{{end}}' $id 2>$null;",
+        "  if ($hasHealth -eq 'no') {",
+        "    if ($state -eq 'running') { Write-Output ($job + ' has no health check configured, proceeding once running'); exit 0; }",
+        "  } else {",
+        "    $health = docker inspect --format '{{.State.Health.Status}}' $id 2>$null;",
+        "    if ($health -eq 'healthy') { Write-Output ($job + ' is healthy'); exit 0; }",
+        "    if ($health -eq 'unhealthy') { Write-Output ('ERROR: ' + $job + ' is unhealthy'); exit 1; }",
+        "  }",
+        "  Start-Sleep -Seconds 1;",
+        "}",
+        "Write-Output ('ERROR: timed out waiting for ' + $job + ' to become healthy (waited ' + $max + 's)'); exit 1;",
+    ])
+
+def job_done_script():
+    """Wait for a one-shot job container to exit; fail unless it exited 0, then copy its output env file.
+
+    env: FLISK_JOB, FLISK_COMPOSE (JSON array of docker arguments). File modes (chmod 700/600) are not applied on Windows.
+    """
+    return _join([
+        "$job = $env:FLISK_JOB; $ca = @(ConvertFrom-Json $env:FLISK_COMPOSE);",
+        "$id = docker @ca ps -a -q $job 2>$null | Select-Object -First 1;",
+        "if (-not $id) { Write-Output ('no container for ' + $job); exit 1; }",
+        "$code = (docker wait $id | Select-Object -First 1);",
+        "$out = '.flisk/outputs/' + $job + '.env';",
+        "if ([string]$code -ne '0') { Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue; Write-Output ($job + ' exited with code ' + $code); exit 1; }",
+        "New-Item -ItemType Directory -Force -Path '.flisk/outputs' | Out-Null;",
+        "docker cp ($id + ':/tmp/flisk-output.env') $out 2>$null;",
+        "Write-Output ($job + ' finished (exit code 0)'); exit 0;",
+    ])
+
+def typecheck_script():
+    """Host tsc type check. env: FLISK_SERVICE_DIR (service dir), FLISK_TYPECHECK (command, e.g. bunx tsc --noEmit)."""
+    return _join([
+        "Set-Location -LiteralPath $env:FLISK_SERVICE_DIR;",
+        "bunx tsc --version *> $null; $haveTsc = ($LASTEXITCODE -eq 0);",
+        "if ((-not $haveTsc) -or (-not (Test-Path -LiteralPath (Join-Path $env:FLISK_SERVICE_DIR 'node_modules/vite/package.json')))) { Write-Output ('typecheck needs host dependencies: run bun install in ' + $env:FLISK_SERVICE_DIR); exit 1; }",
+        "Invoke-Expression $env:FLISK_TYPECHECK;",
+        "exit $LASTEXITCODE;",
+    ])
+
+def golden_build_script():
+    """Build the golden layer images (PowerShell twin of _GOLDEN_BUILD_TEMPLATE in golden_image_build.star).
+
+    env: FLISK_GOLDEN_CONFIG, JSON {df, root, hash_label, images[], legacy[], layers[{key, target, ref}]}.
+    Also reads FLISK_GOLDEN_REBUILD, FLISK_GOLDEN_REGISTRY and FLISK_GOLDEN_RETRY_DELAY from the environment.
+    """
+    return _join([
+        "$q = [char]34; $cfg = ConvertFrom-Json $env:FLISK_GOLDEN_CONFIG;",
+        "$df = (Resolve-Path -LiteralPath $cfg.df).Path; $root = (Resolve-Path -LiteralPath $cfg.root).Path;",
+        "$hash = (Get-FileHash -LiteralPath $df -Algorithm SHA256).Hash.ToLower();",
+        "$images = @($cfg.images); $label = $cfg.hash_label;",
+        "if (-not $env:FLISK_GOLDEN_REBUILD) {",
+        "  $fresh = $true;",
+        "  foreach ($img in $images) {",
+        "    $have = docker image inspect -f ('{{index .Config.Labels ' + $q + $label + $q + '}}') $img 2>$null;",
+        "    if ([string]$have -ne $hash) { $fresh = $false; }",
+        "  }",
+        "  if ($fresh) { Write-Output ('Golden images are up to date (hash ' + $hash + ') - skipping build'); exit 0; }",
+        "}",
+        "if ($env:FLISK_GOLDEN_REGISTRY -and -not $env:FLISK_GOLDEN_REBUILD) {",
+        "  $tag12 = $hash.Substring(0, 12); $pulled = $true;",
+        "  foreach ($l in @($cfg.layers)) {",
+        "    $remote = $env:FLISK_GOLDEN_REGISTRY + '/golden-' + $l.key + ':' + $tag12;",
+        "    docker pull -q $remote *> $null;",
+        "    if ($LASTEXITCODE -eq 0) { docker tag $remote $l.ref; if ($LASTEXITCODE -ne 0) { $pulled = $false; } } else { $pulled = $false; }",
+        "  }",
+        "  if ($pulled) { Write-Output ('Golden images pulled from ' + $env:FLISK_GOLDEN_REGISTRY + ' (hash ' + $tag12 + ')'); exit 0; }",
+        "  Write-Output ('No prebuilt golden images for ' + $tag12 + ' in ' + $env:FLISK_GOLDEN_REGISTRY + '; building them here');",
+        "}",
+        "Write-Output ('Building golden layered images (' + $images.Count + ' total)...');",
+        "docker buildx version *> $null;",
+        "if ($LASTEXITCODE -eq 0) {",
+        "  Write-Output 'Building all golden targets with one docker buildx bake';",
+        "  $dfH = $df.Replace('\\', '/'); $rootH = $root.Replace('\\', '/');",
+        "  $hcl = 'variable ' + $q + 'HASH' + $q + ' {' + [char]10 + '  default = ' + $q + $q + [char]10 + '}' + [char]10;",
+        "  $names = (@($cfg.layers) | ForEach-Object { $q + $_.key + $q }) -join ', ';",
+        "  $hcl += 'group ' + $q + 'default' + $q + ' {' + [char]10 + '  targets = [' + $names + ']' + [char]10 + '}' + [char]10;",
+        "  foreach ($l in @($cfg.layers)) {",
+        "    $hcl += 'target ' + $q + $l.key + $q + ' {' + [char]10 + '  dockerfile = ' + $q + $dfH + $q + [char]10 + '  context = ' + $q + $rootH + $q + [char]10;",
+        "    $hcl += '  target = ' + $q + $l.target + $q + [char]10 + '  tags = [' + $q + $l.ref + $q + ']' + [char]10;",
+        "    $hcl += '  labels = {' + [char]10 + '    ' + $q + $label + $q + ' = HASH' + [char]10 + '  }' + [char]10 + '}' + [char]10;",
+        "  }",
+        "  [IO.File]::WriteAllText((Join-Path (Get-Location).Path 'golden-layers.bake.hcl'), $hcl, (New-Object Text.UTF8Encoding($false)));",
+        "  $allow = @();",
+        "  $ver = [regex]::Match([string](docker buildx version 2>$null), 'v(\\d+)\\.(\\d+)');",
+        "  if ($ver.Success -and (([int]$ver.Groups[1].Value -gt 0) -or ([int]$ver.Groups[2].Value -ge 19))) { $allow = @('--allow', ('fs.read=' + $rootH)); }",
+        "  $env:HASH = $hash; $attempt = 1;",
+        "  while ($true) {",
+        "    docker buildx bake @allow -f golden-layers.bake.hcl --load;",
+        "    if ($LASTEXITCODE -eq 0) { break; }",
+        "    if ($attempt -ge 3) { Write-Output ('Golden layers build failed after ' + $attempt + ' attempts (see the first error above)'); exit 1; }",
+        "    $step = 10; if ($env:FLISK_GOLDEN_RETRY_DELAY) { $step = [int]$env:FLISK_GOLDEN_RETRY_DELAY; }",
+        "    $delay = $attempt * $step;",
+        "    Write-Output ('docker buildx bake failed (attempt ' + $attempt + ' of 3) - retrying in ' + $delay + 's');",
+        "    Start-Sleep -Seconds $delay; $attempt++;",
+        "  }",
+        "} else {",
+        "  Write-Output 'docker buildx is not available - building golden targets one at a time';",
+        "  foreach ($l in @($cfg.layers)) {",
+        "    docker build --label ($label + '=' + $hash) -f $df --target $l.target -t $l.ref $root;",
+        "    if ($LASTEXITCODE -ne 0) { exit 1; }",
+        "  }",
+        "}",
+        "foreach ($img in @($cfg.legacy)) { docker image rm $img *> $null; if ($LASTEXITCODE -eq 0) { Write-Output ('Removed legacy golden image ' + $img); } }",
+        "$missing = @();",
+        "foreach ($img in $images) { docker image inspect -f '{{.Id}}' $img *> $null; if ($LASTEXITCODE -ne 0) { $missing += $img; } }",
+        "if ($missing.Count -gt 0) { Write-Output ('Golden images missing after the build: ' + ($missing -join ' ')); exit 1; }",
+        "Write-Output ('Golden layers built (' + $images.Count + ' images):');",
+        "foreach ($img in $images) { Write-Output ('  ' + $img); }",
+        "exit 0;",
+    ])
+
+def tilt_image_tags_script():
+    """Long-running cleanup of superseded tilt-* image tags (PowerShell twin of TILT_IMAGE_TAGS_SCRIPT). env: FLISK_REPO_PREFIX."""
+    return _join([
+        "$prefix = $env:FLISK_REPO_PREFIX; $script:pending = @();",
+        "function Get-Epoch([string]$t) { try { return [DateTimeOffset]::Parse(($t -replace '\\.\\d+', '')).ToUnixTimeSeconds(); } catch { return $null; } }",
+        "function Clean-Repo([string]$repo) {",
+        "  $dev = docker image inspect -f '{{.Id}} {{.Created}}' ($repo + ':dev') 2>$null;",
+        "  if ($LASTEXITCODE -ne 0 -or -not $dev) { return; }",
+        "  $devId = ([string]$dev).Split(' ')[0]; $devAt = Get-Epoch (([string]$dev).Split(' ', 2)[1]);",
+        "  foreach ($ref in @(docker image ls --format '{{.Repository}}:{{.Tag}}' $repo 2>$null)) {",
+        "    if (-not ([string]$ref).StartsWith($repo + ':tilt-')) { continue; }",
+        "    $img = docker image inspect -f '{{.Id}} {{.Created}}' $ref 2>$null;",
+        "    if ($LASTEXITCODE -ne 0 -or -not $img) { continue; }",
+        "    $imgId = ([string]$img).Split(' ')[0];",
+        "    if ($imgId -ne $devId) {",
+        "      $imgAt = Get-Epoch (([string]$img).Split(' ', 2)[1]);",
+        "      if (($null -eq $imgAt) -or ($null -eq $devAt) -or ($imgAt -ge $devAt)) { continue; }",
+        "    }",
+        "    docker image rm $ref *> $null;",
+        "    if ($LASTEXITCODE -eq 0) { Write-Output ('removed ' + $ref); }",
+        "    else {",
+        "      docker image inspect $ref *> $null;",
+        "      if (($LASTEXITCODE -eq 0) -and ($script:pending -notcontains $repo)) { $script:pending += $repo; }",
+        "    }",
+        "  }",
+        "}",
+        "$since = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds();",
+        "foreach ($ref in @(docker image ls --format '{{.Repository}}:{{.Tag}}' 2>$null)) {",
+        "  if (([string]$ref).StartsWith($prefix) -and ([string]$ref).EndsWith(':dev')) { Clean-Repo ([string]$ref).Substring(0, ([string]$ref).Length - 4); }",
+        "}",
+        "docker events --since $since --filter type=image --filter event=tag --filter type=container --filter event=destroy --format '{{.Type}} {{.Action}} {{.Actor.Attributes.name}}' | ForEach-Object {",
+        "  $parts = ([string]$_).Split(' ', 3); $type = $parts[0]; $action = $parts[1]; $name = $parts[2];",
+        "  if (($type + ' ' + $action) -eq 'image tag') {",
+        "    if ($name.StartsWith($prefix) -and $name.EndsWith(':dev')) { Clean-Repo $name.Substring(0, $name.Length - 4); }",
+        "  } elseif ((($type + ' ' + $action) -eq 'container destroy') -and ($script:pending.Count -gt 0)) {",
+        "    $retry = $script:pending; $script:pending = @();",
+        "    foreach ($repo in $retry) { Clean-Repo $repo; }",
+        "  }",
+        "}",
+    ])

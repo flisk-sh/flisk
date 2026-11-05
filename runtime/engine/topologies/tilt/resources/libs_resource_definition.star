@@ -117,6 +117,14 @@ def define_library_resource(ctx, name, path, labels, internal_deps=None, consume
 
     publish_cmd = ['./engine/scripts/build-and-publish-lib.sh', path, registry, pkg_name, consumer_paths_str]
 
+    # Native Windows runs the PowerShell twin of the script (the ConsumerPaths flag only when there are consumers: an empty argv entry is dropped).
+    publish_cmd_bat = [
+        'powershell', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+        './engine/scripts/build-and-publish-lib.ps1', '-LibPath', path, '-Registry', registry, '-PackageName', pkg_name,
+    ]
+    if consumer_paths_str:
+        publish_cmd_bat = publish_cmd_bat + ['-ConsumerPaths', consumer_paths_str]
+
     # Sanitize name to remove invalid characters for Tilt resource names
     # e.g., "introvertic/ui" -> "introvertic-ui"
     resource_name = 'lib-' + name.replace('/', '-')
@@ -137,6 +145,7 @@ def define_library_resource(ctx, name, path, labels, internal_deps=None, consume
     local_resource(
         resource_name,
         cmd=publish_cmd,
+        cmd_bat=publish_cmd_bat,
         deps=input_deps,
         labels=labels + ['lib'],
         resource_deps=deps,

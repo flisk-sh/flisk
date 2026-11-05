@@ -2,6 +2,8 @@
 # 🏗️ TILT SDK - GOLDEN IMAGE BUILDERS
 # =============================================================================
 
+load('../../../../../discovery/native_windows.star', 'POWERSHELL')
+load('../../../tilt/common/windows_scripts.star', 'golden_build_script')
 load('./golden_image_constants.star', 'GOLDEN_DOCKERFILE', 'GOLDEN_IMAGE_PREFIX', 'GOLDEN_LAYERS', 'LEGACY_GOLDEN_IMAGES')
 
 # Label that records which golden Dockerfile an image was built from.
@@ -189,6 +191,15 @@ def build_golden_layers(project_root='.'):
     local_resource(
         resource_name,
         cmd=cmd,
+        cmd_bat=POWERSHELL + [golden_build_script()],
+        env={'FLISK_GOLDEN_CONFIG': encode_json({
+            'df': dockerfile_from_tiltfile,
+            'root': context,
+            'hash_label': GOLDEN_HASH_LABEL,
+            'images': images,
+            'legacy': LEGACY_GOLDEN_IMAGES,
+            'layers': [{'key': k, 'target': GOLDEN_LAYERS[k]['target'], 'ref': GOLDEN_LAYERS[k]['name'] + ':' + GOLDEN_LAYERS[k]['tag']} for k in GOLDEN_LAYERS],
+        })},
         labels=['infra.docker', 'golden-layers'],
         deps=[dockerfile_from_tiltfile],
         allow_parallel=True,

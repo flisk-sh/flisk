@@ -22,6 +22,9 @@
 RESOURCE_NAME = 'tilt-image-tags'
 
 # $1: the repository prefix of this project's images (<project>_). Logs one line per removed tag.
+load('../../../../discovery/native_windows.star', 'POWERSHELL')
+load('../common/windows_scripts.star', 'tilt_image_tags_script')
+
 TILT_IMAGE_TAGS_SCRIPT = r'''
 prefix="$1"
 pending=""
@@ -88,6 +91,8 @@ def register_tilt_image_tags(repo_prefix):
     local_resource(
         RESOURCE_NAME,
         serve_cmd=['sh', '-c', TILT_IMAGE_TAGS_SCRIPT, 'sh', repo_prefix],
+        serve_cmd_bat=POWERSHELL + [tilt_image_tags_script()],
+        serve_env={'FLISK_REPO_PREFIX': repo_prefix},
         labels=['infra.docker'],
         auto_init=True,
     )

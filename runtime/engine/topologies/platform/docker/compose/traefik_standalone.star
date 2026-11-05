@@ -140,7 +140,12 @@ def _project_root_mount():
     root = project_root_abspath()
     if not root:
         return ""
-    return "\n      - " + root + ":" + root + ":ro"
+    target = root
+    if len(root) > 1 and root[1] == ":":
+        # Windows host path C:/Users/me/proj: the container side must be a POSIX path (/c/Users/me/proj). Compose resolves the
+        # drive-letter source itself. Not run on Windows; the gateway's compose-file paths still need a design (see the PR).
+        target = "/" + root[0].lower() + root[2:]
+    return "\n      - " + root + ":" + target + ":ro"
 
 
 def project_root_abspath():
