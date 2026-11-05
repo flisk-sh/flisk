@@ -64,7 +64,7 @@ Step 'Diagnostics' {
     $base = 'docker compose --project-name flisk-restaurant-example-traefik --project-directory "' + $flisk + '" -f "' + $compose + '"'
     cmd /c ($base + ' up --no-deps --remove-orphans --no-build -d traefik > "' + (Join-Path $Out 'traefik-up.txt') + '" 2>&1')
     cmd /c ($base + ' config > "' + (Join-Path $Out 'traefik-config.txt') + '" 2>&1')
-    cmd /c ('tilt logs --resource traefik > "' + (Join-Path $Out 'tilt-traefik.txt') + '" 2>&1')
+    cmd /c ('tilt logs traefik > "' + (Join-Path $Out 'tilt-traefik.txt') + '" 2>&1')
   }
   foreach ($c in @(docker ps -a --format '{{.Names}}' 2>$null | Where-Object { $_ -match 'traefik' })) {
     cmd /c ('docker logs --tail 80 ' + $c + ' > "' + (Join-Path $Out ('logs-' + $c + '.txt')) + '" 2>&1')

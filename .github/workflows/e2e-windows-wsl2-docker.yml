@@ -29,6 +29,7 @@ jobs:
       COMPOSE_VERSION: "v2.29.7"
       TILT_VERSION: "0.35.0"
       DOCKER_HOST: tcp://127.0.0.1:2375
+      COMPOSE_CONVERT_WINDOWS_PATHS: "1"
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -40,8 +41,13 @@ jobs:
         run: |
           wsl --install Ubuntu --no-launch
           wsl --set-default-version 2
+          # Mount Windows drives at /c, /d (not /mnt/c, /mnt/d) so compose's Windows-to-POSIX path conversion (D:\a -> /d/a) points at
+          # files the engine inside WSL can see; Docker Desktop does this translation itself (run 42083257619: invalid volume specification).
+          wsl -d Ubuntu -u root -- bash -c "printf '[automount]\nroot=/\noptions=metadata\n\n[boot]\nsystemd=true\n' > /etc/wsl.conf"
+          wsl --terminate Ubuntu
           wsl -d Ubuntu --exec dbus-launch true
           wsl -d Ubuntu --exec uname -a
+          wsl -d Ubuntu --exec ls /d
 
       - name: Run the Docker Engine inside WSL2 on tcp 2375
         shell: powershell
