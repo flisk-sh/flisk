@@ -26,6 +26,14 @@ the exporter ones).
 | name may start or end with a hyphen | caught | **missed** | missed |
 | first dependency cycle not reported | caught | caught | missed |
 | self-dependency is not a cycle | caught | caught | missed |
+| last `dependsOn` entry dropped | caught | caught | missed |
+| exporter: last env var of a service dropped | caught | caught | missed |
+| exporter: env values written unquoted | caught | caught | missed |
+| exporter: a single dependency gets no `depends_on` | caught | caught | missed |
+| exporter: required secrets not listed | caught | **missed** | missed |
 
 ORACLE compares surfaces with each other, so a bug that changes all of them alike is outside what it can see. FALSIFIER never draws
-a name that starts or ends with a hyphen; adding those to its invalid-name generator closes the gap.
+a name that starts or ends with a hyphen, and its Compose scenarios never give a service `secrets.required`; adding both closes the gaps.
+Totals over 11 bugs: unit tests 11, FALSIFIER 9, ORACLE 0. The unit tests were written against these same rules, so the table shows the
+harness works and where FALSIFIER's generators are thin; it does not show a bug FALSIFIER finds that the unit tests miss (the
+64-character name was that case, found before any unit test covered it).
