@@ -49,6 +49,13 @@ poll_until() {
   local desc="$1" timeout="$2"; shift 2
   local deadline=$((SECONDS + timeout))
   while ! "$@" >/dev/null 2>&1; do
+    # `flisk up` refuses to start (Docker unreadable, Tilt missing) and exits at once; nothing will ever become ready, so say
+    # so now instead of polling out the whole timeout (20 minutes by default).
+    if grep -q 'Cold start blocked' "$DIR/up.log" 2>/dev/null; then
+      echo "::error::flisk up refused to start while waiting for: $desc" >&2
+      tail -40 "$DIR/up.log" >&2
+      return 1
+    fi
     if [ "$SECONDS" -ge "$deadline" ]; then
       echo "::error::timed out after ${timeout}s waiting for: $desc" >&2
       tail -40 "$DIR/up.log" 2>/dev/null >&2 || true
