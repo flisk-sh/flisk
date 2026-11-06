@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -156,7 +156,12 @@ esac
 chmodSync(stubGh, 0o755);
 const fakeDir = mkdtempSync(path.join(tmpdir(), "rc-fake-"));
 const stubEnv = { ...process.env, PATH: `${stubDir}${path.delimiter}${process.env.PATH}`, FAKE_DIR: fakeDir, GH_TOKEN: "x", RC_POLL_MS: "50" };
-const writeRuns = (runs) => writeFileSync(path.join(fakeDir, "runs.json"), JSON.stringify({ workflow_runs: runs }));
+// Write then rename: a polling child (the --wait test) must never `cat` a truncated, half-written runs.json.
+const writeRuns = (runs) => {
+  const tmp = path.join(fakeDir, "runs.json.tmp");
+  writeFileSync(tmp, JSON.stringify({ workflow_runs: runs }));
+  renameSync(tmp, path.join(fakeDir, "runs.json"));
+};
 const runCli = (sha, runs, compares = {}, extraArgs = []) => {
   writeRuns(runs);
   for (const [base, body] of Object.entries(compares)) {
@@ -238,10 +243,17 @@ test("cli --wait: waits for a running candidate and passes once it succeeds", as
   writeRuns([{ status: "in_progress", conclusion: null, head_sha: RELEASE }]);
   const child = spawn(process.execPath, [script, "--sha", RELEASE, "--repo", "flisk-sh/flisk", "--wait", "1"], { env: stubEnv });
   let stdout = "";
-  child.stdout.on("data", (chunk) => { stdout += chunk; });
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  let sawWaiting;
+  const waiting = new Promise((resolve) => { sawWaiting = resolve; });
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+    if (/still running on a{40}; waiting/.test(stdout)) sawWaiting();
+  });
+  const closed = new Promise((resolve) => child.on("close", resolve));
+  // Finish the candidate only once the child has polled and seen it running: a fixed sleep races a slow start under load.
+  await Promise.race([waiting, closed]);
   writeRuns([{ status: "completed", conclusion: "success", head_sha: RELEASE }]);
-  const code = await new Promise((resolve) => child.on("close", resolve));
+  const code = await closed;
   assert.equal(code, 0);
   assert.match(stdout, /still running on a{40}; waiting/);
   assert.match(stdout, /Release candidate passed for a{40}/);
