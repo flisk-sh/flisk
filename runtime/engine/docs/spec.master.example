@@ -1,4 +1,5 @@
 #!/usr/bin/env starlark
+# Reference documentation: example illustrating explicit spec.master structure (not loaded at runtime).
 # BEFORE/AFTER: Making Tilt Obvious (Zig-Style Explicitness)
 # 
 # This file demonstrates how the new spec.master makes the system
