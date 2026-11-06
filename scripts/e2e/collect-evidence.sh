@@ -74,10 +74,14 @@ if command -v docker >/dev/null 2>&1; then
   done < <(docker ps -a --format '{{.Names}}' 2>/dev/null)
 fi
 
-# Tilt: resource state (the Tilt log stream is read from the source directories, where flisk up wrote it).
+# Tilt: resource state, then what each resource printed. The log is read from Tilt itself because a big project's source
+# directories pass max_source_files before any copy of it, and local_resource output (provision-db-*, which says why a
+# stack database is missing) only lives there.
 if command -v tilt >/dev/null 2>&1; then
   tilt get uiresources -o wide 2>&1 | head -200 > "$work/tilt" || true
   redact < "$work/tilt" > "$work/tilt.redacted" && commit "$work/tilt.redacted" tilt/uiresources.txt
+  tilt logs 2>&1 | tail -n 20000 > "$work/tiltlog" || true
+  redact < "$work/tiltlog" > "$work/tiltlog.redacted" && commit "$work/tiltlog.redacted" tilt/logs.log
 fi
 
 # flisk: doctor and status are read-only checks, so they are safe on a failed run.
