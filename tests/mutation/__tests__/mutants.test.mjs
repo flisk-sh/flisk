@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { spawnSync } from "node:child_process";
 import { MUTANTS, mutate } from "../mutants.mjs";
 import { buildFailed, classify, detectorKey, main } from "../run.mjs";
 
@@ -37,6 +38,13 @@ test("only exit 0 and 1 are results; anything else is an infrastructure error, n
 test("exit 1 without the engine's finding marker is a crash, not a catch", () => {
 	assert.equal(classify({ status: 1, stdout: "FALSIFIED p (seed 1)" }, "x", /FALSIFIED /), true);
 	assert.throws(() => classify({ status: 1, stdout: "", stderr: "TypeError: cannot read properties" }, "x", /FALSIFIED /), /crashed/);
+});
+
+test("a finding printed before a crash is still a crash: the engines exit 2 on an uncaught error", () => {
+	assert.throws(() => classify({ status: 2, stdout: "FALSIFIED p (seed 1)", stderr: "Error: boom" }, "x", /FALSIFIED /), /did not run properly \(exit 2\)/);
+	for (const [engine, args] of [["oracle", ["--seed", "1", "--shape", "no-such-shape"]], ["falsifier", ["--property", "no-such-property"]]]) {
+		assert.equal(spawnSync(process.execPath, [path.join(ROOT, "tests", engine, "run.mjs"), ...args], { encoding: "utf8" }).status, 2, engine);
+	}
 });
 
 test("a restore build that fails or cannot start is a failure", () => {

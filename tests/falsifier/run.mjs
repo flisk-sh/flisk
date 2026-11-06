@@ -77,4 +77,7 @@ function main(argv) {
   if (argv.includes("--save-regressions")) for (const b of found) writeFileSync(path.join(here, "regressions", `${b.property}-${b.seed}.json`), `${JSON.stringify({ ...b, status: "open" }, null, 2)}\n`);
   return found.length ? 1 : 0;
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+// Exit 1 means "found something"; an uncaught error is exit 2, so a harness that runs this engine can tell a crash from a finding.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	try { process.exitCode = main(process.argv.slice(2)); } catch (error) { console.error(error?.stack ?? error); process.exitCode = 2; }
+}
