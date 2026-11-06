@@ -71,6 +71,27 @@ Step 'L2b the stack answers through the gateway' {
   if ($bad.Count -gt 0) { throw ('the gateway did not serve: ' + ($bad -join '; ') + ' (containers: ' + ($names -join ', ') + ')') }
 }
 
+# Run the discovery helpers on this machine's real project path (run 42133012577: "Loaded 0 services" while 7 service.json exist).
+Step 'Discovery probe' {
+  $ext = Join-Path $Project '.flisk\.flisk-out\flisk-cli-ext\discovery\native_windows.star'
+  $probe = Join-Path $Out 'probe.star'
+  $q = [char]39
+  $lines = @(
+    ('load(' + $q + ($ext -replace '\\', '/') + $q + ', ' + $q + 'find_files' + $q + ', ' + $q + 'IS_NATIVE_WINDOWS' + $q + ', ' + $q + 'dir_exists' + $q + ')'),
+    ('root = ' + $q + ($Project -replace '\\', '/') + $q),
+    ('print(' + $q + 'PROBE IS_NATIVE_WINDOWS=' + $q + ' + str(IS_NATIVE_WINDOWS))'),
+    ('print(' + $q + 'PROBE exists=' + $q + ' + str(os.path.exists(root)) + ' + $q + ' dir_exists=' + $q + ' + str(dir_exists(root)))'),
+    ('print(' + $q + 'PROBE abspath=' + $q + ' + os.path.abspath(root))'),
+    'files = listdir(root, recursive=True)',
+    ('print(' + $q + 'PROBE listdir count=' + $q + ' + str(len(files)))'),
+    ('print(' + $q + 'PROBE first=' + $q + ' + str(files[:4]))'),
+    ('print(' + $q + 'PROBE find service.json=' + $q + ' + str(find_files(root, ' + $q + 'service.json' + $q + ')))'),
+    ('print(' + $q + 'PROBE find services/ =' + $q + ' + str(find_files(root + ' + $q + '/services' + $q + ', ' + $q + 'service.json' + $q + ')))')
+  )
+  $lines | Out-File -FilePath $probe -Encoding ascii
+  cmd /c ('tilt alpha tiltfile-result -f "' + $probe + '" > "' + (Join-Path $Out 'probe-result.txt') + '" 2>&1')
+}
+
 # Always collect what the engine and Flisk say, so a failed run names the failing resource (run 42069367765 showed only
 # "Resources failed (traefik: ...)" with the command cut off).
 Step 'Diagnostics' {
