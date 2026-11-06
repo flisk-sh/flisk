@@ -180,6 +180,9 @@ e2e_diagnostics() {
   done
   tilt get uiresources >"$ARTIFACTS/tilt-resources.txt" 2>&1 || true
   tilt get uiresources -o json >"$ARTIFACTS/tilt-resources.json" 2>&1 || true
+  # What each Tilt resource printed, so a stack database that was never provisioned shows its provision-db-* output.
+  tilt logs 2>&1 | tail -c 2000000 >"$ARTIFACTS/tilt-logs.txt" || true
+  docker exec "${PROJECT}_postgres" psql -U postgres -tAc 'SELECT datname FROM pg_database ORDER BY 1' >"$ARTIFACTS/postgres-databases.txt" 2>&1 || true
   [ -d "$OUT" ] && cp -R "$OUT" "$ARTIFACTS/case-output" 2>/dev/null || true
   echo "diagnostics written to $ARTIFACTS"
 }

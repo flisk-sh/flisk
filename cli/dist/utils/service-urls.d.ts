@@ -12,6 +12,12 @@ export declare function isRoutedBringYourOwn(resource: DiscoveredResource): bool
 export declare function isWebUiBringYourOwn(resource: DiscoveredResource): boolean;
 /** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services that are not a web UI. */
 export declare function routesAsApi(resource: DiscoveredResource): boolean;
+/** `/api/vote` → `/api/vote/`: the URL a browser should open for a page served under a stripped prefix. */
+export declare function withTrailingSlash(path: string): string;
+/**
+ * A service that has a Traefik ingress route: frontends, backends, MCP servers, agents, and proxied bring-your-own services.
+ */
+export declare function isRoutableService(resource: DiscoveredResource): boolean;
 /**
  * The base URL of a web UI service: `http://<name>.<project>.localhost[:port]`. It follows the app host of
  * `resolveSubdomainBases` (`app.<project>.localhost`) when there is one, and the project name otherwise. Keep in step with
@@ -32,13 +38,16 @@ export interface HealthProbe extends HealthTarget {
     /** Failure reason when the request never completed (DNS, refused, timeout). */
     error?: string;
 }
+/** The project name of the project containing the current directory. */
 export declare function getProjectName(): string;
 /** The project name of a specific project root, for tools that work outside the current directory. */
 export declare function getProjectNameFor(root: string | null): string;
+/** The app and api base URLs (scheme, host, port) from FLISK_SERVICE_BASE_URL, or from the project name and ingress port. */
 export declare function resolveSubdomainBases(ingressPort?: number, projectRoot?: string | null): {
     appBase: string;
     apiBase: string;
 };
+/** `/api/x` or `/api/x/` → `/api/x/health`, without doubling the slash. */
 export declare function appendHealthPath(path: string): string;
 /** The route `flisk up` advertises for a service, without the /health suffix. */
 export declare function resolveServicePath(resource: DiscoveredResource): string;
@@ -46,7 +55,7 @@ export declare function resolveServicePath(resource: DiscoveredResource): string
  * The ingress URL of one service (no /health suffix), or undefined for services with no Traefik route. This is where the service
  * answers, unlike the Tilt UI port, which serves its own page for any path.
  */
-export declare function resolveServiceUrl(resource: DiscoveredResource, ingressPort?: number): string | undefined;
+export declare function resolveServiceUrl(resource: DiscoveredResource, ingressPort?: number, baseDomain?: string): string | undefined;
 /**
  * Health URLs for every routable service, matching what `flisk up` prints.
  * Workers, libraries, SDKs and migrators have no Traefik route, so they are
@@ -58,5 +67,7 @@ export declare function buildHealthTargets(resources: DiscoveredResource[], ingr
  * this URL is a 404 (nothing handles the bare path), which is the dead link users click.
  */
 export declare function buildAdvertisedTargets(resources: DiscoveredResource[], ingressPort?: number): HealthTarget[];
+/** GET one target and report its status, or why the request never completed. */
 export declare function pingHealthTarget(target: HealthTarget, timeoutMs: number): Promise<HealthProbe>;
+/** Probe every target in parallel. */
 export declare function pingHealthTargets(targets: HealthTarget[], timeoutMs: number): Promise<HealthProbe[]>;

@@ -23,6 +23,18 @@ export function routesAsApi(resource) {
     return (isApiServiceType(resource.config?.appType) ||
         (isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)));
 }
+/** `/api/vote` → `/api/vote/`: the URL a browser should open for a page served under a stripped prefix. */
+export function withTrailingSlash(path) {
+    return path.endsWith("/") ? path : `${path}/`;
+}
+/**
+ * A service that has a Traefik ingress route: frontends, backends, MCP servers, agents, and proxied bring-your-own services.
+ */
+export function isRoutableService(resource) {
+    return (resource.config?.appType === "frontend" ||
+        routesAsApi(resource) ||
+        isWebUiBringYourOwn(resource));
+}
 /**
  * The base URL of a web UI service: `http://<name>.<project>.localhost[:port]`. It follows the app host of
  * `resolveSubdomainBases` (`app.<project>.localhost`) when there is one, and the project name otherwise. Keep in step with
@@ -50,6 +62,7 @@ export function resolveRouteBase(resource, ingressPort, projectRoot) {
     const { appBase, apiBase } = resolveSubdomainBases(ingressPort, projectRoot);
     return routesAsApi(resource) ? apiBase : appBase;
 }
+/** The project name of the project containing the current directory. */
 export function getProjectName() {
     return getProjectNameFor(findProjectRoot());
 }
@@ -57,6 +70,7 @@ export function getProjectName() {
 export function getProjectNameFor(root) {
     return readProjectNameWithFallback(root, "flisk-project");
 }
+/** The app and api base URLs (scheme, host, port) from FLISK_SERVICE_BASE_URL, or from the project name and ingress port. */
 export function resolveSubdomainBases(ingressPort, projectRoot) {
     const projectName = getProjectNameFor(projectRoot ?? findProjectRoot());
     const raw = process.env.FLISK_SERVICE_BASE_URL ??
@@ -88,6 +102,7 @@ export function resolveSubdomainBases(ingressPort, projectRoot) {
         };
     }
 }
+/** `/api/x` or `/api/x/` → `/api/x/health`, without doubling the slash. */
 export function appendHealthPath(path) {
     return `${path.replace(/\/+$/, "")}/health`;
 }
@@ -98,22 +113,42 @@ export function resolveServicePath(resource) {
         return "";
     if (routesAsApi(resource)) {
         const servicePathName = resource.name.replace(/-api$/, "");
-        return resource.config?.apiPath ?? `/api/${servicePathName}`;
+        const path = resource.config?.apiPath ?? `/api/${servicePathName}`;
+        return path.startsWith("/") ? path : `/${path}`;
     }
-    return resource.config?.basePath ?? `/${resource.name}`;
+    const path = resource.config?.basePath ?? `/${resource.name}`;
+    return path.startsWith("/") ? path : `/${path}`;
 }
 /**
  * The ingress URL of one service (no /health suffix), or undefined for services with no Traefik route. This is where the service
  * answers, unlike the Tilt UI port, which serves its own page for any path.
  */
-export function resolveServiceUrl(resource, ingressPort) {
-    const appType = resource.config?.appType;
-    if (appType !== "frontend" && !routesAsApi(resource) && !isWebUiBringYourOwn(resource))
+export function resolveServiceUrl(resource, ingressPort, baseDomain) {
+    if (!isRoutableService(resource))
         return undefined;
-    const base = appType === "frontend"
+    if (baseDomain) {
+        const bareDomain = baseDomain.replace(/^(app|api)\./, "");
+        const portPart = ingressPort ? `:${ingressPort}` : "";
+        if (isWebUiBringYourOwn(resource)) {
+            return `http://${resource.name}.${bareDomain}${portPart}`;
+        }
+        const isBackend = routesAsApi(resource);
+        const host = isBackend ? `api.${bareDomain}` : `app.${bareDomain}`;
+        const resolvedPath = resolveServicePath(resource);
+        const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
+        const path = isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)
+            ? withTrailingSlash(basePath)
+            : basePath;
+        return `http://${host}${portPart}${path}`;
+    }
+    const base = resource.config?.appType === "frontend"
         ? resolveSubdomainBases(ingressPort).appBase
         : resolveRouteBase(resource, ingressPort);
-    return `${base}${resolveServicePath(resource)}`;
+    const path = resolveServicePath(resource);
+    const formattedPath = isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)
+        ? withTrailingSlash(path)
+        : path;
+    return `${base}${formattedPath}`;
 }
 /**
  * Health URLs for every routable service, matching what `flisk up` prints.
@@ -132,6 +167,7 @@ export function buildAdvertisedTargets(resources, ingressPort) {
     // its health path is its own (often /), not /health.
     return routableTargets(resources, ingressPort, (path) => path, true);
 }
+/** Maps each routed service to a target whose URL is its route base plus `toPath(path)`. */
 function routableTargets(resources, ingressPort, toPath, includeBringYourOwn = false) {
     return resources
         .filter((resource) => resource.config?.appType === "frontend" ||
@@ -139,13 +175,18 @@ function routableTargets(resources, ingressPort, toPath, includeBringYourOwn = f
         (includeBringYourOwn && isRoutedBringYourOwn(resource)))
         .map((resource) => {
         const base = resolveRouteBase(resource, ingressPort);
+        const rawPath = resolveServicePath(resource);
+        const path = includeBringYourOwn && isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)
+            ? withTrailingSlash(rawPath)
+            : rawPath;
         return {
             name: resource.name,
             appType: resource.config.appType,
-            url: `${base}${toPath(resolveServicePath(resource))}`,
+            url: `${base}${toPath(path)}`,
         };
     });
 }
+/** GET one target and report its status, or why the request never completed. */
 export async function pingHealthTarget(target, timeoutMs) {
     try {
         const response = await fetch(target.url, {
@@ -169,6 +210,7 @@ export async function pingHealthTarget(target, timeoutMs) {
         return { ...target, ok: false, error };
     }
 }
+/** Probe every target in parallel. */
 export async function pingHealthTargets(targets, timeoutMs) {
     return Promise.all(targets.map((target) => pingHealthTarget(target, timeoutMs)));
 }

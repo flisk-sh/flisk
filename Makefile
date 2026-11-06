@@ -1,176 +1,72 @@
 # Makefile
-# Common development tasks
+# A thin wrapper: npm scripts in package.json are the canonical task interface, and these targets call them.
+# Run `make` or `make help` to list targets.
 
-.PHONY: help test-tilt-engine test-tilt-engine-coverage test test-ts test-python test-shell ade-score scores test-e2e test-coverage test-snapshot test-daemon test-health test-ide test-safety test-cache test-fast test-generator pre-commit-install pre-commit-run pre-commit-fast video video-build video-test video-validate video-generate video-generate-quick
+.DEFAULT_GOAL := help
+
+.PHONY: help install build lint typecheck check clean \
+        test test-ts test-python test-shell test-fast test-generator test-coverage \
+        test-tilt-engine test-tilt-engine-coverage test-e2e ade-score scores
 
 help: ## Show this help message
 	@echo "Available targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-26s\033[0m %s\n", $$1, $$2}'
 
-# Testing targets
-test-tilt-engine: ## Run tilt-engine test suite
-	@echo "🧪 Running tilt-engine tests..."
-	pytest tests/tilt-engine/ -v --tb=short
+# Build and static checks
+install: ## Install dependencies
+	npm install
 
-test-tilt-engine-coverage: ## Run tilt-engine tests with coverage report
-	@echo "🧪 Running tilt-engine tests with coverage..."
-	pytest tests/tilt-engine/ -v --cov=tests/tilt-engine --cov-report=term-missing --cov-report=html
+build: ## Build the CLI (refreshes cli/dist)
+	npm run build
 
+lint: ## Lint the CLI with Biome
+	npm run lint
+
+typecheck: ## Typecheck the CLI
+	npm run typecheck
+
+check: ## Lint and typecheck
+	npm run check
+
+clean: ## Remove CLI build output
+	npm run clean
+
+# Tests
 test: test-ts test-python test-shell ## Run TypeScript, Python and shell checks
 
 test-ts: ## Run TypeScript tests
-	@echo "🧪 Running TypeScript tests..."
 	cd cli && npm test
 
-test-python: ## Run Python tests
-	@echo "🧪 Running Python tests..."
-	pytest tests/ -v --tb=short
+test-python: ## Run Python tests (extra pytest flags: ARGS="-m snapshot")
+	pytest tests/ -v --tb=short $(ARGS)
 
-test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventory and e2e helper unit tests (no Docker/Tilt execution)
-	@echo "🧪 Checking shell verification script syntax..."
-	for script in $(wildcard scripts/verify-*.sh) tests/e2e/lib/lib.sh tests/e2e/*/*/*.sh tests/e2e/resource-types/common.sh; do bash -n "$$script" || exit 1; done
-	node tests/e2e/lib/validate-suites.mjs
-	bash tests/e2e/static/skills-and-docs.sh >/dev/null
-	node --test scripts/docs/tabs.test.mjs
-	node --test scripts/docs/fit.test.mjs
-	node --test scripts/docs/llms-demo-links.test.mjs
-	node --test scripts/sync-llms-demos.test.mjs
-	node --test scripts/agent-plugin.test.mjs
-	node --test scripts/windows/setup-wsl.test.mjs
-	node scripts/check-ci-inventory.mjs
-	node --test scripts/check-ci-inventory.test.mjs
-	node --test scripts/check-ruleset-snapshots.test.mjs
-	node --test scripts/check-test-helper-allowlist.test.mjs
-	node --test cli/scripts/pin-module-location.test.mjs
-	node --test scripts/check-published-service-schema.test.mjs
-	node --test scripts/pilot-scorecard.test.mjs
-	node --test scripts/package-lifecycle-smoke.test.mjs
-	node --test scripts/wsl2-demo.test.mjs
-	node --test scripts/wsl2-smoke.test.mjs
-	node --test scripts/install-git-hooks.test.mjs
-	node --test scripts/setup-pre-commit.test.mjs
-	node --test scripts/cold-boot-notes.test.mjs
-	node --test scripts/release-binaries.test.mjs
-	node --test scripts/release-tag-target.test.mjs
-	node --test scripts/umux-lite-score.test.mjs
-	node --test scripts/ade-score.test.mjs
-	node --test 'scripts/scores/*.test.mjs'
-	node scripts/scores/run.mjs --check
-	node --test scripts/autoresearch/layer-eval.test.mjs
-	node --test scripts/e2e-gate-expectations.test.mjs
-	node --test scripts/wait-for-e2e-gates.test.mjs
-	node --test scripts/cancel-dead-queue-runs.test.mjs
-	node --test scripts/wait-for-npm-version.test.mjs
-	node --test scripts/npm-downloads-graph.test.mjs
-	node --test scripts/install-global.test.mjs
-	node tests/e2e/lib/check-axes.mjs
-	node --test tests/e2e/journeys/night-city/project/lib/pg.test.mjs
-	node --test tests/oracle/__tests__/*.test.mjs
-	node --test tests/falsifier/__tests__/*.test.mjs
-	node --test scripts/red-job-tracker.test.mjs
-	node --test scripts/report-post-merge-failures.test.mjs
-	node --test scripts/security-alert-issues.test.mjs
-	node --test scripts/competitor-gap-issues.test.mjs
-	node --test scripts/competitor-matrix.test.mjs
-	node scripts/competitor-matrix.mjs --check
-	node --test scripts/ci-report.test.mjs
-	node --test scripts/test-summary.test.mjs
-	node --test scripts/sync-byo-templates.test.mjs
-	node --test scripts/journey-map.test.mjs
-	node --test scripts/sync-flisk-skills.test.mjs
-	node --test scripts/audit-codebase.test.mjs
-	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
-	node --test scripts/ai-conflict-buttons-comment.test.mjs
-	node --test scripts/hacktoberfest-embed.test.mjs
-	node --test scripts/demo-svgs.test.mjs
-	node --test scripts/ai-conflict-buttons.test.mjs
-	node --test scripts/ai-review-buttons.test.mjs
-	node --test scripts/ai-spec-buttons.test.mjs
-	node --test 'scripts/benchmark/**/*.test.mjs'
-	node --test scripts/check-cli-dist.test.mjs
-	node --test scripts/check-npm-package.test.mjs
-	node --test scripts/check-pr-review-readiness.test.mjs
-	node --test scripts/check-release-candidate.test.mjs
-	node --test scripts/coverage-badge.test.mjs
-	node --test scripts/stage-npm-engine.test.mjs
+test-shell: ## Shell syntax, static repo checks and every Node *.test.mjs (npm run check:shell, check:static, test:scripts); no Docker/Tilt
+	npm run check:shell
+	npm run check:static
+	npm run test:scripts
 
-ade-score: ## Print the deterministic ADE score (no AI, files only); add ARGS="--markdown" or ARGS="--json"
-	node scripts/ade-score.mjs $(ARGS)
+test-fast: ## Run fast Python unit tests only (what the pre-commit hook runs)
+	pytest -m fast --no-cov -q
 
-scores: ## Print the scoreboard of scripts/scores/ (files scorers); ARGS="--source all" adds GitHub data, "--markdown"/"--json" change the format
-	node scripts/scores/run.mjs $(ARGS)
+test-generator: ## Run generator bug tests only
+	pytest -m generator -v --no-cov
+
+test-coverage: ## Run all Python tests with coverage
+	pytest tests/ -v --cov --cov-report=term-missing --cov-report=html
+
+test-tilt-engine: ## Run the tilt-engine Python tests
+	pytest tests/tilt-engine/ -v --tb=short
+
+test-tilt-engine-coverage: ## Run the tilt-engine tests with a coverage report
+	pytest tests/tilt-engine/ -v --cov=tests/tilt-engine --cov-report=term-missing --cov-report=html
 
 test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, flisk)
 	@test -n "$(GROUP)" -a -n "$(SUITE)" || { echo "usage: make test-e2e GROUP=<group> SUITE=<suite> [CASES=\"<case> ...\"]"; ls tests/e2e/*/*/suite.json | sed 's#tests/e2e/##; s#/suite.json##'; exit 2; }
 	tests/e2e/$(GROUP)/$(SUITE)/run.sh $(if $(CASES),$(CASES),all)
 
-test-coverage: ## Run all tests with coverage
-	@echo "🧪 Running all tests with coverage..."
-	pytest tests/ -v --cov --cov-report=term-missing --cov-report=html
+# Scores
+ade-score: ## Print the deterministic ADE score (no AI, files only); add ARGS="--markdown" or ARGS="--json"
+	node scripts/ade-score.mjs $(ARGS)
 
-# Test categories
-test-snapshot: ## Run snapshot tests only
-	pytest tests/tilt-engine/test_snapshot_*.py -v -m snapshot
-
-test-daemon: ## Run daemon tests only
-	pytest tests/tilt-engine/test_daemon_*.py -v -m daemon
-
-test-health: ## Run health check tests only
-	pytest tests/tilt-engine/test_health_*.py -v -m health
-
-test-ide: ## Run IDE component tests only
-	pytest tests/tilt-engine/test_*.py -v -m ide
-
-test-safety: ## Run safety guard tests only
-	pytest tests/tilt-engine/test_*prune*.py tests/tilt-engine/test_*alias*.py -v -m safety
-
-test-cache: ## Run registry cache tests only
-	pytest tests/tilt-engine/test_cache_*.py -v -m cache
-
-# Fast tests (for pre-commit)
-test-fast: ## Run fast unit tests only (no external deps)
-	@echo "⚡ Running fast tests..."
-	pytest -m fast --no-cov -q
-
-test-generator: ## Run generator bug tests only
-	@echo "🔧 Running generator tests..."
-	pytest -m generator -v --no-cov
-
-# Pre-commit hooks
-pre-commit-install: ## Install pre-commit hooks
-	@echo "🔧 Installing pre-commit hooks..."
-	pip install pre-commit
-	pre-commit install
-
-pre-commit-run: ## Run pre-commit hooks on all files
-	@echo "🔍 Running pre-commit hooks..."
-	pre-commit run --all-files
-
-pre-commit-fast: ## Run only fast tests (pre-commit style)
-	@echo "⚡ Running fast pre-commit tests..."
-	pytest -m fast --no-cov -q
-
-# Video Generator targets
-video: ## Show video generator help
-	@cd video-generator && swift run flisk-video help
-
-video-build: ## Build the video generator
-	@echo "🔨 Building video generator..."
-	cd video-generator && swift build
-
-video-test: ## Run video generator tests
-	@echo "🧪 Running video generator tests..."
-	cd video-generator && swift test
-
-video-validate: ## Validate video generator system setup
-	@echo "🔍 Validating video generator setup..."
-	cd video-generator && swift run flisk-video validate
-
-video-generate: ## Generate the Flisk CLI tutorial video (requires FFmpeg)
-	@echo "🎬 Generating Flisk CLI tutorial video..."
-	@echo "   This will create FLISK_Tutorial_1440p.mp4 (20 min, 2K)"
-	cd video-generator && swift run flisk-video generate
-
-video-generate-quick: ## Generate 1080p test video (faster)
-	@echo "🎬 Generating 1080p test video..."
-	cd video-generator && swift run flisk-video generate -o FLISK_Tutorial_Test_1080p.mp4
+scores: ## Print the scoreboard of scripts/scores/ (files scorers); ARGS="--source all" adds GitHub data, "--markdown"/"--json" change the format
+	node scripts/scores/run.mjs $(ARGS)
