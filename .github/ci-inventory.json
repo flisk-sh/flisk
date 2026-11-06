@@ -568,6 +568,14 @@
 		},
 		{
 			"workflow": "release-binaries.yml",
+			"job": "publish-mcp-registry",
+			"tier": "release",
+			"required": false,
+			"reason": "Lists the published npm version in the MCP Registry, off the release's critical path",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
 			"job": "windows-binary",
 			"tier": "e2e",
 			"required": false,

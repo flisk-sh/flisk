@@ -98,7 +98,7 @@ Use this when a new family of tests (for example `packaging` or `failure-recover
 1. Create `tests/e2e/<group>/` and one folder per suite, as above. Use the group name the table in [write an e2e test](05-write-e2e.md#pick-the-group) gives, or add a row there in the same change.
 2. Copy `.github/workflows/e2e-resource-types.yml` to `.github/workflows/<group>-e2e.yml`. Change the name, the `paths` filter, the `concurrency` group, and the `suite-matrix.mjs` group argument in the `plan` job. Keep the `plan` job, `fail-fast: false`, and the `gate` job.
 3. Add a `gate` job that always runs and fails when the plan or any leg failed. This is the one check to make required in branch protection, so a skipped matrix cannot pass unnoticed.
-4. Set `max-parallel` to a number the runner pool can handle (the resource-types group uses 4; the release candidate uses 10, because its 28 short legs at 4 at a time take 7 waves).
+4. Set `max-parallel` to a number the runner pool can handle (the resource-types group uses 4; the release candidate uses 15, because its 30 short legs at 10 at a time took 3 waves and 10 minutes).
 5. Upload failure evidence from each leg with the same `if: failure()` step that `e2e-resource-types.yml` uses.
 
 ## The group gates and the CI summary

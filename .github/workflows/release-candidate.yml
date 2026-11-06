@@ -181,9 +181,10 @@ jobs:
     timeout-minutes: ${{ matrix.timeoutMinutes }}
     strategy:
       fail-fast: false
-      # The legs are short (about 80 s each) and independent, so the cap sets the wall time: 28 legs at 4 at a time is 7 waves.
-      # 10 leaves room in the shared runner pool (about 20 concurrent jobs) for the other workflows.
-      max-parallel: 10
+      # The legs are short (about 95 s each) and independent, so the cap sets the wall time: at 10, the 30 legs of 1.4.38 ran in
+      # about 3 waves and the candidate took 10 minutes, the longest wait in a release. 15 runs them in 2 waves (about 5 minutes)
+      # and still leaves 5 of the shared pool's 20 concurrent jobs for the release build and other workflows during that window.
+      max-parallel: 15
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
