@@ -3,7 +3,8 @@
 # against three pinned external adopter repositories on clean GitHub-hosted runners.
 #
 # Pinned repositories:
-# - biolend83/tubehaus@749379107361318e04ec162f7419f30afef93895
+# - biolend83/tubehaus@4982153e8de9144b89433245f3e8adf9fe028db1 (the last commit before upstream added its own
+#   services/tubehaus/ Flisk files; a later pin makes `flisk import` write a second copy under services/adopter/)
 # - dilolabs/nosia@42796ffb30b48b5aeece234383b71e3d51badc7e
 # - LycheeOrg/Lychee@7145b37ff66ea7990cc9b8dbbf779ba1d34c0b64
 name: 🌙 NIGHTLY | E2E | Real adopter repositories
@@ -37,18 +38,37 @@ jobs:
           - name: Tubehaus
             owner: biolend83
             repo: tubehaus
-            commit: 749379107361318e04ec162f7419f30afef93895
+            commit: 4982153e8de9144b89433245f3e8adf9fe028db1
             health_check: "http://127.0.0.1:8080"
             needs_env: true
             env_file: |
-              PORT=8080
-              TUBEHAUS_BIND=127.0.0.1
+              TUBEHAUS_SITE=:80
+              TUBEHAUS_URL=http://127.0.0.1:8080
+              TUBEHAUS_DOMAIN=127.0.0.1
+              TUBEHAUS_HTTPS=false
+              TUBEHAUS_EXTERNAL_PORT=8080
+              TUBEHAUS_HTTP_BIND=127.0.0.1:8080
+              TUBEHAUS_HTTPS_BIND=127.0.0.1:8443
+              COMPANION_KEY=ci-companion-key
+              INVIDIOUS_HMAC_KEY=ci-hmac-key-not-a-secret
+              POSTGRES_PASSWORD=ci-postgres-not-a-secret
           - name: Nosia
             owner: dilolabs
             repo: nosia
             commit: 42796ffb30b48b5aeece234383b71e3d51badc7e
-            health_check: "http://127.0.0.1:3000"
-            needs_env: false
+            health_check: "http://127.0.0.1:80"
+            needs_env: true
+            env_file: |
+              NOSIA_URL=http://localhost
+              POSTGRES_DB=nosia
+              POSTGRES_USER=nosia
+              POSTGRES_PASSWORD=ci-postgres-not-a-secret
+              DATABASE_URL=postgres://nosia:ci-postgres-not-a-secret@postgres-db:5432/nosia
+              SECRET_KEY_BASE=ci-secret-key-base-not-a-secret-0123456789abcdef0123456789abcdef0123456789abcdef
+              ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=ci-primary-key-not-a-secret
+              ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=ci-deterministic-key-not-a-secret
+              ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=ci-salt-not-a-secret
+              EMBEDDING_DIMENSIONS=768
           - name: Lychee
             owner: LycheeOrg
             repo: Lychee
@@ -57,6 +77,7 @@ jobs:
             needs_env: true
             env_file: |
               APP_ENV=production
+              APP_KEY=base64:Y2ktYXBwLWtleS1ub3QtYS1zZWNyZXQtMDEyMzQ1Njc=
               DB_CONNECTION=sqlite
     steps:
       - name: Checkout Flisk
