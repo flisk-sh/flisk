@@ -18,7 +18,6 @@ import {
   withTrailingSlash,
 } from "../service-urls.js";
 
-
 describe("withTrailingSlash", () => {
   it("appends a trailing slash when missing", () => {
     expect(withTrailingSlash("/api/vote")).toBe("/api/vote/");
@@ -285,19 +284,22 @@ describe("resolveServiceUrl", () => {
     ).toBeUndefined();
   });
 
-
   it("resolves URLs with an explicit baseDomain for flisk networks", () => {
     expect(
       resolveServiceUrl(makeResource("web", "frontend", { basePath: "/ui" }), 80, "acme.localhost"),
     ).toBe("http://app.acme.localhost:80/ui");
+    expect(resolveServiceUrl(makeResource("orders-api", "backend"), 80, "acme.localhost")).toBe(
+      "http://api.acme.localhost:80/api/orders",
+    );
+    expect(resolveServiceUrl(makeResource("vote", "bring-your-own"), 80, "localhost")).toBe(
+      "http://api.localhost:80/api/vote/",
+    );
     expect(
-      resolveServiceUrl(makeResource("orders-api", "backend"), 80, "acme.localhost"),
-    ).toBe("http://api.acme.localhost:80/api/orders");
-    expect(
-      resolveServiceUrl(makeResource("vote", "bring-your-own"), 80, "localhost"),
-    ).toBe("http://api.localhost:80/api/vote/");
-    expect(
-      resolveServiceUrl(makeResource("web", "bring-your-own", { webUi: true }), 80, "acme.localhost"),
+      resolveServiceUrl(
+        makeResource("web", "bring-your-own", { webUi: true }),
+        80,
+        "acme.localhost",
+      ),
     ).toBe("http://web.acme.localhost:80");
   });
 

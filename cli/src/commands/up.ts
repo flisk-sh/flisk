@@ -1153,9 +1153,7 @@ export const upCommand = new Command("up")
               const path = withTrailingSlash(resolveServicePath(svc));
               const prefix = url ? url.slice(0, -path.length) : apiBase;
               console.log(
-                chalk.gray(
-                  `  - ${svc.name}: ${prefix}${chalk.cyan(path)}${deferredTag}`,
-                ),
+                chalk.gray(`  - ${svc.name}: ${prefix}${chalk.cyan(path)}${deferredTag}`),
               );
             } else {
               const servicePathName = svc.name.replace(/-api$/, "");

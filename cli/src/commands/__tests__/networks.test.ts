@@ -351,7 +351,6 @@ describe("networksCommand and helpers", () => {
       expect(output).toContain("http://dashboard.localhost:80");
     });
 
-
     it("renders two networks across stacks with running and stopped statuses and custom domain tip", async () => {
       setupProject("flisk-project", [
         { name: "web", appType: "frontend", stack: "shop", port: 5173, basePath: "/" },

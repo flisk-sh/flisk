@@ -251,27 +251,25 @@ export const networksCommand = new Command("networks")
       const baseDomain = determineDefaultDomain();
       const services = discovery.resources;
       const servicesWithUrls: ServiceUrl[] = await Promise.all(
-        services
-          .filter(isRoutableService)
-          .map(async (s) => {
-            const url = resolveServiceUrl(s, httpPort, baseDomain) ?? "";
-            const resolvedPath = resolveServicePath(s);
-            const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
-            const port = s.config?.port;
-            const status = await checkServiceStatus(s.name, port, url);
+        services.filter(isRoutableService).map(async (s) => {
+          const url = resolveServiceUrl(s, httpPort, baseDomain) ?? "";
+          const resolvedPath = resolveServicePath(s);
+          const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
+          const port = s.config?.port;
+          const status = await checkServiceStatus(s.name, port, url);
 
-            return {
-              name: s.name,
-              stack: s.stack,
-              basePath,
-              url,
-              ...(process.platform === "win32"
-                ? { loopbackUrl: `http://127.0.0.1:${httpPort}${basePath}`.replace(/\/$/, "") }
-                : {}),
-              port,
-              status,
-            };
-          }),
+          return {
+            name: s.name,
+            stack: s.stack,
+            basePath,
+            url,
+            ...(process.platform === "win32"
+              ? { loopbackUrl: `http://127.0.0.1:${httpPort}${basePath}`.replace(/\/$/, "") }
+              : {}),
+            port,
+            status,
+          };
+        }),
       );
 
       const filteredServices = options.stack

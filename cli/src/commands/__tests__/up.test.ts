@@ -11,18 +11,18 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stripVTControlCharacters } from "node:util";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ProjectConfigNotFoundError,
   verifyMasterConfigs,
 } from "../../generator/template-engine.js";
-import { getHostPortPlan } from "../../utils/host-port-config.js";
-import { discoverResourcesStrict } from "../../utils/services.js";
 import { captureExit, makeResource } from "../../test-support/index.js";
 import { PROJECT_ENV_FILE_VAR } from "../../utils/env-selection.js";
 import { requireProjectRoot } from "../../utils/errors.js";
+import { getHostPortPlan } from "../../utils/host-port-config.js";
 import { findProjectRoot } from "../../utils/paths.js";
+import { discoverResourcesStrict } from "../../utils/services.js";
 import { runTilt } from "../../utils/tilt.js";
 import { classifyTiltPorts } from "../../utils/tilt-port-owner.js";
 import { findTiltProcessIdsOnPort, stopTiltOnPort } from "../../utils/tilt-process.js";
@@ -1101,7 +1101,6 @@ describe("flisk up --env-file", () => {
   });
 });
 
-
 describe("flisk up startup URL list with bring-your-own services only (#3203)", () => {
   beforeEach(() => {
     vi.stubEnv("FLISK_ALLOW_NATIVE_WINDOWS", "1");
@@ -1122,9 +1121,17 @@ describe("flisk up startup URL list with bring-your-own services only (#3203)", 
     } as unknown as Awaited<ReturnType<typeof getHostPortPlan>>);
     vi.mocked(discoverResourcesStrict).mockReturnValueOnce([
       makeResource("vote", "bring-your-own", { schemaVersion: 1, port: 80 }),
-      makeResource("results", "bring-your-own", { schemaVersion: 1, port: 5001, apiPath: "/results" }),
+      makeResource("results", "bring-your-own", {
+        schemaVersion: 1,
+        port: 5001,
+        apiPath: "/results",
+      }),
       makeResource("web", "bring-your-own", { schemaVersion: 1, port: 3000, webUi: true }),
-      makeResource("redis", "bring-your-own", { schemaVersion: 1, port: 6379, exposeViaProxy: false }),
+      makeResource("redis", "bring-your-own", {
+        schemaVersion: 1,
+        port: 6379,
+        exposeViaProxy: false,
+      }),
     ]);
 
     const lines: string[] = [];

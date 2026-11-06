@@ -190,9 +190,7 @@ export const networksCommand = new Command("networks")
         const httpPort = hostPortPlan.ingressHttp;
         const baseDomain = determineDefaultDomain();
         const services = discovery.resources;
-        const servicesWithUrls = await Promise.all(services
-            .filter(isRoutableService)
-            .map(async (s) => {
+        const servicesWithUrls = await Promise.all(services.filter(isRoutableService).map(async (s) => {
             const url = resolveServiceUrl(s, httpPort, baseDomain) ?? "";
             const resolvedPath = resolveServicePath(s);
             const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
