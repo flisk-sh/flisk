@@ -23,6 +23,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
 import {
   isRoutableService,
+  isWebUiBringYourOwn,
   resolveServicePath,
   resolveServiceUrl,
   withTrailingSlash,
@@ -117,6 +118,16 @@ export function determineDefaultDomain(): string {
     ];
     return !servicePatterns.some((pattern) => pattern.test(domain));
   });
+
+  // `<label>.<project>.localhost` hosts other than app./api. (the dashboard's, a web UI's) carry a service label in front of the
+  // project domain, which would be doubled when a service name is prefixed to it. Drop them when an app./api. host names the project.
+  const isGatewayHost = (domain: string): boolean => /^(app|api)\.[\w-]+\.localhost$/.test(domain);
+  if (projectDomains.some(isGatewayHost)) {
+    for (let i = projectDomains.length - 1; i >= 0; i--) {
+      const domain = projectDomains[i] as string;
+      if (!isGatewayHost(domain) && domain.split(".").length > 2) projectDomains.splice(i, 1);
+    }
+  }
 
   // Prefer project-level domains (shorter, simpler ones)
   if (projectDomains.length > 0) {
@@ -248,7 +259,8 @@ export const networksCommand = new Command("networks")
       const hostPortPlan = savedPlan ?? (await createHostPortPlan());
       const httpPort = hostPortPlan.ingressHttp;
 
-      const baseDomain = determineDefaultDomain();
+      // FLISK_SERVICE_BASE_URL sets the scheme, host and port `flisk up` prints; follow it so both commands agree.
+      const baseDomain = process.env.FLISK_SERVICE_BASE_URL ? undefined : determineDefaultDomain();
       const services = discovery.resources;
       const servicesWithUrls: ServiceUrl[] = await Promise.all(
         services.filter(isRoutableService).map(async (s) => {
@@ -263,7 +275,8 @@ export const networksCommand = new Command("networks")
             stack: s.stack,
             basePath,
             url,
-            ...(process.platform === "win32"
+            // A web UI is routed by Host header, so an IP URL would never reach its router.
+            ...(process.platform === "win32" && !isWebUiBringYourOwn(s)
               ? { loopbackUrl: `http://127.0.0.1:${httpPort}${basePath}`.replace(/\/$/, "") }
               : {}),
             port,

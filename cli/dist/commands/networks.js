@@ -13,7 +13,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
-import { isRoutableService, resolveServicePath, resolveServiceUrl, withTrailingSlash, } from "../utils/service-urls.js";
+import { isRoutableService, isWebUiBringYourOwn, resolveServicePath, resolveServiceUrl, withTrailingSlash, } from "../utils/service-urls.js";
 import { stackExists } from "../utils/services.js";
 import { isValidPort, sanitizeForShell } from "../utils/validation.js";
 import { findOnPath } from "../utils/which.js";
@@ -85,6 +85,16 @@ export function determineDefaultDomain() {
         ];
         return !servicePatterns.some((pattern) => pattern.test(domain));
     });
+    // `<label>.<project>.localhost` hosts other than app./api. (the dashboard's, a web UI's) carry a service label in front of the
+    // project domain, which would be doubled when a service name is prefixed to it. Drop them when an app./api. host names the project.
+    const isGatewayHost = (domain) => /^(app|api)\.[\w-]+\.localhost$/.test(domain);
+    if (projectDomains.some(isGatewayHost)) {
+        for (let i = projectDomains.length - 1; i >= 0; i--) {
+            const domain = projectDomains[i];
+            if (!isGatewayHost(domain) && domain.split(".").length > 2)
+                projectDomains.splice(i, 1);
+        }
+    }
     // Prefer project-level domains (shorter, simpler ones)
     if (projectDomains.length > 0) {
         // Sort by length - shortest is likely the project domain
@@ -188,7 +198,8 @@ export const networksCommand = new Command("networks")
         const savedPlan = readSavedHostPortPlan(projectRoot);
         const hostPortPlan = savedPlan ?? (await createHostPortPlan());
         const httpPort = hostPortPlan.ingressHttp;
-        const baseDomain = determineDefaultDomain();
+        // FLISK_SERVICE_BASE_URL sets the scheme, host and port `flisk up` prints; follow it so both commands agree.
+        const baseDomain = process.env.FLISK_SERVICE_BASE_URL ? undefined : determineDefaultDomain();
         const services = discovery.resources;
         const servicesWithUrls = await Promise.all(services.filter(isRoutableService).map(async (s) => {
             const url = resolveServiceUrl(s, httpPort, baseDomain) ?? "";
@@ -201,7 +212,8 @@ export const networksCommand = new Command("networks")
                 stack: s.stack,
                 basePath,
                 url,
-                ...(process.platform === "win32"
+                // A web UI is routed by Host header, so an IP URL would never reach its router.
+                ...(process.platform === "win32" && !isWebUiBringYourOwn(s)
                     ? { loopbackUrl: `http://127.0.0.1:${httpPort}${basePath}`.replace(/\/$/, "") }
                     : {}),
                 port,

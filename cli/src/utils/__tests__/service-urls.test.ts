@@ -226,6 +226,15 @@ describe("resolveServicePath", () => {
     );
   });
 
+  it("adds the leading slash to an apiPath or basePath without one", () => {
+    expect(resolveServicePath(makeResource("menu-api", "backend", { apiPath: "api/custom" }))).toBe(
+      "/api/custom",
+    );
+    expect(
+      resolveServicePath(makeResource("floor-app", "frontend", { basePath: "dashboard" })),
+    ).toBe("/dashboard");
+  });
+
   it("falls back to the service name for frontends", () => {
     expect(resolveServicePath(makeResource("floor-app", "frontend"))).toBe("/floor-app");
   });

@@ -37,7 +37,7 @@ import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/prof
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
-import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServicePath, resolveServiceUrl, resolveSubdomainBases, routesAsApi, withTrailingSlash, } from "../utils/service-urls.js";
+import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServiceUrl, resolveSubdomainBases, routesAsApi, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
@@ -843,9 +843,7 @@ export const upCommand = new Command("up")
                         : "";
                     if (isRoutedBringYourOwn(svc)) {
                         const url = resolveServiceUrl(svc, hostPortPlan.ingressHttp);
-                        const path = withTrailingSlash(resolveServicePath(svc));
-                        const prefix = url ? url.slice(0, -path.length) : apiBase;
-                        console.log(chalk.gray(`  - ${svc.name}: ${prefix}${chalk.cyan(path)}${deferredTag}`));
+                        console.log(chalk.gray(`  - ${svc.name}: ${chalk.cyan(url)}${deferredTag}`));
                     }
                     else {
                         const servicePathName = svc.name.replace(/-api$/, "");

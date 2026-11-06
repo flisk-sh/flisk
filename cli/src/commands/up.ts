@@ -100,11 +100,9 @@ import {
   isRoutableService,
   isRoutedBringYourOwn,
   isWebUiBringYourOwn,
-  resolveServicePath,
   resolveServiceUrl,
   resolveSubdomainBases,
   routesAsApi,
-  withTrailingSlash,
 } from "../utils/service-urls.js";
 import {
   type discoverResources,
@@ -1150,11 +1148,7 @@ export const upCommand = new Command("up")
                 : "";
             if (isRoutedBringYourOwn(svc)) {
               const url = resolveServiceUrl(svc, hostPortPlan.ingressHttp);
-              const path = withTrailingSlash(resolveServicePath(svc));
-              const prefix = url ? url.slice(0, -path.length) : apiBase;
-              console.log(
-                chalk.gray(`  - ${svc.name}: ${prefix}${chalk.cyan(path)}${deferredTag}`),
-              );
+              console.log(chalk.gray(`  - ${svc.name}: ${chalk.cyan(url)}${deferredTag}`));
             } else {
               const servicePathName = svc.name.replace(/-api$/, "");
               const apiPath = svc.config?.apiPath ?? `/api/${servicePathName}`;
