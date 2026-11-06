@@ -49,7 +49,7 @@ jobs:
               TUBEHAUS_EXTERNAL_PORT=8080
               TUBEHAUS_HTTP_BIND=127.0.0.1:8080
               TUBEHAUS_HTTPS_BIND=127.0.0.1:8443
-              COMPANION_KEY=ci-companion-key
+              COMPANION_KEY=cicompanionkey00
               INVIDIOUS_HMAC_KEY=ci-hmac-key-not-a-secret
               POSTGRES_PASSWORD=ci-postgres-not-a-secret
               INVIDIOUS_CONFIG='{db: {dbname: invidious, user: kemal, password: ci-postgres-not-a-secret, host: invidious-db, port: 5432}, check_tables: true, domain: 127.0.0.1, https_only: false, external_port: 8080, hmac_key: ci-hmac-key-not-a-secret}'
@@ -91,6 +91,7 @@ jobs:
             needs_env: true
             env_file: |
               APP_ENV=production
+              AI_VISION_API_KEY=ci-vision-key-not-a-secret
               APP_KEY=base64:Y2ktYXBwLWtleS1ub3QtYS1zZWNyZXQtMDEyMzQ1Njc=
     steps:
       - name: Checkout Flisk
