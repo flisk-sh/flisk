@@ -134,6 +134,28 @@ Step 'Replay failing resources' {
   }
 }
 
+# provision-db replay (run 42193518707): createdb printed nothing yet the database never appeared. Ask Postgres directly.
+Step 'Postgres probe' {
+  $envFile = Join-Path $Out 'replay\provision-db-guest.env.json'
+  if (-not (Test-Path -LiteralPath $envFile)) { return }
+  $v = Get-Content -Raw -LiteralPath $envFile | ConvertFrom-Json
+  $pg = $v.FLISK_DB_HOST; $pu = $v.FLISK_DB_USER
+  $o = Join-Path $Out 'pg-probe.txt'
+  ('host=' + $pg + ' user=' + $pu) | Out-File -FilePath $o -Encoding utf8
+  $q = [char]39
+  $steps = @(
+    @('databases', ('docker exec ' + $pg + ' psql -U ' + $pu + ' -d postgres -tAc "SELECT datname FROM pg_database ORDER BY 1"')),
+    @('roles', ('docker exec ' + $pg + ' psql -U ' + $pu + ' -d postgres -tAc "SELECT rolname, rolcreatedb FROM pg_roles ORDER BY 1"')),
+    @('createdb diag_probe_db', ('docker exec ' + $pg + ' createdb -U ' + $pu + ' -O ' + $pu + ' diag_probe_db')),
+    @('exists diag_probe_db', ('docker exec ' + $pg + ' psql -U ' + $pu + ' -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = ' + $q + 'diag_probe_db' + $q + '"')),
+    @('drop diag_probe_db', ('docker exec ' + $pg + ' dropdb -U ' + $pu + ' --if-exists diag_probe_db'))
+  )
+  foreach ($st in $steps) {
+    ('--- ' + $st[0]) | Out-File -FilePath $o -Append -Encoding utf8
+    cmd /c ($st[1] + ' >> "' + $o + '" 2>&1')
+  }
+}
+
 # Always collect what the engine and Flisk say, so a failed run names the failing resource (run 42069367765 showed only
 # "Resources failed (traefik: ...)" with the command cut off).
 Step 'Diagnostics' {
