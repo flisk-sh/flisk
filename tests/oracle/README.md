@@ -89,7 +89,8 @@ Failures use the shared bug-memory shape (the vault fixture adds `scenario` and 
 
 - Known gap [#3243](https://github.com/flisk-sh/flisk/issues/3243), found by ORACLE: `flisk export render` refuses a python, go or rust
   backend that `flisk resource` just scaffolded (no Dockerfile until `flisk up`). `render-exports-http-resources` tolerates that
-  one message, only for the resource the error names and only when that resource is a python, go or rust backend; delete the exemption when the issue is fixed.
+  one message (it tags the failure `knownGap: "#3243"`), only for the resource the error names and only when that resource is a
+  python, go or rust backend. The vault fixture `render-exports-http-resources-3243.json` says when the issue is fixed.
 - A dangling `dependsOn` name: `flisk up` warns and ignores it (`up --dry-run` exits 0), while `config verify` reports it as an
   error (`valid: false`). The two agree on the name, so ORACLE passes it; whether the severities should match is a product
   decision.
@@ -98,18 +99,32 @@ Failures use the shared bug-memory shape (the vault fixture adds `scenario` and 
 ## Regression vault (`regressions/`, `lib/vault.mjs`)
 
 Every contradiction ORACLE finds becomes a fixture, so no bug is found twice and no fixed bug comes back unnoticed. With `--out`,
-a sweep writes one fixture per failure to `<out>/regressions/`; `--minimize` first drops each resource the contradiction does
-not need (greedy, one resource at a time, kept only while the same invariant fails with the same symptom). Copy the fixture into
-`tests/oracle/regressions/`, link the issue, and commit it.
+a sweep writes one fixture per failure to `<out>/regressions/`. `--minimize` first drops each resource the contradiction does
+not need: one resource at a time, kept only while the same invariant fails with the same symptom, in repeated passes until a
+pass removes nothing, within a budget of 40 replays. The fixture records the failure as the minimized scenario shows it. Copy
+the fixture into `tests/oracle/regressions/`, link the issue, and commit it.
 
 A fixture carries its own scenario, so it replays without the seed draw and keeps replaying after `scenario.mjs` changes.
-`__tests__/regressions.test.mjs` replays each one against the built CLI, **strict** (known-gap exemptions off):
+`__tests__/regressions.test.mjs` replays each one against the built CLI, **strict**:
 
-- `"status": "open"`: the contradiction must still fail with the same symptom (digits ignored). When it stops failing, the test
-  says to set `"fixed"` and delete the exemption the fixture names.
+- `"status": "open"`: the contradiction must still fail with the same `expected` and `actual` sides. When it stops failing, the
+  test says to set `"fixed"` (and to drop the known-gap tag, if the fixture has `known_gap`).
 - `"status": "fixed"`: the invariant must hold, forever.
 
-`render-exports-http-resources-3243.json` is the first one: the open #3243 gap, reduced to one python backend.
+**Same defect.** Only volatile fields are folded before comparing: `localhost:<port>`-style addresses, temp paths and ORACLE's
+`oracle-<seed>-<id>` project names. Exit codes, counts and every other number stay, so `exited 1` and `exited 2` are different
+defects.
+
+**Known gaps.** An invariant that meets a bug with an open issue returns its failure tagged `knownGap: "#1234"` (the last
+argument of `fail`). The nightly sweep leaves tagged failures out; a strict replay keeps them. To track a new known gap, tag the
+failure and save a fixture with `known_gap` and `"status": "open"`; there is no per-gap switch.
+
+**Schema (v1).** `validateFixture` checks every fixture when it loads: `schema_version` 1, `engine` ORACLE, a known
+`invariant`, `status` open or fixed, an integer `seed`, a short sha (or `unknown`) as `commit`, non-empty `expected` and
+`actual`, and a scenario whose resources have valid names, known kinds, a stack and args. `issue` (a GitHub issue URL) and
+`known_gap` (`#1234`) are optional.
+
+`render-exports-http-resources-3243.json` is the first fixture: the open #3243 gap, reduced to one python backend.
 
 ## CI
 

@@ -39,9 +39,9 @@ function main(argv) {
 		all.push(...failures);
 		if (out) {
 			for (const f of failures) {
-				const small = argv.includes("--minimize") ? minimizeScenario(scenario, f) : scenario;
+				const { scenario: small, failure: seen } = argv.includes("--minimize") ? minimizeScenario(scenario, f) : { scenario, failure: f };
 				if (small !== scenario) console.log(`    minimized: ${scenario.resources.length} -> ${small.resources.length} resources`);
-				fixtures.push(toRegression(f, small, { minimizedFrom: small !== scenario ? scenario.resources.length : undefined }));
+				fixtures.push(toRegression(seen, small, { minimizedFrom: small !== scenario ? scenario.resources.length : undefined }));
 			}
 		}
 	}
