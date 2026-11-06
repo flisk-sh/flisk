@@ -117,8 +117,6 @@ node scripts/oracle-regression-candidates.mjs --candidates /tmp/oracle/regressio
 
 In the PR, check the contradiction is a real defect (if not, fix the invariant and close the PR), add the `issue` URL, and
 merge.
-pass removes nothing, within a budget of 40 replays. The fixture records the failure as the minimized scenario shows it. Copy
-the fixture into `tests/oracle/regressions/`, link the issue, and commit it.
 
 A fixture carries its own scenario, so it replays without the seed draw and keeps replaying after `scenario.mjs` changes.
 `__tests__/regressions.test.mjs` replays each one against the built CLI, **strict**:
