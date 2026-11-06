@@ -2,7 +2,9 @@
 # config verify, the generated .env and the exported Compose file contradict each other about one project. No Docker, no Tilt
 # stack: it only reads files and --json output. Each run prints its first seed; a failure replays with
 # `node tests/oracle/run.mjs --seed <n> --shape <shape>`. Each contradiction is minimized and uploaded as a regression-vault fixture
-# (tests/oracle/regressions/). Nightly and manual only; the unit tests and the vault replay run in CI | Checks.
+# (tests/oracle/regressions/). When there are fixtures, the candidates job replays each once more, drops flaky ones and those
+# the vault (or an open candidate PR) already has, and opens one draft PR adding the rest as "open", for a human to review.
+# Nightly and manual only; the unit tests and the vault replay run in CI | Checks.
 name: 🌙 NIGHTLY | 🧬 ORACLE | Differential
 
 on:
@@ -32,6 +34,8 @@ jobs:
     runs-on: ubuntu-26.04
     # About 35 seconds a seed (doctor dominates), so 30 seeds take under 20 minutes.
     timeout-minutes: 45
+    outputs:
+      fixtures: ${{ steps.count.outputs.fixtures }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -56,6 +60,10 @@ jobs:
           node tests/oracle/run.mjs --seed "$seed" --seeds "$INPUT_SEEDS" --minimize --out "$RUNNER_TEMP/oracle" | tee "$RUNNER_TEMP/oracle.log" || status=$?
           { echo '```'; cat "$RUNNER_TEMP/oracle.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
+      - name: Count vault fixtures
+        id: count
+        if: failure()
+        run: echo "fixtures=$(find "$RUNNER_TEMP/oracle/regressions" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')" >> "$GITHUB_OUTPUT"
       - name: Upload failures
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -67,3 +75,87 @@ jobs:
             ${{ runner.temp }}/oracle/oracle-failures.json
             ${{ runner.temp }}/oracle/regressions
           if-no-files-found: ignore
+
+  candidates:
+    name: 🧬 ORACLE vault candidates PR
+    needs: oracle
+    # Only when the sweep failed and wrote fixtures. Opens a draft PR for a human; never pushes to main, never merges, never
+    # marks a fixture fixed.
+    if: ${{ !cancelled() && needs.oracle.result == 'failure' && needs.oracle.outputs.fixtures != '' && needs.oracle.outputs.fixtures != '0' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: write # push the bot/oracle-regressions-<date> branch
+      pull-requests: write # open the draft pull request
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install CLI dependencies
+        working-directory: cli
+        run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: oracle-failures
+          path: ${{ runner.temp }}/oracle
+      - name: Collect fixtures from open candidate PRs
+        # A defect waiting in an unmerged candidate PR is not proposed again the next night.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/known"
+          gh pr list --state open --limit 50 --json headRefName --jq '.[].headRefName | select(startswith("bot/oracle-regressions-"))' |
+            while read -r branch; do
+              git fetch --quiet --depth=1 origin "refs/heads/$branch"
+              mkdir -p "$RUNNER_TEMP/known/$branch"
+              git archive FETCH_HEAD tests/oracle/regressions | tar -x -C "$RUNNER_TEMP/known/$branch"
+            done
+      - name: Replay, dedupe and validate candidates
+        id: plan
+        run: |
+          known=()
+          while IFS= read -r dir; do known+=(--known "$dir"); done < <(find "$RUNNER_TEMP/known" -type d -path '*/tests/oracle/regressions')
+          node scripts/oracle-regression-candidates.mjs --candidates "$RUNNER_TEMP/oracle/regressions" \
+            --vault tests/oracle/regressions "${known[@]}" --summary "$RUNNER_TEMP/candidates.md"
+          cat "$RUNNER_TEMP/candidates.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a draft pull request
+        if: steps.plan.outputs.added != '0'
+        # Context values go through env, never into the script text (template injection).
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ADDED: ${{ steps.plan.outputs.added }}
+          FILES: ${{ steps.plan.outputs.files }}
+        run: |
+          branch="bot/oracle-regressions-$(date -u +%F)"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then branch="$branch-$GITHUB_RUN_ID"; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The checkout keeps no credentials (persist-credentials: false), so push with the job token.
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git checkout -b "$branch"
+          git add tests/oracle/regressions
+          git commit -s -m "test(oracle): add $ADDED regression vault candidate(s) from the nightly sweep"
+          git push origin "$branch"
+          body="$RUNNER_TEMP/pr-body.md"
+          {
+            echo "The nightly ORACLE sweep ($RUN_URL) found contradictions. Each fixture here reproduced on a second strict replay, is"
+            echo "not already in the vault or in another open candidate PR, and passed \`validateFixture\`. All are \`\"status\": \"open\"\`."
+            echo
+            echo "Review before merging:"
+            echo "- Is it a real defect? If not, fix the invariant and close this PR."
+            echo "- Open or link an issue and add it as \`issue\` to the fixture."
+            echo "- Push any commit (or close and reopen) so CI | Checks runs: a pull request the job token opens starts no workflows."
+            echo
+            echo "Added: $FILES"
+            echo
+            cat "$RUNNER_TEMP/candidates.md"
+          } > "$body"
+          gh pr create --draft --base "$DEFAULT_BRANCH" --head "$branch" \
+            --title "test(oracle): $ADDED regression vault candidate(s) from the nightly sweep" --body-file "$body"
