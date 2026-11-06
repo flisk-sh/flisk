@@ -119,3 +119,85 @@ describe("printFrontendFrameworks", () => {
     expect(result.stderr).toBe("");
   });
 });
+
+describe("printFrameworkInventory for database and queue", () => {
+  it("prints the database frameworks as tab-separated rows, the shared Postgres first", async () => {
+    const result = await runFrameworkListing(["--type", "database", "--frameworks"]);
+
+    expect(result.status).toBeUndefined();
+    const rows = result.stdout
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => line.split("\t"));
+    expect(rows.map((row) => row[0])).toEqual([
+      "postgres",
+      "redis",
+      "qdrant",
+      "minio",
+      "mlflow",
+      "mysql",
+      "mongodb",
+      "clickhouse",
+    ]);
+    expect(rows[0]).toEqual([
+      "postgres",
+      "Shared Flisk Postgres, one database per stack",
+      "-",
+      "default",
+      "flisk resource <name> --type database --framework postgres",
+    ]);
+    expect(rows[1].slice(2, 4)).toEqual(["redis:7.4-alpine", "-"]);
+  });
+
+  it("prints the queue frameworks with NATS as the default", async () => {
+    const result = await runFrameworkListing(["--type", "queue", "--frameworks"]);
+
+    expect(result.status).toBeUndefined();
+    const rows = result.stdout
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => line.split("\t"));
+    expect(rows.map((row) => [row[0], row[3]])).toEqual([
+      ["nats", "default"],
+      ["rabbitmq", "-"],
+    ]);
+  });
+
+  it("reports the database frameworks, with a null image for the shared Postgres, in --json", async () => {
+    const result = await runFrameworkListing(["--type", "database", "--frameworks", "--json"]);
+
+    expect(result.status).toBeUndefined();
+    const envelope = JSON.parse(result.stdout);
+    expect(envelope.data.type).toBe("database");
+    expect(envelope.data.frameworks[0]).toMatchObject({
+      id: "postgres",
+      image: null,
+      default: true,
+    });
+    expect(envelope.data.frameworks.map((f: { id: string }) => f.id)).toContain("clickhouse");
+  });
+
+  it("keeps the frontend inventory in --json when no --type is given", async () => {
+    const result = await runFrameworkListing(["--frameworks", "--json"]);
+
+    const envelope = JSON.parse(result.stdout);
+    expect(envelope.data.type).toBe("frontend");
+    expect(envelope.data.frameworks.length).toBeGreaterThan(0);
+  });
+
+  it("reports the queue frameworks in --json", async () => {
+    const result = await runFrameworkListing(["--type", "queue", "--frameworks", "--json"]);
+
+    const envelope = JSON.parse(result.stdout);
+    expect(envelope.data.type).toBe("queue");
+    expect(envelope.data.frameworks.map((f: { id: string }) => f.id)).toEqual(["nats", "rabbitmq"]);
+  });
+
+  it("still refuses a type with no framework inventory, naming the four that have one", async () => {
+    const result = await runFrameworkListing(["--type", "worker", "--frameworks"]);
+
+    expect(result.stderr + result.stdout).toContain(
+      "Use --type frontend, backend, database or queue to list frameworks",
+    );
+  });
+});
