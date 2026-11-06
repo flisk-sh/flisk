@@ -35,10 +35,9 @@ import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
 import { findPortOccupant } from "../utils/port-occupant.js";
 import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/profiles.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
-import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
-import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases, } from "../utils/service-urls.js";
+import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServicePath, resolveServiceUrl, resolveSubdomainBases, routesAsApi, withTrailingSlash, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
@@ -819,26 +818,40 @@ export const upCommand = new Command("up")
                 console.log(chalk.gray(`  - ${name}`));
             }
             const { appBase, apiBase } = resolveSubdomainBases(hostPortPlan.ingressHttp);
-            const routed = gatewayEnabled ? servicesToStart : [];
-            const frontends = routed.filter((s) => s.config?.appType === "frontend");
-            const backends = routed.filter((s) => isApiServiceType(s.config?.appType));
+            const routed = gatewayEnabled ? servicesToStart.filter(isRoutableService) : [];
+            const frontends = routed.filter((s) => s.config?.appType === "frontend" || isWebUiBringYourOwn(s));
+            const backends = routed.filter((s) => routesAsApi(s));
             if (frontends.length > 0) {
                 console.log(chalk.blue("\n🌍 Frontend URLs:"));
                 for (const svc of frontends) {
-                    const basePath = svc.config?.basePath ?? `/${svc.name}`;
-                    console.log(chalk.gray(`  - ${svc.name}: ${appBase}${chalk.cyan(basePath)}`));
+                    if (isWebUiBringYourOwn(svc)) {
+                        const url = resolveServiceUrl(svc, hostPortPlan.ingressHttp);
+                        console.log(chalk.gray(`  - ${svc.name}: ${chalk.cyan(url)}`));
+                    }
+                    else {
+                        const basePath = svc.config?.basePath ?? `/${svc.name}`;
+                        console.log(chalk.gray(`  - ${svc.name}: ${appBase}${chalk.cyan(basePath)}`));
+                    }
                 }
             }
             if (backends.length > 0) {
                 console.log(chalk.blue("\n🔧 Backend API URLs:"));
                 for (const svc of backends) {
-                    const servicePathName = svc.name.replace(/-api$/, "");
-                    const apiPath = svc.config?.apiPath ?? `/api/${servicePathName}`;
                     const sablier = svc.config?.sablier;
                     const deferredTag = sablier?.enable && sablier?.deferStart
                         ? chalk.dim(" (deferred — starts on first request)")
                         : "";
-                    console.log(chalk.gray(`  - ${svc.name}: ${apiBase}${chalk.cyan(appendHealthPath(apiPath))}${deferredTag}`));
+                    if (isRoutedBringYourOwn(svc)) {
+                        const url = resolveServiceUrl(svc, hostPortPlan.ingressHttp);
+                        const path = withTrailingSlash(resolveServicePath(svc));
+                        const prefix = url ? url.slice(0, -path.length) : apiBase;
+                        console.log(chalk.gray(`  - ${svc.name}: ${prefix}${chalk.cyan(path)}${deferredTag}`));
+                    }
+                    else {
+                        const servicePathName = svc.name.replace(/-api$/, "");
+                        const apiPath = svc.config?.apiPath ?? `/api/${servicePathName}`;
+                        console.log(chalk.gray(`  - ${svc.name}: ${apiBase}${chalk.cyan(appendHealthPath(apiPath))}${deferredTag}`));
+                    }
                 }
             }
         }

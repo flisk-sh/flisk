@@ -88,6 +88,7 @@ describe("networksCommand and helpers", () => {
       port?: number;
       basePath?: string;
       apiPath?: string;
+      webUi?: boolean;
     }> = [],
   ): void {
     mkdirSync(join(tempDir, ".flisk"), { recursive: true });
@@ -129,6 +130,7 @@ describe("networksCommand and helpers", () => {
             ...(r.port ? { port: r.port } : {}),
             ...(r.basePath ? { basePath: r.basePath } : {}),
             ...(r.apiPath ? { apiPath: r.apiPath } : {}),
+            ...(r.webUi !== undefined ? { webUi: r.webUi } : {}),
           },
           null,
           2,
@@ -326,6 +328,29 @@ describe("networksCommand and helpers", () => {
       expect(output).toContain("http://api.localhost:80/ballots");
       expect(output).not.toContain("/api/vote");
     });
+    it("lists a webUi bring-your-own service at its own host", async () => {
+      setupProject("flisk-project", [
+        { name: "dashboard", appType: "bring-your-own", port: 8080, webUi: true },
+      ]);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(childProcess.execFileSync).mockImplementation(() => {
+        throw new Error("Docker daemon not running");
+      });
+      vi.mocked(childProcess.spawn).mockImplementation(() =>
+        createMockChildProcess({ stdout: "200" }),
+      );
+
+      const lines: string[] = [];
+      vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      });
+
+      await networksCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+      const output = stripVTControlCharacters(lines.join("\n"));
+      expect(output).toContain("http://dashboard.localhost:80");
+    });
+
 
     it("renders two networks across stacks with running and stopped statuses and custom domain tip", async () => {
       setupProject("flisk-project", [

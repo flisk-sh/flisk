@@ -33,6 +33,22 @@ export function routesAsApi(resource: DiscoveredResource): boolean {
   );
 }
 
+/** `/api/vote` → `/api/vote/`: the URL a browser should open for a page served under a stripped prefix. */
+export function withTrailingSlash(path: string): string {
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
+/**
+ * A service that has a Traefik ingress route: frontends, backends, MCP servers, agents, and proxied bring-your-own services.
+ */
+export function isRoutableService(resource: DiscoveredResource): boolean {
+  return (
+    resource.config?.appType === "frontend" ||
+    routesAsApi(resource) ||
+    isWebUiBringYourOwn(resource)
+  );
+}
+
 /**
  * The base URL of a web UI service: `http://<name>.<project>.localhost[:port]`. It follows the app host of
  * `resolveSubdomainBases` (`app.<project>.localhost`) when there is one, and the project name otherwise. Keep in step with
@@ -136,9 +152,11 @@ export function resolveServicePath(resource: DiscoveredResource): string {
   if (isWebUiBringYourOwn(resource)) return "";
   if (routesAsApi(resource)) {
     const servicePathName = resource.name.replace(/-api$/, "");
-    return resource.config?.apiPath ?? `/api/${servicePathName}`;
+    const path = resource.config?.apiPath ?? `/api/${servicePathName}`;
+    return path.startsWith("/") ? path : `/${path}`;
   }
-  return resource.config?.basePath ?? `/${resource.name}`;
+  const path = resource.config?.basePath ?? `/${resource.name}`;
+  return path.startsWith("/") ? path : `/${path}`;
 }
 
 /**
@@ -148,15 +166,37 @@ export function resolveServicePath(resource: DiscoveredResource): string {
 export function resolveServiceUrl(
   resource: DiscoveredResource,
   ingressPort?: number,
+  baseDomain?: string,
 ): string | undefined {
-  const appType = resource.config?.appType;
-  if (appType !== "frontend" && !routesAsApi(resource) && !isWebUiBringYourOwn(resource))
-    return undefined;
+  if (!isRoutableService(resource)) return undefined;
+
+  if (baseDomain) {
+    const bareDomain = baseDomain.replace(/^(app|api)\./, "");
+    const portPart = ingressPort ? `:${ingressPort}` : "";
+    if (isWebUiBringYourOwn(resource)) {
+      return `http://${resource.name}.${bareDomain}${portPart}`;
+    }
+    const isBackend = routesAsApi(resource);
+    const host = isBackend ? `api.${bareDomain}` : `app.${bareDomain}`;
+    const resolvedPath = resolveServicePath(resource);
+    const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
+    const path =
+      isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)
+        ? withTrailingSlash(basePath)
+        : basePath;
+    return `http://${host}${portPart}${path}`;
+  }
+
   const base =
-    appType === "frontend"
+    resource.config?.appType === "frontend"
       ? resolveSubdomainBases(ingressPort).appBase
       : resolveRouteBase(resource, ingressPort);
-  return `${base}${resolveServicePath(resource)}`;
+  const path = resolveServicePath(resource);
+  const formattedPath =
+    isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)
+      ? withTrailingSlash(path)
+      : path;
+  return `${base}${formattedPath}`;
 }
 
 /**
@@ -203,10 +243,15 @@ function routableTargets(
     )
     .map((resource) => {
       const base = resolveRouteBase(resource, ingressPort);
+      const rawPath = resolveServicePath(resource);
+      const path =
+        includeBringYourOwn && isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)
+          ? withTrailingSlash(rawPath)
+          : rawPath;
       return {
         name: resource.name,
         appType: resource.config.appType,
-        url: `${base}${toPath(resolveServicePath(resource))}`,
+        url: `${base}${toPath(path)}`,
       };
     });
 }

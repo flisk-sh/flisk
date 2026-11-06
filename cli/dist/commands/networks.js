@@ -13,23 +13,11 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
-import { isApiServiceType } from "../utils/resource-kind.js";
-import { resolveServicePath } from "../utils/service-urls.js";
+import { isRoutableService, resolveServicePath, resolveServiceUrl, withTrailingSlash, } from "../utils/service-urls.js";
 import { stackExists } from "../utils/services.js";
 import { isValidPort, sanitizeForShell } from "../utils/validation.js";
 import { findOnPath } from "../utils/which.js";
-/**
- * A bring-your-own service that Traefik routes as an API: proxied (exposeViaProxy is not false) and not a web UI, which
- * is routed on its own host. Such services are listed by `flisk networks` at the same URL `flisk up` prints.
- */
-function isApiRoutedBringYourOwn(service) {
-    const config = service.config;
-    return config?.appType === "bring-your-own" && config.exposeViaProxy !== false && !config.webUi;
-}
-/** `/api/vote` → `/api/vote/`: the URL a browser should open for a page served under a stripped prefix. */
-export function withTrailingSlash(path) {
-    return path.endsWith("/") ? path : `${path}/`;
-}
+export { withTrailingSlash };
 function execSafe(command, args, options = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn(findOnPath(command) ?? command, args, {
@@ -201,23 +189,13 @@ export const networksCommand = new Command("networks")
         const hostPortPlan = savedPlan ?? (await createHostPortPlan());
         const httpPort = hostPortPlan.ingressHttp;
         const baseDomain = determineDefaultDomain();
-        const bareDomain = baseDomain.replace(/^(app|api)\./, "");
-        const appDomain = `app.${bareDomain}`;
-        const apiDomain = `api.${bareDomain}`;
         const services = discovery.resources;
         const servicesWithUrls = await Promise.all(services
-            .filter((s) => s.config?.appType === "frontend" ||
-            isApiServiceType(s.config?.appType) ||
-            isApiRoutedBringYourOwn(s))
+            .filter(isRoutableService)
             .map(async (s) => {
-            // A bring-your-own service routed as an API is served on the api host at its apiPath, like a backend.
+            const url = resolveServiceUrl(s, httpPort, baseDomain) ?? "";
             const resolvedPath = resolveServicePath(s);
             const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
-            const isBackend = isApiServiceType(s.config?.appType) ||
-                isApiRoutedBringYourOwn(s);
-            const host = isBackend ? apiDomain : appDomain;
-            // An imported app serves pages whose relative links only resolve under the prefix with its trailing slash.
-            const url = `http://${host}:${httpPort}${isApiRoutedBringYourOwn(s) ? withTrailingSlash(basePath) : basePath}`;
             const port = s.config?.port;
             const status = await checkServiceStatus(s.name, port, url);
             return {
