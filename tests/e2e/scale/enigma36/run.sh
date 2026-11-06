@@ -2,12 +2,13 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Enigma 36: one project of 36 resources drawn at random from every type `flisk resource` creates (each backend framework and
-# language, each frontend framework, worker, mcp, agent with each durability, database, bring-your-own and sdk), dealt over six
+# language, each frontend framework, worker, mcp, agent with each durability, database with Redis, Qdrant, MinIO and MLflow beside the Postgres, NATS and RabbitMQ queues, bring-your-own and sdk), dealt over six
 # stacks and booted with one `flisk up`. Each night draws a new combination; the seed is printed first, so any failure replays
 # with E2E_SEED=<seed>. plan.mjs draws the plan and checks it on the diagonal board before anything is scaffolded.
 #
 #   tests/e2e/scale/enigma36/run.sh all                          a fresh random draw, every case, then cleanup
 #   E2E_SEED=1936 tests/e2e/scale/enigma36/run.sh all            replay one draw
+#   ENIGMA_INCLUDE=redis,minio,go tests/e2e/scale/enigma36/run.sh all   force these variants into the draw
 #   ENIGMA_COUNT=12 tests/e2e/scale/enigma36/run.sh K1 K2 K3     a smaller draw for a laptop (the diagonal board still applies)
 set -euo pipefail
 
@@ -23,7 +24,7 @@ COUNT="${ENIGMA_COUNT:-36}"
 # The plan K1 drew, drawn now when a case runs on its own. E2E_SEED pins it; otherwise the seed is random.
 load_plan() {
   if [ ! -f "$PLAN" ] || { [ -n "${E2E_SEED:-}" ] && [ "$(jq -r .seed "$PLAN")" != "$E2E_SEED" ]; }; then
-    node "$SUITE_DIR/plan.mjs" --count "$COUNT" ${E2E_SEED:+--seed "$E2E_SEED"} >"$PLAN" || die "plan.mjs could not draw a plan"
+    node "$SUITE_DIR/plan.mjs" --count "$COUNT" ${E2E_SEED:+--seed "$E2E_SEED"} ${ENIGMA_INCLUDE:+--include "$ENIGMA_INCLUDE"} >"$PLAN" || die "plan.mjs could not draw a plan"
   fi
 }
 entries() { jq -c '.entries[]' "$PLAN"; } # one JSON object per line: name, kind, variant, stack, args
@@ -37,10 +38,11 @@ http_ok() { local code; code="$(traefik_request "$1" "$2" -o /dev/null -w '%{htt
 worker_started() { local c; c="$(running_container "$1")"; [ -n "$c" ] && docker logs "$c" 2>&1 | grep -q "$1 worker started"; }
 # A `database` resource is the project's shared Postgres (flisk runs it; there is no container named for the resource), so its
 # contract is: listed as a database, and the project's own ${PROJECT}_postgres container is healthy.
+container_running() { [ -n "$(running_container "$1")" ]; } # an infrastructure framework is its own container
 database_ready() { common_listed "$1" database && [ -n "$(docker ps -q --filter "name=^${PROJECT}_postgres$" --filter health=healthy)" ]; }
 all_listed() { # every entry of the plan is in flisk status with its type
   status_json | jq -e --slurpfile plan "$PLAN" \
-    '[.data.resources[] | "\(.name)=\(.type)"] as $have | all($plan[0].entries[]; ("\(.name)=\(.kind)") as $want | $have | index($want))' >/dev/null
+    '[.data.resources[] | "\(.name)=\(.type)"] as $have | all($plan[0].entries[]; ("\(.name)=\(.type)") as $want | $have | index($want))' >/dev/null
 }
 
 # The observable contract of one entry, as a command poll_until can retry.
@@ -51,7 +53,8 @@ contract() { # <entry json>
     agent) http_ok "$name" /ready ;;
     frontend) http_ok "$name" / ;;
     worker) worker_started "$name" ;;
-    database) database_ready "$name" ;;
+    database) if [ "$(field "$1" variant)" = postgres ]; then database_ready "$name"; else container_running "$name"; fi ;;
+    queue) container_running "$name" ;;
     sdk) common_listed "$name" sdk ;;
   esac
 }
@@ -82,8 +85,10 @@ K1() { # draw the plan, print the seed and the board
   load_plan
   plan_names
   echo "seed $(jq -r .seed "$PLAN")   replay: E2E_SEED=$(jq -r .seed "$PLAN") tests/e2e/scale/enigma36/run.sh all"
-  jq -r '.entries[] | [.name, .kind, .stack] | @tsv' "$PLAN" | column -t
+  jq -r '.entries[] | [.name, .kind, (if .kind == "database" or .kind == "queue" then .variant else "-" end), .stack] | @tsv' "$PLAN" | column -t
   jq -r '.entries | group_by(.kind) | map("\(.[0].kind) \(length)") | join(", ")' "$PLAN"
+  # The database and queue kinds by framework, so a draw that holds only the Postgres shows at a glance.
+  jq -r '[.entries[] | select(.kind == "database" or .kind == "queue") | "\(.kind)=\(.variant)"] | join(", ")' "$PLAN"
 }
 
 K2() { # one project, every drawn resource scaffolded into it with flisk resource
@@ -93,9 +98,9 @@ K2() { # one project, every drawn resource scaffolded into it with flisk resourc
   (cd "$DIR" && git init -q .)
   run scaffold-project project --yes
   [ "$RC" -eq 0 ] || die "flisk project --yes exited $RC"
-  local e name kind stack a args
+  local e name kind type stack a args
   while read -r e; do
-    name="$(field "$e" name)"; kind="$(field "$e" kind)"; stack="$(field "$e" stack)"
+    name="$(field "$e" name)"; kind="$(field "$e" kind)"; type="$(field "$e" type)"; stack="$(field "$e" stack)"
     case "$kind" in
       bring-your-own) scaffold_byo "$name" "$stack" ;;
       sdk) scaffold_sdk "$name" "$stack" ;;
@@ -105,7 +110,7 @@ K2() { # one project, every drawn resource scaffolded into it with flisk resourc
         [ "$RC" -eq 0 ] || die "flisk resource $name --type $kind ${args[*]-} exited $RC"
         ;;
     esac
-    assert check "$OUT/scaffold-$name.out" "j.errors.length === 0 && j.data.name === '$name' && j.data.type === '$kind'" "$name scaffolded as $kind"
+    assert check "$OUT/scaffold-$name.out" "j.errors.length === 0 && j.data.name === '$name' && j.data.type === '$type'" "$name scaffolded as $type"
   done < <(entries)
 }
 

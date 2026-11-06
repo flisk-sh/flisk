@@ -1,7 +1,7 @@
 {
   "group": "scale",
   "suite": "enigma36",
-  "description": "Enigma 36: one project of 36 resources drawn by seed from every type flisk resource creates (each backend framework and language, each frontend framework, worker, mcp, agent with each durability, database, bring-your-own, sdk) over six stacks, checked on the diagonal board (plan.mjs) before one flisk up. Every resource must meet its type's contract beside the other 35, a seeded restart must come back without taking a neighbour down, and an undrawn name is one error envelope. Each night draws a new combination; the seed is printed, and E2E_SEED replays it.",
+  "description": "Enigma 36: one project of 36 resources drawn by seed from every type flisk resource creates (each backend framework and language, each frontend framework, worker, mcp, agent with each durability, database with Redis, Qdrant, MinIO and MLflow beside the Postgres, NATS and RabbitMQ queues, bring-your-own, sdk) over six stacks, checked on the diagonal board (plan.mjs) before one flisk up. Every resource must meet its type's contract beside the other 35, a seeded restart must come back without taking a neighbour down, and an undrawn name is one error envelope. Each night draws a new combination; the seed is printed, and E2E_SEED replays it.",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/commands/up.ts",
