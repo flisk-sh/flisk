@@ -101,6 +101,60 @@ export declare const INFRA_PRESETS: {
             readonly MLFLOW_TRACKING_URI: "http://{name}:5000";
         };
     };
+    readonly mysql: {
+        readonly type: "database";
+        readonly description: "MySQL database";
+        readonly image: "mysql:8.4";
+        readonly port: 3306;
+        readonly healthCheck: {
+            readonly command: ["mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pflisk"];
+        };
+        readonly dataPath: "/var/lib/mysql";
+        readonly memory: "1g";
+        readonly params: {
+            readonly MYSQL_ROOT_PASSWORD: "flisk";
+            readonly MYSQL_DATABASE: "app";
+        };
+        readonly provides: {
+            readonly MYSQL_URL: "mysql://root:flisk@{name}:3306/app";
+        };
+    };
+    readonly mongodb: {
+        readonly type: "database";
+        readonly description: "MongoDB document database";
+        readonly image: "mongo:8.0";
+        readonly port: 27017;
+        readonly healthCheck: {
+            readonly command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"];
+        };
+        readonly dataPath: "/data/db";
+        readonly memory: "1g";
+        readonly provides: {
+            readonly MONGODB_URL: "mongodb://{name}:27017";
+        };
+    };
+    readonly clickhouse: {
+        readonly type: "database";
+        readonly description: "ClickHouse analytics database";
+        readonly image: "clickhouse/clickhouse-server:25.8-alpine";
+        readonly port: 8123;
+        readonly healthCheck: {
+            readonly port: 8123;
+        };
+        readonly dataPath: "/var/lib/clickhouse";
+        readonly uiPorts: [8123];
+        readonly params: {
+            readonly CLICKHOUSE_DB: "app";
+            readonly CLICKHOUSE_USER: "default";
+            readonly CLICKHOUSE_PASSWORD: "flisk";
+        };
+        readonly provides: {
+            readonly CLICKHOUSE_URL: "http://{name}:8123";
+            readonly CLICKHOUSE_USER: "default";
+            readonly CLICKHOUSE_PASSWORD: "flisk";
+            readonly CLICKHOUSE_DB: "app";
+        };
+    };
     readonly nats: {
         readonly type: "queue";
         readonly description: "NATS message queue with JetStream";

@@ -44,6 +44,7 @@ import type {
 import {
   DATABASE_FRAMEWORK,
   DATABASE_RESOURCE_TYPE,
+  DEFAULT_QUEUE_FRAMEWORK,
   INFERENCE_RESOURCE_TYPE,
   QUEUE_RESOURCE_TYPE,
   RESOURCE_CREATE_TYPE_VALUES,
@@ -688,6 +689,15 @@ function printFrameworkInventory(
     printFrontendFrameworks();
     return;
   }
+  if (listing.type === DATABASE_RESOURCE_TYPE || listing.type === QUEUE_RESOURCE_TYPE) {
+    for (const f of infraFrameworkListing(listing.type)) {
+      console.log(
+        `${f.id}\t${f.label}\t${f.image ?? "-"}\t${f.default ? "default" : "-"}\t${f.command}`,
+      );
+    }
+    return;
+  }
+  if (listing.type !== "backend") return;
 
   for (const f of listBackendFrameworks(options.language)) {
     // The compatibility cell names the language it is judged against, so it is never a bare
@@ -699,19 +709,62 @@ function printFrameworkInventory(
   }
 }
 
+/**
+ * The frameworks `--type database` and `--type queue` accept, in the order the help lists them. The database default is
+ * the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image, and a queue
+ * without `--framework` is NATS.
+ */
+export function infraFrameworkListing(
+  type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE,
+): {
+  id: string;
+  label: string;
+  image: string | null;
+  default: boolean;
+  command: string;
+}[] {
+  const rows = frameworksOfType(type).map((id) => {
+    const preset = INFRA_PRESETS[id as InfraFramework];
+    return {
+      id,
+      label: preset.description,
+      image: preset.image,
+      default: type === QUEUE_RESOURCE_TYPE && id === DEFAULT_QUEUE_FRAMEWORK,
+      command: `flisk resource <name> --type ${type} --framework ${id}`,
+    };
+  });
+  if (type === QUEUE_RESOURCE_TYPE) return rows;
+  return [
+    {
+      id: DATABASE_FRAMEWORK,
+      label: "Shared Flisk Postgres, one database per stack",
+      image: null,
+      default: true,
+      command: `flisk resource <name> --type ${type} --framework ${DATABASE_FRAMEWORK}`,
+    },
+    ...rows,
+  ];
+}
+
 /** Which framework inventory `--frameworks` lists, and for a backend the language it is judged against. */
 function frameworkListing(
   options: { type?: string; language?: string },
   isTypeExplicit: boolean,
-): { type: "frontend" } | { type: "backend"; language: string | undefined } {
+):
+  | { type: "frontend" }
+  | { type: "backend"; language: string | undefined }
+  | { type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE } {
   // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
   // it is a backend option, and the frontend listing has never carried one.
   if (!isTypeExplicit) return { type: "frontend" };
 
   const resourceType = parseResourceType(options.type ?? "backend");
+  if (resourceType === DATABASE_RESOURCE_TYPE || resourceType === QUEUE_RESOURCE_TYPE) {
+    return { type: resourceType };
+  }
   if (resourceType !== "frontend" && resourceType !== "backend") {
     throw new FliskError(`No frameworks are registered for --type ${resourceType}.`, [
-      "Use --type frontend or --type backend to list frameworks",
+      "Use --type frontend, backend, database or queue to list frameworks",
       "Omit --type to list the frontend frameworks",
     ]);
   }
@@ -729,7 +782,10 @@ export function frameworkInventoryReport(
   isTypeExplicit: boolean,
 ): Record<string, unknown> {
   const listing = frameworkListing(options, isTypeExplicit);
-  return listing.type === "frontend"
+  if (listing.type === DATABASE_RESOURCE_TYPE || listing.type === QUEUE_RESOURCE_TYPE) {
+    return { type: listing.type, frameworks: infraFrameworkListing(listing.type) };
+  }
+  return listing.type !== "backend"
     ? { type: "frontend", frameworks: listFrontendFrameworks() }
     : {
         type: "backend",
@@ -773,11 +829,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
   )
   .option(
     "--framework <id>",
-    "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks); database postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow; queue nats (default), rabbitmq",
+    "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks); database postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow, mysql, mongodb, clickhouse; queue nats (default), rabbitmq",
   )
   .option(
     "--frameworks",
-    "List registered frameworks for the resource type and exit (--type frontend, --type backend)",
+    "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue)",
   )
   .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
   .option("-s, --stack <stack>", "Stack to assign resource to", "default")
@@ -882,6 +938,21 @@ export const resourceCommand = addYesOption(new Command("resource"))
       const requestedType = parseResourceType(options.type);
       const isInference = options.type === INFERENCE_TYPE;
       if (requestedType === DATABASE_RESOURCE_TYPE || requestedType === QUEUE_RESOURCE_TYPE) {
+        // Asked on a terminal only; --yes and --json take the default (the shared Postgres, NATS).
+        if (
+          options.framework === undefined &&
+          !assumeYes &&
+          process.stdin.isTTY &&
+          process.stdout.isTTY
+        ) {
+          options.framework = await promptSelect({
+            message: `${requestedType === QUEUE_RESOURCE_TYPE ? "Queue" : "Database"} framework:`,
+            choices: infraFrameworkListing(requestedType).map((f) => ({
+              title: `${f.id}: ${f.label}`,
+              value: f.id,
+            })),
+          });
+        }
         assertInfraFramework(requestedType, options.framework);
       }
       // An infrastructure framework is a bring-your-own container; only the shared Postgres is a `database` resource.

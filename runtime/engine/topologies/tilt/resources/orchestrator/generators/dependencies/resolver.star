@@ -86,7 +86,7 @@ def resolve_dependency_api_path(dep_name):
 def resolve_dependency_provides(manifest):
     """The `provides` settings of each declared dependency that has them, as (name, provides) pairs in dependsOn order.
 
-    A Redis, Qdrant or RabbitMQ preset provides its connection URL (REDIS_URL, QDRANT_URL, AMQP_URL), so a service that
+    A Redis, Qdrant, MySQL, MongoDB, ClickHouse or RabbitMQ framework provides its connection URL (REDIS_URL, QDRANT_URL, AMQP_URL), so a service that
     lists it in dependsOn reaches it without writing the URL itself. A name that is not a discovered resource has none.
     """
     # Without FLISK_PROJECT_ROOT the registry did not discover at load time, and discovering now would write to its frozen
