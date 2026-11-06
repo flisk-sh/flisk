@@ -9,12 +9,46 @@ import {
   buildHealthTargets,
   getProjectName,
   getProjectNameFor,
+  isRoutableService,
   pingHealthTarget,
   pingHealthTargets,
   resolveServicePath,
   resolveServiceUrl,
   resolveSubdomainBases,
+  withTrailingSlash,
 } from "../service-urls.js";
+
+describe("withTrailingSlash", () => {
+  it("appends a trailing slash when missing", () => {
+    expect(withTrailingSlash("/api/vote")).toBe("/api/vote/");
+  });
+
+  it("does not duplicate an existing trailing slash", () => {
+    expect(withTrailingSlash("/api/vote/")).toBe("/api/vote/");
+  });
+});
+
+describe("isRoutableService", () => {
+  it("routes frontends, scaffolded APIs, and bring-your-own services by default", () => {
+    expect(isRoutableService(makeResource("web", "frontend"))).toBe(true);
+    expect(isRoutableService(makeResource("orders-api", "backend"))).toBe(true);
+    expect(isRoutableService(makeResource("tools-mcp", "mcp"))).toBe(true);
+    expect(isRoutableService(makeResource("bot", "agent"))).toBe(true);
+    expect(isRoutableService(makeResource("vote", "bring-your-own"))).toBe(true);
+    expect(isRoutableService(makeResource("app", "bring-your-own", { webUi: true }))).toBe(true);
+  });
+
+  it("excludes services with no route or exposeViaProxy disabled", () => {
+    expect(isRoutableService(makeResource("worker", "worker"))).toBe(false);
+    expect(isRoutableService(makeResource("db", "database"))).toBe(false);
+    expect(isRoutableService(makeResource("shared", "library"))).toBe(false);
+    expect(isRoutableService(makeResource("client", "sdk"))).toBe(false);
+    expect(isRoutableService(makeResource("migrator", "migrator"))).toBe(false);
+    expect(
+      isRoutableService(makeResource("redis", "bring-your-own", { exposeViaProxy: false })),
+    ).toBe(false);
+  });
+});
 
 describe("appendHealthPath", () => {
   it("appends /health", () => {
@@ -192,6 +226,15 @@ describe("resolveServicePath", () => {
     );
   });
 
+  it("adds the leading slash to an apiPath or basePath without one", () => {
+    expect(resolveServicePath(makeResource("menu-api", "backend", { apiPath: "api/custom" }))).toBe(
+      "/api/custom",
+    );
+    expect(
+      resolveServicePath(makeResource("floor-app", "frontend", { basePath: "dashboard" })),
+    ).toBe("/dashboard");
+  });
+
   it("falls back to the service name for frontends", () => {
     expect(resolveServicePath(makeResource("floor-app", "frontend"))).toBe("/floor-app");
   });
@@ -240,7 +283,7 @@ describe("resolveServiceUrl", () => {
 
   it("keeps the /api/<name> path for a bring-your-own API, and has no URL for a private web UI", () => {
     expect(resolveServiceUrl(makeResource("app", "bring-your-own"), 8280)).toBe(
-      "http://api.demo.localhost:8280/api/app",
+      "http://api.demo.localhost:8280/api/app/",
     );
     expect(
       resolveServiceUrl(
@@ -248,6 +291,37 @@ describe("resolveServiceUrl", () => {
         8280,
       ),
     ).toBeUndefined();
+  });
+
+  it("resolves URLs with an explicit baseDomain for flisk networks", () => {
+    expect(
+      resolveServiceUrl(makeResource("web", "frontend", { basePath: "/ui" }), 80, "acme.localhost"),
+    ).toBe("http://app.acme.localhost:80/ui");
+    expect(resolveServiceUrl(makeResource("orders-api", "backend"), 80, "acme.localhost")).toBe(
+      "http://api.acme.localhost:80/api/orders",
+    );
+    expect(resolveServiceUrl(makeResource("vote", "bring-your-own"), 80, "localhost")).toBe(
+      "http://api.localhost:80/api/vote/",
+    );
+    expect(
+      resolveServiceUrl(
+        makeResource("web", "bring-your-own", { webUi: true }),
+        80,
+        "acme.localhost",
+      ),
+    ).toBe("http://web.acme.localhost:80");
+  });
+
+  it("resolves URLs for an imported Compose project with bring-your-own services only", () => {
+    const web = makeResource("web", "bring-your-own", { webUi: true });
+    const vote = makeResource("vote", "bring-your-own", { port: 80 });
+    const result = makeResource("result", "bring-your-own", { port: 80, apiPath: "/results" });
+    const redis = makeResource("redis", "bring-your-own", { exposeViaProxy: false });
+
+    expect(resolveServiceUrl(web, 8080)).toBe("http://web.demo.localhost:8080");
+    expect(resolveServiceUrl(vote, 8080)).toBe("http://api.demo.localhost:8080/api/vote/");
+    expect(resolveServiceUrl(result, 8080)).toBe("http://api.demo.localhost:8080/results/");
+    expect(resolveServiceUrl(redis, 8080)).toBeUndefined();
   });
 
   it("advertises a web UI at its host name", () => {
@@ -356,7 +430,7 @@ describe("buildAdvertisedTargets", () => {
     ]);
 
     expect(targets).toEqual([
-      { name: "api", appType: "bring-your-own", url: "http://api.demo.localhost/api/api" },
+      { name: "api", appType: "bring-your-own", url: "http://api.demo.localhost/api/api/" },
     ]);
   });
 
