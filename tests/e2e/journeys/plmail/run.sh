@@ -14,13 +14,18 @@ SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SUITE_DIR/../../lib/lib.sh"
 # The project directory is named pl_mail on purpose: Compose names volumes <directory>_<volume>, and Flisk keeps those names.
 e2e_init plmail pl_mail
+READY_TIMEOUT="${E2E_READY_TIMEOUT:-420}" # php is healthy in about a minute; fail in minutes, not 20
 RESOURCES=(php worker database secrets-init)
 STACK="pl-mail"
 HTTP_PORT_E2E="${PLMAIL_HTTP_PORT:-18080}"
+HTTPS_PORT_E2E="${PLMAIL_HTTPS_PORT:-18443}"
+# plMail serves HTTPS through Caddy (FrankenPHP) with its own local certificate, and redirects plain HTTP to https://localhost/
+# without the remapped port. So the probe goes to the HTTPS port directly, accepts the local certificate (-k), and expects the
+# first hop to be the login page, or the installer on a fresh database.
 php_redirects_to_login() {
   local location
-  location="$(curl -sS --max-time 10 -o /dev/null -w '%{redirect_url}' "http://localhost:$HTTP_PORT_E2E/")" || return 1
-  [[ "$location" == */login ]]
+  location="$(curl -sSk --max-time 10 -o /dev/null -w '%{redirect_url}' "https://localhost:$HTTPS_PORT_E2E/")" || return 1
+  [[ "$location" == */login || "$location" == */install ]]
 }
 
 PM1() { # clone the latest release tag unchanged and import it; nothing of plMail's own files may change
@@ -74,9 +79,9 @@ PM3() { # the standalone Compose file is generated, stays in step, and Docker ac
 }
 
 PM4() { # flisk up: php healthy, / redirects to /login
-  log "PM4 flisk up and plMail answers"
+  log "PM4 flisk up and plMail answers over HTTPS"
   cd "$DIR"
-  export HTTP_PORT="$HTTP_PORT_E2E" HTTPS_PORT="${PLMAIL_HTTPS_PORT:-18443}" HTTP3_PORT="${PLMAIL_HTTPS_PORT:-18443}"
+  export HTTP_PORT="$HTTP_PORT_E2E" HTTPS_PORT="$HTTPS_PORT_E2E" HTTP3_PORT="$HTTPS_PORT_E2E"
   start_stack "$STACK"
   poll_until "plMail answers / with a redirect to /login" "$READY_TIMEOUT" php_redirects_to_login
   local worker
