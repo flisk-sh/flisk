@@ -10,8 +10,6 @@ import {
   checkDependsOnShape,
   checkGpuRuntime,
   checkModelRunner,
-  warnModelRunner,
-  type ModelRunnerState,
   checkNetworkPorts,
   checkPostgresVolumes,
   checkRequiredSecrets,
@@ -21,7 +19,9 @@ import {
   checkSidecars,
   checkVolumes,
   enforceServiceConfigGate,
+  type ModelRunnerState,
   postgresImageMajor,
+  warnModelRunner,
   warnSchemaVersions,
 } from "../service-config-checks.js";
 

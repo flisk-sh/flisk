@@ -413,7 +413,10 @@ export function checkGpuRuntime(projectRoot = findProjectRoot() ?? process.cwd()
 }
 /** The Model Runner state, or null when Docker itself cannot be asked. `docker model status` exits 0 only with a running backend. */
 export function dockerModelRunnerState() {
-    const quiet = { timeout: 8000, stdio: ["ignore", "ignore", "ignore"] };
+    const quiet = {
+        timeout: 8000,
+        stdio: ["ignore", "ignore", "ignore"],
+    };
     try {
         execFileSync("docker", ["version", "--format", "{{.Server.Version}}"], quiet);
     }

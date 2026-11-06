@@ -484,7 +484,10 @@ export type ModelRunnerState = "no-plugin" | "backend-not-running" | "running";
 
 /** The Model Runner state, or null when Docker itself cannot be asked. `docker model status` exits 0 only with a running backend. */
 export function dockerModelRunnerState(): ModelRunnerState | null {
-  const quiet = { timeout: 8000, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"] };
+  const quiet = {
+    timeout: 8000,
+    stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"],
+  };
   try {
     execFileSync("docker", ["version", "--format", "{{.Server.Version}}"], quiet);
   } catch {

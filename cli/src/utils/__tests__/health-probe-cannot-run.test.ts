@@ -28,7 +28,9 @@ function docker(psOutput: string, state: State): void {
     Status: state.Status,
     Health: {
       FailingStreak: state.streak ?? state.probes?.length ?? 0,
-      Log: state.probes ? state.probes.map(([ExitCode, Output]) => ({ ExitCode, Output: Output ?? "" })) : null,
+      Log: state.probes
+        ? state.probes.map(([ExitCode, Output]) => ({ ExitCode, Output: Output ?? "" }))
+        : null,
     },
   });
   execFileSync.mockImplementation((cmd: string, args?: string[]) => {
@@ -41,22 +43,52 @@ describe("healthProbeCannotRun", () => {
   beforeEach(() => execFileSync.mockReset());
 
   it("is true for a running container whose every probe exited 127 with 'not found' (shell form)", () => {
-    docker("abc123\n", { Status: "running", probes: [[127, NOT_FOUND], [127, NOT_FOUND], [127, NOT_FOUND]] });
+    docker("abc123\n", {
+      Status: "running",
+      probes: [
+        [127, NOT_FOUND],
+        [127, NOT_FOUND],
+        [127, NOT_FOUND],
+      ],
+    });
     expect(healthProbeCannotRun("lychee-facial-recognition")).toBe(true);
   });
 
   it("is true for the exec form Compose writes (`test: [CMD, curl, ...]`): exit -1 with 'OCI runtime exec failed'", () => {
-    docker("abc123\n", { Status: "running", probes: [[-1, OCI], [-1, OCI], [-1, OCI]] });
+    docker("abc123\n", {
+      Status: "running",
+      probes: [
+        [-1, OCI],
+        [-1, OCI],
+        [-1, OCI],
+      ],
+    });
     expect(healthProbeCannotRun("lychee-facial-recognition")).toBe(true);
   });
 
   it("is true for exec form even when the streak is longer than Docker's five-entry log (the output is the proof)", () => {
-    docker("abc123\n", { Status: "running", probes: [[-1, OCI], [-1, OCI], [-1, OCI], [-1, OCI], [-1, OCI]], streak: 40 });
+    docker("abc123\n", {
+      Status: "running",
+      probes: [
+        [-1, OCI],
+        [-1, OCI],
+        [-1, OCI],
+        [-1, OCI],
+        [-1, OCI],
+      ],
+      streak: 40,
+    });
     expect(healthProbeCannotRun("svc")).toBe(true);
   });
 
   it("is true when the probes are a missing command (127) or a command that is not executable (126)", () => {
-    docker("abc123\n", { Status: "running", probes: [[126, DENIED], [127, NOT_FOUND]] });
+    docker("abc123\n", {
+      Status: "running",
+      probes: [
+        [126, DENIED],
+        [127, NOT_FOUND],
+      ],
+    });
     expect(healthProbeCannotRun("svc")).toBe(true);
   });
 
@@ -68,14 +100,27 @@ describe("healthProbeCannotRun", () => {
   it("is false for a shell-form streak longer than the log: an earlier real failure may have scrolled out", () => {
     docker("abc123\n", {
       Status: "running",
-      probes: [[127, NOT_FOUND], [127, NOT_FOUND], [127, NOT_FOUND], [127, NOT_FOUND], [127, NOT_FOUND]],
+      probes: [
+        [127, NOT_FOUND],
+        [127, NOT_FOUND],
+        [127, NOT_FOUND],
+        [127, NOT_FOUND],
+        [127, NOT_FOUND],
+      ],
       streak: 9,
     });
     expect(healthProbeCannotRun("svc")).toBe(false);
   });
 
   it("is false when any probe ran and failed (exit 1), even among missing-command probes", () => {
-    docker("abc123\n", { Status: "running", probes: [[127, NOT_FOUND], [1, "HTTP 500"], [127, NOT_FOUND]] });
+    docker("abc123\n", {
+      Status: "running",
+      probes: [
+        [127, NOT_FOUND],
+        [1, "HTTP 500"],
+        [127, NOT_FOUND],
+      ],
+    });
     expect(healthProbeCannotRun("svc")).toBe(false);
   });
 
@@ -85,7 +130,13 @@ describe("healthProbeCannotRun", () => {
   });
 
   it("is false for a container that is not running, or has no probe results yet", () => {
-    docker("abc123\n", { Status: "exited", probes: [[127, NOT_FOUND], [127, NOT_FOUND]] });
+    docker("abc123\n", {
+      Status: "exited",
+      probes: [
+        [127, NOT_FOUND],
+        [127, NOT_FOUND],
+      ],
+    });
     expect(healthProbeCannotRun("svc")).toBe(false);
     docker("abc123\n", { Status: "running", probes: [] });
     expect(healthProbeCannotRun("svc")).toBe(false);
