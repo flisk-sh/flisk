@@ -91,7 +91,7 @@ gh workflow run release-candidate.yml --ref release/<version>-rc<n> -f release=t
 # or: an rc tag at the commit
 git tag rc-<version> <commit> && git push origin refs/tags/rc-<version>
 
-gh run watch <candidate-run-id> --exit-status   # ~6-10 min: 30 jobs, 10 at a time, the longest suites first
+gh run watch <candidate-run-id> --exit-status   # ~5 min: 30 jobs, 15 at a time, the longest suites first
 ```
 
 Cut the branch from the newest green `main`, not from an older release branch: a fix that landed after the branch was cut (for example #2498, which made `flisk up` print ingress URLs instead of the Tilt UI port) is not in the candidate, and a candidate failure that `main` already fixed costs a full cycle.
@@ -154,7 +154,7 @@ A release is a chain, and each link waits for the one before it. Real numbers fr
 
 | Stage | Time | Why |
 | --- | --- | --- |
-| Release candidate | 6-22 min | Packs the CLI, then boots real stacks for the quickstart and every release-blocking suite on clean runners, 10 at a time. 1.4.34 took 22 min, 1.4.35 only 6 min; the difference is runner queueing. |
+| Release candidate | 6-22 min | Packs the CLI, then boots real stacks for the quickstart and every release-blocking suite on clean runners, 15 at a time. 1.4.34 took 22 min, 1.4.35 only 6 min; the difference is runner queueing. |
 | Release run | ~10 min | `build`, then `windows-binary`, then `publish` (npm, signing, binaries), then GitHub Packages and the image. Each needs the previous one. `publish` also waits for the candidate (at most 45 min), so starting both together saves the binaries' ~2 min. |
 | Bump PR | a few min | `main` requires checks and an approval; auto-merge lands it only after both. |
 | Tag and publish draft | ~5 min | The merge triggers `tag-bumped-release`, which queues behind other runs of the same workflow. |
