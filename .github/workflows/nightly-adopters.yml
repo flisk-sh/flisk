@@ -52,6 +52,7 @@ jobs:
               COMPANION_KEY=ci-companion-key
               INVIDIOUS_HMAC_KEY=ci-hmac-key-not-a-secret
               POSTGRES_PASSWORD=ci-postgres-not-a-secret
+              INVIDIOUS_CONFIG='{db: {dbname: invidious, user: kemal, password: ci-postgres-not-a-secret, host: invidious-db, port: 5432}, check_tables: true, domain: 127.0.0.1, https_only: false, external_port: 8080, hmac_key: ci-hmac-key-not-a-secret}'
           - name: Nosia
             owner: dilolabs
             repo: nosia
@@ -68,7 +69,20 @@ jobs:
               ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=ci-primary-key-not-a-secret
               ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=ci-deterministic-key-not-a-secret
               ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=ci-salt-not-a-secret
+              AI_BASE_URL=http://model-runner.docker.internal/engines/llama.cpp/v1
+              AI_API_KEY=ci-not-a-key
+              LLM_MODEL=ai/granite-4.0-h-tiny
+              LLM_TEMPERATURE=0.1
+              LLM_MAX_TOKENS=1024
+              LLM_TOP_K=40
+              LLM_TOP_P=0.9
+              EMBEDDING_MODEL=ai/granite-embedding-multilingual
               EMBEDDING_DIMENSIONS=768
+              CHUNK_SIZE=512
+              CHUNK_OVERLAP=128
+              RETRIEVAL_FETCH_K=3
+              GUARD_MODEL=ai/granite-guardian
+              AUGMENTED_CONTEXT=true
           - name: Lychee
             owner: LycheeOrg
             repo: Lychee
