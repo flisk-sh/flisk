@@ -1,10 +1,12 @@
 {
+  "schema_version": 1,
   "engine": "ORACLE",
   "invariant": "render-exports-http-resources",
   "seed": 3243,
   "shape": "minimized",
   "commit": "e9b39009",
   "issue": "https://github.com/flisk-sh/flisk/issues/3243",
+  "known_gap": "#3243",
   "scenario": {
     "seed": 3243,
     "shape": "minimized",
@@ -15,5 +17,5 @@
   "actual": "export render exited 1",
   "reproduction": "node --test tests/oracle/__tests__/regressions.test.mjs",
   "status": "open",
-  "note": "flisk export render refuses a python, go or rust backend that flisk resource just scaffolded (no Dockerfile until flisk up). render-exports-http-resources exempts it outside strict mode; when this fixture reports the invariant holds, delete that exemption and set status to fixed."
+  "note": "flisk export render refuses a python, go or rust backend that flisk resource just scaffolded (no Dockerfile until flisk up). render-exports-http-resources tags the failure with knownGap #3243, which only a strict replay keeps; when this fixture reports the invariant holds, drop that tag and set status to fixed."
 }
