@@ -110,3 +110,42 @@ def test_posix_commands_of_step_one_remainder_are_unchanged():
     assert "cmd=cmd,\n        cmd_bat=POWERSHELL + [golden_build_script()]," in (TILT.parent / "platform" / "docker" / "build" / "golden_image_build.star").read_text()
     assert "cmd=publish_cmd," in (TILT / "resources" / "libs_resource_definition.star").read_text()
     assert "serve_cmd=['sh', '-c', TILT_IMAGE_TAGS_SCRIPT, 'sh', repo_prefix]," in (TILT / "resources" / "tilt_image_tags.star").read_text()
+
+
+def test_python_launcher_fails_loudly_and_passes_the_exit_code_on(tmp_path):
+    """The PowerShell cannot run off Windows, so pin its failure paths by shape: a missing or broken python must stop the command."""
+    body = _run(tmp_path)["pycmd"][4]
+    # a broken Microsoft Store alias resolves but its --version fails, so the loop moves on to the next candidate
+    assert "& $c.Source --version *> $null; if ($LASTEXITCODE -eq 0) { $py = $c; break }" in body
+    # nothing usable: an actionable error and a non-zero exit before the script is ever called
+    assert body.index("if (-not $py) { Write-Error 'python3, python or py is needed on PATH'; exit 1 }") < body.index("& $py.Source '")
+    # a converter failure reaches Tilt as a non-zero exit instead of an empty success
+    assert body.endswith("; exit $LASTEXITCODE")
+
+
+CONVERTER = RUNTIME / "engine" / "topologies" / "tilt" / "manifest" / "json_to_yaml.py"
+
+
+def _convert(path: Path):
+    return subprocess.run(
+        ["python3", str(CONVERTER), str(path)], capture_output=True, text=True, encoding="utf-8",
+        env={**os.environ, "PYTHONUTF8": "1"},
+    )
+
+
+def test_converter_exits_nonzero_with_a_message_for_a_missing_or_invalid_manifest(tmp_path):
+    pytest.importorskip("yaml")
+    missing = _convert(tmp_path / "nope.json")
+    assert missing.returncode != 0 and missing.stdout == "" and missing.stderr.startswith("Error:")
+    (tmp_path / "bad.json").write_text("{not json")
+    bad = _convert(tmp_path / "bad.json")
+    assert bad.returncode != 0 and bad.stdout == "" and bad.stderr.startswith("Error:")
+
+
+def test_converter_keeps_non_ascii_text(tmp_path):
+    pytest.importorskip("yaml")
+    manifest = tmp_path / "service.json"
+    manifest.write_text(json.dumps({"appName": "café", "description": "Straße → 日本"}, ensure_ascii=False), encoding="utf-8")
+    out = _convert(manifest)
+    assert out.returncode == 0, out.stderr
+    assert "café" in out.stdout and "Straße → 日本" in out.stdout
