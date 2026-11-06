@@ -546,6 +546,10 @@ test("the MCP Registry publish runs in its own job after publish, not on the rel
   assert.match(mcp, /needs: \[build, publish\]/);
   assert.match(mcp, /id-token: write/, "mcp-publisher logs in with the run's GitHub OIDC token");
   assert.match(mcp, /mcp-publisher" publish server\.json/);
+  // npm can take more than 3 minutes to serve a new version; publishing before it does fails registry validation (1.4.34-1.4.39).
+  const waitAt = mcp.search(/registry\.npmjs\.org\/@flisk-sh%2fflisk\/\$\{VERSION\}/);
+  assert.ok(waitAt !== -1, "the job must wait until npm serves this exact version");
+  assert.ok(waitAt < mcp.indexOf('mcp-publisher" publish'), "the npm wait must come before the first publish attempt");
 });
 
 test("the release candidate runs at least 15 legs at once", () => {

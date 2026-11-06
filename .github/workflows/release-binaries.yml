@@ -637,7 +637,7 @@ jobs:
   publish-mcp-registry:
     needs: [build, publish]
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    timeout-minutes: 25
     permissions:
       contents: read
       id-token: write
@@ -671,8 +671,15 @@ jobs:
             "$RUNNER_TEMP/$archive"
           tar xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" mcp-publisher
           node scripts/agent-plugin.mjs --mcp-registry server.json --version "$VERSION"
+          # The registry validates the version against registry.npmjs.org, which can take more than 3 minutes to serve a new
+          # version (1.4.39: published 19:04:31, served from 19:07:40). Fixed retries gave up first, so 1.4.34-1.4.39 never
+          # reached the registry. Wait for npm to serve this exact version, up to 15 minutes, then publish.
+          for _ in $(seq 1 90); do
+            if curl --fail --silent --output /dev/null "https://registry.npmjs.org/@flisk-sh%2fflisk/${VERSION}"; then break; fi
+            sleep 10
+          done
           "$RUNNER_TEMP/mcp-publisher" login github-oidc
-          # The registry reads mcpName from npm, which can lag the publish by a minute.
+          # The registry's own npm lookup can still trail the one above by a moment.
           for attempt in 1 2 3 4 5; do
             if "$RUNNER_TEMP/mcp-publisher" publish server.json; then exit 0; fi
             echo "Attempt ${attempt} failed; retrying in 30 seconds."
