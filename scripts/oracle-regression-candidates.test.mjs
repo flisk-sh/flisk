@@ -114,6 +114,9 @@ test("the report lists added, flaky, duplicate and invalid candidates", () => {
 	});
 	assert.match(text, /1 new/);
 	assert.match(text, /x \\\| y/);
+	// A backslash before a pipe is escaped too, so the pipe cannot split the table row.
+	const tricky = renderReport({ added: [{ file: "d.json", fx: fixture({ actual: "C:\\| x" }) }], flaky: [], duplicates: [], invalid: [] });
+	assert.ok(tricky.includes("C:\\\\\\| x"), tricky);
 	assert.match(text, /`b.json`: now holds/);
 	assert.match(text, /`c.json`: same/);
 	assert.doesNotMatch(text, /Not a valid/);

@@ -82,7 +82,8 @@ export function planCandidates({ candidates, known, replay }) {
 	return report;
 }
 
-const cell = (s) => String(s).replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 300);
+// A Markdown table cell: backslashes first, so an existing "\|" cannot turn into an escaped backslash plus a live pipe.
+const cell = (s) => String(s).replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 300);
 
 export function renderReport(report) {
 	const lines = [`### ORACLE vault candidates: ${report.added.length} new`, ""];
