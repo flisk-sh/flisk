@@ -79,14 +79,18 @@ Step 'Discovery probe' {
   $lines = @(
     ('load(' + $q + ($ext -replace '\\', '/') + $q + ', ' + $q + 'find_files' + $q + ', ' + $q + 'IS_NATIVE_WINDOWS' + $q + ', ' + $q + 'dir_exists' + $q + ')'),
     ('root = ' + $q + ($Project -replace '\\', '/') + $q),
-    ('print(' + $q + 'PROBE IS_NATIVE_WINDOWS=' + $q + ' + str(IS_NATIVE_WINDOWS))'),
-    ('print(' + $q + 'PROBE exists=' + $q + ' + str(os.path.exists(root)) + ' + $q + ' dir_exists=' + $q + ' + str(dir_exists(root)))'),
-    ('print(' + $q + 'PROBE abspath=' + $q + ' + os.path.abspath(root))'),
     'files = listdir(root, recursive=True)',
-    ('print(' + $q + 'PROBE listdir count=' + $q + ' + str(len(files)))'),
-    ('print(' + $q + 'PROBE first=' + $q + ' + str(files[:4]))'),
-    ('print(' + $q + 'PROBE find service.json=' + $q + ' + str(find_files(root, ' + $q + 'service.json' + $q + ')))'),
-    ('print(' + $q + 'PROBE find services/ =' + $q + ' + str(find_files(root + ' + $q + '/services' + $q + ', ' + $q + 'service.json' + $q + ')))')
+    'r = {',
+    ('  ' + $q + 'is_native_windows' + $q + ': IS_NATIVE_WINDOWS,'),
+    ('  ' + $q + 'exists' + $q + ': os.path.exists(root),'),
+    ('  ' + $q + 'dir_exists' + $q + ': dir_exists(root),'),
+    ('  ' + $q + 'abspath' + $q + ': os.path.abspath(root),'),
+    ('  ' + $q + 'listdir_count' + $q + ': len(files),'),
+    ('  ' + $q + 'listdir_first' + $q + ': files[:3],'),
+    ('  ' + $q + 'find_root' + $q + ': find_files(root, ' + $q + 'service.json' + $q + '),'),
+    ('  ' + $q + 'find_services' + $q + ': find_files(root + ' + $q + '/services' + $q + ', ' + $q + 'service.json' + $q + '),'),
+    '}',
+    ('fail(' + $q + 'PROBE' + $q + ' + encode_json(r))')
   )
   $lines | Out-File -FilePath $probe -Encoding ascii
   cmd /c ('tilt alpha tiltfile-result -f "' + $probe + '" > "' + (Join-Path $Out 'probe-result.txt') + '" 2>&1')
