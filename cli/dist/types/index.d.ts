@@ -169,7 +169,7 @@ export declare const DATABASE_FRAMEWORK = "postgres";
 /** `--type queue`: a message queue or broker, run as its own container (utils/infra-presets.ts). */
 export declare const QUEUE_RESOURCE_TYPE = "queue";
 /** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
-export declare const DATABASE_INFRA_FRAMEWORKS: readonly ["redis", "qdrant", "minio", "mlflow"];
+export declare const DATABASE_INFRA_FRAMEWORKS: readonly ["redis", "qdrant", "minio", "mlflow", "mysql", "mongodb", "clickhouse"];
 /** `--type queue --framework <id>`. */
 export declare const QUEUE_FRAMEWORKS: readonly ["nats", "rabbitmq"];
 /** The queue `--type queue` runs when no `--framework` is given. */
@@ -177,7 +177,7 @@ export declare const DEFAULT_QUEUE_FRAMEWORK = "nats";
 /** Every framework id of the infrastructure presets. */
 export type InfraFramework = (typeof DATABASE_INFRA_FRAMEWORKS)[number] | (typeof QUEUE_FRAMEWORKS)[number];
 /** The frameworks `--type database` accepts: the shared Postgres first, then the infrastructure presets. */
-export declare const DATABASE_FRAMEWORKS: readonly ["postgres", "redis", "qdrant", "minio", "mlflow"];
+export declare const DATABASE_FRAMEWORKS: readonly ["postgres", "redis", "qdrant", "minio", "mlflow", "mysql", "mongodb", "clickhouse"];
 /**
  * Every value `flisk resource --type` accepts: the creatable types, `database`, and `sdk`, which
  * registers a package that already exists instead of scaffolding one.

@@ -418,6 +418,9 @@ describe("shell completion candidates", () => {
         "qdrant",
         "minio",
         "mlflow",
+        "mysql",
+        "mongodb",
+        "clickhouse",
       ]);
       expect(typeValuesOf(shell, "--framework", "queue"), shell).toEqual(["nats", "rabbitmq"]);
     }

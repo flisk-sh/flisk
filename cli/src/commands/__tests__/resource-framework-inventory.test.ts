@@ -166,12 +166,21 @@ describe("flisk resource --frameworks", () => {
 
     expect(result.status, result.stderr).toBe(0);
     const listed = rows(result.stdout);
-    expect(listed.map((row) => row[0])).toEqual(["postgres", "redis", "qdrant", "minio", "mlflow"]);
+    expect(listed.map((row) => row[0])).toEqual([
+      "postgres",
+      "redis",
+      "qdrant",
+      "minio",
+      "mlflow",
+      "mysql",
+      "mongodb",
+      "clickhouse",
+    ]);
     // id, label, image, default, command: the Postgres has no image of its own and is the default.
     expect(listed[0]).toEqual([
       "postgres",
       "Shared Flisk Postgres, one database per stack",
-      "null",
+      "-",
       "default",
       "flisk resource <name> --type database --framework postgres",
     ]);
@@ -195,7 +204,10 @@ describe("flisk resource --frameworks", () => {
 
   it("reports the database and queue frameworks in --json", () => {
     for (const [type, ids] of [
-      ["database", ["postgres", "redis", "qdrant", "minio", "mlflow"]],
+      [
+        "database",
+        ["postgres", "redis", "qdrant", "minio", "mlflow", "mysql", "mongodb", "clickhouse"],
+      ],
       ["queue", ["nats", "rabbitmq"]],
     ] as const) {
       const result = flisk(["resource", "--type", type, "--frameworks", "--json"]);
