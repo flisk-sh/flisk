@@ -1,7 +1,7 @@
 # Experiment for gate G6 of docs/design/native-windows-runtime-decision.md on a free GitHub-hosted runner.
 #
 # Hosted Windows runners cannot run Docker Desktop (no nested virtualization), so this job installs WSL2 Ubuntu, runs the Docker
-# Engine inside it under systemd (listening on loopback only, tests/e2e/platforms/windows-live/wsl-docker-engine.sh), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
+# Engine inside it under systemd (listening on loopback and on the WSL VM's private NAT address, never on the runner's public interface; tests/e2e/platforms/windows-live/wsl-docker-engine.sh), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
 # PowerShell host scripts then run natively on Windows, which is what the gate needs to prove. The approach follows
 # https://dwozny.com/posts/windows-2025-docker-wsl2/ and is reported to work on windows-2025 only, in beta. It has NEVER been run
 # here: the first run is expected to fail during setup, and the findings artifact says where.
@@ -28,7 +28,6 @@ jobs:
       DOCKER_CLI_VERSION: "27.3.1"
       COMPOSE_VERSION: "v2.29.7"
       TILT_VERSION: "0.35.0"
-      DOCKER_HOST: tcp://127.0.0.1:2375
       COMPOSE_CONVERT_WINDOWS_PATHS: "1"
     steps:
       - run: git config --global core.autocrlf false
@@ -58,8 +57,11 @@ jobs:
           for ($i = 0; $i -lt 30; $i++) {
             try { Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping | Out-Null; break } catch { Start-Sleep -Seconds 2 }
           }
-          Write-Output 'From Windows:'
-          Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping
+          # Point Windows at the VM's own address (see wsl-docker-engine.sh): the localhost relay loses docker exec/run output.
+          $ip = ((wsl -d Ubuntu -- hostname -I) -join ' ').Trim().Split(' ')[0]
+          Write-Output ('From Windows, engine at ' + $ip)
+          Invoke-WebRequest -UseBasicParsing -Uri ('http://' + $ip + ':2375/_ping')
+          Add-Content -Path $env:GITHUB_ENV -Value ('DOCKER_HOST=tcp://' + $ip + ':2375')
 
       - name: Install the Windows docker CLI, compose plugin and tilt.exe
         shell: powershell

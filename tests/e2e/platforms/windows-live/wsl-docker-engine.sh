@@ -28,6 +28,14 @@ fi
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io
 
+# Windows reaches the engine on this VM's own address, not through WSL's localhost relay: the relay drops the streams that
+# `docker exec`/`docker run` attach (run 42225708774: exec printed nothing and `exit 7` reported 0 from Windows, while the same
+# commands worked inside WSL). Docker Desktop does not use that path.
+wsl_ip="$(hostname -I | awk '{print $1}')"
+echo "WSL address: ${wsl_ip}"
+listen=(-H tcp://127.0.0.1:2375)
+if [ -n "${wsl_ip}" ]; then listen+=(-H "tcp://${wsl_ip}:2375"); fi
+
 state="$(systemctl is-system-running 2>/dev/null || true)"
 echo "systemd: ${state:-absent}"
 case "$state" in
@@ -37,14 +45,14 @@ case "$state" in
     cat > "$override" <<CONF
 [Service]
 ExecStart=
-ExecStart=$dockerd_bin -H fd:// -H tcp://127.0.0.1:2375 --containerd=/run/containerd/containerd.sock
+ExecStart=$dockerd_bin -H fd:// ${listen[*]} --containerd=/run/containerd/containerd.sock
 CONF
     systemctl daemon-reload
     systemctl enable --now docker.socket
     systemctl restart docker.service
     ;;
   *)
-    setsid nohup dockerd -H unix:///var/run/docker.sock -H tcp://127.0.0.1:2375 > /var/log/dockerd.log 2>&1 < /dev/null &
+    setsid nohup dockerd -H unix:///var/run/docker.sock "${listen[@]}" > /var/log/dockerd.log 2>&1 < /dev/null &
     ;;
 esac
 
