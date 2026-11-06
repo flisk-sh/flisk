@@ -88,11 +88,13 @@ def provision_database_script():
         "  Start-Sleep -Seconds 2;",
         "}",
         "$query = 'SELECT 1 FROM pg_database WHERE datname = ''' + $db + '''';",
-        "function Test-Db { $r = docker exec $h psql -U $u -d $master -tAc $query 2>$null; return (([string]$r).Trim() -eq '1'); }",
+        # @() and -join turn "no output" into an empty string: .Trim() on $null threw on every attempt (hosted Windows run 42190469696).
+        "function Test-Db { $r = @(docker exec $h psql -U $u -d $master -tAc $query 2>$null); return (($r -join '').Trim() -eq '1'); }",
         "for ($i = 1; $i -le 30; $i++) {",
         "  if (Test-Db) { break; }",
         "  Write-Output ('Creating database ' + $db + ' (attempt ' + $i + '/30)...');",
-        "  docker exec $h createdb -U $u -O $u $db *> $null;",
+        # Keep createdb's own message when it fails: the POSIX script hides it, which made this loop silent on Windows.
+        "  $cd = @(docker exec $h createdb -U $u -O $u $db 2>&1); if ($LASTEXITCODE -ne 0) { Write-Output ('createdb failed: ' + ($cd -join ' ')); }",
         "  if (Test-Db) { break; }",
         "  if ($i -eq 30) { Write-Output ('Database ' + $db + ' could not be created'); exit 1; }",
         "  Start-Sleep -Seconds 2;",
