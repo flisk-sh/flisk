@@ -8,7 +8,11 @@ import { installFakeContainerTools } from "../../test-support/fake-container-too
 import { createTempDir } from "../../test-support/temp-project.js";
 
 const dirs = vi.hoisted(() => ({ home: "", cwd: "" }));
-const stackMocks = vi.hoisted(() => ({ runStackQuiet: vi.fn() }));
+const stackMocks = vi.hoisted(() => ({
+  runStackQuiet: vi.fn(),
+  stopDemoStack: vi.fn(),
+  stageUpdates: [] as Array<{ phases?: Array<{ id: string; status: string }> }>,
+}));
 
 vi.mock("node:os", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:os")>();
@@ -62,6 +66,29 @@ vi.mock("../../utils/one-command.js", async (importOriginal) => ({
   installServiceDependencies: vi.fn(async () => []),
   runStackQuiet: stackMocks.runStackQuiet,
 }));
+
+vi.mock("../../utils/demo-reset.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/demo-reset.js")>();
+  stackMocks.stopDemoStack.mockImplementation(actual.stopDemoStack);
+  return { ...actual, stopDemoStack: stackMocks.stopDemoStack };
+});
+
+vi.mock("../../utils/demo-stage.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/demo-stage.js")>();
+  return {
+    ...actual,
+    createDemoStage: (...args: Parameters<typeof actual.createDemoStage>) => {
+      const stage = actual.createDemoStage(...args);
+      return {
+        ...stage,
+        update: (patch: { phases?: Array<{ id: string; status: string }> }) => {
+          stackMocks.stageUpdates.push(patch);
+          stage.update(patch as never);
+        },
+      };
+    },
+  };
+});
 
 vi.mock("../../utils/demo-networks.js", () => ({
   ensureNetworkCapacity: vi.fn(async () => ({ ok: true, removed: [] })),
@@ -128,6 +155,9 @@ describe("flisk demo fixed directory", () => {
     vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
       throw new ExitSignal(code);
     }) as never);
+    stackMocks.stageUpdates.length = 0;
+    stackMocks.stopDemoStack.mockClear();
+    stackMocks.stopDemoStack.mockImplementation(async () => true);
     stackMocks.runStackQuiet.mockResolvedValue({
       ok: true,
       raw: "",
@@ -228,5 +258,94 @@ describe("flisk demo fixed directory", () => {
       .mock.calls.map(([chunk]) => String(chunk))
       .join("");
     expect(output).toContain(error);
+  });
+
+  it("answers --help before it touches a stopped demo checkout", async () => {
+    expect(await runDemoCli("demo")).toBe(0);
+    const marker = join(demoDir, "keep-me.txt");
+    writeFileSync(marker, "mine");
+    stackMocks.stopDemoStack.mockClear();
+
+    expect(await runDemoCli("--template=demo", "--help")).toBe(0);
+
+    expect(existsSync(marker)).toBe(true);
+    expect(stackMocks.stopDemoStack).not.toHaveBeenCalled();
+  });
+
+  it("refuses a malformed --project before any setup", async () => {
+    expect(await runDemoCli("restaurant", "--project", "--keep")).toBe(1);
+    expect(await runDemoCli("restaurant", "--project=")).toBe(1);
+    expect(readdirSync(dirs.cwd)).toEqual([]);
+  });
+
+  it("keeps the checkout and exits when the previous stack cannot be stopped", async () => {
+    expect(await runDemoCli("demo")).toBe(0);
+    const marker = join(demoDir, "stale-marker.txt");
+    writeFileSync(marker, "left over");
+    stackMocks.stopDemoStack.mockRejectedValue(new Error("docker compose down failed"));
+
+    expect(await runDemoCli("demo")).toBe(1);
+
+    expect(existsSync(marker)).toBe(true);
+  });
+
+  it("marks setup phases active before they run", async () => {
+    expect(await runDemoCli("demo")).toBe(0);
+
+    const seen = (id: string, status: string) =>
+      stackMocks.stageUpdates.findIndex((patch) =>
+        patch.phases?.some((phase) => phase.id === id && phase.status === status),
+      );
+    for (const id of ["fetch", "config", "deps", "start"]) {
+      expect(seen(id, "active")).toBeGreaterThanOrEqual(0);
+      expect(seen(id, "active")).toBeLessThan(seen(id, "done"));
+    }
+  });
+
+  it("watches the Tilt port that TILT_PORT selected", async () => {
+    const { classifyTiltPorts } = await import("../../utils/tilt-port-owner.js");
+    process.env.TILT_PORT = "10377";
+    try {
+      expect(await runDemoCli("demo")).toBe(0);
+    } finally {
+      delete process.env.TILT_PORT;
+    }
+    const firstCall = vi.mocked(classifyTiltPorts).mock.calls[0];
+    expect(firstCall?.[0][0]).toBe(10377);
+  });
+
+  it("does not take the already-running shortcut while a backend is not ready", async () => {
+    expect(await runDemoCli("demo")).toBe(0);
+    const { listFrontendTargets, pickReadyFrontend } = await import("../open.js");
+    const { classifyTiltPorts } = await import("../../utils/tilt-port-owner.js");
+    const { readStackProgress } = await import("../../utils/stack-progress.js");
+    const target = { name: "web", url: "http://web.localhost" };
+    vi.mocked(listFrontendTargets).mockResolvedValue([target]);
+    vi.mocked(pickReadyFrontend).mockResolvedValue(target);
+    vi.mocked(classifyTiltPorts).mockResolvedValue({ running: [10350] } as never);
+    vi.mocked(readStackProgress).mockResolvedValue({ ready: 3, total: 6, building: 3 } as never);
+    stackMocks.stopDemoStack.mockClear();
+
+    await runDemoCli("demo");
+
+    // The frontend answers, but 3 of 6 resources are ready: the old stack is stopped and replaced.
+    expect(stackMocks.stopDemoStack).toHaveBeenCalled();
+  });
+
+  it("takes the shortcut when the frontend and every resource are ready", async () => {
+    expect(await runDemoCli("demo")).toBe(0);
+    const { listFrontendTargets, pickReadyFrontend } = await import("../open.js");
+    const { classifyTiltPorts } = await import("../../utils/tilt-port-owner.js");
+    const { readStackProgress } = await import("../../utils/stack-progress.js");
+    const target = { name: "web", url: "http://web.localhost" };
+    vi.mocked(listFrontendTargets).mockResolvedValue([target]);
+    vi.mocked(pickReadyFrontend).mockResolvedValue(target);
+    vi.mocked(classifyTiltPorts).mockResolvedValue({ running: [10350] } as never);
+    vi.mocked(readStackProgress).mockResolvedValue({ ready: 6, total: 6, building: 0 } as never);
+    stackMocks.stopDemoStack.mockClear();
+
+    expect(await runDemoCli("demo")).toBe(0);
+
+    expect(stackMocks.stopDemoStack).not.toHaveBeenCalled();
   });
 });
