@@ -218,11 +218,12 @@ Step 'Context probe' {
     @('B no dockerignore, clean context', $Project, $false),
     @('C sibling dockerignore, context with ..', (Join-Path $Project '.flisk\.flisk-out\..\..'), $true)
   )
+  $env:DOCKER_BUILDKIT = '1'
   foreach ($c in $contexts) {
     Remove-Item -LiteralPath $dfIgnore -Force -ErrorAction SilentlyContinue
     if ($c[2] -and (Test-Path -LiteralPath $ignore)) { Copy-Item -LiteralPath $ignore -Destination $dfIgnore -Force }
     ('--- ' + $c[0]) | Out-File -FilePath $o -Append -Encoding utf8
-    cmd /c ('docker build --progress=plain --no-cache -f "' + $df + '" -t flisk-context-probe "' + $c[1] + '" >> "' + $o + '" 2>&1')
+    cmd /c ('docker build --no-cache -f "' + $df + '" -t flisk-context-probe "' + $c[1] + '" >> "' + $o + '" 2>&1')
     ('exit ' + $LASTEXITCODE) | Out-File -FilePath $o -Append -Encoding utf8
   }
   Remove-Item -LiteralPath $df, $dfIgnore -Force -ErrorAction SilentlyContinue

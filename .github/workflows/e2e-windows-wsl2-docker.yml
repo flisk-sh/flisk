@@ -28,6 +28,7 @@ jobs:
       DOCKER_CLI_VERSION: "27.3.1"
       COMPOSE_VERSION: "v2.29.7"
       TILT_VERSION: "0.35.0"
+      BUILDX_VERSION: "v0.17.1"
       COMPOSE_CONVERT_WINDOWS_PATHS: "1"
     steps:
       - run: git config --global core.autocrlf false
@@ -73,6 +74,9 @@ jobs:
           $plugins = Join-Path $env:USERPROFILE '.docker\cli-plugins'
           New-Item -ItemType Directory -Force -Path $plugins | Out-Null
           Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/docker/compose/releases/download/$env:COMPOSE_VERSION/docker-compose-windows-x86_64.exe" -OutFile "$plugins\docker-compose.exe"
+          # Docker Desktop ships buildx; the static docker zip does not, which left the Windows client on the legacy builder
+          # (no BuildKit, no <Dockerfile>.dockerignore, no `docker buildx bake` for the golden layers).
+          Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/docker/buildx/releases/download/$env:BUILDX_VERSION/buildx-$env:BUILDX_VERSION.windows-amd64.exe" -OutFile "$plugins\docker-buildx.exe"
           Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/tilt-dev/tilt/releases/download/v$env:TILT_VERSION/tilt.$env:TILT_VERSION.windows.x86_64.zip" -OutFile "$tools\tilt.zip"
           Expand-Archive -Path "$tools\tilt.zip" -DestinationPath "$tools\tilt" -Force
           Add-Content -Path $env:GITHUB_PATH -Value "$tools\docker"
@@ -83,6 +87,7 @@ jobs:
         run: |
           docker version
           docker compose version
+          docker buildx version
           tilt version
           docker info --format '{{.OSType}}'
 
