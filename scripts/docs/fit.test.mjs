@@ -43,7 +43,8 @@ test("162 pages, each with three bars whose tabs link to existing pages, and a g
     assert.ok(img && [...assets.keys()].some((a) => a.includes(`score-${img[1]}.`)), file);
   }
   assert.match(section, /^<!-- fit · generated[\s\S]*<!-- \/fit -->$/);
-  assert.match(section, /score-82\./);
+  assert.match(section, /docs\/fit\/node-compose-5-plus\.md/);
+  assert.doesNotMatch(section, /score-\d+/);
 });
 
 test("the gauge fills to the score, honors reduced motion and rests filled without animation", () => {

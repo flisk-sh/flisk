@@ -25,7 +25,7 @@ const fakeGh = (files) => (args) => {
 };
 
 const README = [
-	"# Flisk: your whole app, running on your computer with one command",
+	"# Flisk: local development for multi-service apps, started with one command",
 	"",
 	"```bash",
 	"npm install -g @flisk-sh/flisk",
@@ -34,13 +34,13 @@ const README = [
 	"flisk up shop",
 	"```",
 ].join("\n");
-const pkg = JSON.stringify({ name: "@flisk-sh/flisk", description: "Flisk: your whole app, running on your computer with one command." });
-const LLMS = "# Flisk\n\n> Flisk: your whole app, running on your computer with one command.\n\n```bash\nnpm install -g @flisk-sh/flisk\nflisk project --yes\nflisk up\n```\n";
+const pkg = JSON.stringify({ name: "@flisk-sh/flisk", description: "Flisk: local development for multi-service apps, started with one command." });
+const LLMS = "# Flisk\n\n> Flisk: local development for multi-service apps, started with one command.\n\n```bash\nnpm install -g @flisk-sh/flisk\nflisk project --yes\nflisk up\n```\n";
 const index = (h1, lead) =>
-	`---\nlayout: default\ntitle: Flisk: your whole app, running on your computer with one command\n---\n<section><h1>${h1}</h1>\n<p>Run <code>${lead}</code>, then <code>flisk up</code>.</p>\n<div class="aw-install"><code>{{ site.data.flisk.install_npm }}</code></div></section>`;
+	`---\nlayout: default\ntitle: Flisk: local development for multi-service apps, started with one command\n---\n<section><h1>${h1}</h1>\n<p>Run <code>${lead}</code>, then <code>flisk up</code>.</p>\n<div class="aw-install"><code>{{ site.data.flisk.install_npm }}</code></div></section>`;
 const SAME = {
-	"index.html": index("Your whole app, running on your computer with one command", "flisk project"),
-	"_config.yml": "title: Flisk CLI\ntagline: Your whole app, running on your computer with one command\n",
+	"index.html": index("Local development for multi-service apps, started with one command", "flisk project"),
+	"_config.yml": "title: Flisk CLI\ntagline: Local development for multi-service apps, started with one command\n",
 	"_data/flisk.yml": 'install_npm: "npm install -g @flisk-sh/flisk"\n',
 	"llms.txt": LLMS,
 };

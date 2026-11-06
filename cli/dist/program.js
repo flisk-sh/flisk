@@ -17,7 +17,7 @@ export function createProgram() {
     const program = new Command();
     program
         .name("flisk")
-        .description("Flisk: your whole app, running on your computer with one command.")
+        .description("Flisk: local development for multi-service apps, started with one command.")
         .enablePositionalOptions()
         .version(pkg.version, "-v, --version", "Display version number")
         .option("--verbose", "Enable verbose output", false)
