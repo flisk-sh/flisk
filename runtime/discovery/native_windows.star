@@ -207,7 +207,13 @@ def list_subdirs(root, prefix):
     return sorted(names.keys())
 
 def is_absolute(path):
-    return path.startswith("/") or path.startswith("\\") or (len(path) > 1 and path[1] == ":")
+    """Absolute on Windows: a leading `/` or `\\` (rooted or UNC), or a drive plus a separator (`C:\\x`, `C:/x`).
+
+    `C:x` is drive-relative (relative to the current directory on drive C), so it is not absolute.
+    """
+    if path.startswith("/") or path.startswith("\\"):
+        return True
+    return len(path) > 2 and path[1] == ":" and (path[2] == "\\" or path[2] == "/")
 
 def is_abs_path(path):
     """True for an absolute path: a leading `/` everywhere, and on native Windows also `\\...` and `C:` drive paths.
