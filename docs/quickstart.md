@@ -31,7 +31,7 @@ bun --version
 
 All should print version info without errors. Skip the check for a tool you don't use on your chosen install path.
 
-> **Windows users**: Use WSL2 Ubuntu (the Ubuntu app that [WSL2](start/words.md#wsl2) installs). See the [Windows & WSL2 guide](wsl2.md) for the recommended setup. Native Windows runs `flisk demo` and projects whose services each declare a `command` as local processes, and inspects Docker projects (`flisk doctor`, `flisk up --dry-run`); `flisk up` on a Docker project refuses with WSL2 guidance.
+> **Windows users**: Use WSL2 Ubuntu (the Ubuntu app that [WSL2](start/words.md#wsl2) installs). Follow [Start here on Windows](start-here-on-windows.md) for the step-by-step WSL2 and Docker Desktop setup (reference: [Windows & WSL2 guide](wsl2.md)). Native Windows runs `flisk demo` and projects whose services each declare a `command` as local processes, and inspects Docker projects (`flisk doctor`, `flisk up --dry-run`); `flisk up` on a Docker project refuses with WSL2 guidance.
 
 ---
 
