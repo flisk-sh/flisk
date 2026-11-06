@@ -9,7 +9,8 @@
 // drawPlan refuses a plan with any. tests/e2e/lib/__tests__/enigma36-plan.test.mjs runs the board over hundreds of seeds, so a draw can never boot a
 // project that was contradictory to begin with.
 //
-//   node tests/e2e/scale/enigma36/plan.mjs [--seed <n>] [--count <n>]   prints the plan as JSON
+//   node tests/e2e/scale/enigma36/plan.mjs [--seed <n>] [--count <n>] [--include a,b]   prints the plan as JSON
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registryAxes } from "../../lib/registry-axes.mjs";
@@ -19,9 +20,28 @@ export const COUNT = 36;
 export const STACKS = ["rotor-i", "rotor-ii", "rotor-iii", "rotor-iv", "rotor-v", "rotor-vi"];
 // The kinds every plan holds at least once. library and migrator are not creatable with `flisk resource --type`; inference
 // pulls a multi-gigabyte model image, so it stays in its own suite.
-export const KINDS = ["backend", "frontend", "worker", "mcp", "agent", "database", "bring-your-own", "sdk"];
-// One Postgres per project is enough: more only adds boot time, not combinations.
-const MAX_PER_KIND = { database: 1 };
+export const KINDS = ["backend", "frontend", "worker", "mcp", "agent", "database", "queue", "bring-your-own", "sdk"];
+// Each infrastructure server (Postgres, Redis, Qdrant, MinIO, MLflow, NATS, RabbitMQ) appears at most once: a second one of the
+// same framework only collides on its UI host port and adds boot time, not combinations. Every one of them is always drawn
+// when the count leaves room, so a plan never holds just the Postgres.
+const MAX_PER_VARIANT = 1;
+const INFRA_KINDS = ["database", "queue"];
+const QUEUE_FRAMEWORKS = ["nats", "rabbitmq"];
+// The type `flisk status` and the scaffold envelope report. Every infrastructure framework except the shared Postgres is a
+// bring-your-own container (docs/byo.md, "Infrastructure frameworks").
+export const reportedType = (e) => (INFRA_KINDS.includes(e.kind) && e.variant !== "postgres" ? "bring-your-own" : e.kind);
+
+// The infrastructure frameworks `flisk resource --type database|queue --framework <id>` creates, read from the CLI's INFRA_PRESETS
+// (the top-level keys, two-space indent) so a new framework joins the draw without editing this file.
+export function infraFrameworks(root = path.resolve(here, "../../../..")) {
+  const text = readFileSync(path.join(root, "cli/src/utils/infra-presets.ts"), "utf8");
+  const from = text.indexOf("export const INFRA_PRESETS");
+  if (from < 0) throw new Error("cli/src/utils/infra-presets.ts has no INFRA_PRESETS");
+  const to = text.indexOf("\n} ", from);
+  const ids = [...text.slice(from, to < 0 ? undefined : to).matchAll(/\n  ([a-z][\w-]*): \{/g)].map((m) => m[1]);
+  if (ids.length === 0) throw new Error("INFRA_PRESETS lists no frameworks");
+  return ids;
+}
 
 // mulberry32: a small seeded PRNG that is the same on every Node version and platform.
 export function rng(seed) {
@@ -45,6 +65,11 @@ export function pieces(axes) {
     { kind: "mcp", variant: "mcp", args: [] },
     ...axes.agentDurability.map((d) => ({ kind: "agent", variant: `agent-${d}`, args: ["--durability", d] })),
     { kind: "database", variant: "postgres", args: [] },
+    ...(axes.infraFramework ?? infraFrameworks()).map((f) => ({
+      kind: QUEUE_FRAMEWORKS.includes(f) ? "queue" : "database",
+      variant: f,
+      args: ["--framework", f],
+    })),
     { kind: "bring-your-own", variant: "whoami", args: [] },
     { kind: "sdk", variant: "sdk", args: [] },
   ];
@@ -69,13 +94,15 @@ export function checkPlan(plan, count = COUNT) {
   if (count >= STACKS.length) {
     for (const stack of STACKS) if (!entries.some((e) => e.stack === stack)) problems.push(`stack ${stack} is empty`);
   }
-  for (const [kind, max] of Object.entries(MAX_PER_KIND)) {
-    const n = entries.filter((e) => e.kind === kind).length;
-    if (n > max) problems.push(`${n} ${kind} resources, at most ${max}`);
+  for (const kind of INFRA_KINDS) {
+    for (const variant of new Set(entries.filter((e) => e.kind === kind).map((e) => e.variant))) {
+      const n = entries.filter((e) => e.kind === kind && e.variant === variant).length;
+      if (n > MAX_PER_VARIANT) problems.push(`${n} ${variant} ${kind} resources, at most ${MAX_PER_VARIANT}`);
+    }
   }
   // An agent checkpointing to Postgres needs the project's database in the draw, and in its own stack: the database resource
   // provisions <project>_<stack>, so an agent in another stack gets "database does not exist" and never answers /ready.
-  const database = entries.find((e) => e.kind === "database");
+  const database = entries.find((e) => e.variant === "postgres");
   if (entries.some((e) => e.variant === "agent-postgres") && !database) {
     problems.push("an agent-postgres without a database resource");
   }
@@ -89,15 +116,30 @@ export function checkPlan(plan, count = COUNT) {
 
 // Draw the plan for a seed: one of each kind first, then the rest from every piece, shuffled, then six stacks dealt so none is
 // empty. Throws when the diagonal board finds a contradiction, so a broken draw fails before anything is scaffolded.
-export function drawPlan(seed, { count = COUNT, axes = registryAxes(path.resolve(here, "../../../..")) } = {}) {
+export function drawPlan(seed, { count = COUNT, include = [], axes = registryAxes(path.resolve(here, "../../../..")) } = {}) {
   const next = rng(seed);
   const pick = (list) => list[Math.floor(next() * list.length)];
   const all = pieces(axes);
-  const drawn = KINDS.slice(0, count).map((kind) => pick(all.filter((p) => p.kind === kind && p.variant !== "agent-postgres")));
+  // One of each kind first; the database kind is the shared Postgres, so an agent-postgres always finds it.
+  const first = KINDS.map((kind) =>
+    kind === "database" ? all.find((p) => p.variant === "postgres") : pick(all.filter((p) => p.kind === kind && p.variant !== "agent-postgres")),
+  );
+  // Then every other infrastructure framework (Redis, Qdrant, MinIO, MLflow, RabbitMQ, NATS), so the mix holds more than one
+  // database; the ones the first deal already took are skipped.
+  const infra = all.filter((p) => INFRA_KINDS.includes(p.kind) && !first.some((f) => f.variant === p.variant));
+  // Variants the caller asked for by name (ENIGMA_INCLUDE=redis,minio,go): always in the plan, whatever the seed draws.
+  const asked = include.map((v) => {
+    const piece = all.find((p) => p.variant === v);
+    if (!piece) throw new Error(`unknown variant "${v}" in include; the rotors hold: ${[...new Set(all.map((p) => p.variant))].join(", ")}`);
+    return piece;
+  });
+  const extra = asked.filter((p, i) => !first.some((f) => f.variant === p.variant) && asked.findIndex((q) => q.variant === p.variant) === i);
+  const drawn = [...first, ...extra, ...infra.filter((p) => !extra.some((e) => e.variant === p.variant))].slice(0, count);
+  const missing = asked.filter((p) => !drawn.some((d) => d.variant === p.variant));
+  if (missing.length > 0) throw new Error(`count ${count} is too small to hold ${missing.map((p) => p.variant).join(", ")}`);
   while (drawn.length < count) {
     const piece = pick(all);
-    const max = MAX_PER_KIND[piece.kind];
-    if (max !== undefined && drawn.filter((p) => p.kind === piece.kind).length >= max) continue;
+    if (INFRA_KINDS.includes(piece.kind) && drawn.some((p) => p.variant === piece.variant)) continue;
     drawn.push(piece);
   }
   for (let i = drawn.length - 1; i > 0; i--) {
@@ -106,7 +148,7 @@ export function drawPlan(seed, { count = COUNT, axes = registryAxes(path.resolve
   }
   const stacks = drawn.map((_, i) => (i < STACKS.length ? STACKS[i] : pick(STACKS)));
   // The database resource provisions one database per stack, so every Postgres-checkpointed agent joins the database's stack.
-  const dbIndex = drawn.findIndex((p) => p.kind === "database");
+  const dbIndex = drawn.findIndex((p) => p.variant === "postgres");
   const emptied = (i) => stacks.filter((s, k) => k !== i && s === stacks[i]).length === 0;
   drawn.forEach((p, i) => {
     if (p.variant !== "agent-postgres" || dbIndex < 0 || stacks[i] === stacks[dbIndex]) return;
@@ -120,6 +162,7 @@ export function drawPlan(seed, { count = COUNT, axes = registryAxes(path.resolve
   const entries = drawn.map((p, i) => ({
     name: `e${String(i + 1).padStart(2, "0")}-${p.variant}`,
     kind: p.kind,
+    type: reportedType(p),
     variant: p.variant,
     stack: stacks[i],
     args: p.args,
@@ -137,5 +180,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   };
   const seed = Number(arg("--seed") ?? Math.floor(Math.random() * 2 ** 31));
   const count = Number(arg("--count") ?? COUNT);
-  console.log(JSON.stringify(drawPlan(seed, { count }), null, 2));
+  const include = (arg("--include") ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+  console.log(JSON.stringify(drawPlan(seed, { count, include }), null, 2));
 }

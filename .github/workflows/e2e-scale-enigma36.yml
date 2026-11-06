@@ -15,6 +15,10 @@ on:
         description: "How many resources to draw"
         type: string
         default: "36"
+      include:
+        description: "Variants to force into the draw, comma separated (for example redis,minio,qdrant,go,agent-postgres)"
+        type: string
+        default: ""
   schedule:
     - cron: "17 2 * * *"
 
@@ -33,6 +37,7 @@ jobs:
     env:
       E2E_SEED: ${{ inputs.seed }}
       ENIGMA_COUNT: ${{ inputs.count || '36' }}
+      ENIGMA_INCLUDE: ${{ inputs.include }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -66,7 +71,7 @@ jobs:
             echo
             echo '| resource | type | stack |'
             echo '| --- | --- | --- |'
-            jq -r '.entries[] | "| \(.name) | \(.kind) | \(.stack) |"' "${RUNNER_TEMP}/flisk-e2e/enigma36/plan.json"
+            jq -r '.entries[] | "| \(.name) | \(.kind) (\(.variant)) | \(.stack) |"' "${RUNNER_TEMP}/flisk-e2e/enigma36/plan.json"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: K2 scaffold every drawn resource
         run: tests/e2e/scale/enigma36/run.sh K2
