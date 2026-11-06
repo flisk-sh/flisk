@@ -311,18 +311,6 @@
 # 📛 FILE ALIASES (Easier Names)
 # =============================================================================
 
-# Can't remember "spec.master"? Use these aliases:
-#
-#     .tilt/paths.star → Same file, easier name!
-#     .tilt/where-things-live.star → Same file, fun name!
-#
-# So you can do:
-#     load(PROJECT_ROOT + "/.tilt/paths.star", "SPEC")
-#
-# Instead of:
-#     load(PROJECT_ROOT + "/.tilt-engine/spec.master", "SPEC")
-#
-# Both work! Use whichever you remember. 😊
 
 # =============================================================================
 # 🗓️  FEATURE FLAGS (What's Working vs Planned)
