@@ -38,10 +38,14 @@ export async function checkPortStatus(port) {
         server.listen(port, "127.0.0.1");
     });
 }
-export async function findAvailablePort(basePort, maxAttempts = 10) {
+/**
+ * The first free port from basePort. `claim`, when given, also has to accept the port: a real start passes a claimer so two
+ * projects starting at once do not both take the same free port (see port-claims.ts).
+ */
+export async function findAvailablePort(basePort, maxAttempts = 10, claim) {
     for (let i = 0; i < maxAttempts; i++) {
         const port = basePort + i;
-        if (await isPortAvailable(port)) {
+        if ((await isPortAvailable(port)) && (claim?.(port) ?? true)) {
             return port;
         }
     }

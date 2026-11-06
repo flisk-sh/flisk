@@ -290,6 +290,30 @@ describe("findAvailablePort", () => {
     await expect(findAvailablePort(3000, 3)).resolves.toBeNull();
     await expect(findAvailablePort(3000, 4)).resolves.toBe(3003);
   });
+
+  it("should skip a free port that another project has already claimed", async () => {
+    probePorts(() => "refuse");
+    const claimed = new Set([10350, 10351]);
+    const claim = vi.fn((port: number) => !claimed.has(port));
+
+    await expect(findAvailablePort(10350, 10, claim)).resolves.toBe(10352);
+    expect(claim.mock.calls.map(([port]) => port)).toEqual([10350, 10351, 10352]);
+  });
+
+  it("should not claim a port that is listening", async () => {
+    probePorts((port) => (port === 10350 ? "connect" : "refuse"));
+    const claim = vi.fn(() => true);
+
+    await expect(findAvailablePort(10350, 10, claim)).resolves.toBe(10351);
+    expect(claim).toHaveBeenCalledTimes(1);
+    expect(claim).toHaveBeenCalledWith(10351);
+  });
+
+  it("should return null when every free port is claimed", async () => {
+    probePorts(() => "refuse");
+
+    await expect(findAvailablePort(10350, 3, () => false)).resolves.toBeNull();
+  });
 });
 
 describe("checkPortStatus", () => {
