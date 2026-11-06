@@ -904,6 +904,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "oracle.yml",
+			"job": "candidates",
+			"tier": "bot",
+			"required": false,
+			"reason": "After a failing ORACLE sweep: replays, dedupes and validates the vault fixtures it wrote, then opens one draft PR adding the new ones as open (scripts/oracle-regression-candidates.mjs); never pushes to main or merges",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "scoreboard.yml",
 			"job": "report",
 			"tier": "report",

@@ -101,8 +101,22 @@ Failures use the shared bug-memory shape (the vault fixture adds `scenario` and 
 Every contradiction ORACLE finds becomes a fixture, so no bug is found twice and no fixed bug comes back unnoticed. With `--out`,
 a sweep writes one fixture per failure to `<out>/regressions/`. `--minimize` first drops each resource the contradiction does
 not need: one resource at a time, kept only while the same invariant fails with the same symptom, in repeated passes until a
-pass removes nothing, within a budget of 40 replays. The fixture records the failure as the minimized scenario shows it. Copy
-the fixture into `tests/oracle/regressions/`, link the issue, and commit it.
+pass removes nothing, within a budget of 40 replays. The fixture records the failure as the minimized scenario shows it.
+
+**Candidates PR.** A fixture reaches the vault through a human-reviewed pull request, never straight from CI.
+`scripts/oracle-regression-candidates.mjs` takes a sweep's `<out>/regressions/` and keeps a candidate only when it passes
+`validateFixture`, is not the same defect as a fixture already in the vault or in an open candidate PR (same invariant, same
+`expected` and `actual` after `normalizeActual`; within one batch the smallest scenario wins), and reproduces once more on a
+strict replay with the same symptom. The others are listed as flaky, duplicate or invalid. Kept candidates are written with
+`"status": "open"`; nothing is ever marked fixed. The nightly job opens the draft PR; locally, the same steps are:
+
+```bash
+node tests/oracle/run.mjs --seed 100 --seeds 20 --minimize --out /tmp/oracle
+node scripts/oracle-regression-candidates.mjs --candidates /tmp/oracle/regressions --vault tests/oracle/regressions
+```
+
+In the PR, check the contradiction is a real defect (if not, fix the invariant and close the PR), add the `issue` URL, and
+merge.
 
 A fixture carries its own scenario, so it replays without the seed draw and keeps replaying after `scenario.mjs` changes.
 `__tests__/regressions.test.mjs` replays each one against the built CLI, **strict**:
@@ -129,5 +143,9 @@ failure and save a fixture with `known_gap` and `"status": "open"`; there is no 
 ## CI
 
 `.github/workflows/oracle.yml` runs 30 consecutive seeds nightly and on demand (`seed`, `seeds` inputs), prints the first seed in
-the job summary, and uploads `oracle-failures.json` and the minimized vault fixtures on failure. The unit tests and the vault
-replay run in `make test-shell`.
+the job summary, and uploads `oracle-failures.json` and the minimized vault fixtures on failure. When it wrote fixtures, the
+`candidates` job (the only one with `contents: write` and `pull-requests: write`) runs the candidates script above, skipping
+fixtures already proposed on an open `bot/oracle-regressions-*` branch, lists flaky and duplicate candidates in its job
+summary, and opens one draft PR on `bot/oracle-regressions-<date>` against main. It never pushes to main and never merges. A
+PR the job token opens starts no workflows, so push a commit (or close and reopen it) to run CI | Checks. The unit tests
+(`scripts/oracle-regression-candidates.test.mjs` included) and the vault replay run in `make test-shell`.
