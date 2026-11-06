@@ -109,11 +109,14 @@ def files_scan_command():
     return _PS + [
         "try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }; "
         + "$r = (Resolve-Path -LiteralPath $env:FLISK_SCAN_ROOT -ErrorAction SilentlyContinue).Path; if (-not $r) { exit 0 }; "
-        + "$r = $r.TrimEnd([char]92, [char]47); "
-        + "$p = @{ LiteralPath = $r; Recurse = $true; File = $true; Force = $true; ErrorAction = 'SilentlyContinue' }; "
+        + "$r = $r.TrimEnd([char]92, [char]47); $o = $r.Length + 1; "
+        # A bare drive ("C:") means the current directory on that drive, so a drive root keeps its separator and its prefix is one shorter.
+        + "if ($r.Length -eq 2 -and $r[1] -eq [char]58) { $r += [char]92; $o = $r.Length }; "
+        # Terminating errors: an unreadable subdirectory must fail the scan, not silently drop services. Only a missing root is empty (above).
+        + "$p = @{ LiteralPath = $r; Recurse = $true; File = $true; Force = $true; ErrorAction = 'Stop' }; "
         + "if ($env:FLISK_SCAN_NAME -and $env:FLISK_SCAN_NAME -ne '*') { $p.Filter = $env:FLISK_SCAN_NAME }; "
         + "if ($env:FLISK_SCAN_DEPTH) { $p.Depth = [int]$env:FLISK_SCAN_DEPTH }; "
-        + "Get-ChildItem @p | ForEach-Object { $_.FullName.Substring($r.Length + 1) }; exit 0",
+        + "try { Get-ChildItem @p | ForEach-Object { $_.FullName.Substring($o) } } catch { [Console]::Error.WriteLine('flisk discovery scan failed: ' + $_.Exception.Message); exit 1 }; exit 0",
     ]
 
 def _relative_files(root, display_root = None, name = "*", max_depth = 0):

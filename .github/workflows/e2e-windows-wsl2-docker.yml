@@ -3,8 +3,10 @@
 # Hosted Windows runners cannot run Docker Desktop (no nested virtualization), so this job installs WSL2 Ubuntu, runs the Docker
 # Engine inside it under systemd (listening on loopback and on the WSL VM's private NAT address, never on the runner's public interface; tests/e2e/platforms/windows-live/wsl-docker-engine.sh), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
 # PowerShell host scripts then run natively on Windows, which is what the gate needs to prove. The approach follows
-# https://dwozny.com/posts/windows-2025-docker-wsl2/ and is reported to work on windows-2025 only, in beta. It has NEVER been run
-# here: the first run is expected to fail during setup, and the findings artifact says where.
+# https://dwozny.com/posts/windows-2025-docker-wsl2/ and is reported to work on windows-2025 only, in beta. It is still experimental:
+# hosted runs have already exposed and fixed discovery, database and build failures, and the findings artifact says where a run
+# fails. A pass needs all expected services discovered, the containers running, the golden-layer build done, the demo frontend and
+# API answering and no Tilt reload loop; run it on the final PR commit before merging, since it does not gate pull requests.
 #
 # Manual only: it is a long, network-heavy run and it must not gate pull requests.
 name: 🪟 E2E | Windows live stack (hosted, WSL2 engine)
