@@ -247,7 +247,9 @@ export const networksCommand = new Command("networks")
             }
             process.exit(0);
         }
-        printBoxedHeader("🌐  TRAEFIK NETWORKS", `Domain: http://${baseDomain}:${httpPort}`, DEFAULT_BOX_WIDTH);
+        printBoxedHeader("🌐  TRAEFIK NETWORKS", baseDomain
+            ? `Domain: http://${baseDomain}:${httpPort}`
+            : `Base URL: ${process.env.FLISK_SERVICE_BASE_URL}`, DEFAULT_BOX_WIDTH);
         // Group services by stack using discovery context's stack names for consistent ordering
         const stacks = new Map();
         for (const stackName of discovery.stackNames) {

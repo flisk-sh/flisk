@@ -315,7 +315,9 @@ export const networksCommand = new Command("networks")
       }
       printBoxedHeader(
         "🌐  TRAEFIK NETWORKS",
-        `Domain: http://${baseDomain}:${httpPort}`,
+        baseDomain
+          ? `Domain: http://${baseDomain}:${httpPort}`
+          : `Base URL: ${process.env.FLISK_SERVICE_BASE_URL}`,
         DEFAULT_BOX_WIDTH,
       );
 

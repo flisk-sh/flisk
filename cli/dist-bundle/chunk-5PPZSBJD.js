@@ -1,0 +1,191 @@
+import{createRequire as __fliskRequire}from'node:module';const require=__fliskRequire(import.meta.url);
+import {
+  toComposeProjectName
+} from "./chunk-HS5H5D2L.js";
+
+// dist/utils/down-cleanup.js
+import { execFileSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
+import { join, relative as relativePath, resolve as resolvePath, sep } from "node:path";
+var run = (command, args) => execFileSync(command, args, { encoding: "utf-8", stdio: "pipe", windowsHide: true });
+var PROJECT_NETWORK_SUFFIXES = [
+  "traefik-public",
+  "traefik-private",
+  "backend",
+  "database",
+  "infisical-network",
+  "verdaccio-network",
+  "proxy"
+];
+function projectNetworkNames(projectName) {
+  const prefix = toComposeProjectName(projectName);
+  return PROJECT_NETWORK_SUFFIXES.map((suffix) => `${prefix}_${suffix}`);
+}
+function fliskNetworkPrefixes(networkNames) {
+  const prefixes = /* @__PURE__ */ new Set();
+  for (const name of networkNames) {
+    for (const marker of ["traefik-public", "traefik-private"]) {
+      if (name.endsWith(`_${marker}`))
+        prefixes.add(name.slice(0, -(marker.length + 1)));
+    }
+  }
+  return prefixes;
+}
+function fliskNetworkOwner(name, prefixes) {
+  for (const suffix of PROJECT_NETWORK_SUFFIXES) {
+    if (name.endsWith(`_${suffix}`)) {
+      const prefix = name.slice(0, -(suffix.length + 1));
+      if (prefixes.has(prefix))
+        return prefix;
+    }
+  }
+  return null;
+}
+function pruneProjectNetworks(projectName, commandRunner = run) {
+  const existing = new Set(commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"]).split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
+  const result = { removed: [], kept: [] };
+  for (const name of projectNetworkNames(projectName)) {
+    if (!existing.has(name))
+      continue;
+    try {
+      commandRunner("docker", ["network", "rm", name]);
+      result.removed.push(name);
+    } catch (err) {
+      const stderr = String(err.stderr ?? err).trim();
+      result.kept.push({ name, reason: stderr.split(/\r?\n/)[0] ?? "" });
+    }
+  }
+  return result;
+}
+function findProjectTiltUpPids(tiltfilePath, platform = process.platform, commandRunner = run) {
+  if (platform === "win32")
+    return [];
+  let output;
+  try {
+    output = commandRunner("ps", ["-axo", "pid=,command="]);
+  } catch {
+    return [];
+  }
+  const pids = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = /^\s*(\d+)\s+(.*)$/.exec(line);
+    if (!match)
+      continue;
+    const command = match[2] ?? "";
+    const exe = (command.split(/\s+/)[0] ?? "").split("/").at(-1);
+    const target = ` -f ${tiltfilePath}`;
+    const at = command.indexOf(target);
+    const boundary = command[at + target.length];
+    if (exe === "tilt" && /^\S+\s+up\s/.test(command) && at > 0 && (boundary === void 0 || boundary === " ")) {
+      pids.push(Number(match[1]));
+    }
+  }
+  return pids;
+}
+var PROJECT_TILTFILE_SUFFIX = "/.flisk/.flisk-out/Tiltfile";
+function findRunningFliskProjects(platform = process.platform, commandRunner = run, isProject = (root) => existsSync(join(root, ".flisk", "project.json"))) {
+  if (platform === "win32")
+    return [];
+  let output;
+  try {
+    output = commandRunner("ps", ["-axo", "pid=,command="]);
+  } catch {
+    return [];
+  }
+  const roots = /* @__PURE__ */ new Set();
+  for (const line of output.split(/\r?\n/)) {
+    const command = /^\s*\d+\s+(.*)$/.exec(line)?.[1] ?? "";
+    const exe = (command.split(/\s+/)[0] ?? "").split("/").at(-1);
+    if (exe !== "tilt" || !/^\S+\s+up\s/.test(command))
+      continue;
+    const tiltfile = / -f (\/.*?\/\.flisk\/\.flisk-out\/Tiltfile)(?= |$)/.exec(command)?.[1];
+    if (!tiltfile)
+      continue;
+    const root = tiltfile.slice(0, -PROJECT_TILTFILE_SUFFIX.length);
+    if (isProject(root))
+      roots.add(root);
+  }
+  return [...roots].sort();
+}
+function stopProjectTiltUp(tiltfilePath, platform = process.platform, commandRunner = run) {
+  const pids = findProjectTiltUpPids(tiltfilePath, platform, commandRunner);
+  for (const pid of pids) {
+    try {
+      commandRunner("kill", ["-TERM", String(pid)]);
+    } catch {
+    }
+  }
+  return pids;
+}
+async function waitForTiltUpExit(tiltfilePath, timeoutMs = 8e3, findPids = findProjectTiltUpPids) {
+  const deadline = Date.now() + timeoutMs;
+  while (findPids(tiltfilePath).length > 0) {
+    if (Date.now() >= deadline)
+      return false;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return true;
+}
+function realPathOrSelf(dir) {
+  try {
+    return realpathSync(dir);
+  } catch {
+    return resolvePath(dir);
+  }
+}
+function isFliskComposeDir(root, dir) {
+  if (!dir.startsWith(root + sep))
+    return false;
+  const parts = relativePath(root, dir).split(sep);
+  const generated = join(".flisk", ".flisk-out");
+  const inOutput = parts.slice(0, 2).join(sep) === generated;
+  if (!inOutput && parts[parts.length - 1] !== ".autogenerated")
+    return false;
+  const ancestors = inOutput ? [] : parts.slice(0, -1);
+  return !ancestors.some((_, i) => existsSync(join(root, ...ancestors.slice(0, i + 1), ".flisk", "project.json")));
+}
+function projectComposeProjects(projectRoot, commandRunner = run) {
+  const root = realPathOrSelf(projectRoot);
+  const output = commandRunner("docker", [
+    "ps",
+    "-a",
+    "--format",
+    '{{.Label "com.docker.compose.project"}}	{{.Label "com.docker.compose.project.working_dir"}}'
+  ]);
+  const names = /* @__PURE__ */ new Set();
+  for (const line of output.split(/\r?\n/)) {
+    const [name, workingDir] = line.split("	");
+    if (!name || !workingDir)
+      continue;
+    const dir = realPathOrSelf(workingDir.trim());
+    if (isFliskComposeDir(root, dir))
+      names.add(name.trim());
+  }
+  return [...names].sort();
+}
+function stopProjectComposeProjects(projectRoot, commandRunner = run) {
+  const result = { stopped: [], failed: [] };
+  for (const name of projectComposeProjects(projectRoot, commandRunner)) {
+    try {
+      commandRunner("docker", ["compose", "-p", name, "down", "--remove-orphans"]);
+      result.stopped.push(name);
+    } catch (err) {
+      const stderr = String(err.stderr ?? err).trim();
+      result.failed.push({ name, reason: stderr.split(/\r?\n/)[0] ?? "" });
+    }
+  }
+  return result;
+}
+
+export {
+  projectNetworkNames,
+  fliskNetworkPrefixes,
+  fliskNetworkOwner,
+  pruneProjectNetworks,
+  findProjectTiltUpPids,
+  findRunningFliskProjects,
+  stopProjectTiltUp,
+  waitForTiltUpExit,
+  projectComposeProjects,
+  stopProjectComposeProjects
+};
