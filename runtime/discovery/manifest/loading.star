@@ -10,7 +10,7 @@
 # Priority: service.json → synthesize from path
 # =============================================================================
 
-load('../native_windows.star', 'dir_exists', 'file_exists')
+load('../native_windows.star', 'dir_exists', 'file_exists', 'is_abs_path')
 load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('../../engine/topologies/tilt/manifest/constants.star',
      'MANIFEST_DEFAULTS',
@@ -92,7 +92,7 @@ def load_manifest(resource_path, persist_to_disk=False):
     
     # Prepend project root to relative paths for correct resolution
     project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
-    if project_root and not resource_path.startswith('/'):
+    if project_root and not is_abs_path(resource_path):
         base_path = project_root + '/' + resource_path
     else:
         base_path = resource_path

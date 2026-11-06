@@ -1,7 +1,7 @@
 # Experiment for gate G6 of docs/design/native-windows-runtime-decision.md on a free GitHub-hosted runner.
 #
 # Hosted Windows runners cannot run Docker Desktop (no nested virtualization), so this job installs WSL2 Ubuntu, runs the Docker
-# Engine inside it (listening on loopback only), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
+# Engine inside it under systemd (listening on loopback and on the WSL VM's private NAT address, never on the runner's public interface; tests/e2e/platforms/windows-live/wsl-docker-engine.sh), and points a Windows `docker` CLI at that engine over tcp://127.0.0.1:2375. tilt.exe, the Flisk CLI and the
 # PowerShell host scripts then run natively on Windows, which is what the gate needs to prove. The approach follows
 # https://dwozny.com/posts/windows-2025-docker-wsl2/ and is reported to work on windows-2025 only, in beta. It has NEVER been run
 # here: the first run is expected to fail during setup, and the findings artifact says where.
@@ -28,7 +28,8 @@ jobs:
       DOCKER_CLI_VERSION: "27.3.1"
       COMPOSE_VERSION: "v2.29.7"
       TILT_VERSION: "0.35.0"
-      DOCKER_HOST: tcp://127.0.0.1:2375
+      BUILDX_VERSION: "v0.17.1"
+      COMPOSE_CONVERT_WINDOWS_PATHS: "1"
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -40,18 +41,28 @@ jobs:
         run: |
           wsl --install Ubuntu --no-launch
           wsl --set-default-version 2
+          # Mount Windows drives at /c, /d (not /mnt/c, /mnt/d) so compose's Windows-to-POSIX path conversion (D:\a -> /d/a) points at
+          # files the engine inside WSL can see; Docker Desktop does this translation itself (run 42083257619: invalid volume specification).
+          wsl -d Ubuntu -u root -- bash -c "printf '[automount]\nroot=/\noptions=metadata\n\n[boot]\nsystemd=true\n' > /etc/wsl.conf"
+          wsl --terminate Ubuntu
           wsl -d Ubuntu --exec dbus-launch true
           wsl -d Ubuntu --exec uname -a
+          wsl -d Ubuntu --exec ls /d
 
       - name: Run the Docker Engine inside WSL2 on tcp 2375
         shell: powershell
         run: |
-          wsl -d Ubuntu -u root -- bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io && (systemctl disable --now docker.service docker.socket 2>/dev/null || true)"
-          wsl -d Ubuntu -u root -- bash -c "nohup dockerd -H unix:///var/run/docker.sock -H tcp://127.0.0.1:2375 > /var/log/dockerd.log 2>&1 &"
+          # Inside WSL first, so a failure says whether the engine or the localhost forwarding to Windows is at fault.
+          wsl -d Ubuntu -u root -- bash ./tests/e2e/platforms/windows-live/wsl-docker-engine.sh
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           for ($i = 0; $i -lt 30; $i++) {
             try { Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping | Out-Null; break } catch { Start-Sleep -Seconds 2 }
           }
-          Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:2375/_ping
+          # Point Windows at the VM's own address (see wsl-docker-engine.sh): the localhost relay loses docker exec/run output.
+          $ip = ((wsl -d Ubuntu -- hostname -I) -join ' ').Trim().Split(' ')[0]
+          Write-Output ('From Windows, engine at ' + $ip)
+          Invoke-WebRequest -UseBasicParsing -Uri ('http://' + $ip + ':2375/_ping')
+          Add-Content -Path $env:GITHUB_ENV -Value ('DOCKER_HOST=tcp://' + $ip + ':2375')
 
       - name: Install the Windows docker CLI, compose plugin and tilt.exe
         shell: powershell
@@ -63,6 +74,9 @@ jobs:
           $plugins = Join-Path $env:USERPROFILE '.docker\cli-plugins'
           New-Item -ItemType Directory -Force -Path $plugins | Out-Null
           Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/docker/compose/releases/download/$env:COMPOSE_VERSION/docker-compose-windows-x86_64.exe" -OutFile "$plugins\docker-compose.exe"
+          # Docker Desktop ships buildx; the static docker zip does not, which left the Windows client on the legacy builder
+          # (no BuildKit, no <Dockerfile>.dockerignore, no `docker buildx bake` for the golden layers).
+          Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/docker/buildx/releases/download/$env:BUILDX_VERSION/buildx-$env:BUILDX_VERSION.windows-amd64.exe" -OutFile "$plugins\docker-buildx.exe"
           Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/tilt-dev/tilt/releases/download/v$env:TILT_VERSION/tilt.$env:TILT_VERSION.windows.x86_64.zip" -OutFile "$tools\tilt.zip"
           Expand-Archive -Path "$tools\tilt.zip" -DestinationPath "$tools\tilt" -Force
           Add-Content -Path $env:GITHUB_PATH -Value "$tools\docker"
@@ -73,6 +87,7 @@ jobs:
         run: |
           docker version
           docker compose version
+          docker buildx version
           tilt version
           docker info --format '{{.OSType}}'
 
@@ -97,7 +112,8 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\flisk-windows-live\findings" | Out-Null
-          wsl -d Ubuntu -u root -- bash -c "tail -n 200 /var/log/dockerd.log" *> "$env:RUNNER_TEMP\flisk-windows-live\findings\dockerd.log"
+          wsl -d Ubuntu -u root -- bash ./tests/e2e/platforms/windows-live/wsl-docker-engine.sh diagnose *> "$env:RUNNER_TEMP\flisk-windows-live\findings\dockerd.log"
+          Get-Content "$env:RUNNER_TEMP\flisk-windows-live\findings\dockerd.log" -Tail 80
 
       - name: Upload the findings
         if: always()

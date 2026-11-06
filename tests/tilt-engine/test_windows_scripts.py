@@ -27,12 +27,12 @@ BODY = """
 load('@RT/engine/topologies/tilt/resources/databases.star', 'Database')
 load('@RT/engine/topologies/tilt/common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script', 'provision_database_script', 'db_status_script', 'memory_summary_script', 'prebuild_image_script', 'pytest_script', 'healthy_script', 'job_done_script', 'typecheck_script', 'golden_build_script', 'tilt_image_tags_script')
 load('@RT/engine/topologies/platform/docker/networking/traefik_static_routes.star', 'normalize_abs_path')
-load('@RT/discovery/native_windows.star', 'file_mtime', 'POWERSHELL')
+load('@RT/discovery/native_windows.star', 'file_mtime', 'POWERSHELL', 'python_script_command')
 Database.provision('users')
 Database.status_resource(True)
 Database.memory_summary()
 scripts = [init_networks_script(), healthy_postgres_script(), provision_database_script(), db_status_script(), memory_summary_script(), prebuild_image_script(), pytest_script(), healthy_script(), job_done_script(), typecheck_script(), golden_build_script(), tilt_image_tags_script()]
-fail('RESULT' + encode_json({'scripts': scripts, 'ps': POWERSHELL, 'norm': [normalize_abs_path('/a/./b/../c'), normalize_abs_path('')], 'mtime': [file_mtime('a.txt'), file_mtime('missing.txt')]}))
+fail('RESULT' + encode_json({'scripts': scripts, 'ps': POWERSHELL, 'pycmd': python_script_command("C:/O'Brien/a b/conv.py", ["D:/x y/it's/service.json"]), 'norm': [normalize_abs_path('/a/./b/../c'), normalize_abs_path('')], 'mtime': [file_mtime('a.txt'), file_mtime('missing.txt')]}))
 """
 
 
@@ -65,6 +65,13 @@ def test_scripts_follow_authoring_rules_and_mtime_matches_stat(tmp_path):
     assert result["mtime"] == [1700000000, 0]
     assert len(result["scripts"]) == 12
     assert result["norm"] == ["/a/c", ""]
+    # the Python launcher command: PowerShell, UTF-8 mode, a --version probe per candidate, paths as single-quoted literals
+    pycmd = result["pycmd"]
+    assert pycmd[:4] == result["ps"] and len(pycmd) == 5
+    body = pycmd[4]
+    assert body.isascii() and '"' not in body
+    assert "$env:PYTHONUTF8 = '1'" in body and "--version" in body and "'python3', 'python', 'py'" in body
+    assert "& $py.Source 'C:/O''Brien/a b/conv.py' 'D:/x y/it''s/service.json'; exit $LASTEXITCODE" in body
 
 
 def test_posix_commands_of_converted_resources_are_unchanged():
@@ -78,7 +85,7 @@ def test_posix_commands_of_converted_resources_are_unchanged():
     assert "cmd_bat=POWERSHELL + [healthy_postgres_script()]" in infra
     assert "cmd_bat=POWERSHELL + [init_networks_script()]" in infra
     manifest = (TILT / "resources" / "orchestrator" / "generators" / "manifest_resource.star").read_text()
-    assert "if IS_NATIVE_WINDOWS:" in manifest and "file_mtime(json_path)" in manifest
+    assert "if IS_NATIVE_WINDOWS:" in manifest and "file_mtime(json_abs)" in manifest and "python_script_command(" in manifest
     assert 'stat -f %m \\"$1\\" 2>/dev/null || stat -c %Y' in manifest
 
 
@@ -103,3 +110,42 @@ def test_posix_commands_of_step_one_remainder_are_unchanged():
     assert "cmd=cmd,\n        cmd_bat=POWERSHELL + [golden_build_script()]," in (TILT.parent / "platform" / "docker" / "build" / "golden_image_build.star").read_text()
     assert "cmd=publish_cmd," in (TILT / "resources" / "libs_resource_definition.star").read_text()
     assert "serve_cmd=['sh', '-c', TILT_IMAGE_TAGS_SCRIPT, 'sh', repo_prefix]," in (TILT / "resources" / "tilt_image_tags.star").read_text()
+
+
+def test_python_launcher_fails_loudly_and_passes_the_exit_code_on(tmp_path):
+    """The PowerShell cannot run off Windows, so pin its failure paths by shape: a missing or broken python must stop the command."""
+    body = _run(tmp_path)["pycmd"][4]
+    # a broken Microsoft Store alias resolves but its --version fails, so the loop moves on to the next candidate
+    assert "& $c.Source --version *> $null; if ($LASTEXITCODE -eq 0) { $py = $c; break }" in body
+    # nothing usable: an actionable error and a non-zero exit before the script is ever called
+    assert body.index("if (-not $py) { Write-Error 'python3, python or py is needed on PATH'; exit 1 }") < body.index("& $py.Source '")
+    # a converter failure reaches Tilt as a non-zero exit instead of an empty success
+    assert body.endswith("; exit $LASTEXITCODE")
+
+
+CONVERTER = RUNTIME / "engine" / "topologies" / "tilt" / "manifest" / "json_to_yaml.py"
+
+
+def _convert(path: Path):
+    return subprocess.run(
+        ["python3", str(CONVERTER), str(path)], capture_output=True, text=True, encoding="utf-8",
+        env={**os.environ, "PYTHONUTF8": "1"},
+    )
+
+
+def test_converter_exits_nonzero_with_a_message_for_a_missing_or_invalid_manifest(tmp_path):
+    pytest.importorskip("yaml")
+    missing = _convert(tmp_path / "nope.json")
+    assert missing.returncode != 0 and missing.stdout == "" and missing.stderr.startswith("Error:")
+    (tmp_path / "bad.json").write_text("{not json")
+    bad = _convert(tmp_path / "bad.json")
+    assert bad.returncode != 0 and bad.stdout == "" and bad.stderr.startswith("Error:")
+
+
+def test_converter_keeps_non_ascii_text(tmp_path):
+    pytest.importorskip("yaml")
+    manifest = tmp_path / "service.json"
+    manifest.write_text(json.dumps({"appName": "café", "description": "Straße → 日本"}, ensure_ascii=False), encoding="utf-8")
+    out = _convert(manifest)
+    assert out.returncode == 0, out.stderr
+    assert "café" in out.stdout and "Straße → 日本" in out.stdout

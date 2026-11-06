@@ -22,7 +22,7 @@ DISCOVERY = Path(__file__).resolve().parents[2] / "runtime" / "discovery"
 
 BODY = """
 load('@DISCOVERY/libraries.star', 'autodiscover_libraries')
-load('@DISCOVERY/native_windows.star', 'file_exists', 'dir_exists', 'find_files')
+load('@DISCOVERY/native_windows.star', 'file_exists', 'dir_exists', 'find_files', 'is_abs_path')
 load('@DISCOVERY/json_manifest_scanner.star', 'discover_json_manifests')
 load('@DISCOVERY/manifest/loading.star', 'get_manifest_filename')
 r = {
@@ -39,6 +39,7 @@ r = {
     'clean_abs': find_files('@PROJ/services/product', 'service.json'),
     'unclean_abs': find_files('@PROJ//services/./other/../product', 'service.json'),
     'dotdot_root': find_files('@PROJ/.flisk/..', 'service.json'),
+    'abs': [is_abs_path('/a/b'), is_abs_path('rel/b'), is_abs_path('C:\\\\x\\\\y'), is_abs_path('D:/x'), is_abs_path('\\\\\\\\srv\\\\share'), is_abs_path(''), is_abs_path('D:projects\\\\flisk'), is_abs_path('//server/share/project'), is_abs_path('D:'), is_abs_path('\\\\projects\\\\flisk')],
 }
 """
 
@@ -81,7 +82,7 @@ def test_portable_discovery_matches_posix(tmp_path):
     portable = _run(project, portable=True)
     assert posix["scan"], posix
     for key in posix:
-        if key == "libs":
+        if key in ("libs", "abs"):  # "abs" differs by design: it is checked in its own test below
             continue
         if key == "glob_dupes":
             # the POSIX shell loop lists a manifest once per matching pattern; the portable path never repeats one
@@ -113,3 +114,12 @@ def test_a_root_with_double_slash_dot_or_dotdot_finds_the_same_files(tmp_path):
         assert below(result["unclean_abs"]) == below(result["clean_abs"]), result["unclean_abs"]
         # `.flisk/..` is the project root again: it finds every manifest under it
         assert len(result["dotdot_root"]) == 5, result["dotdot_root"]
+
+
+def test_is_abs_path_is_startswith_slash_off_windows_and_knows_drives_on_it(tmp_path):
+    """Code that put FLISK_PROJECT_ROOT in front of anything not starting with `/` doubled the prefix on a Windows path."""
+    project = _project(tmp_path)
+    posix = _run(project, portable=False)["abs"]
+    portable = _run(project, portable=True)["abs"]
+    assert posix == [True, False, False, False, False, False, False, True, False, False]
+    assert portable == [True, False, True, True, True, False, False, True, False, True]

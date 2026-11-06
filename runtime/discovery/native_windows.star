@@ -212,7 +212,42 @@ def list_subdirs(root, prefix):
     return sorted(names.keys())
 
 def is_absolute(path):
-    return path.startswith("/") or path.startswith("\\") or (len(path) > 1 and path[1] == ":")
+    """Absolute on Windows: a leading `/` or `\\` (rooted or UNC), or a drive plus a separator (`C:\\x`, `C:/x`).
+
+    `C:x` is drive-relative (relative to the current directory on drive C), so it is not absolute.
+    """
+    if path.startswith("/") or path.startswith("\\"):
+        return True
+    return len(path) > 2 and path[1] == ":" and (path[2] == "\\" or path[2] == "/")
+
+def is_abs_path(path):
+    """True for an absolute path: a leading `/` everywhere, and on native Windows also `\\...` and `C:` drive paths.
+
+    Off Windows this is exactly path.startswith("/"), so Linux, macOS and WSL2 behave as before. Code that prefixed
+    FLISK_PROJECT_ROOT onto anything not starting with `/` doubled the prefix on a Windows path (run 42183705419).
+    """
+    if path.startswith("/"):
+        return True
+    return IS_NATIVE_WINDOWS and is_absolute(path)
+
+def _ps_quote(text):
+    """A PowerShell single-quoted string literal (a quote inside is doubled)."""
+    return "'" + text.replace("'", "''") + "'"
+
+def python_script_command(script, args):
+    """The command_bat list that runs `python <script> <args...>` through PowerShell, in UTF-8 mode.
+
+    Picks the first python3, python or py that answers --version (a Microsoft Store alias resolves but runs nothing) and
+    keeps Python's stdout in UTF-8 instead of the console code page. Every path goes in as a single-quoted string.
+    """
+    probe = (
+        "$env:PYTHONUTF8 = '1'; try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }; $py = $null; "
+        + "foreach ($n in 'python3', 'python', 'py') { foreach ($c in @(Get-Command $n -All -ErrorAction SilentlyContinue)) { "
+        + "& $c.Source --version *> $null; if ($LASTEXITCODE -eq 0) { $py = $c; break } }; if ($py) { break } }; "
+        + "if (-not $py) { Write-Error 'python3, python or py is needed on PATH'; exit 1 }; "
+    )
+    call = "& $py.Source " + _ps_quote(script) + "".join([" " + _ps_quote(a) for a in args]) + "; exit $LASTEXITCODE"
+    return _PS + [probe + call]
 
 def relative_path(path, start):
     return os.path.relpath(path, start)

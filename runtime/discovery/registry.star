@@ -22,7 +22,7 @@ load(
     "Config",
     "DDD_LIBS",
 )
-load("./native_windows.star", "IS_NATIVE_WINDOWS", "ensure_dir", "find_files", "find_files_in_glob_dirs", "is_absolute", "read_text", "write_text")
+load("./native_windows.star", "IS_NATIVE_WINDOWS", "ensure_dir", "find_files", "find_files_in_glob_dirs", "is_abs_path", "is_absolute", "read_text", "write_text")
 load("./discovery_orchestrator.star", "initialize_discovery")
 load("../engine/topologies/tilt/manifest/loader.star", "ManifestLoader")
 load("./libraries.star", "autodiscover_libraries", "get_platform_libs", "get_product_libs")
@@ -435,7 +435,7 @@ def _find_manifest_files(root, manifest_filename):
         result = str(local(cmd, quiet=True, echo_off=True)).strip()
     else:
         # Resolve relative paths against project root (non-glob)
-        if root.startswith('/'):
+        if is_abs_path(root):
             full_path = root
         else:
             full_path = project_root + "/" + root

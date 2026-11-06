@@ -40,6 +40,20 @@ test("push and merge_group runs are not reported", () => {
 
 test("title names the pull request and the comment carries the dedupe marker and run url", () => {
 	assert.equal(issueTitle(7), "Merged with red checks: #7");
-	assert.ok(commentBody(run()).includes(MARKER));
-	assert.ok(commentBody(run()).includes("https://example.test/runs/1"));
+	const body = commentBody(run());
+	assert.ok(body.includes(MARKER));
+	// Extract the emitted URL and compare it exactly (CodeQL js/incomplete-url-substring-sanitization).
+	const emitted = body.match(/https?:\/\/\S+/)?.[0];
+	assert.equal(emitted, run().html_url);
+	const url = new URL(emitted);
+	assert.equal(url.host, "example.test");
+	assert.equal(url.pathname, "/runs/1");
+});
+
+test("the comment carries the run url it was given, never a look-alike", () => {
+	const evil = "https://example.test.attacker/runs/1";
+	const emitted = commentBody(run({ html_url: evil })).match(/https?:\/\/\S+/)?.[0];
+	assert.equal(emitted, evil);
+	assert.notEqual(new URL(emitted).host, "example.test");
+	assert.notEqual(emitted, run().html_url);
 });
