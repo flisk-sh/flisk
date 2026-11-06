@@ -28,7 +28,7 @@
 
 # In your Tiltfile or topology module, load this spec:
 #
-#     load(PROJECT_ROOT + "/.tilt-engine/spec.master", "SPEC", "CONSTANTS", "VALIDATION", "DEBUG")
+#     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")  # generated Tiltfile, .flisk/.flisk-out/
 #
 # Then use the constants:
 #
@@ -306,11 +306,6 @@
 # - "CONSTANTS" → Timeouts, defaults
 #
 # Search for what you need, then close the file!
-
-# =============================================================================
-# 📛 FILE ALIASES (Easier Names)
-# =============================================================================
-
 
 # =============================================================================
 # 🗓️  FEATURE FLAGS (What's Working vs Planned)
