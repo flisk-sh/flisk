@@ -115,6 +115,14 @@ jobs:
         run: |
           flisk import . --yes
 
+      # `flisk import` writes only service.json and .flisk/project.json; the
+      # generated files under .flisk/.flisk-out come from `config regenerate`,
+      # so verify fails with "Missing file" until it has run.
+      - name: Regenerate Configuration
+        working-directory: adopter
+        run: |
+          flisk config regenerate
+
       - name: Verify Generated Configuration
         working-directory: adopter
         run: |
