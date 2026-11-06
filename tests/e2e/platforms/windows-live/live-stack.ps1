@@ -108,6 +108,32 @@ Step 'Tiltfile error' {
   }
 }
 
+# Replay two failing resources by hand: the CLI cuts their messages at 800 characters, and Tilt's API is gone once the demo exits.
+Step 'Replay failing resources' {
+  $extract = Join-Path $PSScriptRoot 'extract-resource-cmd.py'
+  $result = Join-Path $Out 'tiltfile-result.json'
+  if (-not (Test-Path -LiteralPath $result)) { return }
+  $replay = Join-Path $Out 'replay'
+  foreach ($name in 'provision-db-guest', 'service-discovery-daemon') {
+    cmd /c ('python "' + $extract + '" "' + $result + '" ' + $name + ' "' + $replay + '" > "' + (Join-Path $Out ('replay-' + $name + '-extract.txt')) + '" 2>&1')
+    $script = Join-Path $replay ($name + '.ps1')
+    $envFile = Join-Path $replay ($name + '.env.json')
+    if (-not (Test-Path -LiteralPath $script)) { continue }
+    $saved = @{}
+    if (Test-Path -LiteralPath $envFile) {
+      $vars = Get-Content -Raw -LiteralPath $envFile | ConvertFrom-Json
+      foreach ($p in $vars.PSObject.Properties) { $saved[$p.Name] = [Environment]::GetEnvironmentVariable($p.Name); [Environment]::SetEnvironmentVariable($p.Name, [string]$p.Value) }
+    }
+    $o = Join-Path $Out ('replay-' + $name + '.out')
+    $e = Join-Path $Out ('replay-' + $name + '.err')
+    $proc = Start-Process -FilePath 'powershell' -ArgumentList @('-NoProfile', '-NonInteractive', '-File', ('"' + $script + '"')) -NoNewWindow -PassThru -RedirectStandardOutput $o -RedirectStandardError $e
+    $null = $proc.Handle
+    if (-not $proc.WaitForExit(120000)) { $proc.Kill(); 'killed after 120s (still running)' | Out-File -FilePath $e -Append -Encoding utf8 }
+    else { ('exit ' + $proc.ExitCode) | Out-File -FilePath $e -Append -Encoding utf8 }
+    foreach ($k in $saved.Keys) { [Environment]::SetEnvironmentVariable($k, $saved[$k]) }
+  }
+}
+
 # Always collect what the engine and Flisk say, so a failed run names the failing resource (run 42069367765 showed only
 # "Resources failed (traefik: ...)" with the command cut off).
 Step 'Diagnostics' {
@@ -135,6 +161,7 @@ Step 'Diagnostics' {
       }
     }
     if (Test-Path -LiteralPath $daemon) {
+      $env:PYTHONUTF8 = '1'
       $d = Start-Process -FilePath 'python' -ArgumentList @(('"' + $daemon + '"'), 'watch') -WorkingDirectory $flisk -NoNewWindow -PassThru `
         -RedirectStandardOutput (Join-Path $Out 'daemon-manual.out') -RedirectStandardError (Join-Path $Out 'daemon-manual.err')
       $null = $d.Handle
