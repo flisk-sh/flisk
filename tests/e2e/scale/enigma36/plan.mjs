@@ -64,7 +64,7 @@ export function pieces(axes) {
     { kind: "worker", variant: "worker", args: [] },
     { kind: "mcp", variant: "mcp", args: [] },
     ...axes.agentDurability.map((d) => ({ kind: "agent", variant: `agent-${d}`, args: ["--durability", d] })),
-    { kind: "database", variant: "postgres", args: [] },
+    { kind: "database", variant: "postgres", args: ["--framework", "postgres"] },
     ...(axes.infraFramework ?? infraFrameworks()).map((f) => ({
       kind: QUEUE_FRAMEWORKS.includes(f) ? "queue" : "database",
       variant: f,

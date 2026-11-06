@@ -85,8 +85,10 @@ K1() { # draw the plan, print the seed and the board
   load_plan
   plan_names
   echo "seed $(jq -r .seed "$PLAN")   replay: E2E_SEED=$(jq -r .seed "$PLAN") tests/e2e/scale/enigma36/run.sh all"
-  jq -r '.entries[] | [.name, .kind, .stack] | @tsv' "$PLAN" | column -t
+  jq -r '.entries[] | [.name, .kind, (if .kind == "database" or .kind == "queue" then .variant else "-" end), .stack] | @tsv' "$PLAN" | column -t
   jq -r '.entries | group_by(.kind) | map("\(.[0].kind) \(length)") | join(", ")' "$PLAN"
+  # The database and queue kinds by framework, so a draw that holds only the Postgres shows at a glance.
+  jq -r '[.entries[] | select(.kind == "database" or .kind == "queue") | "\(.kind)=\(.variant)"] | join(", ")' "$PLAN"
 }
 
 K2() { # one project, every drawn resource scaffolded into it with flisk resource
