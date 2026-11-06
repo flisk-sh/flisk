@@ -22,9 +22,14 @@ for manifest in data.get("Manifests", []):
     if manifest.get("Name") != name:
         continue
     spec = manifest.get("DeployTarget", {})
-    cmd = spec.get("UpdateCmdSpec") or spec.get("ServeCmd") or {}
-    args = cmd.get("args", [])
-    env = dict(item.split("=", 1) for item in cmd.get("env", []) if "=" in item)
+    # An update command is {"args": [...], "env": ["K=V"]}; a serve command is {"Argv": [...], "Env": ["K=V"]}. Take whichever has argv.
+    cmd = {}
+    for candidate in (spec.get("UpdateCmdSpec"), spec.get("ServeCmd")):
+        if candidate and (candidate.get("args") or candidate.get("Argv")):
+            cmd = candidate
+            break
+    args = cmd.get("args") or cmd.get("Argv") or []
+    env = dict(item.split("=", 1) for item in (cmd.get("env") or cmd.get("Env") or []) if "=" in item)
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{name}.args.json").write_text(json.dumps(args, indent=1), encoding="utf-8")
     (out / f"{name}.env.json").write_text(json.dumps(env, indent=1), encoding="utf-8")
