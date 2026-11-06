@@ -526,3 +526,30 @@ test("release-binaries.yml workflow synchronizes bun.lock and stages it with pac
     rmSync(workDir, { recursive: true, force: true });
   }
 });
+
+// The release's wall time (1.4.37: 14 minutes, 1.4.38 candidate: 10). The MCP Registry publish retries while npm catches up, so
+// inside publish it held the version bump and the tag back by about 2.5 minutes; the candidate's legs ran 10 at a time in 3 waves.
+function jobBlock(workflow, job) {
+  const start = workflow.indexOf(`\n  ${job}:\n`);
+  assert.notEqual(start, -1, `job ${job} must exist`);
+  const rest = workflow.slice(start + 1);
+  const next = rest.slice(1).search(/\n {2}(?:# |[a-z][\w-]*:\n)/);
+  return next === -1 ? rest : rest.slice(0, next + 1);
+}
+
+test("the MCP Registry publish runs in its own job after publish, not on the release's path", () => {
+  const workflow = readFileSync(join(ROOT_DIR, ".github/workflows/release-binaries.yml"), "utf8");
+  const publish = jobBlock(workflow, "publish");
+  assert.doesNotMatch(publish, /mcp-publisher|Publish to the MCP Registry/, "publish must not wait on the MCP Registry");
+  assert.match(publish, /name: Commit the version bump/);
+  const mcp = jobBlock(workflow, "publish-mcp-registry");
+  assert.match(mcp, /needs: \[build, publish\]/);
+  assert.match(mcp, /id-token: write/, "mcp-publisher logs in with the run's GitHub OIDC token");
+  assert.match(mcp, /mcp-publisher" publish server\.json/);
+});
+
+test("the release candidate runs at least 15 legs at once", () => {
+  const workflow = readFileSync(join(ROOT_DIR, ".github/workflows/release-candidate.yml"), "utf8");
+  const cap = Number(workflow.match(/max-parallel: (\d+)/)?.[1]);
+  assert.ok(cap >= 15 && cap < 20, `max-parallel is ${cap}: below 15 the candidate takes 3 waves, 20 starves the shared runner pool`);
+});

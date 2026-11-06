@@ -16,8 +16,8 @@ Workflows (IDs are stable, names have emoji, so use the file name):
 
 | File | What it does |
 | --- | --- |
-| `release-candidate.yml` | Packs the CLI, runs quickstart (Q1-Q4) and every release-blocking resource-type suite on that tarball, the longest suites first. Runs only on `release/*` branches and `rc-*` tags. ~6-10 min. With `-f release=true` it also dispatches `release-binaries.yml` on its own branch right after the plan; the release builds alongside the suites and its `publish` job waits for this candidate, publishing only if every job passed. |
-| `release-binaries.yml` | `build` → `windows-binary` → `publish` (gate, binaries to `flisk-sh/releases`, npm, signing, bump or tag) → `publish-github-packages`. ~6 min. |
+| `release-candidate.yml` | Packs the CLI, runs quickstart (Q1-Q4) and every release-blocking resource-type suite on that tarball, the longest suites first. Runs only on `release/*` branches and `rc-*` tags. ~5 min. With `-f release=true` it also dispatches `release-binaries.yml` on its own branch right after the plan; the release builds alongside the suites and its `publish` job waits for this candidate, publishing only if every job passed. |
+| `release-binaries.yml` | `build` → `windows-binary` → `publish` (gate, binaries to `flisk-sh/releases`, npm, signing, bump or tag) → `publish-github-packages`, `publish-mcp-registry` and `publish-image`. A red `publish-mcp-registry` is repaired by re-running that job alone. ~6 min. |
 | `sign-release.yml` | Signs an already published version after the fact. |
 | `publish-existing-npm-to-github-packages.yml` | Backfills GitHub Packages for a version already on npm. |
 
