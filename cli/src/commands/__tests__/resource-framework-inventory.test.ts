@@ -160,4 +160,50 @@ describe("flisk resource --frameworks", () => {
       "List registered frameworks for the resource type and exit (--type frontend, --type backend)",
     );
   });
+
+  it("lists the database frameworks: the shared Postgres first, then Redis, Qdrant, MinIO and MLflow", () => {
+    const result = flisk(["resource", "--type", "database", "--frameworks"]);
+
+    expect(result.status, result.stderr).toBe(0);
+    const listed = rows(result.stdout);
+    expect(listed.map((row) => row[0])).toEqual(["postgres", "redis", "qdrant", "minio", "mlflow"]);
+    // id, label, image, default, command: the Postgres has no image of its own and is the default.
+    expect(listed[0]).toEqual([
+      "postgres",
+      "Shared Flisk Postgres, one database per stack",
+      "null",
+      "default",
+      "flisk resource <name> --type database --framework postgres",
+    ]);
+    for (const row of listed.slice(1)) {
+      expect(row).toHaveLength(5);
+      expect(row[3]).toBe("-");
+      expect(row[4]).toBe(`flisk resource <name> --type database --framework ${row[0]}`);
+    }
+  });
+
+  it("lists the queue frameworks with NATS as the default", () => {
+    const result = flisk(["resource", "--type", "queue", "--frameworks"]);
+
+    expect(result.status, result.stderr).toBe(0);
+    const listed = rows(result.stdout);
+    expect(listed.map((row) => [row[0], row[3]])).toEqual([
+      ["nats", "default"],
+      ["rabbitmq", "-"],
+    ]);
+  });
+
+  it("reports the database and queue frameworks in --json", () => {
+    for (const [type, ids] of [
+      ["database", ["postgres", "redis", "qdrant", "minio", "mlflow"]],
+      ["queue", ["nats", "rabbitmq"]],
+    ] as const) {
+      const result = flisk(["resource", "--type", type, "--frameworks", "--json"]);
+
+      expect(result.status, result.stderr).toBe(0);
+      const envelope = JSON.parse(result.stdout);
+      expect(envelope.data.type).toBe(type);
+      expect(envelope.data.frameworks.map((f: { id: string }) => f.id)).toEqual(ids);
+    }
+  });
 });
