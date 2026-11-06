@@ -13,23 +13,11 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
-import { isApiServiceType } from "../utils/resource-kind.js";
-import { resolveServicePath } from "../utils/service-urls.js";
+import { isRoutableService, isWebUiBringYourOwn, resolveServicePath, resolveServiceUrl, withTrailingSlash, } from "../utils/service-urls.js";
 import { stackExists } from "../utils/services.js";
 import { isValidPort, sanitizeForShell } from "../utils/validation.js";
 import { findOnPath } from "../utils/which.js";
-/**
- * A bring-your-own service that Traefik routes as an API: proxied (exposeViaProxy is not false) and not a web UI, which
- * is routed on its own host. Such services are listed by `flisk networks` at the same URL `flisk up` prints.
- */
-function isApiRoutedBringYourOwn(service) {
-    const config = service.config;
-    return config?.appType === "bring-your-own" && config.exposeViaProxy !== false && !config.webUi;
-}
-/** `/api/vote` → `/api/vote/`: the URL a browser should open for a page served under a stripped prefix. */
-export function withTrailingSlash(path) {
-    return path.endsWith("/") ? path : `${path}/`;
-}
+export { withTrailingSlash };
 function execSafe(command, args, options = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn(findOnPath(command) ?? command, args, {
@@ -97,6 +85,16 @@ export function determineDefaultDomain() {
         ];
         return !servicePatterns.some((pattern) => pattern.test(domain));
     });
+    // `<label>.<project>.localhost` hosts other than app./api. (the dashboard's, a web UI's) carry a service label in front of the
+    // project domain, which would be doubled when a service name is prefixed to it. Drop them when an app./api. host names the project.
+    const isGatewayHost = (domain) => /^(app|api)\.[\w-]+\.localhost$/.test(domain);
+    if (projectDomains.some(isGatewayHost)) {
+        for (let i = projectDomains.length - 1; i >= 0; i--) {
+            const domain = projectDomains[i];
+            if (!isGatewayHost(domain) && domain.split(".").length > 2)
+                projectDomains.splice(i, 1);
+        }
+    }
     // Prefer project-level domains (shorter, simpler ones)
     if (projectDomains.length > 0) {
         // Sort by length - shortest is likely the project domain
@@ -200,24 +198,13 @@ export const networksCommand = new Command("networks")
         const savedPlan = readSavedHostPortPlan(projectRoot);
         const hostPortPlan = savedPlan ?? (await createHostPortPlan());
         const httpPort = hostPortPlan.ingressHttp;
-        const baseDomain = determineDefaultDomain();
-        const bareDomain = baseDomain.replace(/^(app|api)\./, "");
-        const appDomain = `app.${bareDomain}`;
-        const apiDomain = `api.${bareDomain}`;
+        // FLISK_SERVICE_BASE_URL sets the scheme, host and port `flisk up` prints; follow it so both commands agree.
+        const baseDomain = process.env.FLISK_SERVICE_BASE_URL ? undefined : determineDefaultDomain();
         const services = discovery.resources;
-        const servicesWithUrls = await Promise.all(services
-            .filter((s) => s.config?.appType === "frontend" ||
-            isApiServiceType(s.config?.appType) ||
-            isApiRoutedBringYourOwn(s))
-            .map(async (s) => {
-            // A bring-your-own service routed as an API is served on the api host at its apiPath, like a backend.
+        const servicesWithUrls = await Promise.all(services.filter(isRoutableService).map(async (s) => {
+            const url = resolveServiceUrl(s, httpPort, baseDomain) ?? "";
             const resolvedPath = resolveServicePath(s);
             const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
-            const isBackend = isApiServiceType(s.config?.appType) ||
-                isApiRoutedBringYourOwn(s);
-            const host = isBackend ? apiDomain : appDomain;
-            // An imported app serves pages whose relative links only resolve under the prefix with its trailing slash.
-            const url = `http://${host}:${httpPort}${isApiRoutedBringYourOwn(s) ? withTrailingSlash(basePath) : basePath}`;
             const port = s.config?.port;
             const status = await checkServiceStatus(s.name, port, url);
             return {
@@ -225,7 +212,8 @@ export const networksCommand = new Command("networks")
                 stack: s.stack,
                 basePath,
                 url,
-                ...(process.platform === "win32"
+                // A web UI is routed by Host header, so an IP URL would never reach its router.
+                ...(process.platform === "win32" && !isWebUiBringYourOwn(s)
                     ? { loopbackUrl: `http://127.0.0.1:${httpPort}${basePath}`.replace(/\/$/, "") }
                     : {}),
                 port,
@@ -259,7 +247,9 @@ export const networksCommand = new Command("networks")
             }
             process.exit(0);
         }
-        printBoxedHeader("🌐  TRAEFIK NETWORKS", `Domain: http://${baseDomain}:${httpPort}`, DEFAULT_BOX_WIDTH);
+        printBoxedHeader("🌐  TRAEFIK NETWORKS", baseDomain
+            ? `Domain: http://${baseDomain}:${httpPort}`
+            : `Base URL: ${process.env.FLISK_SERVICE_BASE_URL}`, DEFAULT_BOX_WIDTH);
         // Group services by stack using discovery context's stack names for consistent ordering
         const stacks = new Map();
         for (const stackName of discovery.stackNames) {
