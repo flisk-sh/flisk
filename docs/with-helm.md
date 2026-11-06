@@ -11,7 +11,7 @@ Local:   flisk up shop      → containers on the machine, *.localhost
 Cluster: helm upgrade …   → Deployment/Service in Kubernetes
 ```
 
-Flisk: your whole app, running on your computer with one command.
+Flisk: local development for multi-service apps, started with one command.
 
 Flisk is the local development inner loop. It scaffolds services, generates local Dockerfile layers and Tilt configuration, starts local proxy/Postgres services, and lets you choose which local services to run. Helm and your cluster tooling own replicas, readiness/liveness probes, ingress class and hosts, PVCs, node selectors, IRSA, HPA, and other production policy.
 

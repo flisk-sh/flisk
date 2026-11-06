@@ -1,4 +1,4 @@
-# 🚀 Flisk: your whole app, running on your computer with one command
+# 🚀 Flisk: local development for multi-service apps, started with one command
 
 Flisk runs your whole app on your computer with one command. It is not a deploy and not a Compose file. Define services in `service.json`, then run `flisk up`. No Kubernetes is needed on the machine. If your existing Helm, Compose, or Tilt workflow already works locally, keep using it.
 

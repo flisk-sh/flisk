@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="400" viewBox="0 0 1080 400" role="img" aria-labelledby="t d">
   <title id="t">The Flisk ecosystem: bring your app, run it with flisk up, export it, watch it run</title>
-  <desc id="d">Bring an app in Rust, Go, Python, TypeScript, JavaScript, JVM, Ruby or PHP, from a Compose file, a Tiltfile, a Dockerfile or any image. Flisk runs 77 building blocks: 5 languages, 10 web frameworks, 10 API frameworks, 10 resource types, 8 data and AI services, 23 MCP tools and 11 starter projects. Export writes render.yaml and wrangler.toml and never deploys. A radar finds and checks every running part.</desc>
+  <desc id="d">Bring an app written in Rust, Go, Python, TypeScript, JavaScript, JVM, Ruby or PHP, from a Compose file, a Tiltfile, a Dockerfile or any image. Flisk runs 77 building blocks: 5 languages, 10 web frameworks, 10 API frameworks, 10 resource types, 8 data and AI services, 23 MCP tools and 11 starter projects. Export writes render.yaml and wrangler.toml and never deploys. A radar finds and checks every running part.</desc>
   <defs>
     <linearGradient id="bolt" x1="20%" y1="0%" x2="80%" y2="100%">
       <stop offset="0" stop-color="#5ee0a0"/>
@@ -125,12 +125,12 @@
     }
   </style>
 
-  <!-- 1. Bring your app: any language, from the files you already have -->
+  <!-- 1. Bring your app: from the files you already have -->
   <rect class="card" x="10" y="10" width="200" height="380" rx="12"/>
   <text class="num" x="24" y="32">01</text>
   <text class="kick" x="46" y="32">BRING</text>
-  <text class="head" x="24" y="53">your app, any stack</text>
-  <text class="sub" x="24" y="74">in any language</text>
+  <text class="head" x="24" y="53">your app</text>
+  <text class="sub" x="24" y="74">from files you have</text>
   <g class="lang"><rect x="22.0" y="82" width="43.7" height="22" rx="11"/><text x="30.0" y="97">Rust</text></g>
   <rect class="lit bring" style="animation-delay:0.0s" x="22.0" y="82" width="43.7" height="22" rx="11"/>
   <g class="lang"><rect x="71.7" y="82" width="29.8" height="22" rx="11"/><text x="79.7" y="97">Go</text></g>
