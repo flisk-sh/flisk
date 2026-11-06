@@ -135,7 +135,9 @@ export function healthProbeCannotRun(service: string): boolean {
       { encoding: "utf-8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] },
     );
     const [status, ...codes] = out.trim().split(/\s+/);
-    return status === "running" && codes.length > 0 && codes.every((c) => c === "126" || c === "127");
+    return (
+      status === "running" && codes.length > 0 && codes.every((c) => c === "126" || c === "127")
+    );
   } catch {
     return false;
   }
