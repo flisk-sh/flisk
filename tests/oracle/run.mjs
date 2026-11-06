@@ -1,15 +1,17 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // ORACLE: scaffold generated projects from seeds and fail when two Flisk surfaces contradict each other about one.
-//   node tests/oracle/run.mjs [--seed <n>] [--seeds <how many>] [--shape <shape>] [--count <n>] [--out <dir>] [--keep]
+//   node tests/oracle/run.mjs [--seed <n>] [--seeds <how many>] [--shape <shape>] [--count <n>] [--out <dir>] [--minimize] [--keep]
 // A failing seed replays with `--seed <n> --shape <shape>`, which is printed with every failure. Failures are also written to
-// <out>/oracle-failures.json (the shared bug-memory shape).
+// <out>/oracle-failures.json (the shared bug-memory shape), and each one as a regression-vault fixture under <out>/regressions/,
+// ready to copy into tests/oracle/regressions/. --minimize first drops every resource the contradiction does not need.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkScenario } from "./lib/invariants.mjs";
 import { drawScenario } from "./lib/scenario.mjs";
 import { collectSurfaces, makeProjectDir, scaffold } from "./lib/surfaces.mjs";
+import { fixtureName, minimizeScenario, toRegression } from "./lib/vault.mjs";
 
 export function runSeed(seed, opts = {}) {
 	const scenario = drawScenario(seed, opts);
@@ -28,14 +30,26 @@ function main(argv) {
 	const seeds = Number(arg("--seeds") ?? 1);
 	const out = arg("--out");
 	const all = [];
+	const fixtures = [];
 	for (let i = 0; i < seeds; i++) {
 		const seed = first + i;
 		const { scenario, failures } = runSeed(seed, { shape: arg("--shape"), count: arg("--count") ? Number(arg("--count")) : undefined, keep: argv.includes("--keep") });
 		console.log(`seed ${seed} shape ${scenario.shape} (${scenario.resources.length} resources): ${failures.length === 0 ? "surfaces agree" : `${failures.length} contradiction(s)`}`);
 		for (const f of failures) console.log(`  ${f.invariant}\n    expected: ${f.expected}\n    actual:   ${f.actual}\n    replay:   ${f.reproduction}`);
 		all.push(...failures);
+		if (out) {
+			for (const f of failures) {
+				const small = argv.includes("--minimize") ? minimizeScenario(scenario, f) : scenario;
+				if (small !== scenario) console.log(`    minimized: ${scenario.resources.length} -> ${small.resources.length} resources`);
+				fixtures.push(toRegression(f, small, { minimizedFrom: small !== scenario ? scenario.resources.length : undefined }));
+			}
+		}
 	}
-	if (out) { mkdirSync(out, { recursive: true }); writeFileSync(path.join(out, "oracle-failures.json"), `${JSON.stringify(all, null, 2)}\n`); }
+	if (out) {
+		mkdirSync(path.join(out, "regressions"), { recursive: true });
+		writeFileSync(path.join(out, "oracle-failures.json"), `${JSON.stringify(all, null, 2)}\n`);
+		for (const fx of fixtures) writeFileSync(path.join(out, "regressions", fixtureName(fx)), `${JSON.stringify(fx, null, 2)}\n`);
+	}
 	return all.length === 0 ? 0 : 1;
 }
 
