@@ -157,7 +157,7 @@ describe("flisk resource --frameworks", () => {
     expect(result.status, result.stderr).toBe(0);
     const help = result.stdout.replace(/\s+/g, " ");
     expect(help).toContain(
-      "List registered frameworks for the resource type and exit (--type frontend, --type backend)",
+      "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue)",
     );
   });
 

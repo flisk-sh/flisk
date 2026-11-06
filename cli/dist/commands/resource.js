@@ -577,7 +577,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
     .argument("[name]", "Resource name (kebab-case)")
     .option("-t, --type <type>", "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, sdk", "backend")
     .option("--framework <id>", "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks); database postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow, mysql, mongodb, clickhouse; queue nats (default), rabbitmq")
-    .option("--frameworks", "List registered frameworks for the resource type and exit (--type frontend, --type backend)")
+    .option("--frameworks", "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue)")
     .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
     .option("-s, --stack <stack>", "Stack to assign resource to", "default")
     .option("-p, --path <path>", "Custom path for resource directory")
@@ -650,7 +650,10 @@ export const resourceCommand = addYesOption(new Command("resource"))
         const isInference = options.type === INFERENCE_TYPE;
         if (requestedType === DATABASE_RESOURCE_TYPE || requestedType === QUEUE_RESOURCE_TYPE) {
             // Asked on a terminal only; --yes and --json take the default (the shared Postgres, NATS).
-            if (options.framework === undefined && !assumeYes && process.stdin.isTTY) {
+            if (options.framework === undefined &&
+                !assumeYes &&
+                process.stdin.isTTY &&
+                process.stdout.isTTY) {
                 options.framework = await promptSelect({
                     message: `${requestedType === QUEUE_RESOURCE_TYPE ? "Queue" : "Database"} framework:`,
                     choices: infraFrameworkListing(requestedType).map((f) => ({
