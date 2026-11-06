@@ -123,13 +123,13 @@ Step 'Tiltfile error' {
   }
 }
 
-# Replay two failing resources by hand: the CLI cuts their messages at 800 characters, and Tilt's API is gone once the demo exits.
+# Replay failing resources by hand (golden-layers-build first: run 42255599374 failed there once buildx made it take the bake path): the CLI cuts their messages at 800 characters, and Tilt's API is gone once the demo exits.
 Step 'Replay failing resources' {
   $extract = Join-Path $PSScriptRoot 'extract-resource-cmd.py'
   $result = Join-Path $Out 'tiltfile-result.json'
   if (-not (Test-Path -LiteralPath $result)) { return }
   $replay = Join-Path $Out 'replay'
-  foreach ($name in 'provision-db-guest', 'service-discovery-daemon') {
+  foreach ($name in 'golden-layers-build', 'provision-db-guest', 'service-discovery-daemon') {
     cmd /c ('python "' + $extract + '" "' + $result + '" ' + $name + ' "' + $replay + '" > "' + (Join-Path $Out ('replay-' + $name + '-extract.txt')) + '" 2>&1')
     $script = Join-Path $replay ($name + '.ps1')
     $envFile = Join-Path $replay ($name + '.env.json')
@@ -143,7 +143,8 @@ Step 'Replay failing resources' {
     $e = Join-Path $Out ('replay-' + $name + '.err')
     $proc = Start-Process -FilePath 'powershell' -ArgumentList @('-NoProfile', '-NonInteractive', '-File', ('"' + $script + '"')) -NoNewWindow -PassThru -RedirectStandardOutput $o -RedirectStandardError $e
     $null = $proc.Handle
-    if (-not $proc.WaitForExit(120000)) { $proc.Kill(); 'killed after 120s (still running)' | Out-File -FilePath $e -Append -Encoding utf8 }
+    $limit = 120000; if ($name -eq 'golden-layers-build') { $limit = 480000 }
+    if (-not $proc.WaitForExit($limit)) { $proc.Kill(); ('killed after ' + ($limit / 1000) + 's (still running)') | Out-File -FilePath $e -Append -Encoding utf8 }
     else { ('exit ' + $proc.ExitCode) | Out-File -FilePath $e -Append -Encoding utf8 }
     foreach ($k in $saved.Keys) { [Environment]::SetEnvironmentVariable($k, $saved[$k]) }
   }
