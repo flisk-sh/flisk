@@ -39,4 +39,7 @@ function main(argv) {
 	return all.length === 0 ? 0 : 1;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+// Exit 1 means "found something"; an uncaught error is exit 2, so a harness that runs this engine can tell a crash from a finding.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	try { process.exitCode = main(process.argv.slice(2)); } catch (error) { console.error(error?.stack ?? error); process.exitCode = 2; }
+}
