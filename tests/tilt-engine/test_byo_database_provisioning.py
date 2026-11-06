@@ -95,3 +95,16 @@ def test_provision_database_formats_and_registers_in_tilt(tmp_path: Path) -> Non
         "r = 'ok'\n",
     )
     assert result == "ok"
+
+
+@TILT_REQUIRED
+def test_provision_db_resource_keeps_the_hyphenated_name_dependents_wait_on(tmp_path: Path) -> None:
+    """Dependents wait on `provision-db-<stack>` as named. Registering `provision-db-rotor_i` made Tilt ignore every
+    dependency ("unknown resource") and an agent with postgres durability booted before its database existed."""
+    databases = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "databases.star"
+    tiltfile = tmp_path / "Tiltfile"
+    tiltfile.write_text(f"load('{databases}', 'provision_database')\nprovision_database('rotor-i')\n")
+    proc = subprocess.run(["tilt", "alpha", "tiltfile-result", "-f", str(tiltfile)], capture_output=True, text=True, timeout=180)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    names = [m["Name"] for m in json.loads(proc.stdout)["Manifests"]]
+    assert names == ["provision-db-rotor-i"]

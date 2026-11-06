@@ -48,9 +48,9 @@ def provision_database(resource_name, db_name=None):
       db_name = PlatformDockerConstants.get_db_name(resource_name)
     db_name = db_name.replace('-', '_')
     
+    # Dependents wait on 'provision-db-<resource_name>' with the name as given (hyphens kept). Renaming it after the database
+    # name made Tilt ignore every dependency on it ("unknown resource"), so an agent could boot before its database existed.
     resource_name = 'provision-db-' + resource_name
-    if db_name != PlatformDockerConstants.get_db_name(resource_name):
-      resource_name = 'provision-db-' + db_name.replace(PlatformDockerConstants.PROJECT_NAME + '_', '')
     
     # Check if Docker is available before trying to use it
     provision_cmd = """
