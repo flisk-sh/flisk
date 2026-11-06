@@ -1,11 +1,13 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
-Native Windows file scan (files_scan_command in runtime/discovery/native_windows.star).
+The PowerShell file scan used by discovery on native Windows (files_scan_command in runtime/discovery/native_windows.star).
 
-PowerShell cannot run off Windows, so these tests check the generated script, through Tilt's interpreter, for the two rules the
-scan must keep: an unreadable directory fails the scan instead of silently dropping files, and a drive root keeps its separator.
-A pwsh run of the same script is added when pwsh is installed.
+Two layers:
+- text checks on the script, read through Tilt's interpreter (run everywhere Tilt is installed): a drive root keeps its
+  backslash, an enumeration error fails the scan instead of returning a partial list;
+- runs of the script itself when PowerShell 7 (pwsh) is installed. Drive-root and UNC scans need Windows and are only covered
+  by the text checks and by the hosted Windows run.
 """
 
 import json
@@ -16,65 +18,95 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
-
-RUNTIME = Path(__file__).resolve().parents[2] / "runtime"
+DISCOVERY = Path(__file__).resolve().parents[2] / "runtime" / "discovery"
 
 BODY = """
-load('@RT/discovery/native_windows.star', 'files_scan_command')
+load('@DISCOVERY/native_windows.star', 'files_scan_command')
 fail('RESULT' + encode_json(files_scan_command()))
 """
 
 
-def _script(tmp_path: Path) -> str:
-    project = tmp_path / "proj"
-    (project / ".flisk").mkdir(parents=True)
-    (project / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": "proj"}}))
-    (project / "Tiltfile").write_text(BODY.replace("@RT", str(RUNTIME)))
+def _command(tmp_path: Path) -> list:
+    (tmp_path / "Tiltfile").write_text(BODY.replace("@DISCOVERY", str(DISCOVERY)))
     proc = subprocess.run(
-        ["tilt", "alpha", "tiltfile-result", "-f", str(project / "Tiltfile")],
-        capture_output=True, text=True, timeout=180, cwd=project,
-        env={**os.environ, "FLISK_PROJECT_ROOT": str(project)},
+        ["tilt", "alpha", "tiltfile-result", "-f", str(tmp_path / "Tiltfile")],
+        capture_output=True, text=True, timeout=180, cwd=tmp_path,
     )
     out = proc.stdout + proc.stderr
     assert "Error in fail: RESULT" in out, out[-3000:]
-    return json.loads(out.split("Error in fail: RESULT", 1)[1].strip())[-1]
+    return json.loads(out.split("Error in fail: RESULT", 1)[1].strip())
 
 
-def test_enumeration_errors_fail_the_scan_but_a_missing_root_is_empty(tmp_path):
-    body = _script(tmp_path)
-    assert body.isascii() and '"' not in body
-    # the missing root is the only silent path, and it comes before the enumeration
-    resolve, enumerate_ = body.index("Resolve-Path"), body.index("Get-ChildItem")
-    assert "SilentlyContinue" in body[:enumerate_] and "if (-not $r) { exit 0 }" in body[resolve:enumerate_]
-    # enumeration itself uses terminating errors and reports failure with a non-zero exit
-    assert "SilentlyContinue" not in body[enumerate_:] and "ErrorAction = 'Stop'" in body
-    assert "SilentlyContinue" not in body.split("$p = @{", 1)[1]
-    assert "catch {" in body and "exit 1" in body and "flisk discovery scan failed" in body
+@pytest.fixture
+def script(tmp_path):
+    if shutil.which("tilt") is None:
+        pytest.skip("tilt CLI not installed")
+    return _command(tmp_path)[-1]
 
 
-def test_a_drive_root_keeps_its_separator_and_its_prefix_length(tmp_path):
-    body = _script(tmp_path)
-    # TrimEnd turns C:\ into C: (the current directory on that drive), so the separator is restored for a bare drive
-    assert "$r.Length -eq 2 -and $r[1] -eq [char]58" in body
-    assert "$r += [char]92" in body
-    # the relative-path offset is the root length (separator included) for a drive root, length + 1 otherwise
-    assert "$o = $r.Length + 1" in body and "$o = $r.Length }" in body
-    assert "Substring($o)" in body and "Substring($r.Length + 1)" not in body
+def test_enumeration_errors_fail_the_scan(script):
+    assert "ErrorAction = 'Stop'" in script
+    assert "SilentlyContinue" not in script.split("$p = @{", 1)[1]  # only the root lookup may be silent
+    assert "exit 1" in script and "catch" in script
+    assert script.rstrip().endswith("exit 0")
 
 
-@pytest.mark.skipif(shutil.which("pwsh") is None, reason="pwsh not installed")
-def test_scan_lists_relative_files_and_a_missing_root_is_empty(tmp_path):
-    body = _script(tmp_path)
-    root = tmp_path / "scan"
-    (root / "a" / "b").mkdir(parents=True)
-    (root / "a" / "b" / "service.json").write_text("{}")
+def test_a_drive_root_keeps_its_backslash(script):
+    # TrimEnd turns C:\ into C:, the current directory on drive C; the scan must put the backslash back
+    assert "$r.Length -eq 2 -and $r[1] -eq ':'" in script
+    assert "$r = $r + [char]92" in script
+    # relative paths are cut after the separator, which a drive root already ends with
+    assert "$n = $r.Length; if ($r[$r.Length - 1] -ne [char]92) { $n = $n + 1 }" in script
+    assert "Substring($n)" in script
 
-    def run(path):
-        return subprocess.run(["pwsh", "-NoProfile", "-Command", body], capture_output=True, text=True,
-                              env={**os.environ, "FLISK_SCAN_ROOT": str(path), "FLISK_SCAN_NAME": "service.json"})
 
-    found = run(root)
-    assert found.returncode == 0 and found.stdout.split() == [str(Path("a") / "b" / "service.json")]
-    missing = run(tmp_path / "nope")
-    assert missing.returncode == 0 and missing.stdout.strip() == ""
+pwsh = shutil.which("pwsh")
+needs_pwsh = pytest.mark.skipif(pwsh is None or shutil.which("tilt") is None, reason="pwsh or tilt not installed")
+
+
+def _scan(script: str, root: Path, name: str = "", depth: str = "") -> subprocess.CompletedProcess:
+    env = {**os.environ, "FLISK_SCAN_ROOT": str(root), "FLISK_SCAN_NAME": name, "FLISK_SCAN_DEPTH": depth}
+    return subprocess.run([pwsh, "-NoProfile", "-NonInteractive", "-Command", script], capture_output=True, text=True, env=env, timeout=120)
+
+
+def _tree(root: Path):
+    for rel in ["a/service.json", "a/b/service.json", "a/b/c/service.json", "a/readme.md", "node_modules/x/service.json"]:
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text("{}")
+
+
+@needs_pwsh
+def test_scan_lists_relative_files_filtered_by_name(script, tmp_path):
+    _tree(tmp_path)
+    proc = _scan(script, tmp_path, name="service.json")
+    assert proc.returncode == 0, proc.stderr
+    got = sorted(line.strip().replace("\\", "/") for line in proc.stdout.splitlines() if line.strip())
+    assert got == ["a/b/c/service.json", "a/b/service.json", "a/service.json", "node_modules/x/service.json"]
+
+
+@needs_pwsh
+def test_scan_honours_depth(script, tmp_path):
+    _tree(tmp_path)
+    proc = _scan(script, tmp_path, name="service.json", depth="1")  # find -maxdepth 2
+    got = sorted(line.strip().replace("\\", "/") for line in proc.stdout.splitlines() if line.strip())
+    assert got == ["a/b/service.json", "a/service.json", "node_modules/x/service.json"]
+
+
+@needs_pwsh
+def test_missing_root_is_an_empty_successful_scan(script, tmp_path):
+    proc = _scan(script, tmp_path / "nope")
+    assert proc.returncode == 0 and proc.stdout.strip() == ""
+
+
+@needs_pwsh
+@pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0), reason="needs a POSIX user that permissions apply to")
+def test_an_unreadable_directory_fails_the_scan(script, tmp_path):
+    _tree(tmp_path)
+    locked = tmp_path / "a" / "b"
+    locked.chmod(0)
+    try:
+        proc = _scan(script, tmp_path, name="service.json")
+    finally:
+        locked.chmod(0o755)
+    assert proc.returncode != 0
+    assert "flisk discovery scan failed" in proc.stderr

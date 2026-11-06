@@ -108,15 +108,17 @@ def files_scan_command():
     """
     return _PS + [
         "try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }; "
+        # A missing root is an empty scan (like find on POSIX after the os.path.exists guard); anything else that goes wrong must fail.
         + "$r = (Resolve-Path -LiteralPath $env:FLISK_SCAN_ROOT -ErrorAction SilentlyContinue).Path; if (-not $r) { exit 0 }; "
-        + "$r = $r.TrimEnd([char]92, [char]47); $o = $r.Length + 1; "
-        # A bare drive ("C:") means the current directory on that drive, so a drive root keeps its separator and its prefix is one shorter.
-        + "if ($r.Length -eq 2 -and $r[1] -eq [char]58) { $r += [char]92; $o = $r.Length }; "
-        # Terminating errors: an unreadable subdirectory must fail the scan, not silently drop services. Only a missing root is empty (above).
+        # TrimEnd turns C:\ into C:, which means the current directory on drive C, so put the backslash back for a drive root.
+        + "$r = $r.TrimEnd([char]92, [char]47); if ($r.Length -eq 2 -and $r[1] -eq ':') { $r = $r + [char]92 }; "
+        # Characters to cut from each FullName: the root plus its separator, which a drive root already ends with.
+        + "$n = $r.Length; if ($r[$r.Length - 1] -ne [char]92) { $n = $n + 1 }; "
         + "$p = @{ LiteralPath = $r; Recurse = $true; File = $true; Force = $true; ErrorAction = 'Stop' }; "
         + "if ($env:FLISK_SCAN_NAME -and $env:FLISK_SCAN_NAME -ne '*') { $p.Filter = $env:FLISK_SCAN_NAME }; "
         + "if ($env:FLISK_SCAN_DEPTH) { $p.Depth = [int]$env:FLISK_SCAN_DEPTH }; "
-        + "try { Get-ChildItem @p | ForEach-Object { $_.FullName.Substring($o) } } catch { [Console]::Error.WriteLine('flisk discovery scan failed: ' + $_.Exception.Message); exit 1 }; exit 0",
+        # An unreadable directory fails the scan (exit 1, so local() fails the Tiltfile) instead of silently dropping its services.
+        + "try { Get-ChildItem @p | ForEach-Object { $_.FullName.Substring($n) } } catch { [Console]::Error.WriteLine('flisk discovery scan failed: ' + $_.Exception.Message); exit 1 }; exit 0",
     ]
 
 def _relative_files(root, display_root = None, name = "*", max_depth = 0):
@@ -128,7 +130,7 @@ def _relative_files(root, display_root = None, name = "*", max_depth = 0):
     On real Windows the files come from one PowerShell call, like `find` on POSIX. Tilt's listdir would also work, but it registers a
     file watch on everything it lists: every generated file under the project then re-ran the Tiltfile (a load took over a minute
     because it walked node_modules, and each load rewrote files that triggered the next one, run 42238846641). name and max_depth
-    narrow the search there; max_depth counts levels like find -maxdepth (0 = unlimited).
+    narrow the search there, and a scan that cannot read part of the tree fails instead of returning a partial list; max_depth counts levels like find -maxdepth (0 = unlimited).
     """
     if not os.path.exists(root):
         return []
