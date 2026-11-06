@@ -22,7 +22,7 @@ DISCOVERY = Path(__file__).resolve().parents[2] / "runtime" / "discovery"
 
 BODY = """
 load('@DISCOVERY/libraries.star', 'autodiscover_libraries')
-load('@DISCOVERY/native_windows.star', 'file_exists', 'dir_exists')
+load('@DISCOVERY/native_windows.star', 'file_exists', 'dir_exists', 'find_files')
 load('@DISCOVERY/json_manifest_scanner.star', 'discover_json_manifests')
 load('@DISCOVERY/manifest/loading.star', 'get_manifest_filename')
 r = {
@@ -36,6 +36,9 @@ r = {
     'glob_dupes': discover_json_manifests('services/pro* services/product'),
     'scan': discover_json_manifests('services/product'),
     'glob': discover_json_manifests('services/pro*'),
+    'clean_abs': find_files('@PROJ/services/product', 'service.json'),
+    'unclean_abs': find_files('@PROJ//services/./other/../product', 'service.json'),
+    'dotdot_root': find_files('@PROJ/.flisk/..', 'service.json'),
 }
 """
 
@@ -53,7 +56,7 @@ def _project(root: Path) -> Path:
 
 def _run(project: Path, portable: bool) -> dict:
     tiltfile = project / "Tiltfile"
-    tiltfile.write_text(BODY.replace("@DISCOVERY", str(DISCOVERY)) + "\nfail('RESULT' + encode_json(r))\n")
+    tiltfile.write_text(BODY.replace("@DISCOVERY", str(DISCOVERY)).replace("@PROJ", str(project)) + "\nfail('RESULT' + encode_json(r))\n")
     env = {**os.environ, "FLISK_PROJECT_ROOT": str(project)}
     env.pop("FLISK_DISCOVERY_PORTABLE", None)
     if portable:
@@ -95,3 +98,18 @@ def test_portable_discovery_matches_posix(tmp_path):
     # `ls -d` lists an empty directory; the file-based portable fallback (tests only) cannot see it
     assert posix["libs"] == ["shared-empty", "shared-x", "shared-y"]
     assert portable["libs"] == ["shared-x", "shared-y"]
+
+
+def test_a_root_with_double_slash_dot_or_dotdot_finds_the_same_files(tmp_path):
+    """Tilt's listdir returns cleaned paths while os.path.abspath keeps `//` and `..`; comparing them raw found no
+    services on native Windows ("Loaded 0 services"), where the Tiltfile's root is config.main_dir + "/../..".
+    """
+    project = _project(tmp_path)
+    for portable in (False, True):
+        result = _run(project, portable=portable)
+        # paths are shown under the root as given, so compare what follows the product directory
+        below = lambda paths: sorted(p.split("/product/", 1)[1] for p in paths)
+        assert below(result["clean_abs"]) == ["a/service.json", "b/c/service.json"], result["clean_abs"]
+        assert below(result["unclean_abs"]) == below(result["clean_abs"]), result["unclean_abs"]
+        # `.flisk/..` is the project root again: it finds every manifest under it
+        assert len(result["dotdot_root"]) == 5, result["dotdot_root"]

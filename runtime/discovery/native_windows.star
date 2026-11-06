@@ -19,6 +19,31 @@ IS_NATIVE_WINDOWS = os.name == "nt" or os.getenv("FLISK_DISCOVERY_PORTABLE") == 
 def _slash(path):
     return path.replace("\\", "/")
 
+def _clean(path):
+    """Slash path with empty and `.` segments dropped and `..` collapsed, the way Tilt's listdir returns paths.
+
+    os.path.abspath keeps `//` and `..` (the generated Tiltfile's root is config.main_dir + "/../.."), but listdir returns
+    cleaned paths, so comparing the two without this matched nothing: "Loaded 0 services" on the hosted Windows run.
+    """
+    p = _slash(path)
+    drive = ""
+    if len(p) > 1 and p[1] == ":":
+        drive = p[:2]
+        p = p[2:]
+    absolute = p.startswith("/")
+    parts = []
+    for segment in p.split("/"):
+        if segment == "" or segment == ".":
+            continue
+        if segment == "..":
+            if parts and parts[-1] != "..":
+                parts.pop()
+                continue
+            if absolute:
+                continue
+        parts.append(segment)
+    return drive + ("/" if absolute else "") + "/".join(parts)
+
 def _star_closure(pattern, states):
     # A * may match nothing, so from a state sitting on * the next state is reachable too.
     out = dict(states)
@@ -47,9 +72,9 @@ def _is_file(path):
     """True for a regular file. os.path.exists is also true for directories and read_file fails on them, so ask the parent."""
     if not os.path.exists(path):
         return False
-    target = _slash(os.path.abspath(path))
+    target = _clean(os.path.abspath(path))
     parent = target.rsplit("/", 1)[0] if "/" in target else "."
-    return target in [_slash(f) for f in listdir(parent)]
+    return target in [_clean(f) for f in listdir(parent)]
 
 def file_exists(path, cwd = ""):
     """test -f path (run from cwd when given)."""
@@ -83,11 +108,11 @@ def _relative_files(root, display_root = None):
     """
     if not os.path.exists(root):
         return []
-    base = _slash(os.path.abspath(root)).rstrip("/") + "/"
+    base = _clean(os.path.abspath(root)).rstrip("/") + "/"
     shown = _slash(display_root if display_root != None else root).rstrip("/")
     out = []
     for f in listdir(root, recursive=True):
-        f = _slash(f)
+        f = _clean(f)
         if f.startswith(base):
             rel = f[len(base):]
             out.append((rel, shown + "/" + rel))
