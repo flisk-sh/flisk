@@ -9,6 +9,7 @@ import {
   checkCustomDockerfiles,
   checkDependsOnShape,
   checkGpuRuntime,
+  checkModelRunner,
   checkNetworkPorts,
   checkPostgresVolumes,
   checkRequiredSecrets,
@@ -902,4 +903,34 @@ describe("checkPostgresVolumes", () => {
       expect(checkPostgresVolumes(root).didPass).toBe(true);
     },
   );
+});
+
+describe("checkModelRunner", () => {
+  const withModels = {
+    appType: "bring-your-own",
+    image: "nosia:1",
+    models: [{ name: "llm", model: "ai/smollm2" }],
+  };
+
+  it("passes when no service uses models, without asking Docker", () => {
+    service("api");
+    const hasPlugin = vi.fn(() => false);
+    expect(checkModelRunner(root, undefined, hasPlugin).didPass).toBe(true);
+    expect(hasPlugin).not.toHaveBeenCalled();
+  });
+
+  it("warns, naming the service and the fix, when Docker has no Model Runner", () => {
+    service("web", withModels);
+    const result = checkModelRunner(root, undefined, () => false);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("web declares models");
+    expect(result.message).toContain("'models' support requires Docker Model plugin");
+    expect(result.fix).toContain("docker-model-plugin");
+  });
+
+  it("passes with the plugin, and when Docker does not answer", () => {
+    service("web", withModels);
+    expect(checkModelRunner(root, undefined, () => true).didPass).toBe(true);
+    expect(checkModelRunner(root, undefined, () => null).didPass).toBe(true);
+  });
 });

@@ -1043,6 +1043,13 @@ _HEALTHY_SCRIPT = (
     + '  else '
     + '    health="$(docker inspect --format="{{.State.Health.Status}}" "$id" 2>/dev/null)"; '
     + '    if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi; '
+    + '    if [ "$health" = "unhealthy" ]; then '
+    + '      codes="$(docker inspect --format="{{range .State.Health.Log}}{{.ExitCode}} {{end}}" "$id" 2>/dev/null)"; '
+    + '      runs=0; for c in $codes; do if [ "$c" != "126" ] && [ "$c" != "127" ]; then runs=1; fi; done; '
+    + '      if [ "$state" = "running" ] && [ -n "$codes" ] && [ "$runs" = "0" ]; then '
+    + '        echo "WARNING: $job health check cannot run in its image (command not found or not executable), proceeding because the container is running"; exit 0; '
+    + '      fi; '
+    + '    fi; '
     + '    if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi; '
     + '  fi; '
     + '  sleep 1; '
@@ -1076,6 +1083,8 @@ def _register_healthy_resource(config, resource_path, compose_project_name, auto
     dependents with `condition: "service_healthy"` to start before the dependency's health
     check has passed. This local_resource monitors the container's health status via Docker
     inspect until it reports 'healthy', failing fast if the container exits or reports 'unhealthy'.
+    A health check that cannot run at all (every probe exits 126 or 127, such as `curl` in an image without curl, as in
+    LycheeOrg/Lychee's facial-recognition sidecar) says nothing about the app, so a running container proceeds with a warning.
     If no healthcheck is configured, it proceeds as soon as the container is running.
     """
     timeout_s = _calculate_healthy_timeout_seconds(config.get('manifest', {}))

@@ -92,6 +92,7 @@ import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import {
   enforceServiceConfigGate,
+  warnModelRunner,
   warnSchemaVersions,
   warnSecretConflicts,
 } from "../utils/service-config-checks.js";
@@ -916,6 +917,7 @@ export const upCommand = new Command("up")
       if (foundRoot && !emit && !options.quiet) {
         warnSchemaVersions(foundRoot, discoveredResources);
         warnSecretConflicts(foundRoot, discoveredResources);
+        warnModelRunner(foundRoot, discoveredResources);
       }
       const hostPortPlan = await getHostPortPlan(projectRoot, {
         inspectDocker: !options.dryRun,

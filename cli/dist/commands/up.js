@@ -36,7 +36,7 @@ import { findPortOccupant } from "../utils/port-occupant.js";
 import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/profiles.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
-import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
+import { enforceServiceConfigGate, warnModelRunner, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServiceUrl, resolveSubdomainBases, routesAsApi, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
@@ -672,6 +672,7 @@ export const upCommand = new Command("up")
         if (foundRoot && !emit && !options.quiet) {
             warnSchemaVersions(foundRoot, discoveredResources);
             warnSecretConflicts(foundRoot, discoveredResources);
+            warnModelRunner(foundRoot, discoveredResources);
         }
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,

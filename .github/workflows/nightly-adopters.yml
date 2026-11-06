@@ -57,6 +57,7 @@ jobs:
             owner: dilolabs
             repo: nosia
             commit: 42796ffb30b48b5aeece234383b71e3d51badc7e
+            docker_model_plugin: true
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
@@ -121,6 +122,13 @@ jobs:
 
       - name: Free port 5432 (preinstalled Postgres)
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      - name: Install Docker Model Runner (stacks that declare Compose models)
+        if: matrix.docker_model_plugin
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y docker-model-plugin
+          docker model version
 
       - name: Install Flisk CLI
         uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit

@@ -838,3 +838,49 @@ local_resource(
             assert "has no health check configured, proceeding once running" in res.stdout
         finally:
             subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
+
+    @staticmethod
+    def _real_healthy_script() -> str:
+        """The shipped _HEALTHY_SCRIPT, read from the orchestrator source (no copy to drift)."""
+        source = ORCHESTRATOR.read_text()
+        start = source.index("_HEALTHY_SCRIPT = (") + len("_HEALTHY_SCRIPT = ")
+        end = source.index("\n)\n", start) + 2
+        return eval(source[start:end])  # a parenthesised concatenation of string literals
+
+    def _run_healthy_script(self, cname: str, health_cmd: str, max_polls: int = 30):
+        subprocess.run(
+            [
+                "docker", "run", "-d", "--name", cname,
+                "--health-cmd", health_cmd, "--health-interval", "1s", "--health-retries", "2",
+                "alpine", "sh", "-c", "sleep 60",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return subprocess.run(
+            ["sh", "-c", self._real_healthy_script(), "sh", cname, str(max_polls)],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_live_healthy_script_proceeds_when_the_health_command_is_missing_from_the_image(self):
+        """A health check whose command is not in the image (exit 127, like curl in Lychee's facial-recognition sidecar)
+        says nothing about the app: a running container proceeds with a warning instead of failing `flisk up`."""
+        cname = f"flisk-test-hc-missing-{uuid.uuid4().hex[:8]}"
+        try:
+            res = self._run_healthy_script(cname, "curl -f http://localhost:8000/health")
+            assert res.returncode == 0, f"{res.stdout}\n{res.stderr}"
+            assert "WARNING" in res.stdout and "cannot run in its image" in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
+
+    def test_live_healthy_script_still_fails_when_the_health_command_runs_and_fails(self):
+        """A health check that runs and exits 1 is a real failure and must still block dependents."""
+        cname = f"flisk-test-hc-failing-{uuid.uuid4().hex[:8]}"
+        try:
+            res = self._run_healthy_script(cname, "false")
+            assert res.returncode == 1, f"{res.stdout}\n{res.stderr}"
+            assert "is unhealthy" in res.stdout
+            assert "cannot run in its image" not in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
