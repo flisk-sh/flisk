@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { MUTANTS, mutate } from "../mutants.mjs";
-import { classify, main } from "../run.mjs";
+import { buildFailed, classify, detectorKey, main } from "../run.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -32,6 +32,24 @@ test("only exit 0 and 1 are results; anything else is an infrastructure error, n
 	assert.equal(classify({ status: 0 }, "x"), false);
 	assert.equal(classify({ status: 1 }, "x"), true);
 	for (const result of [{ status: 2, stderr: "boom" }, { status: null, signal: "SIGKILL" }, { status: null, error: new Error("ENOENT") }]) assert.throws(() => classify(result, "x"), /did not run properly/);
+});
+
+test("exit 1 without the engine's finding marker is a crash, not a catch", () => {
+	assert.equal(classify({ status: 1, stdout: "FALSIFIED p (seed 1)" }, "x", /FALSIFIED /), true);
+	assert.throws(() => classify({ status: 1, stdout: "", stderr: "TypeError: cannot read properties" }, "x", /FALSIFIED /), /crashed/);
+});
+
+test("a restore build that fails or cannot start is a failure", () => {
+	assert.equal(buildFailed({ status: 0 }), false);
+	assert.equal(buildFailed({ status: 1 }), true);
+	assert.equal(buildFailed({ status: null, error: new Error("ENOENT") }), true);
+});
+
+test("mutants that run different detector commands get different baselines", () => {
+	const [a, b] = [MUTANTS.find((m) => m.id === "uppercase-allowed"), MUTANTS.find((m) => m.id === "first-cycle-ignored")];
+	assert.notEqual(detectorKey("falsifier", a), detectorKey("falsifier", b));
+	assert.notEqual(detectorKey("unit", a), detectorKey("unit", b));
+	assert.equal(detectorKey("falsifier", a), detectorKey("falsifier", MUTANTS.find((m) => m.id === "edge-hyphen-allowed")));
 });
 
 test("the runner refuses unknown engines and an exporter mutant without a clone before touching any file", () => {

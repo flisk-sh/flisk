@@ -19,22 +19,29 @@ const run = (cmd, args, cwd = ROOT, env = {}) => spawnSync(cmd, args, { cwd, enc
 // Points flisk at the local exporter clone for an exporter mutant.
 const exportEnv = (m, o) => (m.repo === "export" ? { FLISK_EXPORT_PACKAGE: o.exportRepo } : {});
 
-// An engine exits 0 when it finds nothing and 1 when it finds something; any other status (or none: the process did not start or was
-// killed) is an infrastructure error, which must not be counted as a catch.
-export function classify(result, what) {
+// An engine exits 0 when it finds nothing and 1 when it finds something, and prints a marker when it does. An uncaught exception also
+// exits 1, so exit 1 without the marker is a crash, not a catch; any other status (or none: the process did not start or was killed)
+// is an infrastructure error too. Neither may be counted as a catch.
+export function classify(result, what, marker) {
 	if (result.status === 0) return false;
-	if (result.status === 1) return true;
-	throw new Error(`${what} did not run properly (exit ${result.status ?? result.signal ?? "none"}): ${String(result.stderr || result.stdout || result.error?.message || "").trim().slice(0, 300)}`);
+	if (result.status === 1 && (!marker || marker.test(String(result.stdout)))) return true;
+	const how = result.status === 1 ? "crashed (exit 1 without a finding)" : `did not run properly (exit ${result.status ?? result.signal ?? "none"})`;
+	throw new Error(`${what} ${how}: ${String(result.stderr || result.stdout || result.error?.message || "").trim().slice(0, 300)}`);
 }
+// A build that cannot start has no status; any non-zero status is a failure.
+export const buildFailed = (result) => result.status !== 0;
 export const ENGINES = ["unit", "falsifier", "oracle"];
 
 // Each engine reports whether it noticed: true = the bug was caught.
 export const detectors = {
 	// The exporter's own tests are its unit tests; the CLI-side mutants run the matching vitest files in cli/.
-	unit: (m, o) => classify(m.repo === "export" ? run("npx", ["vitest", "run"], o.exportRepo) : run("npx", ["vitest", "run", ...m.unit.map((n) => `src/utils/__tests__/${n}.test.ts`)], path.join(ROOT, "cli")), "the unit tests"),
-	falsifier: (m, o) => classify(run("node", ["tests/falsifier/run.mjs", "--property", m.falsifier, "--scenarios", String(o.falsifierScenarios), "--seed", "1"], ROOT, exportEnv(m, o)), "FALSIFIER"),
-	oracle: (m, o) => classify(run("node", ["tests/oracle/run.mjs", "--seed", "1", "--seeds", String(o.oracleSeeds)], ROOT, exportEnv(m, o)), "ORACLE"),
+	unit: (m, o) => classify(m.repo === "export" ? run("npx", ["vitest", "run"], o.exportRepo) : run("npx", ["vitest", "run", ...m.unit.map((n) => `src/utils/__tests__/${n}.test.ts`)], path.join(ROOT, "cli")), "the unit tests", /failed/),
+	falsifier: (m, o) => classify(run("node", ["tests/falsifier/run.mjs", "--property", m.falsifier, "--scenarios", String(o.falsifierScenarios), "--seed", "1"], ROOT, exportEnv(m, o)), "FALSIFIER", /FALSIFIED /),
+	oracle: (m, o) => classify(run("node", ["tests/oracle/run.mjs", "--seed", "1", "--seeds", String(o.oracleSeeds)], ROOT, exportEnv(m, o)), "ORACLE", /contradiction\(s\)/),
 };
+
+// What makes two detector runs the same command, so a baseline covers every mutant that shares it.
+export const detectorKey = (e, m) => `${e}|${m.repo ?? "cli"}|${e === "unit" ? (m.unit ?? []).join(",") : e === "falsifier" ? m.falsifier : ""}`;
 
 export function main(argv) {
 	const arg = (f) => { const i = argv.indexOf(f); return i === -1 ? undefined : argv[i + 1]; };
@@ -50,17 +57,21 @@ export function main(argv) {
 	const mutants = selected.filter((m) => m.repo !== "export" || opts.exportRepo);
 	const saved = new Map();
 	let rebuildNeeded = false;
-	const rebuild = () => { if (run("npm", ["run", "build"], opts.exportRepo).status !== 0) rebuildNeeded = true; };
+	const rebuild = () => { if (buildFailed(run("npm", ["run", "build"], opts.exportRepo))) rebuildNeeded = true; };
 	const restore = () => { for (const [file, text] of saved) writeFileSync(file, text); saved.clear(); };
 	// Whatever ends the process, the injected bug must not stay in the files (a signal handler's exit also runs the "exit" handler).
 	process.on("exit", restore);
 	for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => process.exit(130));
 	const rows = [];
 	try {
-		// Before any bug goes in, every engine must find nothing in the unmutated tree; otherwise a failing engine would count as a catch.
-		for (const kind of new Set(mutants.map((m) => m.repo ?? "cli"))) {
-			const m = mutants.find((x) => (x.repo ?? "cli") === kind);
-			for (const e of engines) if (detectors[e](m, opts)) throw new Error(`baseline: ${e} already reports a problem on the unmutated ${kind} tree (${m.id}); fix that first`);
+		// Before any bug goes in, every distinct detector command must find nothing in the unmutated tree; otherwise a failing engine
+		// would count as a catch.
+		const baselined = new Set();
+		for (const m of mutants) for (const e of engines) {
+			const key = detectorKey(e, m);
+			if (baselined.has(key)) continue;
+			baselined.add(key);
+			if (detectors[e](m, opts)) throw new Error(`baseline: ${e} already reports a problem on the unmutated tree (${key}); fix that first`);
 		}
 		for (const m of mutants) {
 			const t0 = Date.now();
