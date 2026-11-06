@@ -32,8 +32,9 @@ export declare function onlyEnabledResources(jsonText: string, disabledHealth?: 
 /**
  * True when the container of a Compose service is running and every health probe Docker recorded never ran its command (see
  * `probeNeverRan`), such as `curl` in an image without curl, as in LycheeOrg/Lychee's facial-recognition sidecar. Such a probe
- * says nothing about the app, so it must not fail `flisk up`. A probe that runs and fails is a real failure. Docker not
- * answering is "no", never "yes".
+ * says nothing about the app, so it must not fail `flisk up`. Docker keeps only the last five probes: for a shell-form probe
+ * the whole failing streak must be inside that log, because an older real failure may have scrolled out of it. A probe that runs
+ * and fails is a real failure. More than one container with the service name, or Docker not answering, is "no", never "yes".
  */
 export declare function healthProbeCannotRun(service: string): boolean;
 export declare function getDisabledHealthResourceNames(resources?: DiscoveredResource[]): Set<string>;

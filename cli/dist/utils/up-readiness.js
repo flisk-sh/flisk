@@ -54,20 +54,28 @@ export function onlyEnabledResources(jsonText, disabledHealth, probeCannotRun) {
     return JSON.stringify({ items });
 }
 /**
- * True when a probe never ran the health command: the shell said it is missing or not executable (exit 126 or 127), or, for an
- * exec-form `test: [CMD, curl, ...]`, Docker could not start it (exit -1 with "OCI runtime exec failed" in the output). A probe
- * that timed out also exits -1, but without that output, so it stays a real failure.
+ * True when a probe's own result shows it never ran the health command: exec form (`test: [CMD, curl, ...]`) is exit -1 with
+ * Docker's "OCI runtime exec failed"; shell form is exit 127 with "not found" in the output, or exit 126 with "permission
+ * denied" and the like. An exit code alone is not proof (a script that did run can exit 127 too), and a probe that timed out
+ * also exits -1, without that output.
  */
 function probeNeverRan(probe) {
-    if (probe.ExitCode === 126 || probe.ExitCode === 127)
-        return true;
-    return probe.ExitCode === -1 && /OCI runtime exec failed/.test(probe.Output ?? "");
+    const output = probe.Output ?? "";
+    if (probe.ExitCode === -1)
+        return /OCI runtime exec failed/.test(output);
+    if (probe.ExitCode === 127)
+        return /not found/i.test(output);
+    if (probe.ExitCode === 126) {
+        return /permission denied|cannot execute|not executable|is a directory/i.test(output);
+    }
+    return false;
 }
 /**
  * True when the container of a Compose service is running and every health probe Docker recorded never ran its command (see
  * `probeNeverRan`), such as `curl` in an image without curl, as in LycheeOrg/Lychee's facial-recognition sidecar. Such a probe
- * says nothing about the app, so it must not fail `flisk up`. A probe that runs and fails is a real failure. Docker not
- * answering is "no", never "yes".
+ * says nothing about the app, so it must not fail `flisk up`. Docker keeps only the last five probes: for a shell-form probe
+ * the whole failing streak must be inside that log, because an older real failure may have scrolled out of it. A probe that runs
+ * and fails is a real failure. More than one container with the service name, or Docker not answering, is "no", never "yes".
  */
 export function healthProbeCannotRun(service) {
     try {
@@ -82,7 +90,10 @@ export function healthProbeCannotRun(service) {
             stdio: ["ignore", "pipe", "ignore"],
         }));
         const log = state.Health?.Log ?? [];
-        return state.Status === "running" && log.length > 0 && log.every(probeNeverRan);
+        if (state.Status !== "running" || log.length === 0 || !log.every(probeNeverRan))
+            return false;
+        const shellForm = log.some((probe) => probe.ExitCode === 126 || probe.ExitCode === 127);
+        return !(shellForm && (state.Health?.FailingStreak ?? 0) > log.length);
     }
     catch {
         return false;

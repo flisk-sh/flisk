@@ -953,3 +953,41 @@ local_resource(
             subprocess.run(
                 ["docker", "compose", "-p", cname, "-f", str(compose), "down", "-v"], capture_output=True
             )
+
+    def test_live_healthy_script_fails_when_a_probe_that_ran_exits_127_without_saying_the_command_is_missing(self):
+        """Exit 127 alone is not proof: a script that ran and returned 127 is a real failure (no 'not found' output)."""
+        cname = f"flisk-test-hc-ran127-{uuid.uuid4().hex[:8]}"
+        try:
+            res = self._run_healthy_script(cname, "exit 127")
+            assert res.returncode == 1, f"{res.stdout}\n{res.stderr}"
+            assert "is unhealthy" in res.stdout
+            assert "cannot run in its image" not in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
+
+    def test_live_healthy_script_fails_when_an_earlier_real_failure_has_scrolled_out_of_the_probe_log(self):
+        """Docker keeps the last five probes. Five missing-command probes after earlier exit-1 probes would read as
+        'cannot run' from the log alone, but the failing streak (10) is longer than the log (5): a real failure may be
+        hidden, so the container stays unhealthy."""
+        cname = f"flisk-test-hc-aged-{uuid.uuid4().hex[:8]}"
+        probe = (
+            "n=$(cat /tmp/n 2>/dev/null || echo 0); echo $((n + 1)) > /tmp/n; "
+            "if [ $n -lt 5 ]; then exit 1; else flisk-no-such-command; fi"
+        )
+        subprocess.run(
+            [
+                "docker", "run", "-d", "--name", cname,
+                "--health-cmd", probe, "--health-interval", "1s", "--health-retries", "10",
+                "alpine", "sh", "-c", "sleep 90",
+            ],
+            check=True, capture_output=True,
+        )
+        try:
+            res = subprocess.run(
+                ["sh", "-c", self._real_healthy_script(), "sh", cname, "60"], capture_output=True, text=True
+            )
+            assert res.returncode == 1, f"{res.stdout}\n{res.stderr}"
+            assert "is unhealthy" in res.stdout
+            assert "cannot run in its image" not in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)

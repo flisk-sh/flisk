@@ -58,7 +58,8 @@ jobs:
             repo: nosia
             commit: 42796ffb30b48b5aeece234383b71e3d51badc7e
             docker_model_plugin: true
-            # Small models (a few hundred MB): the job checks that Flisk imports and starts the stack, not Nosia's answers.
+            # Small models (a few hundred MB): the job checks that Flisk imports and starts the stack. It does not call the
+            # model endpoint (AI_BASE_URL below names Model Runner's port, 12434), so no host-gateway mapping is added.
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
@@ -71,7 +72,7 @@ jobs:
               ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=ci-primary-key-not-a-secret
               ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=ci-deterministic-key-not-a-secret
               ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=ci-salt-not-a-secret
-              AI_BASE_URL=http://model-runner.docker.internal/engines/llama.cpp/v1
+              AI_BASE_URL=http://model-runner.docker.internal:12434/engines/llama.cpp/v1
               AI_API_KEY=ci-not-a-key
               LLM_MODEL=ai/smollm2
               LLM_TEMPERATURE=0.1

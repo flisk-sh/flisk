@@ -10,6 +10,7 @@ import {
   checkDependsOnShape,
   checkGpuRuntime,
   checkModelRunner,
+  warnModelRunner,
   type ModelRunnerState,
   checkNetworkPorts,
   checkPostgresVolumes,
@@ -950,5 +951,15 @@ describe("checkModelRunner", () => {
     const result = checkModelRunner(root, undefined, () => "no-plugin");
     expect(result.message).toContain("web, worker declare models");
     expect(result.message).toContain("start them");
+  });
+});
+
+describe("warnModelRunner", () => {
+  it("prints nothing when no service uses models", () => {
+    service("api");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    warnModelRunner(root);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

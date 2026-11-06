@@ -672,7 +672,9 @@ export const upCommand = new Command("up")
         if (foundRoot && !emit && !options.quiet) {
             warnSchemaVersions(foundRoot, discoveredResources);
             warnSecretConflicts(foundRoot, discoveredResources);
-            warnModelRunner(foundRoot, discoveredResources);
+            // A dry run starts nothing, so it does not ask Docker about Model Runner.
+            if (!options.dryRun)
+                warnModelRunner(foundRoot, discoveredResources);
         }
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,

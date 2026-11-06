@@ -158,9 +158,9 @@ def test_windows_healthy_script_has_the_same_cannot_run_fallback_as_the_posix_on
     ps = (RUNTIME / "engine" / "topologies" / "tilt" / "common" / "windows_scripts.star").read_text()
     sh = (TILT / "resources" / "orchestrator" / "apply_compose_resource_registration.star").read_text()
     body = ps[ps.index("def healthy_script"):ps.index("def job_done_script")]
-    for needle in ("-eq 126", "-eq 127", "-eq -1", "OCI runtime exec failed", "cannot run in its image", "$state -eq 'running'", "ERROR: ' + $job + ' is unhealthy"):
+    for needle in ("-eq 126", "-eq 127", "-eq -1", "OCI runtime exec failed", "FailingStreak", "cannot run in its image", "$state -eq 'running'", "ERROR: ' + $job + ' is unhealthy"):
         assert needle in body, needle
-    for needle in ('"126"', '"127"', '"-1"', "OCI runtime exec failed", "cannot run in its image", '"$state" = "running"', "ERROR: $job is unhealthy"):
+    for needle in ('"126"', '"127"', '"-1"', "OCI runtime exec failed", "FailingStreak", "cannot run in its image", '"$state" = "running"', "ERROR: $job is unhealthy"):
         assert needle in sh, needle
     # the fallback sits inside the unhealthy branch and comes before the failure
     assert body.index("cannot run in its image") < body.index("is unhealthy")
