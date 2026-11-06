@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-load("./native_windows.star", "IS_NATIVE_WINDOWS")
+load("./native_windows.star", "IS_NATIVE_WINDOWS", "is_abs_path")
 load("../engine/topologies/tilt/manifest/parser.star", "extract_stack_from_path")
 load("../engine/topologies/tilt/manifest/loader.star", "ManifestLoader")
 load("./manifest/loading.star", "get_default_syncs_for_type")
@@ -293,7 +293,7 @@ def _scan_resources():
         # Use the loader which handles both JSON and YAML and normalizes format
         # Loader needs a filesystem path: keep absolute for reads when needed.
         load_path = manifest_path
-        if not load_path.startswith("/"):
+        if not is_abs_path(load_path):
             load_path = project_root.rstrip("/") + "/" + load_path
         load_result = ManifestLoader.load_from_file(load_path)
         if load_result.error:

@@ -7,7 +7,7 @@
 # Purpose: Normalize manifests and provide helper accessors
 # =============================================================================
 
-load('../native_windows.star', 'IS_NATIVE_WINDOWS', 'find_files')
+load('../native_windows.star', 'IS_NATIVE_WINDOWS', 'find_files', 'is_abs_path')
 load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('./constants.star', 'MANIFEST_DEFAULTS', 'MANIFEST_FILENAME')
 load('./loading.star', 'apply_manifest_defaults', 'check_prisma_folder', 'get_default_syncs_for_type')
@@ -39,7 +39,7 @@ def _load_and_normalize(manifest_path, warn_only=True):
     """
     # Prepend project root to relative paths for correct resolution
     project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
-    if project_root and not manifest_path.startswith('/'):
+    if project_root and not is_abs_path(manifest_path):
         full_path = project_root + '/' + manifest_path
     else:
         full_path = manifest_path

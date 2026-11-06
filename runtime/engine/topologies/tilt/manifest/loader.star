@@ -21,6 +21,7 @@ DEFAULTS = {}
 # === END INLINED CONSTANTS ===
 
 
+load('../../../../discovery/native_windows.star', 'is_abs_path')
 load("./parser.star", "generated_string_error", "normalize_depends_on")
 load("./constants.star",
     "MANIFEST_FILENAME",
@@ -39,7 +40,7 @@ def load_from_file(path):
     """
     # Prepend project root to relative paths for correct resolution
     project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
-    if project_root and not path.startswith('/'):
+    if project_root and not is_abs_path(path):
         full_path = project_root + '/' + path
     else:
         full_path = path
@@ -138,7 +139,7 @@ def _get_manifest_filename(resource_path):
     """
     # Prepend project root to relative paths for correct resolution
     project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
-    if project_root and not resource_path.startswith('/'):
+    if project_root and not is_abs_path(resource_path):
         base_path = project_root + '/' + resource_path
     else:
         base_path = resource_path

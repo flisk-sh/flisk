@@ -176,6 +176,16 @@ def list_subdirs(root, prefix):
 def is_absolute(path):
     return path.startswith("/") or path.startswith("\\") or (len(path) > 1 and path[1] == ":")
 
+def is_abs_path(path):
+    """True for an absolute path: a leading `/` everywhere, and on native Windows also `\\...` and `C:` drive paths.
+
+    Off Windows this is exactly path.startswith("/"), so Linux, macOS and WSL2 behave as before. Code that prefixed
+    FLISK_PROJECT_ROOT onto anything not starting with `/` doubled the prefix on a Windows path (run 42183705419).
+    """
+    if path.startswith("/"):
+        return True
+    return IS_NATIVE_WINDOWS and is_absolute(path)
+
 def relative_path(path, start):
     return os.path.relpath(path, start)
 
