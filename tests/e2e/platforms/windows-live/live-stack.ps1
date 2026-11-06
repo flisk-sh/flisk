@@ -150,6 +150,15 @@ Step 'Postgres probe' {
     @('exists diag_probe_db', ('docker exec ' + $pg + ' psql -U ' + $pu + ' -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = ' + $q + 'diag_probe_db' + $q + '"')),
     @('drop diag_probe_db', ('docker exec ' + $pg + ' dropdb -U ' + $pu + ' --if-exists diag_probe_db'))
   )
+  # Is the output lost on the way back? Compare exec from Windows (through WSL's localhost relay) with exec run inside WSL.
+  $steps = @(
+    @('transport: windows docker exec echo', ('docker exec ' + $pg + ' echo hello-from-exec')),
+    @('transport: windows docker exec psql', ('docker exec ' + $pg + ' psql -U ' + $pu + ' -d postgres -tAc "SELECT 42"')),
+    @('transport: wsl docker exec echo', ('wsl -d Ubuntu -u root -- docker exec ' + $pg + ' echo hello-from-exec')),
+    @('transport: wsl docker exec psql', ('wsl -d Ubuntu -u root -- docker exec ' + $pg + ' psql -U ' + $pu + ' -d postgres -tAc "SELECT 42"')),
+    @('transport: windows docker exec exit code', ('docker exec ' + $pg + ' sh -c "exit 7" & echo exit=%errorlevel%')),
+    @('transport: windows docker run echo', 'docker run --rm alpine echo hello-from-run')
+  ) + $steps
   foreach ($st in $steps) {
     ('--- ' + $st[0]) | Out-File -FilePath $o -Append -Encoding utf8
     cmd /c ($st[1] + ' >> "' + $o + '" 2>&1')
