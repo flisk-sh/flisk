@@ -92,7 +92,6 @@ jobs:
             env_file: |
               APP_ENV=production
               APP_KEY=base64:Y2ktYXBwLWtleS1ub3QtYS1zZWNyZXQtMDEyMzQ1Njc=
-              DB_CONNECTION=sqlite
     steps:
       - name: Checkout Flisk
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
