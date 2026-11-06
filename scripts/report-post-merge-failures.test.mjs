@@ -40,6 +40,19 @@ test("push and merge_group runs are not reported", () => {
 
 test("title names the pull request and the comment carries the dedupe marker and run url", () => {
 	assert.equal(issueTitle(7), "Merged with red checks: #7");
-	assert.ok(commentBody(run()).includes(MARKER));
-	assert.ok(commentBody(run()).includes("https://example.test/runs/1"));
+	const body = commentBody(run());
+	assert.ok(body.includes(MARKER));
+	// Parse the URL instead of a raw substring match (CodeQL js/incomplete-url-substring-sanitization).
+	const url = new URL(run().html_url);
+	assert.equal(url.host, "example.test");
+	assert.equal(url.pathname, "/runs/1");
+	assert.ok(body.includes(url.href));
+});
+
+test("malicious URL with the expected host as a substring does not match the real run URL", () => {
+	const evil = "https://evil.example.test.attacker/runs/1";
+	const real = new URL("https://example.test/runs/1");
+	const evilUrl = new URL(evil);
+	assert.notEqual(evilUrl.host, real.host);
+	assert.notEqual(evilUrl.href, real.href);
 });
