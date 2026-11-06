@@ -88,6 +88,7 @@ describe("networksCommand and helpers", () => {
       port?: number;
       basePath?: string;
       apiPath?: string;
+      webUi?: boolean;
     }> = [],
   ): void {
     mkdirSync(join(tempDir, ".flisk"), { recursive: true });
@@ -129,6 +130,7 @@ describe("networksCommand and helpers", () => {
             ...(r.port ? { port: r.port } : {}),
             ...(r.basePath ? { basePath: r.basePath } : {}),
             ...(r.apiPath ? { apiPath: r.apiPath } : {}),
+            ...(r.webUi !== undefined ? { webUi: r.webUi } : {}),
           },
           null,
           2,
@@ -154,6 +156,15 @@ describe("networksCommand and helpers", () => {
       );
 
       expect(determineDefaultDomain()).toBe("acme.localhost");
+    });
+
+    it("never takes a dashboard host as the project domain", () => {
+      setupProject("flisk-project");
+      vi.mocked(childProcess.execFileSync).mockReturnValue(
+        "traefik.http.routers.d.rule=Host(`dash.acme.localhost`) || Host(`app.acme.localhost`)",
+      );
+
+      expect(determineDefaultDomain()).toBe("app.acme.localhost");
     });
 
     it("extracts matching common project domain when only service-specific and common domains exist", () => {
@@ -300,7 +311,7 @@ describe("networksCommand and helpers", () => {
       const output = stripVTControlCharacters(lines.join("\n"));
       expect(output).not.toContain("No routable services found");
       // With the trailing slash: the page's relative links only resolve under the prefix with it.
-      expect(output).toContain("http://api.localhost:80/api/vote/");
+      expect(output).toMatch(/http:\/\/api\.localhost:80\/api\/vote\/(\s|$)/);
     });
 
     it("lists a proxied bring-your-own service at its apiPath", async () => {
@@ -323,8 +334,82 @@ describe("networksCommand and helpers", () => {
       await networksCommand.parseAsync(["node", "flisk"], { from: "node" });
 
       const output = stripVTControlCharacters(lines.join("\n"));
-      expect(output).toContain("http://api.localhost:80/ballots");
+      expect(output).toMatch(/http:\/\/api\.localhost:80\/ballots\/(\s|$)/);
       expect(output).not.toContain("/api/vote");
+    });
+    it("lists a webUi bring-your-own service at its own host", async () => {
+      setupProject("flisk-project", [
+        { name: "dashboard", appType: "bring-your-own", port: 8080, webUi: true },
+      ]);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(childProcess.execFileSync).mockImplementation(() => {
+        throw new Error("Docker daemon not running");
+      });
+      vi.mocked(childProcess.spawn).mockImplementation(() =>
+        createMockChildProcess({ stdout: "200" }),
+      );
+
+      const lines: string[] = [];
+      vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      });
+
+      await networksCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+      const output = stripVTControlCharacters(lines.join("\n"));
+      expect(output).toMatch(/http:\/\/dashboard\.localhost:80(\s|$)/);
+    });
+
+    it("follows FLISK_SERVICE_BASE_URL like flisk up", async () => {
+      setupProject("flisk-project", [{ name: "vote", appType: "bring-your-own", port: 80 }]);
+      vi.stubEnv("FLISK_SERVICE_BASE_URL", "https://demo.test:9000");
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(childProcess.execFileSync).mockImplementation(() => {
+        throw new Error("Docker daemon not running");
+      });
+      vi.mocked(childProcess.spawn).mockImplementation(() =>
+        createMockChildProcess({ stdout: "200" }),
+      );
+      const lines: string[] = [];
+      vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      });
+
+      await networksCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+      const output = stripVTControlCharacters(lines.join("\n"));
+      expect(output).toMatch(/https:\/\/api\.demo\.test:9000\/api\/vote\/(\s|$)/);
+      vi.unstubAllEnvs();
+    });
+
+    it("gives a webUi bring-your-own service no IP loopback URL on Windows", async () => {
+      setupProject("flisk-project", [
+        { name: "dashboard", appType: "bring-your-own", port: 8080, webUi: true },
+        { name: "vote", appType: "bring-your-own", port: 80 },
+      ]);
+      const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(childProcess.execFileSync).mockImplementation(() => {
+        throw new Error("Docker daemon not running");
+      });
+      vi.mocked(childProcess.spawn).mockImplementation(() =>
+        createMockChildProcess({ stdout: "200" }),
+      );
+      const lines: string[] = [];
+      vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      });
+
+      await networksCommand.parseAsync(["node", "flisk", "--json"], { from: "node" });
+
+      platform.mockRestore();
+      const json = JSON.parse(lines.join("\n"));
+      const services = (json.data?.services ?? json.services ?? json) as Array<{
+        name: string;
+        loopbackUrl?: string;
+      }>;
+      expect(services.find((s) => s.name === "dashboard")?.loopbackUrl).toBeUndefined();
+      expect(services.find((s) => s.name === "vote")?.loopbackUrl).toContain("127.0.0.1");
     });
 
     it("renders two networks across stacks with running and stopped statuses and custom domain tip", async () => {
