@@ -13,8 +13,7 @@ node tests/mutation/run.mjs --export-repo ../flisk-export     # also the Compose
 
 The Compose exporter is its own repo (`flisk-sh/flisk-export`). Its mutants edit a local clone (`npm install` there first), rebuild it
 and point flisk at it with `FLISK_EXPORT_PACKAGE`; the exporter's CI is `typecheck`, `lint`, `build`, `test`, so nothing needs to run
-in that repo. `__tests__/mutants.test.mjs` fails when a mutant stops matching the code it mirrors (set `FLISK_EXPORT_REPO` to check
-the exporter ones).
+in that repo. `__tests__/mutants.test.mjs` fails when a mutant stops matching the code it mirrors (the exporter ones run only when the test's environment names a clone).
 
 ## First results (FALSIFIER 25 scenarios, ORACLE 2 seeds)
 
@@ -23,7 +22,7 @@ the exporter ones).
 | name limit 253, not 63 | caught | caught | missed |
 | stack name length never checked | caught | caught | missed |
 | uppercase allowed in names | caught | caught | missed |
-| name may start or end with a hyphen | caught | **missed** | missed |
+| name may start or end with a hyphen | caught | **missed** (leading hyphen is never drawn; trailing is drawn rarely) | missed |
 | first dependency cycle not reported | caught | caught | missed |
 | self-dependency is not a cycle | caught | caught | missed |
 | last `dependsOn` entry dropped | caught | caught | missed |
@@ -32,8 +31,8 @@ the exporter ones).
 | exporter: a single dependency gets no `depends_on` | caught | caught | missed |
 | exporter: required secrets not listed | caught | **missed** | missed |
 
-ORACLE compares surfaces with each other, so a bug that changes all of them alike is outside what it can see. FALSIFIER never draws
-a name that starts or ends with a hyphen, and its Compose scenarios never give a service `secrets.required`; adding both closes the gaps.
+ORACLE compares surfaces with each other, so a bug that changes all of them alike is outside what it can see. FALSIFIER draws names that end in a
+hyphen (one of eleven bad-name shapes, so 25 scenarios can miss it) but never one that starts with a hyphen, and its Compose scenarios never give a service `secrets.required`; adding both closes the gaps.
 Totals over 11 bugs: unit tests 11, FALSIFIER 9, ORACLE 0. The unit tests were written against these same rules, so the table shows the
 harness works and where FALSIFIER's generators are thin; it does not show a bug FALSIFIER finds that the unit tests miss (the
 64-character name was that case, found before any unit test covered it).

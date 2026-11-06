@@ -19,35 +19,57 @@ const run = (cmd, args, cwd = ROOT, env = {}) => spawnSync(cmd, args, { cwd, enc
 // Points flisk at the local exporter clone for an exporter mutant.
 const exportEnv = (m, o) => (m.repo === "export" ? { FLISK_EXPORT_PACKAGE: o.exportRepo } : {});
 
+// An engine exits 0 when it finds nothing and 1 when it finds something; any other status (or none: the process did not start or was
+// killed) is an infrastructure error, which must not be counted as a catch.
+export function classify(result, what) {
+	if (result.status === 0) return false;
+	if (result.status === 1) return true;
+	throw new Error(`${what} did not run properly (exit ${result.status ?? result.signal ?? "none"}): ${String(result.stderr || result.stdout || result.error?.message || "").trim().slice(0, 300)}`);
+}
+export const ENGINES = ["unit", "falsifier", "oracle"];
+
 // Each engine reports whether it noticed: true = the bug was caught.
 export const detectors = {
 	// The exporter's own tests are its unit tests; the CLI-side mutants run the matching vitest files in cli/.
-	unit: (m, o) => (m.repo === "export" ? run("npx", ["vitest", "run"], o.exportRepo) : run("npx", ["vitest", "run", ...m.unit.map((n) => `src/utils/__tests__/${n}.test.ts`)], path.join(ROOT, "cli"))).status !== 0,
-	falsifier: (m, o) => run("node", ["tests/falsifier/run.mjs", "--property", m.falsifier, "--scenarios", String(o.falsifierScenarios), "--seed", "1"], ROOT, exportEnv(m, o)).status !== 0,
-	oracle: (m, o) => run("node", ["tests/oracle/run.mjs", "--seed", "1", "--seeds", String(o.oracleSeeds)], ROOT, exportEnv(m, o)).status !== 0,
+	unit: (m, o) => classify(m.repo === "export" ? run("npx", ["vitest", "run"], o.exportRepo) : run("npx", ["vitest", "run", ...m.unit.map((n) => `src/utils/__tests__/${n}.test.ts`)], path.join(ROOT, "cli")), "the unit tests"),
+	falsifier: (m, o) => classify(run("node", ["tests/falsifier/run.mjs", "--property", m.falsifier, "--scenarios", String(o.falsifierScenarios), "--seed", "1"], ROOT, exportEnv(m, o)), "FALSIFIER"),
+	oracle: (m, o) => classify(run("node", ["tests/oracle/run.mjs", "--seed", "1", "--seeds", String(o.oracleSeeds)], ROOT, exportEnv(m, o)), "ORACLE"),
 };
 
 export function main(argv) {
 	const arg = (f) => { const i = argv.indexOf(f); return i === -1 ? undefined : argv[i + 1]; };
 	const opts = { falsifierScenarios: Number(arg("--falsifier-scenarios") ?? 25), oracleSeeds: Number(arg("--oracle-seeds") ?? 3), exportRepo: arg("--export-repo") ? path.resolve(arg("--export-repo")) : undefined };
 	const skip = new Set((arg("--skip") ?? "").split(",").filter(Boolean));
-	const engines = Object.keys(detectors).filter((e) => !skip.has(e));
+	const unknownSkip = [...skip].filter((e) => !ENGINES.includes(e));
+	if (unknownSkip.length) throw new Error(`unknown engine in --skip: ${unknownSkip.join(", ")}; expected ${ENGINES.join(", ")}`);
+	const engines = ENGINES.filter((e) => !skip.has(e));
+	const selected = MUTANTS.filter((m) => !arg("--mutant") || m.id === arg("--mutant"));
+	if (selected.length === 0) throw new Error(`unknown mutant "${arg("--mutant")}"; expected one of ${MUTANTS.map((m) => m.id).join(", ")}`);
 	// Exporter mutants need a clone of flisk-sh/flisk-export with its dependencies installed (npm install there).
-	const mutants = MUTANTS.filter((m) => (!arg("--mutant") || m.id === arg("--mutant")) && (m.repo !== "export" || opts.exportRepo));
-	if (mutants.length === 0) throw new Error(`unknown mutant "${arg("--mutant")}"; expected one of ${MUTANTS.map((m) => m.id).join(", ")}`);
+	if (arg("--mutant") && selected[0].repo === "export" && !opts.exportRepo) throw new Error(`${selected[0].id} edits the Compose exporter: pass --export-repo <clone of flisk-sh/flisk-export>`);
+	const mutants = selected.filter((m) => m.repo !== "export" || opts.exportRepo);
 	const saved = new Map();
+	let rebuildNeeded = false;
+	const rebuild = () => { if (run("npm", ["run", "build"], opts.exportRepo).status !== 0) rebuildNeeded = true; };
 	const restore = () => { for (const [file, text] of saved) writeFileSync(file, text); saved.clear(); };
-	process.on("SIGINT", () => { restore(); process.exit(130); });
+	// Whatever ends the process, the injected bug must not stay in the files (a signal handler's exit also runs the "exit" handler).
+	process.on("exit", restore);
+	for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => process.exit(130));
 	const rows = [];
 	try {
+		// Before any bug goes in, every engine must find nothing in the unmutated tree; otherwise a failing engine would count as a catch.
+		for (const kind of new Set(mutants.map((m) => m.repo ?? "cli"))) {
+			const m = mutants.find((x) => (x.repo ?? "cli") === kind);
+			for (const e of engines) if (detectors[e](m, opts)) throw new Error(`baseline: ${e} already reports a problem on the unmutated ${kind} tree (${m.id}); fix that first`);
+		}
 		for (const m of mutants) {
 			const t0 = Date.now();
 			for (const file of paths(m, opts.exportRepo)) { const text = readFileSync(file, "utf8"); saved.set(file, text); writeFileSync(file, mutate(text, m)); }
-			if (m.repo === "export") run("npm", ["run", "build"], opts.exportRepo);
+			if (m.repo === "export") rebuild();
 			const caught = {};
 			for (const e of engines) caught[e] = detectors[e](m, opts);
 			restore();
-			if (m.repo === "export") run("npm", ["run", "build"], opts.exportRepo);
+			if (m.repo === "export") rebuild();
 			rows.push({ id: m.id, bug: m.bug, caught, seconds: Math.round((Date.now() - t0) / 1000) });
 			console.log(`${m.id.padEnd(26)} ${engines.map((e) => `${e}:${caught[e] ? "CAUGHT" : "missed"}`).join("  ")}  (${rows.at(-1).seconds}s)`);
 		}
@@ -57,6 +79,7 @@ export function main(argv) {
 	const none = rows.filter((r) => engines.every((e) => !r.caught[e]));
 	if (none.length) console.log(`caught by nothing: ${none.map((r) => r.id).join(", ")}`);
 	if (arg("--out")) writeFileSync(arg("--out"), `${JSON.stringify(rows, null, 2)}\n`);
+	if (rebuildNeeded) { console.error(`the exporter clone's source is restored but its build failed: run "npm run build" in ${opts.exportRepo} before using it`); return 1; }
 	return 0;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));

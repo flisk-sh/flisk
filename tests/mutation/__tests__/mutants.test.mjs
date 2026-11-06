@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { MUTANTS, mutate } from "../mutants.mjs";
+import { classify, main } from "../run.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -26,3 +27,15 @@ for (const m of MUTANTS) {
 }
 
 test("a pattern that is not there is refused", () => assert.throws(() => mutate("abc", { id: "x", find: "zzz", replace: "y" }), /not found/));
+
+test("only exit 0 and 1 are results; anything else is an infrastructure error, not a catch", () => {
+	assert.equal(classify({ status: 0 }, "x"), false);
+	assert.equal(classify({ status: 1 }, "x"), true);
+	for (const result of [{ status: 2, stderr: "boom" }, { status: null, signal: "SIGKILL" }, { status: null, error: new Error("ENOENT") }]) assert.throws(() => classify(result, "x"), /did not run properly/);
+});
+
+test("the runner refuses unknown engines and an exporter mutant without a clone before touching any file", () => {
+	assert.throws(() => main(["--skip", "oracel"]), /unknown engine in --skip: oracel/);
+	assert.throws(() => main(["--mutant", "nope"]), /unknown mutant "nope"/);
+	assert.throws(() => main(["--mutant", "compose-last-env-dropped"]), /--export-repo/);
+});
