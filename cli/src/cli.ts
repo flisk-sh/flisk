@@ -67,7 +67,7 @@ if (templateArg) {
   );
   if (platformRefusal) {
     console.error(chalk.red(`❌ ${platformRefusal}`));
-    console.error(chalk.gray("   Run it from Ubuntu in WSL2. Guide: docs/wsl2.md"));
+    console.error(chalk.gray("   Run it from Ubuntu in WSL2. Guide: docs/start-here-on-windows.md (reference: docs/wsl2.md)"));
     process.exit(1);
   }
 
