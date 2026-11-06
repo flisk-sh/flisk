@@ -305,6 +305,18 @@ Switch to that version with your version manager, or change "toolchain" in the s
 - **Defined in:** [`service-manifest.ts`](../cli/src/utils/service-manifest.ts). The warning's wording was `Unknown service.json field: ...` in the earlier capture and is `<path>.<field>: unknown field is preserved` now.
 - **Checked:** reproduced.
 
+### `Docker Model Runner`: a service declares `models`
+
+```text
+⚠ nosia declares models, but this Docker has no `docker model` plugin; Compose will refuse to start it ("'models' support requires Docker Model plugin")
+ℹ Fix: Enable Docker Model Runner in Docker Desktop, or install docker-model-plugin (Docker Engine on Linux), then run: docker model install-runner
+```
+
+- **Cause:** a bring-your-own `service.json` has `models` (Compose `models:`, served by Docker Model Runner) and `docker model version` fails. A second wording says the plugin is installed but `docker model status` reports the runner is not running, so no model can be served. Both are warnings: `flisk doctor` and `flisk up` print them and carry on.
+- **Fix:** Docker Desktop: Settings > AI > Enable Docker Model Runner. Docker Engine on Linux: install `docker-model-plugin` from Docker's apt repository, then `docker model install-runner`. The check passes when `docker model status` exits 0; it does not pull or run a model.
+- **Defined in:** [`service-config-checks.ts`](../cli/src/utils/service-config-checks.ts), `checkModelRunner`.
+- **Checked:** the message paths by unit tests with the Docker answers faked, and the `docker model` commands against Docker Desktop (plugin installed, runner not running). Not run against Docker Engine on Linux.
+
 ### Other doctor failures, read from source
 
 All **read from source, not reproduced**.
@@ -325,6 +337,21 @@ All **read from source, not reproduced**.
 | `Tilt reports N failed resource(s):` | A Tilt resource failed to update | Read the resource's log in the Tilt UI or `flisk logs` | `doctor-runtime.ts` |
 | `Private npm registry (Verdaccio) is not reachable at ...` | Verdaccio is expected by the project but not answering | Start it as the Fix line says. Verdaccio needs a Premium licence ([features](FEATURES.md)) | `doctor-runtime.ts` |
 | `Tilt is not running - skipped resource status check` (a skip, not a failure) | You have not run `flisk up` | `flisk up` | `doctor-runtime.ts` |
+
+### `container is running, but its health check is failing`, and the probe says `curl: not found`
+
+```text
+❌ flisk up failed:
+  lychee-facial-recognition: container is running, but its health check is failing
+$ docker inspect --format '{{range .State.Health.Log}}[{{.ExitCode}}] {{.Output}}{{end}}' <container>
+[127] /bin/sh: 1: curl: not found      (exec form: [-1] OCI runtime exec failed: ... executable file not found in $PATH)
+```
+
+- **Cause:** the image's health command (often imported from a Compose `healthcheck`) does not exist in the image, so the probe never runs while the app itself serves. Docker records that as exit 127 (or 126, not executable) for a shell-form check, and as exit -1 with `OCI runtime exec failed ... executable file not found` for the exec form (`test: [CMD, curl, ...]`) that Flisk writes. Flisk waits on Docker's health status, so `flisk up` used to fail on it.
+- **What Flisk does now:** when the container is running and every recorded probe shows its command never ran, `flisk up` and the `<service>-healthy` wait proceed with a warning instead of failing. The evidence is in the probe's own result: exit -1 with `OCI runtime exec failed` (exec form), exit 127 with `not found` in the output, or exit 126 with `permission denied` and the like (shell form). An exit code alone is not enough, since a script that did run can exit 127. Docker keeps only the last five probes, so for the shell form the whole failing streak must be inside that log; an older real failure that scrolled out leaves the container unhealthy. A probe that runs and fails (any other exit code, a mix with a real failure, or a timeout) still blocks. Unix hosts, the CLI readiness check and the native Windows script follow the same rule.
+- **Fix:** the probe still does not work, so fix it when you can: use a command the image has (`python3 -c ...`, `wget`), or set `healthCheck` in the service's `service.json`.
+- **Defined in:** [`apply_compose_resource_registration.star`](../runtime/engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star), `_HEALTHY_SCRIPT`, and [`up-readiness.ts`](../cli/src/utils/up-readiness.ts), `healthProbeCannotRun`.
+- **Checked:** reproduced with `ghcr.io/lycheeorg/lychee-facial-recognition` (exit 127, `curl: not found`) and with live containers in `tests/tilt-engine/test_dependency_conditions.py`. The PowerShell twin is not run off Windows.
 
 ## Ports
 

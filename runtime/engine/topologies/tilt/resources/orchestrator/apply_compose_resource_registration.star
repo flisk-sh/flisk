@@ -1043,6 +1043,27 @@ _HEALTHY_SCRIPT = (
     + '  else '
     + '    health="$(docker inspect --format="{{.State.Health.Status}}" "$id" 2>/dev/null)"; '
     + '    if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi; '
+    + '    if [ "$health" = "unhealthy" ]; then '
+    + '      codes="$(docker inspect --format="{{range .State.Health.Log}}{{.ExitCode}} {{end}}" "$id" 2>/dev/null)"; '
+    + '      outs="$(docker inspect --format="{{range .State.Health.Log}}{{.Output}}{{end}}" "$id" 2>/dev/null)"; '
+    + '      streak="$(docker inspect --format="{{.State.Health.FailingStreak}}" "$id" 2>/dev/null)"; '
+    + '      total=0; runs=0; n126=0; n127=0; neg=0; '
+    + '      for c in $codes; do '
+    + '        total=$((total + 1)); '
+    + '        if [ "$c" = "-1" ]; then neg=$((neg + 1)); '
+    + '        elif [ "$c" = "126" ]; then n126=$((n126 + 1)); '
+    + '        elif [ "$c" = "127" ]; then n127=$((n127 + 1)); '
+    + '        else runs=1; fi; '
+    + '      done; '
+    + '      e_neg="$(echo "$outs" | grep -o "OCI runtime exec failed" | wc -l | tr -d " ")"; '
+    + '      e127="$(echo "$outs" | grep -o "not found" | wc -l | tr -d " ")"; '
+    + '      e126="$(echo "$outs" | grep -oiE "permission denied|cannot execute|not executable|is a directory" | wc -l | tr -d " ")"; '
+    + '      if [ "${e_neg:-0}" -lt "$neg" ] || [ "${e127:-0}" -lt "$n127" ] || [ "${e126:-0}" -lt "$n126" ]; then runs=1; fi; '
+    + '      if [ $((n126 + n127)) -gt 0 ] && [ "${streak:-0}" -gt "$total" ]; then runs=1; fi; '
+    + '      if [ "$state" = "running" ] && [ "$total" -gt 0 ] && [ "$runs" = "0" ]; then '
+    + '        echo "WARNING: $job health check cannot run in its image (command not found or not executable), proceeding because the container is running"; exit 0; '
+    + '      fi; '
+    + '    fi; '
     + '    if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi; '
     + '  fi; '
     + '  sleep 1; '
@@ -1076,6 +1097,12 @@ def _register_healthy_resource(config, resource_path, compose_project_name, auto
     dependents with `condition: "service_healthy"` to start before the dependency's health
     check has passed. This local_resource monitors the container's health status via Docker
     inspect until it reports 'healthy', failing fast if the container exits or reports 'unhealthy'.
+    A health check that cannot run at all says nothing about the app, so a running container proceeds with a warning, but only
+    on evidence the probe itself gives: exec form (a Compose `test: [CMD, curl, ...]`) is exit -1 with Docker's "OCI runtime exec
+    failed" output; shell form is exit 127 with "not found" or exit 126 with "permission denied" in the output, and the whole
+    failing streak must still be inside Docker's five-entry probe log (an older real failure may have scrolled out of it).
+    Example: `curl` in an image without curl, as in LycheeOrg/Lychee's facial-recognition sidecar. A probe that runs and fails
+    (any other exit code, or 127 without that message) still blocks dependents.
     If no healthcheck is configured, it proceeds as soon as the container is running.
     """
     timeout_s = _calculate_healthy_timeout_seconds(config.get('manifest', {}))

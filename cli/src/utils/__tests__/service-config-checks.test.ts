@@ -9,6 +9,7 @@ import {
   checkCustomDockerfiles,
   checkDependsOnShape,
   checkGpuRuntime,
+  checkModelRunner,
   checkNetworkPorts,
   checkPostgresVolumes,
   checkRequiredSecrets,
@@ -18,7 +19,9 @@ import {
   checkSidecars,
   checkVolumes,
   enforceServiceConfigGate,
+  type ModelRunnerState,
   postgresImageMajor,
+  warnModelRunner,
   warnSchemaVersions,
 } from "../service-config-checks.js";
 
@@ -902,4 +905,61 @@ describe("checkPostgresVolumes", () => {
       expect(checkPostgresVolumes(root).didPass).toBe(true);
     },
   );
+});
+
+describe("checkModelRunner", () => {
+  const withModels = {
+    appType: "bring-your-own",
+    image: "nosia:1",
+    models: [{ name: "llm", model: "ai/smollm2" }],
+  };
+
+  it("passes when no service uses models, without asking Docker", () => {
+    service("api");
+    const runnerState = vi.fn((): ModelRunnerState | null => "no-plugin");
+    expect(checkModelRunner(root, undefined, runnerState).didPass).toBe(true);
+    expect(runnerState).not.toHaveBeenCalled();
+  });
+
+  it("warns, naming the service and the fix, when Docker has no `docker model` plugin", () => {
+    service("web", withModels);
+    const result = checkModelRunner(root, undefined, () => "no-plugin");
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("web declares models");
+    expect(result.message).toContain("'models' support requires Docker Model plugin");
+    expect(result.fix).toContain("docker-model-plugin");
+  });
+
+  it("tells the plugin apart from the backend: installed but not running is its own warning", () => {
+    service("web", withModels);
+    const result = checkModelRunner(root, undefined, () => "backend-not-running");
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("plugin is installed");
+    expect(result.message).toContain("not running");
+    expect(result.fix).toContain("docker model install-runner");
+  });
+
+  it("passes with a running backend, and when Docker does not answer", () => {
+    service("web", withModels);
+    expect(checkModelRunner(root, undefined, () => "running").didPass).toBe(true);
+    expect(checkModelRunner(root, undefined, () => null).didPass).toBe(true);
+  });
+
+  it("speaks of several services in the plural", () => {
+    service("web", withModels);
+    service("worker", withModels);
+    const result = checkModelRunner(root, undefined, () => "no-plugin");
+    expect(result.message).toContain("web, worker declare models");
+    expect(result.message).toContain("start them");
+  });
+});
+
+describe("warnModelRunner", () => {
+  it("prints nothing when no service uses models", () => {
+    service("api");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    warnModelRunner(root);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });

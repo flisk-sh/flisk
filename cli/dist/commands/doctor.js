@@ -40,7 +40,7 @@ import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
 import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
-import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkNetworkPorts, checkPostgresVolumes, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
+import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
@@ -1584,6 +1584,7 @@ export const doctorCommand = new Command("doctor")
         () => checkSidecars(),
         () => checkNetworkPorts(),
         () => checkGpuRuntime(),
+        () => checkModelRunner(),
         () => checkVolumes(),
         () => checkPostgresVolumes(undefined, undefined, options.strict),
         ...schemaAndPortChecks,

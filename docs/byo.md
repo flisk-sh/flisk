@@ -306,7 +306,9 @@ with `model` written quoted. Two services naming the same model share it; one na
 
 Quotes, spaces, backslashes, line breaks and anything else Compose would read as YAML are refused by `flisk config verify` and
 before Tilt starts. `models` applies to bring-your-own resources only. Docker Model Runner must be enabled in Docker Desktop
-(or the `docker-model-plugin` installed) for the container to start. Checked by `tests/tilt-engine/test_byo_models.py`, which also
+(or the `docker-model-plugin` installed) for the container to start; `flisk doctor` and `flisk up` warn when a service declares
+models and `docker model version` fails (no plugin) or `docker model status` exits non-zero (plugin installed, runner not running),
+instead of leaving you with Compose's "'models' support requires Docker Model plugin". The check does not pull or run a model. Checked by `tests/tilt-engine/test_byo_models.py`, which also
 runs `docker compose config` on the generated file; pulling and running a model was not part of that test.
 
 ## Image variables, restart limits, stop timeout, hosts, ulimits and network aliases (imported Compose stacks)
@@ -323,6 +325,7 @@ use these settings. Each one carries over to a bring-your-own resource:
 | `container.ulimits` | `ulimits` | Per limit name (`nofile`, `nproc`, `memlock`, `core`, `stack`, ...), a number or `{"soft": n, "hard": n}`. `-1` means unlimited. |
 | `container.networkAliases` | `networks.<backend>.aliases` | Extra DNS names for the service on the stack's backend network, which every app service is on: pl_mail's worker answers as `mercure`. Not for a sidecar (`sidecarOf`). |
 | `healthCheck.startPeriod` | `healthcheck.start_period` | Seconds after the container starts before failed probes count, for an app that boots slowly (Lychee uses 10 to 60). Same style as `interval` and `timeout`. It applies with a `healthCheck.port` or `healthCheck.command` probe: a bring-your-own resource has no other container health check. |
+| (readiness wait) | | `<service>-healthy` and `flisk up --wait` wait for the container's health to pass. A probe whose command never ran (exit -1 with Docker's `OCI runtime exec failed` for an exec-form check, or exit 127 with `not found` / exit 126 with `permission denied` in its output for a shell-form one, such as `curl` in an image without curl) says nothing about the app, so a running container proceeds with a warning. For the shell form the whole failing streak must be inside Docker's five-probe log. A probe that runs and fails still blocks dependents. Unix and native Windows hosts behave the same (the PowerShell twin is not run off Windows). |
 
 ```json
 "image": "postgres:${POSTGRES_VERSION:-18}-alpine",
