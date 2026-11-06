@@ -19,11 +19,16 @@ export interface VolumeRunner {
     remove: (name: string) => void;
 }
 /**
+ * The exact Compose projects this checkout creates. A prefix match is not enough: project `flisk-demo` would also
+ * claim the volumes of a checkout named `flisk-demo-2`, whose Compose projects start with `flisk-demo-`.
+ */
+export declare function ownedComposeProjects(projectName: string, stacks: string[]): Set<string>;
+/**
  * Remove the Docker volumes an earlier run of this project left behind. A fresh demo clone generates a new random
  * DB_PASSWORD, but Postgres keeps the password of the data directory it was first started with and ignores
  * POSTGRES_PASSWORD afterwards, so the second `flisk demo` failed at the migrator with Prisma P1000.
  * A volume still mounted by a running container cannot be removed and is skipped. Returns the names removed.
  */
-export declare function removeStaleProjectVolumes(projectName: string, docker?: VolumeRunner): string[];
+export declare function removeStaleProjectVolumes(projectName: string, docker?: VolumeRunner, stacks?: string[]): string[];
 /** The `project.name` of a Flisk project folder, or undefined when it has none. */
 export declare function readProjectName(projectDir: string): string | undefined;

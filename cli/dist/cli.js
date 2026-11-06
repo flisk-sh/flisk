@@ -12,10 +12,11 @@ import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
+import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
 import { readProjectName, removeStaleProjectVolumes, stopDemoStack } from "./utils/demo-reset.js";
 import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
-import { bareTemplateArg } from "./utils/project-templates.js";
+import { getAllStacks } from "./utils/services.js";
 const program = createProgram();
 // Default: show help if no command provided
 if (process.argv.length === 2) {
@@ -29,8 +30,19 @@ if (process.argv.length === 2) {
 }
 // One command from scratch: flisk <template> | flisk --template <name> --project <dir>
 // It clones a starter, installs the CLI globally, boots the stack and opens the frontend.
-const templateArg = readOptionValue(process.argv, "--template") ?? bareTemplateArg(process.argv);
-const projectArg = readOptionValue(process.argv, "--project");
+// Only the root options before a subcommand or `--` count, so `flisk run x -- tool --template=y` is not the demo.
+const rootOptions = parseDemoRootOptions(process.argv);
+const templateArg = rootOptions.template;
+const projectArg = rootOptions.project;
+if (templateArg && rootOptions.help) {
+    // Help is answered before any setup: nothing may be stopped or deleted for `flisk --template=demo --help`.
+    showHelp();
+    process.exit(0);
+}
+if (templateArg && rootOptions.projectError) {
+    console.error(chalk.red(`❌ ${rootOptions.projectError}`));
+    process.exit(1);
+}
 if (templateArg === "demo") {
     // No Docker or Tilt (or native Windows, or --no-docker): run the small demo as local processes. It needs only Node, so it is
     // decided before the Windows refusal and the Bun preflight below.
@@ -70,7 +82,7 @@ if (templateArg) {
     const { createDemoStage } = await import("./utils/demo-stage.js");
     const baseName = templateTargetDir(templateArg, projectArg);
     const fixedDir = projectArg ? undefined : PROJECT_TEMPLATES[templateArg]?.fixedDir;
-    const keep = process.argv.includes("--keep");
+    const keep = rootOptions.keep;
     let targetName;
     if (fixedDir) {
         // A template with a fixed directory always lands in the same place, so a demo never
@@ -99,23 +111,31 @@ if (templateArg) {
         }
         // A stack for this project may already be running (the same example in another folder
         // shares its compose project). Then there is nothing to start: open what is up.
+        // A frontend that answers is not enough: its backends have to be up too, or the shortcut opens a broken app.
         const running = await pickReadyFrontend(await listFrontendTargets(destination), 0);
-        if (running) {
+        if (running && (await isStackFullyReady(destination))) {
             console.log(chalk.gray(`The demo is already running: ${running.url}`));
             await openUrl(running.url);
             process.exit(0);
         }
         // Take the old stack down before its folder goes, so a Traefik left behind does not keep port 80.
+        // If it cannot be stopped, deleting the folder would leave containers running that nothing can stop.
         try {
             await stopDemoStack(destination);
         }
         catch (error) {
-            console.log(chalk.yellow(`Could not stop the previous demo stack: ${error.message}`));
+            console.error(chalk.red(`❌ Could not stop the previous demo stack: ${error.message}`));
+            console.error(chalk.gray(`   Run \`flisk down\` in ${destination}, then run the demo again. Nothing was deleted.`));
+            process.exit(1);
         }
         if (keep) {
             reused = true;
         }
         else {
+            if (!(await confirmDemoRemoval(destination, rootOptions.yes))) {
+                console.log(chalk.gray("Nothing was deleted. Use --keep to reuse the folder."));
+                process.exit(1);
+            }
             rmSync(destination, { recursive: true, force: true });
         }
     }
@@ -132,7 +152,7 @@ if (templateArg) {
         {
             id: "fetch",
             label: reused ? "Reusing the demo" : "Fetching the demo",
-            status: "active",
+            status: "pending",
         },
         { id: "config", label: "Generating project config", status: "pending" },
         { id: "deps", label: "Installing dependencies", status: "pending" },
@@ -152,6 +172,7 @@ if (templateArg) {
         stage.update({ phases });
     };
     const logLines = [`flisk ${pkg.version} ${templateArg}`, `cwd: ${destination}`];
+    setPhase("fetch", "active");
     // 1. Clone (or reuse) and install the CLI. Both are silent so the frame on screen is the
     // only thing that moves.
     const fetchStarted = Date.now();
@@ -177,6 +198,7 @@ if (templateArg) {
     // 2. A cloned starter has no project configuration yet, and `flisk up` refuses to run
     // without one, so the project is set up before the stack starts.
     const configStarted = Date.now();
+    setPhase("config", "active");
     const setup = await initializeProject(binPath, destination);
     logLines.push("--- project setup ---", setup.output ?? "");
     if (!setup.ok) {
@@ -191,7 +213,9 @@ if (templateArg) {
     if (!reused) {
         const projectName = readProjectName(destination);
         if (projectName) {
-            const removed = removeStaleProjectVolumes(projectName);
+            // Only the Compose projects of this checkout's own stacks: another checkout may share the name prefix.
+            const stacks = getAllStacks(discoverResourcesWithProblems(destination).resources);
+            const removed = removeStaleProjectVolumes(projectName, undefined, stacks);
             if (removed.length > 0)
                 logLines.push(`removed stale volumes: ${removed.join(", ")}`);
         }
@@ -203,6 +227,7 @@ if (templateArg) {
     // 3. A fresh clone has no host dependencies, and the stack typechecks the services on the
     // host, so install them before the stack starts.
     const depsStarted = Date.now();
+    setPhase("deps", "active");
     const installs = await installServiceDependencies(destination);
     const failedInstalls = installs.filter((entry) => !entry.ok);
     for (const entry of installs)
@@ -228,8 +253,8 @@ if (templateArg) {
         process.exit(1);
     }
     const { readStackProgress } = await import("./utils/stack-progress.js");
+    const { readSavedTiltPort } = await import("./utils/host-port-config.js");
     const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
-    const candidates = Array.from({ length: 10 }, (_, index) => 10350 + index);
     let watching = true;
     // Tilt counts every resource it starts, including the database and the proxy. That is the
     // number the progress line shows, so the last frame has to finish on the same one.
@@ -237,6 +262,8 @@ if (templateArg) {
     void (async () => {
         while (watching) {
             try {
+                // `flisk up` may move Tilt off 10350 and saves the port it chose; TILT_PORT is the one asked for.
+                const candidates = tiltWatchPorts(readSavedTiltPort(destination));
                 const { running } = await classifyTiltPorts(candidates, destination, async (port) => (await readStackProgress(port)) !== undefined);
                 for (const port of running) {
                     const progress = await readStackProgress(port);
@@ -312,19 +339,33 @@ if (unknownHelp) {
 // An async action that throws (a corrupt project.json read deep inside a command) used to end as an unhandled rejection with a
 // raw runtime stack trace; every command now fails with one error line.
 program.parseAsync().catch(handleCommandError);
-/** Reads `--name value` and `--name=value` out of the raw arguments. */
-function readOptionValue(args, name) {
-    const prefix = `${name}=`;
-    for (let index = 0; index < args.length; index += 1) {
-        const arg = args[index];
-        if (!arg)
-            continue;
-        if (arg.startsWith(prefix))
-            return arg.slice(prefix.length);
-        if (arg === name)
-            return args[index + 1];
+/** True when the stack of this folder reports every Tilt resource ready, backends and database included. */
+async function isStackFullyReady(destination) {
+    const { readStackProgress } = await import("./utils/stack-progress.js");
+    const { readSavedTiltPort } = await import("./utils/host-port-config.js");
+    const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
+    try {
+        const { running } = await classifyTiltPorts(tiltWatchPorts(readSavedTiltPort(destination)), destination, async (port) => (await readStackProgress(port)) !== undefined);
+        for (const port of running) {
+            const progress = await readStackProgress(port);
+            if (progress)
+                return progress.total > 0 && progress.ready >= progress.total;
+        }
     }
-    return undefined;
+    catch {
+        // An unreadable Tilt is not a ready one.
+    }
+    return false;
+}
+/** Asks before the old demo checkout is deleted. A script (no terminal) or --yes goes ahead; the folder is disposable. */
+async function confirmDemoRemoval(destination, assumeYes) {
+    if (assumeYes || !process.stdin.isTTY || !process.stdout.isTTY)
+        return true;
+    const { promptConfirm } = await import("./utils/prompt.js");
+    return promptConfirm({
+        message: `Delete the previous demo in ${destination} and start fresh? (--keep reuses it)`,
+        initial: true,
+    });
 }
 /** `1 file`, `240 files`. The frame is read by people, so the count has to agree with itself. */
 function countLabel(count, noun) {
