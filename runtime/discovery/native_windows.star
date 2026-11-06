@@ -100,16 +100,48 @@ def exists(path):
     """True when path exists (file or directory)."""
     return os.path.exists(path)
 
-def _relative_files(root, display_root = None):
+def files_scan_command():
+    """The command_bat list that prints, one per line, the files under $env:FLISK_SCAN_ROOT as paths relative to it.
+
+    $env:FLISK_SCAN_NAME filters by name (Get-ChildItem -Filter, * and ? work) and $env:FLISK_SCAN_DEPTH limits how many levels
+    below the root are searched (0 means direct children only, like find -maxdepth 1). Unset means no limit.
+    """
+    return _PS + [
+        "try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }; "
+        + "$r = (Resolve-Path -LiteralPath $env:FLISK_SCAN_ROOT -ErrorAction SilentlyContinue).Path; if (-not $r) { exit 0 }; "
+        + "$r = $r.TrimEnd([char]92, [char]47); "
+        + "$p = @{ LiteralPath = $r; Recurse = $true; File = $true; Force = $true; ErrorAction = 'SilentlyContinue' }; "
+        + "if ($env:FLISK_SCAN_NAME -and $env:FLISK_SCAN_NAME -ne '*') { $p.Filter = $env:FLISK_SCAN_NAME }; "
+        + "if ($env:FLISK_SCAN_DEPTH) { $p.Depth = [int]$env:FLISK_SCAN_DEPTH }; "
+        + "Get-ChildItem @p | ForEach-Object { $_.FullName.Substring($r.Length + 1) }; exit 0",
+    ]
+
+def _relative_files(root, display_root = None, name = "*", max_depth = 0):
     """(relative path, joined path) for every file under root, sorted; [] when root is missing.
 
     display_root is what the joined paths start with (default root), so a root resolved against the
     project directory can still report project-relative paths like `find` run after `cd` does.
+
+    On real Windows the files come from one PowerShell call, like `find` on POSIX. Tilt's listdir would also work, but it registers a
+    file watch on everything it lists: every generated file under the project then re-ran the Tiltfile (a load took over a minute
+    because it walked node_modules, and each load rewrote files that triggered the next one, run 42238846641). name and max_depth
+    narrow the search there; max_depth counts levels like find -maxdepth (0 = unlimited).
     """
     if not os.path.exists(root):
         return []
-    base = _clean(os.path.abspath(root)).rstrip("/") + "/"
     shown = _slash(display_root if display_root != None else root).rstrip("/")
+    if os.name == "nt":
+        env = {"FLISK_SCAN_ROOT": root, "FLISK_SCAN_NAME": name}
+        if max_depth:
+            env["FLISK_SCAN_DEPTH"] = str(max_depth - 1)
+        listing = str(local(["true"], command_bat = files_scan_command(), env = env, quiet = True, echo_off = True))
+        out = []
+        for line in listing.split("\n"):
+            rel = _slash(line.strip())
+            if rel:
+                out.append((rel, shown + "/" + rel))
+        return sorted(out)
+    base = _clean(os.path.abspath(root)).rstrip("/") + "/"
     out = []
     for f in listdir(root, recursive=True):
         f = _clean(f)
@@ -121,7 +153,7 @@ def _relative_files(root, display_root = None):
 def find_files(root, name, max_depth = 0, display_root = None):
     """find <root> -type f -name <name> | sort. name may use * and ?. max_depth 0 means unlimited."""
     found = []
-    for rel, joined in _relative_files(root, display_root):
+    for rel, joined in _relative_files(root, display_root, name, max_depth):
         parts = rel.split("/")
         if max_depth and len(parts) > max_depth:
             continue
@@ -133,7 +165,8 @@ def find_files_in_glob_dirs(project_root, patterns, name, max_depth = 3):
     """Expand space-separated directory globs (identity-*, services/*/api) under project_root, then find files named name."""
     found = []
     seen = {}
-    files = _relative_files(project_root)
+    deepest = max([len([x for x in _slash(p).split("/") if x and x != "."]) for p in patterns.split()] + [0])
+    files = _relative_files(project_root, None, name, deepest + max_depth)
     for pattern in patterns.split():
         segments = [s for s in _slash(pattern).split("/") if s and s != "."]
         for rel, _ in files:
