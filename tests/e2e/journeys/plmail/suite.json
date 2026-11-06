@@ -1,0 +1,21 @@
+{
+  "group": "journeys",
+  "suite": "plmail",
+  "description": "A real adopter's stack: the latest plMail release tag (karatektus/pl_mail), cloned unchanged, then flisk import --yes, flisk export compose --check and flisk up. The import must keep its compose.yaml and committed .env untouched, keep the Compose volume names (pl_mail_*), the worker's mercure alias, the stop grace period, the disabled worker healthcheck, the push profile and the variable ports; the stack must come up and answer / with a redirect to /login.",
+  "paths": [
+    "cli/src/**/import*",
+    "cli/src/**/compose*",
+    "cli/src/**/export*",
+    "runtime/engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/journeys/plmail/**",
+    ".github/workflows/e2e-journeys.yml"
+  ],
+  "cases": ["PM1", "PM2", "PM3", "PM4"],
+  "triggers": ["pr", "nightly", "release", "manual"],
+  "timeoutMinutes": 30,
+  "needsSecrets": [],
+  "checkName": "✉️ plMail latest release imports and runs",
+  "install": true,
+  "freePostgres": false
+}
