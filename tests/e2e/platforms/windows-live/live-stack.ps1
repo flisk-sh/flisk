@@ -7,7 +7,7 @@
 # Steps: L1 doctor passes its Windows tool checks, L2 the demo reaches ready, L3 `flisk down` leaves no tilt.exe and no
 # project containers (gate G2). It has NEVER been run; the first run is expected to find failures, and the Tilt log in the
 # findings directory names the first failing resource.
-param([string]$WorkDir = (Join-Path $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }) 'flisk-windows-live'), [int]$DemoTimeoutSeconds = 1800)
+param([string]$WorkDir = (Join-Path $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }) 'flisk-windows-live'), [int]$DemoTimeoutSeconds = 900)
 
 $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
@@ -41,7 +41,20 @@ Step 'L2 demo reaches ready' {
     -RedirectStandardOutput (Join-Path $Out 'demo.out') -RedirectStandardError (Join-Path $Out 'demo.err')
   # Without reading .Handle, ExitCode stays empty for a process started with -PassThru (run 42067874152 printed "exited ").
   $null = $proc.Handle
-  if (-not $proc.WaitForExit($DemoTimeoutSeconds * 1000)) { $proc.Kill(); throw 'flisk demo did not finish in time' }
+  if (-not $proc.WaitForExit($DemoTimeoutSeconds * 1000)) {
+    # Run 42231914760 sat at "13 of 48 services ready, 15 building" from minute 9 to minute 30. Tilt is still alive here and gone
+    # after the kill, so take the snapshot first: which resources are building, what Docker has, and the end of Tilt's log.
+    $snap = Join-Path $Out 'stall'
+    New-Item -ItemType Directory -Force -Path $snap | Out-Null
+    cmd /c ('tilt get uiresource -o json > "' + (Join-Path $snap 'uiresources.json') + '" 2> "' + (Join-Path $snap 'uiresources.err') + '"')
+    cmd /c ('tilt logs > "' + (Join-Path $snap 'tilt-logs-full.txt') + '" 2>&1')
+    cmd /c ('docker ps -a > "' + (Join-Path $snap 'docker-ps-a.txt') + '" 2>&1')
+    cmd /c ('docker images > "' + (Join-Path $snap 'docker-images.txt') + '" 2>&1')
+    cmd /c ('docker system df > "' + (Join-Path $snap 'docker-df.txt') + '" 2>&1')
+    cmd /c ('docker buildx ls > "' + (Join-Path $snap 'buildx-ls.txt') + '" 2>&1')
+    $proc.Kill()
+    throw 'flisk demo did not finish in time (stall snapshot saved)'
+  }
   $proc.WaitForExit()
   if ($proc.ExitCode -ne 0) {
     $tail = (Get-Content -LiteralPath (Join-Path $Out 'demo.err') -Tail 12 -ErrorAction SilentlyContinue) -join ' | '
