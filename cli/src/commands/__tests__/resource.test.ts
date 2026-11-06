@@ -1018,7 +1018,7 @@ describe("resource command database type (#2863)", () => {
   });
 
   it.each([
-    [["--framework", "mysql"], "--framework mysql is not a database Flisk can run"],
+    [["--framework", "oracle"], "--framework oracle is not a database Flisk can run"],
     [["--port", "5432"], "--port cannot be used with --type database"],
     [["--image", "postgres:17"], "--image cannot be used with --type database"],
     [["--feature", "prisma"], "--feature cannot be used with --type database"],
