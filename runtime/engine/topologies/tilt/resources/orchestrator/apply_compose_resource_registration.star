@@ -1045,7 +1045,16 @@ _HEALTHY_SCRIPT = (
     + '    if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi; '
     + '    if [ "$health" = "unhealthy" ]; then '
     + '      codes="$(docker inspect --format="{{range .State.Health.Log}}{{.ExitCode}} {{end}}" "$id" 2>/dev/null)"; '
-    + '      runs=0; for c in $codes; do if [ "$c" != "126" ] && [ "$c" != "127" ]; then runs=1; fi; done; '
+    + '      runs=0; neg=0; '
+    + '      for c in $codes; do '
+    + '        if [ "$c" = "-1" ]; then neg=$((neg + 1)); '
+    + '        elif [ "$c" != "126" ] && [ "$c" != "127" ]; then runs=1; fi; '
+    + '      done; '
+    + '      if [ "$neg" -gt 0 ]; then '
+    + '        outs="$(docker inspect --format="{{range .State.Health.Log}}{{.Output}}{{end}}" "$id" 2>/dev/null)"; '
+    + '        execs="$(echo "$outs" | grep -o "OCI runtime exec failed" | wc -l | tr -d " ")"; '
+    + '        if [ "${execs:-0}" -lt "$neg" ]; then runs=1; fi; '
+    + '      fi; '
     + '      if [ "$state" = "running" ] && [ -n "$codes" ] && [ "$runs" = "0" ]; then '
     + '        echo "WARNING: $job health check cannot run in its image (command not found or not executable), proceeding because the container is running"; exit 0; '
     + '      fi; '
@@ -1083,8 +1092,9 @@ def _register_healthy_resource(config, resource_path, compose_project_name, auto
     dependents with `condition: "service_healthy"` to start before the dependency's health
     check has passed. This local_resource monitors the container's health status via Docker
     inspect until it reports 'healthy', failing fast if the container exits or reports 'unhealthy'.
-    A health check that cannot run at all (every probe exits 126 or 127, such as `curl` in an image without curl, as in
-    LycheeOrg/Lychee's facial-recognition sidecar) says nothing about the app, so a running container proceeds with a warning.
+    A health check that cannot run at all says nothing about the app, so a running container proceeds with a warning. That is
+    every probe exiting 126 or 127 (shell form), or -1 with Docker's "OCI runtime exec failed" output (exec form, which is what a
+    Compose `test: [CMD, curl, ...]` becomes): `curl` in an image without curl, as in LycheeOrg/Lychee's facial-recognition sidecar.
     If no healthcheck is configured, it proceeds as soon as the container is running.
     """
     timeout_s = _calculate_healthy_timeout_seconds(config.get('manifest', {}))

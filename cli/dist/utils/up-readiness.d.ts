@@ -30,10 +30,10 @@ export declare function tiltResourceLogs(port: number, name: string): Promise<st
  */
 export declare function onlyEnabledResources(jsonText: string, disabledHealth?: Set<string>, probeCannotRun?: (service: string) => boolean): string;
 /**
- * True when the container of a Compose service is running and every health probe Docker recorded exited 126 or 127, which
- * is a shell saying the probe command is missing or not executable (`curl: not found` in an image without curl, as in
- * LycheeOrg/Lychee's facial-recognition sidecar). Such a probe says nothing about the app, so it must not fail `flisk up`.
- * A probe that runs and fails (any other exit code) is a real failure. Docker not answering is "no", never "yes".
+ * True when the container of a Compose service is running and every health probe Docker recorded never ran its command (see
+ * `probeNeverRan`), such as `curl` in an image without curl, as in LycheeOrg/Lychee's facial-recognition sidecar. Such a probe
+ * says nothing about the app, so it must not fail `flisk up`. A probe that runs and fails is a real failure. Docker not
+ * answering is "no", never "yes".
  */
 export declare function healthProbeCannotRun(service: string): boolean;
 export declare function getDisabledHealthResourceNames(resources?: DiscoveredResource[]): Set<string>;
@@ -92,4 +92,6 @@ export declare function waitForTiltResourcesReady(port: number, options?: {
     /** How long a runtime-only failure may recover before the wait gives up on it (FLISK_UP_FAILURE_GRACE_MS). */
     failureGraceMs?: number;
     now?: () => number;
+    /** Whether a running service's health command cannot run at all (see `healthProbeCannotRun`). Asks Docker unless `fetchJson` is injected. */
+    probeCannotRun?: (service: string) => boolean;
 }): Promise<ReadinessResult>;

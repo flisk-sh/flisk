@@ -847,12 +847,12 @@ local_resource(
         end = source.index("\n)\n", start) + 2
         return eval(source[start:end])  # a parenthesised concatenation of string literals
 
-    def _run_healthy_script(self, cname: str, health_cmd: str, max_polls: int = 30):
+    def _run_healthy_script(self, cname: str, health_cmd: str, max_polls: int = 30, container_cmd: str = "sleep 60"):
         subprocess.run(
             [
                 "docker", "run", "-d", "--name", cname,
                 "--health-cmd", health_cmd, "--health-interval", "1s", "--health-retries", "2",
-                "alpine", "sh", "-c", "sleep 60",
+                "alpine", "sh", "-c", container_cmd,
             ],
             check=True,
             capture_output=True,
@@ -884,3 +884,72 @@ local_resource(
             assert "cannot run in its image" not in res.stdout
         finally:
             subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
+
+    def test_live_healthy_script_proceeds_when_the_health_command_is_not_executable(self):
+        """Exit 126 (a file that is not executable) is the second 'cannot run' code and gets the same warning."""
+        cname = f"flisk-test-hc-noexec-{uuid.uuid4().hex[:8]}"
+        try:
+            res = self._run_healthy_script(cname, "/etc/hostname")
+            assert res.returncode == 0, f"{res.stdout}\n{res.stderr}"
+            assert "cannot run in its image" in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
+
+    def test_live_healthy_script_fails_when_a_real_failure_is_mixed_with_a_missing_command(self):
+        """Probes of exit 1 and then 127: the check did run and fail once, so the container stays unhealthy."""
+        cname = f"flisk-test-hc-mixed-{uuid.uuid4().hex[:8]}"
+        # First probe: exit 1 (a real failure) and leaves a marker. Later probes: a command that does not exist (127).
+        probe = "if [ -f /tmp/ran ]; then flisk-no-such-command; else touch /tmp/ran; exit 1; fi"
+        try:
+            res = self._run_healthy_script(cname, probe)
+            assert res.returncode == 1, f"{res.stdout}\n{res.stderr}"
+            assert "is unhealthy" in res.stdout
+            assert "cannot run in its image" not in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
+
+    def test_live_healthy_script_fails_when_the_container_exits_while_its_health_command_is_missing(self):
+        """The 'cannot run' fallback needs a running container; one that exited (restart: no) still fails fast."""
+        cname = f"flisk-test-hc-exited-{uuid.uuid4().hex[:8]}"
+        try:
+            res = self._run_healthy_script(
+                cname, "curl -f http://localhost:8000/health", max_polls=20, container_cmd="exit 3"
+            )
+            assert res.returncode == 1, f"{res.stdout}\n{res.stderr}"
+            assert "is unhealthy" in res.stdout or "exited with code 3" in res.stdout
+            assert "cannot run in its image" not in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
+
+    def test_live_healthy_script_proceeds_for_the_exec_form_health_check_compose_writes(self, tmp_path):
+        """`test: [CMD, curl, ...]` runs the binary without a shell, so a missing curl is exit -1 with 'OCI runtime exec
+        failed' (not 127). This is the form Flisk writes for an imported healthcheck."""
+        cname = f"flisk-test-hc-exec-{uuid.uuid4().hex[:8]}"
+        compose = tmp_path / "compose.yml"
+        compose.write_text(
+            "services:\n"
+            "  t:\n"
+            f"    container_name: {cname}\n"
+            "    image: alpine\n"
+            "    command: sleep 60\n"
+            "    network_mode: none\n"
+            "    healthcheck:\n"
+            '      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]\n'
+            "      interval: 1s\n"
+            "      retries: 2\n"
+        )
+        try:
+            subprocess.run(
+                ["docker", "compose", "-p", cname, "-f", str(compose), "up", "-d"],
+                check=True, capture_output=True,
+            )
+            res = subprocess.run(
+                ["sh", "-c", self._real_healthy_script(), "sh", cname, "30"],
+                capture_output=True, text=True,
+            )
+            assert res.returncode == 0, f"{res.stdout}\n{res.stderr}"
+            assert "cannot run in its image" in res.stdout
+        finally:
+            subprocess.run(
+                ["docker", "compose", "-p", cname, "-f", str(compose), "down", "-v"], capture_output=True
+            )

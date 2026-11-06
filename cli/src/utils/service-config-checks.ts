@@ -479,37 +479,41 @@ export function checkGpuRuntime(
   };
 }
 
-/** Whether Docker Model Runner is installed: true or false, or null when Docker itself cannot be asked. */
-function dockerModelPlugin(): boolean | null {
+/** What Docker can tell about Model Runner: no `docker model` plugin, the plugin without a running backend, or a running backend. */
+export type ModelRunnerState = "no-plugin" | "backend-not-running" | "running";
+
+/** The Model Runner state, or null when Docker itself cannot be asked. `docker model status` exits 0 only with a running backend. */
+export function dockerModelRunnerState(): ModelRunnerState | null {
+  const quiet = { timeout: 8000, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"] };
   try {
-    execFileSync("docker", ["version", "--format", "{{.Server.Version}}"], {
-      timeout: 8000,
-      stdio: ["ignore", "ignore", "ignore"],
-    });
+    execFileSync("docker", ["version", "--format", "{{.Server.Version}}"], quiet);
   } catch {
     return null;
   }
   try {
-    execFileSync("docker", ["model", "version"], {
-      timeout: 8000,
-      stdio: ["ignore", "ignore", "ignore"],
-    });
-    return true;
+    execFileSync("docker", ["model", "version"], quiet);
   } catch {
-    return false;
+    return "no-plugin";
+  }
+  try {
+    execFileSync("docker", ["model", "status"], quiet);
+    return "running";
+  } catch {
+    return "backend-not-running";
   }
 }
 
 /**
- * A bring-your-own `models` list becomes Compose `models:`, which Docker serves through Docker Model Runner. Without the plugin
- * (Docker Engine on a Linux host or CI runner has none unless `docker-model-plugin` is installed) Compose refuses to start the
- * service with "'models' support requires Docker Model plugin", minutes into `flisk up`. Warn up front instead. A Docker that
- * cannot be asked is not a finding (the Docker checks report it), so this is a warning, never a gate.
+ * A bring-your-own `models` list becomes Compose `models:`, which Docker serves through Docker Model Runner. Without the
+ * `docker model` plugin (Docker Engine on a Linux host or CI runner has none unless `docker-model-plugin` is installed) Compose
+ * refuses to start the service with "'models' support requires Docker Model plugin", minutes into `flisk up`; with the plugin
+ * but no running backend the model cannot be served. Warn up front instead, saying which of the two it is. A Docker that cannot
+ * be asked is not a finding (the Docker checks report it), so this is a warning, never a gate.
  */
 export function checkModelRunner(
   projectRoot = findProjectRoot() ?? process.cwd(),
   resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
-  hasPlugin: () => boolean | null = dockerModelPlugin,
+  runnerState: () => ModelRunnerState | null = dockerModelRunnerState,
 ): CheckResult {
   const wanting = resources
     .filter((resource) => {
@@ -520,23 +524,38 @@ export function checkModelRunner(
   if (wanting.length === 0) {
     return { name: "Docker Model Runner", didPass: true, message: "No service uses models" };
   }
-  const found = hasPlugin();
-  if (found !== false) {
+  const state = runnerState();
+  if (state === null) {
     return {
       name: "Docker Model Runner",
       didPass: true,
-      message:
-        found === null
-          ? "Docker did not answer; Docker Model Runner was not checked"
-          : "Docker Model Runner is installed",
+      message: "Docker did not answer; Docker Model Runner was not checked",
+    };
+  }
+  if (state === "running") {
+    return {
+      name: "Docker Model Runner",
+      didPass: true,
+      message: "Docker Model Runner is running (`docker model status`)",
+    };
+  }
+  const verb = wanting.length === 1 ? "declares" : "declare";
+  const it = wanting.length === 1 ? "it" : "them";
+  if (state === "no-plugin") {
+    return {
+      name: "Docker Model Runner",
+      didPass: false,
+      isWarning: true,
+      message: `${wanting.join(", ")} ${verb} models, but this Docker has no \`docker model\` plugin; Compose will refuse to start ${it} ("'models' support requires Docker Model plugin")`,
+      fix: "Enable Docker Model Runner in Docker Desktop, or install docker-model-plugin (Docker Engine on Linux), then run: docker model install-runner",
     };
   }
   return {
     name: "Docker Model Runner",
     didPass: false,
     isWarning: true,
-    message: `${wanting.join(", ")} declare${wanting.length === 1 ? "s" : ""} models, but this Docker has no Model Runner plugin; Compose will refuse to start ${wanting.length === 1 ? "it" : "them"} ("'models' support requires Docker Model plugin")`,
-    fix: "Enable Docker Model Runner in Docker Desktop, or install docker-model-plugin (Docker Engine on Linux), then run: docker model version",
+    message: `${wanting.join(", ")} ${verb} models, and the \`docker model\` plugin is installed, but \`docker model status\` says the Model Runner is not running, so Docker cannot serve the models to ${it}`,
+    fix: "Enable Docker Model Runner in Docker Desktop (Settings > AI), or on Docker Engine run: docker model install-runner",
   };
 }
 

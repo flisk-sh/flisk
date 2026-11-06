@@ -58,6 +58,7 @@ jobs:
             repo: nosia
             commit: 42796ffb30b48b5aeece234383b71e3d51badc7e
             docker_model_plugin: true
+            # Small models (a few hundred MB): the job checks that Flisk imports and starts the stack, not Nosia's answers.
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
@@ -72,17 +73,17 @@ jobs:
               ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=ci-salt-not-a-secret
               AI_BASE_URL=http://model-runner.docker.internal/engines/llama.cpp/v1
               AI_API_KEY=ci-not-a-key
-              LLM_MODEL=ai/granite-4.0-h-tiny
+              LLM_MODEL=ai/smollm2
               LLM_TEMPERATURE=0.1
               LLM_MAX_TOKENS=1024
               LLM_TOP_K=40
               LLM_TOP_P=0.9
-              EMBEDDING_MODEL=ai/granite-embedding-multilingual
-              EMBEDDING_DIMENSIONS=768
+              EMBEDDING_MODEL=ai/all-minilm
+              EMBEDDING_DIMENSIONS=384
               CHUNK_SIZE=512
               CHUNK_OVERLAP=128
               RETRIEVAL_FETCH_K=3
-              GUARD_MODEL=ai/granite-guardian
+              GUARD_MODEL=
               AUGMENTED_CONTEXT=true
           - name: Lychee
             owner: LycheeOrg

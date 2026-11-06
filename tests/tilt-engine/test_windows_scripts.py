@@ -149,3 +149,18 @@ def test_converter_keeps_non_ascii_text(tmp_path):
     out = _convert(manifest)
     assert out.returncode == 0, out.stderr
     assert "café" in out.stdout and "Straße → 日本" in out.stdout
+
+
+def test_windows_healthy_script_has_the_same_cannot_run_fallback_as_the_posix_one():
+    """Unix (_HEALTHY_SCRIPT) and Windows (healthy_script) must not diverge: both proceed with a warning when the container
+    runs and every health probe exited 126 or 127, and both still fail an unhealthy container whose probe ran. The PowerShell
+    branch cannot run off Windows, so this pins its text against the POSIX script's rules."""
+    ps = (RUNTIME / "engine" / "topologies" / "tilt" / "common" / "windows_scripts.star").read_text()
+    sh = (TILT / "resources" / "orchestrator" / "apply_compose_resource_registration.star").read_text()
+    body = ps[ps.index("def healthy_script"):ps.index("def job_done_script")]
+    for needle in ("-eq 126", "-eq 127", "-eq -1", "OCI runtime exec failed", "cannot run in its image", "$state -eq 'running'", "ERROR: ' + $job + ' is unhealthy"):
+        assert needle in body, needle
+    for needle in ('"126"', '"127"', '"-1"', "OCI runtime exec failed", "cannot run in its image", '"$state" = "running"', "ERROR: $job is unhealthy"):
+        assert needle in sh, needle
+    # the fallback sits inside the unhealthy branch and comes before the failure
+    assert body.index("cannot run in its image") < body.index("is unhealthy")

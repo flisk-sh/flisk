@@ -54,10 +54,20 @@ export function onlyEnabledResources(jsonText, disabledHealth, probeCannotRun) {
     return JSON.stringify({ items });
 }
 /**
- * True when the container of a Compose service is running and every health probe Docker recorded exited 126 or 127, which
- * is a shell saying the probe command is missing or not executable (`curl: not found` in an image without curl, as in
- * LycheeOrg/Lychee's facial-recognition sidecar). Such a probe says nothing about the app, so it must not fail `flisk up`.
- * A probe that runs and fails (any other exit code) is a real failure. Docker not answering is "no", never "yes".
+ * True when a probe never ran the health command: the shell said it is missing or not executable (exit 126 or 127), or, for an
+ * exec-form `test: [CMD, curl, ...]`, Docker could not start it (exit -1 with "OCI runtime exec failed" in the output). A probe
+ * that timed out also exits -1, but without that output, so it stays a real failure.
+ */
+function probeNeverRan(probe) {
+    if (probe.ExitCode === 126 || probe.ExitCode === 127)
+        return true;
+    return probe.ExitCode === -1 && /OCI runtime exec failed/.test(probe.Output ?? "");
+}
+/**
+ * True when the container of a Compose service is running and every health probe Docker recorded never ran its command (see
+ * `probeNeverRan`), such as `curl` in an image without curl, as in LycheeOrg/Lychee's facial-recognition sidecar. Such a probe
+ * says nothing about the app, so it must not fail `flisk up`. A probe that runs and fails is a real failure. Docker not
+ * answering is "no", never "yes".
  */
 export function healthProbeCannotRun(service) {
     try {
@@ -66,14 +76,13 @@ export function healthProbeCannotRun(service) {
             .filter(Boolean);
         if (ids.length !== 1)
             return false;
-        const out = execFileSync("docker", [
-            "inspect",
-            "--format",
-            "{{.State.Status}} {{range .State.Health.Log}}{{.ExitCode}} {{end}}",
-            ids[0],
-        ], { encoding: "utf-8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] });
-        const [status, ...codes] = out.trim().split(/\s+/);
-        return (status === "running" && codes.length > 0 && codes.every((c) => c === "126" || c === "127"));
+        const state = JSON.parse(execFileSync("docker", ["inspect", "--format", "{{json .State}}", ids[0]], {
+            encoding: "utf-8",
+            timeout: 8000,
+            stdio: ["ignore", "pipe", "ignore"],
+        }));
+        const log = state.Health?.Log ?? [];
+        return state.Status === "running" && log.length > 0 && log.every(probeNeverRan);
     }
     catch {
         return false;
@@ -286,6 +295,10 @@ export async function waitForTiltResourcesReady(port, options = {}) {
             : tiltResourceLogs);
     const deferred = options.deferred ?? getDeferredResourceNames();
     const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
+    const probeCannotRun = options.probeCannotRun ??
+        (options.fetchJson && options.fetchJson !== tiltGetUiResources
+            ? undefined
+            : healthProbeCannotRun);
     const now = options.now ?? Date.now;
     const failureGraceMs = options.failureGraceMs ?? failureGraceFromEnv(process.env.FLISK_UP_FAILURE_GRACE_MS);
     const failingSince = new Map();
@@ -305,7 +318,7 @@ export async function waitForTiltResourcesReady(port, options = {}) {
         if (text) {
             lastJsonText = text;
             try {
-                const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth, healthProbeCannotRun);
+                const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth, probeCannotRun);
                 last = evaluation.result;
                 trackFailingSince(failingSince, last.failures, now());
                 if (evaluation.settled && !withinFailureGrace(last, failingSince, now(), failureGraceMs)) {
