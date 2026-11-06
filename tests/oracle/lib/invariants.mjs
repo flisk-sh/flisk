@@ -231,7 +231,7 @@ export const INVARIANTS = [
 	{
 		id: "render-exports-http-resources",
 		surfaces: ["export render --dry-run", "scaffold output"],
-		check: (s, sc) => {
+		check: (s, sc, opts = {}) => {
 			if (!s.render) return null;
 			const http = ["backend", "mcp", "agent", "frontend", "bring-your-own"]; // `export render` exports every resource that serves HTTP
 			const want = sc.resources.filter((r) => http.includes(r.kind)).map((r) => r.name).sort().join(" ");
@@ -239,7 +239,8 @@ export const INVARIANTS = [
 			// exemption belongs to the resource the error names, so another backend's refusal is never excused by it.
 			const refused = /Resource "([^"]+)" has neither a Dockerfile nor a package\.json/.exec(s.render.stderr ?? "")?.[1];
 			const culprit = sc.resources.find((r) => r.name === refused);
-			if (s.render.code !== 0 && culprit?.kind === "backend" && culprit.args.some((a) => ["python", "go", "rust"].includes(a))) return null;
+			// `strict` (the regression vault's replay) turns the exemption off, so the vault notices the day #3243 is fixed.
+			if (!opts.strict && s.render.code !== 0 && culprit?.kind === "backend" && culprit.args.some((a) => ["python", "go", "rust"].includes(a))) return null;
 			if (s.render.code !== 0) return want ? fail("render-exports-http-resources", `render.yaml lists ${want}`, `export render exited ${s.render.code}`, ["render"]) : null;
 			const got = [...s.render.stdout.matchAll(/^ {2}- type: \w+\n {4}name: "([^"]+)"/gm)].map((m) => m[1]).sort().join(" ");
 			return want === got ? null : fail("render-exports-http-resources", `render.yaml lists ${want}`, `render.yaml lists ${got}`, ["render"]);
@@ -263,11 +264,12 @@ export const INVARIANTS = [
 	},
 ];
 
-// Run every invariant. Returns failures in the bug-memory shape, with the engine/seed/scenario fields filled in.
-export function checkScenario(surfaces, scenario, { project = "generated-project" } = {}) {
+// Run every invariant. Returns failures in the bug-memory shape, with the engine/seed/scenario fields filled in. `strict` turns off
+// the known-gap exemptions (each names its issue), so a replay can tell an open known gap from a fixed one.
+export function checkScenario(surfaces, scenario, { project = "generated-project", strict = false } = {}) {
 	const failures = [];
 	for (const inv of INVARIANTS) {
-		const f = inv.check(surfaces, scenario);
+		const f = inv.check(surfaces, scenario, { strict });
 		if (f) failures.push({ engine: "ORACLE", seed: scenario.seed, project, scenario: scenario.shape, ...f, reproduction: `node tests/oracle/run.mjs --seed ${scenario.seed} --shape ${scenario.shape}`, regression_test: "pending" });
 	}
 	return failures;

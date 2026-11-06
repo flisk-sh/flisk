@@ -7,7 +7,9 @@ output.
 ```bash
 node tests/oracle/run.mjs                              # one random seed, a random shape
 node tests/oracle/run.mjs --seed 1936 --shape byo-only # replay
-node tests/oracle/run.mjs --seed 100 --seeds 20 --out /tmp/oracle   # a sweep; writes oracle-failures.json
+node tests/oracle/run.mjs --seed 100 --seeds 20 --out /tmp/oracle   # a sweep; writes oracle-failures.json and regressions/
+node tests/oracle/run.mjs --seed 100 --minimize --out /tmp/oracle    # same, each fixture reduced to the resources it needs
+node --test tests/oracle/__tests__/regressions.test.mjs                # replay the regression vault
 node --test tests/oracle/__tests__/*.test.mjs          # unit tests (run by `make test-shell`)
 ```
 
@@ -66,7 +68,7 @@ can be passed to `--seed` (with `--count`). Every failure prints its replay comm
 
 ## Failure artifact
 
-Failures use the shared bug-memory shape so a later PHANTOM step can turn them into regression tests:
+Failures use the shared bug-memory shape (the vault fixture adds `scenario` and `status` to it):
 
 ```json
 { "engine": "ORACLE", "seed": 1, "project": "oracle-1-abc", "scenario": "byo-only", "invariant": "verify-postgres-matches-status",
@@ -93,7 +95,24 @@ Failures use the shared bug-memory shape so a later PHANTOM step can turn them i
   decision.
 - `flisk config enable-infra verdaccio` leaves `verdaccio: false` (a paid feature), so the infra shape does not toggle it.
 
+## Regression vault (`regressions/`, `lib/vault.mjs`)
+
+Every contradiction ORACLE finds becomes a fixture, so no bug is found twice and no fixed bug comes back unnoticed. With `--out`,
+a sweep writes one fixture per failure to `<out>/regressions/`; `--minimize` first drops each resource the contradiction does
+not need (greedy, one resource at a time, kept only while the same invariant fails with the same symptom). Copy the fixture into
+`tests/oracle/regressions/`, link the issue, and commit it.
+
+A fixture carries its own scenario, so it replays without the seed draw and keeps replaying after `scenario.mjs` changes.
+`__tests__/regressions.test.mjs` replays each one against the built CLI, **strict** (known-gap exemptions off):
+
+- `"status": "open"`: the contradiction must still fail with the same symptom (digits ignored). When it stops failing, the test
+  says to set `"fixed"` and delete the exemption the fixture names.
+- `"status": "fixed"`: the invariant must hold, forever.
+
+`render-exports-http-resources-3243.json` is the first one: the open #3243 gap, reduced to one python backend.
+
 ## CI
 
 `.github/workflows/oracle.yml` runs 30 consecutive seeds nightly and on demand (`seed`, `seeds` inputs), prints the first seed in
-the job summary, and uploads `oracle-failures.json` on failure. The unit tests run in `make test-shell`.
+the job summary, and uploads `oracle-failures.json` and the minimized vault fixtures on failure. The unit tests and the vault
+replay run in `make test-shell`.

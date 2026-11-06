@@ -295,4 +295,8 @@ test("known gap #3243 belongs to the resource the error names, never to a neighb
 	const s = base(sc);
 	s.render = { code: 1, stdout: "", stderr: err("odd") };
 	assert.deepEqual(ids(s, sc), ["render-exports-http-resources"], "a node backend has a package.json, so the gap does not apply");
+	const py = mk("python");
+	const strict = base(py);
+	strict.render = { code: 1, stdout: "", stderr: err("odd") };
+	assert.deepEqual(checkScenario(strict, py, { strict: true }).map((f) => f.invariant), ["render-exports-http-resources"], "strict (the vault replay) never excuses #3243");
 });

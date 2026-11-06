@@ -1,7 +1,8 @@
 # ORACLE (tests/oracle): differential testing. Scaffolds seeded projects with the real CLI and fails when flisk status, doctor,
 # config verify, the generated .env and the exported Compose file contradict each other about one project. No Docker, no Tilt
 # stack: it only reads files and --json output. Each run prints its first seed; a failure replays with
-# `node tests/oracle/run.mjs --seed <n> --shape <shape>`. Nightly and manual only; the unit tests run in CI | Checks.
+# `node tests/oracle/run.mjs --seed <n> --shape <shape>`. Each contradiction is minimized and uploaded as a regression-vault fixture
+# (tests/oracle/regressions/). Nightly and manual only; the unit tests and the vault replay run in CI | Checks.
 name: 🌙 NIGHTLY | 🧬 ORACLE | Differential
 
 on:
@@ -52,7 +53,7 @@ jobs:
           echo "### ORACLE, seeds ${seed} to $((seed + INPUT_SEEDS - 1))" >> "$GITHUB_STEP_SUMMARY"
           echo "Replay a failing seed: \`node tests/oracle/run.mjs --seed <n> --shape <shape>\`, or run this workflow with that seed and 1 seed." >> "$GITHUB_STEP_SUMMARY"
           status=0
-          node tests/oracle/run.mjs --seed "$seed" --seeds "$INPUT_SEEDS" --out "$RUNNER_TEMP/oracle" | tee "$RUNNER_TEMP/oracle.log" || status=$?
+          node tests/oracle/run.mjs --seed "$seed" --seeds "$INPUT_SEEDS" --minimize --out "$RUNNER_TEMP/oracle" | tee "$RUNNER_TEMP/oracle.log" || status=$?
           { echo '```'; cat "$RUNNER_TEMP/oracle.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
       - name: Upload failures
@@ -60,5 +61,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: oracle-failures
-          path: ${{ runner.temp }}/oracle/oracle-failures.json
+          # oracle-failures.json plus regressions/: one minimized vault fixture per contradiction, ready to copy into
+          # tests/oracle/regressions/ (CI | Checks replays every fixture there).
+          path: |
+            ${{ runner.temp }}/oracle/oracle-failures.json
+            ${{ runner.temp }}/oracle/regressions
           if-no-files-found: ignore
