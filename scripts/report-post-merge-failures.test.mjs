@@ -42,17 +42,18 @@ test("title names the pull request and the comment carries the dedupe marker and
 	assert.equal(issueTitle(7), "Merged with red checks: #7");
 	const body = commentBody(run());
 	assert.ok(body.includes(MARKER));
-	// Parse the URL instead of a raw substring match (CodeQL js/incomplete-url-substring-sanitization).
-	const url = new URL(run().html_url);
+	// Extract the emitted URL and compare it exactly (CodeQL js/incomplete-url-substring-sanitization).
+	const emitted = body.match(/https?:\/\/\S+/)?.[0];
+	assert.equal(emitted, run().html_url);
+	const url = new URL(emitted);
 	assert.equal(url.host, "example.test");
 	assert.equal(url.pathname, "/runs/1");
-	assert.ok(body.includes(url.href));
 });
 
-test("malicious URL with the expected host as a substring does not match the real run URL", () => {
-	const evil = "https://evil.example.test.attacker/runs/1";
-	const real = new URL("https://example.test/runs/1");
-	const evilUrl = new URL(evil);
-	assert.notEqual(evilUrl.host, real.host);
-	assert.notEqual(evilUrl.href, real.href);
+test("the comment carries the run url it was given, never a look-alike", () => {
+	const evil = "https://example.test.attacker/runs/1";
+	const emitted = commentBody(run({ html_url: evil })).match(/https?:\/\/\S+/)?.[0];
+	assert.equal(emitted, evil);
+	assert.notEqual(new URL(emitted).host, "example.test");
+	assert.notEqual(emitted, run().html_url);
 });
