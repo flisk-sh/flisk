@@ -27,12 +27,12 @@ BODY = """
 load('@RT/engine/topologies/tilt/resources/databases.star', 'Database')
 load('@RT/engine/topologies/tilt/common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script', 'provision_database_script', 'db_status_script', 'memory_summary_script', 'prebuild_image_script', 'pytest_script', 'healthy_script', 'job_done_script', 'typecheck_script', 'golden_build_script', 'tilt_image_tags_script')
 load('@RT/engine/topologies/platform/docker/networking/traefik_static_routes.star', 'normalize_abs_path')
-load('@RT/discovery/native_windows.star', 'file_mtime', 'POWERSHELL')
+load('@RT/discovery/native_windows.star', 'file_mtime', 'POWERSHELL', 'python_script_command')
 Database.provision('users')
 Database.status_resource(True)
 Database.memory_summary()
 scripts = [init_networks_script(), healthy_postgres_script(), provision_database_script(), db_status_script(), memory_summary_script(), prebuild_image_script(), pytest_script(), healthy_script(), job_done_script(), typecheck_script(), golden_build_script(), tilt_image_tags_script()]
-fail('RESULT' + encode_json({'scripts': scripts, 'ps': POWERSHELL, 'norm': [normalize_abs_path('/a/./b/../c'), normalize_abs_path('')], 'mtime': [file_mtime('a.txt'), file_mtime('missing.txt')]}))
+fail('RESULT' + encode_json({'scripts': scripts, 'ps': POWERSHELL, 'pycmd': python_script_command("C:/O'Brien/a b/conv.py", ["D:/x y/it's/service.json"]), 'norm': [normalize_abs_path('/a/./b/../c'), normalize_abs_path('')], 'mtime': [file_mtime('a.txt'), file_mtime('missing.txt')]}))
 """
 
 
@@ -65,6 +65,13 @@ def test_scripts_follow_authoring_rules_and_mtime_matches_stat(tmp_path):
     assert result["mtime"] == [1700000000, 0]
     assert len(result["scripts"]) == 12
     assert result["norm"] == ["/a/c", ""]
+    # the Python launcher command: PowerShell, UTF-8 mode, a --version probe per candidate, paths as single-quoted literals
+    pycmd = result["pycmd"]
+    assert pycmd[:4] == result["ps"] and len(pycmd) == 5
+    body = pycmd[4]
+    assert body.isascii() and '"' not in body
+    assert "$env:PYTHONUTF8 = '1'" in body and "--version" in body and "'python3', 'python', 'py'" in body
+    assert "& $py.Source 'C:/O''Brien/a b/conv.py' 'D:/x y/it''s/service.json'; exit $LASTEXITCODE" in body
 
 
 def test_posix_commands_of_converted_resources_are_unchanged():
@@ -78,7 +85,7 @@ def test_posix_commands_of_converted_resources_are_unchanged():
     assert "cmd_bat=POWERSHELL + [healthy_postgres_script()]" in infra
     assert "cmd_bat=POWERSHELL + [init_networks_script()]" in infra
     manifest = (TILT / "resources" / "orchestrator" / "generators" / "manifest_resource.star").read_text()
-    assert "if IS_NATIVE_WINDOWS:" in manifest and "file_mtime(json_path)" in manifest
+    assert "if IS_NATIVE_WINDOWS:" in manifest and "file_mtime(json_abs)" in manifest and "python_script_command(" in manifest
     assert 'stat -f %m \\"$1\\" 2>/dev/null || stat -c %Y' in manifest
 
 
