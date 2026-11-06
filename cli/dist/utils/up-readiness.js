@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { findStaleDisabledResources, getDeferredResourceNames, parseTiltResourceFailures, } from "./doctor-runtime.js";
 import { isHealthCheckDisabled } from "./service-manifest.js";
 import { discoverResources } from "./services.js";
@@ -22,9 +22,10 @@ export function tiltResourceLogs(port, name) {
  * `disableStatus.state: Disabled` and both statuses `none`, which would read as pending forever. A resource whose update
  * status is `not_applicable` (a serve-only local resource) has nothing to build, so it counts as built.
  * When health checks are disabled for a resource (`disabledHealth`), its container health check status is stripped so
- * running containers are considered ready immediately.
+ * running containers are considered ready immediately. The same goes for a container Docker reports unhealthy when
+ * `probeCannotRun` says its health command cannot run at all (see `healthProbeCannotRun`).
  */
-export function onlyEnabledResources(jsonText, disabledHealth) {
+export function onlyEnabledResources(jsonText, disabledHealth, probeCannotRun) {
     const parsed = JSON.parse(jsonText);
     const items = (parsed.items ?? [])
         .filter((item) => item.status?.disableStatus?.state !== "Disabled")
@@ -33,10 +34,12 @@ export function onlyEnabledResources(jsonText, disabledHealth) {
         if (current.status?.updateStatus === "not_applicable") {
             current = { ...current, status: { ...current.status, updateStatus: "ok" } };
         }
-        if (disabledHealth &&
-            current.metadata?.name &&
-            disabledHealth.has(current.metadata.name) &&
-            current.status?.composeResourceInfo) {
+        const name = current.metadata?.name;
+        const health = current.status?.composeResourceInfo?.healthStatus;
+        if (name &&
+            current.status?.composeResourceInfo &&
+            ((disabledHealth?.has(name) ?? false) ||
+                (health === "unhealthy" && probeCannotRun?.(name) === true))) {
             const { healthStatus: _healthStatus, ...restInfo } = current.status.composeResourceInfo;
             current = {
                 ...current,
@@ -49,6 +52,32 @@ export function onlyEnabledResources(jsonText, disabledHealth) {
         return current;
     });
     return JSON.stringify({ items });
+}
+/**
+ * True when the container of a Compose service is running and every health probe Docker recorded exited 126 or 127, which
+ * is a shell saying the probe command is missing or not executable (`curl: not found` in an image without curl, as in
+ * LycheeOrg/Lychee's facial-recognition sidecar). Such a probe says nothing about the app, so it must not fail `flisk up`.
+ * A probe that runs and fails (any other exit code) is a real failure. Docker not answering is "no", never "yes".
+ */
+export function healthProbeCannotRun(service) {
+    try {
+        const ids = execFileSync("docker", ["ps", "-q", "--filter", `label=com.docker.compose.service=${service}`], { encoding: "utf-8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] })
+            .split("\n")
+            .filter(Boolean);
+        if (ids.length !== 1)
+            return false;
+        const out = execFileSync("docker", [
+            "inspect",
+            "--format",
+            "{{.State.Status}} {{range .State.Health.Log}}{{.ExitCode}} {{end}}",
+            ids[0],
+        ], { encoding: "utf-8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] });
+        const [status, ...codes] = out.trim().split(/\s+/);
+        return status === "running" && codes.length > 0 && codes.every((c) => c === "126" || c === "127");
+    }
+    catch {
+        return false;
+    }
 }
 export function getDisabledHealthResourceNames(resources) {
     try {
@@ -84,8 +113,8 @@ export function isAdvisoryResource(name) {
  * One look at `tilt get uiresources -o json`. `settled` means polling can stop: everything is ready, or the rest has
  * finished with a failure (an errored resource, or an expected service Tilt has disabled).
  */
-export function evaluateTiltReadiness(jsonText, deferred, expected, disabledHealth) {
-    const parsed = parseTiltResourceFailures(onlyEnabledResources(jsonText, disabledHealth), deferred);
+export function evaluateTiltReadiness(jsonText, deferred, expected, disabledHealth, probeCannotRun) {
+    const parsed = parseTiltResourceFailures(onlyEnabledResources(jsonText, disabledHealth, probeCannotRun), deferred);
     // A `<service>-typecheck` resource runs on the host and is advisory: it reports type errors
     // in Tilt, it does not decide whether the stack is up. It must not fail the stack.
     const blocking = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
@@ -276,7 +305,7 @@ export async function waitForTiltResourcesReady(port, options = {}) {
         if (text) {
             lastJsonText = text;
             try {
-                const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth);
+                const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth, healthProbeCannotRun);
                 last = evaluation.result;
                 trackFailingSince(failingSince, last.failures, now());
                 if (evaluation.settled && !withinFailureGrace(last, failingSince, now(), failureGraceMs)) {

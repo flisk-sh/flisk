@@ -360,6 +360,28 @@ describe("Tilt readiness with disabled health checks", () => {
     expect(parsed.items[1].status.composeResourceInfo.healthStatus).toBe("starting");
   });
 
+  it("treats an unhealthy container as ready when its health command cannot run, and still fails one that runs and fails", () => {
+    const json = JSON.stringify({
+      items: [containerWithHealth("sidecar", "unhealthy"), containerWithHealth("api", "unhealthy")],
+    });
+    const cannotRun = (service: string) => service === "sidecar";
+
+    const parsed = JSON.parse(onlyEnabledResources(json, undefined, cannotRun));
+    expect(parsed.items[0].status.composeResourceInfo.healthStatus).toBeUndefined();
+    expect(parsed.items[1].status.composeResourceInfo.healthStatus).toBe("unhealthy");
+
+    const only = evaluateTiltReadiness(
+      JSON.stringify({ items: [containerWithHealth("sidecar", "unhealthy")] }),
+      new Set(),
+      undefined,
+      undefined,
+      cannotRun,
+    );
+    expect(only.result.ready).toBe(true);
+    const failing = evaluateTiltReadiness(json, new Set(), undefined, undefined, cannotRun);
+    expect(failing.result.ready).toBe(false);
+  });
+
   it("treats running container as ready immediately when health check is starting but disabled", () => {
     const json = JSON.stringify({
       items: [containerWithHealth("api", "starting")],

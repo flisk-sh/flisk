@@ -25,9 +25,17 @@ export declare function tiltResourceLogs(port: number, name: string): Promise<st
  * `disableStatus.state: Disabled` and both statuses `none`, which would read as pending forever. A resource whose update
  * status is `not_applicable` (a serve-only local resource) has nothing to build, so it counts as built.
  * When health checks are disabled for a resource (`disabledHealth`), its container health check status is stripped so
- * running containers are considered ready immediately.
+ * running containers are considered ready immediately. The same goes for a container Docker reports unhealthy when
+ * `probeCannotRun` says its health command cannot run at all (see `healthProbeCannotRun`).
  */
-export declare function onlyEnabledResources(jsonText: string, disabledHealth?: Set<string>): string;
+export declare function onlyEnabledResources(jsonText: string, disabledHealth?: Set<string>, probeCannotRun?: (service: string) => boolean): string;
+/**
+ * True when the container of a Compose service is running and every health probe Docker recorded exited 126 or 127, which
+ * is a shell saying the probe command is missing or not executable (`curl: not found` in an image without curl, as in
+ * LycheeOrg/Lychee's facial-recognition sidecar). Such a probe says nothing about the app, so it must not fail `flisk up`.
+ * A probe that runs and fails (any other exit code) is a real failure. Docker not answering is "no", never "yes".
+ */
+export declare function healthProbeCannotRun(service: string): boolean;
 export declare function getDisabledHealthResourceNames(resources?: DiscoveredResource[]): Set<string>;
 /**
  * Services the caller asked for must not vanish into the disabled filter: one that Tilt lists as disabled (it can be
@@ -43,7 +51,7 @@ export declare function isAdvisoryResource(name: string): boolean;
  * One look at `tilt get uiresources -o json`. `settled` means polling can stop: everything is ready, or the rest has
  * finished with a failure (an errored resource, or an expected service Tilt has disabled).
  */
-export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<string>, expected?: string[], disabledHealth?: Set<string>): {
+export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<string>, expected?: string[], disabledHealth?: Set<string>, probeCannotRun?: (service: string) => boolean): {
     result: ReadinessResult;
     settled: boolean;
 };

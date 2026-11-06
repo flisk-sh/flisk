@@ -126,9 +126,16 @@ jobs:
       - name: Install Docker Model Runner (stacks that declare Compose models)
         if: matrix.docker_model_plugin
         run: |
+          # The runner image has Docker but not Docker's apt repository, which is where docker-model-plugin lives.
+          # The plugin is a static binary, so the noble (LTS) packages work on any runner release.
+          sudo install -m 0755 -d /etc/apt/keyrings
+          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" \
+            | sudo tee /etc/apt/sources.list.d/docker-model.list >/dev/null
           sudo apt-get update -qq
           sudo apt-get install -y docker-model-plugin
           docker model version
+          docker model install-runner
 
       - name: Install Flisk CLI
         uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
