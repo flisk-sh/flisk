@@ -90,12 +90,10 @@ export function danglingLoads(root: string): string[] {
  */
 export const KNOWN_DANGLING_LOADS = [
   "discovery/manifest/constants.star -> ./manifest/constants.star",
-  "engine/paths.star -> ./discovery/resource_registry.star",
   "engine/topologies/platform/docker/layers/infisical/index.star -> ./infisical/index.star",
   "engine/topologies/tilt/generators/infisical/index.star -> ./infisical/index.star",
   "engine/topologies/tilt/generators/infisical/machine_identity.star -> ./infisical/machine_identity.star",
   "engine/topologies/tilt/generators/infisical/organization.star -> ./infisical/organization.star",
   "engine/topologies/tilt/generators/infisical/path_manager.star -> ./infisical/path_manager.star",
   "engine/topologies/tilt/generators/infisical/secrets_generator.star -> ./infisical/secrets_generator.star",
-  "engine/where-things-live.star -> ./discovery/resource_registry.star",
 ];
