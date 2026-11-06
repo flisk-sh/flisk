@@ -98,6 +98,7 @@ export interface HealthProbe extends HealthTarget {
   error?: string;
 }
 
+/** The project name of the project containing the current directory. */
 export function getProjectName(): string {
   return getProjectNameFor(findProjectRoot());
 }
@@ -107,6 +108,7 @@ export function getProjectNameFor(root: string | null): string {
   return readProjectNameWithFallback(root, "flisk-project");
 }
 
+/** The app and api base URLs (scheme, host, port) from FLISK_SERVICE_BASE_URL, or from the project name and ingress port. */
 export function resolveSubdomainBases(
   ingressPort?: number,
   projectRoot?: string | null,
@@ -142,6 +144,7 @@ export function resolveSubdomainBases(
   }
 }
 
+/** `/api/x` or `/api/x/` → `/api/x/health`, without doubling the slash. */
 export function appendHealthPath(path: string): string {
   return `${path.replace(/\/+$/, "")}/health`;
 }
@@ -224,6 +227,7 @@ export function buildAdvertisedTargets(
   return routableTargets(resources, ingressPort, (path) => path, true);
 }
 
+/** Maps each routed service to a target whose URL is its route base plus `toPath(path)`. */
 function routableTargets(
   resources: DiscoveredResource[],
   ingressPort: number | undefined,
@@ -256,6 +260,7 @@ function routableTargets(
     });
 }
 
+/** GET one target and report its status, or why the request never completed. */
 export async function pingHealthTarget(
   target: HealthTarget,
   timeoutMs: number,
@@ -280,6 +285,7 @@ export async function pingHealthTarget(
   }
 }
 
+/** Probe every target in parallel. */
 export async function pingHealthTargets(
   targets: HealthTarget[],
   timeoutMs: number,

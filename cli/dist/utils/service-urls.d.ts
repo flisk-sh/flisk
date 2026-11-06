@@ -38,13 +38,16 @@ export interface HealthProbe extends HealthTarget {
     /** Failure reason when the request never completed (DNS, refused, timeout). */
     error?: string;
 }
+/** The project name of the project containing the current directory. */
 export declare function getProjectName(): string;
 /** The project name of a specific project root, for tools that work outside the current directory. */
 export declare function getProjectNameFor(root: string | null): string;
+/** The app and api base URLs (scheme, host, port) from FLISK_SERVICE_BASE_URL, or from the project name and ingress port. */
 export declare function resolveSubdomainBases(ingressPort?: number, projectRoot?: string | null): {
     appBase: string;
     apiBase: string;
 };
+/** `/api/x` or `/api/x/` → `/api/x/health`, without doubling the slash. */
 export declare function appendHealthPath(path: string): string;
 /** The route `flisk up` advertises for a service, without the /health suffix. */
 export declare function resolveServicePath(resource: DiscoveredResource): string;
@@ -64,5 +67,7 @@ export declare function buildHealthTargets(resources: DiscoveredResource[], ingr
  * this URL is a 404 (nothing handles the bare path), which is the dead link users click.
  */
 export declare function buildAdvertisedTargets(resources: DiscoveredResource[], ingressPort?: number): HealthTarget[];
+/** GET one target and report its status, or why the request never completed. */
 export declare function pingHealthTarget(target: HealthTarget, timeoutMs: number): Promise<HealthProbe>;
+/** Probe every target in parallel. */
 export declare function pingHealthTargets(targets: HealthTarget[], timeoutMs: number): Promise<HealthProbe[]>;

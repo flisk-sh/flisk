@@ -62,6 +62,7 @@ export function resolveRouteBase(resource, ingressPort, projectRoot) {
     const { appBase, apiBase } = resolveSubdomainBases(ingressPort, projectRoot);
     return routesAsApi(resource) ? apiBase : appBase;
 }
+/** The project name of the project containing the current directory. */
 export function getProjectName() {
     return getProjectNameFor(findProjectRoot());
 }
@@ -69,6 +70,7 @@ export function getProjectName() {
 export function getProjectNameFor(root) {
     return readProjectNameWithFallback(root, "flisk-project");
 }
+/** The app and api base URLs (scheme, host, port) from FLISK_SERVICE_BASE_URL, or from the project name and ingress port. */
 export function resolveSubdomainBases(ingressPort, projectRoot) {
     const projectName = getProjectNameFor(projectRoot ?? findProjectRoot());
     const raw = process.env.FLISK_SERVICE_BASE_URL ??
@@ -100,6 +102,7 @@ export function resolveSubdomainBases(ingressPort, projectRoot) {
         };
     }
 }
+/** `/api/x` or `/api/x/` → `/api/x/health`, without doubling the slash. */
 export function appendHealthPath(path) {
     return `${path.replace(/\/+$/, "")}/health`;
 }
@@ -164,6 +167,7 @@ export function buildAdvertisedTargets(resources, ingressPort) {
     // its health path is its own (often /), not /health.
     return routableTargets(resources, ingressPort, (path) => path, true);
 }
+/** Maps each routed service to a target whose URL is its route base plus `toPath(path)`. */
 function routableTargets(resources, ingressPort, toPath, includeBringYourOwn = false) {
     return resources
         .filter((resource) => resource.config?.appType === "frontend" ||
@@ -182,6 +186,7 @@ function routableTargets(resources, ingressPort, toPath, includeBringYourOwn = f
         };
     });
 }
+/** GET one target and report its status, or why the request never completed. */
 export async function pingHealthTarget(target, timeoutMs) {
     try {
         const response = await fetch(target.url, {
@@ -205,6 +210,7 @@ export async function pingHealthTarget(target, timeoutMs) {
         return { ...target, ok: false, error };
     }
 }
+/** Probe every target in parallel. */
 export async function pingHealthTargets(targets, timeoutMs) {
     return Promise.all(targets.map((target) => pingHealthTarget(target, timeoutMs)));
 }
