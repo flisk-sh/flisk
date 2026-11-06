@@ -44,13 +44,18 @@ export async function checkPortStatus(port: number): Promise<"running" | "stoppe
   });
 }
 
+/**
+ * The first free port from basePort. `claim`, when given, also has to accept the port: a real start passes a claimer so two
+ * projects starting at once do not both take the same free port (see port-claims.ts).
+ */
 export async function findAvailablePort(
   basePort: number,
   maxAttempts: number = 10,
+  claim?: (port: number) => boolean,
 ): Promise<number | null> {
   for (let i = 0; i < maxAttempts; i++) {
     const port = basePort + i;
-    if (await isPortAvailable(port)) {
+    if ((await isPortAvailable(port)) && (claim?.(port) ?? true)) {
       return port;
     }
   }

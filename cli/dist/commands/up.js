@@ -22,7 +22,7 @@ import { formatCount } from "../utils/formatting.js";
 import { ensureGeneratedSecrets } from "../utils/generated-secrets.js";
 import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import { exportHostPortPlan, getHostPortPlan, writeSavedHostPortPlan, } from "../utils/host-port-config.js";
-import { formatHostPortPlan } from "../utils/host-port-plan.js";
+import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
@@ -31,6 +31,7 @@ import { runNativeUp } from "../utils/native-up.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
+import { createPortClaimer } from "../utils/port-claims.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
 import { findPortOccupant } from "../utils/port-occupant.js";
 import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/profiles.js";
@@ -673,10 +674,18 @@ export const upCommand = new Command("up")
             warnSchemaVersions(foundRoot, discoveredResources);
             warnSecretConflicts(foundRoot, discoveredResources);
         }
+        // A real start claims the host ports it picks, so a second project starting at the same moment moves to the next
+        // port instead of choosing the same one. A dry run only reports and holds nothing.
+        const claimPort = options.dryRun ? undefined : createPortClaimer(projectRoot);
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,
             database: options.database,
             gateway: gatewayEnabled,
+            ...(claimPort
+                ? {
+                    isPortFree: async (port) => (await isHostPortAvailable(port)) && claimPort(port),
+                }
+                : {}),
         });
         if (!options.dryRun) {
             // An older project's .env predates keys such as JWT_SECRET, which Compose now requires. Add what is missing (never
@@ -946,7 +955,7 @@ export const upCommand = new Command("up")
             configuredPort: configuredTiltPort,
             force,
             basePort,
-            findAvailablePort,
+            findAvailablePort: (base, attempts) => findAvailablePort(base, attempts, claimPort),
         });
         const port = resolution.port;
         if (resolution.autoSwitched && !options.quiet) {
