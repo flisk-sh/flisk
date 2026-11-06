@@ -521,6 +521,8 @@ def _generate_yaml_manifest(resource_path, manifest, write_file):
             command_bat = python_script_command(converter_abs, [json_abs]),
             quiet = True,
         )).strip()
+        if not yaml_content:
+            fail("json_to_yaml.py printed nothing for " + json_abs + "; refusing to write an empty YAML manifest (is python3, python or py installed, and not only a Microsoft Store alias?)")
         write_file(yaml_path, yaml_content)
         return
 

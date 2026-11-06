@@ -39,7 +39,7 @@ r = {
     'clean_abs': find_files('@PROJ/services/product', 'service.json'),
     'unclean_abs': find_files('@PROJ//services/./other/../product', 'service.json'),
     'dotdot_root': find_files('@PROJ/.flisk/..', 'service.json'),
-    'abs': [is_abs_path('/a/b'), is_abs_path('rel/b'), is_abs_path('C:\\\\x\\\\y'), is_abs_path('D:/x'), is_abs_path('\\\\\\\\srv\\\\share'), is_abs_path('')],
+    'abs': [is_abs_path('/a/b'), is_abs_path('rel/b'), is_abs_path('C:\\\\x\\\\y'), is_abs_path('D:/x'), is_abs_path('\\\\\\\\srv\\\\share'), is_abs_path(''), is_abs_path('D:projects\\\\flisk'), is_abs_path('//server/share/project'), is_abs_path('D:'), is_abs_path('\\\\projects\\\\flisk')],
 }
 """
 
@@ -121,5 +121,5 @@ def test_is_abs_path_is_startswith_slash_off_windows_and_knows_drives_on_it(tmp_
     project = _project(tmp_path)
     posix = _run(project, portable=False)["abs"]
     portable = _run(project, portable=True)["abs"]
-    assert posix == [True, False, False, False, False, False]
-    assert portable == [True, False, True, True, True, False]
+    assert posix == [True, False, False, False, False, False, False, True, False, False]
+    assert portable == [True, False, True, True, True, False, False, True, False, True]

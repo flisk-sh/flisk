@@ -81,6 +81,8 @@ Step 'L2b the stack answers through the gateway' {
   }
   $names = @(docker ps --format '{{.Names}}' 2>$null)
   ('containers running: ' + ($names -join ', ')) | Out-File -FilePath (Join-Path $Out 'gateway-check.txt') -Append -Encoding utf8
+  $apps = @($names | Where-Object { $_ -notmatch 'traefik' })
+  if ($apps.Count -eq 0) { $bad += 'only the gateway is running, no service container' }
   if ($bad.Count -gt 0) { throw ('the gateway did not serve: ' + ($bad -join '; ') + ' (containers: ' + ($names -join ', ') + ')') }
 }
 
