@@ -415,7 +415,9 @@ if _AUTO_DISCOVER_ENABLED:
     # Native Windows has no sh: the same daemon through PowerShell, using python3 or, failing that, python or the py launcher.
     # The two paths go in as single-quoted PowerShell strings (a quote inside one is doubled).
     daemon_cmd_bat = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-        "Set-Location -LiteralPath '" + config.main_dir.replace("'", "''") + "'; "
+        # Python writes to a pipe in the console code page (cp1252), and resource_snapshot.py prints emoji, so it died with
+        # UnicodeEncodeError on the hosted Windows run 42091105693. UTF-8 mode fixes that for this process only.
+        "$env:PYTHONUTF8 = '1'; Set-Location -LiteralPath '" + config.main_dir.replace("'", "''") + "'; "
         # A Microsoft Store "App Execution Alias" resolves for python3 yet runs nothing, so each candidate must answer --version.
         + "$py = $null; foreach ($n in 'python3', 'python', 'py') { foreach ($c in @(Get-Command $n -All -ErrorAction SilentlyContinue)) { "
         + "& $c.Source --version *> $null; if ($LASTEXITCODE -eq 0) { $py = $c; break } }; if ($py) { break } }; "
