@@ -81,15 +81,16 @@ jobs:
       - name: K7 undrawn resource is one error envelope
         run: tests/e2e/scale/enigma36/run.sh K7
 
+      # Diagnostics first: it writes into the suite directory, which the evidence bundle reads and uploads next.
+      - name: Diagnostics on failure
+        if: failure() || cancelled()
+        run: tests/e2e/scale/enigma36/run.sh diagnostics
+
       - name: Collect failure evidence
         if: failure() || cancelled()
         uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           name: e2e-enigma36
-
-      - name: Diagnostics on failure
-        if: failure() || cancelled()
-        run: tests/e2e/scale/enigma36/run.sh diagnostics
 
       - name: flisk down
         if: always()
