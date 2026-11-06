@@ -96,6 +96,18 @@ Step 'Discovery probe' {
   cmd /c ('tilt alpha tiltfile-result -f "' + $probe + '" > "' + (Join-Path $Out 'probe-result.txt') + '" 2>&1')
 }
 
+# The CLI cuts a Tiltfile failure after a few hundred characters; ask Tilt for the whole error (Windows run 42183705419: the
+# Tiltfile failed inside registry.star's discovery once it found services for the first time).
+Step 'Tiltfile error' {
+  $tiltfile = Join-Path $Project '.flisk\.flisk-out\Tiltfile'
+  if (Test-Path -LiteralPath $tiltfile) {
+    $env:FLISK_PROJECT_ROOT = $Project
+    Push-Location -LiteralPath (Split-Path -Parent $tiltfile)
+    try { cmd /c ('tilt alpha tiltfile-result -f "' + $tiltfile + '" > "' + (Join-Path $Out 'tiltfile-result.json') + '" 2>&1') } finally { Pop-Location }
+    Remove-Item Env:FLISK_PROJECT_ROOT -ErrorAction SilentlyContinue
+  }
+}
+
 # Always collect what the engine and Flisk say, so a failed run names the failing resource (run 42069367765 showed only
 # "Resources failed (traefik: ...)" with the command cut off).
 Step 'Diagnostics' {
