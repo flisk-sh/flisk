@@ -1007,7 +1007,9 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
 
 _HEALTHY_SCRIPT = (
     'job="$1"; max_polls="${2:-120}"; shift 2 2>/dev/null || shift 1; exited_count=0; '
-    + 'for i in $(seq 1 "$max_polls"); do '
+    + 'grace=120; bad_since=""; i=0; '
+    + 'while [ "$i" -lt "$max_polls" ] || { [ -n "$bad_since" ] && [ $((i - bad_since)) -lt "$grace" ]; }; do '
+    + '  i=$((i + 1)); '
     + '  if [ "$#" -gt 0 ]; then '
     + '    id="$("$@" ps -q "$job" 2>/dev/null | head -n 1)"; '
     + '    if [ -z "$id" ]; then id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; fi; '
@@ -1064,10 +1066,15 @@ _HEALTHY_SCRIPT = (
     + '        echo "WARNING: $job health check cannot run in its image (command not found or not executable), proceeding because the container is running"; exit 0; '
     + '      fi; '
     + '    fi; '
-    + '    if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi; '
+    + '    if [ "$health" = "unhealthy" ]; then '
+    + '      if [ -z "$bad_since" ]; then bad_since="$i"; echo "$job health check is failing; waiting up to ${grace}s for it to recover"; fi; '
+    + '    else '
+    + '      bad_since=""; '
+    + '    fi; '
     + '  fi; '
     + '  sleep 1; '
     + 'done; '
+    + 'if [ -n "$bad_since" ]; then echo "ERROR: $job is unhealthy: its health check still failed ${grace}s after it first failed"; exit 1; fi; '
     + 'echo "ERROR: timed out waiting for $job to become healthy (waited ${max_polls}s)"; exit 1'
 )
 
@@ -1096,7 +1103,10 @@ def _register_healthy_resource(config, resource_path, compose_project_name, auto
     Tilt counts a Compose resource as ready once its container starts running, which allows
     dependents with `condition: "service_healthy"` to start before the dependency's health
     check has passed. This local_resource monitors the container's health status via Docker
-    inspect until it reports 'healthy', failing fast if the container exits or reports 'unhealthy'.
+    inspect until it reports 'healthy', failing fast if the container exits or dies. 'unhealthy' is not final: a database on
+    its first start can outlast its start period and recover by itself, and this gate never reruns once it fails, so the
+    dependents would stay blocked after it turned healthy (#3210). It fails only when the health check is still failing
+    `grace` (120) seconds after Docker first reported it unhealthy; that window may extend past `max_polls`.
     A health check that cannot run at all says nothing about the app, so a running container proceeds with a warning, but only
     on evidence the probe itself gives: exec form (a Compose `test: [CMD, curl, ...]`) is exit -1 with Docker's "OCI runtime exec
     failed" output; shell form is exit 127 with "not found" or exit 126 with "permission denied" in the output, and the whole

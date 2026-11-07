@@ -9,6 +9,7 @@ import {
   machineProblemFix,
   machineProblemFixes,
   transitiveDependencies,
+  withLoggedReasons,
 } from "../startup-report.js";
 
 function item(name: string, update: string, runtime: string, extra: object = {}) {
@@ -380,5 +381,54 @@ describe("shared infrastructure that fails before any service starts", () => {
     expect(machineProblemFix("exit status 1")).toBeNull();
     const lines = formatStartupReport(buildStartupReport(text, {}), false);
     expect(lines.join("\n")).toContain("Docker has no free network ranges left");
+  });
+});
+
+// #3210: a failure always comes with its reason. A health gate only exits 1; the cause is the ERROR line it logged.
+describe("withLoggedReasons", () => {
+  const logs: Record<string, string> = {
+    "postgres-healthy":
+      "postgres health check is failing; waiting up to 120s for it to recover\n" +
+      "ERROR: postgres is unhealthy: its health check still failed 120s after it first failed\n",
+    "api-healthy":
+      "postgres-healthy │ ERROR: container api exited with code 3 and will not restart (restart: no)\n",
+    quiet: "nothing useful here\n",
+  };
+  const fetchLogs = vi.fn(async (name: string) => logs[name] ?? null);
+
+  it("replaces a bare exit status with the last ERROR line of the resource's log", async () => {
+    const failures = await withLoggedReasons(
+      [
+        { name: "postgres-healthy", message: "exit status 1", runtime: false },
+        { name: "api-healthy", message: "Command failed: exit status 1" },
+        { name: "quiet", message: "exit status 2" },
+        { name: "web", message: "host port 80 is already allocated" },
+      ],
+      fetchLogs,
+    );
+    expect(failures).toEqual([
+      {
+        name: "postgres-healthy",
+        message: "postgres is unhealthy: its health check still failed 120s after it first failed",
+        runtime: false,
+      },
+      {
+        name: "api-healthy",
+        message: "container api exited with code 3 and will not restart (restart: no)",
+      },
+      { name: "quiet", message: "exit status 2" },
+      { name: "web", message: "host port 80 is already allocated" },
+    ]);
+    expect(fetchLogs).not.toHaveBeenCalledWith("web");
+  });
+
+  it("puts that reason into the failure line of the report", async () => {
+    const failed = await withLoggedReasons(
+      [{ name: "postgres-healthy", message: "exit status 1" }],
+      fetchLogs,
+    );
+    expect(formatStartupReport({ failed, blocked: [], starting: [] }, false)[0]).toBe(
+      "✗ postgres-healthy failed: postgres is unhealthy: its health check still failed 120s after it first failed",
+    );
   });
 });

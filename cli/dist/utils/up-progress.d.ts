@@ -4,6 +4,8 @@ export interface ServiceProgress {
     state: ServiceProgressState;
     /** Milliseconds the service has been building, if in the building state. */
     buildingDurationMs?: number;
+    /** Why a `failed` service failed, in a few words. */
+    reason?: string;
 }
 /**
  * The state of each resource `flisk up` waits for, from `tilt get uiresources -o json`. Disabled, deferred, advisory and
@@ -13,7 +15,8 @@ export declare function classifyUpProgress(jsonText: string, deferred: Set<strin
 export declare function formatProgressDuration(ms: number): string;
 /** `5/9 ready`, then the services in each unfinished state, including duration for building services. */
 export declare function formatUpProgressLine(services: ServiceProgress[]): string;
-export declare function formatServiceFailedLine(name: string): string;
+/** `✗ api failed: <reason>. See its logs: flisk logs -s api`; the reason is left out when it is not known. */
+export declare function formatServiceFailedLine(name: string, reason?: string): string;
 /**
  * Redraw one line in place only on an interactive terminal. `--quiet`, a pipe, CI and `TERM=dumb` get plain lines with
  * no cursor control.
