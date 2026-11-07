@@ -1,6 +1,6 @@
 {
   "name": "@flisk-sh/flisk",
-  "version": "1.4.40",
+  "version": "1.4.41",
   "mcpName": "io.github.flisk-sh/flisk",
   "description": "Flisk: local development for multi-service apps, started with one command.",
   "homepage": "https://flisk.sh",
