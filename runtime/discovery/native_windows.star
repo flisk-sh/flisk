@@ -297,15 +297,38 @@ def write_text(path, content):
         echo_off = True,
     )
 
+# Linux refuses any single argument over 128 KiB (MAX_ARG_STRLEN), and a project of hundreds of resources generates a compose
+# file bigger than that. Content goes to the shell in pieces of about this many bytes, cut only at line ends so no UTF-8
+# character is split. A line longer than the limit still goes in one piece.
+WRITE_PIECE_BYTES = 32768
+
+def _write_pieces(content):
+    lines = content.split("\n")
+    pieces = []
+    current = ""
+    for i, line in enumerate(lines):
+        text = line + ("\n" if i < len(lines) - 1 else "")
+        if current and len(current) + len(text) > WRITE_PIECE_BYTES:
+            pieces.append(current)
+            current = ""
+        current += text
+    pieces.append(current)
+    return pieces
+
 def write_text_exact(dir_path, file_path, content):
-    """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM."""
-    local(
-        ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dir_path, content, file_path],
-        command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; [IO.File]::WriteAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
-        env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": content},
-        quiet = True,
-        echo_off = True,
-    )
+    """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM.
+
+    The first piece truncates the file, the rest append to it, so the file ends up byte-identical to content.
+    """
+    for index, piece in enumerate(_write_pieces(content)):
+        first = index == 0
+        local(
+            ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" ' + (">" if first else ">>") + ' "$3"', "sh", dir_path, piece, file_path],
+            command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; [IO.File]::" + ("WriteAllText" if first else "AppendAllText") + "($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
+            env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": piece},
+            quiet = True,
+            echo_off = True,
+        )
 
 def iso_timestamp():
     """Local time as YYYY-MM-DDTHH:MM:SS (date +%Y-%m-%dT%H:%M:%S)."""
