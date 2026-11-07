@@ -26,15 +26,21 @@
 # 📖 HOW TO USE THIS FILE
 # =============================================================================
 
-# In your Tiltfile or topology module, load this spec:
+# The generated Tiltfile in .flisk/.flisk-out/ loads the generated spec.master from the same
+# folder, by its bare name:
 #
-#     load(PROJECT_ROOT + "/.tilt-engine/spec.master", "SPEC", "CONSTANTS", "VALIDATION", "DEBUG")
+#     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")
 #
-# Then use the constants:
+# Starlark resolves a relative load from the loading file's folder, so a topology module in
+# any other folder must give the path to .flisk/.flisk-out/spec.master instead of the bare name.
 #
-#     registry_path = SPEC.DISCOVERY.REGISTRY
-#     max_port = VALIDATION.MAX_PORT
-#     timeout = CONSTANTS.DEFAULT_TIMEOUT
+# Then use the names you loaded:
+#
+#     enabled_resources = RESOURCE_DEFAULTS
+#     startup_resources = PRE_ALPHA_RESOURCES
+#
+# (SPEC, VALIDATION and CONSTANTS below describe this reference file; the generated
+# spec.master does not export them.)
 #
 # That's it! No magic paths. Everything is explicit.
 
@@ -306,23 +312,6 @@
 # - "CONSTANTS" → Timeouts, defaults
 #
 # Search for what you need, then close the file!
-
-# =============================================================================
-# 📛 FILE ALIASES (Easier Names)
-# =============================================================================
-
-# Can't remember "spec.master"? Use these aliases:
-#
-#     .tilt/paths.star → Same file, easier name!
-#     .tilt/where-things-live.star → Same file, fun name!
-#
-# So you can do:
-#     load(PROJECT_ROOT + "/.tilt/paths.star", "SPEC")
-#
-# Instead of:
-#     load(PROJECT_ROOT + "/.tilt-engine/spec.master", "SPEC")
-#
-# Both work! Use whichever you remember. 😊
 
 # =============================================================================
 # 🗓️  FEATURE FLAGS (What's Working vs Planned)
@@ -671,12 +660,14 @@ COMPARISON:
 
 ✅ AFTER (Explicit):
     load(SPEC.DISCOVERY.REGISTRY, "get_app_resources")
-    # Path is: {PROJECT_ROOT}/.tilt/topologies/tilt/discovery/registry.star
+    # Path is: {PROJECT_ROOT}/engine/topologies/tilt/discovery/registry.star
     # Behavior defined in this spec file.
 
 USAGE:
-    load("{}/.tilt/spec.master".format(PROJECT_ROOT), "SPEC", "CONSTANTS")
-    
+    # Illustrative sketch of this reference file (the generated spec.master in
+    # .flisk/.flisk-out/ exports RESOURCE_DEFAULTS and PRE_ALPHA_RESOURCES, not these names):
+    load("spec.master", "SPEC", "VALIDATION", "CONSTANTS")
+
     # Now EVERYTHING is explicit
     registry_path = SPEC.DISCOVERY.REGISTRY
     max_port = VALIDATION.MAX_PORT

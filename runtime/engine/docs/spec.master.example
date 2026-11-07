@@ -1,4 +1,5 @@
 #!/usr/bin/env starlark
+# Reference documentation: example illustrating explicit spec.master structure (not loaded at runtime).
 # BEFORE/AFTER: Making Tilt Obvious (Zig-Style Explicitness)
 # 
 # This file demonstrates how the new spec.master makes the system
@@ -31,16 +32,16 @@
 # ✅ AFTER: Explicit, Obvious, No Magic
 # =============================================================================
 
-# Load the master spec - ALL paths are explicit constants
-load("{PROJECT_ROOT}/.tilt/spec.master", "SPEC", "CONSTANTS", "VALIDATION", "FEATURES", "OUTPUT", "DEBUG")
-
-# 💡 ALTERNATIVE: Use the easier-to-remember alias names
-# Both work identically - use whichever you prefer!
+# Illustrative only. This example is not loaded by Flisk, and the SPEC, CONSTANTS,
+# VALIDATION, FEATURES, OUTPUT and DEBUG names below are a sketch of the design,
+# not symbols the generated spec.master exports today.
 #
-#     load("{PROJECT_ROOT}/.tilt/paths.star", "SPEC", "CONSTANTS", "DEBUG")
-#     load("{PROJECT_ROOT}/.tilt/where-things-live.star", "SPEC", "CONSTANTS", "DEBUG")
+# The supported loading mechanism is the generated Tiltfile in .flisk/.flisk-out/,
+# which loads the generated spec.master from the same folder:
 #
-# Why aliases? Because "paths" is easier to remember than "spec.master" 😊
+#     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES", "ALPHA_RESOURCES", "BETA_RESOURCES")
+#
+# Do not copy path-alias loads (such as .tilt/paths.star). Flisk never creates them.
 
 # Explicit imports - you SEE exactly what files are loaded
 load(SPEC.DISCOVERY.REGISTRY, "get_app_resources", "get_resource_by_name")
@@ -327,11 +328,12 @@ ANSWER TO ZIG DEVELOPER:
 # USAGE EXAMPLE
 # =============================================================================
 
-# To use in your Tiltfile:
+# Illustrative only. The supported Tiltfile load is the generated one, from .flisk/.flisk-out/:
 #
-# load("{}/.tilt/spec.master".format(PROJECT_ROOT), "SPEC", "CONSTANTS")
-# 
-# # Now EVERYTHING is explicit and obvious
+# load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")
+# print("Resources on by default: {}".format(RESOURCE_DEFAULTS))
+#
+# # Sketch only: SPEC, VALIDATION and FEATURES are design names, not exports of the generated file.
 # print("Registry path: {}".format(SPEC.DISCOVERY.REGISTRY))
 # print("Max port: {}".format(VALIDATION.MAX_PORT))
 # print("Istio enabled: {}".format(FEATURES.ISTIO_INTEGRATION))
