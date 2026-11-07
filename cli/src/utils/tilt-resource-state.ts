@@ -53,3 +53,16 @@ export function effectiveRuntimeStatus(status?: {
   if (health === "starting") return "pending";
   return runtimeStatus;
 }
+
+/**
+ * A resource running but failing its health check: runtimeStatus is "ok" (container is up) but healthStatus is
+ * "unhealthy" (Docker health check failing). This may recover, so we show it as "starting" rather than "failed".
+ */
+export function isUnhealthyButRunning(status?: {
+  runtimeStatus?: string;
+  composeResourceInfo?: { healthStatus?: string };
+}): boolean {
+  return (
+    status?.runtimeStatus === "ok" && status?.composeResourceInfo?.healthStatus === "unhealthy"
+  );
+}
