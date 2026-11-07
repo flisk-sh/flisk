@@ -104,6 +104,22 @@ def backend_rule(traefik_host, traefik_path):
     return " || ".join(parts)
 
 
+def backend_rule_priority(traefik_host, traefik_path):
+    """Explicit priority for the stack router: the length its rule had before #3197.
+
+    The stack router sets no priority of its own, so Traefik ranked it by rule length. The segment-boundary matcher makes the
+    rule ~40 characters longer, enough to outrank routers it used to lose to (a frontend at `/` is priority 101; the default
+    `orders` stack rule went from 80 to 120). Pinning the old length keeps every precedence decision as it was; only the
+    matching is narrower.
+    """
+    parts = []
+    if TRAEFIK_ENABLE_BACKEND_HOST_RULE and traefik_host:
+        parts.append("Host(`{host}`)".format(host=traefik_host))
+    if TRAEFIK_ENABLE_BACKEND_PATH_RULE and traefik_path:
+        parts.append("PathPrefix(`{path}`)".format(path=traefik_path))
+    return len(" || ".join(parts))
+
+
 def _pluralize_stack(stack):
     """Convert stack to proper plural form.
 

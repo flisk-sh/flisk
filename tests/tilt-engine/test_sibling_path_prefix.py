@@ -222,3 +222,56 @@ r = {'labels': l}
     assert route(labels, API_HOST, "/api/voters") is None
     assert route(labels, "localhost", "/api/v1/voters") is None
     assert route(labels, API_HOST, "/api/vote/") == ("testproj-vote", "/")
+
+
+@pytest.mark.generator
+@needs_tilt
+def test_stack_router_keeps_its_pre_3197_priority(tmp_path):
+    """The longer segment-boundary rule must not outrank routers the stack router used to lose to.
+
+    Traefik ranks a router with no priority by rule length. The default `orders` stack rule grew from 80 to 120 characters,
+    past a frontend mounted at `/` (priority 100 + len("/") = 101), so the app host would have started sending
+    /api/v1/orders-management to the backend. The stack router now carries the length its rule had before.
+    """
+    body = """
+load('@NETWORKING/traefik.star', 'get_backend_traefik_labels')
+l = get_backend_traefik_labels('orders', 'orders.backend.testproj.local', '/api/v1/orders-management', 'orders', 4000,
+                               '/health', manifest={'appType': 'backend', 'stack': 'orders', 'port': 4000})
+r = {'labels': l}
+"""
+    labels = run_traefik_labels(tmp_path, "testproj", body)
+    legacy_rule = "Host(`orders.backend.testproj.local`) || PathPrefix(`/api/v1/orders-management`)"
+    assert labels["traefik.http.routers.testproj-orders.priority"] == str(len(legacy_rule))
+
+    # A frontend at `/` on the app host, as frontend_rule emits it.
+    labels["traefik.http.routers.testproj-web.rule"] = "(Host(`app.testproj.localhost`) && PathPrefix(`/`))"
+    labels["traefik.http.routers.testproj-web.priority"] = "101"
+    labels["traefik.http.routers.testproj-web.service"] = "testproj-web"
+    assert route(labels, "app.testproj.localhost", "/api/v1/orders-management/x") == (
+        "testproj-web",
+        "/api/v1/orders-management/x",
+    )
+    # The stack host still reaches the backend.
+    assert route(labels, "orders.backend.testproj.local", "/anything") == ("testproj-orders", "/anything")
+
+
+@pytest.mark.generator
+@needs_tilt
+def test_service_named_like_a_management_alias_wins_the_tie(tmp_path):
+    """`/api/orders-management` is both the `orders-management` service's own path and the `orders` stack's alias.
+
+    Both routers used to get the same priority, so Traefik picked one arbitrarily. The service with that exact name wins.
+    """
+    body = """
+load('@NETWORKING/traefik.star', 'get_backend_traefik_labels')
+l = ''
+for name, stack in [('orders', 'orders'), ('orders-management', 'billing')]:
+    l += get_backend_traefik_labels(name, stack + '.backend.testproj.local', '/api/v1/' + stack, name, 4000, '/health',
+                                    manifest={'appType': 'backend', 'stack': stack, 'port': 4000})
+r = {'labels': l}
+"""
+    labels = run_traefik_labels(tmp_path, "testproj", body)
+    assert route(labels, API_HOST, "/api/orders-management") == ("testproj-orders-management", "/")
+    assert route(labels, API_HOST, "/api/orders-management/items") == ("testproj-orders-management", "/items")
+    assert route(labels, API_HOST, "/api/orders/items") == ("testproj-orders", "/items")
+    assert route(labels, API_HOST, "/api/billing-management/items") == ("testproj-orders-management", "/items")

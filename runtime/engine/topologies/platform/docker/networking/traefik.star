@@ -28,6 +28,7 @@ load(
 )
 load("./traefik_helpers.star",
     "backend_rule",
+    "backend_rule_priority",
     "byo_ui_host",
     "byo_web_ui",
     "build_entrypoints",
@@ -288,6 +289,7 @@ def get_backend_traefik_labels(
         )
 
     backend_route_rule = backend_rule(traefik_host, traefik_path)
+    backend_route_priority = backend_rule_priority(traefik_host, traefik_path)
     backend_entrypoints = build_entrypoints(
         TRAEFIK_BACKEND_ENABLE_HTTP,
         TRAEFIK_BACKEND_ENABLE_HTTPS,
@@ -326,6 +328,7 @@ def get_backend_traefik_labels(
         # -project router points at the service). A manifest that set its own host or pathPrefix keeps a router, but one whose
         # rule is only what it set, never the shared stack host or path.
         backend_route_rule = backend_rule(explicit_host, explicit_path)
+        backend_route_priority = backend_rule_priority(explicit_host, explicit_path)
 
     if stack_shared and not backend_route_rule:
         backend_router_labels = ""
@@ -333,10 +336,12 @@ def get_backend_traefik_labels(
         backend_router_labels = """      - "traefik.http.routers.{router_name}.rule={backend_route_rule}"
       - "traefik.http.routers.{router_name}.entrypoints={backend_entrypoints}"
       - "traefik.http.routers.{router_name}.service={service_name}"
+      - "traefik.http.routers.{router_name}.priority={backend_route_priority}"
 {middleware_config}
 """.format(
             router_name=router_name,
             backend_route_rule=backend_route_rule,
+            backend_route_priority=backend_route_priority,
             backend_entrypoints=backend_entrypoints,
             service_name=service_name,
             middleware_config=middleware_config,
@@ -432,7 +437,11 @@ def get_backend_traefik_labels(
                 project_entrypoints=project_entrypoints,
                 middleware_name=middleware_name,
                 sablier_middleware=sablier_middleware,
-                mgmt_priority=TRAEFIK_FRONTEND_PRIORITY_BASE + len(management_path),
+                # One below the path-length priority, so on an exact tie (a backend named `orders-management` and the
+                # `orders` stack's management alias, both /api/orders-management) the -project router of the service
+                # with that name wins. Segment-boundary matching (#3197) means two different paths only overlap when one
+                # is an ancestor of the other, so they differ by at least 2 characters and no other ordering changes.
+                mgmt_priority=TRAEFIK_FRONTEND_PRIORITY_BASE + len(management_path) - 1,
             )
 
         if old_path_pattern:
