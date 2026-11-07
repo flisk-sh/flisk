@@ -499,7 +499,7 @@ To bring an existing Compose repo in, `flisk import` runs [flisk-import](https:/
 
 <div align="center">
 
-**[⬆️ Back to Top](#-flisk-your-whole-app-running-on-your-computer-with-one-command)**
+**[⬆️ Back to Top](#-flisk-local-development-for-multi-service-apps-started-with-one-command)**
 
 Made with 💚 for developers who ship
 

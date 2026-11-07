@@ -214,7 +214,15 @@ export const DATABASE_FRAMEWORK = "postgres";
 export const QUEUE_RESOURCE_TYPE = "queue";
 
 /** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
-export const DATABASE_INFRA_FRAMEWORKS = ["redis", "qdrant", "minio", "mlflow"] as const;
+export const DATABASE_INFRA_FRAMEWORKS = [
+  "redis",
+  "qdrant",
+  "minio",
+  "mlflow",
+  "mysql",
+  "mongodb",
+  "clickhouse",
+] as const;
 
 /** `--type queue --framework <id>`. */
 export const QUEUE_FRAMEWORKS = ["nats", "rabbitmq"] as const;

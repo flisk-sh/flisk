@@ -4,6 +4,10 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- New database frameworks: `flisk resource <name> --type database --framework mysql|mongodb|clickhouse` run MySQL 8.4, MongoDB 8.0 and ClickHouse as containers of their own (pinned image, readiness probe, a data volume `flisk down` keeps) and give the services that list them in `dependsOn` `MYSQL_URL`, `MONGODB_URL` or `CLICKHOUSE_URL`. They sit beside postgres (the shared Flisk Postgres), redis, qdrant, minio and mlflow.
+
+- `flisk resource --type database --frameworks` and `--type queue --frameworks` (and `--json`) list the infrastructure frameworks: postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow, and nats (default), rabbitmq. They used to fail with "No frameworks are registered". `flisk resource <name> --type database|queue` on a terminal now asks which framework.
+
 ## 1.4.34 (2026-11-04)
 
 - `flisk up <git-url>` (#3188): a git URL in place of the stack name is shallow-cloned into `./<repo name>` and started from there; an existing checkout in that folder is reused.

@@ -176,6 +176,18 @@ type ExistingServiceConfig = {
  * @throws FliskError When the content is not valid JSON.
  */
 export declare function parseExistingServiceJson(content: string, configPath: string): ExistingServiceConfig;
+/**
+ * The frameworks `--type database` and `--type queue` accept, in the order the help lists them. The database default is
+ * the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image, and a queue
+ * without `--framework` is NATS.
+ */
+export declare function infraFrameworkListing(type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE): {
+    id: string;
+    label: string;
+    image: string | null;
+    default: boolean;
+    command: string;
+}[];
 /** What `flisk resource --frameworks --json` reports: the same inventory the text listing prints. */
 export declare function frameworkInventoryReport(options: {
     type?: string;

@@ -29,7 +29,15 @@ export const DATABASE_FRAMEWORK = "postgres";
 /** `--type queue`: a message queue or broker, run as its own container (utils/infra-presets.ts). */
 export const QUEUE_RESOURCE_TYPE = "queue";
 /** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
-export const DATABASE_INFRA_FRAMEWORKS = ["redis", "qdrant", "minio", "mlflow"];
+export const DATABASE_INFRA_FRAMEWORKS = [
+    "redis",
+    "qdrant",
+    "minio",
+    "mlflow",
+    "mysql",
+    "mongodb",
+    "clickhouse",
+];
 /** `--type queue --framework <id>`. */
 export const QUEUE_FRAMEWORKS = ["nats", "rabbitmq"];
 /** The queue `--type queue` runs when no `--framework` is given. */

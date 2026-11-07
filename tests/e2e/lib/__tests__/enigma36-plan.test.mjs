@@ -3,7 +3,7 @@
 // Unit tests for tests/e2e/scale/enigma36/plan.mjs: the seeded draw and its diagonal board. Run by `make test-shell`.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { COUNT, KINDS, STACKS, checkPlan, drawPlan } from "../../scale/enigma36/plan.mjs";
+import { COUNT, KINDS, STACKS, checkPlan, drawPlan, infraFrameworks } from "../../scale/enigma36/plan.mjs";
 
 test("the same seed draws the same plan", () => {
   assert.deepEqual(drawPlan(1936), drawPlan(1936));
@@ -36,10 +36,10 @@ test("the diagonal board rejects contradictory plans", () => {
     ...plan,
     entries: plan.entries.map((e, i) => (i < 2 ? { ...e, kind: "database", variant: "postgres", name: `db-${i}` } : e)),
   };
-  assert.ok(checkPlan(twoDatabases).some((p) => p.includes("database resources")));
+  assert.ok(checkPlan(twoDatabases).some((p) => p.includes("postgres database resources")));
   const orphanAgent = {
     ...plan,
-    entries: plan.entries.map((e) => (e.kind === "database" ? { ...e, kind: "agent", variant: "agent-postgres" } : e)),
+    entries: plan.entries.map((e) => (e.variant === "postgres" ? { ...e, kind: "agent", variant: "agent-postgres" } : e)),
   };
   assert.ok(checkPlan(orphanAgent).includes("an agent-postgres without a database resource"));
   assert.ok(checkPlan({ entries: plan.entries.slice(1) }).some((p) => p.startsWith("plan has 35")));
@@ -48,7 +48,7 @@ test("the diagonal board rejects contradictory plans", () => {
 test("a Postgres-checkpointed agent shares the database's stack", () => {
   // The database resource provisions <project>_<stack>; an agent on another stack never answers /ready (nightly 42002912060).
   const plan = drawPlan(2145695131);
-  const db = plan.entries.find((e) => e.kind === "database");
+  const db = plan.entries.find((e) => e.variant === "postgres");
   const agents = plan.entries.filter((e) => e.variant === "agent-postgres");
   assert.ok(agents.length > 0);
   for (const a of agents) assert.equal(a.stack, db.stack);
@@ -63,4 +63,28 @@ test("a smaller count still draws a sound plan", () => {
   const plan = drawPlan(42, { count: 12 });
   assert.equal(plan.entries.length, 12);
   assert.deepEqual(checkPlan(plan, 12), []);
+});
+
+test("every plan holds the Postgres and every other infrastructure framework, not one database", () => {
+  const frameworks = infraFrameworks();
+  assert.ok(frameworks.includes("minio") && frameworks.includes("redis"), frameworks.join(","));
+  for (let seed = 0; seed < 50; seed++) {
+    const variants = drawPlan(seed).entries.map((e) => e.variant);
+    for (const f of ["postgres", ...frameworks]) assert.equal(variants.filter((v) => v === f).length, 1, `seed ${seed} ${f}`);
+  }
+});
+
+test("an infrastructure framework is reported as bring-your-own, the shared Postgres as database", () => {
+  const byVariant = Object.fromEntries(drawPlan(9).entries.map((e) => [e.variant, e.type]));
+  assert.equal(byVariant.postgres, "database");
+  assert.equal(byVariant.minio, "bring-your-own");
+  assert.equal(byVariant.nats, "bring-your-own");
+});
+
+test("include forces the asked variants into the plan and rejects unknown ones", () => {
+  const plan = drawPlan(11, { include: ["go", "rust", "redis"] });
+  const variants = plan.entries.map((e) => e.variant);
+  for (const v of ["go", "rust", "redis"]) assert.ok(variants.includes(v), v);
+  assert.throws(() => drawPlan(11, { include: ["mongo"] }), /unknown variant "mongo"/);
+  assert.throws(() => drawPlan(11, { count: 9, include: ["redis"] }), /too small/);
 });

@@ -76,6 +76,47 @@ export const INFRA_PRESETS = {
         uiPorts: [5000],
         provides: { MLFLOW_TRACKING_URI: "http://{name}:5000" },
     },
+    mysql: {
+        type: DATABASE_RESOURCE_TYPE,
+        description: "MySQL database",
+        image: "mysql:8.4",
+        port: 3306,
+        // The probe logs in with the development password below, so a server that is up but not yet initialised is not ready.
+        healthCheck: { command: ["mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pflisk"] },
+        dataPath: "/var/lib/mysql",
+        memory: "1g",
+        // Development-only credentials; the server is reachable on the stack's Docker network only.
+        params: { MYSQL_ROOT_PASSWORD: "flisk", MYSQL_DATABASE: "app" },
+        provides: { MYSQL_URL: "mysql://root:flisk@{name}:3306/app" },
+    },
+    mongodb: {
+        type: DATABASE_RESOURCE_TYPE,
+        description: "MongoDB document database",
+        image: "mongo:8.0",
+        port: 27017,
+        healthCheck: { command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"] },
+        dataPath: "/data/db",
+        memory: "1g",
+        // No authentication: the server is reachable on the stack's Docker network only.
+        provides: { MONGODB_URL: "mongodb://{name}:27017" },
+    },
+    clickhouse: {
+        type: DATABASE_RESOURCE_TYPE,
+        description: "ClickHouse analytics database",
+        image: "clickhouse/clickhouse-server:25.8-alpine",
+        port: 8123,
+        healthCheck: { port: 8123 },
+        dataPath: "/var/lib/clickhouse",
+        // The HTTP interface and its /play page share port 8123.
+        uiPorts: [8123],
+        params: { CLICKHOUSE_DB: "app", CLICKHOUSE_USER: "default", CLICKHOUSE_PASSWORD: "flisk" },
+        provides: {
+            CLICKHOUSE_URL: "http://{name}:8123",
+            CLICKHOUSE_USER: "default",
+            CLICKHOUSE_PASSWORD: "flisk",
+            CLICKHOUSE_DB: "app",
+        },
+    },
     nats: {
         type: QUEUE_RESOURCE_TYPE,
         description: "NATS message queue with JetStream",

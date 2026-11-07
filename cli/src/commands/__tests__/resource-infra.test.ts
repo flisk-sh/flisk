@@ -117,6 +117,33 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
     expect(existsSync(join(tempDir, "services", "hqc", "cache", "Dockerfile"))).toBe(false);
   });
 
+  it.each([
+    ["mysql", "mysql:8.4", 3306, "/var/lib/mysql", { MYSQL_URL: "mysql://root:flisk@db:3306/app" }],
+    ["mongodb", "mongo:8.0", 27017, "/data/db", { MONGODB_URL: "mongodb://db:27017" }],
+    [
+      "clickhouse",
+      "clickhouse/clickhouse-server:25.8-alpine",
+      8123,
+      "/var/lib/clickhouse",
+      undefined,
+    ],
+  ])(
+    "writes a %s with its pinned image, port, data volume and connection settings",
+    async (framework, image, port, dataPath, provides) => {
+      const service = await create("db", "database", framework);
+      expect(service).toMatchObject({
+        appType: "bring-your-own",
+        framework,
+        image,
+        port,
+        exposeViaProxy: false,
+        volumes: [{ source: "db-data", target: dataPath }],
+      });
+      if (provides) expect(service.provides).toMatchObject(provides);
+      expect(service.healthCheck).toBeDefined();
+    },
+  );
+
   it("keeps --type database on its own the shared Postgres", async () => {
     const service = await create("db", "database");
     expect(service).toMatchObject({ appType: "database", framework: "postgres" });
@@ -242,7 +269,7 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
 
   it("refuses a framework of the other type, naming the one that offers it", () => {
     expect(() => assertInfraFramework("database", "rabbitmq")).toThrow(
-      "--framework rabbitmq is not a database Flisk can run. Use one of: postgres, redis, qdrant, minio, mlflow.",
+      "--framework rabbitmq is not a database Flisk can run. Use one of: postgres, redis, qdrant, minio, mlflow, mysql, mongodb, clickhouse.",
     );
     expect(() => assertInfraFramework("queue", "redis")).toThrow(
       "--framework redis is not a queue Flisk can run. Use one of: nats, rabbitmq.",
