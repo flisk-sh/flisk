@@ -41,7 +41,7 @@ test("flags test files in every shape the package used to ship", () => {
 });
 
 test("does not mistake spec.master templates for spec files", () => {
-  assert.deepEqual(findTestFiles(["cli/templates/spec.master.hbs", "runtime/engine/spec.master.example"]), []);
+  assert.deepEqual(findTestFiles(["cli/templates/spec.master.hbs", "runtime/engine/docs/spec.master.example"]), []);
 });
 
 test("keeps shipped runtime and CLI files", () => {

@@ -26,15 +26,18 @@
 # 📖 HOW TO USE THIS FILE
 # =============================================================================
 
-# In your Tiltfile or topology module, load this spec:
+# The generated Tiltfile in .flisk/.flisk-out/ loads the generated spec.master from the same
+# folder. A module in another folder needs a path to that file, not the bare name:
 #
-#     load(PROJECT_ROOT + "/.tilt-engine/spec.master", "SPEC", "CONSTANTS", "VALIDATION", "DEBUG")
+#     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")
 #
-# Then use the constants:
+# Then use the names you loaded:
 #
-#     registry_path = SPEC.DISCOVERY.REGISTRY
-#     max_port = VALIDATION.MAX_PORT
-#     timeout = CONSTANTS.DEFAULT_TIMEOUT
+#     enabled_resources = RESOURCE_DEFAULTS
+#     startup_resources = PRE_ALPHA_RESOURCES
+#
+# (SPEC, VALIDATION and CONSTANTS below describe this reference file; the generated
+# spec.master does not export them.)
 #
 # That's it! No magic paths. Everything is explicit.
 
@@ -306,23 +309,6 @@
 # - "CONSTANTS" → Timeouts, defaults
 #
 # Search for what you need, then close the file!
-
-# =============================================================================
-# 📛 FILE ALIASES (Easier Names)
-# =============================================================================
-
-# Can't remember "spec.master"? Use these aliases:
-#
-#     .tilt/paths.star → Same file, easier name!
-#     .tilt/where-things-live.star → Same file, fun name!
-#
-# So you can do:
-#     load(PROJECT_ROOT + "/.tilt/paths.star", "SPEC")
-#
-# Instead of:
-#     load(PROJECT_ROOT + "/.tilt-engine/spec.master", "SPEC")
-#
-# Both work! Use whichever you remember. 😊
 
 # =============================================================================
 # 🗓️  FEATURE FLAGS (What's Working vs Planned)
