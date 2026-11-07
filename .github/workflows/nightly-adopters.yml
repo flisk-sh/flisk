@@ -60,9 +60,11 @@ jobs:
             docker_model_plugin: true
             # Small models (a few hundred MB): the job checks that Flisk imports and starts the stack. It does not call the
             # model endpoint (AI_BASE_URL below names Model Runner's port, 12434), so no host-gateway mapping is added.
+            # ai/all-minilm does not exist on Docker Hub (the cause of every red Nosia night); the embedding model is the
+            # small default Nosia's install.sh picks, with its 768 dimensions and 512/128 chunking.
             # Pulled before `flisk up`: Compose pulls a service's models inside `docker compose up`, where a slow or failed pull
             # fails the `web` resource with no output in the job log.
-            models: "ai/smollm2 ai/all-minilm"
+            models: "ai/smollm2 ai/granite-embedding-multilingual:278M-F16"
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
@@ -82,8 +84,8 @@ jobs:
               LLM_MAX_TOKENS=1024
               LLM_TOP_K=40
               LLM_TOP_P=0.9
-              EMBEDDING_MODEL=ai/all-minilm
-              EMBEDDING_DIMENSIONS=384
+              EMBEDDING_MODEL=ai/granite-embedding-multilingual:278M-F16
+              EMBEDDING_DIMENSIONS=768
               CHUNK_SIZE=512
               CHUNK_OVERLAP=128
               RETRIEVAL_FETCH_K=3
@@ -221,10 +223,11 @@ jobs:
           name: adopter-${{ matrix.repo }}
           sources: adopter
 
+      # No working-directory: a failure before the adopter checkout leaves no adopter/ and the step would fail to start.
       - name: Diagnostics on Failure
         if: failure() || cancelled()
-        working-directory: adopter
         run: |
+          cd adopter 2>/dev/null || { echo "adopter repository was not checked out"; exit 0; }
           echo "::group::Containers status"
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
@@ -243,8 +246,9 @@ jobs:
 
       - name: Flisk Down & Cleanup
         if: always()
-        working-directory: adopter
         run: |
+          cd adopter 2>/dev/null || exit 0
+          command -v flisk >/dev/null || exit 0
           flisk down --prune-networks --yes || true
 
   # One issue per failing adopter, a comment on each further failing night, and a close once it passes (nightly-adopter-issues.mjs).
