@@ -297,12 +297,90 @@ def write_text(path, content):
         echo_off = True,
     )
 
+# Linux refuses any single argument over 128 KiB (MAX_ARG_STRLEN), and a project of hundreds of resources generates a compose
+# file bigger than that. Content goes to the shell in pieces of at most this many bytes (Starlark's len() counts UTF-8 bytes),
+# cut at line ends. A line longer than that is cut between characters, never inside one.
+WRITE_PIECE_BYTES = 32768
+
+def _split_long_line(text):
+    parts = []
+    chars = []
+    size = 0
+    for c in text.codepoints():
+        if size + len(c) > WRITE_PIECE_BYTES:
+            parts.append("".join(chars))
+            chars = []
+            size = 0
+        chars.append(c)
+        size += len(c)
+    parts.append("".join(chars))
+    return parts
+
+def _write_pieces(content):
+    lines = content.split("\n")
+    pieces = []
+    current = ""
+    for i, line in enumerate(lines):
+        text = line + ("\n" if i < len(lines) - 1 else "")
+        if len(text) > WRITE_PIECE_BYTES:
+            if current:
+                pieces.append(current)
+                current = ""
+            pieces.extend(_split_long_line(text))
+            continue
+        if current and len(current) + len(text) > WRITE_PIECE_BYTES:
+            pieces.append(current)
+            current = ""
+        current += text
+    if current or not pieces:
+        pieces.append(current)
+    return pieces
+
 def write_text_exact(dir_path, file_path, content):
-    """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM."""
+    """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM.
+
+    Every write builds the content in a temporary file beside file_path (created exclusively by mktemp, or named by a GUID
+    on Windows) and renames it over file_path once the content is complete, so a reader or a second Tilt writing the same
+    file never sees half of it, and a failed write leaves file_path as it was. Content that fits one piece does all of that
+    in one command; larger content creates the file with the first piece, appends the rest, then renames.
+    """
+    pieces = _write_pieces(content)
+    single = len(pieces) == 1
+    # mktemp creates the file 0600; give it the mode a plain `>` would (0666 minus the umask). A failed write removes it.
+    sh_create = (
+        'mkdir -p "$1" && t=$(mktemp "$3.flisk-tmp.XXXXXX") && ' +
+        '{ chmod "$(printf %o $((0666 & ~$(umask))))" "$t" && printf "%s" "$2" > "$t" && ' +
+        ('mv -f "$t" "$3"' if single else 'printf "%s" "$t"') +
+        ' || { rm -f "$t"; exit 1; }; }'
+    )
+    bat_create = (
+        "New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; " +
+        "$t = $env:FLISK_PATH + '.flisk-tmp.' + [guid]::NewGuid().ToString('N'); " +
+        "[IO.File]::WriteAllText($t, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false))); " +
+        ("Move-Item -Force -LiteralPath $t -Destination $env:FLISK_PATH" if single else "Write-Output $t")
+    )
+    created = str(local(
+        ["sh", "-c", sh_create, "sh", dir_path, pieces[0], file_path],
+        command_bat = _PS + [bat_create],
+        env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": pieces[0]},
+        quiet = True,
+        echo_off = True,
+    ))
+    if single:
+        return
+    tmp_path = created.strip()
+    for piece in pieces[1:]:
+        local(
+            ["sh", "-c", 'printf "%s" "$2" >> "$1"', "sh", tmp_path, piece],
+            command_bat = _PS + ["[IO.File]::AppendAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
+            env = {"FLISK_PATH": tmp_path, "FLISK_CONTENT": piece},
+            quiet = True,
+            echo_off = True,
+        )
     local(
-        ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dir_path, content, file_path],
-        command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; [IO.File]::WriteAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
-        env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": content},
+        ["mv", "-f", tmp_path, file_path],
+        command_bat = _PS + ["Move-Item -Force -LiteralPath $env:FLISK_TMP -Destination $env:FLISK_PATH"],
+        env = {"FLISK_TMP": tmp_path, "FLISK_PATH": file_path},
         quiet = True,
         echo_off = True,
     )

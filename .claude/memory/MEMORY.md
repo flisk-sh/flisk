@@ -3,6 +3,7 @@
 Hard-won, repo-specific facts for anyone (human or agent) working here. Keep entries short, dated, and about things the code cannot tell you. Add one line when a small PR or task teaches you a trap; delete lines that stop being true.
 
 ## Verify before you push
+- 2026-11-07 (enigma36 nightly K5): Tilt's `local()` passes each argument to `sh` and Linux refuses one over 128 KiB, so `write_text_exact` failed with `argument list too long` on a 300-resource compose file. macOS takes 1 MB, so it passes locally; reproduce on Linux with `docker run python:3.12-slim` and the Tilt tarball for the container's `uname -m` (arm64 on Apple Silicon, x86_64 elsewhere), and keep the test's content over 128 KiB.
 - 2026-10-29 (#2267): On native Windows, run `npm --prefix cli --script-shell="C:/Program Files/Git/bin/bash.exe" run check:dist`; npm's default `cmd.exe` cannot execute `../scripts/check-cli-dist.sh`. The checker also reports staged dist changes as stale, so rerun it after the local commit.
 - Lint and typecheck from `cli/` by exit code, not by `| tail`: `./node_modules/.bin/biome check . ; echo $?` and `./node_modules/.bin/tsc --noEmit ; echo $?`. `npx biome` runs an unrelated v0.3.3 package that exits 0 without checking.
 - Run `npm run build` before vitest when `src/` changed: the e2e tests spawn `cli/bin/flisk.js`, which imports `dist/`.
