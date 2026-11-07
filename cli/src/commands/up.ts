@@ -131,6 +131,7 @@ import {
   formatStartupReport,
   isStartupStalled,
   machineProblemFixes,
+  withLoggedReasons,
 } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
@@ -1397,10 +1398,13 @@ export const upCommand = new Command("up")
             }
           } else {
             startupFailed = true;
-            const fixes = await machineProblemFixes(readiness.failures, (name) =>
+            const failures = await withLoggedReasons(readiness.failures, (name) =>
               tiltResourceLogs(port, name),
             );
-            const detail = readiness.failures
+            const fixes = await machineProblemFixes(failures, (name) =>
+              tiltResourceLogs(port, name),
+            );
+            const detail = failures
               .map((f) => {
                 const fix = fixes.get(f.name);
                 return `${f.name}: ${f.message}${fix ? `. ${fix}` : ""}`;
@@ -1410,7 +1414,7 @@ export const upCommand = new Command("up")
               readiness.stillBuilding && readiness.stillBuilding.length > 0
                 ? ` (${readiness.stillBuilding.join(", ")} still building)`
                 : "";
-            emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures: readiness.failures }, [
+            emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures }, [
               {
                 code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
                 message: `${readiness.timedOut ? `Timed out waiting for resources${stillBuildingMsg}` : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
@@ -1472,6 +1476,9 @@ export const upCommand = new Command("up")
             if (readiness.stillBuilding && readiness.stillBuilding.length > 0) {
               report.stillBuilding = readiness.stillBuilding;
             }
+            report.failed = await withLoggedReasons(report.failed, (name) =>
+              tiltResourceLogs(port, name),
+            );
             const machineFixes = await machineProblemFixes(report.failed, (name) =>
               tiltResourceLogs(port, name),
             );

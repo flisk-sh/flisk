@@ -60,6 +60,65 @@ describe("classifyUpProgress", () => {
     });
   });
 
+  // #3210: a slow first start must read as starting; failed is kept for a container that stopped or a build that broke.
+  it("tells a slow start from an unhealthy one and from an exited one", () => {
+    const services = classifyUpProgress(
+      json(
+        item("pulling", "in_progress", "pending"),
+        item("in-start-period", "ok", "ok", { composeResourceInfo: { healthStatus: "starting" } }),
+        item("unhealthy-running", "ok", "ok", {
+          composeResourceInfo: { healthStatus: "unhealthy" },
+        }),
+        item("exited", "ok", "error", { composeResourceInfo: { healthStatus: "unhealthy" } }),
+        item("gate", "error", "not_applicable", {
+          buildHistory: [
+            {
+              error:
+                "ERROR: db is unhealthy: its health check still failed 120s after it first failed",
+            },
+          ],
+        }),
+      ),
+      new Set(),
+    );
+    expect(Object.fromEntries(services.map((s) => [s.name, [s.state, s.reason]]))).toEqual({
+      pulling: ["building", undefined],
+      "in-start-period": ["starting", undefined],
+      "unhealthy-running": ["starting", undefined],
+      exited: ["failed", "it stopped running"],
+      gate: [
+        "failed",
+        "ERROR: db is unhealthy: its health check still failed 120s after it first failed",
+      ],
+    });
+  });
+
+  it("never reports a slow-starting database as failed while it recovers", () => {
+    const { progress, text } = reporter(false);
+    const db = (healthStatus: string) =>
+      item("db", "ok", "ok", { composeResourceInfo: { healthStatus } });
+    progress.update(json(db("starting")));
+    progress.update(json(db("unhealthy")));
+    progress.update(json(db("unhealthy")));
+    progress.update(json(db("healthy")));
+    expect(text()).toBe("db: starting (0/1 ready)\ndb: ready (1/1 ready)\n");
+    expect(text()).not.toContain("failed");
+  });
+
+  it("gives the reason of a failure from Tilt's build error", () => {
+    const { progress, text } = reporter(false);
+    progress.update(
+      json(
+        item("api", "error", "none", {
+          buildHistory: [{ error: "Bind for 0.0.0.0:5432 failed: port is already allocated" }],
+        }),
+      ),
+    );
+    expect(text()).toBe(
+      "✗ api failed: host port 5432 is already allocated. See its logs: flisk logs -s api (0/1 ready)\n",
+    );
+  });
+
   it("leaves out what readiness does not gate on", () => {
     const services = classifyUpProgress(
       json(
@@ -154,7 +213,9 @@ describe("createUpProgressReporter", () => {
     const { progress, text } = reporter(false);
     progress.update(json(item("api", "in_progress", "pending"), item("db", "ok", "ok")));
     progress.update(json(item("api", "error", "none"), item("db", "ok", "ok")));
-    expect(text()).toContain("✗ api failed. See its logs: flisk logs -s api (1/2 ready)\n");
+    expect(text()).toContain(
+      "✗ api failed: its build failed. See its logs: flisk logs -s api (1/2 ready)\n",
+    );
   });
 
   it("redraws one line in place on a terminal and prints a failure on its own line", () => {
@@ -164,7 +225,7 @@ describe("createUpProgressReporter", () => {
     progress.finish();
     expect(text()).toBe(
       "\r\x1b[2K⏳ 1/2 ready · building: api" +
-        "\r\x1b[2K✗ api failed. See its logs: flisk logs -s api\n" +
+        "\r\x1b[2K✗ api failed: its build failed. See its logs: flisk logs -s api\n" +
         "\r\x1b[2K⏳ 1/2 ready · failed: api" +
         "\r\x1b[2K",
     );

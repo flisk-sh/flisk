@@ -66,6 +66,44 @@ export async function machineProblemFixes(
   return fixes;
 }
 
+// What Tilt reports for a local_resource whose command exited non-zero: no reason at all.
+const BARE_EXIT_STATUS = /^(?:Command failed: )?exit status \d+$/i;
+
+/**
+ * Failures whose message is only an exit status, given the reason their command logged instead. The health gates
+ * (`postgres-healthy`, `<svc>-healthy`, `<job>-done`) print the cause as their last `ERROR: ...` line, such as a container
+ * that exited or a health check that kept failing past its recovery window, so `flisk up` shows that rather than
+ * "exit status 1" (#3210). Other failures, and those whose log names no error, are returned unchanged.
+ */
+export async function withLoggedReasons<T extends { name: string; message: string }>(
+  failures: T[],
+  fetchLogs: (name: string) => Promise<string | null>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (const [index, failure] of failures.entries()) {
+    if (index >= 5 || !BARE_EXIT_STATUS.test(failure.message.trim())) {
+      out.push(failure);
+      continue;
+    }
+    const reason = loggedErrorLine((await fetchLogs(failure.name)) ?? "");
+    out.push(reason ? { ...failure, message: reason } : failure);
+  }
+  return out;
+}
+
+/**
+ * The last `ERROR: ...` line of a resource log, without that prefix, or null. Tilt may put the resource name and a
+ * separator before each line, so the marker can come after other text.
+ */
+export function loggedErrorLine(log: string): string | null {
+  let reason: string | null = null;
+  for (const line of log.split("\n")) {
+    const match = line.trimEnd().match(/(?:^|\s)ERROR: (\S.*)$/);
+    if (match) reason = match[1] as string;
+  }
+  return reason;
+}
+
 /** A plain fix for a failure message that names a known machine problem, or null. */
 export function machineProblemFix(message: string): string | null {
   if (NETWORK_POOL_EXHAUSTED.test(message)) {

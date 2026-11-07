@@ -28,6 +28,21 @@ export declare function machineProblemFixes(failures: Array<{
     name: string;
     message: string;
 }>, fetchLogs: (name: string) => Promise<string | null>): Promise<Map<string, string>>;
+/**
+ * Failures whose message is only an exit status, given the reason their command logged instead. The health gates
+ * (`postgres-healthy`, `<svc>-healthy`, `<job>-done`) print the cause as their last `ERROR: ...` line, such as a container
+ * that exited or a health check that kept failing past its recovery window, so `flisk up` shows that rather than
+ * "exit status 1" (#3210). Other failures, and those whose log names no error, are returned unchanged.
+ */
+export declare function withLoggedReasons<T extends {
+    name: string;
+    message: string;
+}>(failures: T[], fetchLogs: (name: string) => Promise<string | null>): Promise<T[]>;
+/**
+ * The last `ERROR: ...` line of a resource log, without that prefix, or null. Tilt may put the resource name and a
+ * separator before each line, so the marker can come after other text.
+ */
+export declare function loggedErrorLine(log: string): string | null;
 /** A plain fix for a failure message that names a known machine problem, or null. */
 export declare function machineProblemFix(message: string): string | null;
 export declare function transitiveDependencies(name: string, dependsOn: Record<string, string[]>): Set<string>;

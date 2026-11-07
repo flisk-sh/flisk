@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { summarizeTiltBuildError } from "./doctor-runtime.js";
 import { effectiveRuntimeStatus, isUnhealthyButRunning } from "./tilt-resource-state.js";
 import { isAdvisoryResource } from "./up-readiness.js";
 
@@ -10,6 +11,8 @@ export interface ServiceProgress {
   state: ServiceProgressState;
   /** Milliseconds the service has been building, if in the building state. */
   buildingDurationMs?: number;
+  /** Why a `failed` service failed, in a few words. */
+  reason?: string;
 }
 
 interface TiltProgressItem {
@@ -20,7 +23,18 @@ interface TiltProgressItem {
     runtimeStatus?: string;
     composeResourceInfo?: { healthStatus?: string };
     currentBuild?: { startTime?: string };
+    buildHistory?: Array<{ error?: string }>;
   };
+}
+
+/**
+ * Why a service failed, for the line `flisk up` prints the moment it does. Only real failures reach this: a build or a
+ * gate that errored, or a container that stopped. A container that runs but fails its health check is still starting.
+ */
+function failureReason(item: TiltProgressItem, buildFailed: boolean): string {
+  const error = (item.status?.buildHistory?.[0]?.error ?? "").trim();
+  if (error) return summarizeTiltBuildError(error);
+  return buildFailed ? "its build failed" : "it stopped running";
 }
 
 /**
@@ -39,14 +53,19 @@ export function classifyUpProgress(jsonText: string, deferred: Set<string>): Ser
     const update = rawUpdate === "not_applicable" ? "ok" : rawUpdate;
     const runtime = effectiveRuntimeStatus(item.status);
     let state: ServiceProgressState;
-    if (update === "error") state = "failed";
-    else if (runtime === "error") {
+    let reason: string | undefined;
+    if (update === "error") {
+      state = "failed";
+      reason = failureReason(item, true);
+    } else if (runtime === "error") {
+      // Running but failing its health check can still recover (a database initialising on its first start).
       state = isUnhealthyButRunning(item.status) ? "starting" : "failed";
+      if (state === "failed") reason = failureReason(item, false);
     } else if (update === "in_progress") state = "building";
     else if (update === "ok")
       state = runtime === "pending" || runtime === "none" ? "starting" : "ready";
     else state = "waiting";
-    services.push({ name, state });
+    services.push(reason ? { name, state, reason } : { name, state });
   }
   return services.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -81,8 +100,10 @@ export function formatUpProgressLine(services: ServiceProgress[]): string {
   return parts.join(" · ");
 }
 
-export function formatServiceFailedLine(name: string): string {
-  return `✗ ${name} failed. See its logs: flisk logs -s ${name}`;
+/** `✗ api failed: <reason>. See its logs: flisk logs -s api`; the reason is left out when it is not known. */
+export function formatServiceFailedLine(name: string, reason?: string): string {
+  const why = reason ? `: ${reason.replace(/[\s.]+$/, "")}` : "";
+  return `✗ ${name} failed${why}. See its logs: flisk logs -s ${name}`;
 }
 
 /**
@@ -165,7 +186,9 @@ export function createUpProgressReporter(options: {
       if (options.redraw) {
         const failed = changed.filter((service) => service.state === "failed");
         if (failed.length > 0) clearLine();
-        for (const service of failed) options.write(`${formatServiceFailedLine(service.name)}\n`);
+        for (const service of failed) {
+          options.write(`${formatServiceFailedLine(service.name, service.reason)}\n`);
+        }
         const width = Math.max(20, (options.columns ?? 80) - 1);
         const line = `⏳ ${formatUpProgressLine(services)}`;
         options.write(`\r\x1b[2K${line.length > width ? `${line.slice(0, width - 1)}…` : line}`);
@@ -176,7 +199,7 @@ export function createUpProgressReporter(options: {
         const count = `(${ready}/${services.length} ready)`;
         options.write(
           service.state === "failed"
-            ? `${formatServiceFailedLine(service.name)} ${count}\n`
+            ? `${formatServiceFailedLine(service.name, service.reason)} ${count}\n`
             : `${service.name}: ${service.state} ${count}\n`,
         );
       }

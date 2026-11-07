@@ -44,8 +44,9 @@ def healthy_postgres_script():
     return _join([
         "$cname = $env:FLISK_PROJECT + '_postgres';",
         "$filter = 'name=^/' + $cname + '$';",
-        "$exited = 0;",
-        "for ($i = 0; $i -lt 120; $i++) {",
+        "$exited = 0; $grace = 120; $badSince = -1; $i = 0;",
+        "while ($i -lt 120 -or ($badSince -ge 0 -and ($i - $badSince) -lt $grace)) {",
+        "  $i++;",
         "  $id = docker ps -q -f $filter 2>$null | Select-Object -First 1;",
         "  if (-not $id) { $id = docker ps -a -q -f $filter 2>$null | Select-Object -First 1; }",
         "  if (-not $id) { Start-Sleep -Seconds 1; continue; }",
@@ -61,10 +62,13 @@ def healthy_postgres_script():
         "  } else { $exited = 0; }",
         "  $health = docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' $id 2>$null;",
         "  if ($health -eq 'healthy') { Write-Output 'postgres is healthy'; exit 0; }",
-        "  if ($health -eq 'unhealthy') { Write-Output 'ERROR: postgres is unhealthy'; exit 1; }",
+        "  if ($health -eq 'unhealthy') {",
+        "    if ($badSince -lt 0) { $badSince = $i; Write-Output ('postgres health check is failing; waiting up to ' + $grace + 's for it to recover'); }",
+        "  } else { $badSince = -1; }",
         "  if ($health -eq 'none') { Write-Output 'ERROR: postgres container has no health check configured'; exit 1; }",
         "  Start-Sleep -Seconds 1;",
         "}",
+        "if ($badSince -ge 0) { Write-Output ('ERROR: postgres is unhealthy: its health check still failed ' + $grace + 's after it first failed'); exit 1; }",
         "Write-Output 'ERROR: timed out waiting for postgres to become healthy'; exit 1;",
     ])
 
@@ -171,7 +175,9 @@ def healthy_script():
     """
     return _join([
         "$job = $env:FLISK_JOB; $max = [int]$env:FLISK_MAX_POLLS; $ca = @(ConvertFrom-Json $env:FLISK_COMPOSE); $exited = 0;",
-        "for ($i = 0; $i -lt $max; $i++) {",
+        "$grace = 120; $badSince = -1; $i = 0;",
+        "while ($i -lt $max -or ($badSince -ge 0 -and ($i - $badSince) -lt $grace)) {",
+        "  $i++;",
         "  $id = docker @ca ps -q $job 2>$null | Select-Object -First 1;",
         "  if (-not $id) { $id = docker @ca ps -a -q $job 2>$null | Select-Object -First 1; }",
         "  if (-not $id) { Start-Sleep -Seconds 1; continue; }",
@@ -197,11 +203,12 @@ def healthy_script():
         "      $ran = @($log | Where-Object { $o = [string]$_.Output; -not ((($_.ExitCode -eq -1) -and ($o -match 'OCI runtime exec failed')) -or (($_.ExitCode -eq 127) -and ($o -match 'not found')) -or (($_.ExitCode -eq 126) -and ($o -match 'permission denied|cannot execute|not executable|is a directory'))) }).Count;",
         "      $shell = @($log | Where-Object { $_.ExitCode -eq 126 -or $_.ExitCode -eq 127 }).Count;",
         "      if ($state -eq 'running' -and $log.Count -gt 0 -and $ran -eq 0 -and -not ($shell -gt 0 -and $streak -gt $log.Count)) { Write-Output ('WARNING: ' + $job + ' health check cannot run in its image (command not found or not executable), proceeding because the container is running'); exit 0; }",
-        "      Write-Output ('ERROR: ' + $job + ' is unhealthy'); exit 1;",
-        "    }",
+        "      if ($badSince -lt 0) { $badSince = $i; Write-Output ($job + ' health check is failing; waiting up to ' + $grace + 's for it to recover'); }",
+        "    } else { $badSince = -1; }",
         "  }",
         "  Start-Sleep -Seconds 1;",
         "}",
+        "if ($badSince -ge 0) { Write-Output ('ERROR: ' + $job + ' is unhealthy: its health check still failed ' + $grace + 's after it first failed'); exit 1; }",
         "Write-Output ('ERROR: timed out waiting for ' + $job + ' to become healthy (waited ' + $max + 's)'); exit 1;",
     ])
 
