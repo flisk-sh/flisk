@@ -102,14 +102,20 @@ test("bodies carry the marker, run link, failed step and errors", () => {
 		["boom"],
 	);
 	assert.ok(body.startsWith(MARKER));
-	assert.ok(body.includes(`- Run: ${run}`));
+	assert.equal(runUrl(body), run);
 	assert.ok(body.includes("`Smoke Route Health Check`"));
 	assert.ok(body.includes("boom"));
 	const comment = commentBody(job(), run, []);
-	assert.ok(comment.includes(MARKER) && comment.includes(run));
+	assert.ok(comment.startsWith(MARKER));
+	assert.equal(runUrl(comment), run);
 	assert.ok(!comment.includes("Errors:"));
-	assert.ok(closeBody(run).includes(run));
+	assert.equal(closeBody(run).match(/https?:\/\/\S+?(?=\.?\s|\.?$)/)?.[0], run);
 });
+
+// Extract the emitted run URL and compare it exactly, not by substring (CodeQL js/incomplete-url-substring-sanitization).
+function runUrl(text) {
+	return text.match(/^- Run: (\S+)$/m)?.[1];
+}
 
 test("only rate limits and server errors are retried", () => {
 	assert.equal(isTransient("gh: Bad Gateway (HTTP 502)"), true);
