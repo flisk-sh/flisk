@@ -60,6 +60,8 @@ export type UrlProber = (url: string, timeoutMs: number) => Promise<UrlProbe>;
 export declare const URL_PROBE_TIMEOUT_MS = 3000;
 /** How long a failing URL is retried: Traefik can take a moment to pick up a route after the container turns healthy. */
 export declare const URL_CHECK_DEADLINE_MS = 15000;
+/** At most this many requests at once, so a large stack does not hit the gateway with every URL in the same instant. */
+export declare const URL_CHECK_CONCURRENCY = 8;
 /**
  * The URLs `flisk up` prints for the services it started: each routed service's URL and its health URL. Deferred services
  * (Sablier `deferStart`) are left out: a request would start them, and they are printed as starting on first request.
@@ -111,6 +113,7 @@ export declare function checkPrintedUrls(targets: readonly UrlTarget[], options?
     timeoutMs?: number;
     deadlineMs?: number;
     intervalMs?: number;
+    concurrency?: number;
     sleep?: (ms: number) => Promise<void>;
     now?: () => number;
 }): Promise<UrlCheck[]>;

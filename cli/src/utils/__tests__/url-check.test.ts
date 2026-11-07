@@ -4,7 +4,7 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import type { DiscoveredResource } from "../../types/index.js";
+import { makeResource } from "../../test-support/index.js";
 import {
   buildPrintedUrlTargets,
   checkPrintedUrls,
@@ -18,10 +18,6 @@ import {
   type UrlProbe,
   urlFailureSuggestions,
 } from "../url-check.js";
-
-function resource(name: string, config: Record<string, unknown>): DiscoveredResource {
-  return { name, path: `/p/${name}`, config } as unknown as DiscoveredResource;
-}
 
 /** A prober that answers each URL from a table, so a check runs without a network. */
 function fakeProbe(table: Record<string, UrlProbe | UrlProbe[]>) {
@@ -73,6 +69,14 @@ describe("classifyProbe", () => {
     expect(classifyProbe({ status, body: "" })).toEqual({ didAnswer: true });
   });
 
+  it("cannot tell a service that writes Traefik's exact body from Traefik, and treats it as Traefik's", () => {
+    // Known limit: the body is the only signal. An app that answers 502 "Bad Gateway" verbatim reads as not answering.
+    expect(classifyProbe({ status: 502, body: "Bad Gateway\n" }).didAnswer).toBe(false);
+    expect(classifyProbe({ status: 502, body: "Bad Gateway: upstream db down" }).didAnswer).toBe(
+      true,
+    );
+  });
+
   it("counts a redirect as an answer without following it", () => {
     expect(classifyProbe({ status: 302, body: "" })).toEqual({ didAnswer: true });
   });
@@ -112,6 +116,13 @@ describe("findMissingEnvName", () => {
 
   it("returns null when the logs name no variable, and ignores log levels", () => {
     expect(findMissingEnvName("listening on 3000\nERROR required field id")).toBeNull();
+  });
+
+  it("reads a line that only mentions a required variable as a hint, which the failure message calls likely", () => {
+    // Known limit: a regex cannot tell a warning from the crash. The output labels every cause "likely cause".
+    expect(findMissingEnvName("DATABASE_URL is required for production deployments")).toBe(
+      "DATABASE_URL",
+    );
   });
 
   it("does not read a KeyError on any other dictionary as a missing variable", () => {
@@ -176,10 +187,10 @@ describe("buildPrintedUrlTargets", () => {
   it("lists each routed service's URL and its health URL, and skips workers and deferred services", () => {
     const targets = buildPrintedUrlTargets(
       [
-        resource("web", { appType: "frontend", basePath: "/web" }),
-        resource("orders-api", { appType: "backend", port: 3001 }),
-        resource("jobs", { appType: "worker" }),
-        resource("lazy-api", { appType: "backend", sablier: { enable: true, deferStart: true } }),
+        makeResource("web", "frontend", { basePath: "/web" }),
+        makeResource("orders-api", "backend", { port: 3001 }),
+        makeResource("jobs", "worker"),
+        makeResource("lazy-api", "backend", { sablier: { enable: true, deferStart: true } }),
       ],
       8080,
       new Set(["lazy-api"]),
@@ -193,9 +204,9 @@ describe("buildPrintedUrlTargets", () => {
   it("prints no health URL for a routed bring-your-own service unless it declares a healthCheckPath", () => {
     const targets = buildPrintedUrlTargets(
       [
-        resource("legacy", { appType: "bring-your-own", image: "x" }),
-        resource("ui", { appType: "bring-your-own", image: "y", webUi: true }),
-        resource("pay", { appType: "bring-your-own", image: "z", healthCheckPath: "/status" }),
+        makeResource("legacy", "bring-your-own", { image: "x" }),
+        makeResource("ui", "bring-your-own", { image: "y", webUi: true }),
+        makeResource("pay", "bring-your-own", { image: "z", healthCheckPath: "/status" }),
       ],
       undefined,
     );
@@ -313,6 +324,27 @@ describe("checkPrintedUrls", () => {
     expect(clock).toBeLessThanOrEqual(5_000);
   });
 
+  it("keeps at most the concurrency limit of requests in flight", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const many = Array.from({ length: 40 }, (_, i) => ({
+      service: `svc-${i}`,
+      url: `http://api.demo.localhost/api/svc-${i}`,
+    }));
+    const probe = async (): Promise<UrlProbe> => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      inFlight--;
+      return { status: 200 };
+    };
+    const checks = await checkPrintedUrls(many, { probe, ...instant, concurrency: 8 });
+    expect(checks).toHaveLength(40);
+    expect(checks.every((c) => c.didAnswer)).toBe(true);
+    expect(checks.map((c) => c.service)).toEqual(many.map((t) => t.service));
+    expect(peak).toBe(8);
+  });
+
   it("names a missing environment variable from the logs before what the probe alone says", async () => {
     const { probe } = fakeProbe({
       "http://api.demo.localhost/api/api": { status: 502, body: "Bad Gateway" },
@@ -363,6 +395,7 @@ describe("checkPrintedUrls", () => {
     expect(lines[0]).toBe("Not ready: 2 of 2 printed URLs do not answer.");
     expect(lines).toContain("  ✗ api: http://api.demo.localhost/api/api");
     expect(lines).toContain("      next:  flisk networks");
+    expect(lines.some((line) => line.startsWith("      likely cause: "))).toBe(true);
     expect(urlFailureSuggestions(checks)).toEqual([
       "api: flisk logs -s api",
       "api: flisk networks",
@@ -457,5 +490,27 @@ describe("probeUrl against a real server", () => {
     const probe = await probeUrl(urlFor("localhost", port, "/"), 200);
     expect(probe).toEqual({ error: "timeout" });
     server?.closeAllConnections();
+  });
+
+  it("does not count a 502 whose connection drops before the body arrives as an answer", async () => {
+    const port = await listen((_req, res) => {
+      // Headers announce 11 bytes ("Bad Gateway"), 3 arrive, then the connection drops.
+      res.writeHead(502, { "Content-Length": "11", "Content-Type": "text/plain" });
+      res.write("Bad");
+      setTimeout(() => res.socket?.destroy(), 20);
+    });
+    const probe = await probeUrl(urlFor("localhost", port, "/"), 2_000);
+    expect(probe).toEqual({ error: "incomplete response" });
+    expect(classifyProbe(probe, "http://localhost/").didAnswer).toBe(false);
+  });
+
+  it("answers from a sample of a long body without reading all of it", async () => {
+    const port = await listen((_req, res) => {
+      res.statusCode = 503;
+      res.end("x".repeat(64 * 1024));
+    });
+    const probe = await probeUrl(urlFor("localhost", port, "/"), 2_000);
+    expect(probe.status).toBe(503);
+    expect(classifyProbe(probe).didAnswer).toBe(true);
   });
 });

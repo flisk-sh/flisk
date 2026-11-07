@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
-import type { DiscoveredResource } from "../../types/index.js";
+import { makeResource } from "../../test-support/index.js";
 import type { checkPrintedUrls, UrlTarget } from "../../utils/url-check.js";
 
 const { uiResourcesMock, logsMock } = vi.hoisted(() => ({
@@ -16,22 +16,12 @@ vi.mock("../../utils/up-readiness.js", async (importOriginal) => {
 
 const { checkStackUrls, formatUpSuccess } = await import("../up.js");
 
-function resource(name: string, config: Record<string, unknown>): DiscoveredResource {
-  return { name, path: `/p/${name}`, config } as unknown as DiscoveredResource;
-}
-
 describe("checkStackUrls (#3211)", () => {
   it("checks nothing when no started service has a printed URL", async () => {
     const check = vi.fn();
-    const checks = await checkStackUrls(
-      10350,
-      [resource("jobs", { appType: "worker" })],
-      80,
-      new Set(),
-      {
-        check: check as unknown as typeof checkPrintedUrls,
-      },
-    );
+    const checks = await checkStackUrls(10350, [makeResource("jobs", "worker")], 80, new Set(), {
+      check: check as unknown as typeof checkPrintedUrls,
+    });
     expect(checks).toEqual([]);
     expect(check).not.toHaveBeenCalled();
   });
@@ -60,10 +50,7 @@ describe("checkStackUrls (#3211)", () => {
 
     const checks = await checkStackUrls(
       10351,
-      [
-        resource("api", { appType: "backend", port: 3000 }),
-        resource("web", { appType: "frontend" }),
-      ],
+      [makeResource("api", "backend", { port: 3000 }), makeResource("web", "frontend")],
       80,
       new Set(["web"]),
       { check },

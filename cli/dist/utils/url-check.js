@@ -8,6 +8,8 @@ export const URL_PROBE_TIMEOUT_MS = 3_000;
 /** How long a failing URL is retried: Traefik can take a moment to pick up a route after the container turns healthy. */
 export const URL_CHECK_DEADLINE_MS = 15_000;
 const URL_CHECK_INTERVAL_MS = 500;
+/** At most this many requests at once, so a large stack does not hit the gateway with every URL in the same instant. */
+export const URL_CHECK_CONCURRENCY = 8;
 const BODY_SAMPLE_BYTES = 512;
 /** Traefik's own body when no router matches (Go's http.NotFound). A service's own 404 is an answer: the route reached it. */
 const TRAEFIK_NOT_FOUND = "404 page not found";
@@ -196,7 +198,9 @@ export function describeUrlFailure(target, failure) {
             };
         case "no-response":
             return {
-                message: `The request failed${failure.error ? ` (${failure.error})` : ""}; check the host and port of this URL`,
+                message: failure.error === "incomplete response"
+                    ? `The connection closed before the whole response from ${service} arrived`
+                    : `The request failed${failure.error ? ` (${failure.error})` : ""}; check the host and port of this URL`,
                 nextCommand: "flisk doctor",
             };
     }
@@ -221,10 +225,7 @@ export async function checkPrintedUrls(targets, options = {}) {
         if (attempt > 0 && left <= 0)
             break;
         const budget = Math.max(1, Math.min(timeoutMs, left));
-        const probed = await Promise.all(pending.map(async (entry) => ({
-            ...entry,
-            result: await probe(entry.target.url, budget),
-        })));
+        const probed = await mapWithConcurrency(pending, options.concurrency ?? URL_CHECK_CONCURRENCY, async (entry) => ({ ...entry, result: await probe(entry.target.url, budget) }));
         for (const { index, result } of probed)
             results.set(index, result);
         pending = probed
@@ -269,6 +270,19 @@ export async function checkPrintedUrls(targets, options = {}) {
         return { ...base, cause, message, nextCommand, ...(envName ? { envName } : {}) };
     }));
 }
+/** `items.map(fn)` with at most `limit` calls in flight, results in input order. */
+async function mapWithConcurrency(items, limit, fn) {
+    const results = new Array(items.length);
+    let next = 0;
+    const worker = async () => {
+        while (next < items.length) {
+            const index = next++;
+            results[index] = await fn(items[index]);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+    return results;
+}
 async function diagnoseService(service, deps) {
     const logs = deps.logs ? await deps.logs(service).catch(() => null) : null;
     const envName = logs ? findMissingEnvName(logs) : null;
@@ -290,7 +304,7 @@ export function formatUrlFailures(checks) {
     for (const check of failed) {
         lines.push(`  ✗ ${check.service}: ${check.url}`);
         if (check.message)
-            lines.push(`      cause: ${check.message}`);
+            lines.push(`      likely cause: ${check.message}`);
         if (check.nextCommand)
             lines.push(`      next:  ${check.nextCommand}`);
     }
@@ -349,25 +363,40 @@ export function probeUrl(url, timeoutMs) {
             path: `${parsed.pathname}${parsed.search}`,
             method: "GET",
             headers: { Host: parsed.host, "User-Agent": "flisk-up-url-check" },
-            ...(isHttps && isLoopbackName ? { servername: hostname, rejectUnauthorized: false } : {}),
+            // The certificate is checked as usual; one that does not verify is a request error (no-response), not an answer.
+            ...(isHttps ? { servername: hostname } : {}),
         }, (res) => {
             const chunks = [];
             let size = 0;
+            // Set when this side stops reading after the sample: a body that long is not one of Traefik's short error bodies, so
+            // the status alone decides. Any other early end leaves the body unknown.
+            let isSampled = false;
+            const answer = () => finish({
+                status: res.statusCode,
+                body: Buffer.concat(chunks).subarray(0, BODY_SAMPLE_BYTES).toString("utf-8"),
+            });
             res.on("data", (chunk) => {
                 if (size < BODY_SAMPLE_BYTES) {
                     chunks.push(chunk);
                     size += chunk.length;
                 }
-                if (size >= BODY_SAMPLE_BYTES)
+                if (size >= BODY_SAMPLE_BYTES && !isSampled) {
+                    isSampled = true;
+                    answer();
                     res.destroy();
+                }
             });
-            const done = () => finish({
-                status: res.statusCode,
-                body: Buffer.concat(chunks).subarray(0, BODY_SAMPLE_BYTES).toString("utf-8"),
-            });
-            res.on("end", done);
-            res.on("close", done);
-            res.on("error", done);
+            res.on("end", answer);
+            // A connection that closes or fails before the whole response arrived is not an answer: a cut-off "Bad Gateway"
+            // must not read as the service's own 502. The URL is retried until the deadline.
+            const cutOff = () => {
+                if (res.complete)
+                    answer();
+                else
+                    finish({ error: "incomplete response" });
+            };
+            res.on("close", cutOff);
+            res.on("error", cutOff);
         });
         const timer = setTimeout(() => {
             req.destroy();
