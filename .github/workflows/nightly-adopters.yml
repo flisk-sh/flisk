@@ -60,6 +60,11 @@ jobs:
             docker_model_plugin: true
             # Small models (a few hundred MB): the job checks that Flisk imports and starts the stack. It does not call the
             # model endpoint (AI_BASE_URL below names Model Runner's port, 12434), so no host-gateway mapping is added.
+            # ai/all-minilm does not exist on Docker Hub (the cause of every red Nosia night); the embedding model is the
+            # small default Nosia's install.sh picks, with its 768 dimensions and 512/128 chunking.
+            # Pulled before `flisk up`: Compose pulls a service's models inside `docker compose up`, where a slow or failed pull
+            # fails the `web` resource with no output in the job log.
+            models: "ai/smollm2 ai/granite-embedding-multilingual:278M-F16"
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
@@ -79,8 +84,8 @@ jobs:
               LLM_MAX_TOKENS=1024
               LLM_TOP_K=40
               LLM_TOP_P=0.9
-              EMBEDDING_MODEL=ai/all-minilm
-              EMBEDDING_DIMENSIONS=384
+              EMBEDDING_MODEL=ai/granite-embedding-multilingual:278M-F16
+              EMBEDDING_DIMENSIONS=768
               CHUNK_SIZE=512
               CHUNK_OVERLAP=128
               RETRIEVAL_FETCH_K=3
@@ -90,7 +95,8 @@ jobs:
             owner: LycheeOrg
             repo: Lychee
             commit: 7145b37ff66ea7990cc9b8dbbf779ba1d34c0b64
-            health_check: "http://127.0.0.1:80"
+            # lychee_api publishes ${APP_PORT:-8000}->8000; nothing in this Compose file publishes host port 80.
+            health_check: "http://127.0.0.1:8000"
             needs_env: true
             env_file: |
               APP_ENV=production
@@ -127,6 +133,8 @@ jobs:
 
       - name: Install Docker Model Runner (stacks that declare Compose models)
         if: matrix.docker_model_plugin
+        env:
+          MODELS: ${{ matrix.models }}
         run: |
           # The runner image has Docker but not Docker's apt repository, which is where docker-model-plugin lives.
           # The plugin is a static binary, so the noble (LTS) packages work on any runner release.
@@ -138,6 +146,16 @@ jobs:
           sudo apt-get install -y docker-model-plugin
           docker model version
           docker model install-runner
+          # Model Runner can fail at 100% while renaming the finished blob ("remove incomplete file"); a retry resumes it.
+          for model in $MODELS; do
+            for attempt in 1 2 3; do
+              docker model pull "$model" && break
+              [ "$attempt" -eq 3 ] && { echo "::error::could not pull $model"; exit 1; }
+              echo "::warning::pull of $model failed (attempt $attempt), retrying"
+              sleep 10
+            done
+          done
+          docker model ls
 
       - name: Install Flisk CLI
         uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -211,22 +229,63 @@ jobs:
           name: adopter-${{ matrix.repo }}
           sources: adopter
 
+      # No working-directory: a failure before the adopter checkout leaves no adopter/ and the step would fail to start.
       - name: Diagnostics on Failure
         if: failure() || cancelled()
-        working-directory: adopter
         run: |
+          cd adopter 2>/dev/null || { echo "adopter repository was not checked out"; exit 0; }
           echo "::group::Containers status"
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
           echo "::group::Tilt UI resources"
           tilt get uiresources -o json 2>/dev/null | jq -r '.items[] | select(.status.updateStatus == "error") | "\(.metadata.name): \((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || true
           echo "::endgroup::"
+          # The update error above is only the command line; the Compose stderr that explains it is in the resource's log.
+          for resource in $(tilt get uiresources -o json 2>/dev/null | jq -r '.items[] | select(.status.updateStatus == "error" or .status.runtimeStatus == "error") | .metadata.name' || true); do
+            echo "::group::Tilt log: $resource (last 120 lines)"
+            tilt logs "$resource" 2>&1 | tail -n 120 || true
+            echo "::endgroup::"
+          done
+          # A container whose health check fails or that exited non-zero explains itself only in its own output.
+          for c in $(docker ps -a --format '{{.Names}} {{.Status}}' | awk '/unhealthy|Restarting|Exited \([1-9]/ {print $1}' || true); do
+            echo "::group::Container log: $c (last 150 lines)"
+            docker logs --tail 150 "$c" 2>&1 || true
+            docker inspect --format '{{range .State.Health.Log}}{{.ExitCode}} {{.Output}}{{end}}' "$c" 2>/dev/null | tail -c 2000 || true
+            echo "::endgroup::"
+          done
           echo "::group::Flisk doctor output"
           flisk doctor || true
           echo "::endgroup::"
 
       - name: Flisk Down & Cleanup
         if: always()
-        working-directory: adopter
         run: |
+          cd adopter 2>/dev/null || exit 0
+          command -v flisk >/dev/null || exit 0
           flisk down --prune-networks --yes || true
+
+  # One issue per failing adopter, a comment on each further failing night, and a close once it passes (nightly-adopter-issues.mjs).
+  # A separate job so the issues: write token never sits in a job that runs adopter code. Default branch only, so a dispatch on a
+  # feature branch does not file issues.
+  report:
+    name: Report adopter failures
+    needs: adopter
+    if: always() && github.ref_name == github.event.repository.default_branch && needs.adopter.result != 'skipped'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      checks: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: scripts/nightly-adopter-issues.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Open, update or close adopter issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/nightly-adopter-issues.mjs
