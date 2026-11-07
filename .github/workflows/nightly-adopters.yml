@@ -1,12 +1,17 @@
 # Nightly real-world adopter repositories integration testing (#3100).
 # Tests realistic import, manifest verification, and startup orchestration
-# against three pinned external adopter repositories on clean GitHub-hosted runners.
+# against pinned external repositories on clean GitHub-hosted runners.
 #
 # Pinned repositories:
 # - biolend83/tubehaus@4982153e8de9144b89433245f3e8adf9fe028db1 (the last commit before upstream added its own
 #   services/tubehaus/ Flisk files; a later pin makes `flisk import` write a second copy under services/adopter/)
 # - dilolabs/nosia@42796ffb30b48b5aeece234383b71e3d51badc7e
 # - LycheeOrg/Lychee@7145b37ff66ea7990cc9b8dbbf779ba1d34c0b64
+#
+# Not adopters: projects whose maintainers closed a Flisk PR. They stay here so `flisk import` keeps working on the
+# Compose files people actually ship, and a later PR to them starts from a stack that is known to come up.
+# - ghostfolio/ghostfolio@841ff112c4cbd775c5cbef85980057b1f4ecd61d (base of ghostfolio/ghostfolio#8377)
+# - firsttris/haben@3d6bbf97fff325571f2acbe93f62f94270fa66ec (haben#188 targeted 63b1dec, which has no root compose.yml)
 name: 🌙 NIGHTLY | E2E | Real adopter repositories
 
 on:
@@ -102,6 +107,37 @@ jobs:
               APP_ENV=production
               AI_VISION_API_KEY=ci-vision-key-not-a-secret
               APP_KEY=base64:Y2ktYXBwLWtleS1ub3QtYS1zZWNyZXQtMDEyMzQ1Njc=
+          # Rejected ghostfolio/ghostfolio#8377. Its Compose file is docker/docker-compose.yml with env_file ../.env;
+          # flisk import reads only a root Compose file, and run from docker/ it drops ../.env (outside the directory).
+          - name: Ghostfolio
+            owner: ghostfolio
+            repo: ghostfolio
+            commit: 841ff112c4cbd775c5cbef85980057b1f4ecd61d
+            compose_from: docker/docker-compose.yml
+            health_check: "http://127.0.0.1:3333/api/v1/health"
+            needs_env: true
+            env_file: |
+              REDIS_HOST=redis
+              REDIS_PORT=6379
+              REDIS_PASSWORD=ci-redis-not-a-secret
+              POSTGRES_DB=ghostfolio-db
+              POSTGRES_USER=user
+              POSTGRES_PASSWORD=ci-postgres-not-a-secret
+              ACCESS_TOKEN_SALT=ci-access-token-salt-not-a-secret
+              DATABASE_URL=postgresql://user:ci-postgres-not-a-secret@postgres:5432/ghostfolio-db?connect_timeout=300
+              JWT_SECRET_KEY=ci-jwt-secret-not-a-secret
+          # Rejected firsttris/haben#188. The dev stack builds deploy/dev and serves on 127.0.0.1:${HABEN_DEV_PORT:-3000};
+          # flisk-import 0.18.1 does not read a variable container port, so until it does this job fails at the smoke check.
+          - name: Haben
+            owner: firsttris
+            repo: haben
+            commit: 3d6bbf97fff325571f2acbe93f62f94270fa66ec
+            health_check: "http://127.0.0.1:3000"
+            needs_env: true
+            env_file: |
+              POSTGRES_PASSWORD=haben
+              DATABASE_URL=postgres://haben:haben@db:5432/haben
+              BETTER_AUTH_URL=http://localhost:3000
     steps:
       - name: Checkout Flisk
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -179,6 +215,16 @@ jobs:
           if [ -n "$ENV_CONTENT" ]; then
             printf "%s\n" "$ENV_CONTENT" > .env
           fi
+
+      # flisk import reads only the root Compose file. A repo that keeps it in a subfolder gets a root copy, with
+      # env_file paths that pointed at the root (../.env) rewritten to .env so they still name the same file.
+      - name: Place Compose File at Root
+        if: matrix.compose_from
+        working-directory: adopter
+        env:
+          COMPOSE_FROM: ${{ matrix.compose_from }}
+        run: |
+          sed 's#\.\./\.env#.env#' "$COMPOSE_FROM" > docker-compose.yml
 
       - name: Run Flisk Import
         working-directory: adopter
