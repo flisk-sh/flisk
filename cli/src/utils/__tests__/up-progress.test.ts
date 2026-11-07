@@ -54,10 +54,7 @@ describe("classifyUpProgress", () => {
   });
 
   it("keeps a real crash failed even though its updateStatus is ok", () => {
-    const services = classifyUpProgress(
-      json(item("crashed", "ok", "error")),
-      new Set(),
-    );
+    const services = classifyUpProgress(json(item("crashed", "ok", "error")), new Set());
     expect(Object.fromEntries(services.map((s) => [s.name, s.state]))).toEqual({
       crashed: "failed",
     });

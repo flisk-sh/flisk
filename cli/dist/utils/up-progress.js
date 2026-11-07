@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { effectiveRuntimeStatus } from "./tilt-resource-state.js";
+import { effectiveRuntimeStatus, isUnhealthyButRunning } from "./tilt-resource-state.js";
 import { isAdvisoryResource } from "./up-readiness.js";
 /**
  * The state of each resource `flisk up` waits for, from `tilt get uiresources -o json`. Disabled, deferred, advisory and
@@ -20,8 +20,11 @@ export function classifyUpProgress(jsonText, deferred) {
         const update = rawUpdate === "not_applicable" ? "ok" : rawUpdate;
         const runtime = effectiveRuntimeStatus(item.status);
         let state;
-        if (update === "error" || runtime === "error")
+        if (update === "error")
             state = "failed";
+        else if (runtime === "error") {
+            state = isUnhealthyButRunning(item.status) ? "starting" : "failed";
+        }
         else if (update === "in_progress")
             state = "building";
         else if (update === "ok")

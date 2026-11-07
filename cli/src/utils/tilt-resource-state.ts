@@ -62,5 +62,7 @@ export function isUnhealthyButRunning(status?: {
   runtimeStatus?: string;
   composeResourceInfo?: { healthStatus?: string };
 }): boolean {
-  return status?.runtimeStatus === "ok" && status?.composeResourceInfo?.healthStatus === "unhealthy";
+  return (
+    status?.runtimeStatus === "ok" && status?.composeResourceInfo?.healthStatus === "unhealthy"
+  );
 }
