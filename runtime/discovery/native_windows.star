@@ -336,28 +336,39 @@ def _write_pieces(content):
         pieces.append(current)
     return pieces
 
+# Windows: File.Replace swaps the finished temporary file in for an existing target in one step (Move-Item -Force deletes
+# the target first); a target that does not exist yet is simply moved into place.
+_PS_PUBLISH = "if ([IO.File]::Exists($env:FLISK_PATH)) { [IO.File]::Replace($t, $env:FLISK_PATH, [NullString]::Value) } else { [IO.File]::Move($t, $env:FLISK_PATH) }"
+
+def _ps_guarded(script):
+    """Run script with errors fatal; on failure remove the temporary file $t if this command set it, then rethrow."""
+    return "$ErrorActionPreference = 'Stop'; $t = $null; try { " + script + " } catch { if ($t) { Remove-Item -Force -LiteralPath $t -ErrorAction SilentlyContinue }; throw }"
+
 def write_text_exact(dir_path, file_path, content):
     """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM.
 
-    Every write builds the content in a temporary file beside file_path (created exclusively by mktemp, or named by a GUID
-    on Windows) and renames it over file_path once the content is complete, so a reader or a second Tilt writing the same
-    file never sees half of it, and a failed write leaves file_path as it was. Content that fits one piece does all of that
-    in one command; larger content creates the file with the first piece, appends the rest, then renames.
+    Every write builds the content in a temporary file beside file_path, created exclusively (mktemp; FileMode.CreateNew
+    with a GUID name on Windows), and renames it over file_path once the content is complete (mv -f; File.Replace on
+    Windows), so a reader or a second Tilt writing the same file never sees half of it. A failed step removes the temporary
+    file and leaves file_path as it was. Content that fits one piece does all of that in one command; larger content creates
+    the file with the first piece, appends the rest, then renames.
     """
     pieces = _write_pieces(content)
     single = len(pieces) == 1
-    # mktemp creates the file 0600; give it the mode a plain `>` would (0666 minus the umask). A failed write removes it.
+    # mktemp creates the file 0600; give it the mode a plain `>` would (0666 minus the umask).
     sh_create = (
         'mkdir -p "$1" && t=$(mktemp "$3.flisk-tmp.XXXXXX") && ' +
         '{ chmod "$(printf %o $((0666 & ~$(umask))))" "$t" && printf "%s" "$2" > "$t" && ' +
         ('mv -f "$t" "$3"' if single else 'printf "%s" "$t"') +
         ' || { rm -f "$t"; exit 1; }; }'
     )
-    bat_create = (
+    bat_create = _ps_guarded(
         "New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; " +
-        "$t = $env:FLISK_PATH + '.flisk-tmp.' + [guid]::NewGuid().ToString('N'); " +
-        "[IO.File]::WriteAllText($t, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false))); " +
-        ("Move-Item -Force -LiteralPath $t -Destination $env:FLISK_PATH" if single else "Write-Output $t")
+        "$c = $env:FLISK_PATH + '.flisk-tmp.' + [guid]::NewGuid().ToString('N'); " +
+        "$b = (New-Object Text.UTF8Encoding($false)).GetBytes($env:FLISK_CONTENT); " +
+        "$fs = [IO.File]::Open($c, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write); $t = $c; " +
+        "try { $fs.Write($b, 0, $b.Length) } finally { $fs.Dispose() }; " +
+        (_PS_PUBLISH if single else "Write-Output $t"),
     )
     created = str(local(
         ["sh", "-c", sh_create, "sh", dir_path, pieces[0], file_path],
@@ -371,15 +382,15 @@ def write_text_exact(dir_path, file_path, content):
     tmp_path = created.strip()
     for piece in pieces[1:]:
         local(
-            ["sh", "-c", 'printf "%s" "$2" >> "$1"', "sh", tmp_path, piece],
-            command_bat = _PS + ["[IO.File]::AppendAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
-            env = {"FLISK_PATH": tmp_path, "FLISK_CONTENT": piece},
+            ["sh", "-c", 'printf "%s" "$2" >> "$1" || { rm -f "$1"; exit 1; }', "sh", tmp_path, piece],
+            command_bat = _PS + [_ps_guarded("$t = $env:FLISK_TMP; [IO.File]::AppendAllText($t, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))")],
+            env = {"FLISK_TMP": tmp_path, "FLISK_CONTENT": piece},
             quiet = True,
             echo_off = True,
         )
     local(
-        ["mv", "-f", tmp_path, file_path],
-        command_bat = _PS + ["Move-Item -Force -LiteralPath $env:FLISK_TMP -Destination $env:FLISK_PATH"],
+        ["sh", "-c", 'mv -f "$1" "$2" || { rm -f "$1"; exit 1; }', "sh", tmp_path, file_path],
+        command_bat = _PS + [_ps_guarded("$t = $env:FLISK_TMP; " + _PS_PUBLISH)],
         env = {"FLISK_TMP": tmp_path, "FLISK_PATH": file_path},
         quiet = True,
         echo_off = True,
