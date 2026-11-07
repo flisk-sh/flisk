@@ -53,6 +53,7 @@ import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
 import { tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
 import { defaultUpWaitDeps, parseWaitTimeout, upAndWait } from "../utils/up-wait.js";
+import { buildPrintedUrlTargets, checkPrintedUrls, formatUrlFailures, healthUrlOf, printedHealthUrl, tiltResourceHasExited, urlFailureSuggestions, } from "../utils/url-check.js";
 import { enableDiscoveredStacks, writeDefaultProjectConfig } from "./project.js";
 export function formatUpSuccess(port, options = {}) {
     const { appUrls = [], serviceHealth = [], showLogsHint = serviceHealth.length > 0 } = options;
@@ -74,11 +75,11 @@ export function formatUpSuccess(port, options = {}) {
             lines.push(`  … and ${services.length - 10} more`);
         }
         // Health check URLs for test infrastructure and monitoring: only services that have one, so internals do not use up the ten.
-        const withUrl = services.filter((svc) => svc.url);
+        const withUrl = services.filter((svc) => svc.url && svc.healthUrl !== null);
         lines.push("Health checks:");
         for (const svc of withUrl.slice(0, 10)) {
             const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? "✗" : "⟳";
-            const healthUrl = svc.url?.endsWith("/health") ? svc.url : `${svc.url}/health`;
+            const healthUrl = svc.healthUrl ?? (svc.url ? healthUrlOf(svc.url) : "");
             lines.push(`  ${icon} ${svc.name}: ${healthUrl}`);
         }
         if (withUrl.length > 10) {
@@ -1000,6 +1001,7 @@ export const upCommand = new Command("up")
             let jsonReady = false;
             let startedServices = serviceNames;
             let startedDependencies = dependencyNames;
+            let urlChecks;
             if (uiReady && emit) {
                 const deferred = getDeferredResourceNames(discoveredResources);
                 const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]));
@@ -1028,6 +1030,21 @@ export const upCommand = new Command("up")
                         const allNames = discoveredResources.map((r) => r.name);
                         startedServices = allNames.filter((name) => enabled.has(name));
                         startedDependencies = startedServices.filter((name) => !options.only.includes(name));
+                    }
+                    if (gatewayEnabled) {
+                        const started = new Set(startedServices);
+                        urlChecks = await checkStackUrls(port, discoveredResources.filter((r) => started.has(r.name)), hostPortPlan.ingressHttp, deferred);
+                        if (urlChecks.some((check) => !check.didAnswer)) {
+                            jsonReady = false;
+                            startupFailed = true;
+                            emit({ ok: false, tiltUrl: `http://localhost:${port}`, urls: urlChecks }, [
+                                {
+                                    code: "UP_URL_UNREACHABLE",
+                                    message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
+                                    suggestions: urlFailureSuggestions(urlChecks),
+                                },
+                            ]);
+                        }
                     }
                 }
                 else {
@@ -1112,6 +1129,15 @@ export const upCommand = new Command("up")
                         }));
                     }
                 }
+                else if (gatewayEnabled) {
+                    // Every resource is running; "ready" still waits until each URL printed below answers.
+                    const checks = await checkStackUrls(port, servicesToStart, hostPortPlan.ingressHttp, deferred);
+                    const failureLines = formatUrlFailures(checks);
+                    if (failureLines.length > 0) {
+                        startupFailed = true;
+                        showError(failureLines.join("\n"), undefined, urlFailureSuggestions(checks));
+                    }
+                }
             }
             if (uiReady && !options.quiet && !startupFailed) {
                 const deferred = getDeferredResourceNames(discoveredResources);
@@ -1130,6 +1156,7 @@ export const upCommand = new Command("up")
                         name,
                         status: failed ? "failed" : isStarting ? "starting" : "ready",
                         url,
+                        ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
                     };
                 });
                 for (const line of formatUpSuccess(port, {
@@ -1187,6 +1214,7 @@ export const upCommand = new Command("up")
                     services: startedServices,
                     ...(options.only ? { requested: options.only, dependencies: startedDependencies } : {}),
                     tiltUrl: `http://localhost:${port}`,
+                    ...(urlChecks ? { urls: urlChecks } : {}),
                 });
             }
             if (startupFailed)
@@ -1220,6 +1248,7 @@ export const upCommand = new Command("up")
                     name,
                     status: failed ? "failed" : isStarting ? "starting" : "ready",
                     url,
+                    ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
                 };
             });
             for (const line of formatUpSuccess(port, {
@@ -1236,6 +1265,26 @@ export const upCommand = new Command("up")
         await withTiltCheck(action);
     }
 });
+/**
+ * Probes every URL `flisk up` prints for the started services (#3211): "ready" means each one answers. A URL that does not is
+ * diagnosed from the Tilt resource (exited) and its logs (a missing environment variable).
+ */
+export async function checkStackUrls(tiltPort, resources, ingressPort, deferred, deps = {}) {
+    const targets = buildPrintedUrlTargets(resources, ingressPort, deferred);
+    if (targets.length === 0)
+        return [];
+    let uiResources;
+    return (deps.check ?? checkPrintedUrls)(targets, {
+        diagnosis: {
+            hasExited: async (name) => {
+                uiResources ??= tiltGetUiResources(tiltPort);
+                const json = await uiResources;
+                return json ? tiltResourceHasExited(json, name) : null;
+            },
+            logs: (name) => tiltResourceLogs(tiltPort, name),
+        },
+    });
+}
 /** The note `flisk up` prints for services a profile kept out. */
 function skippedProfilesNote(skipped) {
     return `Not starting ${describeSkipped(skipped)}: add --profile <name> to start them`;

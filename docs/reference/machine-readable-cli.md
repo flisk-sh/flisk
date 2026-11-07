@@ -22,7 +22,7 @@ Command data:
 - `networks`: `services` with stable service name, stack, base path, URL, optional Windows loopback URL, service port, and reachability state (`running`, `stopped`, or `unknown`). An empty list means no discovered resource currently has a routable base path.
 - `projects`: `projectRoot` (the absolute path of the project), `configured` (`true` when all master configuration files exist), `missingFiles` (the master files that are missing from `.flisk/.flisk-out`; empty when `configured` is `true`), `resources` (the number of discovered resources, not their names), `stacks` (the stack names) and `unassignedResources` (the number of resources that do not belong to a stack). Use `flisk resources --json` or `flisk stacks --json` when you need the names and details. `flisk info --json` is an alias. See the example below.
 - `doctor`: `ready`, `inProject`, ordered `checks`, `capabilities` (names of the capabilities that are on), and a `ports` plan with `http`, `https`, and `postgres` entries (no `postgres` entry when the database capability is off, from `capabilities.database: false` in `.flisk/project.json` or `--no-database`). Each port entry contains canonical `requested`, selected `chosen`, `explicit`, and `reason` fields. Doctor is read-only and does not persist the plan, unless `--fix` is given (see [doctor-contract.md](doctor-contract.md)). Structured `errors` cover usage/internal failures. Check entries preserve `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. `isSkipped` indicates that a check could not run meaningfully; skipped checks are non-blocking, even when `didPass` is `false`.
-- `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), and `tiltUrl` (`http://localhost:<port>`). `flisk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `data.ok` is `false` with `data.tiltUrl` and `data.failures` (a list of affected resources, each with `name` and `message`), and `errors[].code` is `UP_TIMEOUT` or `UP_RESOURCE_FAILED`. On smoke-check failure, `data.ok` is `false`, `errors[].code` is `UP_SMOKE_FAILED`, and Tilt is stopped. Hand-edited generated file drift (`DRIFT_DETECTED`, `DRIFT_EXIT_CODE = 2`) and unknown `--only` service names (`UNKNOWN_SERVICE`) exit with code `2`, while `flisk config verify` exits `1` for drift; other startup, preflight, and host/platform refusals (including native Windows startup refusal) exit with code `1`. Parsers should read the failure category from `errors[].code` and the affected resources from `data.failures`. See the examples below.
+- `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), `tiltUrl` (`http://localhost:<port>`), and `urls` (one entry per URL `flisk up` prints for a started service: `service`, `url`, `didAnswer`, `status`, and for a URL that does not answer `cause`, `message`, `nextCommand` and, for a missing variable, `envName`; absent with `--no-gateway`). `flisk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `data.ok` is `false` with `data.tiltUrl` and `data.failures` (a list of affected resources, each with `name` and `message`), and `errors[].code` is `UP_TIMEOUT` or `UP_RESOURCE_FAILED`. When every resource is running but a printed URL does not answer, `data.ok` is `false` with `data.tiltUrl` and `data.urls`, `errors[].code` is `UP_URL_UNREACHABLE`, and Tilt keeps running. On smoke-check failure, `data.ok` is `false`, `errors[].code` is `UP_SMOKE_FAILED`, and Tilt is stopped. Hand-edited generated file drift (`DRIFT_DETECTED`, `DRIFT_EXIT_CODE = 2`) and unknown `--only` service names (`UNKNOWN_SERVICE`) exit with code `2`, while `flisk config verify` exits `1` for drift; other startup, preflight, and host/platform refusals (including native Windows startup refusal) exit with code `1`. Parsers should read the failure category from `errors[].code` and the affected resources from `data.failures`. See the examples below.
 - `up --dry-run`: `ok`, `dryRun` (`true`), `stack` (the stack name argument, or `null`), `services` (the services the run would start, in discovery order) and `command` (the `tilt up` command line that would run). With `--only`, it also has `requested` (the names you passed) and `declaredDependencies` (services pulled in because a requested service lists them in `dependsOn`). See the example below.
 - `up --env-file`: the path selects the project env file of the run (see [environment.md](../environment.md)). A path that is missing, unreadable, not a file, outside the project, or that misses a key the platform needs is refused before anything starts: `errors[].code` is `ENV_FILE_INVALID` and the exit code is `2`. A project whose vendored engine predates the option is refused with `errors[].code` `ENV_FILE_ENGINE_TOO_OLD` and exit code `1`. A stack that is already running keeps the env file it started with, so the option is refused with `errors[].code` `ENV_FILE_ALREADY_RUNNING` and exit code `1`. The path is named in the message and in the human output; no value from the file is ever printed.
 - `down`: `ok` (`true`) and `stoppedTilt` (the process IDs of any `tilt up` run that `flisk down` ended first; an empty list when none was running). With `--prune-networks`, it also has `removedNetworks` (the project's Docker networks that were removed) and `keptNetworks` (networks left in place, each with `name` and `reason`, for example because a container is still attached). When `tilt down` fails (for example because the generated Tiltfile no longer evaluates), `flisk down` stops the project's containers with `docker compose down` instead and adds `composeFallback`: `tiltDownExitCode` and `stopped` (the Compose projects it stopped). `flisk down --dry-run --json` returns `ok` and `dryRun` (`true`) and stops nothing. See the examples below.
@@ -190,7 +190,11 @@ Example output for `flisk up --json`:
     "ok": true,
     "stack": null,
     "services": ["orders-api", "orders-db"],
-    "tiltUrl": "http://localhost:10350"
+    "tiltUrl": "http://localhost:10350",
+    "urls": [
+      { "service": "orders-api", "url": "http://api.shop.localhost/api/orders", "didAnswer": true, "status": 404 },
+      { "service": "orders-api", "url": "http://api.shop.localhost/api/orders/health", "didAnswer": true, "status": 200 }
+    ]
   },
   "errors": []
 }
@@ -236,6 +240,37 @@ If one or more resources fail to start or the readiness timeout expires (`FLISK_
     {
       "code": "UP_RESOURCE_FAILED",
       "message": "Resources failed (orders-api: Build failed: exit status 1). Tilt is still running; inspect it or run: flisk down"
+    }
+  ]
+}
+```
+
+Ready also means every URL `flisk up` prints answers (#3211). After the resources are running, each printed service URL and its health URL is requested (at most 8 at a time, 3 seconds per request, retried within a 15-second deadline that no request runs past). A response whose connection closes before it fully arrives does not count, and an HTTPS URL's certificate is verified as usual. A routed bring-your-own service has no printed health URL unless its service.json declares a `healthCheckPath`. This checks reachability, not application health: any HTTP response from the service counts, its own 404, 500 or 503 and redirects (not followed) included. Only Traefik's own errors do not count, told apart by their body: its 404 `404 page not found` (`route-not-found`: no router for the URL) and its 502 `Bad Gateway`, 503 `Service Unavailable` or `no available server`, and 504 `Gateway Timeout` (`port-not-listening`: the route exists but nothing answers behind it). A refused connection to a local URL is `gateway-not-listening`; to another host (a `FLISK_SERVICE_BASE_URL` elsewhere), a timeout, or any other request error, it is `timeout` or `no-response`. For a URL that does not answer, the service's Tilt state and latest log lines are read: a variable those lines say is not set gives `missing-env` with `envName` (a best-effort hint from the logs), and an exited container gives `container-exited`. The `cause` values are a stable enum, but each one is the likely cause, inferred from the response and the logs; `message` and `nextCommand` are hints for a person and their wording may change. Deferred services are not requested, since a request would start them. Tilt keeps running so you can inspect it:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": false,
+    "tiltUrl": "http://localhost:10350",
+    "urls": [
+      {
+        "service": "orders-api",
+        "url": "http://api.shop.localhost/api/orders/health",
+        "didAnswer": false,
+        "status": 502,
+        "cause": "missing-env",
+        "message": "the latest logs of orders-api say the environment variable DATABASE_URL is not set",
+        "nextCommand": "add DATABASE_URL=<value> to .env, then run: flisk restart orders-api",
+        "envName": "DATABASE_URL"
+      }
+    ]
+  },
+  "errors": [
+    {
+      "code": "UP_URL_UNREACHABLE",
+      "message": "Not ready: 1 of 2 printed URLs does not answer. ...",
+      "suggestions": ["orders-api: add DATABASE_URL=<value> to .env, then run: flisk restart orders-api", "Tilt is still running; stop it with: flisk down"]
     }
   ]
 }

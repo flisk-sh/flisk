@@ -1,7 +1,7 @@
 {
   "group": "journeys",
   "suite": "compose-import",
-  "description": "The homepage pitch on a clean machine: a plain docker-compose.yml (a Node API on 3000 and Postgres with a password in its environment), then flisk import --yes and flisk up. The API must answer through Traefik on its own port, reach Postgres as db:5432, and the time from flisk import to the first answer is recorded.",
+  "description": "The homepage pitch on a clean machine: a plain docker-compose.yml (a Node API on 3000 and Postgres with a password in its environment), then flisk import --yes and flisk up. The API must answer through Traefik on its own port, reach Postgres as db:5432, the time from flisk import to the first answer is recorded, and every URL flisk up prints answers before it says ready.",
   "paths": [
     "cli/**",
     "runtime/engine/**",
@@ -12,7 +12,7 @@
     "tests/e2e/journeys/compose-import/**",
     ".github/workflows/e2e-journeys.yml"
   ],
-  "cases": ["CI1", "CI2", "CI3", "CI4", "CI5"],
+  "cases": ["CI1", "CI2", "CI3", "CI4", "CI5", "CI6"],
   "triggers": ["pr", "main", "nightly", "release", "manual"],
   "timeoutMinutes": 30,
   "needsSecrets": [],
