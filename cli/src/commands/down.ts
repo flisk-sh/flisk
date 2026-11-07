@@ -20,6 +20,14 @@ import { writeMachineError } from "../utils/machine-output.js";
 import { readNativeRunState, stopNativeRun } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import {
+  countArtifacts,
+  listProjectArtifacts,
+  type ProjectArtifacts,
+  type PurgeResult,
+  removeProjectArtifacts,
+} from "../utils/project-purge.js";
+import { readProjectRecords } from "../utils/project-registry.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { discoverResources, discoverResourcesFromRoot, discoverStacks } from "../utils/services.js";
 import { buildTiltDownArgs, getTiltfilePath, runTilt } from "../utils/tilt.js";
@@ -112,6 +120,52 @@ function pruneNetworksOrWarn(json: boolean): ReturnType<typeof pruneProjectNetwo
   }
 }
 
+/** This project's Docker objects for `--purge`; undefined when the project name cannot be read. */
+function projectArtifacts(
+  projectRoot: string,
+): { name: string; artifacts: ProjectArtifacts } | undefined {
+  let name: string;
+  try {
+    name = readProjectConfig(projectRoot).project.name.toLowerCase();
+  } catch {
+    return undefined;
+  }
+  const known = readProjectRecords().map((record) => record.name);
+  return { name, artifacts: listProjectArtifacts(name, known) };
+}
+
+function describeArtifacts(artifacts: ProjectArtifacts): string[] {
+  const out: string[] = [];
+  if (artifacts.containers.length > 0) out.push(`containers: ${artifacts.containers.join(", ")}`);
+  if (artifacts.volumes.length > 0) out.push(`volumes: ${artifacts.volumes.join(", ")}`);
+  if (artifacts.networks.length > 0) out.push(`networks: ${artifacts.networks.join(", ")}`);
+  if (artifacts.images.length > 0) out.push(`images: ${artifacts.images.join(", ")}`);
+  return out;
+}
+
+function purgeOrWarn(projectRoot: string, json: boolean): PurgeResult | undefined {
+  const found = projectArtifacts(projectRoot);
+  if (!found) {
+    if (!json) console.log(chalk.yellow("Could not read the project name; nothing purged."));
+    return undefined;
+  }
+  const result = removeProjectArtifacts(found.artifacts);
+  if (!json) {
+    const removed = describeArtifacts(result.removed);
+    console.log(
+      removed.length > 0
+        ? chalk.gray(
+            `Removed ${countArtifacts(result.removed)} Docker objects of ${found.name}:\n  ${removed.join("\n  ")}`,
+          )
+        : chalk.gray(`No volumes, networks or images of ${found.name} are left.`),
+    );
+    for (const kept of result.kept) {
+      console.log(chalk.yellow(`Kept ${kept.kind.slice(0, -1)} ${kept.name}: ${kept.reason}`));
+    }
+  }
+  return result;
+}
+
 export const downCommand = addYesOption(new Command("down"))
   .description("Stop all tilt resources")
   .option("-v, --verbose", "Enable verbose output", false)
@@ -129,6 +183,11 @@ export const downCommand = addYesOption(new Command("down"))
   .option(
     "--cache-until <age>",
     "With --prune-cache: age filter for prune (e.g. 24h, 168h, 7d; default: 24h)",
+  )
+  .option(
+    "--purge",
+    "Also delete this project's Docker volumes (database data), networks and images, so nothing of it is left in Docker",
+    false,
   )
   .option("--dry-run", "Show what would be stopped without stopping", false)
   .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
@@ -206,15 +265,28 @@ export const downCommand = addYesOption(new Command("down"))
       return;
     }
     await withTiltCheck(async () => {
+      const wouldPurge =
+        options.purge && options.dryRun ? projectArtifacts(projectRoot) : undefined;
       if (emit && options.dryRun) {
         emit({
           ok: true,
           dryRun: true,
           ...(shouldPruneCache ? { wouldPruneCache: { until: cacheUntil } } : {}),
+          ...(wouldPurge ? { wouldPurge: wouldPurge.artifacts } : {}),
         });
         return;
       }
       if (handleDryRun(options, "not stopping resources", "tilt down")) {
+        if (wouldPurge) {
+          const listed = describeArtifacts(wouldPurge.artifacts);
+          console.log(
+            chalk.gray(
+              listed.length > 0
+                ? `Dry run - --purge would delete:\n  ${listed.join("\n  ")}`
+                : `Dry run - --purge would delete nothing: no Docker objects of ${wouldPurge.name} exist.`,
+            ),
+          );
+        }
         if (shouldPruneCache) {
           console.log(
             chalk.gray(
@@ -284,9 +356,11 @@ export const downCommand = addYesOption(new Command("down"))
       }
 
       let networks: ReturnType<typeof pruneProjectNetworks> | undefined;
-      if (options.pruneNetworks) {
+      if (options.pruneNetworks && !options.purge) {
         networks = pruneNetworksOrWarn(options.json);
       }
+      // After the stack is down: containers no longer hold the volumes and networks.
+      const purged = options.purge ? purgeOrWarn(projectRoot, options.json) : undefined;
 
       let cachePruneResult:
         | { until: string; reclaimed?: string; skipped?: boolean; reason?: string }
@@ -361,6 +435,7 @@ export const downCommand = addYesOption(new Command("down"))
             }
           : {}),
         ...(networks ? { removedNetworks: networks.removed, keptNetworks: networks.kept } : {}),
+        ...(purged ? { purged: purged.removed, keptAfterPurge: purged.kept } : {}),
         ...(cachePruneResult ? { prunedCache: cachePruneResult } : {}),
       });
     });

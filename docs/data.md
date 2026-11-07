@@ -9,10 +9,10 @@ Flisk runs **one** Postgres container for the whole project. The generated `DATA
 | Thing | Name | Example for project `my-shop`, stack `store` |
 | --- | --- | --- |
 | Container | `<project>_postgres` | `my_shop_postgres` |
+| Volume | `<project name>-database-management_<project>_postgres_data` | `my-shop-database-management_my_shop_postgres_data` |
 | Superuser | `<project>` | `my_shop` |
 | Password | `DB_PASSWORD` in the project `.env` | |
 | Database | `<project>_<stack>` (read from the generated `DATABASE_URL`) | `my_shop_store` |
-| Volume | `database-management_<project>_postgres_data` | `database-management_my_shop_postgres_data` |
 | Host port | `15432`, or `FLISK_POSTGRES_PORT` | |
 
 `<project>` is `project.name` from `.flisk/project.json` with `-` replaced by `_`. The same rule applies to the stack name. The volume name was read from existing volumes on a machine that had run Flisk (for example `database-management_auth_user_postgres_data` for project `auth-user`), so check yours with `docker volume ls | grep postgres_data`. The database name was read from the generated Compose `DATABASE_URL` (for project `pilot`, stack `shop`: `.../pilot_shop`), not from a running container: list the real ones with `docker exec <container> psql -U <user> -d postgres -c '\l'`.
@@ -21,13 +21,18 @@ Flisk runs **one** Postgres container for the whole project. The generated `DATA
 
 Yes. `flisk down` runs `tilt down`, which removes the containers but not named volumes. Checked with a small Compose project run through `tilt down`: the container was removed and the file in the volume was still there afterwards. The next `flisk up` starts Postgres on the same volume. Since [#585](https://github.com/flisk-sh/flisk/pull/585) `flisk down` also stops this project's `tilt up`, and `flisk down --prune-networks` removes the project's Docker networks that no container uses; by the source it touches networks only, not volumes (not run against Docker here). Without that flag the networks are kept.
 
+`flisk down --purge` is the exception: after stopping the stack it deletes the project's volumes (the Postgres data), networks and images. Use it for a project you are done with, or to start from an empty database.
+
+## A project folder you deleted
+
+Deleting the folder does not delete its Docker volumes, networks or images, and nothing on a Docker volume says which folder it belongs to. `flisk up` records each project's folder in `~/.flisk/projects/<name>.json`, so `flisk projects --stale` lists what projects whose folders are all gone left behind, and `flisk projects --stale --prune` deletes it. A project that last started before this record existed is not listed; remove its volume by name (`docker volume ls | grep postgres_data`).
+
 ## Start from a clean state
 
 Everything, all services:
 
 ```bash
-flisk down
-docker volume rm database-management_my_shop_postgres_data
+flisk down --purge
 flisk up
 ```
 

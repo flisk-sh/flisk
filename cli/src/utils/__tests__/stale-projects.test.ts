@@ -6,6 +6,7 @@ import {
   findStaleProjects,
   isPathStale,
   parseSizeToBytes,
+  pruneStaleProjects,
 } from "../stale-projects.js";
 
 describe("parseSizeToBytes", () => {
@@ -88,6 +89,7 @@ describe("findStaleProjects", () => {
     };
 
     const report = findStaleProjects({
+      records: [],
       commandRunner: fakeDocker,
       pathChecker,
     });
@@ -105,7 +107,7 @@ describe("findStaleProjects", () => {
     expect(proj.volumeCount).toBe(1);
     expect(proj.networkCount).toBe(1);
     expect(proj.estimatedSizeBytes).toBe(150 * 1024 * 1024);
-    expect(proj.cleanupCommand).toBe("flisk down --purge");
+    expect(proj.cleanupCommand).toBe("flisk projects --stale --prune");
   });
 
   it("returns an empty report when all projects are active", () => {
@@ -118,6 +120,7 @@ describe("findStaleProjects", () => {
     };
 
     const report = findStaleProjects({
+      records: [],
       commandRunner: fakeDocker,
       pathChecker: (p) => existingDirs.has(p),
     });
@@ -133,10 +136,126 @@ describe("findStaleProjects", () => {
     };
 
     const report = findStaleProjects({
+      records: [],
       commandRunner: failingDocker,
     });
 
     expect(report.totalProjects).toBe(0);
     expect(report.staleProjects).toEqual([]);
+  });
+});
+
+describe("findStaleProjects with the projects flisk up recorded", () => {
+  // After `flisk down` a deleted project has no containers left, and a volume records no folder: only the record of
+  // where the project lived tells its database volume apart from a stopped project's (the 31 unused volumes of #3360).
+  const runner = (_command: string, args: string[]): string => {
+    if (args[0] === "ps") return "";
+    if (args[0] === "volume") {
+      return [
+        "hpc52513-database-management_hpc52513_postgres_data\thpc52513-database-management\t\t\t",
+        "shop-database-management_shop_postgres_data\tshop-database-management\t\t\t",
+      ].join("\n");
+    }
+    if (args[0] === "network") {
+      return args.includes("{{.Name}}")
+        ? "hpc52513_backend\nshop_backend"
+        : "hpc52513_backend\t\t\t\t\nshop_backend\t\t\t\t";
+    }
+    if (args[0] === "images") return "hpc52513-l1:latest\nhpc52513_main_api:dev\nshop-l1:latest";
+    return "";
+  };
+  const records = [
+    { name: "hpc52513", roots: ["/tmp/hpc52513"], updatedAt: "" },
+    { name: "shop", roots: ["/work/shop"], updatedAt: "" },
+  ];
+  const nameAt = (root: string) => (root === "/work/shop" ? "shop" : undefined);
+
+  it("reports the volumes, networks and images of a recorded project whose folder is gone", () => {
+    const report = findStaleProjects({
+      commandRunner: runner,
+      pathChecker: () => false,
+      records,
+      nameAt,
+    });
+
+    expect(report.staleProjects.map((project) => project.name)).toEqual(["hpc52513"]);
+    const [stale] = report.staleProjects;
+    expect(stale?.volumes).toEqual(["hpc52513-database-management_hpc52513_postgres_data"]);
+    expect(stale?.networks).toEqual(["hpc52513_backend"]);
+    expect(stale?.images).toEqual(["hpc52513-l1:latest", "hpc52513_main_api:dev"]);
+    expect(stale?.recordedPath).toBe("/tmp/hpc52513");
+    expect(stale?.cleanupCommand).toBe("flisk projects --stale --prune");
+    expect(report.totalVolumes).toBe(1);
+    expect(report.totalImages).toBe(2);
+  });
+
+  it("leaves a project that still exists alone, even when it is stopped", () => {
+    const report = findStaleProjects({
+      commandRunner: runner,
+      pathChecker: () => false,
+      records,
+      nameAt: (root) => root.split("/").pop(),
+    });
+
+    expect(report.staleProjects).toEqual([]);
+  });
+});
+
+describe("pruneStaleProjects", () => {
+  const stale = {
+    name: "hpc52513",
+    recordedPath: "/tmp/hpc52513",
+    containers: [],
+    volumes: ["hpc52513-database-management_hpc52513_postgres_data"],
+    networks: ["hpc52513_backend"],
+    images: ["hpc52513-l1:latest"],
+    containerCount: 0,
+    volumeCount: 1,
+    networkCount: 1,
+    imageCount: 1,
+    estimatedSizeBytes: 0,
+    estimatedSize: "0 B",
+    cleanupCommand: "flisk projects --stale --prune",
+  };
+
+  it("removes what the report listed and forgets the project", () => {
+    const calls: string[][] = [];
+    const forgotten: string[] = [];
+    const result = pruneStaleProjects([stale], {
+      docker: (args) => {
+        calls.push(args);
+        return "";
+      },
+      forget: (name) => forgotten.push(name),
+    });
+
+    expect(calls).toEqual([
+      ["volume", "rm", "hpc52513-database-management_hpc52513_postgres_data"],
+      ["network", "rm", "hpc52513_backend"],
+      ["image", "rm", "hpc52513-l1:latest"],
+    ]);
+    expect(result.projects[0]?.kept).toEqual([]);
+    expect(forgotten).toEqual(["hpc52513"]);
+  });
+
+  it("keeps the record while Docker still holds something of the project", () => {
+    const forgotten: string[] = [];
+    const result = pruneStaleProjects([stale], {
+      docker: (args) => {
+        if (args[0] === "volume")
+          throw Object.assign(new Error("x"), { stderr: "volume is in use" });
+        return "";
+      },
+      forget: (name) => forgotten.push(name),
+    });
+
+    expect(result.projects[0]?.kept).toEqual([
+      {
+        kind: "volumes",
+        name: "hpc52513-database-management_hpc52513_postgres_data",
+        reason: "volume is in use",
+      },
+    ]);
+    expect(forgotten).toEqual([]);
   });
 });

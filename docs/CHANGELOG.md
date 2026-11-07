@@ -4,6 +4,9 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk up` pulls the golden base images from `ghcr.io/flisk-sh` by default and builds them locally only when the pull fails (offline, or no image for that hash). They used to be pulled only with `FLISK_GOLDEN_REGISTRY` set, so every machine and every new project rebuilt them (9 min and 2 GB of build cache on a cold Mac). `FLISK_GOLDEN_REGISTRY=off` keeps the local build. The publish workflow now runs on each push to main that changes the engine. (#3361)
+- New `flisk down --purge` deletes this project's Docker volumes (database data), networks and images after stopping it, so nothing of a throwaway project stays in Docker. Without it `flisk down` keeps all three, as before. `flisk up` now records each project's folder in `~/.flisk/projects/`, and `flisk projects --stale` uses it to find the volumes, networks and images of projects whose folder was deleted (Docker records no folder on a volume, so these were invisible once the containers were gone); `flisk projects --stale --prune` deletes them. The stale report used to suggest `flisk down --purge`, which did not exist and cannot run in a deleted folder. The e2e scripts that start a scratch project (`hpc<pid>`, `prov<pid>`, smoke, go dev loop, byo ports) now also remove its Postgres volume; each run left one behind.
+
 ## 1.4.41 (2026-11-07)
 
 - New database frameworks: `flisk resource <name> --type database --framework mysql|mongodb|clickhouse` run MySQL 8.4, MongoDB 8.0 and ClickHouse as containers of their own (pinned image, readiness probe, a data volume `flisk down` keeps) and give the services that list them in `dependsOn` `MYSQL_URL`, `MONGODB_URL` or `CLICKHOUSE_URL`. They sit beside postgres (the shared Flisk Postgres), redis, qdrant, minio and mlflow.

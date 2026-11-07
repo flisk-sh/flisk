@@ -3,6 +3,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { formatBytes } from "./formatting.js";
+import { listProjectArtifacts, removeProjectArtifacts, } from "./project-purge.js";
+import { forgetProject, isRecordStale, projectNameAt, readProjectRecords, } from "./project-registry.js";
 const defaultRun = (command, args) => execFileSync(command, args, { encoding: "utf-8", stdio: "pipe", windowsHide: true });
 export function parseSizeToBytes(sizeStr) {
     if (!sizeStr)
@@ -66,7 +68,11 @@ export function isPathStale(path, pathChecker = existsSync) {
 export function findStaleProjects(options) {
     const runner = options?.commandRunner ?? defaultRun;
     const pathChecker = options?.pathChecker ?? existsSync;
+    const records = options?.records ?? readProjectRecords();
+    const nameAt = options?.nameAt ?? projectNameAt;
     const projectsByName = new Map();
+    // Docker objects already attributed to a recorded project, so the label scans below do not list them twice.
+    const claimed = new Set();
     const getOrCreate = (name, recordedPath) => {
         let p = projectsByName.get(name);
         if (!p) {
@@ -76,6 +82,7 @@ export function findStaleProjects(options) {
                 containers: [],
                 volumes: [],
                 networks: [],
+                images: [],
                 totalBytes: 0,
             };
             projectsByName.set(name, p);
@@ -85,6 +92,21 @@ export function findStaleProjects(options) {
         }
         return p;
     };
+    // 0. Projects recorded by `flisk up` whose folders are all gone. Volumes carry no folder, so after `flisk down` (no
+    // containers left) this is the only way to tell a deleted project's database volume from a stopped project's.
+    const allNames = records.map((record) => record.name);
+    for (const record of records) {
+        if (!isRecordStale(record, nameAt))
+            continue;
+        const found = listProjectArtifacts(record.name, allNames, (args) => runner("docker", args));
+        const entry = getOrCreate(record.name, record.roots[record.roots.length - 1] ?? "");
+        entry.containers.push(...found.containers);
+        entry.volumes.push(...found.volumes);
+        entry.networks.push(...found.networks);
+        entry.images.push(...found.images);
+        for (const name of [...found.containers, ...found.volumes, ...found.networks])
+            claimed.add(name);
+    }
     // 1. Containers
     try {
         const containerOutput = runner("docker", [
@@ -100,6 +122,8 @@ export function findStaleProjects(options) {
             const workingDir = fliskDir || composeDir;
             const projectName = fliskProject || composeProject;
             if (!workingDir && !projectName)
+                continue;
+            if (claimed.has(names ?? ""))
                 continue;
             const recordedPath = workingDir ? extractProjectRootFromWorkingDir(workingDir.trim()) : "";
             if (workingDir && isPathStale(workingDir.trim(), pathChecker)) {
@@ -130,6 +154,8 @@ export function findStaleProjects(options) {
             if (!line.trim())
                 continue;
             const [volName, composeProject, composeDir, fliskProject, fliskDir] = line.split("\t");
+            if (claimed.has(volName ?? ""))
+                continue;
             const workingDir = fliskDir || composeDir;
             const projectName = fliskProject || composeProject;
             if (workingDir && isPathStale(workingDir.trim(), pathChecker)) {
@@ -163,6 +189,8 @@ export function findStaleProjects(options) {
             if (!line.trim())
                 continue;
             const [netName, composeProject, composeDir, fliskProject, fliskDir] = line.split("\t");
+            if (claimed.has(netName ?? ""))
+                continue;
             const workingDir = fliskDir || composeDir;
             const projectName = fliskProject || composeProject;
             if (workingDir && isPathStale(workingDir.trim(), pathChecker)) {
@@ -188,15 +216,20 @@ export function findStaleProjects(options) {
     let totalContainers = 0;
     let totalVolumes = 0;
     let totalNetworks = 0;
+    let totalImages = 0;
     let totalSizeBytes = 0;
     for (const p of [...projectsByName.values()].sort((a, b) => a.name.localeCompare(b.name))) {
         // Only report as stale if there is at least one container, volume, or network
-        if (p.containers.length === 0 && p.volumes.length === 0 && p.networks.length === 0) {
+        if (p.containers.length === 0 &&
+            p.volumes.length === 0 &&
+            p.networks.length === 0 &&
+            p.images.length === 0) {
             continue;
         }
         totalContainers += p.containers.length;
         totalVolumes += p.volumes.length;
         totalNetworks += p.networks.length;
+        totalImages += p.images.length;
         totalSizeBytes += p.totalBytes;
         staleProjects.push({
             name: p.name,
@@ -204,12 +237,15 @@ export function findStaleProjects(options) {
             containers: p.containers,
             volumes: p.volumes,
             networks: p.networks,
+            images: p.images,
             containerCount: p.containers.length,
             volumeCount: p.volumes.length,
             networkCount: p.networks.length,
+            imageCount: p.images.length,
             estimatedSizeBytes: p.totalBytes,
             estimatedSize: formatBytes(p.totalBytes),
-            cleanupCommand: `flisk down --purge`,
+            // The folder is gone, so `flisk down` cannot run for it; --prune removes what this report lists.
+            cleanupCommand: "flisk projects --stale --prune",
         });
     }
     return {
@@ -217,8 +253,35 @@ export function findStaleProjects(options) {
         totalContainers,
         totalVolumes,
         totalNetworks,
+        totalImages,
         totalProjects: staleProjects.length,
         totalSizeBytes,
         totalSize: formatBytes(totalSizeBytes),
     };
+}
+/**
+ * Deletes what {@link findStaleProjects} listed for each stale project: containers, then volumes, networks and images.
+ * A project whose objects were all removed is also dropped from the `flisk up` record, so it is not reported again.
+ */
+export function pruneStaleProjects(staleProjects, options = {}) {
+    const forget = options.forget ?? ((name) => forgetProject(name));
+    const projects = [];
+    for (const project of staleProjects) {
+        const result = removeProjectArtifacts({
+            containers: project.containers,
+            volumes: project.volumes,
+            networks: project.networks,
+            images: project.images,
+        }, options.docker);
+        if (result.kept.length === 0) {
+            try {
+                forget(project.name);
+            }
+            catch {
+                // The record only decides what is reported; a stale record lists nothing once Docker holds nothing.
+            }
+        }
+        projects.push({ name: project.name, removed: result.removed, kept: result.kept });
+    }
+    return { projects };
 }

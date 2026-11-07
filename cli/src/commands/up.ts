@@ -90,6 +90,7 @@ import {
   describeSkipped,
   type ProfileSelection,
 } from "../utils/profiles.js";
+import { recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import {
@@ -1340,6 +1341,10 @@ export const upCommand = new Command("up")
         console.log(chalk.gray("\nRunning tilt up..."));
         console.log(chalk.gray(`Using Tiltfile: .flisk/.flisk-out/Tiltfile`));
       }
+
+      // Remember where this project lives, so `flisk projects --stale` can tell its Docker volumes apart from a stopped
+      // project's once the folder is deleted (Docker records no folder on a volume).
+      recordProjectRoot(projectRoot);
 
       const tiltRun = runTilt("up", tiltArgs, {
         verbose: options.verbose && !options.json,

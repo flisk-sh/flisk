@@ -6,27 +6,59 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { MASTER_CONFIG_FILES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
-import { errorFactories, requireProjectRoot, runCommand } from "../utils/errors.js";
+import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { formatCount } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { findStaleProjects } from "../utils/stale-projects.js";
+import { findStaleProjects, pruneStaleProjects } from "../utils/stale-projects.js";
 export const projectsCommand = new Command("projects")
     .description("Show project information and configuration status")
     .alias("info")
     .option("--check", "Check if project is properly configured", false)
     .option("--stale", "List stale projects whose directory is gone but Docker resources remain", false)
+    .option("--prune", "With --stale: delete the containers, volumes (database data), networks and images those projects left", false)
     .option("--json", "Output a versioned JSON response")
     .action(async (options) => {
     const action = async () => {
+        if (options.prune && !options.stale) {
+            throw new FliskError("--prune only works with --stale", [
+                "List what stale projects left: flisk projects --stale",
+                "Then delete it: flisk projects --stale --prune",
+            ]);
+        }
         if (options.stale) {
             const report = findStaleProjects();
+            if (options.prune) {
+                const pruned = pruneStaleProjects(report.staleProjects);
+                if (options.json) {
+                    console.log(JSON.stringify(createMachineEnvelope(pruned), null, 2));
+                }
+                else if (pruned.projects.length === 0) {
+                    console.log(chalk.green("✓ No stale projects found; nothing to delete."));
+                }
+                else {
+                    for (const project of pruned.projects) {
+                        console.log(chalk.bold(`• ${project.name}`));
+                        const removed = Object.entries(project.removed).filter(([, names]) => names.length > 0);
+                        for (const [kind, names] of removed) {
+                            console.log(chalk.gray(`  Removed ${kind}: ${names.join(", ")}`));
+                        }
+                        for (const kept of project.kept) {
+                            console.log(chalk.yellow(`  Kept ${kept.name}: ${kept.reason}`));
+                        }
+                    }
+                }
+                if (pruned.projects.some((project) => project.kept.length > 0))
+                    process.exitCode = 1;
+                return;
+            }
             if (options.json) {
                 console.log(JSON.stringify(createMachineEnvelope({
                     staleProjects: report.staleProjects,
                     totalContainers: report.totalContainers,
                     totalVolumes: report.totalVolumes,
                     totalNetworks: report.totalNetworks,
+                    totalImages: report.totalImages,
                     totalProjects: report.totalProjects,
                     totalSize: report.totalSize,
                 }), null, 2));
@@ -59,12 +91,15 @@ export const projectsCommand = new Command("projects")
                 if (proj.networkCount > 0) {
                     console.log(chalk.gray(`  Networks:       ${formatCount(proj.networkCount, "network")}`));
                 }
+                if (proj.imageCount > 0) {
+                    console.log(chalk.gray(`  Images:         ${formatCount(proj.imageCount, "image")}`));
+                }
                 if (proj.estimatedSizeBytes > 0) {
                     console.log(chalk.gray(`  Estimated Size: ${proj.estimatedSize}`));
                 }
                 console.log(chalk.cyan(`  Cleanup:        ${proj.cleanupCommand}\n`));
             }
-            console.log(chalk.gray("Run the suggested cleanup command to remove orphaned containers and volumes.\n"));
+            console.log(chalk.gray("Run flisk projects --stale --prune to delete them (database volumes included).\n"));
             if (options.check) {
                 process.exitCode = 1;
             }
