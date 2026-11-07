@@ -60,6 +60,23 @@ def test_one_line_over_the_linux_argument_limit_is_written_byte_for_byte(tmp_pat
 
 
 @TILT_REQUIRED
+def test_one_ascii_line_over_the_linux_argument_limit_is_written_byte_for_byte(tmp_path):
+    ascii_line = "x" * (200 * 1024)
+    target = tmp_path / "services"
+    run_starlark(tmp_path, _body(target, {"ascii-line.txt": ascii_line}))
+    assert (target / "ascii-line.txt").read_bytes() == ascii_line.encode("utf-8")
+
+
+@TILT_REQUIRED
+def test_a_character_straddling_a_piece_boundary_is_not_cut(tmp_path):
+    # WRITE_PIECE_BYTES is 32768: 32767 ASCII bytes leave room for one byte, so the 4-byte emoji must start the next piece.
+    straddle = ("x" * 32767 + "🛑") * 5
+    target = tmp_path / "services"
+    run_starlark(tmp_path, _body(target, {"straddle.txt": straddle}))
+    assert (target / "straddle.txt").read_bytes() == straddle.encode("utf-8")
+
+
+@TILT_REQUIRED
 def test_small_and_empty_content_is_written_exactly(tmp_path):
     target = tmp_path / "services"
     run_starlark(tmp_path, _body(target, {"small.txt": "hi 🛑\n", "no-newline.txt": "no newline", "empty.txt": ""}))
