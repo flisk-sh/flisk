@@ -432,6 +432,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "nightly-adopters.yml",
+			"job": "report",
+			"tier": "bot",
+			"required": false,
+			"reason": "Opens one issue per failing nightly adopter, comments on repeat failures and closes it once the adopter passes",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "npm-downloads-graph.yml",
 			"job": "graph",
 			"tier": "report",

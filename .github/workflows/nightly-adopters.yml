@@ -60,6 +60,9 @@ jobs:
             docker_model_plugin: true
             # Small models (a few hundred MB): the job checks that Flisk imports and starts the stack. It does not call the
             # model endpoint (AI_BASE_URL below names Model Runner's port, 12434), so no host-gateway mapping is added.
+            # Pulled before `flisk up`: Compose pulls a service's models inside `docker compose up`, where a slow or failed pull
+            # fails the `web` resource with no output in the job log.
+            models: "ai/smollm2 ai/all-minilm"
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
@@ -90,7 +93,8 @@ jobs:
             owner: LycheeOrg
             repo: Lychee
             commit: 7145b37ff66ea7990cc9b8dbbf779ba1d34c0b64
-            health_check: "http://127.0.0.1:80"
+            # lychee_api publishes ${APP_PORT:-8000}->8000; nothing in this Compose file publishes host port 80.
+            health_check: "http://127.0.0.1:8000"
             needs_env: true
             env_file: |
               APP_ENV=production
@@ -127,6 +131,8 @@ jobs:
 
       - name: Install Docker Model Runner (stacks that declare Compose models)
         if: matrix.docker_model_plugin
+        env:
+          MODELS: ${{ matrix.models }}
         run: |
           # The runner image has Docker but not Docker's apt repository, which is where docker-model-plugin lives.
           # The plugin is a static binary, so the noble (LTS) packages work on any runner release.
@@ -138,6 +144,10 @@ jobs:
           sudo apt-get install -y docker-model-plugin
           docker model version
           docker model install-runner
+          for model in $MODELS; do
+            docker model pull "$model"
+          done
+          docker model ls
 
       - name: Install Flisk CLI
         uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -221,6 +231,12 @@ jobs:
           echo "::group::Tilt UI resources"
           tilt get uiresources -o json 2>/dev/null | jq -r '.items[] | select(.status.updateStatus == "error") | "\(.metadata.name): \((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || true
           echo "::endgroup::"
+          # The update error above is only the command line; the Compose stderr that explains it is in the resource's log.
+          for resource in $(tilt get uiresources -o json 2>/dev/null | jq -r '.items[] | select(.status.updateStatus == "error" or .status.runtimeStatus == "error") | .metadata.name' || true); do
+            echo "::group::Tilt log: $resource (last 120 lines)"
+            tilt logs "$resource" 2>&1 | tail -n 120 || true
+            echo "::endgroup::"
+          done
           echo "::group::Flisk doctor output"
           flisk doctor || true
           echo "::endgroup::"
@@ -230,3 +246,29 @@ jobs:
         working-directory: adopter
         run: |
           flisk down --prune-networks --yes || true
+
+  # One issue per failing adopter, a comment on each further failing night, and a close once it passes (nightly-adopter-issues.mjs).
+  # A separate job so the issues: write token never sits in a job that runs adopter code. Default branch only, so a dispatch on a
+  # feature branch does not file issues.
+  report:
+    name: Report adopter failures
+    needs: adopter
+    if: always() && github.ref_name == github.event.repository.default_branch && needs.adopter.result != 'skipped'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      checks: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: scripts/nightly-adopter-issues.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Open, update or close adopter issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/nightly-adopter-issues.mjs
