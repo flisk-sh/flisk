@@ -99,9 +99,10 @@ r = {'labels': l}
     expected = {
         "traefik.enable": "true",
         "flisk.project": "testproj",
-        "traefik.http.routers.testproj-orders-api.rule": "Host(`orders.backend.testproj.local`) || PathPrefix(`/api/v1/orders-management`)",
+        "traefik.http.routers.testproj-orders-api.rule": "Host(`orders.backend.testproj.local`) || (Path(`/api/v1/orders-management`) || PathPrefix(`/api/v1/orders-management/`))",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",
+        "traefik.http.routers.testproj-orders-api.priority": "80",
         "traefik.http.routers.testproj-orders-api.middlewares": "testproj-orders-api-strip-prefix",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix.stripprefix.prefixes": "/api/v1/orders-management",
         "traefik.http.services.testproj-orders-api.loadbalancer.server.port": "4000",
@@ -110,18 +111,18 @@ r = {'labels': l}
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.timeout": "5s",
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.followredirects": "false",
         "traefik.docker.network": "testproj_traefik-public",
-        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)",
+        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))",
         "traefik.http.routers.testproj-orders-api-project.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api-project.service": "testproj-orders-api",
         "traefik.http.routers.testproj-orders-api-project.middlewares": "testproj-orders-api-strip-prefix-project",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix-project.stripprefix.prefixes": "/api/orders",
         "traefik.http.routers.testproj-orders-api-project.priority": "111",
-        "traefik.http.routers.testproj-orders-api-management.rule": "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders-management`)",
+        "traefik.http.routers.testproj-orders-api-management.rule": "Host(`api.testproj.localhost`) && (Path(`/api/orders-management`) || PathPrefix(`/api/orders-management/`))",
         "traefik.http.routers.testproj-orders-api-management.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api-management.service": "testproj-orders-api",
         "traefik.http.routers.testproj-orders-api-management.middlewares": "testproj-orders-api-strip-prefix-management",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix-management.stripprefix.prefixes": "/api/orders-management",
-        "traefik.http.routers.testproj-orders-api-management.priority": "122",
+        "traefik.http.routers.testproj-orders-api-management.priority": "121",
         "traefik.http.middlewares.testproj-orders-api-redirect.redirectregex.regex": "^`/orders-management/api/v1/(.*)`",
         "traefik.http.middlewares.testproj-orders-api-redirect.redirectregex.replacement": "`/api/orders/$$1`",
         "traefik.http.middlewares.testproj-orders-api-redirect.redirectregex.permanent": "true",
@@ -156,9 +157,10 @@ r = {'labels': l}
     expected = {
         "traefik.enable": "true",
         "flisk.project": "testproj",
-        "traefik.http.routers.testproj-orders-api.rule": "Host(`custom.orders.local`) || PathPrefix(`/custom/orders`)",
+        "traefik.http.routers.testproj-orders-api.rule": "Host(`custom.orders.local`) || (Path(`/custom/orders`) || PathPrefix(`/custom/orders/`))",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",
+        "traefik.http.routers.testproj-orders-api.priority": "59",
         "traefik.http.routers.testproj-orders-api.middlewares": "testproj-orders-api-strip-prefix",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix.stripprefix.prefixes": "/custom/orders",
         "traefik.http.services.testproj-orders-api.loadbalancer.server.port": "4000",
@@ -167,18 +169,18 @@ r = {'labels': l}
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.timeout": "5s",
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.followredirects": "false",
         "traefik.docker.network": "testproj_traefik-public",
-        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)",
+        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))",
         "traefik.http.routers.testproj-orders-api-project.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api-project.service": "testproj-orders-api",
         "traefik.http.routers.testproj-orders-api-project.middlewares": "testproj-orders-api-strip-prefix-project",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix-project.stripprefix.prefixes": "/api/orders",
         "traefik.http.routers.testproj-orders-api-project.priority": "111",
-        "traefik.http.routers.testproj-orders-api-management.rule": "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders-management`)",
+        "traefik.http.routers.testproj-orders-api-management.rule": "Host(`api.testproj.localhost`) && (Path(`/api/orders-management`) || PathPrefix(`/api/orders-management/`))",
         "traefik.http.routers.testproj-orders-api-management.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api-management.service": "testproj-orders-api",
         "traefik.http.routers.testproj-orders-api-management.middlewares": "testproj-orders-api-strip-prefix-management",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix-management.stripprefix.prefixes": "/api/orders-management",
-        "traefik.http.routers.testproj-orders-api-management.priority": "122",
+        "traefik.http.routers.testproj-orders-api-management.priority": "121",
         "traefik.http.middlewares.testproj-orders-api-redirect.redirectregex.regex": "^`/orders-management/api/v1/(.*)`",
         "traefik.http.middlewares.testproj-orders-api-redirect.redirectregex.replacement": "`/api/orders/$$1`",
         "traefik.http.middlewares.testproj-orders-api-redirect.redirectregex.permanent": "true",
@@ -219,7 +221,7 @@ r = {'labels': l}
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.timeout": "5s",
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.followredirects": "false",
         "traefik.docker.network": "testproj_traefik-public",
-        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)",
+        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))",
         "traefik.http.routers.testproj-orders-api-project.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api-project.service": "testproj-orders-api",
         "traefik.http.routers.testproj-orders-api-project.middlewares": "testproj-orders-api-strip-prefix-project",
@@ -263,9 +265,10 @@ r = {'labels': l}
     expected = {
         "traefik.enable": "true",
         "flisk.project": "testproj",
-        "traefik.http.routers.testproj-orders-api.rule": "Host(`custom.orders.local`) || PathPrefix(`/custom/orders`)",
+        "traefik.http.routers.testproj-orders-api.rule": "Host(`custom.orders.local`) || (Path(`/custom/orders`) || PathPrefix(`/custom/orders/`))",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",
+        "traefik.http.routers.testproj-orders-api.priority": "59",
         "traefik.http.routers.testproj-orders-api.middlewares": "testproj-orders-api-strip-prefix",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix.stripprefix.prefixes": "/api/v1/orders-management",
         "traefik.http.services.testproj-orders-api.loadbalancer.server.port": "4000",
@@ -274,7 +277,7 @@ r = {'labels': l}
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.timeout": "5s",
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.followredirects": "false",
         "traefik.docker.network": "testproj_traefik-public",
-        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)",
+        "traefik.http.routers.testproj-orders-api-project.rule": "Host(`api.testproj.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))",
         "traefik.http.routers.testproj-orders-api-project.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api-project.service": "testproj-orders-api",
         "traefik.http.routers.testproj-orders-api-project.middlewares": "testproj-orders-api-strip-prefix-project",
@@ -286,7 +289,7 @@ r = {'labels': l}
     }
     assert labels == expected
     # The router rule matches the explicit route
-    assert labels["traefik.http.routers.testproj-orders-api.rule"] == "Host(`custom.orders.local`) || PathPrefix(`/custom/orders`)"
+    assert labels["traefik.http.routers.testproj-orders-api.rule"] == "Host(`custom.orders.local`) || (Path(`/custom/orders`) || PathPrefix(`/custom/orders/`))"
 
 
 def test_shared_stack_backend_with_empty_explicit_route_uses_fallback(tmp_path):
@@ -317,7 +320,7 @@ r = {'labels': l}
     assert "traefik.http.routers.testproj-orders-api.rule" not in labels
     assert "traefik.http.routers.testproj-orders-api-management.rule" not in labels
     assert labels["traefik.http.routers.testproj-orders-api-project.rule"] == (
-        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)"
+        "Host(`api.testproj.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))"
     )
 
 
@@ -366,9 +369,10 @@ r = {'labels': l}
     expected = {
         "traefik.enable": "true",
         "flisk.project": "testproj",
-        "traefik.http.routers.testproj-orders-api.rule": "Host(`orders.backend.testproj.local`) || PathPrefix(`/api/orders`)",
+        "traefik.http.routers.testproj-orders-api.rule": "Host(`orders.backend.testproj.local`) || (Path(`/api/orders`) || PathPrefix(`/api/orders/`))",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",
+        "traefik.http.routers.testproj-orders-api.priority": "66",
         "traefik.http.routers.testproj-orders-api.middlewares": "testproj-orders-api-strip-prefix",
         "traefik.http.middlewares.testproj-orders-api-strip-prefix.stripprefix.prefixes": "/api/orders",
         "traefik.http.services.testproj-orders-api.loadbalancer.server.port": "4000",
@@ -410,7 +414,7 @@ r = {'labels': l}
     labels = run_traefik_labels(tmp_path, "testproj", body)
 
     # Router rule contains ONLY the explicit path prefix, never the shared stack host or path
-    assert labels["traefik.http.routers.testproj-orders-api.rule"] == "PathPrefix(`/custom/orders`)"
+    assert labels["traefik.http.routers.testproj-orders-api.rule"] == "(Path(`/custom/orders`) || PathPrefix(`/custom/orders/`))"
     assert "orders.backend.testproj.local" not in labels["traefik.http.routers.testproj-orders-api.rule"]
     assert "/api/v1/orders-management" not in labels["traefik.http.routers.testproj-orders-api.rule"]
     assert labels["traefik.http.routers.testproj-orders-api.service"] == "testproj-orders-api"
@@ -423,7 +427,7 @@ r = {'labels': l}
 
     # Project router remains present
     assert labels["traefik.http.routers.testproj-orders-api-project.rule"] == (
-        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)"
+        "Host(`api.testproj.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))"
     )
 
     # Management router is omitted because stack is shared
@@ -458,15 +462,15 @@ r = {{'labels': l}}
 
     # Normal stack router rule is emitted with both stack host and path
     assert labels["traefik.http.routers.testproj-orders-api.rule"] == (
-        "Host(`orders.backend.testproj.local`) || PathPrefix(`/api/v1/orders-management`)"
+        "Host(`orders.backend.testproj.local`) || (Path(`/api/v1/orders-management`) || PathPrefix(`/api/v1/orders-management/`))"
     )
     assert labels["traefik.http.routers.testproj-orders-api.service"] == "testproj-orders-api"
     assert labels["traefik.http.services.testproj-orders-api.loadbalancer.server.port"] == "4000"
     assert labels["traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.path"] == "/health"
     assert labels["traefik.docker.network"] == "testproj_traefik-public"
     assert labels["traefik.http.routers.testproj-orders-api-project.rule"] == (
-        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)"
+        "Host(`api.testproj.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))"
     )
     assert labels["traefik.http.routers.testproj-orders-api-management.rule"] == (
-        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders-management`)"
+        "Host(`api.testproj.localhost`) && (Path(`/api/orders-management`) || PathPrefix(`/api/orders-management/`))"
     )

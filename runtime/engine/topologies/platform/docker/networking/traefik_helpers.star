@@ -83,13 +83,41 @@ def byo_ui_host(resource_name):
     return resource_name + "." + TRAEFIK_PROJECT_HOST
 
 
+def path_segment_rule(path):
+    """Traefik matcher for `path` and everything below it, on a path-segment boundary (#3197).
+
+    A bare PathPrefix(`/api/vote`) also matches `/api/voters`, which then reaches `vote` with the prefix stripped mid-word
+    (`/rs`). `/api/vote` matches itself and `/api/vote/...` only. The result is parenthesised so it can sit beside `&&`.
+    A path that already ends in `/` is a segment boundary as written, so it keeps its single PathPrefix.
+    """
+    if path.endswith("/"):
+        return "PathPrefix(`{path}`)".format(path=path)
+    return "(Path(`{path}`) || PathPrefix(`{path}/`))".format(path=path)
+
+
 def backend_rule(traefik_host, traefik_path):
     parts = []
     if TRAEFIK_ENABLE_BACKEND_HOST_RULE and traefik_host:
         parts.append("Host(`{host}`)".format(host=traefik_host))
     if TRAEFIK_ENABLE_BACKEND_PATH_RULE and traefik_path:
-        parts.append("PathPrefix(`{path}`)".format(path=traefik_path))
+        parts.append(path_segment_rule(traefik_path))
     return " || ".join(parts)
+
+
+def backend_rule_priority(traefik_host, traefik_path):
+    """Explicit priority for the stack router: the length its rule had before #3197.
+
+    The stack router sets no priority of its own, so Traefik ranked it by rule length. The segment-boundary matcher makes the
+    rule ~40 characters longer, enough to outrank routers it used to lose to (a frontend at `/` is priority 101; the default
+    `orders` stack rule went from 80 to 120). Pinning the old length keeps every precedence decision as it was; only the
+    matching is narrower.
+    """
+    parts = []
+    if TRAEFIK_ENABLE_BACKEND_HOST_RULE and traefik_host:
+        parts.append("Host(`{host}`)".format(host=traefik_host))
+    if TRAEFIK_ENABLE_BACKEND_PATH_RULE and traefik_path:
+        parts.append("PathPrefix(`{path}`)".format(path=traefik_path))
+    return len(" || ".join(parts))
 
 
 def _pluralize_stack(stack):
@@ -175,7 +203,7 @@ def project_backend_rule(manifest, resource_name=None):
         return ""
 
     api_path = cli_api_path(resource_name, manifest)
-    return "Host(`{host}`) && PathPrefix(`{path}`)".format(
+    return "Host(`{host}`) && {path_rule}".format(
         host=TRAEFIK_PROJECT_API_HOST,
-        path=api_path,
+        path_rule=path_segment_rule(api_path),
     )

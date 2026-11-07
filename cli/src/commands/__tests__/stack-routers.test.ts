@@ -90,7 +90,7 @@ if '-orders-api-management.rule=' not in entry: fail('missing the -management ro
 if '-orders-api.rule=' in entry: fail('the shared stack router is still emitted')
 if '-orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
 if '-orders-api-project.rule=' not in entry: fail('the per-backend -project router is gone')
-if 'PathPrefix(\`/api/shop-management\`)' in entry: fail('the shared /api/shop-management path is still routed')
+if '/api/shop-management' in entry: fail('the shared /api/shop-management path is still routed')
 if 'loadbalancer.server.port=4000' not in entry: fail('the service labels are gone, so the -project router has nothing to route to')
 if '-orders-api-project.service=' not in entry: fail('the -project router lost its service')
 `);
@@ -98,7 +98,7 @@ if '-orders-api-project.service=' not in entry: fail('the -project router lost i
 
   it("keeps an explicit traefik.pathPrefix with only that path as its rule when the stack has two backends", () => {
     expectPasses(`${entryFor("{'_stackBackendCount': 2, 'traefik': {'pathPrefix': '/api/orders-legacy'}}")}
-if '-orders-api.rule=PathPrefix(\`/api/orders-legacy\`)"' not in entry: fail('the explicit router should match only its own pathPrefix')
+if '-orders-api.rule=(Path(\`/api/orders-legacy\`) || PathPrefix(\`/api/orders-legacy/\`))"' not in entry: fail('the explicit router should match only its own pathPrefix')
 if 'Host(\`shop.backend' in entry: fail('the shared stack host is still in a rule')
 if '-orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
 if '/api/shop-management' in entry: fail('the shared /api/shop-management path is still routed')
@@ -123,7 +123,7 @@ for name, path in [('orders-api', '/api/orders-v1'), ('billing-api', '/api/billi
     out += generate_backend_compose_entry('services/shop', name, {'name': name, '_resource_path': 'services/shop/' + name}, m)
 if '/api/shop-management' in out: fail('a shared /api/shop-management path is still routed')
 if out.count('-management.rule=') != 0: fail('a -management router is still emitted')
-if 'PathPrefix(\`/api/orders-v1\`)' not in out or 'PathPrefix(\`/api/billing-v1\`)' not in out: fail('each backend should keep its own path')
+if '(Path(\`/api/orders-v1\`) || PathPrefix(\`/api/orders-v1/\`))' not in out or '(Path(\`/api/billing-v1\`) || PathPrefix(\`/api/billing-v1/\`))' not in out: fail('each backend should keep its own path')
 `);
   });
 

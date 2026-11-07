@@ -31,7 +31,7 @@ labels = generate_traefik_labels(
 ```python
 {
     "traefik.enable": "true",
-    "traefik.http.routers.order-management-backend.rule": "Host(`order.backend.{project}.localhost`) && PathPrefix(`/api/orders`)",
+    "traefik.http.routers.order-management-backend.rule": "Host(`order.backend.{project}.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))",
     "traefik.http.routers.order-management-backend.entrypoints": "web",
     "traefik.http.services.order-management-backend.loadbalancer.server.port": "4000"
 }
