@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { effectiveRuntimeStatus } from "./tilt-resource-state.js";
+import { effectiveRuntimeStatus, isUnhealthyButRunning } from "./tilt-resource-state.js";
 import { isAdvisoryResource } from "./up-readiness.js";
 
 export type ServiceProgressState = "waiting" | "building" | "starting" | "ready" | "failed";
@@ -39,8 +39,10 @@ export function classifyUpProgress(jsonText: string, deferred: Set<string>): Ser
     const update = rawUpdate === "not_applicable" ? "ok" : rawUpdate;
     const runtime = effectiveRuntimeStatus(item.status);
     let state: ServiceProgressState;
-    if (update === "error" || runtime === "error") state = "failed";
-    else if (update === "in_progress") state = "building";
+    if (update === "error") state = "failed";
+    else if (runtime === "error") {
+      state = isUnhealthyButRunning(item.status) ? "starting" : "failed";
+    } else if (update === "in_progress") state = "building";
     else if (update === "ok")
       state = runtime === "pending" || runtime === "none" ? "starting" : "ready";
     else state = "waiting";
