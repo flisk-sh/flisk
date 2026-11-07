@@ -559,3 +559,17 @@ def test_stack_imported_postgres_container_is_detected(tmp_path):
         "r = {'own': own, 'shared': shared, 'none': none}\n",
     )
     assert result == {"own": True, "shared": False, "none": False}
+
+
+@TILT_REQUIRED
+def test_project_importing_postgres_skips_shared_registration(tmp_path):
+    """The infra loader must not register the shared `postgres` when discovery found an app resource named postgres."""
+    infra_dir = INFRA_LOADER.parent
+    result = run_starlark(
+        tmp_path,
+        f"load('{infra_dir}/infra-loader.star', 'project_imports_own_postgres')\n"
+        "imported = [{'resources': [{'name': 'ghostfolio'}, {'name': 'postgres', '_manifest': {'appType': 'backend'}}]}]\n"
+        "shared = [{'resources': [{'name': 'postgres', '_manifest': {'appType': 'database'}}]}]\n"
+        "r = {'imported': project_imports_own_postgres(imported), 'shared': project_imports_own_postgres(shared), 'none': project_imports_own_postgres([])}\n",
+    )
+    assert result == {"imported": True, "shared": False, "none": False}

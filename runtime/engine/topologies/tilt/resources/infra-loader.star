@@ -27,6 +27,7 @@ load("../common/utils_debug.star", "debug_log")
 load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
 load("./tilt_image_tags.star", "register_tilt_image_tags")
+load("../../../../discovery/registry.star", "APP_RESOURCES")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
 load("../../platform/docker/networking/sablier_container_cycle.star", "sablier_middleware_suffix")
@@ -230,6 +231,25 @@ def force_start_platform_postgres(should_enable, root_prefix="", env_file=None, 
     _register_platform_postgres(should_enable, root_prefix, env_file, write_fn, required=True)
 
 
+def project_imports_own_postgres(app_resources=None):
+    """True when a discovered resource named `postgres` is an app container, not the shared `database` resource.
+
+    `flisk import` writes a Compose `postgres` service as its own resource (services/adopter/postgres). The generated app
+    Compose file then defines the `postgres` dc_resource, so the shared platform Postgres must not register a second one.
+    """
+    resources = APP_RESOURCES if app_resources == None else app_resources
+    for service in resources or []:
+        if type(service) != 'dict':
+            continue
+        for res in service.get('resources', []):
+            if type(res) != 'dict' or res.get('name', '') != 'postgres':
+                continue
+            manifest = res.get('_manifest', {}) or {}
+            if manifest.get('appType', 'backend') != 'database':
+                return True
+    return False
+
+
 def _load_database_management(should_enable, root_prefix="", env_file=None, write_fn=None):
     """Load database and messaging infrastructure."""
     if not should_enable('database-management'):
@@ -238,8 +258,11 @@ def _load_database_management(should_enable, root_prefix="", env_file=None, writ
 
     print("🗃️  Loading database management services...")
 
-    # Load postgres from the database-management stack feature compose.
-    _register_platform_postgres(should_enable, root_prefix, env_file, write_fn)
+    # Load postgres from the database-management stack feature compose, unless the project imports its own `postgres` container.
+    if project_imports_own_postgres():
+        print("🗃️  Project defines its own postgres service; not registering the shared platform Postgres")
+    else:
+        _register_platform_postgres(should_enable, root_prefix, env_file, write_fn)
 
     # Load messaging if compose file exists
     messaging_compose = root_prefix + 'services/platform/messaging/docker-compose.yml'
