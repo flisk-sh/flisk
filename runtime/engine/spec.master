@@ -27,9 +27,12 @@
 # =============================================================================
 
 # The generated Tiltfile in .flisk/.flisk-out/ loads the generated spec.master from the same
-# folder. A module in another folder needs a path to that file, not the bare name:
+# folder, by its bare name:
 #
 #     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")
+#
+# Starlark resolves a relative load from the loading file's folder, so a topology module in
+# any other folder must give the path to .flisk/.flisk-out/spec.master instead of the bare name.
 #
 # Then use the names you loaded:
 #
@@ -657,7 +660,7 @@ COMPARISON:
 
 ✅ AFTER (Explicit):
     load(SPEC.DISCOVERY.REGISTRY, "get_app_resources")
-    # Path is: {PROJECT_ROOT}/.tilt/topologies/tilt/discovery/registry.star
+    # Path is: {PROJECT_ROOT}/engine/topologies/tilt/discovery/registry.star
     # Behavior defined in this spec file.
 
 USAGE:

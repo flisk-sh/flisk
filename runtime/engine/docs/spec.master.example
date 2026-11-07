@@ -331,8 +331,9 @@ ANSWER TO ZIG DEVELOPER:
 # Illustrative only. The supported Tiltfile load is the generated one, from .flisk/.flisk-out/:
 #
 # load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")
+# print("Resources on by default: {}".format(RESOURCE_DEFAULTS))
 #
-# # Now EVERYTHING is explicit and obvious
+# # Sketch only: SPEC, VALIDATION and FEATURES are design names, not exports of the generated file.
 # print("Registry path: {}".format(SPEC.DISCOVERY.REGISTRY))
 # print("Max port: {}".format(VALIDATION.MAX_PORT))
 # print("Istio enabled: {}".format(FEATURES.ISTIO_INTEGRATION))
