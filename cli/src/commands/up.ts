@@ -32,6 +32,7 @@ import {
   isGatewayEnabled,
   projectNeedsDatabaseKeys,
 } from "../utils/capabilities.js";
+import { coldStartNotice } from "../utils/cold-start.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
@@ -559,6 +560,20 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
     showError(`${reason}${tail ? `\n${tail}` : ""}`, undefined, suggestions);
   }
   process.exit(1);
+}
+
+/** The first-start notice for this run, or null. A project.json that cannot be read only skips the notice. */
+async function upColdStartNotice(
+  projectRoot: string,
+  services: readonly DiscoveredResource[],
+): Promise<string | null> {
+  let projectName: string;
+  try {
+    projectName = readProjectConfig(projectRoot).project.name;
+  } catch {
+    return null;
+  }
+  return coldStartNotice(projectName, services);
 }
 
 /** Clones the repositories declared in .flisk/project.json that are missing. Returns true when one was cloned. */
@@ -1312,6 +1327,14 @@ export const upCommand = new Command("up")
           wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
         },
       );
+
+      // A cold start (no images yet, no build cache) can take minutes where a warm one takes seconds; say so once, so a
+      // slow first run does not look stuck (#3201). Under --json it goes to stderr: stdout carries the envelope only.
+      const coldNotice = await upColdStartNotice(projectRoot, servicesToStart);
+      if (coldNotice) {
+        if (options.json) console.warn(coldNotice);
+        else if (!options.quiet) console.log(chalk.cyan(`\n${coldNotice}`));
+      }
 
       if (!options.quiet) {
         console.log(chalk.gray("\nRunning tilt up..."));
