@@ -544,3 +544,18 @@ def test_stack_compose_postgres_service_is_detected(tmp_path):
         "r = {'own': own, 'other': other, 'missing': missing}\n",
     )
     assert result == {"own": True, "other": False, "missing": False}
+
+
+@TILT_REQUIRED
+def test_stack_imported_postgres_container_is_detected(tmp_path):
+    """An imported `postgres` container resource (flisk import of a Compose postgres service) suppresses the force-start."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'stack_has_own_postgres_container')\n"
+        "rc = {'resources': [{'name': 'ghostfolio'}, {'name': 'postgres'}]}\n"
+        "own = stack_has_own_postgres_container(rc, {'postgres': {'appType': 'backend'}})\n"
+        "shared = stack_has_own_postgres_container(rc, {'postgres': {'appType': 'database'}})\n"
+        "none = stack_has_own_postgres_container({'resources': [{'name': 'ghostfolio'}]}, {})\n"
+        "r = {'own': own, 'shared': shared, 'none': none}\n",
+    )
+    assert result == {"own": True, "shared": False, "none": False}
