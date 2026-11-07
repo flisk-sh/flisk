@@ -319,6 +319,7 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | --- | --- |
 | `-f`, `--force` | Accepted for script compatibility; has no effect |
 | `--prune-networks` | Also remove this project's Docker networks that no container uses |
+| `--purge` | Also delete this project's Docker volumes (database data), networks and images |
 | `--project <path>` | Stop the Flisk project in that folder, from any folder |
 | `--dry-run` | Show what would stop |
 | `--json` | One JSON object on stdout |

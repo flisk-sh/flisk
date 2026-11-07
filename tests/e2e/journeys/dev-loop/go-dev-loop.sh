@@ -31,6 +31,9 @@ cleanup() {
   pkill -f "tilt up.*/${proj}/" >/dev/null 2>&1 || true
   docker rm -f $(docker ps -aq --filter "name=^${proj}[-_]") >/dev/null 2>&1 || true
   docker network ls --format '{{.Name}}' | grep -E "^${proj}_" | xargs -r docker network rm >/dev/null 2>&1 || true
+  # The shared Postgres volume (<proj>-database-management_<proj>_postgres_data) outlives the containers; without this
+  # every run left one behind (hpc<pid>, prov<pid> ... piled up to 31 unused volumes on a developer Mac).
+  docker volume ls --format '{{.Name}}' | grep -E "^${proj}-" | xargs -r docker volume rm >/dev/null 2>&1 || true
   # Every tag of this run's own repositories: the service image, Tilt's <project>_ build tags, and the per-project golden layers.
   docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^(${proj}_|${proj}-l[0-9]+)" | xargs -r docker rmi -f >/dev/null 2>&1 || true
 }

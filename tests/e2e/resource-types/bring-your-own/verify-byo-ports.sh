@@ -33,6 +33,9 @@ stop_up() {
 cleanup() {
   stop_up
   docker network ls --format '{{.Name}}' | grep "^${proj}" | xargs -r docker network rm >/dev/null 2>&1 || true
+  # The shared Postgres volume (<proj>-database-management_<proj>_postgres_data) outlives the containers; without this
+  # every run left one behind (hpc<pid>, prov<pid> ... piled up to 31 unused volumes on a developer Mac).
+  docker volume ls --format '{{.Name}}' | grep -E "^${proj}-" | xargs -r docker volume rm >/dev/null 2>&1 || true
   docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^${proj}(_|-l[0-9]+)" | xargs -r docker rmi -f >/dev/null 2>&1 || true
 }
 trap cleanup EXIT

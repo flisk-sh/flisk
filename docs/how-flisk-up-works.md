@@ -238,5 +238,6 @@ flisk down --prune-networks
 | `-v, --verbose` | Prints verbose shutdown diagnostics and Tilt commands. |
 | `-f, --force` | Accepted for script compatibility; has no effect. |
 | `--prune-networks` | Removes project Docker networks that have no attached containers. |
+| `--purge` | Also deletes the project's Docker volumes (Postgres data), networks and images: `<project>-*` Compose volumes, `<project>_*` networks and service images, `<project>-l*` golden tags. |
 | `--dry-run` | Displays what would be stopped without killing processes or containers. |
 | `--json` | Emits a single JSON result object on stdout. |

@@ -17,7 +17,11 @@ const {
   findRunningFliskProjectsMock,
   pruneDockerBuildCacheMock,
   stopProjectComposeProjectsMock,
+  listProjectArtifactsMock,
+  removeProjectArtifactsMock,
 } = vi.hoisted(() => ({
+  listProjectArtifactsMock: vi.fn(),
+  removeProjectArtifactsMock: vi.fn(),
   runTiltMock: vi.fn(),
   buildTiltDownArgsMock: vi.fn(),
   getContainerRuntimeStatusMock: vi.fn(() => "missing" as "running" | "unresponsive" | "missing"),
@@ -49,6 +53,18 @@ vi.mock("../../utils/down-cleanup.js", async (importOriginal) => ({
   stopProjectComposeProjects: stopProjectComposeProjectsMock,
   stopProjectTiltUp: stopProjectTiltUpMock,
   waitForTiltUpExit: waitForTiltUpExitMock,
+}));
+
+// --purge removes Docker objects; the tests check what it asks for, never a real daemon.
+vi.mock("../../utils/project-purge.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/project-purge.js")>()),
+  listProjectArtifacts: listProjectArtifactsMock,
+  removeProjectArtifacts: removeProjectArtifactsMock,
+}));
+
+vi.mock("../../utils/project-registry.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/project-registry.js")>()),
+  readProjectRecords: () => [{ name: "test-project-admin", roots: ["/gone"], updatedAt: "" }],
 }));
 
 vi.mock("../../utils/tilt.js", () => ({
@@ -107,6 +123,8 @@ describe("flisk down", () => {
     findRunningFliskProjectsMock.mockReset().mockReturnValue([]);
     pruneDockerBuildCacheMock.mockReset();
     stopProjectComposeProjectsMock.mockReset();
+    listProjectArtifactsMock.mockReset();
+    removeProjectArtifactsMock.mockReset();
   });
 
   afterEach(() => {
@@ -121,6 +139,7 @@ describe("flisk down", () => {
       "pruneNetworks",
       "pruneCache",
       "cacheUntil",
+      "purge",
     ]) {
       downCommand.setOptionValue(option, false);
     }
@@ -489,6 +508,104 @@ describe("flisk down", () => {
       warn.mockRestore();
       log.mockRestore();
     }
+  });
+
+  describe("--purge", () => {
+    const ARTIFACTS = {
+      containers: [],
+      volumes: ["test-project-database-management_test_project_postgres_data"],
+      networks: ["test_project_backend"],
+      images: ["test-project-l1:latest", "test_project_main_api:dev"],
+    };
+
+    it("after tilt down, deletes the project's volumes, networks and images and says what it removed", async () => {
+      const tempDir = setupTestProject();
+      listProjectArtifactsMock.mockReturnValue(ARTIFACTS);
+      removeProjectArtifactsMock.mockReturnValue({ removed: ARTIFACTS, kept: [] });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--purge"], { from: "node" });
+
+        expect(runTiltMock).toHaveBeenCalledWith("down", expect.anything(), expect.anything());
+        // Other recorded project names settle prefix ties, so test-project never claims test-project-admin's objects.
+        expect(listProjectArtifactsMock).toHaveBeenCalledWith("test-project", [
+          "test-project-admin",
+        ]);
+        expect(removeProjectArtifactsMock).toHaveBeenCalledWith(ARTIFACTS);
+        expect(runTiltMock.mock.invocationCallOrder[0]).toBeLessThan(
+          removeProjectArtifactsMock.mock.invocationCallOrder[0] ?? 0,
+        );
+        // --purge covers the networks, so the separate network prune does not run as well.
+        expect(pruneProjectNetworksMock).not.toHaveBeenCalled();
+        const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
+        expect(output).toContain("Removed 4 Docker objects of test-project");
+        expect(output).toContain(
+          "volumes: test-project-database-management_test_project_postgres_data",
+        );
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("reports what Docker kept", async () => {
+      const tempDir = setupTestProject();
+      listProjectArtifactsMock.mockReturnValue(ARTIFACTS);
+      removeProjectArtifactsMock.mockReturnValue({
+        removed: { containers: [], volumes: [], networks: [], images: [] },
+        kept: [{ kind: "volumes", name: "v1", reason: "volume is in use" }],
+      });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--purge"], { from: "node" });
+
+        const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
+        expect(output).toContain("Kept volume v1: volume is in use");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("with --dry-run lists what it would delete and deletes nothing", async () => {
+      const tempDir = setupTestProject();
+      listProjectArtifactsMock.mockReturnValue(ARTIFACTS);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--purge", "--dry-run"], { from: "node" });
+
+        expect(removeProjectArtifactsMock).not.toHaveBeenCalled();
+        expect(runTiltMock).not.toHaveBeenCalled();
+        const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
+        expect(output).toContain("--purge would delete");
+        expect(output).toContain("images: test-project-l1:latest, test_project_main_api:dev");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("without --purge keeps volumes and images", async () => {
+      const tempDir = setupTestProject();
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+        expect(listProjectArtifactsMock).not.toHaveBeenCalled();
+        expect(removeProjectArtifactsMock).not.toHaveBeenCalled();
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
   });
 
   describe("--prune-networks (pruneNetworksOrWarn)", () => {
