@@ -523,3 +523,24 @@ def test_a_mixed_stack_still_waits_for_the_golden_build(tmp_path):
         "r = {'uses': stack_uses_golden_image(config, manifests)}\n",
     )
     assert result["uses"] is True
+
+
+@TILT_REQUIRED
+def test_stack_compose_postgres_service_is_detected(tmp_path):
+    """A stack's own compose file declaring `postgres` must suppress the shared platform Postgres force-start (Ghostfolio)."""
+    project = tmp_path / "proj"
+    svc = project / "services" / "ghostfolio"
+    svc.mkdir(parents=True)
+    (svc / "compose.yml").write_text("services:\n  ghostfolio:\n    image: x\n  postgres:\n    image: postgres:15\n")
+    (svc / "other.yml").write_text("services:\n  redis:\n    image: redis\n")
+    ctx = {"project_root": str(project)}
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'compose_files_declare_service')\n"
+        f"ctx = {ctx!r}\n"
+        "own = compose_files_declare_service({'path': 'services/ghostfolio', 'compose_files': ['compose.yml']}, ctx, 'postgres')\n"
+        "other = compose_files_declare_service({'path': 'services/ghostfolio', 'compose_files': ['other.yml']}, ctx, 'postgres')\n"
+        "missing = compose_files_declare_service({'path': 'services/ghostfolio', 'compose_files': ['nope.yml']}, ctx, 'postgres')\n"
+        "r = {'own': own, 'other': other, 'missing': missing}\n",
+    )
+    assert result == {"own": True, "other": False, "missing": False}
