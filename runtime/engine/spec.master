@@ -661,8 +661,10 @@ COMPARISON:
     # Behavior defined in this spec file.
 
 USAGE:
-    load("{}/.tilt/spec.master".format(PROJECT_ROOT), "SPEC", "CONSTANTS")
-    
+    # Illustrative sketch of this reference file (the generated spec.master in
+    # .flisk/.flisk-out/ exports RESOURCE_DEFAULTS and PRE_ALPHA_RESOURCES, not these names):
+    load("spec.master", "SPEC", "VALIDATION", "CONSTANTS")
+
     # Now EVERYTHING is explicit
     registry_path = SPEC.DISCOVERY.REGISTRY
     max_port = VALIDATION.MAX_PORT
