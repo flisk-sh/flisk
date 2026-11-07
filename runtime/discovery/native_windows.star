@@ -339,28 +339,36 @@ def _write_pieces(content):
 def write_text_exact(dir_path, file_path, content):
     """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM.
 
-    Content that fits one piece is written straight to file_path. Larger content is built in a temporary file beside it
-    (the first piece creates it, the rest append) and renamed over file_path once every piece is written, so a reader or a
-    second Tilt writing the same file never sees half of it, and a failed piece leaves file_path as it was.
+    Every write builds the content in a temporary file beside file_path (created exclusively by mktemp, or named by a GUID
+    on Windows) and renames it over file_path once the content is complete, so a reader or a second Tilt writing the same
+    file never sees half of it, and a failed write leaves file_path as it was. Content that fits one piece does all of that
+    in one command; larger content creates the file with the first piece, appends the rest, then renames.
     """
     pieces = _write_pieces(content)
-    if len(pieces) == 1:
-        local(
-            ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dir_path, pieces[0], file_path],
-            command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; [IO.File]::WriteAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
-            env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": pieces[0]},
-            quiet = True,
-            echo_off = True,
-        )
-        return
-    # The shell's pid makes the temporary name unique to this write; the command prints it so the next pieces find it.
-    tmp_path = str(local(
-        ["sh", "-c", 'mkdir -p "$1" && t="$3.flisk-tmp.$$" && printf "%s" "$2" > "$t" && printf "%s" "$t"', "sh", dir_path, pieces[0], file_path],
-        command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; $t = $env:FLISK_PATH + '.flisk-tmp.' + $PID; [IO.File]::WriteAllText($t, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false))); Write-Output $t"],
+    single = len(pieces) == 1
+    # mktemp creates the file 0600; give it the mode a plain `>` would (0666 minus the umask). A failed write removes it.
+    sh_create = (
+        'mkdir -p "$1" && t=$(mktemp "$3.flisk-tmp.XXXXXX") && ' +
+        '{ chmod "$(printf %o $((0666 & ~$(umask))))" "$t" && printf "%s" "$2" > "$t" && ' +
+        ('mv -f "$t" "$3"' if single else 'printf "%s" "$t"') +
+        ' || { rm -f "$t"; exit 1; }; }'
+    )
+    bat_create = (
+        "New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; " +
+        "$t = $env:FLISK_PATH + '.flisk-tmp.' + [guid]::NewGuid().ToString('N'); " +
+        "[IO.File]::WriteAllText($t, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false))); " +
+        ("Move-Item -Force -LiteralPath $t -Destination $env:FLISK_PATH" if single else "Write-Output $t")
+    )
+    created = str(local(
+        ["sh", "-c", sh_create, "sh", dir_path, pieces[0], file_path],
+        command_bat = _PS + [bat_create],
         env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": pieces[0]},
         quiet = True,
         echo_off = True,
-    )).strip()
+    ))
+    if single:
+        return
+    tmp_path = created.strip()
     for piece in pieces[1:]:
         local(
             ["sh", "-c", 'printf "%s" "$2" >> "$1"', "sh", tmp_path, piece],

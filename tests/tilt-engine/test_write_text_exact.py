@@ -8,6 +8,9 @@ argument. Linux refuses any single argument over 128 KiB, so a 300-resource proj
 
 from __future__ import annotations
 
+import os
+import stat
+
 import pytest
 
 from test_dependson_platform_postgres import REPO_ROOT, TILT_REQUIRED, run_starlark
@@ -86,6 +89,19 @@ def test_a_multi_piece_write_replaces_the_file_and_leaves_no_temporary_file(tmp_
     run_starlark(tmp_path, _body(target, {"compose.yaml": big}))
     assert (target / "compose.yaml").read_bytes() == big.encode("utf-8")
     assert sorted(p.name for p in target.iterdir()) == ["compose.yaml"]
+
+
+@TILT_REQUIRED
+def test_written_files_keep_the_mode_a_plain_write_gives(tmp_path):
+    # Writes go through mktemp, which creates files 0600; the rename must not leave generated files unreadable to others.
+    umask = os.umask(0)
+    os.umask(umask)
+    target = tmp_path / "services"
+    big = "".join(LINE.format(i=i, pad=PAD) for i in range(LINES))
+    run_starlark(tmp_path, _body(target, {"small.yaml": "a: 1\n", "big.yaml": big}))
+    for name in ("small.yaml", "big.yaml"):
+        assert stat.S_IMODE((target / name).stat().st_mode) == 0o666 & ~umask, name
+    assert sorted(p.name for p in target.iterdir()) == ["big.yaml", "small.yaml"]
 
 
 @TILT_REQUIRED
