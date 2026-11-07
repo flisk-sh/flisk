@@ -428,7 +428,7 @@
 			"job": "adopter",
 			"tier": "e2e",
 			"required": false,
-			"reason": "Nightly integration testing against three pinned real-world adopter repositories (#3100)",
+			"reason": "Nightly integration testing against pinned real-world adopter repositories and projects that declined a Flisk PR (#3100)",
 			"owner": "maintainers"
 		},
 		{
