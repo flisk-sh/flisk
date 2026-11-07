@@ -430,7 +430,7 @@ orders-api:
     - DATABASE_URL=postgresql://my_shop:${DB_PASSWORD}@my_shop_postgres:5432/my_shop_shop?schema=public
     - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is not set. Run `flisk up` ...}
   labels:
-    - "traefik.http.routers.orders-api-project.rule=Host(`api.my-shop.localhost`) && PathPrefix(`/api/orders`)"
+    - "traefik.http.routers.orders-api-project.rule=Host(`api.my-shop.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))"
     - "traefik.http.middlewares.orders-api-strip-prefix-project.stripprefix.prefixes=/api/orders"
     - "traefik.http.services.orders-api.loadbalancer.healthcheck.path=/health"
   healthcheck:

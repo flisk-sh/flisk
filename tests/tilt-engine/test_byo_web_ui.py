@@ -89,7 +89,7 @@ def test_web_ui_is_routed_on_its_own_host_without_a_path_prefix(result):
 def test_api_keeps_the_path_prefix_route(result):
     labels = result["api"]
 
-    assert "Host(`api.trek.localhost`) && PathPrefix(`/api/api`)" in labels
+    assert "Host(`api.trek.localhost`) && (Path(`/api/api`) || PathPrefix(`/api/api/`))" in labels
     assert "stripprefix.prefixes=/api/api" in labels
 
 

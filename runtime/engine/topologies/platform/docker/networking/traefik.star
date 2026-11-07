@@ -34,6 +34,7 @@ load("./traefik_helpers.star",
     "cli_api_path",
     "frontend_rule",
     "get_api_path",
+    "path_segment_rule",
     "project_backend_rule",
 )
 load("./sablier_container_cycle.star",
@@ -416,7 +417,7 @@ def get_backend_traefik_labels(
 
         if management_path and management_path != api_path and not stack_shared:
             labels += """
-      - "traefik.http.routers.{router_name}-management.rule=Host(`{api_host}`) && PathPrefix(`{management_path}`)"
+      - "traefik.http.routers.{router_name}-management.rule=Host(`{api_host}`) && {management_path_rule}"
       - "traefik.http.routers.{router_name}-management.entrypoints={project_entrypoints}"
       - "traefik.http.routers.{router_name}-management.service={service_name}"
       - "traefik.http.routers.{router_name}-management.middlewares={middleware_name}-management{sablier_middleware}"
@@ -427,6 +428,7 @@ def get_backend_traefik_labels(
                 service_name=service_name,
                 api_host=TRAEFIK_PROJECT_API_HOST,
                 management_path=management_path,
+                management_path_rule=path_segment_rule(management_path),
                 project_entrypoints=project_entrypoints,
                 middleware_name=middleware_name,
                 sablier_middleware=sablier_middleware,

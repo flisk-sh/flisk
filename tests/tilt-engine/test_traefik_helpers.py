@@ -58,7 +58,7 @@ r = {'rule': backend_rule('orders.backend.testproj.local', '/api/orders-manageme
 
     assert result["rule"] == (
         "Host(`orders.backend.testproj.local`) || "
-        "PathPrefix(`/api/orders-management`)"
+        "(Path(`/api/orders-management`) || PathPrefix(`/api/orders-management/`))"
     )
 
 
@@ -72,7 +72,7 @@ r = {'rule': backend_rule('orders.backend.testproj.local', '/internal/orders')}
     )
 
     assert result["rule"] == (
-        "Host(`orders.backend.testproj.local`) || " "PathPrefix(`/internal/orders`)"
+        "Host(`orders.backend.testproj.local`) || " "(Path(`/internal/orders`) || PathPrefix(`/internal/orders/`))"
     )
 
 
@@ -107,17 +107,17 @@ def run_project_rule(tmp_path: Path, project_name: str, body: str) -> dict:
         (
             "my-dashed-project",
             {"appName": "orders-api", "stack": "orders"},
-            "Host(`api.my-dashed-project.localhost`) && PathPrefix(`/api/orders`)",
+            "Host(`api.my-dashed-project.localhost`) && (Path(`/api/orders`) || PathPrefix(`/api/orders/`))",
         ),
         (
             "ecommerce-web-portal",
             {"appName": "inventory-api", "stack": "inventory"},
-            "Host(`api.ecommerce-web-portal.localhost`) && PathPrefix(`/api/inventory`)",
+            "Host(`api.ecommerce-web-portal.localhost`) && (Path(`/api/inventory`) || PathPrefix(`/api/inventory/`))",
         ),
         (
             "multi-part-project-name",
             {"appName": "auth-api", "stack": "auth"},
-            "Host(`api.multi-part-project-name.localhost`) && PathPrefix(`/api/auth`)",
+            "Host(`api.multi-part-project-name.localhost`) && (Path(`/api/auth`) || PathPrefix(`/api/auth/`))",
         ),
     ],
 )
@@ -177,21 +177,21 @@ r = {
     expected_host = f"api.{project_name}.localhost"
 
     # Single service named 'api': path is /api/api (does not end with -api)
-    assert result["api_service"] == f"Host(`{expected_host}`) && PathPrefix(`/api/api`)"
+    assert result["api_service"] == f"Host(`{expected_host}`) && (Path(`/api/api`) || PathPrefix(`/api/api/`))"
 
     # Single service named 'backend-api': trailing -api is stripped -> /api/backend
-    assert result["backend_api_service"] == f"Host(`{expected_host}`) && PathPrefix(`/api/backend`)"
+    assert result["backend_api_service"] == f"Host(`{expected_host}`) && (Path(`/api/backend`) || PathPrefix(`/api/backend/`))"
 
     # Single service with explicit resource name: resource name takes precedence
     assert (
         result["explicit_resource"]
-        == f"Host(`{expected_host}`) && PathPrefix(`/api/auth-api-backend`)"
+        == f"Host(`{expected_host}`) && (Path(`/api/auth-api-backend`) || PathPrefix(`/api/auth-api-backend/`))"
     )
 
     # Custom apiPath takes precedence over default path derivation
     assert (
         result["custom_api_path"]
-        == f"Host(`{expected_host}`) && PathPrefix(`/api/v1/core`)"
+        == f"Host(`{expected_host}`) && (Path(`/api/v1/core`) || PathPrefix(`/api/v1/core/`))"
     )
 
 
@@ -219,9 +219,9 @@ r = {
     # Resource name only (without manifest)
     assert (
         result["resource_only_dashed"]
-        == f"Host(`{expected_host}`) && PathPrefix(`/api/payments`)"
+        == f"Host(`{expected_host}`) && (Path(`/api/payments`) || PathPrefix(`/api/payments/`))"
     )
     assert (
         result["resource_only_bare"]
-        == f"Host(`{expected_host}`) && PathPrefix(`/api/gateway`)"
+        == f"Host(`{expected_host}`) && (Path(`/api/gateway`) || PathPrefix(`/api/gateway/`))"
     )
