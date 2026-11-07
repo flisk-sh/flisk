@@ -30,3 +30,16 @@ test("poll_until still waits out the timeout when up.log shows no refusal", () =
   assert.match(r.stderr, /timed out after 6s waiting for: the api is running/);
   assert.ok(seconds >= 6);
 });
+
+test("poll_until prints the end of up.log when it times out", () => {
+  const { r } = poll("Tilt started\ntraefik failed: port 80 in use\n");
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /timed out after 6s waiting for: the api is running\n[\s\S]*traefik failed: port 80 in use/);
+});
+
+test("poll_until times out quietly when there is no up.log", () => {
+  const { r } = poll(null);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /timed out after 6s waiting for: the api is running/);
+  assert.doesNotMatch(r.stderr, /tail:|No such file/);
+});

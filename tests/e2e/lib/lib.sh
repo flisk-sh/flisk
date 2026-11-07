@@ -58,7 +58,9 @@ poll_until() {
     fi
     if [ "$SECONDS" -ge "$deadline" ]; then
       echo "::error::timed out after ${timeout}s waiting for: $desc" >&2
-      tail -40 "$DIR/up.log" 2>/dev/null >&2 || true
+      # Redirections apply left to right: `>&2` first, so the tail reaches stderr; only tail's own errors (no up.log) are
+      # dropped. The reverse order (`2>/dev/null >&2`) sent the tail to /dev/null, and every timeout showed no up.log.
+      tail -40 "$DIR/up.log" >&2 2>/dev/null || true
       docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' >&2 || true
       return 1
     fi
