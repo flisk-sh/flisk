@@ -20,6 +20,10 @@ source "$SUITE_DIR/../../resource-types/common.sh"
 e2e_init enigma36 enigma36
 PLAN="$SUITE_ROOT/plan.json"
 COUNT="${ENIGMA_COUNT:-36}"
+# One `flisk up` builds about one image per resource, three at a time on a 4-CPU runner: the 200-resource draw needed 31
+# minutes to boot, and the 300 draw was still building (221 of 582 Tilt resources ready) when a flat 20 minutes ran out.
+# So the boot budget grows by 15s per resource; the default 36 keeps the 20 minutes.
+READY_TIMEOUT="$(scaled_ready_timeout "$COUNT" 15)"
 
 # The plan K1 drew, drawn now when a case runs on its own. E2E_SEED pins it; otherwise the seed is random.
 load_plan() {

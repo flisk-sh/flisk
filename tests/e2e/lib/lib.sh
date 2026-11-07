@@ -42,6 +42,12 @@ e2e_init() { # <suite> <default project name>
 log() { printf '\n== %s\n' "$*"; }
 die() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 now_ms() { node -p 'Date.now()'; }
+# scaled_ready_timeout <resources> <seconds each>: READY_TIMEOUT for a stack that builds that many images, a few at a time.
+# Never less than READY_TIMEOUT, and E2E_READY_TIMEOUT, when set, wins unchanged.
+scaled_ready_timeout() {
+  local scaled=$(($1 * $2))
+  if [ -n "${E2E_READY_TIMEOUT:-}" ] || [ "$scaled" -le "$READY_TIMEOUT" ]; then echo "$READY_TIMEOUT"; else echo "$scaled"; fi
+}
 assert() { node "$E2E_LIB/assert-json.mjs" "$@" || die "assertion failed: $*"; } # envelope|check|equal, see assert-json.mjs
 
 # poll_until <description> <timeout seconds> <command...>: retry the command every 2s until it succeeds or the deadline passes.
@@ -58,7 +64,9 @@ poll_until() {
     fi
     if [ "$SECONDS" -ge "$deadline" ]; then
       echo "::error::timed out after ${timeout}s waiting for: $desc" >&2
-      tail -40 "$DIR/up.log" 2>/dev/null >&2 || true
+      # Redirections apply left to right: `>&2` first, so the tail reaches stderr; only tail's own errors (no up.log) are
+      # dropped. The reverse order (`2>/dev/null >&2`) sent the tail to /dev/null, and every timeout showed no up.log.
+      tail -40 "$DIR/up.log" >&2 2>/dev/null || true
       docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' >&2 || true
       return 1
     fi
