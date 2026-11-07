@@ -26,16 +26,18 @@
 # 📖 HOW TO USE THIS FILE
 # =============================================================================
 
-# In your Tiltfile or topology module, load this spec:
+# The generated Tiltfile in .flisk/.flisk-out/ loads the generated spec.master from the same
+# folder. A module in another folder needs a path to that file, not the bare name:
 #
-#     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")  # generated Tiltfile, .flisk/.flisk-out/
+#     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")
 #
-# To read the path, validation and constant tables this file defines, load them by name:
+# Then use the names you loaded:
 #
-#     load("spec.master", "SPEC", "VALIDATION", "CONSTANTS")
-#     registry_path = SPEC.DISCOVERY.REGISTRY
-#     max_port = VALIDATION.MAX_PORT
-#     timeout = CONSTANTS.HEALTH_CHECK_TIMEOUT
+#     enabled_resources = RESOURCE_DEFAULTS
+#     startup_resources = PRE_ALPHA_RESOURCES
+#
+# (SPEC, VALIDATION and CONSTANTS below describe this reference file; the generated
+# spec.master does not export them.)
 #
 # That's it! No magic paths. Everything is explicit.
 
