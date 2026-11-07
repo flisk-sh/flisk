@@ -242,8 +242,9 @@ def typecheck_script():
 def golden_build_script():
     """Build the golden layer images (PowerShell twin of _GOLDEN_BUILD_TEMPLATE in golden_image_build.star).
 
-    env: FLISK_GOLDEN_CONFIG, JSON {df, root, hash_label, images[], legacy[], layers[{key, target, ref}]}.
-    Also reads FLISK_GOLDEN_REBUILD, FLISK_GOLDEN_REGISTRY and FLISK_GOLDEN_RETRY_DELAY from the environment.
+    env: FLISK_GOLDEN_CONFIG, JSON {df, root, hash_label, registry, images[], legacy[], layers[{key, target, ref}]}.
+    registry is the default golden registry; FLISK_GOLDEN_REGISTRY overrides it (off or empty: no pull).
+    Also reads FLISK_GOLDEN_REBUILD and FLISK_GOLDEN_RETRY_DELAY from the environment.
     """
     return _join([
         "$q = [char]34; $cfg = ConvertFrom-Json $env:FLISK_GOLDEN_CONFIG;",
@@ -258,15 +259,23 @@ def golden_build_script():
         "  }",
         "  if ($fresh) { Write-Output ('Golden images are up to date (hash ' + $hash + ') - skipping build'); exit 0; }",
         "}",
-        "if ($env:FLISK_GOLDEN_REGISTRY -and -not $env:FLISK_GOLDEN_REBUILD) {",
+        "$reg = $cfg.registry; if ($null -ne $env:FLISK_GOLDEN_REGISTRY) { $reg = $env:FLISK_GOLDEN_REGISTRY; }",
+        "if (@('off', 'none', 'false', '0') -contains $reg) { $reg = ''; }",
+        "if ($reg -and -not $env:FLISK_GOLDEN_REBUILD) {",
         "  $tag12 = $hash.Substring(0, 12); $pulled = $true;",
+        "  Write-Output ('Pulling prebuilt golden images for ' + $tag12 + ' from ' + $reg);",
         "  foreach ($l in @($cfg.layers)) {",
-        "    $remote = $env:FLISK_GOLDEN_REGISTRY + '/golden-' + $l.key + ':' + $tag12;",
+        "    if (-not $pulled) { break; }",
+        "    $remote = $reg + '/golden-' + $l.key + ':' + $tag12;",
         "    docker pull -q $remote *> $null;",
-        "    if ($LASTEXITCODE -eq 0) { docker tag $remote $l.ref; if ($LASTEXITCODE -ne 0) { $pulled = $false; } } else { $pulled = $false; }",
+        "    if ($LASTEXITCODE -eq 0) { docker tag $remote $l.ref; if ($LASTEXITCODE -ne 0) { $pulled = $false; } else { docker image rm $remote *> $null; } } else { $pulled = $false; }",
         "  }",
-        "  if ($pulled) { Write-Output ('Golden images pulled from ' + $env:FLISK_GOLDEN_REGISTRY + ' (hash ' + $tag12 + ')'); exit 0; }",
-        "  Write-Output ('No prebuilt golden images for ' + $tag12 + ' in ' + $env:FLISK_GOLDEN_REGISTRY + '; building them here');",
+        "  if ($pulled) {",
+        "    Write-Output ('Golden images pulled from ' + $reg + ' (hash ' + $tag12 + ')');",
+        "    docker image prune -f --filter ('label=' + $label) *> $null;",
+        "    exit 0;",
+        "  }",
+        "  Write-Output ('No prebuilt golden images for ' + $tag12 + ' in ' + $reg + ' (offline, or not published); building them here');",
         "}",
         "Write-Output ('Building golden layered images (' + $images.Count + ' total)...');",
         "docker buildx version *> $null;",
@@ -303,6 +312,7 @@ def golden_build_script():
         "  }",
         "}",
         "foreach ($img in @($cfg.legacy)) { docker image rm $img *> $null; if ($LASTEXITCODE -eq 0) { Write-Output ('Removed legacy golden image ' + $img); } }",
+        "docker image prune -f --filter ('label=' + $label) *> $null;",
         "$missing = @();",
         "foreach ($img in $images) { docker image inspect -f '{{.Id}}' $img *> $null; if ($LASTEXITCODE -ne 0) { $missing += $img; } }",
         "if ($missing.Count -gt 0) { Write-Output ('Golden images missing after the build: ' + ($missing -join ' ')); exit 1; }",

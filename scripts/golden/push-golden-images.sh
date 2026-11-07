@@ -13,7 +13,7 @@ df="$out/golden-layers.Dockerfile"
 hash="$(sha256sum "$df" | cut -c1-64)"
 tag12="${hash:0:12}"
 source_url="https://github.com/flisk-sh/flisk"
-description="Flisk golden base layer, pulled by flisk up when FLISK_GOLDEN_REGISTRY is set"
+description="Flisk golden base layer, pulled by flisk up before it builds one locally"
 # layer key -> Dockerfile target, the same pairs GOLDEN_LAYERS uses in golden_image_constants.star.
 targets=(
   "l1 l1_golden"

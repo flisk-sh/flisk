@@ -13,7 +13,7 @@ This guide maps each layer and variant to its source module, target stage, image
 
 ## Golden Layers Reference (L1–L4)
 
-The golden image hierarchy defines exactly 8 target images, all stages of one generated Dockerfile (`.flisk/.flisk-out/golden-layers.Dockerfile`, produced by `golden_image_dockerfile.star`). The files under `layers/` generate the *service* Dockerfiles that start `FROM` these images; they do not build the golden images themselves. These images are local-only and are tagged with your project name prefix (loaded from `.flisk/project.json`, falling back to `flisk-project`):
+The golden image hierarchy defines exactly 8 target images, all stages of one generated Dockerfile (`.flisk/.flisk-out/golden-layers.Dockerfile`, produced by `golden_image_dockerfile.star`). The files under `layers/` generate the *service* Dockerfiles that start `FROM` these images; they do not build the golden images themselves. `flisk up` pulls them from `ghcr.io/flisk-sh` (published for each golden Dockerfile hash) and builds them locally only when that pull fails; either way they are tagged with your project name prefix (loaded from `.flisk/project.json`, falling back to `flisk-project`):
 
 | Layer | Purpose | Defined in | Dockerfile stage and image | Bake target (as named in build errors) |
 |---|---|---|---|---|
@@ -108,7 +108,7 @@ pull access denied for docker.io/library/<project>-l*:latest
 ```
 
 **Cause:**
-Flisk's golden layers are **local images** built on your machine and tagged with your project name, so they do not exist in any registry under that name. (Prebuilt copies are only pulled when you opt in with `FLISK_GOLDEN_REGISTRY`; they are retagged to the local `<project>-l*` names, and Flisk falls back to a local build if any are missing.) If Docker tries to pull `<project>-l*` from Docker Hub, it means:
+Flisk's golden layers are **local images** built on your machine and tagged with your project name, so they do not exist in any registry under that name. (Prebuilt copies are pulled from `ghcr.io/flisk-sh` by default, or from the registry in `FLISK_GOLDEN_REGISTRY`, and retagged to the local `<project>-l*` names; Flisk falls back to a local build if any are missing, and `FLISK_GOLDEN_REGISTRY=off` always builds locally.) If Docker tries to pull `<project>-l*` from Docker Hub, it means:
 1. The `golden-layers-build` resource has not completed yet or failed.
 2. Local images were removed by a Docker cleanup command (e.g. `docker system prune` or `docker rmi`).
 3. The project name prefix in `.flisk/project.json` was renamed, but local images still bear the old name.

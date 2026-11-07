@@ -9,6 +9,9 @@ load('./golden_image_constants.star', 'GOLDEN_DOCKERFILE', 'GOLDEN_IMAGE_PREFIX'
 # Label that records which golden Dockerfile an image was built from.
 GOLDEN_HASH_LABEL = 'flisk.golden.hash'
 
+# Where publish-golden-images.yml pushes golden-<layer>:<hash12> (public, no login). `flisk up` pulls from here first.
+GOLDEN_REGISTRY_DEFAULT = 'ghcr.io/flisk-sh'
+
 # Shell template for the golden build. Placeholders (@@...@@) are replaced in
 # build_golden_layers(); plain `$VAR` references are expanded by the shell.
 _GOLDEN_BUILD_TEMPLATE = '''
@@ -74,6 +77,7 @@ fi
 for img in @@LEGACY_IMAGES@@; do
   docker image rm "$img" >/dev/null 2>&1 && echo "  🧹 Removed legacy golden image $img"
 done
+@@PRUNE_OLD@@
 
 # Report success only when every golden image exists, whatever the builder said.
 missing=""
@@ -91,29 +95,43 @@ echo "✅ Golden layers built (@@COUNT@@ images):"
 
 
 def _pull_line(key, ref):
-    """Pulls golden-<key>:<hash12> from FLISK_GOLDEN_REGISTRY and tags it as this project's image; any failure clears `pulled`."""
-    line = 'docker pull -q "$FLISK_GOLDEN_REGISTRY/golden-{key}:$TAG12" >/dev/null 2>&1'
-    line += ' && docker tag "$FLISK_GOLDEN_REGISTRY/golden-{key}:$TAG12" {ref} || pulled=0'
-    return line.format(key=key, ref=ref)
+    """
+    Pulls golden-<key>:<hash12> from the golden registry and tags it as this project's image; any failure clears
+    `pulled`, and once it is cleared the remaining layers are not tried. The registry tag is removed again, which only
+    untags (the project tag keeps the image): a registry tag per hash would keep every old version's image alive.
+    """
+    remote = '"$GOLDEN_REGISTRY/golden-' + key + ':$TAG12"'
+    return ('[ "$pulled" = 1 ] && if docker pull -q ' + remote + ' >/dev/null 2>&1 && docker tag ' + remote + ' ' + ref
+        + '; then docker image rm ' + remote + ' >/dev/null 2>&1; else pulled=0; fi')
 
 
 def _pull_block(pull_lines):
     """
-    Opt-in prebuilt images. With FLISK_GOLDEN_REGISTRY set (for example ghcr.io/flisk-sh), every golden image is pulled
-    for this Dockerfile's hash before anything is built. If any pull is missing, the local build runs as before.
+    Prebuilt images, on by default. Every golden image is pulled from GOLDEN_REGISTRY_DEFAULT for this Dockerfile's
+    hash before anything is built; FLISK_GOLDEN_REGISTRY names another registry, and `off` (or an empty value) turns
+    the pull off. If any pull fails (offline, or no image published for this hash), the local build runs as before.
     """
     return '\n'.join([
-        'if [ -n "$FLISK_GOLDEN_REGISTRY" ] && [ -z "$FLISK_GOLDEN_REBUILD" ]; then',
+        'GOLDEN_REGISTRY="${FLISK_GOLDEN_REGISTRY-' + GOLDEN_REGISTRY_DEFAULT + '}"',
+        'case "$GOLDEN_REGISTRY" in off|none|false|0) GOLDEN_REGISTRY="" ;; esac',
+        'if [ -n "$GOLDEN_REGISTRY" ] && [ -z "$FLISK_GOLDEN_REBUILD" ]; then',
         '  TAG12="$(printf \'%s\' "$HASH" | cut -c1-12)"',
+        '  echo "⬇️  Pulling prebuilt golden images for $TAG12 from $GOLDEN_REGISTRY"',
         '  pulled=1',
     ] + ['  ' + line for line in pull_lines] + [
         '  if [ "$pulled" = 1 ]; then',
-        '    echo "✅ Golden images pulled from $FLISK_GOLDEN_REGISTRY (hash $TAG12)"',
+        '    echo "✅ Golden images pulled from $GOLDEN_REGISTRY (hash $TAG12)"',
+        '    @@PRUNE_OLD@@',
         '    exit 0',
         '  fi',
-        '  echo "ℹ️  No prebuilt golden images for $TAG12 in $FLISK_GOLDEN_REGISTRY; building them here"',
+        '  echo "ℹ️  No prebuilt golden images for $TAG12 in $GOLDEN_REGISTRY (offline, or not published); building them here"',
         'fi',
     ]) + '\n'
+
+
+# Golden images whose tag moved to a newer hash are left untagged (<none>), one set for every engine version that changed
+# the golden Dockerfile. Remove the untagged ones that carry the golden hash label; Docker skips any a container uses.
+_PRUNE_OLD_GOLDEN = 'docker image prune -f --filter "label=' + GOLDEN_HASH_LABEL + '" >/dev/null 2>&1 || true'
 
 
 def _sh_quote(text):
@@ -182,6 +200,7 @@ def build_golden_layers(project_root='.'):
         .replace('@@HASH_LABEL@@', GOLDEN_HASH_LABEL)
         .replace('@@COUNT@@', str(len(images)))
         .replace('@@PULL_GOLDEN@@', _pull_block(pull_lines))
+        .replace('@@PRUNE_OLD@@', _PRUNE_OLD_GOLDEN)
         .replace('@@TARGET_NAMES@@', ', '.join(target_names))
         .replace('@@BAKE_TARGETS@@', '\n'.join(bake_targets))
         .replace('@@SERIAL_BUILDS@@', '\n  '.join(serial_builds))
@@ -196,6 +215,7 @@ def build_golden_layers(project_root='.'):
             'df': dockerfile_from_tiltfile,
             'root': context,
             'hash_label': GOLDEN_HASH_LABEL,
+            'registry': GOLDEN_REGISTRY_DEFAULT,
             'images': images,
             'legacy': LEGACY_GOLDEN_IMAGES,
             'layers': [{'key': k, 'target': GOLDEN_LAYERS[k]['target'], 'ref': GOLDEN_LAYERS[k]['name'] + ':' + GOLDEN_LAYERS[k]['tag']} for k in GOLDEN_LAYERS],
