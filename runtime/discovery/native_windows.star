@@ -298,9 +298,23 @@ def write_text(path, content):
     )
 
 # Linux refuses any single argument over 128 KiB (MAX_ARG_STRLEN), and a project of hundreds of resources generates a compose
-# file bigger than that. Content goes to the shell in pieces of about this many bytes, cut only at line ends so no UTF-8
-# character is split. A line longer than the limit still goes in one piece.
+# file bigger than that. Content goes to the shell in pieces of at most this many bytes (Starlark's len() counts UTF-8 bytes),
+# cut at line ends. A line longer than that is cut between characters, never inside one.
 WRITE_PIECE_BYTES = 32768
+
+def _split_long_line(text):
+    parts = []
+    chars = []
+    size = 0
+    for c in text.codepoints():
+        if size + len(c) > WRITE_PIECE_BYTES:
+            parts.append("".join(chars))
+            chars = []
+            size = 0
+        chars.append(c)
+        size += len(c)
+    parts.append("".join(chars))
+    return parts
 
 def _write_pieces(content):
     lines = content.split("\n")
@@ -308,11 +322,18 @@ def _write_pieces(content):
     current = ""
     for i, line in enumerate(lines):
         text = line + ("\n" if i < len(lines) - 1 else "")
+        if len(text) > WRITE_PIECE_BYTES:
+            if current:
+                pieces.append(current)
+                current = ""
+            pieces.extend(_split_long_line(text))
+            continue
         if current and len(current) + len(text) > WRITE_PIECE_BYTES:
             pieces.append(current)
             current = ""
         current += text
-    pieces.append(current)
+    if current or not pieces:
+        pieces.append(current)
     return pieces
 
 def write_text_exact(dir_path, file_path, content):
