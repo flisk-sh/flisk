@@ -82,6 +82,13 @@ interface RunGoldenOptions {
   bakeFailures?: number;
   /** Images that are still missing after a build that reported success. */
   stillMissingImages?: string[];
+  /**
+   * FLISK_GOLDEN_REGISTRY for the run: a value sets it, `null` leaves it unset (the default registry). Without the option
+   * the pull is turned off ("off"), so the build-path cases do not depend on what the fake `docker pull` answers.
+   */
+  registry?: string | null;
+  /** `docker pull` fails for these golden layer keys (`all` for every one: offline, or the hash is not published). */
+  pullFails?: string[];
 }
 
 /** Runs the generated script in a scratch project with a fake docker and returns what it did. */
@@ -118,6 +125,16 @@ case "$1" in
       exit 0
     fi
     [ "$2" = version ] && echo "github.com/docker/buildx $FAKE_BUILDX_VERSION abc"
+    exit 0
+    ;;
+  pull)
+    for k in $FAKE_PULL_FAILS; do
+      case "$3" in */golden-$k:*) exit 1 ;; esac
+      [ "$k" = all ] && exit 1
+    done
+    exit 0
+    ;;
+  tag)
     exit 0
     ;;
   image)
@@ -157,11 +174,15 @@ exit 0
   );
   chmodSync(join(bin, "docker"), 0o755);
 
+  const baseEnv: NodeJS.ProcessEnv = { ...process.env };
+  delete baseEnv.FLISK_GOLDEN_REGISTRY;
+  if (options.registry !== null) baseEnv.FLISK_GOLDEN_REGISTRY = options.registry ?? "off";
   const result = spawnSync("sh", ["-c", script], {
     cwd: project,
     encoding: "utf-8",
     env: {
-      ...process.env,
+      ...baseEnv,
+      FAKE_PULL_FAILS: (options.pullFails ?? []).join(" "),
       PATH: `${bin}:${process.env.PATH}`,
       FAKE_LOG: log,
       FAKE_LABEL: options.labelMatches ? hash : "stale",
@@ -187,6 +208,9 @@ exit 0
     calls,
     bake: calls.filter((c) => c.startsWith("buildx bake")),
     serialBuilds: calls.filter((c) => c.startsWith("build ")),
+    pulls: calls.filter((c) => c.startsWith("pull ")),
+    tags: calls.filter((c) => c.startsWith("tag ")),
+    hash,
     hcl: existsSync(hcl) ? readFileSync(hcl, "utf-8") : "",
   };
 }
@@ -530,5 +554,73 @@ describe.skipIf(!hasTilt)("golden layer build script", () => {
     expect(run.serialBuilds[2]).toMatch(
       /^build --label flisk\.golden\.hash=[a-f0-9]{64} -f .+ --target l3_backend_golden -t flisk-project-l3-backend:latest .+$/,
     );
+  });
+
+  it("pulls every golden layer from ghcr.io/flisk-sh by default and builds nothing", () => {
+    const run = runGolden(script, { labelMatches: false, registry: null });
+    const tag12 = run.hash.slice(0, 12);
+    expect(run.status).toBe(0);
+    expect(run.pulls).toEqual(
+      EXPECTED_IMAGES.map((image) => {
+        const key = image.replace(/^flisk-project-/, "").replace(/:latest$/, "");
+        return `pull -q ghcr.io/flisk-sh/golden-${key}:${tag12}`;
+      }),
+    );
+    expect(run.tags[0]).toBe(`tag ghcr.io/flisk-sh/golden-l1:${tag12} flisk-project-l1:latest`);
+    expect(run.tags).toHaveLength(EXPECTED_IMAGES.length);
+    // The registry tag is dropped again so an old hash's images do not stay tagged after an upgrade.
+    expect(run.calls).toContain(`image rm ghcr.io/flisk-sh/golden-l1:${tag12}`);
+    expect(run.stdout).toContain(`Golden images pulled from ghcr.io/flisk-sh (hash ${tag12})`);
+    expect(run.bake).toEqual([]);
+    expect(run.serialBuilds).toEqual([]);
+  });
+
+  it("falls back to the local build after the first failed pull, without trying the other layers", () => {
+    const run = runGolden(script, { labelMatches: false, registry: null, pullFails: ["all"] });
+    expect(run.status).toBe(0);
+    expect(run.pulls).toHaveLength(1);
+    expect(run.stdout).toContain("building them here");
+    expect(run.bake).toHaveLength(1);
+  });
+
+  it("builds locally when one layer is not published, after pulling the ones before it", () => {
+    const run = runGolden(script, {
+      labelMatches: false,
+      registry: null,
+      pullFails: ["l3-frontend"],
+    });
+    expect(run.pulls).toHaveLength(4);
+    expect(run.bake).toHaveLength(1);
+  });
+
+  it("pulls from the registry FLISK_GOLDEN_REGISTRY names", () => {
+    const run = runGolden(script, { labelMatches: false, registry: "docker.io/alexdykyi" });
+    expect(run.pulls[0]).toMatch(/^pull -q docker\.io\/alexdykyi\/golden-l1:[0-9a-f]{12}$/);
+    expect(run.bake).toEqual([]);
+  });
+
+  it.each(["off", "none", ""])("does not pull when FLISK_GOLDEN_REGISTRY is %j", (registry) => {
+    const run = runGolden(script, { labelMatches: false, registry });
+    expect(run.pulls).toEqual([]);
+    expect(run.bake).toHaveLength(1);
+  });
+
+  it("does not pull with FLISK_GOLDEN_REBUILD", () => {
+    const run = runGolden(script, { labelMatches: true, registry: null, rebuild: true });
+    expect(run.pulls).toEqual([]);
+    expect(run.bake).toHaveLength(1);
+  });
+
+  it("does not pull when the local golden images are already up to date", () => {
+    const run = runGolden(script, { labelMatches: true, registry: null });
+    expect(run.pulls).toEqual([]);
+    expect(run.stdout).toContain("up to date");
+  });
+
+  it("removes untagged golden images that an older hash left, after a pull or a build", () => {
+    const prune = "image prune -f --filter label=flisk.golden.hash";
+    expect(runGolden(script, { labelMatches: false, registry: null }).calls).toContain(prune);
+    expect(runGolden(script, { labelMatches: false }).calls).toContain(prune);
+    expect(runGolden(script, { labelMatches: true }).calls).not.toContain(prune);
   });
 });

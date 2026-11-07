@@ -1,15 +1,28 @@
 name: 🏷️ RELEASE | Image | Publish golden images
 
 # Builds the eight golden layers from the Dockerfile that `flisk up` generates and pushes them to GitHub's registry
-# (ghcr.io/flisk-sh/golden-<layer>:<hash12>) and to Docker Hub (docker.io/alexdykyi), the same image in both. A project
-# with FLISK_GOLDEN_REGISTRY=ghcr.io/flisk-sh pulls these instead of building them. Run it by hand after a change to the
-# golden layers; it does nothing else. GHCR makes a new package private: after the first push of a layer, an org owner
-# sets that golden-* package to public in its package settings, or anonymous pulls fail and projects build locally.
+# (ghcr.io/flisk-sh/golden-<layer>:<hash12>) and to Docker Hub (docker.io/alexdykyi), the same image in both. `flisk up`
+# pulls these from ghcr.io/flisk-sh by default and builds locally only when the pull fails, so the hash of every engine on
+# main has to be published: this runs on each push to main that can change the golden Dockerfile, and skips a hash that is
+# already in GHCR. Run it by hand to republish. GHCR makes a new package private: after the first push of a NEW layer, an
+# org owner sets that golden-* package to public in its package settings, or anonymous pulls fail and projects build locally.
 on:
+  push:
+    branches: [main]
+    # The generator (golden_image_dockerfile.star) loads helpers across the engine, any of which can change the text.
+    paths:
+      - runtime/engine/topologies/**
+      - runtime/discovery/**
+      - scripts/golden/**
+      - .github/workflows/publish-golden-images.yml
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: publish-golden-images
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -43,28 +56,42 @@ jobs:
 
       - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
+      - name: Render the golden Dockerfile with the repository's generator
+        run: bash scripts/golden/render-golden-dockerfile.sh "$RUNNER_TEMP/golden"
+
+      # Read without a login, the way `flisk up` pulls. A push that did not change the rendered Dockerfile stops here.
+      - name: Skip when this hash is already published
+        id: published
+        run: |
+          if bash scripts/golden/golden-published.sh "$RUNNER_TEMP/golden" "$GHCR_REGISTRY"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        if: steps.published.outputs.skip != 'true'
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.published.outputs.skip != 'true'
 
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        if: steps.published.outputs.skip != 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        if: steps.published.outputs.skip != 'true'
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: Render the golden Dockerfile with the repository's generator
-        run: bash scripts/golden/render-golden-dockerfile.sh "$RUNNER_TEMP/golden"
-
       - name: Build and push the eight golden layers
+        if: steps.published.outputs.skip != 'true'
         run: bash scripts/golden/push-golden-images.sh "$RUNNER_TEMP/golden" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"
 
       # Reads every pushed image back the way `flisk up` pulls it (GHCR without a login, so a private package fails here):
       # both platforms, a size within bounds, the hash label, and the same digest in both registries.
       - name: Verify the published golden images
+        if: steps.published.outputs.skip != 'true'
         run: python3 -I scripts/golden/verify-golden-images.py "$RUNNER_TEMP/golden/golden-layers.Dockerfile" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"
