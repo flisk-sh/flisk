@@ -131,6 +131,21 @@ def compose_files_declare_service(resource_config, ctx, service_name):
     return False
 
 
+def stack_has_own_postgres_container(resource_config, resource_manifests):
+    """True when the stack imports its own `postgres` container (an app resource, not the shared `database` resource).
+
+    `flisk import` writes a Compose `postgres` service as its own resource, which lands in the generated app Compose file as
+    the `postgres` dc_resource. Shared platform Postgres must not register a second one.
+    """
+    for resource in resource_config.get('resources', []):
+        if resource.get('name', '') != 'postgres':
+            continue
+        app_type = resource_manifests.get('postgres', {}).get('appType', 'backend')
+        if app_type != 'database':
+            return True
+    return False
+
+
 def _docker_compose_app(compose_paths, project_name, env_file):
     resolved_env_file = _env_file_if_exists(env_file)
     if resolved_env_file:
@@ -1386,7 +1401,7 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
     # A stack whose own Compose file already declares a `postgres` service (e.g. Ghostfolio, imported from its docker-compose.yml)
     # gets that service as its `postgres` dependency. Force-starting the shared platform Postgres would register a second
     # `postgres` dc_resource and fail Tilt with "dc_resource named postgres already exists".
-    stack_declares_postgres = compose_files_declare_service(resource_config, ctx, 'postgres')
+    stack_declares_postgres = compose_files_declare_service(resource_config, ctx, 'postgres') or stack_has_own_postgres_container(resource_config, resource_manifests)
     if not should_enable('database-management') and not stack_declares_postgres:
         database_names = database_resource_names(all_services_map)
         for res in resource_config.get('resources', []):
