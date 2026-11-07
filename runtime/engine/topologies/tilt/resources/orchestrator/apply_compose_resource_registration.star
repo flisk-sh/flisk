@@ -1402,6 +1402,9 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
     # gets that service as its `postgres` dependency. Force-starting the shared platform Postgres would register a second
     # `postgres` dc_resource and fail Tilt with "dc_resource named postgres already exists".
     stack_declares_postgres = compose_files_declare_service(resource_config, ctx, 'postgres') or stack_has_own_postgres_container(resource_config, resource_manifests)
+    if stack_declares_postgres:
+        # provision-db-* resources target the shared platform Postgres, which is not registered here.
+        infra_deps = [dep for dep in infra_deps if not dep.startswith('provision-db-')]
     if not should_enable('database-management') and not stack_declares_postgres:
         database_names = database_resource_names(all_services_map)
         for res in resource_config.get('resources', []):
