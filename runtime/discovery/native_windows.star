@@ -339,17 +339,43 @@ def _write_pieces(content):
 def write_text_exact(dir_path, file_path, content):
     """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM.
 
-    The first piece truncates the file, the rest append to it, so the file ends up byte-identical to content.
+    Content that fits one piece is written straight to file_path. Larger content is built in a temporary file beside it
+    (the first piece creates it, the rest append) and renamed over file_path once every piece is written, so a reader or a
+    second Tilt writing the same file never sees half of it, and a failed piece leaves file_path as it was.
     """
-    for index, piece in enumerate(_write_pieces(content)):
-        first = index == 0
+    pieces = _write_pieces(content)
+    if len(pieces) == 1:
         local(
-            ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" ' + (">" if first else ">>") + ' "$3"', "sh", dir_path, piece, file_path],
-            command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; [IO.File]::" + ("WriteAllText" if first else "AppendAllText") + "($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
-            env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": piece},
+            ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dir_path, pieces[0], file_path],
+            command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; [IO.File]::WriteAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
+            env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": pieces[0]},
             quiet = True,
             echo_off = True,
         )
+        return
+    # The shell's pid makes the temporary name unique to this write; the command prints it so the next pieces find it.
+    tmp_path = str(local(
+        ["sh", "-c", 'mkdir -p "$1" && t="$3.flisk-tmp.$$" && printf "%s" "$2" > "$t" && printf "%s" "$t"', "sh", dir_path, pieces[0], file_path],
+        command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; $t = $env:FLISK_PATH + '.flisk-tmp.' + $PID; [IO.File]::WriteAllText($t, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false))); Write-Output $t"],
+        env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": pieces[0]},
+        quiet = True,
+        echo_off = True,
+    )).strip()
+    for piece in pieces[1:]:
+        local(
+            ["sh", "-c", 'printf "%s" "$2" >> "$1"', "sh", tmp_path, piece],
+            command_bat = _PS + ["[IO.File]::AppendAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
+            env = {"FLISK_PATH": tmp_path, "FLISK_CONTENT": piece},
+            quiet = True,
+            echo_off = True,
+        )
+    local(
+        ["mv", "-f", tmp_path, file_path],
+        command_bat = _PS + ["Move-Item -Force -LiteralPath $env:FLISK_TMP -Destination $env:FLISK_PATH"],
+        env = {"FLISK_TMP": tmp_path, "FLISK_PATH": file_path},
+        quiet = True,
+        echo_off = True,
+    )
 
 def iso_timestamp():
     """Local time as YYYY-MM-DDTHH:MM:SS (date +%Y-%m-%dT%H:%M:%S)."""

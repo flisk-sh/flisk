@@ -77,6 +77,18 @@ def test_a_character_straddling_a_piece_boundary_is_not_cut(tmp_path):
 
 
 @TILT_REQUIRED
+def test_a_multi_piece_write_replaces_the_file_and_leaves_no_temporary_file(tmp_path):
+    # The pieces are built in a temporary file and renamed into place; an older, longer file must not leave a tail behind.
+    target = tmp_path / "services"
+    target.mkdir()
+    (target / "compose.yaml").write_bytes(b"old " * 100_000)
+    big = "".join(LINE.format(i=i, pad=PAD) for i in range(LINES))
+    run_starlark(tmp_path, _body(target, {"compose.yaml": big}))
+    assert (target / "compose.yaml").read_bytes() == big.encode("utf-8")
+    assert sorted(p.name for p in target.iterdir()) == ["compose.yaml"]
+
+
+@TILT_REQUIRED
 def test_small_and_empty_content_is_written_exactly(tmp_path):
     target = tmp_path / "services"
     run_starlark(tmp_path, _body(target, {"small.txt": "hi 🛑\n", "no-newline.txt": "no newline", "empty.txt": ""}))
