@@ -42,6 +42,12 @@ e2e_init() { # <suite> <default project name>
 log() { printf '\n== %s\n' "$*"; }
 die() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 now_ms() { node -p 'Date.now()'; }
+# scaled_ready_timeout <resources> <seconds each>: READY_TIMEOUT for a stack that builds that many images, a few at a time.
+# Never less than READY_TIMEOUT, and E2E_READY_TIMEOUT, when set, wins unchanged.
+scaled_ready_timeout() {
+  local scaled=$(($1 * $2))
+  if [ -n "${E2E_READY_TIMEOUT:-}" ] || [ "$scaled" -le "$READY_TIMEOUT" ]; then echo "$READY_TIMEOUT"; else echo "$scaled"; fi
+}
 assert() { node "$E2E_LIB/assert-json.mjs" "$@" || die "assertion failed: $*"; } # envelope|check|equal, see assert-json.mjs
 
 # poll_until <description> <timeout seconds> <command...>: retry the command every 2s until it succeeds or the deadline passes.
