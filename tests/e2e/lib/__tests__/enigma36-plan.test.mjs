@@ -47,15 +47,10 @@ test("the diagonal board rejects contradictory plans", () => {
 
 test("a Postgres-checkpointed agent shares the database's stack", () => {
   // The database resource provisions <project>_<stack>; an agent on another stack never answers /ready (nightly 42002912060).
-  // Seeds drift as the planner changes, so take the first seed that draws a Postgres-checkpointed agent.
-  let plan;
-  let agents = [];
-  for (let seed = 0; seed < 500 && agents.length === 0; seed++) {
-    plan = drawPlan(seed);
-    agents = plan.entries.filter((e) => e.variant === "agent-postgres");
-  }
-  assert.ok(agents.length > 0, "no seed in 0..499 draws a Postgres-checkpointed agent");
+  const plan = drawPlan(2145695131);
   const db = plan.entries.find((e) => e.variant === "postgres");
+  const agents = plan.entries.filter((e) => e.variant === "agent-postgres");
+  assert.ok(agents.length > 0);
   for (const a of agents) assert.equal(a.stack, db.stack);
   const stray = {
     ...plan,
