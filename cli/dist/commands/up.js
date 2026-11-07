@@ -53,7 +53,7 @@ import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
 import { tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
 import { defaultUpWaitDeps, parseWaitTimeout, upAndWait } from "../utils/up-wait.js";
-import { buildPrintedUrlTargets, checkPrintedUrls, formatUrlFailures, healthUrlOf, tiltResourceHasExited, urlFailureSuggestions, } from "../utils/url-check.js";
+import { buildPrintedUrlTargets, checkPrintedUrls, formatUrlFailures, healthUrlOf, printedHealthUrl, tiltResourceHasExited, urlFailureSuggestions, } from "../utils/url-check.js";
 import { enableDiscoveredStacks, writeDefaultProjectConfig } from "./project.js";
 export function formatUpSuccess(port, options = {}) {
     const { appUrls = [], serviceHealth = [], showLogsHint = serviceHealth.length > 0 } = options;
@@ -75,11 +75,11 @@ export function formatUpSuccess(port, options = {}) {
             lines.push(`  … and ${services.length - 10} more`);
         }
         // Health check URLs for test infrastructure and monitoring: only services that have one, so internals do not use up the ten.
-        const withUrl = services.filter((svc) => svc.url);
+        const withUrl = services.filter((svc) => svc.url && svc.healthUrl !== null);
         lines.push("Health checks:");
         for (const svc of withUrl.slice(0, 10)) {
             const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? "✗" : "⟳";
-            const healthUrl = svc.url ? healthUrlOf(svc.url) : "";
+            const healthUrl = svc.healthUrl ?? (svc.url ? healthUrlOf(svc.url) : "");
             lines.push(`  ${icon} ${svc.name}: ${healthUrl}`);
         }
         if (withUrl.length > 10) {
@@ -1156,6 +1156,7 @@ export const upCommand = new Command("up")
                         name,
                         status: failed ? "failed" : isStarting ? "starting" : "ready",
                         url,
+                        ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
                     };
                 });
                 for (const line of formatUpSuccess(port, {
@@ -1247,6 +1248,7 @@ export const upCommand = new Command("up")
                     name,
                     status: failed ? "failed" : isStarting ? "starting" : "ready",
                     url,
+                    ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
                 };
             });
             for (const line of formatUpSuccess(port, {

@@ -7,6 +7,8 @@ export interface ServiceHealth {
     name: string;
     status: "ready" | "failed" | "starting";
     url?: string;
+    /** The health URL to print; null for a service without one (a bring-your-own service with no healthCheckPath). */
+    healthUrl?: string | null;
 }
 export declare function formatUpSuccess(port: number, options?: {
     appUrls?: string[];

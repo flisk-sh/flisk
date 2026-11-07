@@ -160,6 +160,7 @@ import {
   checkPrintedUrls,
   formatUrlFailures,
   healthUrlOf,
+  printedHealthUrl,
   tiltResourceHasExited,
   type UrlCheck,
   urlFailureSuggestions,
@@ -170,6 +171,8 @@ export interface ServiceHealth {
   name: string;
   status: "ready" | "failed" | "starting";
   url?: string;
+  /** The health URL to print; null for a service without one (a bring-your-own service with no healthCheckPath). */
+  healthUrl?: string | null;
 }
 
 export function formatUpSuccess(
@@ -204,11 +207,11 @@ export function formatUpSuccess(
     }
 
     // Health check URLs for test infrastructure and monitoring: only services that have one, so internals do not use up the ten.
-    const withUrl = services.filter((svc) => svc.url);
+    const withUrl = services.filter((svc) => svc.url && svc.healthUrl !== null);
     lines.push("Health checks:");
     for (const svc of withUrl.slice(0, 10)) {
       const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? "✗" : "⟳";
-      const healthUrl = svc.url ? healthUrlOf(svc.url) : "";
+      const healthUrl = svc.healthUrl ?? (svc.url ? healthUrlOf(svc.url) : "");
       lines.push(`  ${icon} ${svc.name}: ${healthUrl}`);
     }
     if (withUrl.length > 10) {
@@ -1526,6 +1529,7 @@ export const upCommand = new Command("up")
               name,
               status: failed ? "failed" : isStarting ? "starting" : "ready",
               url,
+              ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
             };
           });
           for (const line of formatUpSuccess(port, {
@@ -1625,6 +1629,7 @@ export const upCommand = new Command("up")
             name,
             status: failed ? "failed" : isStarting ? "starting" : "ready",
             url,
+            ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
           };
         });
         for (const line of formatUpSuccess(port, {

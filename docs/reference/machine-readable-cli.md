@@ -245,7 +245,7 @@ If one or more resources fail to start or the readiness timeout expires (`FLISK_
 }
 ```
 
-Ready also means every URL `flisk up` prints answers (#3211). After the resources are running, each printed service URL and its health URL is requested with a short timeout (3 seconds per request, retried for up to 15 seconds). Any HTTP response from the service counts, its own 404 or 500 included. Traefik's own 404 (`route-not-found`: no router for the URL) and its 502, 503 or 504 (`port-not-listening`: the route exists but nothing answers on the service's port) do not, nor does a refused gateway (`gateway-not-listening`), a timeout (`timeout`) or another request error (`no-response`). For a URL that does not answer, the service's Tilt logs and state are read: a variable the logs say is missing gives `missing-env` with `envName`, and an exited container gives `container-exited`. Deferred services are not requested, since a request would start them. Tilt keeps running so you can inspect it:
+Ready also means every URL `flisk up` prints answers (#3211). After the resources are running, each printed service URL and its health URL is requested (3 seconds per request, retried within a 15-second deadline that no request runs past). A routed bring-your-own service has no printed health URL unless its service.json declares a `healthCheckPath`. This checks reachability, not application health: any HTTP response from the service counts, its own 404, 500 or 503 and redirects (not followed) included. Only Traefik's own errors do not count, told apart by their body: its 404 `404 page not found` (`route-not-found`: no router for the URL) and its 502 `Bad Gateway`, 503 `Service Unavailable` or `no available server`, and 504 `Gateway Timeout` (`port-not-listening`: the route exists but nothing answers behind it). A refused connection to a local URL is `gateway-not-listening`; to another host (a `FLISK_SERVICE_BASE_URL` elsewhere), a timeout, or any other request error, it is `timeout` or `no-response`. For a URL that does not answer, the service's Tilt state and latest log lines are read: a variable those lines say is not set gives `missing-env` with `envName` (a best-effort hint from the logs), and an exited container gives `container-exited`. Deferred services are not requested, since a request would start them. Tilt keeps running so you can inspect it:
 
 ```json
 {
@@ -260,7 +260,7 @@ Ready also means every URL `flisk up` prints answers (#3211). After the resource
         "didAnswer": false,
         "status": 502,
         "cause": "missing-env",
-        "message": "orders-api needs the environment variable DATABASE_URL, which is not set",
+        "message": "the latest logs of orders-api say the environment variable DATABASE_URL is not set",
         "nextCommand": "add DATABASE_URL=<value> to .env, then run: flisk restart orders-api",
         "envName": "DATABASE_URL"
       }

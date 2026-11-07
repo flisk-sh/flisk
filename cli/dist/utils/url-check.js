@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { resolveServiceUrl } from "./service-urls.js";
+import { isRoutedBringYourOwn, resolveServiceUrl } from "./service-urls.js";
 /** Per-request timeout: short, because the stack already reported ready and a live route answers in milliseconds. */
 export const URL_PROBE_TIMEOUT_MS = 3_000;
 /** How long a failing URL is retried: Traefik can take a moment to pick up a route after the container turns healthy. */
@@ -11,6 +11,16 @@ const URL_CHECK_INTERVAL_MS = 500;
 const BODY_SAMPLE_BYTES = 512;
 /** Traefik's own body when no router matches (Go's http.NotFound). A service's own 404 is an answer: the route reached it. */
 const TRAEFIK_NOT_FOUND = "404 page not found";
+/**
+ * The bodies Traefik writes for its own gateway errors: the status text from its proxy error handler (502, 504), the same for a
+ * 503, and "no available server" when the load balancer has no healthy server. A 502/503/504 with any other body came from the
+ * service (a maintenance page, an upstream of its own), which answered.
+ */
+const TRAEFIK_GATEWAY_BODIES = {
+    502: ["Bad Gateway"],
+    503: ["Service Unavailable", "no available server"],
+    504: ["Gateway Timeout"],
+};
 /**
  * The URLs `flisk up` prints for the services it started: each routed service's URL and its health URL. Deferred services
  * (Sablier `deferStart`) are left out: a request would start them, and they are printed as starting on first request.
@@ -25,28 +35,79 @@ export function buildPrintedUrlTargets(resources, ingressPort, deferred = new Se
             continue;
         const port = resource.config?.port;
         targets.push({ service: resource.name, url, ...(port ? { port } : {}) });
-        targets.push({ service: resource.name, url: healthUrlOf(url), ...(port ? { port } : {}) });
+        const healthUrl = printedHealthUrl(resource, url);
+        if (healthUrl)
+            targets.push({ service: resource.name, url: healthUrl, ...(port ? { port } : {}) });
     }
     return targets;
 }
-/** The health URL `flisk up` prints for a service URL: `<url>/health`, without doubling a trailing slash. */
+/** `<path>/health` for a URL, without doubling a trailing slash and leaving any query or fragment where it is. */
 export function healthUrlOf(url) {
-    return url.endsWith("/health") ? url : `${url.replace(/\/+$/, "")}/health`;
+    try {
+        const parsed = new URL(url);
+        const path = parsed.pathname.replace(/\/+$/, "");
+        if (!path.endsWith("/health"))
+            parsed.pathname = `${path}/health`;
+        return parsed.toString();
+    }
+    catch {
+        return url.endsWith("/health") ? url : `${url.replace(/\/+$/, "")}/health`;
+    }
 }
-/** Whether a probe counts as an answer, and the cause when it does not. Any HTTP response counts, except Traefik's own errors. */
-export function classifyProbe(probe) {
+/**
+ * The health URL `flisk up` prints for a service, or null when it has none to print. Flisk's own service types answer
+ * `/health`. A routed bring-your-own service's health path is its own (often `/`), so it gets one only when service.json
+ * declares a `healthCheckPath` other than `/`, resolved against its URL.
+ */
+export function printedHealthUrl(resource, url) {
+    if (!isRoutedBringYourOwn(resource))
+        return healthUrlOf(url);
+    const path = resource.config?.healthCheckPath;
+    if (!path || path === "/")
+        return null;
+    try {
+        const parsed = new URL(url);
+        parsed.pathname = `${parsed.pathname.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+        return parsed.toString();
+    }
+    catch {
+        return null;
+    }
+}
+/** True for a URL whose host is this machine: the local ingress gateway that `flisk up` started. */
+export function isLocalGatewayUrl(url) {
+    try {
+        const host = new URL(url).hostname.replace(/^\[|\]$/g, "");
+        return (host === "localhost" ||
+            host.endsWith(".localhost") ||
+            host === "::1" ||
+            /^127\.\d+\.\d+\.\d+$/.test(host));
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Whether a probe counts as an answer, and the cause when it does not. Any HTTP response from the service counts, a 404, 500
+ * or its own 503 included: this checks that each printed URL is reachable, not that the app is healthy. Only Traefik's own
+ * errors do not count, recognised by their body. A refused connection blames the gateway only when `url` is local; with a
+ * `FLISK_SERVICE_BASE_URL` pointing elsewhere it is a plain request failure.
+ */
+export function classifyProbe(probe, url) {
     const { status } = probe;
     if (status === undefined) {
         if (probe.error === "timeout")
             return { didAnswer: false, cause: "timeout" };
-        if (probe.error === "ECONNREFUSED")
+        if (probe.error === "ECONNREFUSED" && (url === undefined || isLocalGatewayUrl(url))) {
             return { didAnswer: false, cause: "gateway-not-listening" };
+        }
         return { didAnswer: false, cause: "no-response" };
     }
-    if (status === 404 && (probe.body ?? "").trim() === TRAEFIK_NOT_FOUND) {
+    const body = (probe.body ?? "").trim();
+    if (status === 404 && body === TRAEFIK_NOT_FOUND) {
         return { didAnswer: false, cause: "route-not-found" };
     }
-    if (status === 502 || status === 503 || status === 504) {
+    if (TRAEFIK_GATEWAY_BODIES[status]?.includes(body)) {
         return { didAnswer: false, cause: "port-not-listening" };
     }
     return { didAnswer: true };
@@ -62,19 +123,21 @@ const LOG_LEVEL_WORDS = new Set([
     "GET",
     "POST",
 ]);
+/** How many trailing log lines the missing-variable diagnosis reads: the latest crash, not an earlier run's. */
+const MISSING_ENV_LOG_LINES = 40;
 /**
- * The environment variable a service's logs say it is missing, or null. Reads the last lines only, so an old message from a
- * run that has since been fixed does not count.
+ * The environment variable a service's latest log lines say is not set, or null. Only the last lines are read, so an old
+ * message from a run that has since been fixed is not blamed for a new failure. A Python `KeyError` counts only when the
+ * traceback reads `environ`, since a KeyError on its own is any missing dictionary key.
  */
 export function findMissingEnvName(logs) {
-    const tail = logs.split(/\r?\n/).slice(-200).join("\n");
+    const lines = logs.split(/\r?\n/).slice(-MISSING_ENV_LOG_LINES);
+    const tail = lines.join("\n");
     const patterns = [
         // "Missing required environment variable: DATABASE_URL", "missing env var API_KEY"
         /\b(?:missing|undefined|unset)\s+(?:required\s+)?(?:environment|env)\s+(?:variable|var)s?\s*:?\s*['"`]?([A-Za-z_][A-Za-z0-9_]*)/i,
         // "environment variable API_KEY is not set", "env var X must be set"
         /\b(?:environment|env)\s+(?:variable|var)\s+['"`]?([A-Za-z_][A-Za-z0-9_]*)['"`]?\s+(?:is\s+)?(?:missing|not set|required|undefined|unset|must be set)/i,
-        // Python: KeyError: 'API_KEY' (os.environ["API_KEY"])
-        /KeyError:\s*['"]([A-Z][A-Z0-9_]+)['"]/,
         // "API_KEY is not set", "DATABASE_URL is required", "SECRET must be set"
         /\b([A-Z][A-Z0-9_]{2,})['"`]?\s+(?:is\s+)?(?:not set|required|missing|undefined|must be set)\b/,
     ];
@@ -83,6 +146,14 @@ export function findMissingEnvName(logs) {
         for (const line of lines) {
             const name = pattern.exec(line)?.[1];
             if (name && !LOG_LEVEL_WORDS.has(name.toUpperCase()))
+                return name;
+        }
+    }
+    // Python: os.environ["API_KEY"] raises KeyError: 'API_KEY'.
+    if (/\benviron\b/.test(tail)) {
+        for (const line of [...lines].reverse()) {
+            const name = /KeyError:\s*['"]([A-Z][A-Z0-9_]+)['"]/.exec(line)?.[1];
+            if (name)
                 return name;
         }
     }
@@ -95,7 +166,7 @@ export function describeUrlFailure(target, failure) {
     switch (failure.cause) {
         case "missing-env":
             return {
-                message: `${service} needs the environment variable ${failure.envName ?? "(unnamed)"}, which is not set`,
+                message: `the latest logs of ${service} say the environment variable ${failure.envName ?? "(unnamed)"} is not set`,
                 nextCommand: `add ${failure.envName ?? "it"}=<value> to .env, then run: flisk restart ${service}`,
             };
         case "container-exited":
@@ -105,7 +176,7 @@ export function describeUrlFailure(target, failure) {
             };
         case "port-not-listening":
             return {
-                message: `Traefik has the route, but nothing answers on ${target.port ? `port ${target.port}` : "the declared port"} of ${service} (HTTP ${failure.status ?? 502}); the app may listen on another port or only on 127.0.0.1`,
+                message: `Traefik has the route but got no answer from ${service} (Traefik's own HTTP ${failure.status ?? 502}): likely nothing listens on ${target.port ? `port ${target.port}` : "the declared port"}, or the app listens only on 127.0.0.1`,
                 nextCommand: logs,
             };
         case "route-not-found":
@@ -125,7 +196,7 @@ export function describeUrlFailure(target, failure) {
             };
         case "no-response":
             return {
-                message: `The request failed${failure.error ? ` (${failure.error})` : ""}`,
+                message: `The request failed${failure.error ? ` (${failure.error})` : ""}; check the host and port of this URL`,
                 nextCommand: "flisk doctor",
             };
     }
@@ -144,19 +215,25 @@ export async function checkPrintedUrls(targets, options = {}) {
     const deadline = now() + deadlineMs;
     const results = new Map();
     let pending = targets.map((target, index) => ({ target, index }));
-    while (pending.length > 0) {
+    for (let attempt = 0; pending.length > 0; attempt++) {
+        // Every URL is requested at least once. After that a retry starts only before the deadline and gets only the time left.
+        const left = deadline - now();
+        if (attempt > 0 && left <= 0)
+            break;
+        const budget = Math.max(1, Math.min(timeoutMs, left));
         const probed = await Promise.all(pending.map(async (entry) => ({
             ...entry,
-            result: await probe(entry.target.url, timeoutMs),
+            result: await probe(entry.target.url, budget),
         })));
         for (const { index, result } of probed)
             results.set(index, result);
         pending = probed
-            .filter(({ result }) => !classifyProbe(result).didAnswer)
+            .filter(({ target, result }) => !classifyProbe(result, target.url).didAnswer)
             .map(({ target, index }) => ({ target, index }));
-        if (pending.length === 0 || now() >= deadline)
+        const remaining = deadline - now();
+        if (pending.length === 0 || remaining <= 0)
             break;
-        await sleep(intervalMs);
+        await sleep(Math.min(intervalMs, remaining));
     }
     // One diagnosis per service, shared by its URLs.
     const diagnosed = new Map();
@@ -170,7 +247,7 @@ export async function checkPrintedUrls(targets, options = {}) {
     };
     return Promise.all(targets.map(async (target, index) => {
         const result = results.get(index) ?? { error: "not probed" };
-        const classified = classifyProbe(result);
+        const classified = classifyProbe(result, target.url);
         const base = {
             service: target.service,
             url: target.url,

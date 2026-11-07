@@ -88,4 +88,21 @@ describe("formatUpSuccess health URLs", () => {
     });
     expect(lines).toContain("  ✓ api: http://api.demo.localhost/api/api/health");
   });
+
+  it("prints no /health line for a service whose health URL is null (a bring-your-own service)", () => {
+    const lines = formatUpSuccess(10350, {
+      serviceHealth: [
+        {
+          name: "legacy",
+          status: "ready",
+          url: "http://api.demo.localhost/api/legacy/",
+          healthUrl: null,
+        },
+        { name: "api", status: "ready", url: "http://api.demo.localhost/api/api" },
+      ],
+    });
+    expect(lines).toContain("  ✓ legacy → http://api.demo.localhost/api/legacy/");
+    expect(lines.some((line) => line.includes("legacy/health"))).toBe(false);
+    expect(lines).toContain("  ✓ api: http://api.demo.localhost/api/api/health");
+  });
 });
