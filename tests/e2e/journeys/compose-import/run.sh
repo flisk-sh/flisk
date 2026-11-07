@@ -104,4 +104,32 @@ CI5() { # the URL flisk prints opens exactly as printed (#3209): no trailing sla
     || die "the printed URL $printed does not open as printed"
 }
 
+# url_answers <url>: true when the URL gets an HTTP response from the service itself. Traefik's own "404 page not found" (no router)
+# and its 502/503/504 (nothing behind the route) are not answers; a 404 or 500 from the app is.
+url_answers() {
+  local url="$1" host port out status body
+  host="$(echo "$url" | sed -E 's#^https?://([^:/]+).*#\1#')"
+  port="$(echo "$url" | sed -nE 's#^https?://[^:/]+:([0-9]+).*#\1#p')"; port="${port:-80}"
+  out="$(curl -sS --max-time 10 --resolve "$host:$port:127.0.0.1" -w '\n%{http_code}' "$url" 2>/dev/null)" || return 1
+  status="${out##*$'\n'}"; body="${out%$'\n'*}"
+  case "$status" in 000|502|503|504) return 1 ;; esac
+  [ "$status" != 404 ] || [ "$(printf '%s' "$body" | tr -d '\n')" != "404 page not found" ]
+}
+
+CI6() { # "ready" means ready (#3211): flisk up printed "Flisk is up", and every URL it printed answers
+  log "CI6 every URL flisk up printed answers"
+  cd "$DIR"
+  poll_until "flisk up printed its ready summary" "$READY_TIMEOUT" grep -q '^Flisk is up' up.log
+  ! grep -q 'Not ready:' up.log || die "flisk up reported URLs that do not answer: $(grep -A4 'Not ready:' up.log)"
+  local urls url count=0
+  # The URLs after "Services:" (→ <url>) and "Health checks:" (<name>: <url>) in the ready summary, not the Tilt UI.
+  urls="$(sed -n '/^Services:/,/^Stop:/p' up.log | grep -oE 'https?://[^ ]+' | sort -u)"
+  [ -n "$urls" ] || die "flisk up printed no service URL"
+  while IFS= read -r url; do
+    url_answers "$url" || die "printed URL does not answer: $url"
+    count=$((count + 1))
+  done <<<"$urls"
+  log "CI6 $count printed URLs answer"
+}
+
 e2e_main "$@"

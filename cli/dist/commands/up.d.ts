@@ -2,6 +2,7 @@ import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
 import { type SelectedEnvFile } from "../utils/env-selection.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
+import { checkPrintedUrls, type UrlCheck } from "../utils/url-check.js";
 export interface ServiceHealth {
     name: string;
     status: "ready" | "failed" | "starting";
@@ -79,3 +80,10 @@ export interface NativeUpSelection {
  */
 export declare function selectNativeRun(stackName: string | undefined, only: string[] | undefined, fail: (code: string, message: string, suggestions?: string[]) => never, cwd?: string): NativeUpSelection | null;
 export declare const upCommand: Command;
+/**
+ * Probes every URL `flisk up` prints for the started services (#3211): "ready" means each one answers. A URL that does not is
+ * diagnosed from the Tilt resource (exited) and its logs (a missing environment variable).
+ */
+export declare function checkStackUrls(tiltPort: number, resources: readonly DiscoveredResource[], ingressPort: number | undefined, deferred: ReadonlySet<string>, deps?: {
+    check?: typeof checkPrintedUrls;
+}): Promise<UrlCheck[]>;
