@@ -12,7 +12,7 @@
     "tests/e2e/journeys/compose-import/**",
     ".github/workflows/e2e-journeys.yml"
   ],
-  "cases": ["CI1", "CI2", "CI3", "CI4"],
+  "cases": ["CI1", "CI2", "CI3", "CI4", "CI5"],
   "triggers": ["pr", "main", "nightly", "release", "manual"],
   "timeoutMinutes": 30,
   "needsSecrets": [],

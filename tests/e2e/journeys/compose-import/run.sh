@@ -91,4 +91,17 @@ CI4() { # the app reaches Postgres by its Compose name
   [ "$(traefik_request_ok api /db)" = "db:5432 reachable" ] || die "api cannot reach db:5432"
 }
 
+CI5() { # the URL flisk prints opens exactly as printed (#3209): no trailing slash added by hand
+  log "CI5 the printed api URL opens as printed"
+  cd "$DIR"
+  local printed host port
+  printed="$(flisk networks --raw | grep -E '/api/api/?$' | head -n1)"
+  [ -n "$printed" ] || die "flisk networks printed no URL for the api"
+  case "$printed" in */) ;; *) die "printed URL has no trailing slash: $printed" ;; esac
+  host="$(echo "$printed" | sed -E 's#^https?://([^:/]+).*#\1#')"
+  port="$(echo "$printed" | sed -nE 's#^https?://[^:/]+:([0-9]+).*#\1#p')"; port="${port:-80}"
+  [ "$(curl -sS --max-time 20 --resolve "$host:$port:127.0.0.1" "$printed")" = "hello from api" ] \
+    || die "the printed URL $printed does not open as printed"
+}
+
 e2e_main "$@"
