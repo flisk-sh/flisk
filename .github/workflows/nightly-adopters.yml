@@ -146,8 +146,14 @@ jobs:
           sudo apt-get install -y docker-model-plugin
           docker model version
           docker model install-runner
+          # Model Runner can fail at 100% while renaming the finished blob ("remove incomplete file"); a retry resumes it.
           for model in $MODELS; do
-            docker model pull "$model"
+            for attempt in 1 2 3; do
+              docker model pull "$model" && break
+              [ "$attempt" -eq 3 ] && { echo "::error::could not pull $model"; exit 1; }
+              echo "::warning::pull of $model failed (attempt $attempt), retrying"
+              sleep 10
+            done
           done
           docker model ls
 
