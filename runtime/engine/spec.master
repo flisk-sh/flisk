@@ -30,11 +30,12 @@
 #
 #     load("spec.master", "RESOURCE_DEFAULTS", "PRE_ALPHA_RESOURCES")  # generated Tiltfile, .flisk/.flisk-out/
 #
-# Then use the constants:
+# To read the path, validation and constant tables this file defines, load them by name:
 #
+#     load("spec.master", "SPEC", "VALIDATION", "CONSTANTS")
 #     registry_path = SPEC.DISCOVERY.REGISTRY
 #     max_port = VALIDATION.MAX_PORT
-#     timeout = CONSTANTS.DEFAULT_TIMEOUT
+#     timeout = CONSTANTS.HEALTH_CHECK_TIMEOUT
 #
 # That's it! No magic paths. Everything is explicit.
 
