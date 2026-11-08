@@ -610,6 +610,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "python-tests.yml",
+			"job": "engine-python-tests",
+			"tier": "test",
+			"required": false,
+			"reason": "Runs the engine's Python test suite, which no other workflow covers",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "release-binaries.yml",
 			"job": "post-toolradar",
 			"tier": "release",
