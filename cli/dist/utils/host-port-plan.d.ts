@@ -45,7 +45,9 @@ export declare const PREFERRED_HOST_PORTS: Partial<Record<keyof typeof REQUESTED
  * way, so the container listens on 80 in the VM and nothing ever listens on the Mac.
  */
 export declare function isPrivilegedBindFree(errorCode: string | undefined, platform: NodeJS.Platform, forwardedAsUser?: boolean): boolean;
-export declare function isHostPortAvailable(port: number): Promise<boolean>;
+export declare function isHostPortAvailable(port: number, { inspectDocker }?: {
+    inspectDocker?: boolean;
+}): Promise<boolean>;
 export declare function createHostPortPlan(options?: HostPortPlanOptions): Promise<HostPortPlan>;
 export declare function formatHostPortPlan(plan: HostPortPlan): string;
 /** The plan with HTTP and HTTPS marked as not needed, for a project whose gateway capability is off. */

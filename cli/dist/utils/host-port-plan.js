@@ -33,14 +33,18 @@ export const PREFERRED_HOST_PORTS = {
 export function isPrivilegedBindFree(errorCode, platform, forwardedAsUser = false) {
     return errorCode === "EACCES" && platform === "darwin" && !forwardedAsUser;
 }
-export async function isHostPortAvailable(port) {
+export async function isHostPortAvailable(port, { inspectDocker = true } = {}) {
     if (await hasLocalListener(port))
         return false;
     return new Promise((resolve) => {
         const server = createServer();
         server.once("error", (error) => {
-            // Asks Docker only for a refused bind: an ordinary free or busy port costs no extra call.
-            resolve(isPrivilegedBindFree(error.code, process.platform, error.code === "EACCES" && isLimaBackedDocker()));
+            // Asks Docker only for a refused bind on macOS, the one case its answer can change, and never for a caller that
+            // promised not to call Docker (a project of local processes, a dry run): `docker` may be missing or broken there.
+            resolve(isPrivilegedBindFree(error.code, process.platform, inspectDocker &&
+                error.code === "EACCES" &&
+                process.platform === "darwin" &&
+                isLimaBackedDocker()));
         });
         // Docker Desktop and Windows publish these host ports through IPv4 loopback.
         // Match that target instead of probing wildcard binds that may differ by OS.

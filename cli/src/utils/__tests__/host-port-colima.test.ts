@@ -48,4 +48,20 @@ describe("isHostPortAvailable for a refused privileged port on macOS", () => {
 
     expect(await isHostPortAvailable(80)).toBe(false);
   });
+
+  it("never asks Docker when the caller must not call it", async () => {
+    // Regression: `docker info` ran for projects of local processes, where Docker may be missing or broken.
+    Object.defineProperty(process, "platform", { value: "darwin" });
+
+    await isHostPortAvailable(80, { inspectDocker: false });
+
+    expect(engine.isLimaBackedDocker).not.toHaveBeenCalled();
+  });
+
+  it("never asks Docker off macOS, where the answer cannot change the result", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+
+    expect(await isHostPortAvailable(80)).toBe(false);
+    expect(engine.isLimaBackedDocker).not.toHaveBeenCalled();
+  });
 });

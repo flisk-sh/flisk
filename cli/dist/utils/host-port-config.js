@@ -201,7 +201,8 @@ async function planHostPorts(projectRoot, options) {
         }
     }
     const ownedByProject = (port) => isDockerPortOwnedByProject(dockerPs, prefix, port);
-    const isPortFree = options.isPortFree ?? isHostPortAvailable;
+    const isPortFree = options.isPortFree ??
+        ((port) => isHostPortAvailable(port, { inspectDocker: options.inspectDocker !== false }));
     // A bring-your-own service's `extraPorts` claim their host ports for its own container (a proxy on 80 and 443), so Traefik
     // must not take them, even while that container holds them and they read as this project's own.
     const reserved = reservedExtraPorts(projectRoot);

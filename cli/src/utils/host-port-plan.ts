@@ -54,17 +54,24 @@ export function isPrivilegedBindFree(
   return errorCode === "EACCES" && platform === "darwin" && !forwardedAsUser;
 }
 
-export async function isHostPortAvailable(port: number): Promise<boolean> {
+export async function isHostPortAvailable(
+  port: number,
+  { inspectDocker = true }: { inspectDocker?: boolean } = {},
+): Promise<boolean> {
   if (await hasLocalListener(port)) return false;
   return new Promise((resolve) => {
     const server = createServer();
     server.once("error", (error: NodeJS.ErrnoException) => {
-      // Asks Docker only for a refused bind: an ordinary free or busy port costs no extra call.
+      // Asks Docker only for a refused bind on macOS, the one case its answer can change, and never for a caller that
+      // promised not to call Docker (a project of local processes, a dry run): `docker` may be missing or broken there.
       resolve(
         isPrivilegedBindFree(
           error.code,
           process.platform,
-          error.code === "EACCES" && isLimaBackedDocker(),
+          inspectDocker &&
+            error.code === "EACCES" &&
+            process.platform === "darwin" &&
+            isLimaBackedDocker(),
         ),
       );
     });
