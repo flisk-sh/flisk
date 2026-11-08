@@ -40,7 +40,8 @@ export declare const PREFERRED_HOST_PORTS: Partial<Record<keyof typeof REQUESTED
 /**
  * Whether a failed bind on 127.0.0.1 means the port is still free for Docker. Only macOS
  * refuses a non-root bind below 1024 while Docker Desktop publishes it through a privileged
- * helper. Callers check for a listener first, so a bind error here is never another process.
+ * helper, and Colima and Lima through their pseudoloopback forwarder. Callers check for a
+ * listener first, so a bind error here is never another process.
  */
 export declare function isPrivilegedBindFree(errorCode: string | undefined, platform: NodeJS.Platform): boolean;
 export declare function isHostPortAvailable(port: number): Promise<boolean>;
