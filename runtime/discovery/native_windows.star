@@ -258,9 +258,11 @@ _PS = ["powershell", "-NoProfile", "-NonInteractive", "-Command"]
 POWERSHELL = _PS
 
 def file_mtime(path):
-    """Modification time of path as Unix seconds, 0 when it does not exist (stat -f %m || stat -c %Y || 0)."""
+    """Modification time of path as Unix seconds, 0 when it does not exist (stat -c %Y || stat -f %m || 0).
+
+    GNU first: its `stat -f %m` prints file system details and then fails, so the fallback's output would follow them."""
     out = str(local(
-        ["sh", "-c", 'stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0', "sh", path],
+        ["sh", "-c", 'stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0', "sh", path],
         command_bat = _PS + ["if (Test-Path -LiteralPath $env:FLISK_PATH) { ([DateTimeOffset](Get-Item -LiteralPath $env:FLISK_PATH).LastWriteTimeUtc).ToUnixTimeSeconds() } else { 0 }"],
         env = {"FLISK_PATH": path},
         quiet = True,

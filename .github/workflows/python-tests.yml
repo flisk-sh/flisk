@@ -1,0 +1,42 @@
+# The engine's Python test suite. No other workflow runs it, so its tests could go stale unnoticed.
+name: 🔀 PR | CI | Engine Python tests
+
+on:
+  pull_request:
+    paths:
+      - "runtime/**"
+      - "tests/tilt-engine/**"
+      - "tests/requirements.txt"
+      - ".github/workflows/python-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "runtime/**"
+      - "tests/tilt-engine/**"
+      - "tests/requirements.txt"
+      - ".github/workflows/python-tests.yml"
+
+concurrency:
+  group: python-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  engine-python-tests:
+    name: 🐍 Engine Python tests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install Tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install the test packages
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet -r tests/requirements.txt
+      - name: Run the engine tests
+        run: '"$RUNNER_TEMP/venv/bin/python" -m pytest tests/tilt-engine -q --tb=short'

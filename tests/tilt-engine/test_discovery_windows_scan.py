@@ -89,7 +89,7 @@ def test_scan_honours_depth(script, tmp_path):
     _tree(tmp_path)
     proc = _scan(script, tmp_path, name="service.json", depth="1")  # find -maxdepth 2
     got = sorted(line.strip().replace("\\", "/") for line in proc.stdout.splitlines() if line.strip())
-    assert got == ["a/b/service.json", "a/service.json", "node_modules/x/service.json"]
+    assert got == ["a/service.json"]
 
 
 @needs_pwsh

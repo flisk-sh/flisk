@@ -47,8 +47,8 @@ class TestDaemonValidation:
         """
         # Valid service with all required fields
         valid_service = {
-            "name": "test-service",
-            "type": "backend",
+            "appName": "test-service",
+            "appType": "backend",
             "stack": "test",
             "port": 4000,
             "path": "services/product/test/test-service"
@@ -92,8 +92,8 @@ class TestDaemonValidation:
     def test_validation_allows_optional_fields(self):
         """Test that optional fields don't cause validation failure."""
         resource_with_optional = {
-            "name": "test-service",
-            "type": "backend",
+            "appName": "test-service",
+            "appType": "backend",
             "stack": "test",
             "port": 4000,
             "path": "services/product/test/test-service",
@@ -103,7 +103,7 @@ class TestDaemonValidation:
             "healthCheck": True
         }
         
-        required_fields = ["name", "type", "domain", "path"]
+        required_fields = ["appName", "appType", "stack", "path"]
         has_all_required = all(f in resource_with_optional for f in required_fields)
         
         assert has_all_required, "Service with optional fields should still be valid"

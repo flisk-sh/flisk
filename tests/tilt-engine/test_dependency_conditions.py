@@ -161,7 +161,7 @@ def test_orchestrator_source_registers_healthy_resource():
     assert "_HEALTHY_SCRIPT = (" in source
     assert 'has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}"' in source
     assert 'if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi;' in source
-    assert 'if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi;' in source
+    assert 'echo "ERROR: $job is unhealthy: its health check still failed' in source
 
 
 def test_infra_loader_source_registers_postgres_healthy():
@@ -841,11 +841,17 @@ local_resource(
 
     @staticmethod
     def _real_healthy_script() -> str:
-        """The shipped _HEALTHY_SCRIPT, read from the orchestrator source (no copy to drift)."""
+        """The shipped _HEALTHY_SCRIPT, read from the orchestrator source (no copy to drift).
+
+        Only its recovery window is shortened: these containers live 60 seconds, so with the shipped 120 they exit first
+        and the script reports the exit instead of the unhealthy state under test.
+        """
         source = ORCHESTRATOR.read_text()
         start = source.index("_HEALTHY_SCRIPT = (") + len("_HEALTHY_SCRIPT = ")
         end = source.index("\n)\n", start) + 2
-        return eval(source[start:end])  # a parenthesised concatenation of string literals
+        script = eval(source[start:end])  # a parenthesised concatenation of string literals
+        assert "grace=120;" in script
+        return script.replace("grace=120;", "grace=3;")
 
     def _run_healthy_script(self, cname: str, health_cmd: str, max_polls: int = 30, container_cmd: str = "sleep 60"):
         subprocess.run(

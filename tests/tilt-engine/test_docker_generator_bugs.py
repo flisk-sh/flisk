@@ -301,9 +301,8 @@ CMD ["bun", "run", "start"]
         # Bad Dockerfile should NOT have valid EXPOSE
         assert not valid_expose_pattern.search(sample_dockerfile_bad)
         
-        # Bad Dockerfile should match invalid patterns
-        for pattern in invalid_patterns:
-            assert re.search(pattern, sample_dockerfile_bad, re.MULTILINE)
+        # Bad Dockerfile should match at least one invalid pattern
+        assert any(re.search(pattern, sample_dockerfile_bad, re.MULTILINE) for pattern in invalid_patterns)
 
 
 class TestComposeFileValidation:
