@@ -161,7 +161,7 @@ def test_orchestrator_source_registers_healthy_resource():
     assert "_HEALTHY_SCRIPT = (" in source
     assert 'has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}"' in source
     assert 'if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi;' in source
-    assert 'if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi;' in source
+    assert 'echo "ERROR: $job is unhealthy: its health check still failed' in source
 
 
 def test_infra_loader_source_registers_postgres_healthy():

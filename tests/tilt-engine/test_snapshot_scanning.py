@@ -42,14 +42,14 @@ class TestSnapshotScanning:
         # Import and test
         import sys
         sys.path.insert(0, str(Path("runtime/discovery").resolve()))
-        from resource_snapshot import get_current_resources
+        from resource_snapshot import get_current_services
         
         # Change to temp directory for scanning
         original_dir = os.getcwd()
         os.chdir(temp_dir)
         
         try:
-            found_resources = get_current_resources("services/product")
+            found_resources = get_current_services("services/product")
             
             assert len(found_resources) == 3, f"Expected 3 resources, found {len(found_resources)}"
             assert all("service.json" in r for r in found_resources), "All resources should be service.json files"
@@ -75,13 +75,13 @@ class TestSnapshotScanning:
         
         import sys
         sys.path.insert(0, str(Path("runtime/discovery").resolve()))
-        from resource_snapshot import get_current_resources
+        from resource_snapshot import get_current_services
         
         original_dir = os.getcwd()
         os.chdir(temp_dir)
         
         try:
-            found_resources = get_current_resources("services/product")
+            found_resources = get_current_services("services/product")
             
             assert len(found_resources) == 1, f"Expected 1 resource, found {len(found_resources)}"
             assert "service.json" in found_resources[0], "Should only find service.json files"
@@ -109,13 +109,13 @@ class TestSnapshotScanning:
         
         import sys
         sys.path.insert(0, str(Path("runtime/discovery").resolve()))
-        from resource_snapshot import get_current_resources
+        from resource_snapshot import get_current_services
         
         original_dir = os.getcwd()
         os.chdir(temp_dir)
         
         try:
-            found_resources = get_current_resources("services/product")
+            found_resources = get_current_services("services/product")
             
             assert len(found_resources) == 3, f"Expected 3 resources, found {len(found_resources)}"
             # Verify all paths are relative and contain the full path

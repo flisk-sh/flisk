@@ -17,10 +17,10 @@ class TestHealthEndpoints:
         """
         Scenario: Overall health endpoint
         WHEN a service with health checks receives a request to `GET /health`
-        THEN it SHALL return JSON with fields: `status`, `service`, `version`, `timestamp`, `uptime`, `dependencies`
+        THEN it SHALL return JSON with fields: `status`, `resource`, `version`, `timestamp`, `uptime`, `dependencies`
         AND `status` SHALL be one of: `healthy`, `unhealthy`, `degraded`
         """
-        required_fields = ["status", "service", "version", "timestamp", "uptime", "dependencies"]
+        required_fields = ["status", "resource", "version", "timestamp", "uptime", "dependencies"]
         
         for field in required_fields:
             assert field in mock_health_response, f"Response missing required field: {field}"

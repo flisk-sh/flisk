@@ -3,11 +3,14 @@
 import json
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = ROOT.parent / "flisk-restaurant-example"
 
 
+@pytest.mark.skipif(not EXAMPLE_ROOT.is_dir(), reason="needs a flisk-restaurant-example checkout next to this repo")
 def test_frontend_service_manifests_define_explicit_base_paths():
     expected = {
         "reservation-app": "/reservation-app",
