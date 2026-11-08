@@ -143,6 +143,9 @@ export const statusCommand = new Command("status")
               if (!projectRoot) {
                 foreignTiltRoot = null;
               }
+              if (options.json && options.tilt) {
+                queryError = `another project's Tilt is running on port ${tiltPort}, so this project is not running. Start it with: flisk up`;
+              }
             } else if (options.json && options.tilt) {
               // Only parse resources if we determined it's not foreign
               tiltResources = parsed;
