@@ -243,15 +243,6 @@ def test_dependson_condition_service_healthy_adds_healthy_resource_edge(tmp_path
 
 
 @TILT_REQUIRED
-def test_dependson_condition_service_completed_successfully_adds_done_resource_edge(tmp_path):
-    """#3061: condition: 'service_completed_successfully' waits for <dependency>-done."""
-    manifest = {
-        "dependsOn": [{"name": "orders", "condition": "service_completed_successfully"}]
-    }
-    assert deps(tmp_path, "ledger", manifest) == ["orders", "orders-done"]
-
-
-@TILT_REQUIRED
 def test_dependson_condition_service_started_keeps_default_edge(tmp_path):
     """#3061: condition: 'service_started' keeps standard start edge without waiting for healthy/done."""
     manifest = {

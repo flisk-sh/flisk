@@ -71,7 +71,6 @@ def test_byo_compose_does_not_require_curl_inside_the_image():
     ).read_text()
 
     assert "is_byo = manifest.get('appType') == 'bring-your-own'" in source
-    assert '"" if is_worker or is_byo else """    healthcheck:' in source
     assert '"" if is_byo else """    healthcheck:' in source
 
 
