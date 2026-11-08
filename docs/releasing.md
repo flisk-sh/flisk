@@ -271,6 +271,7 @@ There is no unscoped `flisk` package, and the release does not try to publish on
 | `RELEASE_PAT` | repo secret | Bump PR opened as a user so its checks run; fall back is `github.token` |
 | `NPM_TOKEN` | repo secret | Fallback publish for `@flisk-sh/flisk` and `flisk` when OIDC has no trusted publisher; must be absent-or-valid, never empty |
 | `BINARY_RELEASE_TOKEN` | repo secret | Uploads to `flisk-sh/releases` |
+| `TOOLRADAR_API_KEY` | repo secret | Optional. `post-toolradar` posts the release on Toolradar, at most once a week; without it the job does nothing |
 | `main merge queue` ruleset | repository rules | `main`: merge queue, required checks, 2 approvals, code coverage floor |
 | `release branch protections` ruleset | repository rules | `release/*`: PR required, required checks with `do_not_enforce_on_create` on (branch creation must stay pushable) |
 
