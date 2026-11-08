@@ -126,8 +126,7 @@ jobs:
               ACCESS_TOKEN_SALT=ci-access-token-salt-not-a-secret
               DATABASE_URL=postgresql://user:ci-postgres-not-a-secret@postgres:5432/ghostfolio-db?connect_timeout=300
               JWT_SECRET_KEY=ci-jwt-secret-not-a-secret
-          # Rejected firsttris/haben#188. The dev stack builds deploy/dev and serves on 127.0.0.1:${HABEN_DEV_PORT:-3000};
-          # flisk-import 0.18.1 does not read a variable container port, so until it does this job fails at the smoke check.
+          # Rejected firsttris/haben#188. The dev stack builds deploy/dev and serves on 127.0.0.1:${HABEN_DEV_PORT:-3000}.
           - name: Haben
             owner: firsttris
             repo: haben
