@@ -3,7 +3,6 @@
 
 import { createServer } from "node:net";
 import type { HostPortPlan } from "../types/index.js";
-import { isLimaBackedDocker } from "./colima.js";
 import { FliskError } from "./errors.js";
 import { hasLocalListener } from "./port-listener-probe.js";
 
@@ -42,16 +41,14 @@ export const PREFERRED_HOST_PORTS: Partial<Record<keyof typeof REQUESTED_PORTS, 
 /**
  * Whether a failed bind on 127.0.0.1 means the port is still free for Docker. Only macOS
  * refuses a non-root bind below 1024 while Docker Desktop publishes it through a privileged
- * helper. Callers check for a listener first, so a bind error here is never another process.
- * Colima and Lima have no such helper: their `ssh -L` runs as the user and is refused the same
- * way, so the container listens on 80 in the VM and nothing ever listens on the Mac.
+ * helper, and Colima and Lima through their pseudoloopback forwarder. Callers check for a
+ * listener first, so a bind error here is never another process.
  */
 export function isPrivilegedBindFree(
   errorCode: string | undefined,
   platform: NodeJS.Platform,
-  forwardedAsUser = false,
 ): boolean {
-  return errorCode === "EACCES" && platform === "darwin" && !forwardedAsUser;
+  return errorCode === "EACCES" && platform === "darwin";
 }
 
 export async function isHostPortAvailable(port: number): Promise<boolean> {
@@ -59,14 +56,7 @@ export async function isHostPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = createServer();
     server.once("error", (error: NodeJS.ErrnoException) => {
-      // Asks Docker only for a refused bind: an ordinary free or busy port costs no extra call.
-      resolve(
-        isPrivilegedBindFree(
-          error.code,
-          process.platform,
-          error.code === "EACCES" && isLimaBackedDocker(),
-        ),
-      );
+      resolve(isPrivilegedBindFree(error.code, process.platform));
     });
     // Docker Desktop and Windows publish these host ports through IPv4 loopback.
     // Match that target instead of probing wildcard binds that may differ by OS.

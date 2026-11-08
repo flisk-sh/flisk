@@ -65,28 +65,6 @@ export function isColimaDocker(deps: ColimaDeps = defaultDeps()): boolean {
   return deps.exists(socket) && host.includes("docker.sock") === false && host !== "";
 }
 
-/** The Docker engine's host name (`colima` on Colima), or "" when Docker does not answer. */
-function dockerEngineName(): string {
-  try {
-    return execFileSync("docker", ["info", "--format", "{{.Name}}"], {
-      encoding: "utf-8",
-      timeout: 10_000,
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return "";
-  }
-}
-
-/**
- * True when Docker runs in a Colima or Lima VM. Their published ports reach the Mac through an `ssh -L` running as the
- * user, unlike Docker Desktop's privileged helper. Reads the engine, because Docker may be reached through a context
- * as well as DOCKER_HOST.
- */
-export function isLimaBackedDocker(readEngineName: () => string = dockerEngineName): boolean {
-  return /^(colima|lima)\b/i.test(readEngineName());
-}
-
 /**
  * The state of the Colima VM behind Docker.
  *

@@ -24,12 +24,6 @@ export interface ColimaDeps {
 /** True when the Docker endpoint belongs to a Colima VM. */
 export declare function isColimaDocker(deps?: ColimaDeps): boolean;
 /**
- * True when Docker runs in a Colima or Lima VM. Their published ports reach the Mac through an `ssh -L` running as the
- * user, unlike Docker Desktop's privileged helper. Reads the engine, because Docker may be reached through a context
- * as well as DOCKER_HOST.
- */
-export declare function isLimaBackedDocker(readEngineName?: () => string): boolean;
-/**
  * The state of the Colima VM behind Docker.
  *
  * Two failures matter and both look like "Docker is not working": the VM is not running, and

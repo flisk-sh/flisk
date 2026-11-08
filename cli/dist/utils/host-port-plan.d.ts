@@ -40,11 +40,10 @@ export declare const PREFERRED_HOST_PORTS: Partial<Record<keyof typeof REQUESTED
 /**
  * Whether a failed bind on 127.0.0.1 means the port is still free for Docker. Only macOS
  * refuses a non-root bind below 1024 while Docker Desktop publishes it through a privileged
- * helper. Callers check for a listener first, so a bind error here is never another process.
- * Colima and Lima have no such helper: their `ssh -L` runs as the user and is refused the same
- * way, so the container listens on 80 in the VM and nothing ever listens on the Mac.
+ * helper, and Colima and Lima through their pseudoloopback forwarder. Callers check for a
+ * listener first, so a bind error here is never another process.
  */
-export declare function isPrivilegedBindFree(errorCode: string | undefined, platform: NodeJS.Platform, forwardedAsUser?: boolean): boolean;
+export declare function isPrivilegedBindFree(errorCode: string | undefined, platform: NodeJS.Platform): boolean;
 export declare function isHostPortAvailable(port: number): Promise<boolean>;
 export declare function createHostPortPlan(options?: HostPortPlanOptions): Promise<HostPortPlan>;
 export declare function formatHostPortPlan(plan: HostPortPlan): string;
