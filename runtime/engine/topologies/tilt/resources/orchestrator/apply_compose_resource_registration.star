@@ -69,6 +69,15 @@ def database_resource_names(all_services_map):
     return names
 
 
+def project_imports_own_postgres_container(all_services_map):
+    """True when a discovered resource named `postgres` is an app container, so `dependsOn: postgres` names that container."""
+    for svc in (all_services_map or {}).values():
+        for res in svc.get('resources', []):
+            if res.get('name', '') == 'postgres' and not _is_database_manifest(res.get('_manifest', {}) or {}):
+                return True
+    return False
+
+
 def selected_for_shared_platform_postgres(name, ctx):
     """Use the same focus selection later passed to set_enabled_resources."""
     if not ctx.get('focus_mode', False):
@@ -1433,7 +1442,9 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
             # A bring-your-own container gets the shared database variables only when it asks for them (#2991).
             # A `databaseName` discovery computed for every service is not a request; one the service wrote itself is.
             wrote_database_name = bool(manifest.get('databaseName')) and not manifest.get('_databaseNameComputed')
-            manifest['_sharedDatabase'] = manifest_needs_shared_platform_postgres(manifest, database_resource_names(all_services_map)) or wrote_database_name
+            # `dependsOn: postgres` is no such request when the project imported its own `postgres`: the shared one is not registered.
+            depends_on_shared = manifest_needs_shared_platform_postgres(manifest, database_resource_names(all_services_map)) and not project_imports_own_postgres_container(all_services_map)
+            manifest['_sharedDatabase'] = depends_on_shared or wrote_database_name
         
         # Skip non-app resources - they don't use the golden app Dockerfile pipeline.
         # infra (e.g. verdaccio) is loaded via registries/verdaccio_loader.star instead.

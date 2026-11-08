@@ -573,3 +573,31 @@ def test_project_importing_postgres_skips_shared_registration(tmp_path):
         "r = {'imported': project_imports_own_postgres(imported), 'shared': project_imports_own_postgres(shared), 'none': project_imports_own_postgres([])}\n",
     )
     assert result == {"imported": True, "shared": False, "none": False}
+
+
+@TILT_REQUIRED
+def test_project_of_only_byo_containers_uses_no_golden_image(tmp_path):
+    """golden-layers-build must not pull or prune beside a bring-your-own project's own Compose pulls."""
+    infra_dir = INFRA_LOADER.parent
+    result = run_starlark(
+        tmp_path,
+        f"load('{infra_dir}/infra-loader.star', 'project_uses_golden_image')\n"
+        "byo = [{'resources': [{'name': 'a', '_manifest': {'appType': 'bring-your-own'}}]}]\n"
+        "mixed = byo + [{'resources': [{'name': 'b', '_manifest': {}}]}]\n"
+        "r = {'byo': project_uses_golden_image(byo), 'mixed': project_uses_golden_image(mixed), 'none': project_uses_golden_image([])}\n",
+    )
+    assert result == {"byo": False, "mixed": True, "none": True}
+
+
+@TILT_REQUIRED
+def test_dependson_imported_postgres_is_not_the_shared_database(tmp_path):
+    """A service depending on the project's own imported `postgres` must not get the shared Postgres DATABASE_URL (Ghostfolio)."""
+    source = (INFRA_LOADER.parent / "orchestrator" / "apply_compose_resource_registration.star")
+    result = run_starlark(
+        tmp_path,
+        f"load('{source}', 'project_imports_own_postgres_container')\n"
+        "own = {'x': {'resources': [{'name': 'postgres', '_manifest': {'appType': 'bring-your-own'}}]}}\n"
+        "shared = {'x': {'resources': [{'name': 'postgres', '_manifest': {'appType': 'database'}}]}}\n"
+        "r = {'own': project_imports_own_postgres_container(own), 'shared': project_imports_own_postgres_container(shared), 'none': project_imports_own_postgres_container({})}\n",
+    )
+    assert result == {"own": True, "shared": False, "none": False}
