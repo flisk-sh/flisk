@@ -8,6 +8,7 @@ import {
   type ColimaStatus,
   checkColima,
   isColimaDocker,
+  isLimaBackedDocker,
   nativeLimaPath,
   planColimaRepair,
 } from "../colima.js";
@@ -335,5 +336,18 @@ describe("nativeLimaPath", () => {
   it("returns undefined when HOME is undefined and /opt/homebrew/bin does not exist", () => {
     existsSyncMock.mockReturnValue(false);
     expect(nativeLimaPath({ HOME: undefined })).toBeUndefined();
+  });
+});
+
+describe("isLimaBackedDocker", () => {
+  it.each([
+    ["colima", true],
+    ["colima-work", true],
+    ["lima-default", true],
+    ["docker-desktop", false],
+    ["colimaish", false],
+    ["", false],
+  ])("for engine name %j is %s", (name, expected) => {
+    expect(isLimaBackedDocker(() => name)).toBe(expected);
   });
 });

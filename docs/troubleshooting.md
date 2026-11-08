@@ -380,6 +380,7 @@ The same check prints `Stop the process bound to port 80, or stop local nginx/ca
 
 - **Cause:** something other than this project holds 5432, 80 or 443 (a local Postgres is the case the message is written for). With Docker holding 5432, the line says `is published by container <name>`.
 - **Fix:** stop the program, or choose other host ports with `FLISK_POSTGRES_PORT`. The default host ports are 80 and 443 for HTTP and HTTPS, and 15432 for Postgres (Flisk does not try 5432). Flisk picks the next free one when a default is busy; see [the FAQ](faq-teams.md#ports-and-running-two-stacks-at-once). How the 5432 check relates to the default of 15432 was not investigated.
+- **Colima and Lima on macOS:** Flisk starts at 8080 and 8443 instead of 80 and 443, because these engines forward ports as your user and macOS refuses that below 1024. If a port is published in the VM but nothing listens on the Mac (`UP_URL_UNREACHABLE`, `Nothing listens on the gateway port`), Colima's forwarder has stalled: run `colima restart`.
 - **Defined in:** [`doctor-runtime.ts`](../cli/src/utils/doctor-runtime.ts) (`checkHostPorts`).
 - **Checked:** read from source, not reproduced.
 

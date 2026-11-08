@@ -4,15 +4,61 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { addYesOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { formatCount } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { findStaleProjects, pruneStaleProjects } from "../utils/stale-projects.js";
+import { promptConfirm } from "../utils/prompt.js";
+import {
+  findStaleProjects,
+  pruneStaleProjects,
+  type StaleProject,
+} from "../utils/stale-projects.js";
 
-export const projectsCommand = new Command("projects")
+/**
+ * Whether --prune may go ahead. It deletes database volumes on the whole machine, so it asks first; a run that cannot
+ * ask (--json, no terminal) needs --yes. Returns false when the user declines; nothing has been deleted then.
+ */
+async function confirmPrune(
+  staleProjects: StaleProject[],
+  options: { yes?: boolean; json?: boolean },
+): Promise<boolean> {
+  const deletable = staleProjects.filter((project) => project.recorded);
+  if (deletable.length === 0 || options.yes) return true;
+  if (options.json || !process.stdin.isTTY) {
+    throw new FliskError(
+      "flisk projects --stale --prune deletes database volumes and needs confirmation",
+      [
+        "See what it would delete: flisk projects --stale",
+        "Then delete it without a prompt: flisk projects --stale --prune --yes",
+      ],
+    );
+  }
+  for (const project of deletable) {
+    console.log(
+      chalk.bold(`• ${project.name}`) +
+        chalk.gray(
+          ` (${formatCount(project.volumeCount, "volume")}, ${formatCount(project.networkCount, "network")}, ${formatCount(project.imageCount, "image")}, ${formatCount(project.containerCount, "container")})`,
+        ),
+    );
+  }
+  let confirmed = false;
+  try {
+    confirmed = await promptConfirm({
+      message: `Delete everything these ${formatCount(deletable.length, "project")} left in Docker, database data included?`,
+      initial: false,
+    });
+  } catch {
+    confirmed = false;
+  }
+  if (!confirmed) console.log(chalk.gray("Nothing deleted."));
+  return confirmed;
+}
+
+export const projectsCommand = addYesOption(new Command("projects"))
   .description("Show project information and configuration status")
   .alias("info")
   .option("--check", "Check if project is properly configured", false)
@@ -38,6 +84,7 @@ export const projectsCommand = new Command("projects")
       if (options.stale) {
         const report = findStaleProjects();
         if (options.prune) {
+          if (!(await confirmPrune(report.staleProjects, options))) return;
           const pruned = pruneStaleProjects(report.staleProjects);
           if (options.json) {
             console.log(JSON.stringify(createMachineEnvelope(pruned), null, 2));

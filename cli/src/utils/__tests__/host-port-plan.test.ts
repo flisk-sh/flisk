@@ -157,6 +157,10 @@ describe("isPrivilegedBindFree", () => {
     expect(isPrivilegedBindFree("EACCES", "win32")).toBe(false);
   });
 
+  it("does not treat it as free when the port is forwarded as the user (Colima, Lima)", () => {
+    expect(isPrivilegedBindFree("EACCES", "darwin", true)).toBe(false);
+  });
+
   it("never treats other bind errors as free", () => {
     expect(isPrivilegedBindFree("EADDRINUSE", "darwin")).toBe(false);
     expect(isPrivilegedBindFree(undefined, "darwin")).toBe(false);

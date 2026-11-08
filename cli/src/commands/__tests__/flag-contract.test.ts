@@ -201,6 +201,8 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
+  "projects --yes":
+    "only confirms --stale --prune, which deletes Docker objects, so a matrix row cannot run it; projects-prune.test.ts covers every prompt path",
   "create --yes":
     "creates a new project folder from answers or flags and never runs inside an existing project, so the matrix's project-required rows do not fit; create.test.ts runs it with no terminal and covers the defaults, the flags and the errors",
   "create --dry-run":
