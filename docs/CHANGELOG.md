@@ -6,6 +6,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 - On Colima and Lima, Flisk no longer picks ports 80 and 443. macOS refuses a non-root bind on 127.0.0.1 below 1024; Docker Desktop has a privileged helper for this, but Colima's forward runs as the user and is refused, so Traefik ran in the VM with nothing listening on the Mac and every printed URL failed with `UP_URL_UNREACHABLE`. These engines now use the fallback ports (8080 and 8443).
 - `flisk projects --stale --prune` asks before deleting; `--yes` skips the question, and a run with no terminal or with `--json` needs it.
+## 1.4.44 (2026-11-08)
 
 - The Claude Code plugin (`plugins/flisk-claude`) carries the skills only. The Claude directory refused version 1.0.0 because it shipped a local MCP server (`.mcp.json`) and a shell launcher, which it takes only from Verified organizations. Add the server yourself with `claude mcp add flisk -- flisk mcp`; the skills work through the CLI without it.
 
