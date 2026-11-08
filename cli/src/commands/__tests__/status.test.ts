@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { captureExit } from "../../test-support/index.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { isTiltAvailable, runTilt } from "../../utils/tilt.js";
+import { findTiltPortOwner } from "../../utils/tilt-port-owner.js";
 import { tiltGetUiResources } from "../../utils/up-readiness.js";
 import { projectCommand } from "../project.js";
 import { statusCommand } from "../status.js";
@@ -33,6 +34,12 @@ vi.mock("../../utils/tilt.js", async (importOriginal) => ({
 vi.mock("../../utils/up-readiness.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/up-readiness.js")>()),
   tiltGetUiResources: vi.fn(),
+}));
+
+// The real lookup shells out to lsof, so a Tilt running on the developer's machine would change what status reads.
+vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/tilt-port-owner.js")>()),
+  findTiltPortOwner: vi.fn(() => null),
 }));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -117,6 +124,7 @@ describe("flisk status", () => {
     vi.mocked(isTiltAvailable).mockResolvedValue(true);
     vi.mocked(runTilt).mockReset();
     vi.mocked(tiltGetUiResources).mockReset().mockResolvedValue(null);
+    vi.mocked(findTiltPortOwner).mockReset().mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -546,6 +554,66 @@ describe("flisk status", () => {
       expect(output).toContain("unknown: no Tilt answers");
       expect(output).toContain("nothing is confirmed running");
       expect(output).toContain("flisk up");
+    });
+  });
+
+  describe("another project's Tilt", () => {
+    const otherProject = JSON.stringify({
+      items: [
+        {
+          metadata: { name: "reservation-api" },
+          status: { updateStatus: "ok", runtimeStatus: "ok" },
+        },
+        { metadata: { name: "floor-app" }, status: { updateStatus: "ok", runtimeStatus: "ok" } },
+      ],
+    });
+
+    it("does not read the Tilt on a port owned by another project", async () => {
+      vi.mocked(findTiltPortOwner).mockReturnValue({ pid: 99, root: "/work/other" });
+      vi.mocked(tiltGetUiResources).mockResolvedValue(otherProject);
+
+      const data = JSON.parse(await runStatus(["--json"])).data;
+
+      expect(tiltGetUiResources).not.toHaveBeenCalled();
+      expect(data.tilt.readiness).toBeNull();
+      expect(data.tilt.resources).toBeNull();
+      expect(data.tilt.project).toBeNull();
+      expect(data.tilt.foreignProject).toBe("/work/other");
+      expect(data.tilt.resourcesQueried).toBe(false);
+      for (const resource of data.resources as Array<{ status: string }>) {
+        expect(resource.status).toBe("unknown");
+      }
+      expect(data.stacks.every((stack: { healthyCount: number }) => stack.healthyCount === 0)).toBe(
+        true,
+      );
+    });
+
+    it("says this project is not running instead of showing the other project's services", async () => {
+      vi.mocked(findTiltPortOwner).mockReturnValue({ pid: 99, root: "/work/other" });
+      vi.mocked(tiltGetUiResources).mockResolvedValue(otherProject);
+
+      const output = await runStatus([]);
+
+      expect(output).toContain("so this project is not running");
+      expect(output).toContain("/work/other");
+      expect(output).not.toContain("reservation-api");
+      expect(output).not.toContain("floor-app");
+      expect(output).not.toContain("healthy");
+    });
+
+    it("discards an answer that names no resource of this project when the owner is unknown", async () => {
+      vi.mocked(findTiltPortOwner).mockReturnValue(null);
+      vi.mocked(tiltGetUiResources).mockResolvedValue(otherProject);
+
+      const data = JSON.parse(await runStatus(["--json"])).data;
+
+      expect(data.tilt.readiness).toBeNull();
+      expect(data.tilt.foreignProject).toBeNull();
+      expect(data.tilt.project).toBeNull();
+      expect(data.unhealthy).not.toContain("reservation-api");
+      for (const resource of data.resources as Array<{ status: string }>) {
+        expect(resource.status).toBe("unknown");
+      }
     });
   });
 

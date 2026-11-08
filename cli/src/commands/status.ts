@@ -25,6 +25,8 @@ import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
 import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
+import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
+import { findTiltPortOwner } from "../utils/tilt-port-owner.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { evaluateTiltReadiness, tiltGetUiResources } from "../utils/up-readiness.js";
 
@@ -104,6 +106,17 @@ export const statusCommand = new Command("status")
           ? resolveRuntimeTiltPort(projectRoot, { envPort: process.env.TILT_PORT })
           : null) ?? getTiltPollingPort(process.env.TILT_PORT);
 
+      // Detect if another project's Tilt is on this port.
+      let foreignTilt = false;
+      let foreignTiltRoot: string | null = null;
+      if (tiltAvailable && projectRoot) {
+        const portOwner = findTiltPortOwner(tiltPort);
+        if (portOwner && portOwner.root !== projectRoot) {
+          foreignTilt = true;
+          foreignTiltRoot = portOwner.root;
+        }
+      }
+
       // Port plan is best effort; service URLs are shown in both JSON and terminal output.
       let portPlan: HostPortPlan | null = null;
       try {
@@ -113,21 +126,40 @@ export const statusCommand = new Command("status")
         // Port planning failed; service URLs will be omitted from terminal output.
       }
 
-      if (tiltAvailable) {
+      if (foreignTilt && options.json && options.tilt) {
+        queryError = `the Tilt on port ${tiltPort}${foreignTiltRoot ? ` belongs to ${foreignTiltRoot}` : " runs another project"}, so this project is not running. Start it with: flisk up`;
+      }
+
+      if (tiltAvailable && !foreignTilt) {
         const text = await tiltGetUiResources(tiltPort);
         // `tilt get` has no -f flag; resources come from the running Tilt's API on its port, the same source as readiness.
-        if (options.json && options.tilt) {
-          if (text) {
-            try {
-              tiltResources = JSON.parse(text);
-            } catch (error) {
+        if (text) {
+          // Check if this Tilt answer is from another project (has no resources of ours).
+          const projectResourceNames = new Set(discovery.resources.map((r) => r.name));
+          try {
+            const parsed = JSON.parse(text);
+            if (tiltAnswerIsForeign(parsed, projectResourceNames)) {
+              foreignTilt = true;
+              if (!projectRoot) {
+                foreignTiltRoot = null;
+              }
+              if (options.json && options.tilt) {
+                queryError = `another project's Tilt is running on port ${tiltPort}, so this project is not running. Start it with: flisk up`;
+              }
+            } else if (options.json && options.tilt) {
+              // Only parse resources if we determined it's not foreign
+              tiltResources = parsed;
+            }
+          } catch (error) {
+            if (options.json && options.tilt) {
               queryError = `Tilt returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`;
             }
-          } else {
-            queryError = `No Tilt is answering on port ${tiltPort}. Start it with: flisk up`;
           }
+        } else if (options.json && options.tilt) {
+          queryError = `No Tilt is answering on port ${tiltPort}. Start it with: flisk up`;
         }
-        if (text) {
+
+        if (text && !foreignTilt) {
           const deferred = getDeferredResourceNames(discovery.resources);
           try {
             readiness = evaluateTiltReadiness(text, deferred).result;
@@ -155,7 +187,8 @@ export const statusCommand = new Command("status")
         readiness?.failures.find((failure) => failure.name === "(Tiltfile)")?.message ?? null;
 
       if (options.json) {
-        const errors = queryError ? [{ code: "TILT_STATUS_UNAVAILABLE", message: queryError }] : [];
+        const foreignCode = foreignTilt ? "TILT_FOREIGN_PROJECT" : "TILT_STATUS_UNAVAILABLE";
+        const errors = queryError ? [{ code: foreignCode, message: queryError }] : [];
         // A native run answers the readiness question agents poll (data.tilt.readiness.ready) from its own run state.
         if (nativeStates) {
           const states = Object.entries(nativeStates);
@@ -175,7 +208,11 @@ export const statusCommand = new Command("status")
           ...(nativeStates ? { runtime: "native" } : {}),
           tilt: {
             available: tiltAvailable,
-            resourcesQueried: options.tilt && tiltAvailable,
+            // The project the Tilt data belongs to: this one, or null when no Tilt of ours answered.
+            project: foreignTilt || !readiness ? null : (projectRoot ?? null),
+            // Set when another project's Tilt holds the port, so a client can discard the port instead of this project.
+            foreignProject: foreignTilt ? foreignTiltRoot : null,
+            resourcesQueried: options.tilt && tiltAvailable && !foreignTilt,
             resources: tiltResources,
             readiness,
             tiltfileError,
@@ -351,11 +388,13 @@ export const statusCommand = new Command("status")
         console.log();
         console.log(chalk.bold("Services:"));
         showDetail(
-          `unknown: no Tilt answers on port ${tiltPort}, so nothing is confirmed running. Start with: flisk up`,
+          foreignTilt
+            ? `unknown: the Tilt on port ${tiltPort}${foreignTiltRoot ? ` belongs to ${foreignTiltRoot}` : " runs another project"}, so this project is not running. Start it with: flisk up`
+            : `unknown: no Tilt answers on port ${tiltPort}, so nothing is confirmed running. Start with: flisk up`,
         );
       }
 
-      if (options.tilt && tiltAvailable) {
+      if (options.tilt && tiltAvailable && !foreignTilt) {
         console.log();
         showStep("Tilt Resources:");
 
@@ -368,6 +407,14 @@ export const statusCommand = new Command("status")
         } else {
           showDetail(`No Tilt is answering on port ${tiltPort}. Start it with: flisk up`);
         }
+      }
+
+      if (options.tilt && foreignTilt) {
+        console.log();
+        showStep("Tilt Resources:");
+        showDetail(
+          `none for this project. The Tilt on port ${tiltPort}${foreignTiltRoot ? ` belongs to ${foreignTiltRoot}` : " runs another project"}.`,
+        );
       }
 
       console.log();
