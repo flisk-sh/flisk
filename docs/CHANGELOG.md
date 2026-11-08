@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.44 (2026-11-08)
+
 - The Claude Code plugin (`plugins/flisk-claude`) carries the skills only. The Claude directory refused version 1.0.0 because it shipped a local MCP server (`.mcp.json`) and a shell launcher, which it takes only from Verified organizations. Add the server yourself with `claude mcp add flisk -- flisk mcp`; the skills work through the CLI without it.
 
 ## 1.4.43 (2026-11-08)

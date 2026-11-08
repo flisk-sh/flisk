@@ -18,7 +18,7 @@
     },
     "cli": {
       "name": "flisk-cli-internal",
-      "version": "1.4.43",
+      "version": "1.4.44",
       "bin": {
         "flisk": "bin/flisk.js",
       },
