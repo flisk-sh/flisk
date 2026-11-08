@@ -4,6 +4,11 @@ export declare const UP_HINT_DOCS: {
     readonly unhealthy: "https://github.com/flisk-sh/flisk/blob/main/docs/troubleshooting.md#services-never-turn-healthy-or-are-left-behind";
     readonly smoke: "https://github.com/flisk-sh/flisk/blob/main/docs/smoke.md";
 };
+/**
+ * A warning for a CI job that ran plain `flisk up`, or null anywhere else. That command stays attached to stream logs, so
+ * the job would sit there until it times out, with nothing in its log saying why.
+ */
+export declare function attachedUpInCiWarning(env: NodeJS.ProcessEnv): string | null;
 /** The ways `flisk up` fails after its arguments are accepted, each with its own next step. */
 export type UpFailure = {
     kind: "machine";

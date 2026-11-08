@@ -50,7 +50,7 @@ import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import { parseTiltPort, resolveTiltPort, secondUpAction, stopTiltForUp, } from "../utils/tilt-startup.js";
 import { cloneForUp, isGitRepoArg } from "../utils/up-from-git.js";
-import { upFailureHints } from "../utils/up-hints.js";
+import { attachedUpInCiWarning, upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
 import { tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
@@ -1201,6 +1201,9 @@ export const upCommand = new Command("up")
                 }))
                     console.log(chalk.blue(line));
                 printedSuccess = true;
+                const ciWarning = attachedUpInCiWarning(process.env);
+                if (ciWarning)
+                    console.log(chalk.yellow(ciWarning));
             }
             if (uiReady && smokePlans.length > 0 && (emit ? jsonReady : !startupFailed)) {
                 if (!options.quiet) {
