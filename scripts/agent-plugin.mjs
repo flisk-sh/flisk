@@ -12,8 +12,8 @@
 //   .claude-plugin/marketplace.json            marketplace for Claude Code, pointing at plugins/flisk-claude (and Copilot CLI, which reads it too)
 //   .agents/plugins/marketplace.json           marketplace for Codex
 //   .cursor-plugin/marketplace.json            marketplace for Cursor
-//   plugins/flisk-claude/                      the Claude Code plugin: same skills, and .mcp.json runs scripts/flisk-mcp.sh (a launcher
-//                                              that starts flisk mcp), which the Claude directory can read
+//   plugins/flisk-claude/                      the Claude Code plugin: the same skills and nothing else (no MCP server, no script),
+//                                              which the Claude directory accepts from an organization that is not Verified
 //   gemini-extension.json                      Gemini CLI extension (it must sit at the repository root)
 // plugins/flisk/README.md, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
 //   node scripts/agent-plugin.mjs [--root <repo dir>]                 write everything
@@ -28,7 +28,7 @@
 //                                                                     in package.json unless --version is given; the
 //                                                                     release workflow writes and publishes it
 import { execFileSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -76,10 +76,12 @@ export const OPENAI_INTERFACE = {
 // The server every host starts: the Flisk CLI's own stdio server, run in the user's project.
 const SERVER = { command: "flisk", args: ["mcp"] };
 
+// The Claude directory refuses a plugin from an organization that is not Verified when it ships an MCP server that runs
+// on the user's computer, or any file that is not Markdown, text, JSON, YAML or an image (a shell launcher included).
+// `flisk mcp` is a local stdio server, so the Claude Code plugin (plugins/flisk-claude) carries the skills only, and the
+// skills drive the CLI. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`. Claude Code users who
+// want the server add it themselves: claude mcp add flisk -- flisk mcp
 
-// Claude Code's directory only reads a server command it knows (node, python, docker, java or a script shipped in the
-// plugin), and an unknown `flisk` command is held for a reviewer. So the Claude Code plugin (plugins/flisk-claude) runs
-// a shell launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
 // What the Claude plugin directory shows on the listing. It reads these from plugin.json; without them it guesses
 // (the first docs link in the README, the last issue template) and has no privacy policy.
 const CLAUDE_LISTING = {
@@ -89,13 +91,6 @@ const CLAUDE_LISTING = {
   supportUrl: "https://github.com/flisk-sh/flisk/issues",
   privacyPolicyUrl: "https://github.com/flisk-sh/flisk/blob/main/docs/security.md#what-flisk-sends-over-the-network",
 };
-const CLAUDE_SERVER = { command: "${CLAUDE_PLUGIN_ROOT}/scripts/flisk-mcp.sh", args: [] };
-const CLAUDE_LAUNCHER = `#!/bin/sh
-# Written by scripts/agent-plugin.mjs. Starts \`flisk mcp\` (the Flisk CLI's own stdio MCP server) from the user's
-# PATH, in the folder the agent was started in. Needs the CLI: npm install -g @flisk-sh/flisk
-# It reads no credential and uses no network.
-exec flisk mcp
-`;
 
 // The name the MCP Registry lists Flisk under. The io.github.flisk-sh/ namespace is proven by publishing from a
 // flisk-sh GitHub Actions run, and the registry checks that the npm package's mcpName (root package.json) matches it.
@@ -179,8 +174,6 @@ export function plan(root) {
   );
   add(inPlugin(".cursor-plugin/plugin.json"), json({ ...PLUGIN, logo: "assets/logo.svg" }));
   add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json({ ...PLUGIN, ...CLAUDE_LISTING }));
-  add(`${CLAUDE_PLUGIN_DIR}/.mcp.json`, json({ mcpServers: { flisk: CLAUDE_SERVER } }));
-  add(`${CLAUDE_PLUGIN_DIR}/scripts/flisk-mcp.sh`, CLAUDE_LAUNCHER);
   for (const name of skillNames(root)) {
     const source = absoluteDocLinks(readFileSync(path.join(root, SKILLS_SOURCE, name, "SKILL.md"), "utf8"));
     add(inPlugin(`skills/${name}/SKILL.md`), source);
@@ -240,6 +233,9 @@ function staleSkills(root, files) {
   });
 }
 
+/** Files an earlier version generated in the Claude Code plugin that the directory refuses now: { rel } of each present, to delete. */
+const REFUSED_CLAUDE_FILES = [`${CLAUDE_PLUGIN_DIR}/.mcp.json`, `${CLAUDE_PLUGIN_DIR}/scripts`];
+
 /** Write (write: true) or compare everything. Returns the repo-relative paths that were or are out of date. */
 export function run(root, { write }) {
   const files = plan(root);
@@ -253,8 +249,7 @@ export function run(root, { write }) {
       writeFileSync(target, contents);
     }
   }
-  if (write) for (const { rel } of files) if (rel.endsWith(".sh")) chmodSync(path.join(root, rel), 0o755);
-  for (const rel of staleSkills(root, files)) {
+  for (const rel of [...staleSkills(root, files), ...REFUSED_CLAUDE_FILES.filter((f) => existsSync(path.join(root, f)))]) {
     changed.push(rel);
     if (write) rmSync(path.join(root, rel), { recursive: true, force: true });
   }

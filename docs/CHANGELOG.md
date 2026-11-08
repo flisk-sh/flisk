@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- The Claude Code plugin (`plugins/flisk-claude`) carries the skills only. The Claude directory refused version 1.0.0 because it shipped a local MCP server (`.mcp.json`) and a shell launcher, which it takes only from Verified organizations. Add the server yourself with `claude mcp add flisk -- flisk mcp`; the skills work through the CLI without it.
+
 ## 1.4.43 (2026-11-08)
 
 - Fixed two data-safety bugs in 1.4.42's cleanup commands. `flisk down --purge` matched Docker names by prefix, so project `shop` could delete the database of an unrecorded `shop-admin`; it now matches only the exact names of the project's own infrastructure and stacks. `flisk projects --stale --prune` force-removed every project in the report, including Compose projects that are not Flisk's; it now deletes only projects `flisk up` recorded, and treats a folder it cannot check as still there.
