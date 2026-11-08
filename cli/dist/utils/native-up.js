@@ -12,6 +12,7 @@ import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, is
 import { findPortOccupant } from "./port-occupant.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
+import { attachedUpInCiWarning } from "./up-hints.js";
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
 /** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
 export function runVariables(projectRoot, envFilePath) {
@@ -181,6 +182,9 @@ export async function runNativeUp(input) {
         lines.push(`Logs: flisk logs --service <name>, or ${join(NATIVE_DIR, "logs")}/<service>.log`);
         for (const line of lines)
             console.log(chalk.blue(line));
+        const ciWarning = attachedUpInCiWarning(process.env);
+        if (ciWarning)
+            console.log(chalk.yellow(ciWarning));
     }
     // The services keep the process alive; `flisk up` ends when it is stopped.
     await new Promise(() => { });

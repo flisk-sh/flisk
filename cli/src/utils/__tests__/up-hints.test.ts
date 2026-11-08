@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { logsCommand } from "../../commands/logs.js";
 import { upCommand } from "../../commands/up.js";
-import { UP_HINT_DOCS, upFailureHints } from "../up-hints.js";
+import { attachedUpInCiWarning, UP_HINT_DOCS, upFailureHints } from "../up-hints.js";
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
 
@@ -103,5 +103,19 @@ describe("upFailureHints", () => {
       command.options.flatMap((option) => [option.short, option.long]);
     expect(flags(logsCommand)).toContain("-s");
     expect(flags(upCommand)).toContain("--verbose");
+  });
+});
+
+describe("attachedUpInCiWarning", () => {
+  it.each(["true", "1", "yes"])("points a CI job at --wait when CI=%s", (value) => {
+    expect(attachedUpInCiWarning({ CI: value })).toContain("flisk up --wait");
+  });
+
+  it.each([{}, { CI: "" }, { CI: "false" }, { CI: "0" }])("says nothing outside CI: %j", (env) => {
+    expect(attachedUpInCiWarning(env)).toBeNull();
+  });
+
+  it("names a flag that `flisk up` accepts", () => {
+    expect(upCommand.options.map((option) => option.long)).toContain("--wait");
   });
 });

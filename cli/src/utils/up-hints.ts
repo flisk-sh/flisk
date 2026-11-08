@@ -10,6 +10,15 @@ export const UP_HINT_DOCS = {
   smoke: `${DOCS}/smoke.md`,
 } as const;
 
+/**
+ * A warning for a CI job that ran plain `flisk up`, or null anywhere else. That command stays attached to stream logs, so
+ * the job would sit there until it times out, with nothing in its log saying why.
+ */
+export function attachedUpInCiWarning(env: NodeJS.ProcessEnv): string | null {
+  if (!env.CI || env.CI === "false" || env.CI === "0") return null;
+  return "This command stays attached and never exits on its own, so a CI job hangs here. Use `flisk up --wait`: it returns once the stack is healthy and leaves it running.";
+}
+
 /** The ways `flisk up` fails after its arguments are accepted, each with its own next step. */
 export type UpFailure =
   | { kind: "machine" }
