@@ -489,7 +489,7 @@ def project_uses_golden_image(app_resources=None):
     return not found
 
 
-def _load_golden_image(should_enable, docker_provider, project_root='.'):
+def _load_golden_image(should_enable, docker_provider, project_root='.', app_resources=None):
     """Build the golden base image for faster service builds.
 
     project_root must be passed through here the same way every other
@@ -501,8 +501,9 @@ def _load_golden_image(should_enable, docker_provider, project_root='.'):
     if not should_enable('golden-image'):
         return None
 
-    print("🏗️  Building golden base image...")
-    return docker_provider.golden_image.build(project_root=project_root, needed=project_uses_golden_image())
+    needed = project_uses_golden_image(app_resources)
+    print("🏗️  Building golden base image..." if needed else "🏗️  No resource uses the golden images; skipping them")
+    return docker_provider.golden_image.build(project_root=project_root, needed=needed)
 
 
 def _generate_golden_dockerfile(should_enable, docker_provider, write_fn):

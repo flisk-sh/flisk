@@ -70,10 +70,10 @@ def database_resource_names(all_services_map):
 
 
 def project_imports_own_postgres_container(all_services_map):
-    """True when a discovered resource named `postgres` is an app container, so `dependsOn: postgres` names that container."""
+    """True when a discovered resource named `postgres` runs as a container of its own, so `dependsOn: postgres` names that container."""
     for svc in (all_services_map or {}).values():
         for res in svc.get('resources', []):
-            if res.get('name', '') == 'postgres' and not _is_database_manifest(res.get('_manifest', {}) or {}):
+            if res.get('name', '') == 'postgres' and (res.get('_manifest', {}) or {}).get('appType', 'backend') not in ['database', 'library', 'sdk', 'infra']:
                 return True
     return False
 

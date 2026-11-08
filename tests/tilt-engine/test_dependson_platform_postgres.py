@@ -598,6 +598,26 @@ def test_dependson_imported_postgres_is_not_the_shared_database(tmp_path):
         f"load('{source}', 'project_imports_own_postgres_container')\n"
         "own = {'x': {'resources': [{'name': 'postgres', '_manifest': {'appType': 'bring-your-own'}}]}}\n"
         "shared = {'x': {'resources': [{'name': 'postgres', '_manifest': {'appType': 'database'}}]}}\n"
-        "r = {'own': project_imports_own_postgres_container(own), 'shared': project_imports_own_postgres_container(shared), 'none': project_imports_own_postgres_container({})}\n",
+        "library = {'x': {'resources': [{'name': 'postgres', '_manifest': {'appType': 'library'}}]}}\n"
+        "r = {'own': project_imports_own_postgres_container(own), 'shared': project_imports_own_postgres_container(shared), 'library': project_imports_own_postgres_container(library), 'none': project_imports_own_postgres_container({})}\n",
     )
-    assert result == {"own": True, "shared": False, "none": False}
+    assert result == {"own": True, "shared": False, "library": False, "none": False}
+
+
+@TILT_REQUIRED
+def test_golden_loader_tells_the_builder_when_no_resource_needs_it(tmp_path):
+    """The loader must pass the project check to the builder, or a bring-your-own project pulls and prunes golden images again."""
+    infra_dir = INFRA_LOADER.parent
+    result = run_starlark(
+        tmp_path,
+        f"load('{infra_dir}/infra-loader.star', 'Infra')\n"
+        "def build(project_root, needed):\n"
+        "    return needed\n"
+        "def enabled(name):\n"
+        "    return True\n"
+        "provider = struct(golden_image=struct(build=build))\n"
+        "byo = [{'resources': [{'name': 'a', '_manifest': {'appType': 'bring-your-own'}}]}]\n"
+        "built = [{'resources': [{'name': 'b', '_manifest': {}}]}]\n"
+        "r = {'byo': Infra.load_golden_image(enabled, provider, app_resources=byo), 'built': Infra.load_golden_image(enabled, provider, app_resources=built)}\n",
+    )
+    assert result == {"byo": False, "built": True}
