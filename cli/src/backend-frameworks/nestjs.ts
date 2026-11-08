@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
@@ -7,6 +8,9 @@ export function getNestIndexTemplate(name: string) {
   return `import 'reflect-metadata';
 import { Controller, Get, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
 
 @Controller()
 class AppController {
@@ -33,6 +37,8 @@ class AppModule {}
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log'] });
 ${portFromEnv("port", "  ")}
+
+  app.enableCors({ origin: LOCAL_FRONTEND_ORIGIN });
 
   // Bind beyond loopback: Traefik reaches the container over the Docker network.
   await app.listen(port, '0.0.0.0');

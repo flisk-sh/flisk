@@ -1,10 +1,28 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 export function getKoaIndexTemplate(name) {
     return `import Koa from 'koa';
 
 const app = new Koa();
+
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
+app.use(async (ctx, next) => {
+  const origin = ctx.get('Origin');
+  if (LOCAL_FRONTEND_ORIGIN.test(origin)) {
+    ctx.vary('Origin');
+    ctx.set('Access-Control-Allow-Origin', origin);
+    if (ctx.method === 'OPTIONS') {
+      ctx.set('Access-Control-Allow-Methods', 'GET, HEAD, PUT, POST, DELETE, PATCH');
+      ctx.set('Access-Control-Allow-Headers', ctx.get('Access-Control-Request-Headers'));
+      ctx.status = 204;
+      return;
+    }
+  }
+  await next();
+});
 
 // Plain Koa middleware, so the scaffold needs no router dependency.
 app.use(async (ctx) => {

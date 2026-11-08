@@ -1,5 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import {
+  LOCAL_FRONTEND_CORS_REASON,
+  LOCAL_FRONTEND_ORIGIN_PATTERN,
+} from "../utils/generated-cors.js";
 import type { BackendLanguageProvider } from "./types.js";
 
 /**
@@ -34,7 +38,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 )
+
+// ${LOCAL_FRONTEND_CORS_REASON}
+var localFrontendOrigin = regexp.MustCompile(\`${LOCAL_FRONTEND_ORIGIN_PATTERN}\`)
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -42,6 +50,22 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	if err := json.NewEncoder(w).Encode(body); err != nil {
 		log.Printf("failed to encode JSON response: %v", err)
 	}
+}
+
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Origin")
+		if origin := r.Header.Get("Origin"); localFrontendOrigin.MatchString(origin) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			if r.Method == http.MethodOptions {
+				w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, PUT, POST, DELETE, PATCH")
+				w.Header().Set("Access-Control-Allow-Headers", r.Header.Get("Access-Control-Request-Headers"))
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func newMux() *http.ServeMux {
@@ -71,7 +95,7 @@ func main() {
 
 	// ":" + port listens on every interface, which Traefik needs inside the container network.
 	log.Printf("${name} listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, newMux()))
+	log.Fatal(http.ListenAndServe(":"+port, withCORS(newMux())))
 }
 `,
         description: "Generating backend source",

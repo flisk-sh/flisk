@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, LOCAL_FRONTEND_ORIGIN_PATTERN, } from "../utils/generated-cors.js";
 // ${PORT:-4000} is shell parameter expansion. Split so Biome does not read it
 // as a JS template placeholder and the shell still receives the literal form.
 export const PYTHON_DEV_COMMAND = "uvicorn main:app --app-dir src --host 0.0.0.0 --port $" +
@@ -47,8 +50,17 @@ testpaths = ["tests"]
                 content: `import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="${name}")
+
+# ${LOCAL_FRONTEND_CORS_REASON}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"${LOCAL_FRONTEND_ORIGIN_PATTERN}",
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")

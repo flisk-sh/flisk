@@ -8,7 +8,10 @@ describe("fastifyBackendProvider", () => {
   it("describes the Bun + Fastify backend provider", () => {
     expect(fastifyBackendProvider.id).toBe("fastify");
     expect(fastifyBackendProvider.label).toBe("Bun + Fastify");
-    expect(fastifyBackendProvider.dependencies).toEqual({ fastify: "^5.0.0" });
+    expect(fastifyBackendProvider.dependencies).toEqual({
+      "@fastify/cors": "^11.0.0",
+      fastify: "^5.0.0",
+    });
     expect(fastifyBackendProvider.devDependencies).toEqual({});
     expect(fastifyBackendProvider.createIndex).toBe(getFastifyIndexTemplate);
   });

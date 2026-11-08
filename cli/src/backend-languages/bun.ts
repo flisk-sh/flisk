@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendLanguageProvider } from "./types.js";
 
@@ -35,8 +36,8 @@ import { cors } from 'hono/cors';
 ${drizzleImports}
 const app = new Hono();
 
-// The frontend runs on its own *.localhost origin (app.<project>.localhost), so the browser needs CORS to call this API.
-const LOCAL_FRONTEND_ORIGIN = /^https?:\\/\\/([a-z0-9-]+\\.)+localhost(:\\d+)?$/;
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
 app.use('*', cors({ origin: (origin) => (LOCAL_FRONTEND_ORIGIN.test(origin) ? origin : undefined) }));
 
 // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)

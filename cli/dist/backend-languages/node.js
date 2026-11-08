@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 export const NODE_DEV_COMMAND = "node --watch src/index.js";
 export const nodeBackendProvider = {
@@ -58,7 +59,26 @@ function sendJson(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
+
+// Sets the CORS headers for a local frontend, and answers the browser's preflight. True when the request is finished.
+function handleCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || !LOCAL_FRONTEND_ORIGIN.test(origin)) return false;
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  if (req.method !== "OPTIONS") return false;
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, PUT, POST, DELETE, PATCH");
+  res.setHeader("Access-Control-Allow-Headers", req.headers["access-control-request-headers"] ?? "");
+  res.writeHead(204);
+  res.end();
+  return true;
+}
+
 export const server = http.createServer((req, res) => {
+  if (handleCors(req, res)) return;
+
   const url = new URL(req.url, \`http://\${req.headers.host || "localhost"}\`);
 
   // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)

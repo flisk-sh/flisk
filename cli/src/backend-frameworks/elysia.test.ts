@@ -8,7 +8,10 @@ describe("elysiaBackendProvider", () => {
   it("describes the Bun + Elysia backend provider", () => {
     expect(elysiaBackendProvider.id).toBe("elysia");
     expect(elysiaBackendProvider.label).toBe("Bun + Elysia");
-    expect(elysiaBackendProvider.dependencies).toEqual({ elysia: "^1.3.0" });
+    expect(elysiaBackendProvider.dependencies).toEqual({
+      "@elysiajs/cors": "^1.4.0",
+      elysia: "^1.4.0",
+    });
     expect(elysiaBackendProvider.devDependencies).toEqual({});
     expect(elysiaBackendProvider.createIndex).toBe(getElysiaIndexTemplate);
   });

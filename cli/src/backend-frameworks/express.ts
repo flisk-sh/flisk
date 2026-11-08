@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
@@ -7,6 +8,23 @@ export function getExpressIndexTemplate(name: string) {
   return `import express from 'express';
 
 const app = express();
+
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && LOCAL_FRONTEND_ORIGIN.test(origin)) {
+    res.vary('Origin');
+    res.set('Access-Control-Allow-Origin', origin);
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Methods', 'GET, HEAD, PUT, POST, DELETE, PATCH');
+      res.set('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] ?? '');
+      res.sendStatus(204);
+      return;
+    }
+  }
+  next();
+});
 
 // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
 app.get('/health', (_req, res) => {

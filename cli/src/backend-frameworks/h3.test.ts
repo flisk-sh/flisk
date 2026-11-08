@@ -21,7 +21,7 @@ describe("getH3IndexTemplate", () => {
   it("imports node:http and h3 core utilities", () => {
     expect(template).toContain("import { createServer } from 'node:http';");
     expect(template).toContain(
-      "import { createApp, createRouter, defineEventHandler, toNodeListener } from 'h3';",
+      "import { createApp, createRouter, defineEventHandler, handleCors, toNodeListener } from 'h3';",
     );
   });
 

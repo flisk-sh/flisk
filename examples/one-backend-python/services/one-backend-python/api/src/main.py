@@ -1,8 +1,17 @@
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="api-backend")
+
+# The frontend runs on its own *.localhost origin (app.<project>.localhost), so the browser needs CORS to call this API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"^https?://([a-z0-9-]+\.)+localhost(:\d+)?$",
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
