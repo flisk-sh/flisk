@@ -5,7 +5,7 @@
 //   node --test scripts/agent-plugin.test.mjs
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -100,10 +100,6 @@ test("every host starts the same server: flisk mcp", () => {
 test("every marketplace points at a folder with that host's manifest", () => {
   const claude = readJson(ROOT, ".claude-plugin/marketplace.json").plugins[0].source;
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/plugin.json")), "Claude Code / Copilot CLI");
-  const launcher = readJson(path.join(ROOT, claude), ".mcp.json").mcpServers.flisk;
-  assert.deepEqual([launcher.command, ...launcher.args], ["${CLAUDE_PLUGIN_ROOT}/scripts/flisk-mcp.sh"]);
-  assert.ok(existsSync(path.join(ROOT, claude, "scripts/flisk-mcp.sh")), "the launcher ships in the Claude Code plugin");
-  assert.ok(statSync(path.join(ROOT, claude, "scripts/flisk-mcp.sh")).mode & 0o100, "the launcher is executable");
   const listing = readJson(path.join(ROOT, claude), ".claude-plugin/plugin.json");
   for (const key of ["documentationUrl", "supportUrl", "privacyPolicyUrl"]) assert.match(listing[key], /^https:\/\//, key);
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/icon.png")), "the Claude directory wants an icon");
@@ -115,6 +111,21 @@ test("every marketplace points at a folder with that host's manifest", () => {
   const gemini = readJson(ROOT, "gemini-extension.json");
   assert.ok(gemini.name && gemini.version, "Gemini CLI needs a name and a version");
   assert.ok(existsSync(path.join(ROOT, gemini.contextFileName)), "Gemini context file");
+});
+
+test("the Claude Code plugin has no local MCP server and only file types the Claude directory takes from any organization", () => {
+  const dir = path.join(ROOT, CLAUDE_PLUGIN_DIR);
+  assert.ok(!existsSync(path.join(dir, ".mcp.json")), "a local MCP server is refused unless the organization is Verified");
+  const allowed = /\.(md|txt|json|ya?ml|png|jpe?g|gif|webp|ico)$/i;
+  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  for (const file of walk(dir)) {
+    assert.match(file, allowed, `${path.relative(ROOT, file)} is not Markdown, text, JSON, YAML or an image`);
+    if (!/\.(png|jpe?g|gif|webp|ico)$/i.test(file)) {
+      const text = readFileSync(file, "utf8");
+      assert.ok(!text.startsWith("#!"), `${path.relative(ROOT, file)} starts with #!`);
+      assert.ok(!text.includes("\0"), `${path.relative(ROOT, file)} has a NUL byte`);
+    }
+  }
 });
 
 test("the ChatGPT and Codex listing fits the directory's limits and its images exist", () => {
