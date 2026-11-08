@@ -783,3 +783,28 @@ jobs:
             gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --latest="$latest" --title "v${VERSION}" \
               --notes "flisk ${VERSION}. Binaries: https://github.com/flisk-sh/releases/releases/tag/v${VERSION} (all releases: https://github.com/flisk-sh/releases)"
           fi
+
+  # Post this version on Toolradar once its changelog entry is on main and its release is public. The script skips the post
+  # when this week's slot is used and turns every failure into a warning, so it cannot touch a release.
+  post-toolradar:
+    needs: tag-bumped-release
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+
+      - name: Post the release on Toolradar
+        env:
+          TOOLRADAR_API_KEY: ${{ secrets.TOOLRADAR_API_KEY }}
+        run: node scripts/post-toolradar-update.mjs
