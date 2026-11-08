@@ -176,6 +176,27 @@ def _stack_uses_golden_image(resource_config, resource_manifests):
     return False
 
 
+def _stack_waits_for_golden_step(resource_config, resource_manifests, all_services_map):
+    """Whether the stack's resources start after the golden step: it uses the images, or it pulls images while another stack does.
+
+    The golden step untags and prunes images, and on the containerd image store that fails a `docker compose` pull running beside
+    it ("failed to extract layer"). In a project where nothing uses the golden images the step touches no image, so nothing waits.
+    """
+    if _stack_uses_golden_image(resource_config, resource_manifests):
+        return True
+    has_byo = False
+    for resource in resource_config.get('resources', []):
+        if resource_manifests.get(resource['name'], {}).get('appType', 'backend') == 'bring-your-own':
+            has_byo = True
+    if not has_byo:
+        return False
+    for svc in (all_services_map or {}).values():
+        for res in svc.get('resources', []):
+            if (res.get('_manifest', {}) or {}).get('appType', 'backend') not in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+                return True
+    return False
+
+
 def _build_infra_dependencies(resource_name, should_enable, ctx, has_backend=False, uses_golden_image=True):
     infra_deps = []
     if should_enable('database-management'):
@@ -382,6 +403,11 @@ def build_infra_dependencies(resource_name, should_enable, ctx=None, has_backend
 def stack_uses_golden_image(resource_config, resource_manifests):
     """Public wrapper over `_stack_uses_golden_image` (exported for tests)."""
     return _stack_uses_golden_image(resource_config, resource_manifests)
+
+
+def stack_waits_for_golden_step(resource_config, resource_manifests, all_services_map):
+    """Public wrapper over `_stack_waits_for_golden_step` (exported for tests)."""
+    return _stack_waits_for_golden_step(resource_config, resource_manifests, all_services_map)
 
 
 def build_resource_deps(res, res_name, manifest, resource_config, infra_deps, config_gen_resources=None, resource_manifests=None, runtime_flags=None, all_services_map=None):
@@ -1385,14 +1411,13 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
     resource_manifests = manifest_state['resource_manifests']
     config_gen_resources = manifest_state['config_gen_resources']
     has_backend = _has_backend_resource(resource_config, resource_manifests)
-    infra_deps = _build_infra_dependencies(
-        resource_name, should_enable, ctx, has_backend,
-        uses_golden_image=_stack_uses_golden_image(resource_config, resource_manifests),
-    )
-    
     # Build map of all services for dependency resolution
     # This maps short names like 'identity' to full resource names
     all_services_map = _build_all_services_map(ctx.get('all_services', []))
+    infra_deps = _build_infra_dependencies(
+        resource_name, should_enable, ctx, has_backend,
+        uses_golden_image=_stack_waits_for_golden_step(resource_config, resource_manifests, all_services_map),
+    )
     if not ctx.get('_dependency_cycle_checked', False):
         ctx['_dependency_cycle_checked'] = True
         _fail_on_dependency_cycle(all_services_map)

@@ -526,6 +526,23 @@ def test_a_mixed_stack_still_waits_for_the_golden_build(tmp_path):
 
 
 @TILT_REQUIRED
+def test_a_byo_stack_waits_only_when_another_stack_uses_the_golden_images(tmp_path):
+    """Its Compose pull must not overlap the golden step's untag and prune; with no golden consumer the step is a no-op."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'stack_waits_for_golden_step')\n"
+        "byo = {'resources': [{'name': 'job'}]}\n"
+        "byo_m = {'job': {'appType': 'bring-your-own'}}\n"
+        "lib = {'resources': [{'name': 'kit'}]}\n"
+        "lib_m = {'kit': {'appType': 'library'}}\n"
+        "only_byo = {'a': {'resources': [{'name': 'job', '_manifest': {'appType': 'bring-your-own'}}]}}\n"
+        "mixed = {'a': only_byo['a'], 'b': {'resources': [{'name': 'api', '_manifest': {'appType': 'backend'}}]}}\n"
+        "r = {'mixed': stack_waits_for_golden_step(byo, byo_m, mixed), 'only_byo': stack_waits_for_golden_step(byo, byo_m, only_byo), 'library': stack_waits_for_golden_step(lib, lib_m, mixed)}\n",
+    )
+    assert result == {"mixed": True, "only_byo": False, "library": False}
+
+
+@TILT_REQUIRED
 def test_stack_compose_postgres_service_is_detected(tmp_path):
     """A stack's own compose file declaring `postgres` must suppress the shared platform Postgres force-start (Ghostfolio)."""
     project = tmp_path / "proj"
