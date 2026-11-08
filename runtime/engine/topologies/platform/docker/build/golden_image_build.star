@@ -138,7 +138,7 @@ def _sh_quote(text):
     return "'" + text.replace("'", "'\\''") + "'"
 
 
-def build_golden_layers(project_root='.'):
+def build_golden_layers(project_root='.', needed=True):
     """
     Build all golden layer images using local_resource.
     Returns the resource name for dependency tracking.
@@ -155,8 +155,24 @@ def build_golden_layers(project_root='.'):
     FLISK_GOLDEN_REBUILD=1 to force a rebuild. Otherwise all targets are built
     with one `docker buildx bake`, falling back to serial `docker build` when
     buildx is not installed.
+
+    needed=False (a project of only bring-your-own containers) keeps the resource but touches no image. Its pull, untag and prune
+    would run beside those containers' own `docker compose` pulls, and on the containerd image store that fails their layer
+    extraction ("failed to extract layer ... no such file or directory", nightly adopters on Docker 29).
     """
     resource_name = 'golden-layers-build'
+    if not needed:
+        message = 'No resource uses the golden images; nothing to pull or build'
+        local_resource(
+            resource_name,
+            cmd=['echo', message],
+            cmd_bat=POWERSHELL + ["Write-Output '" + message + "'"],
+            labels=['infra.docker', 'golden-layers'],
+            allow_parallel=True,
+            auto_init=True,
+        )
+        return resource_name
+
     dockerfile_from_tiltfile = (
         GOLDEN_DOCKERFILE if project_root in (None, '.', '')
         else project_root.rstrip('/') + '/' + GOLDEN_DOCKERFILE

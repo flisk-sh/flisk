@@ -469,7 +469,27 @@ def _init_networks(fix_docker_networks_fn):
 # 🏗️ GOLDEN IMAGE (Base Docker Image)
 # =============================================================================
 
-def _load_golden_image(should_enable, docker_provider, project_root='.'):
+def project_uses_golden_image(app_resources=None):
+    """False when every discovered resource is a bring-your-own container or builds no image, so nothing reads the golden images.
+
+    Unknown (nothing discovered yet) counts as used.
+    """
+    resources = APP_RESOURCES if app_resources == None else app_resources
+    found = False
+    for service in resources or []:
+        if type(service) != 'dict':
+            continue
+        for res in service.get('resources', []):
+            if type(res) != 'dict':
+                continue
+            found = True
+            manifest = res.get('_manifest', {}) or {}
+            if manifest.get('appType', 'backend') not in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+                return True
+    return not found
+
+
+def _load_golden_image(should_enable, docker_provider, project_root='.', app_resources=None):
     """Build the golden base image for faster service builds.
 
     project_root must be passed through here the same way every other
@@ -481,8 +501,9 @@ def _load_golden_image(should_enable, docker_provider, project_root='.'):
     if not should_enable('golden-image'):
         return None
 
-    print("🏗️  Building golden base image...")
-    return docker_provider.golden_image.build(project_root=project_root)
+    needed = project_uses_golden_image(app_resources)
+    print("🏗️  Building golden base image..." if needed else "🏗️  No resource uses the golden images; skipping them")
+    return docker_provider.golden_image.build(project_root=project_root, needed=needed)
 
 
 def _generate_golden_dockerfile(should_enable, docker_provider, write_fn):
