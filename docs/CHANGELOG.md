@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- Flisk can be installed with Homebrew: `brew install flisk-sh/tap/flisk`. On such an install, `flisk upgrade` now tells you to run `brew upgrade flisk` instead of replacing files Homebrew owns.
 - `flisk projects --stale --prune` asks before deleting; `--yes` skips the question, and a run with no terminal or with `--json` needs it.
 
 ## 1.4.44 (2026-11-08)

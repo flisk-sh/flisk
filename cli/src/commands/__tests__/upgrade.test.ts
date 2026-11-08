@@ -81,6 +81,7 @@ const {
   getCurrentVersion,
   getLatestBinaryRelease,
   getLatestVersion,
+  homebrewUpgradeMessage,
   isPermissionError,
   isStandaloneBinary,
   isWritable,
@@ -589,6 +590,36 @@ describe("detectInstallation and detectInstallationForPath", () => {
 
   afterEach(() => {
     rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("detects a Homebrew install through the symlink on PATH", () => {
+    const wrapper = join(tempDir, "Cellar", "flisk", "1.4.44", "bin", "flisk");
+    mkdirSync(dirname(wrapper), { recursive: true });
+    writeFileSync(wrapper, "#!/bin/bash");
+    const onPath = join(tempDir, "flisk");
+    symlinkSync(wrapper, onPath);
+
+    expect(detectInstallationForPath(onPath)).toEqual({
+      method: "homebrew",
+      path: realpathSync(wrapper),
+    });
+  });
+
+  it("treats the running binary in the Cellar as Homebrew, so it is never replaced", () => {
+    const execPath = "/opt/homebrew/Cellar/flisk/1.4.44/libexec/flisk";
+    const info = classifyRunningInstall(execPath, "", "darwin");
+    expect(info).toEqual({ method: "homebrew", path: execPath });
+    expect(homebrewUpgradeMessage({ method: "homebrew", path: execPath })).toContain(
+      "brew upgrade flisk",
+    );
+  });
+
+  it("still treats a binary outside the Cellar as a standalone binary", () => {
+    expect(classifyRunningInstall("/usr/local/bin/flisk", "", "darwin")).toEqual({
+      method: "binary",
+      path: "/usr/local/bin/flisk",
+    });
+    expect(homebrewUpgradeMessage({ method: "binary", path: "/usr/local/bin/flisk" })).toBeNull();
   });
 
   it("detects git install when path is in a flisk-cli checkout with .git", () => {

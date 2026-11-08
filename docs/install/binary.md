@@ -38,3 +38,16 @@ rm -rf "$dir/flisk" "$dir/flisk-cli"
 ---
 
 Prefer a package manager? Pick npm or Bun above.
+
+## Homebrew
+
+On macOS or Linux with [Homebrew](https://brew.sh), this installs the same binary and engine:
+
+```bash
+brew install flisk-sh/tap/flisk
+flisk --version
+```
+
+**Update:** `brew upgrade flisk`. `flisk upgrade` does not replace a Homebrew install; it tells you to run this command.
+
+**Uninstall:** `brew uninstall flisk`.

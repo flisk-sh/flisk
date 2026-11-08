@@ -18,6 +18,16 @@ import { promptConfirm } from "../utils/prompt.js";
 import { startSpinner } from "../utils/spinner.js";
 import { extractTarball } from "../utils/tar.js";
 import { findAllOnPath, findOnPath } from "../utils/which.js";
+/** A Homebrew install lives in the Cellar, and only `brew` may replace files there. */
+function isHomebrewPath(path) {
+    return path.includes("/Cellar/flisk/");
+}
+/** @internal Exported for unit tests only; not part of the package API. */
+export function homebrewUpgradeMessage(installInfo) {
+    return installInfo.method === "homebrew"
+        ? "Flisk was installed with Homebrew. Upgrade it with: brew upgrade flisk"
+        : null;
+}
 /** @internal Exported for unit tests only; not part of the package API. */
 export function isStandaloneBinary(fliskPath) {
     if (isWindows() && fliskPath.toLowerCase().endsWith(".exe"))
@@ -35,7 +45,7 @@ export function isStandaloneBinary(fliskPath) {
 export function classifyRunningInstall(execPath, scriptPath, platformName = process.platform) {
     const runningName = (platformName === "win32" ? win32.basename(execPath) : basename(execPath)).toLowerCase();
     if (runningName === "flisk" || runningName === "flisk.exe") {
-        return { method: "binary", path: execPath };
+        return { method: isHomebrewPath(execPath) ? "homebrew" : "binary", path: execPath };
     }
     if (runningName === "node" || runningName === "node.exe") {
         const normalizedScriptPath = scriptPath.toLowerCase();
@@ -72,6 +82,8 @@ export function detectInstallation() {
         // `readlink -f` is not available on macOS. Use Node's cross-platform
         // realpath implementation so standalone binaries are detected there too.
         const realPath = realpathSync(fliskPath);
+        if (isHomebrewPath(realPath))
+            return { method: "homebrew", path: realPath };
         // If the real path contains flisk-cli and has .git, it's a linked git install
         if (realPath.includes("flisk-cli")) {
             const possibleGitRoot = resolve(realPath, "..", "..", "..");
@@ -106,6 +118,8 @@ export function detectInstallation() {
 export function detectInstallationForPath(fliskPath) {
     try {
         const realPath = realpathSync(fliskPath);
+        if (isHomebrewPath(realPath))
+            return { method: "homebrew", path: realPath };
         if (realPath.includes("flisk-cli")) {
             const possibleGitRoot = resolve(realPath, "..", "..", "..");
             if (existsSync(join(possibleGitRoot, ".git"))) {
@@ -518,6 +532,9 @@ export async function upgradeAllInstallations(dryRun) {
             console.log(chalk.cyan("\nUpdating the Bun installation..."));
             success = (await upgradeViaBun()) && success;
         }
+        else if (install.method === "homebrew") {
+            console.log(chalk.yellow(`\n${install.path} is managed by Homebrew: run brew upgrade flisk`));
+        }
     }
     if (success)
         console.log(chalk.green.bold("\nAll Flisk installations on PATH are up to date."));
@@ -663,6 +680,11 @@ export function createUpgradeCommand() {
         const windowsNpmMessage = windowsNpmUpgradeMessage(process.platform, installInfo);
         if (windowsNpmMessage) {
             console.log(windowsNpmMessage);
+            return;
+        }
+        const homebrewMessage = homebrewUpgradeMessage(installInfo);
+        if (homebrewMessage) {
+            console.log(homebrewMessage);
             return;
         }
         if (installInfo.method === "unknown") {
