@@ -577,6 +577,15 @@ async function upColdStartNotice(
   return coldStartNotice(projectName, services);
 }
 
+/** Every stack of the project, for the record `flisk projects --stale` reads; empty when discovery fails. */
+function recordableStacks(projectRoot: string): string[] {
+  try {
+    return discoverStacks(discoverResourcesWithProblems(projectRoot).resources).map((s) => s.name);
+  } catch {
+    return [];
+  }
+}
+
 /** Clones the repositories declared in .flisk/project.json that are missing. Returns true when one was cloned. */
 async function cloneDeclaredRepos(projectRoot: string): Promise<boolean> {
   let repos: ReturnType<typeof readProjectConfig>["repos"];
@@ -1344,7 +1353,7 @@ export const upCommand = new Command("up")
 
       // Remember where this project lives, so `flisk projects --stale` can tell its Docker volumes apart from a stopped
       // project's once the folder is deleted (Docker records no folder on a volume).
-      recordProjectRoot(projectRoot);
+      recordProjectRoot(projectRoot, { stacks: recordableStacks(projectRoot) });
 
       const tiltRun = runTilt("up", tiltArgs, {
         verbose: options.verbose && !options.json,

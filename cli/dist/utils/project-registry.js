@@ -19,6 +19,10 @@ function parseRecord(text) {
         return {
             name: value.name,
             roots: value.roots.filter((root) => typeof root === "string"),
+            // Records written by 1.4.42 have no stacks: their infra volumes and golden images are still found.
+            stacks: Array.isArray(value.stacks)
+                ? value.stacks.filter((stack) => typeof stack === "string")
+                : [],
             updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : "",
         };
     }
@@ -51,6 +55,7 @@ export function recordProjectRoot(projectRoot, options = {}) {
         const record = {
             name,
             roots,
+            stacks: [...new Set([...(existing?.stacks ?? []), ...(options.stacks ?? [])])].sort(),
             updatedAt: (options.now ?? new Date()).toISOString(),
         };
         writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`);
@@ -85,11 +90,33 @@ export function forgetProject(name, home = homedir()) {
     rmSync(recordPath(name, home), { force: true });
 }
 /**
- * True when no recorded folder of this project still holds it: each folder is gone, or now holds a project of another
- * name. A record with no folders is not stale (nothing says it is gone).
+ * False only when the folder provably no longer holds project `name`: its project.json is gone, or names another
+ * project. Anything uncertain (a drive that is not mounted, a file that cannot be read or is half written) counts as
+ * still holding it, because a false answer lets `flisk projects --stale --prune` delete the project's database.
  */
-export function isRecordStale(record, nameAt = projectNameAt) {
+export function folderHoldsProject(root, name, pathExists = existsSync) {
+    const mount = /^(\/Volumes\/[^/]+|\/mnt\/[^/]+|\/media\/[^/]+\/[^/]+)/.exec(root)?.[1];
+    if (mount && !pathExists(mount))
+        return true;
+    let text;
+    try {
+        text = readFileSync(join(root, ".flisk", "project.json"), "utf8");
+    }
+    catch (err) {
+        const code = err.code;
+        return code !== "ENOENT" && code !== "ENOTDIR";
+    }
+    try {
+        const found = JSON.parse(text).project?.name;
+        return typeof found !== "string" || found.toLowerCase() === name;
+    }
+    catch {
+        return true;
+    }
+}
+/** True when no recorded folder still holds the project. A record with no folders is not stale (nothing says it is gone). */
+export function isRecordStale(record, holds = folderHoldsProject) {
     if (record.roots.length === 0)
         return false;
-    return record.roots.every((root) => nameAt(root) !== record.name);
+    return record.roots.every((root) => !holds(root, record.name));
 }
