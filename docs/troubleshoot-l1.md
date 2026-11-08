@@ -161,7 +161,7 @@ ERROR: failed to build: failed to solve: process "/bin/sh -c apk add --no-cache 
 
 ### 3. Golden image is missing (Pull access denied for `<project>-l1:latest`)
 
-Flisk's golden images (`<project>-l1:latest`, `<project>-l2:latest`, `<project>-l3-backend:latest`, `<project>-l4-backend:latest`) are **local-only images** built on your machine. They are never pushed to or pulled from Docker Hub.
+Flisk's golden images (`<project>-l1:latest`, `<project>-l2:latest`, `<project>-l3-backend:latest`, `<project>-l4-backend:latest`) are **local tags** on your machine. By default `flisk up` fills them by pulling the prebuilt layers from `ghcr.io/flisk-sh/golden-*` (mirrored to `docker.io/alexdykyi/golden-*`) and retagging them, and it builds them locally when that pull fails (offline, or no image for that hash) or when `FLISK_GOLDEN_REGISTRY=off` is set. The `<project>-l*:latest` names themselves are never pushed to any registry, so Docker cannot pull them.
 
 #### Symptom:
 When starting services or building an individual service before the golden layers finish building, Docker attempts to pull the image from Docker Hub and fails:
