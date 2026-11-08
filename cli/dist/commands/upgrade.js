@@ -18,15 +18,24 @@ import { promptConfirm } from "../utils/prompt.js";
 import { startSpinner } from "../utils/spinner.js";
 import { extractTarball } from "../utils/tar.js";
 import { findAllOnPath, findOnPath } from "../utils/which.js";
-/** A Homebrew install lives in the Cellar, and only `brew` may replace files there. */
-function isHomebrewPath(path) {
-    return path.includes("/Cellar/flisk/");
+/** Homebrew and Scoop own the files they install, so only they may replace them. */
+function managedMethodForPath(path) {
+    if (path.includes("/Cellar/flisk/"))
+        return "homebrew";
+    // On PATH a Scoop install is a shim; the binary itself is under apps/flisk.
+    if (/[\\/]scoop[\\/](apps[\\/]flisk|shims)[\\/]/i.test(path))
+        return "scoop";
+    return null;
 }
 /** @internal Exported for unit tests only; not part of the package API. */
-export function homebrewUpgradeMessage(installInfo) {
-    return installInfo.method === "homebrew"
-        ? "Flisk was installed with Homebrew. Upgrade it with: brew upgrade flisk"
-        : null;
+export function managedUpgradeMessage(installInfo) {
+    if (installInfo.method === "homebrew") {
+        return "Flisk was installed with Homebrew. Upgrade it with: brew upgrade flisk";
+    }
+    if (installInfo.method === "scoop") {
+        return "Flisk was installed with Scoop. Upgrade it with: scoop update flisk";
+    }
+    return null;
 }
 /** @internal Exported for unit tests only; not part of the package API. */
 export function isStandaloneBinary(fliskPath) {
@@ -45,7 +54,7 @@ export function isStandaloneBinary(fliskPath) {
 export function classifyRunningInstall(execPath, scriptPath, platformName = process.platform) {
     const runningName = (platformName === "win32" ? win32.basename(execPath) : basename(execPath)).toLowerCase();
     if (runningName === "flisk" || runningName === "flisk.exe") {
-        return { method: isHomebrewPath(execPath) ? "homebrew" : "binary", path: execPath };
+        return { method: managedMethodForPath(execPath) ?? "binary", path: execPath };
     }
     if (runningName === "node" || runningName === "node.exe") {
         const normalizedScriptPath = scriptPath.toLowerCase();
@@ -82,8 +91,9 @@ export function detectInstallation() {
         // `readlink -f` is not available on macOS. Use Node's cross-platform
         // realpath implementation so standalone binaries are detected there too.
         const realPath = realpathSync(fliskPath);
-        if (isHomebrewPath(realPath))
-            return { method: "homebrew", path: realPath };
+        const managedMethod = managedMethodForPath(realPath);
+        if (managedMethod)
+            return { method: managedMethod, path: realPath };
         // If the real path contains flisk-cli and has .git, it's a linked git install
         if (realPath.includes("flisk-cli")) {
             const possibleGitRoot = resolve(realPath, "..", "..", "..");
@@ -118,8 +128,9 @@ export function detectInstallation() {
 export function detectInstallationForPath(fliskPath) {
     try {
         const realPath = realpathSync(fliskPath);
-        if (isHomebrewPath(realPath))
-            return { method: "homebrew", path: realPath };
+        const managedMethod = managedMethodForPath(realPath);
+        if (managedMethod)
+            return { method: managedMethod, path: realPath };
         if (realPath.includes("flisk-cli")) {
             const possibleGitRoot = resolve(realPath, "..", "..", "..");
             if (existsSync(join(possibleGitRoot, ".git"))) {
@@ -532,8 +543,8 @@ export async function upgradeAllInstallations(dryRun) {
             console.log(chalk.cyan("\nUpdating the Bun installation..."));
             success = (await upgradeViaBun()) && success;
         }
-        else if (install.method === "homebrew") {
-            console.log(chalk.yellow(`\n${install.path} is managed by Homebrew: run brew upgrade flisk`));
+        else if (install.method === "homebrew" || install.method === "scoop") {
+            console.log(chalk.yellow(`\n${install.path}: ${managedUpgradeMessage(install)}`));
         }
     }
     if (success)
@@ -682,9 +693,9 @@ export function createUpgradeCommand() {
             console.log(windowsNpmMessage);
             return;
         }
-        const homebrewMessage = homebrewUpgradeMessage(installInfo);
-        if (homebrewMessage) {
-            console.log(homebrewMessage);
+        const managedMessage = managedUpgradeMessage(installInfo);
+        if (managedMessage) {
+            console.log(managedMessage);
             return;
         }
         if (installInfo.method === "unknown") {

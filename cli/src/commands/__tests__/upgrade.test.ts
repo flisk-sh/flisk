@@ -81,10 +81,10 @@ const {
   getCurrentVersion,
   getLatestBinaryRelease,
   getLatestVersion,
-  homebrewUpgradeMessage,
   isPermissionError,
   isStandaloneBinary,
   isWritable,
+  managedUpgradeMessage,
   parseChecksums,
   upgradeAllInstallations,
   upgradeCommand,
@@ -609,8 +609,28 @@ describe("detectInstallation and detectInstallationForPath", () => {
     const execPath = "/opt/homebrew/Cellar/flisk/1.4.44/libexec/flisk";
     const info = classifyRunningInstall(execPath, "", "darwin");
     expect(info).toEqual({ method: "homebrew", path: execPath });
-    expect(homebrewUpgradeMessage({ method: "homebrew", path: execPath })).toContain(
+    expect(managedUpgradeMessage({ method: "homebrew", path: execPath })).toContain(
       "brew upgrade flisk",
+    );
+  });
+
+  it("treats a Scoop shim on PATH as Scoop, so it is never replaced", () => {
+    const shim = join(tempDir, "scoop", "shims", "flisk.exe");
+    mkdirSync(dirname(shim), { recursive: true });
+    writeFileSync(shim, "MZ");
+
+    expect(detectInstallationForPath(shim)).toEqual({
+      method: "scoop",
+      path: realpathSync(shim),
+    });
+  });
+
+  it("treats the running binary under scoop\\apps as Scoop", () => {
+    const execPath = "C:\\Users\\dev\\scoop\\apps\\flisk\\current\\flisk.exe";
+    const info = classifyRunningInstall(execPath, "", "win32");
+    expect(info).toEqual({ method: "scoop", path: execPath });
+    expect(managedUpgradeMessage({ method: "scoop", path: execPath })).toContain(
+      "scoop update flisk",
     );
   });
 
@@ -619,7 +639,7 @@ describe("detectInstallation and detectInstallationForPath", () => {
       method: "binary",
       path: "/usr/local/bin/flisk",
     });
-    expect(homebrewUpgradeMessage({ method: "binary", path: "/usr/local/bin/flisk" })).toBeNull();
+    expect(managedUpgradeMessage({ method: "binary", path: "/usr/local/bin/flisk" })).toBeNull();
   });
 
   it("detects git install when path is in a flisk-cli checkout with .git", () => {

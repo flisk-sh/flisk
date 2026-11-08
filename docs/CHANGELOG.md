@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- Flisk can be installed on Windows with Scoop: `scoop bucket add flisk https://github.com/flisk-sh/scoop-bucket`, then `scoop install flisk/flisk`. On such an install, `flisk upgrade` now tells you to run `scoop update flisk` instead of replacing files Scoop owns.
+
 ## 1.4.45 (2026-11-08)
 
 - Flisk can be installed with Homebrew: `brew install flisk-sh/tap/flisk`. On such an install, `flisk upgrade` now tells you to run `brew upgrade flisk` instead of replacing files Homebrew owns.

@@ -51,3 +51,17 @@ flisk --version
 **Update:** `brew upgrade flisk`. `flisk upgrade` does not replace a Homebrew install; it tells you to run this command.
 
 **Uninstall:** `brew uninstall flisk`.
+
+## Scoop
+
+On Windows with [Scoop](https://scoop.sh), this installs the same binary and engine:
+
+```powershell
+scoop bucket add flisk https://github.com/flisk-sh/scoop-bucket
+scoop install flisk/flisk
+flisk --version
+```
+
+**Update:** `scoop update flisk`. `flisk upgrade` does not replace a Scoop install; it tells you to run this command.
+
+**Uninstall:** `scoop uninstall flisk`.
