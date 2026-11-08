@@ -269,6 +269,18 @@ def go_live_reload_enabled(manifest):
         return False
     return dev.get("liveReload") == True
 
+def bun_live_reload_enabled(manifest):
+    """True for a Bun backend that has a dev script and has not opted out with `dev.liveReload: false` (#3395)."""
+    if not manifest or manifest.get("language", "bun") != "bun":
+        return False
+    app_type = manifest.get("appType", "backend")
+    if app_type not in ["backend", "worker", "agent", "mcp"]:
+        return False
+    dev = manifest.get("dev")
+    if type(dev) == "dict" and dev.get("liveReload") == False:
+        return False
+    return True
+
 def python_test_on_save_enabled(manifest):
     """True for a Python service that opted in with `dev.testOnSave` (boolean or dict with enabled: True); anything else stays off."""
     if not manifest or manifest.get("language", "bun") != "python":

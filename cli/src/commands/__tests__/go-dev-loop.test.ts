@@ -152,8 +152,9 @@ describe("Go development wiring", () => {
     );
     expect(tsBuilder).toContain("target=target,");
     expect(registration).toContain(
-      "return 'development' if Docker.go_live_reload(config.get('manifest', {})) else 'production'",
+      "return 'development' if Docker.go_live_reload(manifest) else 'production'",
     );
+    expect(registration).toContain("if Docker.bun_live_reload(manifest):");
     // docker_build gets its target from the shared helper.
     expect(registration).toContain("target = _image_target(config),");
   });

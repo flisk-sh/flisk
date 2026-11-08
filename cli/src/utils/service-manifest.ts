@@ -1794,9 +1794,11 @@ export function validateServiceManifest(
     return [];
   });
   warnings.push(...secretConflictWarnings(manifest, displayPath));
-  if (liveReload === true && manifest.language !== "go") {
+  // Bun services reload by default (#3395), so `true` is the default there and only a non-Bun, non-Go language ignores it.
+  const liveReloadLanguage = manifest.language ?? "bun";
+  if (liveReload === true && liveReloadLanguage !== "go" && liveReloadLanguage !== "bun") {
     warnings.push(
-      `${displayPath}.dev.liveReload: only applies to Go services (language "go"); it is ignored here`,
+      `${displayPath}.dev.liveReload: only applies to Go and Bun services; it is ignored here`,
     );
   }
   const testOnSave =

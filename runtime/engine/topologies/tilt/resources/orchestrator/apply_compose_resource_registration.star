@@ -779,11 +779,15 @@ def _wake_compose_invocation(project_root, resource_path, res_name, resource_nam
 
 
 def _image_target(config):
-    """The Dockerfile target Tilt builds and the deferStart prebuild must match: `development` for Go with `dev.liveReload`."""
+    """The Dockerfile target Tilt builds and the deferStart prebuild must match: `development` wherever a stage reloads on a sync."""
+    manifest = config.get('manifest', {})
     # Next.js runs `next dev` in the development image, so a saved file hot-reloads through the synced sources.
-    if Docker.is_next_frontend(config.get('manifest', {})):
+    if Docker.is_next_frontend(manifest):
         return 'development'
-    return 'development' if Docker.go_live_reload(config.get('manifest', {})) else 'production'
+    # A Bun backend's development stage runs `bun --watch` over the synced sources; production would run the stale dist (#3395).
+    if Docker.bun_live_reload(manifest):
+        return 'development'
+    return 'development' if Docker.go_live_reload(manifest) else 'production'
 
 
 def _register_docker_build(config, live_update_rules):
