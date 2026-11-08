@@ -267,7 +267,7 @@ export function describeUrlFailure(
     case "gateway-not-listening":
       return {
         message:
-          "Nothing listens on the gateway port: Traefik is not running or is bound to another port",
+          "Nothing listens on the gateway port: Traefik is not running or is bound to another port (on Colima, the VM may have stopped forwarding ports: colima restart)",
         nextCommand: "flisk doctor",
       };
     case "timeout":
