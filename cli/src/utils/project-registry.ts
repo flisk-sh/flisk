@@ -17,6 +17,8 @@ export interface ProjectRecord {
   name: string;
   /** Every folder this project name was started from (worktrees and clones of one repo share a name, and its volumes). */
   roots: string[];
+  /** Every stack this project started with: with the folder gone, the only way to know its exact Docker names. */
+  stacks: string[];
   updatedAt: string;
 }
 
@@ -38,6 +40,10 @@ function parseRecord(text: string): ProjectRecord | undefined {
     return {
       name: value.name,
       roots: value.roots.filter((root): root is string => typeof root === "string"),
+      // Records written by 1.4.42 have no stacks: their infra volumes and golden images are still found.
+      stacks: Array.isArray(value.stacks)
+        ? value.stacks.filter((stack): stack is string => typeof stack === "string")
+        : [],
       updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : "",
     };
   } catch {
@@ -60,7 +66,7 @@ export function projectNameAt(root: string): string | undefined {
 /** Records that the project at `projectRoot` started. Never throws: a read-only home only loses the record. */
 export function recordProjectRoot(
   projectRoot: string,
-  options: { home?: string; now?: Date } = {},
+  options: { home?: string; now?: Date; stacks?: readonly string[] } = {},
 ): void {
   const home = options.home ?? homedir();
   const name = projectNameAt(projectRoot);
@@ -74,6 +80,7 @@ export function recordProjectRoot(
     const record: ProjectRecord = {
       name,
       roots,
+      stacks: [...new Set([...(existing?.stacks ?? []), ...(options.stacks ?? [])])].sort(),
       updatedAt: (options.now ?? new Date()).toISOString(),
     };
     writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`);
@@ -107,13 +114,37 @@ export function forgetProject(name: string, home: string = homedir()): void {
 }
 
 /**
- * True when no recorded folder of this project still holds it: each folder is gone, or now holds a project of another
- * name. A record with no folders is not stale (nothing says it is gone).
+ * False only when the folder provably no longer holds project `name`: its project.json is gone, or names another
+ * project. Anything uncertain (a drive that is not mounted, a file that cannot be read or is half written) counts as
+ * still holding it, because a false answer lets `flisk projects --stale --prune` delete the project's database.
  */
+export function folderHoldsProject(
+  root: string,
+  name: string,
+  pathExists: (path: string) => boolean = existsSync,
+): boolean {
+  const mount = /^(\/Volumes\/[^/]+|\/mnt\/[^/]+|\/media\/[^/]+\/[^/]+)/.exec(root)?.[1];
+  if (mount && !pathExists(mount)) return true;
+  let text: string;
+  try {
+    text = readFileSync(join(root, ".flisk", "project.json"), "utf8");
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    return code !== "ENOENT" && code !== "ENOTDIR";
+  }
+  try {
+    const found = (JSON.parse(text) as { project?: { name?: unknown } }).project?.name;
+    return typeof found !== "string" || found.toLowerCase() === name;
+  } catch {
+    return true;
+  }
+}
+
+/** True when no recorded folder still holds the project. A record with no folders is not stale (nothing says it is gone). */
 export function isRecordStale(
   record: ProjectRecord,
-  nameAt: (root: string) => string | undefined = projectNameAt,
+  holds: (root: string, name: string) => boolean = folderHoldsProject,
 ): boolean {
   if (record.roots.length === 0) return false;
-  return record.roots.every((root) => nameAt(root) !== record.name);
+  return record.roots.every((root) => !holds(root, record.name));
 }

@@ -11,6 +11,8 @@ export interface ProjectRecord {
     name: string;
     /** Every folder this project name was started from (worktrees and clones of one repo share a name, and its volumes). */
     roots: string[];
+    /** Every stack this project started with: with the folder gone, the only way to know its exact Docker names. */
+    stacks: string[];
     updatedAt: string;
 }
 export declare function projectRegistryDir(home?: string): string;
@@ -20,11 +22,15 @@ export declare function projectNameAt(root: string): string | undefined;
 export declare function recordProjectRoot(projectRoot: string, options?: {
     home?: string;
     now?: Date;
+    stacks?: readonly string[];
 }): void;
 export declare function readProjectRecords(home?: string): ProjectRecord[];
 export declare function forgetProject(name: string, home?: string): void;
 /**
- * True when no recorded folder of this project still holds it: each folder is gone, or now holds a project of another
- * name. A record with no folders is not stale (nothing says it is gone).
+ * False only when the folder provably no longer holds project `name`: its project.json is gone, or names another
+ * project. Anything uncertain (a drive that is not mounted, a file that cannot be read or is half written) counts as
+ * still holding it, because a false answer lets `flisk projects --stale --prune` delete the project's database.
  */
-export declare function isRecordStale(record: ProjectRecord, nameAt?: (root: string) => string | undefined): boolean;
+export declare function folderHoldsProject(root: string, name: string, pathExists?: (path: string) => boolean): boolean;
+/** True when no recorded folder still holds the project. A record with no folders is not stale (nothing says it is gone). */
+export declare function isRecordStale(record: ProjectRecord, holds?: (root: string, name: string) => boolean): boolean;

@@ -11,10 +11,10 @@ import {
   removeProjectArtifacts,
 } from "./project-purge.js";
 import {
+  folderHoldsProject,
   forgetProject,
   isRecordStale,
   type ProjectRecord,
-  projectNameAt,
   readProjectRecords,
 } from "./project-registry.js";
 
@@ -31,6 +31,11 @@ export interface StaleProject {
   networks: string[];
   /** Golden layer tags and service images (`repository:tag`), found for projects recorded by `flisk up`. */
   images: string[];
+  /**
+   * True for a project `flisk up` recorded, whose objects were matched by their exact names. Only these can be pruned:
+   * the others are any Compose project whose folder is gone, which need not be Flisk's.
+   */
+  recorded: boolean;
   containerCount: number;
   volumeCount: number;
   networkCount: number;
@@ -104,31 +109,30 @@ export function isPathStale(
  *
  * Strictly read-only: never deletes any Docker resource or file.
  */
+interface ProjectEntry {
+  name: string;
+  recordedPath: string;
+  containers: string[];
+  volumes: string[];
+  networks: string[];
+  images: string[];
+  totalBytes: number;
+}
+
 export function findStaleProjects(options?: {
   commandRunner?: CommandRunner;
   pathChecker?: (p: string) => boolean;
   /** Projects recorded by `flisk up` (default: ~/.flisk/projects). */
   records?: ProjectRecord[];
-  /** The project name in a folder, undefined when it holds none (default: reads .flisk/project.json). */
-  nameAt?: (root: string) => string | undefined;
+  /** Whether a folder still holds the project (default: reads its .flisk/project.json). */
+  holds?: (root: string, name: string) => boolean;
 }): StaleProjectsReport {
   const runner = options?.commandRunner ?? defaultRun;
   const pathChecker = options?.pathChecker ?? existsSync;
   const records = options?.records ?? readProjectRecords();
-  const nameAt = options?.nameAt ?? projectNameAt;
+  const holds = options?.holds ?? folderHoldsProject;
 
-  const projectsByName = new Map<
-    string,
-    {
-      name: string;
-      recordedPath: string;
-      containers: string[];
-      volumes: string[];
-      networks: string[];
-      images: string[];
-      totalBytes: number;
-    }
-  >();
+  const projectsByName = new Map<string, ProjectEntry>();
   // Docker objects already attributed to a recorded project, so the label scans below do not list them twice.
   const claimed = new Set<string>();
 
@@ -154,15 +158,23 @@ export function findStaleProjects(options?: {
 
   // 0. Projects recorded by `flisk up` whose folders are all gone. Volumes carry no folder, so after `flisk down` (no
   // containers left) this is the only way to tell a deleted project's database volume from a stopped project's.
-  const allNames = records.map((record) => record.name);
+  const knownNames = records.map((record) => record.name);
+  // Kept apart from projectsByName so the label scans below can never add a non-Flisk object to a project --prune deletes.
+  const recordedEntries: ProjectEntry[] = [];
   for (const record of records) {
-    if (!isRecordStale(record, nameAt)) continue;
-    const found = listProjectArtifacts(record.name, allNames, (args) => runner("docker", args));
-    const entry = getOrCreate(record.name, record.roots[record.roots.length - 1] ?? "");
-    entry.containers.push(...found.containers);
-    entry.volumes.push(...found.volumes);
-    entry.networks.push(...found.networks);
-    entry.images.push(...found.images);
+    if (!isRecordStale(record, holds)) continue;
+    const found = listProjectArtifacts(record.name, { stacks: record.stacks, knownNames }, (args) =>
+      runner("docker", args),
+    );
+    recordedEntries.push({
+      name: record.name,
+      recordedPath: record.roots[record.roots.length - 1] ?? "",
+      containers: found.containers,
+      volumes: found.volumes,
+      networks: found.networks,
+      images: found.images,
+      totalBytes: 0,
+    });
     for (const name of [...found.containers, ...found.volumes, ...found.networks])
       claimed.add(name);
   }
@@ -274,7 +286,11 @@ export function findStaleProjects(options?: {
   let totalImages = 0;
   let totalSizeBytes = 0;
 
-  for (const p of [...projectsByName.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+  const entries = [
+    ...recordedEntries.map((entry) => ({ entry, recorded: true })),
+    ...[...projectsByName.values()].map((entry) => ({ entry, recorded: false })),
+  ].sort((a, b) => a.entry.name.localeCompare(b.entry.name));
+  for (const { entry: p, recorded } of entries) {
     // Only report as stale if there is at least one container, volume, or network
     if (
       p.containers.length === 0 &&
@@ -297,14 +313,18 @@ export function findStaleProjects(options?: {
       volumes: p.volumes,
       networks: p.networks,
       images: p.images,
+      recorded,
       containerCount: p.containers.length,
       volumeCount: p.volumes.length,
       networkCount: p.networks.length,
       imageCount: p.images.length,
       estimatedSizeBytes: p.totalBytes,
       estimatedSize: formatBytes(p.totalBytes),
-      // The folder is gone, so `flisk down` cannot run for it; --prune removes what this report lists.
-      cleanupCommand: "flisk projects --stale --prune",
+      // The folder is gone, so `flisk down` cannot run for it. --prune only deletes projects Flisk recorded; another
+      // Compose project may not be Flisk's at all, so its owner decides.
+      cleanupCommand: recorded
+        ? "flisk projects --stale --prune"
+        : `docker compose -p ${p.name} down`,
     });
   }
 
@@ -327,16 +347,17 @@ export interface PrunedStaleProject {
 }
 
 /**
- * Deletes what {@link findStaleProjects} listed for each stale project: containers, then volumes, networks and images.
- * A project whose objects were all removed is also dropped from the `flisk up` record, so it is not reported again.
+ * Deletes what {@link findStaleProjects} listed for each stale project `flisk up` recorded: containers, then volumes,
+ * networks and images. Unrecorded ones are left alone and named in `skipped`. A project whose objects were all removed
+ * is also dropped from the `flisk up` record, so it is not reported again.
  */
 export function pruneStaleProjects(
   staleProjects: StaleProject[],
   options: { docker?: DockerRun; forget?: (name: string) => void } = {},
-): { projects: PrunedStaleProject[] } {
+): { projects: PrunedStaleProject[]; skipped: string[] } {
   const forget = options.forget ?? ((name: string) => forgetProject(name));
   const projects: PrunedStaleProject[] = [];
-  for (const project of staleProjects) {
+  for (const project of staleProjects.filter((stale) => stale.recorded)) {
     const result = removeProjectArtifacts(
       {
         containers: project.containers,
@@ -355,5 +376,8 @@ export function pruneStaleProjects(
     }
     projects.push({ name: project.name, removed: result.removed, kept: result.kept });
   }
-  return { projects };
+  return {
+    projects,
+    skipped: staleProjects.filter((stale) => !stale.recorded).map((stale) => stale.name),
+  };
 }

@@ -41,7 +41,7 @@ export const projectsCommand = new Command("projects")
           const pruned = pruneStaleProjects(report.staleProjects);
           if (options.json) {
             console.log(JSON.stringify(createMachineEnvelope(pruned), null, 2));
-          } else if (pruned.projects.length === 0) {
+          } else if (pruned.projects.length === 0 && pruned.skipped.length === 0) {
             console.log(chalk.green("✓ No stale projects found; nothing to delete."));
           } else {
             for (const project of pruned.projects) {
@@ -56,6 +56,13 @@ export const projectsCommand = new Command("projects")
                 console.log(chalk.yellow(`  Kept ${kept.name}: ${kept.reason}`));
               }
             }
+          }
+          if (!options.json && pruned.skipped.length > 0) {
+            console.log(
+              chalk.yellow(
+                `Left alone, not recorded by flisk up (they may not be Flisk's): ${pruned.skipped.join(", ")}`,
+              ),
+            );
           }
           if (pruned.projects.some((project) => project.kept.length > 0)) process.exitCode = 1;
           return;
@@ -131,7 +138,7 @@ export const projectsCommand = new Command("projects")
 
         console.log(
           chalk.gray(
-            "Run flisk projects --stale --prune to delete them (database volumes included).\n",
+            "Each project's Cleanup line says how to remove it; --prune deletes the ones Flisk recorded, database volumes included.\n",
           ),
         );
         if (options.check) {

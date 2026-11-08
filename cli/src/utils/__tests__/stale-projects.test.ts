@@ -107,7 +107,8 @@ describe("findStaleProjects", () => {
     expect(proj.volumeCount).toBe(1);
     expect(proj.networkCount).toBe(1);
     expect(proj.estimatedSizeBytes).toBe(150 * 1024 * 1024);
-    expect(proj.cleanupCommand).toBe("flisk projects --stale --prune");
+    expect(proj.recorded).toBe(false);
+    expect(proj.cleanupCommand).toBe(`docker compose -p ${proj.name} down`);
   });
 
   it("returns an empty report when all projects are active", () => {
@@ -165,17 +166,17 @@ describe("findStaleProjects with the projects flisk up recorded", () => {
     return "";
   };
   const records = [
-    { name: "hpc52513", roots: ["/tmp/hpc52513"], updatedAt: "" },
-    { name: "shop", roots: ["/work/shop"], updatedAt: "" },
+    { name: "hpc52513", roots: ["/tmp/hpc52513"], stacks: ["main"], updatedAt: "" },
+    { name: "shop", roots: ["/work/shop"], stacks: ["main"], updatedAt: "" },
   ];
-  const nameAt = (root: string) => (root === "/work/shop" ? "shop" : undefined);
+  const holds = (root: string) => root === "/work/shop";
 
   it("reports the volumes, networks and images of a recorded project whose folder is gone", () => {
     const report = findStaleProjects({
       commandRunner: runner,
       pathChecker: () => false,
       records,
-      nameAt,
+      holds,
     });
 
     expect(report.staleProjects.map((project) => project.name)).toEqual(["hpc52513"]);
@@ -184,9 +185,31 @@ describe("findStaleProjects with the projects flisk up recorded", () => {
     expect(stale?.networks).toEqual(["hpc52513_backend"]);
     expect(stale?.images).toEqual(["hpc52513-l1:latest", "hpc52513_main_api:dev"]);
     expect(stale?.recordedPath).toBe("/tmp/hpc52513");
+    expect(stale?.recorded).toBe(true);
     expect(stale?.cleanupCommand).toBe("flisk projects --stale --prune");
     expect(report.totalVolumes).toBe(1);
     expect(report.totalImages).toBe(2);
+  });
+
+  it("keeps a foreign Compose project out of a recorded project of the same name", () => {
+    const labelled = (_command: string, args: string[]): string => {
+      if (args[0] === "ps" && args.join(" ").includes("working_dir")) {
+        return "abc\tforeign-1\t1MB\thpc52513\t/gone/foreign\t\t";
+      }
+      return runner(_command, args);
+    };
+
+    const report = findStaleProjects({
+      commandRunner: labelled,
+      pathChecker: () => false,
+      records,
+      holds,
+    });
+
+    const flisk = report.staleProjects.find((project) => project.recorded);
+    expect(flisk?.containers).toEqual([]);
+    const other = report.staleProjects.find((project) => !project.recorded);
+    expect(other?.containers).toEqual(["foreign-1"]);
   });
 
   it("leaves a project that still exists alone, even when it is stopped", () => {
@@ -194,7 +217,7 @@ describe("findStaleProjects with the projects flisk up recorded", () => {
       commandRunner: runner,
       pathChecker: () => false,
       records,
-      nameAt: (root) => root.split("/").pop(),
+      holds: () => true,
     });
 
     expect(report.staleProjects).toEqual([]);
@@ -209,6 +232,7 @@ describe("pruneStaleProjects", () => {
     volumes: ["hpc52513-database-management_hpc52513_postgres_data"],
     networks: ["hpc52513_backend"],
     images: ["hpc52513-l1:latest"],
+    recorded: true,
     containerCount: 0,
     volumeCount: 1,
     networkCount: 1,
@@ -236,6 +260,34 @@ describe("pruneStaleProjects", () => {
     ]);
     expect(result.projects[0]?.kept).toEqual([]);
     expect(forgotten).toEqual(["hpc52513"]);
+  });
+
+  it("never touches a Compose project flisk up did not record, which may not be Flisk's", () => {
+    // Regression: --prune force-removed every project the report listed, and the report lists any Compose project
+    // whose folder is gone.
+    const foreign = {
+      ...stale,
+      name: "someone-elses-app",
+      containers: ["someone-elses-app-web-1"],
+      volumes: ["someone-elses-app_data"],
+      networks: [],
+      images: [],
+      recorded: false,
+    };
+    const calls: string[][] = [];
+    const forgotten: string[] = [];
+
+    const result = pruneStaleProjects([foreign], {
+      docker: (args) => {
+        calls.push(args);
+        return "";
+      },
+      forget: (name) => forgotten.push(name),
+    });
+
+    expect(calls).toEqual([]);
+    expect(forgotten).toEqual([]);
+    expect(result).toEqual({ projects: [], skipped: ["someone-elses-app"] });
   });
 
   it("keeps the record while Docker still holds something of the project", () => {

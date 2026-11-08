@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
 import {
+  folderHoldsProject,
   forgetProject,
   isRecordStale,
   projectRegistryDir,
@@ -39,7 +40,7 @@ describe("recordProjectRoot", () => {
     recordProjectRoot(root, { home, now: new Date("2026-11-08T00:00:00Z") });
 
     expect(readProjectRecords(home)).toEqual([
-      { name: "my-shop", roots: [root], updatedAt: "2026-11-08T00:00:00.000Z" },
+      { name: "my-shop", roots: [root], stacks: [], updatedAt: "2026-11-08T00:00:00.000Z" },
     ]);
   });
 
@@ -52,6 +53,29 @@ describe("recordProjectRoot", () => {
     recordProjectRoot(second, { home });
 
     expect(readProjectRecords(home)[0]?.roots).toEqual([first, second]);
+  });
+
+  it("keeps every stack a project started with, for finding its Docker names once the folder is gone", () => {
+    const home = temp("flisk-registry-home-");
+    const root = project("shop");
+
+    recordProjectRoot(root, { home, stacks: ["store", "admin"] });
+    recordProjectRoot(root, { home, stacks: ["admin", "ops"] });
+
+    expect(readProjectRecords(home)[0]?.stacks).toEqual(["admin", "ops", "store"]);
+  });
+
+  it("reads a record written before stacks were recorded", () => {
+    const home = temp("flisk-registry-home-");
+    mkdirSync(projectRegistryDir(home), { recursive: true });
+    writeFileSync(
+      join(projectRegistryDir(home), "shop.json"),
+      JSON.stringify({ name: "shop", roots: ["/gone"], updatedAt: "" }),
+    );
+
+    expect(readProjectRecords(home)).toEqual([
+      { name: "shop", roots: ["/gone"], stacks: [], updatedAt: "" },
+    ]);
   });
 
   it("records nothing for a folder without a project name, and never throws", () => {
@@ -79,18 +103,49 @@ describe("recordProjectRoot", () => {
 });
 
 describe("isRecordStale", () => {
-  const record = { name: "shop", roots: ["/a", "/b"], updatedAt: "" };
+  const record = { name: "shop", roots: ["/a", "/b"], stacks: [], updatedAt: "" };
 
   it("is stale only when no recorded folder still holds the project", () => {
-    expect(isRecordStale(record, () => undefined)).toBe(true);
-    expect(isRecordStale(record, (root) => (root === "/b" ? "shop" : undefined))).toBe(false);
-  });
-
-  it("counts a folder that now holds another project as gone", () => {
-    expect(isRecordStale(record, () => "other")).toBe(true);
+    expect(isRecordStale(record, () => false)).toBe(true);
+    expect(isRecordStale(record, (root) => root === "/b")).toBe(false);
   });
 
   it("is never stale without folders", () => {
-    expect(isRecordStale({ ...record, roots: [] }, () => undefined)).toBe(false);
+    expect(isRecordStale({ ...record, roots: [] }, () => false)).toBe(false);
   });
+});
+
+// A false answer lets `flisk projects --stale --prune` delete the project's database, so only proof counts.
+describe("folderHoldsProject", () => {
+  it("is false when the folder is gone or its project.json is", () => {
+    expect(folderHoldsProject(join(temp("flisk-holds-"), "deleted"), "shop")).toBe(false);
+    expect(folderHoldsProject(temp("flisk-holds-"), "shop")).toBe(false);
+  });
+
+  it("is false when the folder now holds another project, and true for this one", () => {
+    expect(folderHoldsProject(project("other"), "shop")).toBe(false);
+    expect(folderHoldsProject(project("Shop"), "shop")).toBe(true);
+  });
+
+  it("is true for a half-written or nameless project.json", () => {
+    const root = project("shop");
+    writeFileSync(join(root, ".flisk", "project.json"), '{"project":');
+    expect(folderHoldsProject(root, "shop")).toBe(true);
+    writeFileSync(join(root, ".flisk", "project.json"), "{}");
+    expect(folderHoldsProject(root, "shop")).toBe(true);
+  });
+
+  it("is true for a project.json that cannot be read", () => {
+    const root = project("shop");
+    rmSync(join(root, ".flisk", "project.json"));
+    mkdirSync(join(root, ".flisk", "project.json"));
+    expect(folderHoldsProject(root, "shop")).toBe(true);
+  });
+
+  it.each(["/Volumes/Backup/shop", "/mnt/data/shop", "/media/alex/Backup/shop"])(
+    "is true for %s while its drive is not mounted",
+    (root) => {
+      expect(folderHoldsProject(root, "shop", () => false)).toBe(true);
+    },
+  );
 });

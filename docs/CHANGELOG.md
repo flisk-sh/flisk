@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- Fixed two data-safety bugs in 1.4.42's cleanup commands. `flisk down --purge` matched Docker names by prefix, so project `shop` could delete the database of an unrecorded `shop-admin`; it now matches only the exact names of the project's own infrastructure and stacks. `flisk projects --stale --prune` force-removed every project in the report, including Compose projects that are not Flisk's; it now deletes only projects `flisk up` recorded, and treats a folder it cannot check as still there.
+
 ## 1.4.42 (2026-11-07)
 
 - `flisk up` pulls the golden base images from `ghcr.io/flisk-sh` by default and builds them locally only when the pull fails (offline, or no image for that hash). They used to be pulled only with `FLISK_GOLDEN_REGISTRY` set, so every machine and every new project rebuilt them (9 min and 2 GB of build cache on a cold Mac). `FLISK_GOLDEN_REGISTRY=off` keeps the local build. The publish workflow now runs on each push to main that changes the engine. (#3361)

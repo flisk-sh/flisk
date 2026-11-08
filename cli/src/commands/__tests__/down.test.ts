@@ -64,7 +64,10 @@ vi.mock("../../utils/project-purge.js", async (importOriginal) => ({
 
 vi.mock("../../utils/project-registry.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/project-registry.js")>()),
-  readProjectRecords: () => [{ name: "test-project-admin", roots: ["/gone"], updatedAt: "" }],
+  readProjectRecords: () => [
+    { name: "test-project", roots: ["/here"], stacks: ["retired"], updatedAt: "" },
+    { name: "test-project-admin", roots: ["/gone"], stacks: [], updatedAt: "" },
+  ],
 }));
 
 vi.mock("../../utils/tilt.js", () => ({
@@ -528,10 +531,11 @@ describe("flisk down", () => {
         await downCommand.parseAsync(["node", "flisk", "--purge"], { from: "node" });
 
         expect(runTiltMock).toHaveBeenCalledWith("down", expect.anything(), expect.anything());
-        // Other recorded project names settle prefix ties, so test-project never claims test-project-admin's objects.
-        expect(listProjectArtifactsMock).toHaveBeenCalledWith("test-project", [
-          "test-project-admin",
-        ]);
+        // Exact names come from the project's stacks, including one it no longer has that is still on record.
+        expect(listProjectArtifactsMock).toHaveBeenCalledWith("test-project", {
+          stacks: ["retired"],
+          knownNames: ["test-project", "test-project-admin"],
+        });
         expect(removeProjectArtifactsMock).toHaveBeenCalledWith(ARTIFACTS);
         expect(runTiltMock.mock.invocationCallOrder[0]).toBeLessThan(
           removeProjectArtifactsMock.mock.invocationCallOrder[0] ?? 0,

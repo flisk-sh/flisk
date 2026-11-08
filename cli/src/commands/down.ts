@@ -130,8 +130,12 @@ function projectArtifacts(
   } catch {
     return undefined;
   }
-  const known = readProjectRecords().map((record) => record.name);
-  return { name, artifacts: listProjectArtifacts(name, known) };
+  const records = readProjectRecords();
+  // Stacks a project once had are on record; the ones it has now come from its folder.
+  const recorded = records.find((record) => record.name === name)?.stacks ?? [];
+  const stacks = [...new Set([...recorded, ...(allStackNames() ?? [])])];
+  const knownNames = records.map((record) => record.name);
+  return { name, artifacts: listProjectArtifacts(name, { stacks, knownNames }) };
 }
 
 function describeArtifacts(artifacts: ProjectArtifacts): string[] {
