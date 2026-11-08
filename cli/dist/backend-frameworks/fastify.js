@@ -1,10 +1,19 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 export function getFastifyIndexTemplate(name) {
-    return `import Fastify from 'fastify';
+    return `import cors from '@fastify/cors';
+import Fastify from 'fastify';
 
 const app = Fastify();
+
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
+await app.register(cors, {
+  origin: LOCAL_FRONTEND_ORIGIN,
+  methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH']
+});
 
 // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
 app.get('/health', async () => ({ status: 'ok', service: '${name}' }));
@@ -40,7 +49,7 @@ console.log('📊 Health check: http://localhost:' + port + '/health\\n');
 export const fastifyBackendProvider = {
     id: "fastify",
     label: "Bun + Fastify",
-    dependencies: { fastify: "^5.0.0" },
+    dependencies: { "@fastify/cors": "^11.0.0", fastify: "^5.0.0" },
     devDependencies: {},
     createIndex: getFastifyIndexTemplate,
 };

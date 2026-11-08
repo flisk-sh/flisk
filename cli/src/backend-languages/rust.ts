@@ -1,5 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import {
+  LOCAL_FRONTEND_CORS_REASON,
+  LOCAL_FRONTEND_ORIGIN_PATTERN,
+} from "../utils/generated-cors.js";
 import type { BackendLanguageProvider } from "./types.js";
 
 /**
@@ -30,22 +34,38 @@ path = "src/main.rs"
 
 [dependencies]
 axum = "0.8"
+regex = "1"
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+tower-http = { version = "0.6", features = ["cors"] }
 `,
         description: "Generating Cargo.toml",
         emoji: "📦",
       },
       {
         filename: "src/main.rs",
-        content: `use axum::{routing::get, Json, Router};
+        content: `use axum::{http::HeaderValue, routing::get, Json, Router};
+use regex::Regex;
 use serde_json::{json, Value};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+
+// ${LOCAL_FRONTEND_CORS_REASON}
+fn local_frontend_cors() -> CorsLayer {
+    let local_frontend = Regex::new(r"${LOCAL_FRONTEND_ORIGIN_PATTERN}").expect("valid origin pattern");
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, _| {
+            origin.to_str().is_ok_and(|origin| local_frontend.is_match(origin))
+        }))
+        .allow_methods(Any)
+        .allow_headers(Any)
+}
 
 fn app() -> Router {
     Router::new()
         .route("/", get(root))
         // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
         .route("/health", get(health))
+        .layer(local_frontend_cors())
 }
 
 async fn root() -> Json<Value> {

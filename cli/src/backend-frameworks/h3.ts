@@ -1,14 +1,23 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
 export function getH3IndexTemplate(name: string) {
   return `import { createServer } from 'node:http';
-import { createApp, createRouter, defineEventHandler, toNodeListener } from 'h3';
+import { createApp, createRouter, defineEventHandler, handleCors, toNodeListener } from 'h3';
 
 const app = createApp();
 const router = createRouter();
+
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
+app.use(defineEventHandler((event) => {
+  if (handleCors(event, { origin: [LOCAL_FRONTEND_ORIGIN], methods: '*', preflight: { statusCode: 204 } })) {
+    return null;
+  }
+}));
 
 // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
 router.get('/health', defineEventHandler(() => ({ status: 'ok', service: '${name}' })));

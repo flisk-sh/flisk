@@ -1,12 +1,18 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
 export function getElysiaIndexTemplate(name) {
-    return `import { Elysia } from 'elysia';
+    return `import { cors } from '@elysiajs/cors';
+import { Elysia } from 'elysia';
 
 ${portFromEnv()}
 
+// ${LOCAL_FRONTEND_CORS_REASON}
+${localFrontendOriginConst()}
+
 const app = new Elysia()
+  .use(cors({ origin: LOCAL_FRONTEND_ORIGIN }))
   // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
   .get('/health', () => ({ status: 'ok', service: '${name}' }))
   .get('/health/live', () => ({ status: 'alive', timestamp: Date.now() }))
@@ -35,7 +41,7 @@ console.log('📊 Health check: http://localhost:' + app.server?.port + '/health
 export const elysiaBackendProvider = {
     id: "elysia",
     label: "Bun + Elysia",
-    dependencies: { elysia: "^1.3.0" },
+    dependencies: { "@elysiajs/cors": "^1.4.0", elysia: "^1.4.0" },
     devDependencies: {},
     createIndex: getElysiaIndexTemplate,
 };
