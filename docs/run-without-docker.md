@@ -142,6 +142,12 @@ A service that needs a key for local development (an auth secret, an encryption 
 | `flisk logs --service api --tail 50` | Recent output, merged across services in time order. `--since 5m` works too. |
 | `flisk doctor` | Checks only what the services need: their programs are installed, their `dependsOn` and ports are valid, and running services answer. It does not check Docker, Compose, Tilt or the gateway ports. |
 
+## A plain Node repo with no service.json
+
+When `flisk up` finds no Flisk project, no `service.json`, no Compose file or Tiltfile, but the folder has a `package.json` with a `scripts.dev` (or `scripts.start`), it infers one service from that script. The service name comes from the package name in `package.json`, or the folder name as fallback. The package manager is detected from the lockfile: `bun.lock` or `bun.lockb` means `bun run`, `pnpm-lock.yaml` means `pnpm run`, `yarn.lock` means `yarn`, otherwise `npm run`. The port comes from a `--port` or `-p` flag in the script, or the first free port starting at 3000 (passed as `PORT` in the environment). Run state stays in your home folder (`~/.flisk/inferred/<name>-<hash>/`), not the repo. `flisk up --dry-run`, `flisk status` and `flisk down` work the same way. A monorepo with `workspaces` is out of scope and keeps today's error.
+
+This path skips the project creation step: no `.flisk/project.json` or `service.json` are written to the repo. It also skips environment file selection (`--env-file`), profiles (`--profile`), stack names and `--only`; pass those and the normal path runs instead. If `node_modules` is missing and the package has dependencies, `flisk up` stops and prints the install command.
+
 ## When you need Docker
 
 Remove `command` and use the [Docker + Tilt path](quickstart.md) for:

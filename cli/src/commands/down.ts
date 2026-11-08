@@ -15,6 +15,7 @@ import {
   waitForTiltUpExit,
 } from "../utils/down-cleanup.js";
 import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
+import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { writeMachineError } from "../utils/machine-output.js";
 import { readNativeRunState, stopNativeRun } from "../utils/native-runtime.js";
@@ -200,6 +201,31 @@ export const downCommand = addYesOption(new Command("down"))
     "Stop the Flisk project in this folder (default: the current project, or the only running one)",
   )
   .action(async (options, command: Command) => {
+    // Check for inferred Node project first, before resolveDownProject tries to find a Flisk project
+    const guess = inferNodeProject(process.cwd());
+    if (guess && !options.project) {
+      const emitInferred = options.json
+        ? createJsonEmitter("DOWN_FAILED", "flisk down")
+        : undefined;
+      const stateRoot = inferredStateRoot(process.cwd());
+      if (options.dryRun) {
+        emitInferred?.({ ok: true, dryRun: true, runtime: "native", inferred: true });
+        if (!options.json)
+          console.log(chalk.gray("Dry run - not stopping the local process of this folder"));
+        return;
+      }
+      const stopped = await stopNativeRun(stateRoot);
+      emitInferred?.({ ok: true, runtime: "native", inferred: true, stopped: stopped.services });
+      if (!options.json) {
+        console.log(
+          stopped.wasRunning
+            ? chalk.blue(`Stopped local processes: ${stopped.services.join(", ")}`)
+            : chalk.gray("Nothing is running for this folder."),
+        );
+      }
+      return;
+    }
+
     // The root program also defines `--project` (the one-command template flow), and Commander gives a root option to
     // the root wherever it appears, so `flisk down --project <path>` arrives in the global options.
     const project: string | undefined = options.project ?? command.optsWithGlobals().project;

@@ -24,6 +24,7 @@ import { ensureGeneratedSecrets } from "../utils/generated-secrets.js";
 import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import { exportHostPortPlan, getHostPortPlan, writeSavedHostPortPlan, } from "../utils/host-port-config.js";
 import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan.js";
+import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
@@ -493,6 +494,26 @@ export const upCommand = new Command("up")
                 throw error;
             }
         }
+    }
+    // A plain Node repo with no project root, service.json, Compose, or Tiltfile: infer one service from package.json.
+    // Inference is skipped when a stack name, --only, --env-file or --profile is given.
+    const inferredProject = inferNodeProject(process.cwd());
+    if (inferredProject && !stackName && !options.only && !options.envFile && !options.profile) {
+        const stateRoot = inferredStateRoot(process.cwd());
+        if (!options.quiet) {
+            console.log(chalk.gray(`Inferred service from package.json: ${inferredProject.service.name}`));
+        }
+        await runNativeUp({
+            projectRoot: stateRoot,
+            selected: [inferredProject.service],
+            dependencies: [],
+            dryRun: options.dryRun,
+            quiet: options.quiet,
+            force: options.force,
+            emit,
+            inferred: { command: inferredProject.command, script: inferredProject.script },
+        });
+        return;
     }
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated
     // files (#2229). Decided before any Docker or Tilt check; a project without `command` services never enters this branch.
