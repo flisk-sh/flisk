@@ -165,7 +165,7 @@ def build_golden_layers(project_root='.', needed=True):
         message = 'No resource uses the golden images; nothing to pull or build'
         local_resource(
             resource_name,
-            cmd='echo ' + _sh_quote(message),
+            cmd=['echo', message],
             cmd_bat=POWERSHELL + ["Write-Output '" + message + "'"],
             labels=['infra.docker', 'golden-layers'],
             allow_parallel=True,
