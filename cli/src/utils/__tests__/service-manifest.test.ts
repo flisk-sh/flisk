@@ -323,10 +323,7 @@ describe("service manifest compatibility", () => {
     expect(resultFalse.warnings).toEqual([]);
 
     // A Bun service reloads by default, so the flag is not ignored there.
-    const bun = validateServiceManifest(
-      { ...base, dev: { liveReload: true } },
-      "service.json",
-    );
+    const bun = validateServiceManifest({ ...base, dev: { liveReload: true } }, "service.json");
     expect(bun.warnings).toEqual([]);
   });
 
