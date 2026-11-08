@@ -610,6 +610,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "release-binaries.yml",
+			"job": "post-toolradar",
+			"tier": "release",
+			"required": false,
+			"reason": "Posts the public release on Toolradar, off the release's critical path",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "sign-release.yml",
 			"job": "sign",
 			"tier": "release",
