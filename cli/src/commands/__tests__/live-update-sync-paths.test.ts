@@ -35,13 +35,14 @@ it("anchors live-update sync sources at the project root", () => {
 
 it("passes the project root and language to the live-update rules by keyword", () => {
   expect(registration).toContain(
-    "def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False, node_frontend=False)",
+    "def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False, node_frontend=False, bun_backend_entry=None)",
   );
   expect(registration).toContain("project_root=config.get('project_root', ''),");
   expect(registration).toContain("language=config.get('manifest', {}).get('language', 'bun'),");
   expect(registration).toContain(
     "node_frontend=Docker.is_next_frontend(config.get('manifest', {})),",
   );
+  expect(registration).toContain("bun_backend_entry=_bun_backend_entry(config),");
 });
 
 it("gives Rust, and Go without dev.liveReload, no live-update rules, so Tilt rebuilds the image on change", () => {
