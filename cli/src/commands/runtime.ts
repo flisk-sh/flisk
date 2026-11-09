@@ -123,4 +123,5 @@ export const runtimeCommand = new Command("runtime")
     }
 
     if (!ok) process.exitCode = 1;
-  });
+  })
+  .addHelpText("after", "\nExamples:\n  flisk runtime --check-assets\n  flisk runtime --check-assets --json\n");
