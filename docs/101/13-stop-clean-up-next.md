@@ -68,7 +68,7 @@ You can now create a project, add APIs, websites, workers, MCP servers, and agen
 | Add Flisk to a project you already have | [Adopt Flisk](../adopt-flisk.md) and [bring your own](../byo.md) |
 | Keep using Helm for clusters | [Flisk with Helm](../with-helm.md) |
 | Fix something broken | [Troubleshooting](../troubleshooting.md) |
-| Help improve Flisk | [Contributing](../contributing/README.md), and say hello in the [Discord](https://discord.gg/Sjhb3tnq3) |
+| Help improve Flisk | [Contributing](../contributing/README.md), and say hello in the [Discord](https://discord.gg/qMu5Xn8Kaq) |
 
 ## Checkpoint
 

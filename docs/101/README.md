@@ -55,6 +55,6 @@ Lab 1 checks that all of this works. On Windows, use WSL2 Ubuntu ([WSL2 setup](.
 
 - Run `flisk doctor`. It names the problem and the fix.
 - See [troubleshooting](../troubleshooting.md).
-- Ask in the [Flisk Discord](https://discord.gg/Sjhb3tnq3) or [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose).
+- Ask in the [Flisk Discord](https://discord.gg/qMu5Xn8Kaq) or [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose).
 
 When you finish, the [examples](../../README.md#examples) and the [Flisk cheat sheet](../cheat-sheet.md) are good next stops.

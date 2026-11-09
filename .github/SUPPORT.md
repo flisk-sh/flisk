@@ -12,7 +12,7 @@ What you can expect from the maintainers of Flisk. Numbers were measured from th
 | A premium key | [Premium license request](https://github.com/flisk-sh/flisk/issues/new?template=premium_license.yml) or the [website form](https://flisk.sh/#waitlist) |
 | A security problem | [SECURITY.md](SECURITY.md), privately; never a public issue |
 
-There is no paid support contract or phone line. For a quick chat with other users and the maintainers, join the [Discord server](https://discord.gg/Sjhb3tnq3); for anything that others should be able to find later, use [Discussions](https://github.com/flisk-sh/flisk/discussions) or an issue.
+There is no paid support contract or phone line. For a quick chat with other users and the maintainers, join the [Discord server](https://discord.gg/qMu5Xn8Kaq); for anything that others should be able to find later, use [Discussions](https://github.com/flisk-sh/flisk/discussions) or an issue.
 
 ## Response time
 

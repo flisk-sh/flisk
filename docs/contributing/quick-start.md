@@ -4,7 +4,7 @@ From a fresh clone to your first passing test run and pull request in about five
 
 ## Say hello first
 
-Join the [Flisk Discord](https://discord.gg/Sjhb3tnq3) and tell us what you would like to work on. A maintainer will help you choose a first task and answer questions while you set up.
+Join the [Flisk Discord](https://discord.gg/qMu5Xn8Kaq) and tell us what you would like to work on. A maintainer will help you choose a first task and answer questions while you set up.
 
 ## 1. Prerequisites
 
