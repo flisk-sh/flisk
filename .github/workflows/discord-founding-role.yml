@@ -1,0 +1,34 @@
+name: 🤖 BOT | Community | Discord founding role
+
+# Grants the Founding Contributor role to anyone who posts a merged PR link in
+# #start-here, and replies to say so. Discord has no webhook for new messages, so
+# this polls. It runs from the default branch and never reads PR code; PR links
+# and message text are only passed to the Discord and GitHub APIs.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: discord-founding-role
+  cancel-in-progress: false
+
+jobs:
+  grant:
+    name: Grant the role for merged PR links
+    if: github.repository == 'flisk-sh/flisk'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: node scripts/discord-founding-role.mjs
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}

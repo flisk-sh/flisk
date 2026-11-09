@@ -314,6 +314,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "discord-founding-role.yml",
+			"job": "grant",
+			"tier": "bot",
+			"required": false,
+			"reason": "Grants the Discord Founding Contributor role for merged PR links posted in #start-here",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "contributor-merged.yml",
 			"job": "thank",
 			"tier": "bot",
