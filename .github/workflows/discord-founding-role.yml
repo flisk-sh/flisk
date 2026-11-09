@@ -2,12 +2,14 @@ name: 🤖 BOT | Community | Discord founding role
 
 # Gives a numbered badge and role to anyone who posts a merged PR link in
 # #start-here, and replies with it. Seat numbers live in one tracking issue. Discord has no webhook for new messages, so
-# this polls. It runs from the default branch and never reads PR code; PR links
-# and message text are only passed to the Discord and GitHub APIs.
+# this polls. Once an hour it also syncs each seat holder's tier and belt roles.
+# It runs from the default branch and never reads PR code; PR links and message
+# text are only passed to the Discord and GitHub APIs.
 
 on:
   schedule:
     - cron: "*/5 * * * *"
+    - cron: "17 * * * *"
   # A Cloudflare Worker starts this every minute (workers/discord-bot-trigger), because
   # GitHub's schedule above can go hours without firing.
   workflow_dispatch:
@@ -25,19 +27,27 @@ concurrency:
 
 jobs:
   grant:
-    name: Grant the role for merged PR links
+    name: Grant seats and sync levels
     if: github.repository == 'flisk-sh/flisk'
     runs-on: ubuntu-26.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       actions: write
       contents: read
       issues: write
+      pull-requests: read # without it, GraphQL search counts zero PRs and reports no error
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - run: node scripts/discord-founding-role.mjs
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+      # One job, so a sync can never overwrite the seats a grant is saving.
+      - name: Sync tier and belt roles
+        if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && inputs.claims_only != true) || github.event.schedule == '17 * * * *') }}
+        run: node scripts/discord-founding-role.mjs sync-levels
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
