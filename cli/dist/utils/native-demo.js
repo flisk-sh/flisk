@@ -134,11 +134,12 @@ export function runningNativeDemoUrl(dir) {
  * envelope it prints once both services answer. The process supervises the services after this command exits, until
  * `flisk down`.
  */
-export function startNativeDemo(binPath, dir, logPath, options = {}) {
+export function startNativeDemo(invocation, dir, logPath, options = {}) {
     const { timeoutMs = 90_000, spawnFn = spawn, pollMs = 250 } = options;
     mkdirSync(dirname(logPath), { recursive: true });
     const fd = openSync(logPath, "w");
-    const child = spawnFn(process.execPath, [binPath, "up", "--json"], {
+    const [command, ...prefix] = invocation;
+    const child = spawnFn(command, [...prefix, "up", "--json"], {
         cwd: dir,
         detached: true,
         stdio: ["ignore", fd, fd],
@@ -188,7 +189,7 @@ export function startNativeDemo(binPath, dir, logPath, options = {}) {
 }
 /** The whole demo without Docker. Returns the exit code. */
 export async function runNativeDemo(input) {
-    const { destination, binPath } = input;
+    const { destination, invocation } = input;
     const open = input.open ?? ((url) => openUrl(url));
     console.log(chalk.gray(`📁 Demo folder: ${destination}`));
     const running = runningNativeDemoUrl(destination);
@@ -235,7 +236,7 @@ export async function runNativeDemo(input) {
     setPhase("write", "done", Date.now() - writeStarted);
     const startStarted = Date.now();
     setPhase("start", "active");
-    const outcome = await startNativeDemo(binPath, destination, logPath);
+    const outcome = await startNativeDemo(invocation, destination, logPath);
     if (!outcome.ok) {
         stage.fail(outcome.error ?? "The demo services did not start.", `Run \`flisk up\` in ${destination} to see what they printed.`, logPath);
         stage.stop();

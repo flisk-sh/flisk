@@ -4,6 +4,7 @@
 import { spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import type { CliInvocation } from "./cli-invocation.js";
 
 /** The marker the stack prints before the frontend URLs. */
 const FRONTEND_MARKER = "Frontend URLs";
@@ -53,13 +54,14 @@ export type SetupOutcome = {
  * its full configuration report at all.
  */
 export function initializeProject(
-  binPath: string,
+  invocation: CliInvocation,
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
   spawnFn: typeof spawn = spawn,
 ): Promise<SetupOutcome> {
   return new Promise((resolve) => {
-    const child = spawnFn(process.execPath, [binPath, "project", "--yes", "--quiet"], {
+    const [command, ...prefix] = invocation;
+    const child = spawnFn(command, [...prefix, "project", "--yes", "--quiet"], {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
@@ -122,13 +124,14 @@ export function parseStackEnvelope(output: string): StackOutcome | undefined {
  * thousands of Docker and Traefik lines. The stack keeps running in the background.
  */
 export function runStackQuiet(
-  binPath: string,
+  invocation: CliInvocation,
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
   spawnFn: typeof spawn = spawn,
 ): Promise<StackOutcome> {
   return new Promise((resolve) => {
-    const child = spawnFn(process.execPath, [binPath, "up", "--json"], {
+    const [command, ...prefix] = invocation;
+    const child = spawnFn(command, [...prefix, "up", "--json"], {
       cwd,
       env,
       stdio: ["inherit", "pipe", "pipe"],

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import type { CliInvocation } from "./cli-invocation.js";
 import { type StackOutcome } from "./one-command.js";
 /**
  * `flisk demo` without Docker: when Docker or Tilt is not ready (or on native Windows, or with `--no-docker`), the demo writes a
@@ -49,14 +50,14 @@ export declare function runningNativeDemoUrl(dir: string): string | null;
  * envelope it prints once both services answer. The process supervises the services after this command exits, until
  * `flisk down`.
  */
-export declare function startNativeDemo(binPath: string, dir: string, logPath: string, options?: {
+export declare function startNativeDemo(invocation: CliInvocation, dir: string, logPath: string, options?: {
     timeoutMs?: number;
     spawnFn?: typeof spawn;
     pollMs?: number;
 }): Promise<StackOutcome>;
 export interface NativeDemoInput {
     destination: string;
-    binPath: string;
+    invocation: CliInvocation;
     /** Why the demo runs without Docker, printed before it starts. */
     reason: string;
     version: string;

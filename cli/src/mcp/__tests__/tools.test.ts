@@ -23,7 +23,6 @@ import {
   buildResourceCreateArgs,
   buildStackAssignArgs,
   buildUpArgs,
-  cliInvocation,
   createFliskTools,
   defaultUpDeps,
   type FliskRun,
@@ -369,26 +368,6 @@ describe("argument building", () => {
       "dryRun must be a boolean",
     );
     expect(() => buildConfigRegenerateArgs({ dryRun: 0 })).toThrow("dryRun must be a boolean");
-  });
-});
-
-describe("cliInvocation", () => {
-  it("re-runs a script with its interpreter", () => {
-    expect(cliInvocation("/usr/bin/node", "/opt/flisk/bin/flisk.js", () => true)).toEqual([
-      "/usr/bin/node",
-      "/opt/flisk/bin/flisk.js",
-    ]);
-  });
-  it("runs a compiled binary alone, because its argv[1] is a virtual path", () => {
-    expect(cliInvocation("/usr/local/bin/flisk", "/$bunfs/root/flisk", () => false)).toEqual([
-      "/usr/local/bin/flisk",
-    ]);
-    expect(cliInvocation("C:\\flisk.exe", "B:\\~BUN\\root\\flisk.exe", () => false)).toEqual([
-      "C:\\flisk.exe",
-    ]);
-  });
-  it("falls back to the executable when there is no script", () => {
-    expect(cliInvocation("/usr/local/bin/flisk", "")).toEqual(["/usr/local/bin/flisk"]);
   });
 });
 

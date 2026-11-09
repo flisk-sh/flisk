@@ -4,6 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { cliInvocation } from "./cli-invocation.js";
 
 /** Stops the `tilt up` processes that run this project's Tiltfile, and waits for them to exit. */
 export type StopTilt = (tiltfile: string) => Promise<void>;
@@ -39,7 +40,8 @@ async function stopRunningTilt(tiltfile: string): Promise<void> {
 }
 
 function runFliskDown(projectDir: string): void {
-  execFileSync(process.execPath, [process.argv[1] ?? "flisk", "down", "--yes"], {
+  const [command, ...prefix] = cliInvocation();
+  execFileSync(command, [...prefix, "down", "--yes"], {
     cwd: projectDir,
     stdio: "inherit",
   });

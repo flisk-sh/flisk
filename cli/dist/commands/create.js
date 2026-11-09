@@ -14,6 +14,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languages/registry.js";
 import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../utils/arrow-prompt.js";
+import { cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
 import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, starterInfo, toProjectName, } from "../utils/create-plan.js";
@@ -495,8 +496,9 @@ export function nextSteps(projectDir, answers, services = generatedServices(proj
     ];
 }
 /** Runs one planned command with this CLI, quietly. Returns its output on failure. */
-function runStep(binPath, step, cwd) {
-    const result = spawnSync(process.execPath, [binPath, ...step.args], {
+function runStep(invocation, step, cwd) {
+    const [command, ...prefix] = invocation;
+    const result = spawnSync(command, [...prefix, ...step.args], {
         cwd,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
@@ -615,18 +617,13 @@ async function runCreate(nameArg, options) {
         for (const line of review)
             console.log(line);
     }
-    const binPath = process.argv[1];
-    if (!binPath) {
-        throw new FliskError("The CLI entry point could not be found.", [
-            "Reinstall the Flisk CLI and run the command again.",
-        ]);
-    }
+    const invocation = cliInvocation();
     // Re-check right before writing: the folder may have changed since the first check and the confirmation.
     // A starter's generator accepts the empty folder this leaves, so starters get the same protection as apps.
     const createdFolder = claimFolder(projectDir);
     for (const [index, step] of steps.entries()) {
         process.stdout.write(`  ${step.label}... `);
-        const result = runStep(binPath, step, step.inProject ? projectDir : process.cwd());
+        const result = runStep(invocation, step, step.inProject ? projectDir : process.cwd());
         if (!result.ok) {
             console.log(chalk.red("failed"));
             console.log(result.output.trimEnd());
@@ -733,7 +730,8 @@ async function runCreate(nameArg, options) {
     if (open)
         console.log(`\n${chalk.bold(open)}\n`);
     const upArgs = answers.runtime === "docker" ? ["up", "app"] : ["up"];
-    const up = spawnSync(process.execPath, [binPath, ...upArgs], {
+    const [command, ...prefix] = invocation;
+    const up = spawnSync(command, [...prefix, ...upArgs], {
         cwd: projectDir,
         stdio: "inherit",
     });

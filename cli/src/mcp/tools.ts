@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type ChildProcess, spawn } from "node:child_process";
-import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
+import { closeSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { RESOURCE_CREATE_TYPE_VALUES } from "../types/index.js";
+import { cliInvocation } from "../utils/cli-invocation.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
@@ -29,26 +30,11 @@ export interface FliskRun {
   stderr: string;
 }
 
-/**
- * How to run this CLI again: `node <script>` / `bun <script>` when started from a script, or the executable alone when it is
- * a `bun build --compile` binary, whose argv[1] is a virtual path that exists only inside the binary.
- */
-export function cliInvocation(
-  execPath: string = process.execPath,
-  script: string | undefined = process.argv[1],
-  fileExists: (path: string) => boolean = existsSync,
-): string[] {
-  if (!script || script.startsWith("/$bunfs/") || script.includes("~BUN") || !fileExists(script)) {
-    return [execPath];
-  }
-  return [execPath, script];
-}
-
 /** Runs this same CLI (`flisk <args>`) so every tool behaves exactly like its command. */
 export const runFliskCli: RunFlisk = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const [command, ...prefix] = cliInvocation();
-    const child = spawn(command as string, [...prefix, ...args], {
+    const child = spawn(command, [...prefix, ...args], {
       cwd: options.cwd,
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, NO_COLOR: "1" },
@@ -220,7 +206,7 @@ export const defaultUpDeps: UpDeps = {
   spawnUp(args, logFile, cwd) {
     const fd = openSync(logFile, "a");
     const [command, ...prefix] = cliInvocation();
-    const child = spawn(command as string, [...prefix, ...args], {
+    const child = spawn(command, [...prefix, ...args], {
       cwd,
       detached: true,
       stdio: ["ignore", fd, fd],

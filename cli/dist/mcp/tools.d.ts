@@ -9,11 +9,6 @@ export interface FliskRun {
     stdout: string;
     stderr: string;
 }
-/**
- * How to run this CLI again: `node <script>` / `bun <script>` when started from a script, or the executable alone when it is
- * a `bun build --compile` binary, whose argv[1] is a virtual path that exists only inside the binary.
- */
-export declare function cliInvocation(execPath?: string, script?: string | undefined, fileExists?: (path: string) => boolean): string[];
 /** Runs this same CLI (`flisk <args>`) so every tool behaves exactly like its command. */
 export declare const runFliskCli: RunFlisk;
 /**
