@@ -13,6 +13,7 @@ import {
 import { dirname, join } from "node:path";
 import chalk from "chalk";
 import { loadTemplate } from "../generator/template-engine.js";
+import type { CliInvocation } from "./cli-invocation.js";
 import { createDemoStage, type DemoPhase, type DemoPhaseStatus } from "./demo-stage.js";
 import { FliskError } from "./errors.js";
 import { isPortListening, isProcessAlive, readNativeRunState } from "./native-runtime.js";
@@ -177,7 +178,7 @@ export function runningNativeDemoUrl(dir: string): string | null {
  * `flisk down`.
  */
 export function startNativeDemo(
-  binPath: string,
+  invocation: CliInvocation,
   dir: string,
   logPath: string,
   options: { timeoutMs?: number; spawnFn?: typeof spawn; pollMs?: number } = {},
@@ -185,7 +186,8 @@ export function startNativeDemo(
   const { timeoutMs = 90_000, spawnFn = spawn, pollMs = 250 } = options;
   mkdirSync(dirname(logPath), { recursive: true });
   const fd = openSync(logPath, "w");
-  const child = spawnFn(process.execPath, [binPath, "up", "--json"], {
+  const [command, ...prefix] = invocation;
+  const child = spawnFn(command, [...prefix, "up", "--json"], {
     cwd: dir,
     detached: true,
     stdio: ["ignore", fd, fd],
@@ -233,7 +235,7 @@ export function startNativeDemo(
 
 export interface NativeDemoInput {
   destination: string;
-  binPath: string;
+  invocation: CliInvocation;
   /** Why the demo runs without Docker, printed before it starts. */
   reason: string;
   version: string;
@@ -242,7 +244,7 @@ export interface NativeDemoInput {
 
 /** The whole demo without Docker. Returns the exit code. */
 export async function runNativeDemo(input: NativeDemoInput): Promise<number> {
-  const { destination, binPath } = input;
+  const { destination, invocation } = input;
   const open = input.open ?? ((url: string) => openUrl(url));
 
   console.log(chalk.gray(`📁 Demo folder: ${destination}`));
@@ -301,7 +303,7 @@ export async function runNativeDemo(input: NativeDemoInput): Promise<number> {
 
   const startStarted = Date.now();
   setPhase("start", "active");
-  const outcome = await startNativeDemo(binPath, destination, logPath);
+  const outcome = await startNativeDemo(invocation, destination, logPath);
   if (!outcome.ok) {
     stage.fail(
       outcome.error ?? "The demo services did not start.",

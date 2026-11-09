@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import type { CliInvocation } from "./cli-invocation.js";
 /** Picks the first frontend URL out of the `flisk up` output, if it printed one. */
 export declare function findFrontendUrl(output: string): string | undefined;
 export type StackOutcome = {
@@ -30,7 +31,7 @@ export type SetupOutcome = {
  * caller is painting. Both streams are captured, and `--quiet` keeps the setup from printing
  * its full configuration report at all.
  */
-export declare function initializeProject(binPath: string, cwd: string, env?: NodeJS.ProcessEnv, spawnFn?: typeof spawn): Promise<SetupOutcome>;
+export declare function initializeProject(invocation: CliInvocation, cwd: string, env?: NodeJS.ProcessEnv, spawnFn?: typeof spawn): Promise<SetupOutcome>;
 /** Reads the `{schemaVersion, data, errors}` envelope `flisk up --json` prints when it is done. */
 export declare function parseStackEnvelope(output: string): StackOutcome | undefined;
 /**
@@ -40,7 +41,7 @@ export declare function parseStackEnvelope(output: string): StackOutcome | undef
  * Tilt's own build logs out of the way, so the caller can show a progress line instead of
  * thousands of Docker and Traefik lines. The stack keeps running in the background.
  */
-export declare function runStackQuiet(binPath: string, cwd: string, env?: NodeJS.ProcessEnv, spawnFn?: typeof spawn): Promise<StackOutcome>;
+export declare function runStackQuiet(invocation: CliInvocation, cwd: string, env?: NodeJS.ProcessEnv, spawnFn?: typeof spawn): Promise<StackOutcome>;
 /**
  * A free directory for the project. A second demo in the same folder gets its own directory
  * (`name-2`, `name-3`, ...) instead of failing because the first one is still there.

@@ -31,9 +31,10 @@ export function findFrontendUrl(output) {
  * caller is painting. Both streams are captured, and `--quiet` keeps the setup from printing
  * its full configuration report at all.
  */
-export function initializeProject(binPath, cwd, env = process.env, spawnFn = spawn) {
+export function initializeProject(invocation, cwd, env = process.env, spawnFn = spawn) {
     return new Promise((resolve) => {
-        const child = spawnFn(process.execPath, [binPath, "project", "--yes", "--quiet"], {
+        const [command, ...prefix] = invocation;
+        const child = spawnFn(command, [...prefix, "project", "--yes", "--quiet"], {
             cwd,
             env,
             stdio: ["ignore", "pipe", "pipe"],
@@ -90,9 +91,10 @@ export function parseStackEnvelope(output) {
  * Tilt's own build logs out of the way, so the caller can show a progress line instead of
  * thousands of Docker and Traefik lines. The stack keeps running in the background.
  */
-export function runStackQuiet(binPath, cwd, env = process.env, spawnFn = spawn) {
+export function runStackQuiet(invocation, cwd, env = process.env, spawnFn = spawn) {
     return new Promise((resolve) => {
-        const child = spawnFn(process.execPath, [binPath, "up", "--json"], {
+        const [command, ...prefix] = invocation;
+        const child = spawnFn(command, [...prefix, "up", "--json"], {
             cwd,
             env,
             stdio: ["inherit", "pipe", "pipe"],

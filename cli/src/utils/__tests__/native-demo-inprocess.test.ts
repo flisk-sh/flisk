@@ -126,7 +126,7 @@ describe("startNativeDemo", () => {
         child.emit("error", new Error("spawn EACCES"));
         child.emit("error", new Error("second error"));
       })) as unknown as typeof spawn;
-    const outcome = await startNativeDemo("/bin/flisk.js", "/demo", logPath, {
+    const outcome = await startNativeDemo(["/usr/bin/node", "/bin/flisk.js"], "/demo", logPath, {
       spawnFn,
       pollMs: 5,
     });
@@ -140,7 +140,7 @@ describe("runNativeDemo", () => {
     writeRunState(dir, process.pid, { url: "http://localhost:3009" });
     const code = await runNativeDemo({
       destination: dir,
-      binPath: "/bin/flisk.js",
+      invocation: ["/usr/bin/node", "/bin/flisk.js"],
       reason: "--no-docker was passed",
       version: "1.2.3",
     });
@@ -157,7 +157,7 @@ describe("runNativeDemo", () => {
     const open = vi.fn(async () => true);
     const code = await runNativeDemo({
       destination: dir,
-      binPath: "/bin/flisk.js",
+      invocation: ["/usr/bin/node", "/bin/flisk.js"],
       reason: "Docker is not running",
       version: "1.2.3",
       open,
@@ -174,7 +174,7 @@ describe("runNativeDemo", () => {
     const dir = join(createTempDir(), "demo");
     const code = await runNativeDemo({
       destination: dir,
-      binPath: "/bin/flisk.js",
+      invocation: ["/usr/bin/node", "/bin/flisk.js"],
       reason: "Docker is not running",
       version: "1.2.3",
       open: vi.fn(async () => true),
@@ -196,7 +196,7 @@ describe("runNativeDemo", () => {
     const open = vi.fn(async () => true);
     const code = await runNativeDemo({
       destination: dir,
-      binPath: "/bin/flisk.js",
+      invocation: ["/usr/bin/node", "/bin/flisk.js"],
       reason: "Docker is not running",
       version: "1.2.3",
       open,
@@ -225,7 +225,7 @@ describe("runNativeDemo", () => {
     const open = vi.fn(async () => true);
     const code = await runNativeDemo({
       destination: dir,
-      binPath: "/bin/flisk.js",
+      invocation: ["/usr/bin/node", "/bin/flisk.js"],
       reason: "--no-docker was passed",
       version: "1.2.3",
       open,
@@ -236,7 +236,7 @@ describe("runNativeDemo", () => {
     );
 
     const [command, args, options] = vi.mocked(spawn).mock.calls[0] ?? [];
-    expect(command).toBe(process.execPath);
+    expect(command).toBe("/usr/bin/node");
     expect(args).toEqual(["/bin/flisk.js", "up", "--json"]);
     expect(options).toMatchObject({ cwd: dir, detached: true });
 

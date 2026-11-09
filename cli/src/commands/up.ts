@@ -17,7 +17,6 @@ import {
   readProjectConfig,
   verifyMasterConfigs,
 } from "../generator/template-engine.js";
-import { cliInvocation } from "../mcp/tools.js";
 import type { DiscoveredResource, MachineError } from "../types/index.js";
 import {
   DEVCONTAINER_DOCKER_FIX,
@@ -32,6 +31,7 @@ import {
   isGatewayEnabled,
   projectNeedsDatabaseKeys,
 } from "../utils/capabilities.js";
+import { cliInvocation } from "../utils/cli-invocation.js";
 import { coldStartNotice } from "../utils/cold-start.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";

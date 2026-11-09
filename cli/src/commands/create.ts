@@ -22,6 +22,7 @@ import {
   arrowText,
   PromptCancelled,
 } from "../utils/arrow-prompt.js";
+import { type CliInvocation, cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import {
   backendCatalog,
@@ -609,8 +610,13 @@ export function nextSteps(
 }
 
 /** Runs one planned command with this CLI, quietly. Returns its output on failure. */
-function runStep(binPath: string, step: CreateStep, cwd: string): { ok: boolean; output: string } {
-  const result = spawnSync(process.execPath, [binPath, ...step.args], {
+function runStep(
+  invocation: CliInvocation,
+  step: CreateStep,
+  cwd: string,
+): { ok: boolean; output: string } {
+  const [command, ...prefix] = invocation;
+  const result = spawnSync(command, [...prefix, ...step.args], {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -763,12 +769,7 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
     for (const line of review) console.log(line);
   }
 
-  const binPath = process.argv[1];
-  if (!binPath) {
-    throw new FliskError("The CLI entry point could not be found.", [
-      "Reinstall the Flisk CLI and run the command again.",
-    ]);
-  }
+  const invocation = cliInvocation();
 
   // Re-check right before writing: the folder may have changed since the first check and the confirmation.
   // A starter's generator accepts the empty folder this leaves, so starters get the same protection as apps.
@@ -776,7 +777,7 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
 
   for (const [index, step] of steps.entries()) {
     process.stdout.write(`  ${step.label}... `);
-    const result = runStep(binPath, step, step.inProject ? projectDir : process.cwd());
+    const result = runStep(invocation, step, step.inProject ? projectDir : process.cwd());
     if (!result.ok) {
       console.log(chalk.red("failed"));
       console.log(result.output.trimEnd());
@@ -899,7 +900,8 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
   const open = answers.runtime === "local" ? whereToOpen(services) : undefined;
   if (open) console.log(`\n${chalk.bold(open)}\n`);
   const upArgs = answers.runtime === "docker" ? ["up", "app"] : ["up"];
-  const up = spawnSync(process.execPath, [binPath, ...upArgs], {
+  const [command, ...prefix] = invocation;
+  const up = spawnSync(command, [...prefix, ...upArgs], {
     cwd: projectDir,
     stdio: "inherit",
   });

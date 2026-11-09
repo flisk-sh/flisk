@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { cliInvocation } from "./cli-invocation.js";
 /**
  * Stop the stack of an existing demo folder before the folder is deleted. Deleting the folder alone leaves its
  * containers running, and a standalone Traefik that stays up keeps port 80 for the next run.
@@ -29,7 +30,8 @@ async function stopRunningTilt(tiltfile) {
     await waitForTiltUpExit(tiltfile);
 }
 function runFliskDown(projectDir) {
-    execFileSync(process.execPath, [process.argv[1] ?? "flisk", "down", "--yes"], {
+    const [command, ...prefix] = cliInvocation();
+    execFileSync(command, [...prefix, "down", "--yes"], {
         cwd: projectDir,
         stdio: "inherit",
     });

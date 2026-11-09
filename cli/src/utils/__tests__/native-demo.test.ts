@@ -179,7 +179,7 @@ describe("startNativeDemo", () => {
     const { calls, spawnFn } = fakeSpawn(() =>
       writeFileSync(logPath, '{"schemaVersion":1,"data":{"ok":true,"runtime":"native"}}\n'),
     );
-    const outcome = await startNativeDemo("/bin/flisk.js", "/demo", logPath, {
+    const outcome = await startNativeDemo(["/usr/bin/node", "/bin/flisk.js"], "/demo", logPath, {
       spawnFn,
       pollMs: 5,
     });
@@ -191,7 +191,7 @@ describe("startNativeDemo", () => {
   it("fails when flisk up exits before it is ready", async () => {
     const logPath = join(tempDir(), "demo.log");
     const { spawnFn } = fakeSpawn((child) => child.emit("exit", 1));
-    const outcome = await startNativeDemo("/bin/flisk.js", "/demo", logPath, {
+    const outcome = await startNativeDemo(["/usr/bin/node", "/bin/flisk.js"], "/demo", logPath, {
       spawnFn,
       pollMs: 5,
     });
@@ -202,7 +202,7 @@ describe("startNativeDemo", () => {
   it("fails after the timeout", async () => {
     const logPath = join(tempDir(), "demo.log");
     const { spawnFn } = fakeSpawn(() => {});
-    const outcome = await startNativeDemo("/bin/flisk.js", "/demo", logPath, {
+    const outcome = await startNativeDemo(["/usr/bin/node", "/bin/flisk.js"], "/demo", logPath, {
       spawnFn,
       pollMs: 5,
       timeoutMs: 20,

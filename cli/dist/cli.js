@@ -11,6 +11,7 @@ import pkg from "../package.json" with { type: "json" };
 import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
+import { cliInvocation } from "./utils/cli-invocation.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
 import { readProjectName, removeStaleProjectVolumes, stopDemoStack } from "./utils/demo-reset.js";
@@ -52,12 +53,16 @@ if (templateArg === "demo") {
         platform: process.platform,
         env: process.env,
     });
-    const binPath = process.argv[1];
-    if (reason && binPath) {
+    if (reason) {
         const destination = projectArg
             ? resolve(cwd(), projectArg)
             : join(homedir(), ".flisk", NATIVE_DEMO_DIR);
-        process.exit(await runNativeDemo({ destination, binPath, reason, version: pkg.version }));
+        process.exit(await runNativeDemo({
+            destination,
+            invocation: cliInvocation(),
+            reason,
+            version: pkg.version,
+        }));
     }
 }
 if (templateArg) {
@@ -188,9 +193,9 @@ if (templateArg) {
     }
     const install = ensureGlobalInstall();
     setPhase("fetch", "done", Date.now() - fetchStarted);
-    const binPath = process.argv[1];
-    if (!binPath || !existsSync(destination)) {
-        stage.fail("The demo could not find the CLI entry point or the project folder.", "Reinstall the Flisk CLI package and run the command again.");
+    const invocation = cliInvocation();
+    if (!existsSync(destination)) {
+        stage.fail("The demo could not find the project folder.", "Reinstall the Flisk CLI package and run the command again.");
         stage.stop();
         process.exit(1);
     }
@@ -199,7 +204,7 @@ if (templateArg) {
     // without one, so the project is set up before the stack starts.
     const configStarted = Date.now();
     setPhase("config", "active");
-    const setup = await initializeProject(binPath, destination);
+    const setup = await initializeProject(invocation, destination);
     logLines.push("--- project setup ---", setup.output ?? "");
     if (!setup.ok) {
         const logPath = writeLog(logLines);
@@ -288,7 +293,7 @@ if (templateArg) {
             });
         }
     })();
-    const outcome = await runStackQuiet(binPath, destination);
+    const outcome = await runStackQuiet(invocation, destination);
     watching = false;
     logLines.push("--- stack ---", outcome.raw ?? "");
     if (!outcome.ok) {

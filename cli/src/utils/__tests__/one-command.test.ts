@@ -69,13 +69,13 @@ describe("runStackQuiet", () => {
     child.unref = () => child;
     const spawnFn = vi.fn(() => child) as never;
 
-    const promise = runStackQuiet("/bin/flisk", "/tmp/project", {}, spawnFn);
+    const promise = runStackQuiet(["/usr/bin/node", "/bin/flisk"], "/tmp/project", {}, spawnFn);
     child.stdout.emit("data", "Tilt build logs that nobody wants to read\n");
     child.stdout.emit("data", '{"schemaVersion":1,"data":{"ok":true},"errors":[]}\n');
 
     const result = await promise;
     expect(spawnFn).toHaveBeenCalledWith(
-      process.execPath,
+      "/usr/bin/node",
       ["/bin/flisk", "up", "--json"],
       expect.objectContaining({ cwd: "/tmp/project" }),
     );
@@ -93,7 +93,7 @@ describe("runStackQuiet", () => {
     child.unref = () => child;
     const spawnFn = vi.fn(() => child) as never;
 
-    const promise = runStackQuiet("/bin/flisk", "/tmp/project", {}, spawnFn);
+    const promise = runStackQuiet(["/usr/bin/node", "/bin/flisk"], "/tmp/project", {}, spawnFn);
     child.stdout.emit(
       "data",
       '{"schemaVersion":1,"data":{"ok":false},"errors":[{"message":"Docker is not running"}]}\n',
@@ -115,12 +115,12 @@ describe("initializeProject", () => {
     child.stderr = new EventEmitter();
     const spawnFn = vi.fn(() => child) as never;
 
-    const promise = initializeProject("/bin/flisk", "/tmp/project", {}, spawnFn);
+    const promise = initializeProject(["/usr/bin/node", "/bin/flisk"], "/tmp/project", {}, spawnFn);
     child.emit("close", 0);
 
     const result = await promise;
     expect(spawnFn).toHaveBeenCalledWith(
-      process.execPath,
+      "/usr/bin/node",
       ["/bin/flisk", "project", "--yes", "--quiet"],
       expect.objectContaining({ cwd: "/tmp/project", stdio: ["ignore", "pipe", "pipe"] }),
     );
@@ -136,7 +136,7 @@ describe("initializeProject", () => {
     child.stderr = new EventEmitter();
     const spawnFn = vi.fn(() => child) as never;
 
-    const promise = initializeProject("/bin/flisk", "/tmp/project", {}, spawnFn);
+    const promise = initializeProject(["/usr/bin/node", "/bin/flisk"], "/tmp/project", {}, spawnFn);
     child.stderr.emit("data", "Could not write .flisk/project.json\n");
     child.emit("close", 1);
 
