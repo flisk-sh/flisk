@@ -31,6 +31,7 @@ load('../shared-platform-postgres.star',
 
 load('./builders/typescript.star', 'TypescriptBuilders')
 load('../../../platform/docker/compose/one_shot_job.star', 'is_one_shot_job')
+load('../../../platform/docker/layers/l4_runtime_layers.star', 'resolve_bun_start_command')
 
 
 # Public wrappers for shared platform Postgres helpers. Starlark `load` does not
@@ -694,7 +695,26 @@ def _live_update_sync_source(project_root, full_res_path, sync_path):
     return relative_path
 
 
-def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False, node_frontend=False):
+def _bun_backend_entry(config):
+    """`index` when this Bun service runs a compiled `dist/index.js` built from `src/index.ts`, otherwise None.
+
+    The image holds only `dist/`, so a synced source changes nothing until `dist/` is rebuilt and the process restarted.
+    """
+    manifest = config.get('manifest', {})
+    if manifest.get('language', 'bun') != 'bun' or is_one_shot_job(manifest):
+        return None
+    if manifest.get('appType', 'backend') not in ['backend', 'worker', 'mcp', 'agent']:
+        return None
+    for token in resolve_bun_start_command(config['res_path']).split():
+        if token.startswith('dist/') and token.endswith('.js'):
+            entry = token[len('dist/'):-len('.js')]
+            project_root = config.get('project_root', '')
+            service_dir = (project_root.rstrip('/') + '/' if project_root else '') + config['res_path']
+            return entry if os.path.exists(service_dir + '/src/' + entry + '.ts') else None
+    return None
+
+
+def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False, node_frontend=False, bun_backend_entry=None):
     """Build live update sync and run rules for a resource.
 
     Python backends reload their own process after a sync (uvicorn --reload), so they have
@@ -743,6 +763,14 @@ def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', la
     bun_lock_path = '/app/' + full_res_path + '/bun.lock'
     live_update_rules.append(run('cd /app/' + full_res_path + ' && bun install', 
                                  trigger=[package_json_path, bun_lock_path]))
+    if bun_backend_entry:
+        # `bun build`, not the image's `tsc`: the runtime image has no dev dependencies. Packages stay external, as `tsc` leaves them.
+        # A compile error writes nothing and stops before the restart, so the last good build keeps running.
+        live_update_rules.append(run(
+            'cd /app/' + full_res_path + ' && bun build ./src/' + bun_backend_entry + '.ts --outdir dist --target bun --packages external',
+            trigger=[_live_update_sync_source(project_root, full_res_path, 'src')],
+        ))
+        live_update_rules.append(restart_container())
     return live_update_rules
 
 
@@ -1047,6 +1075,7 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
             # A Next.js image is Node with no Bun install step: syncing sources is enough, `next dev` reloads itself.
             node_frontend=Docker.is_next_frontend(config.get('manifest', {})),
             go_live_reload=Docker.go_live_reload(config.get('manifest', {})),
+            bun_backend_entry=_bun_backend_entry(config),
         )
         _register_docker_build(config, live_update_rules)
         if defers_start:
