@@ -236,4 +236,18 @@ describe("flisk runtime", () => {
     expect(result.missing).not.toContain("discovery");
     expect(process.exitCode).toBe(1);
   });
+
+  it("documents the asset check in an Examples block of --help", () => {
+    let helpOutput = "";
+    runtimeCommand.configureOutput({
+      writeOut: (str) => {
+        helpOutput += str;
+      },
+    });
+    runtimeCommand.outputHelp();
+
+    expect(helpOutput).toContain("Examples:");
+    expect(helpOutput).toContain("flisk runtime --check-assets\n");
+    expect(helpOutput.trimEnd().endsWith("flisk runtime --check-assets --json")).toBe(true);
+  });
 });
