@@ -62,15 +62,18 @@ jobs:
             const MARK_ISSUE = `<!-- flisk:issue-fixed:${pr.number} -->`;
             const base = `https://github.com/${owner}/${repo}`;
             const discordInvite = 'https://discord.gg/Sjhb3tnq3';
+            // Shields reads `-` as a separator, so button text must not contain one.
+            const discordButton = (text) =>
+              `[![${text}](https://img.shields.io/badge/${encodeURIComponent(text)}-5865F2?style=for-the-badge&logo=discord&logoColor=white)](${discordInvite})`;
             // shields.io splits badge segments on `-` and does not allow escaping
             // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
             // Replace `-` with `_` in the badge subject only; the link text keeps
             // the real login.
             const badgeLogin = (login) => login.replace(/-/g, '_');
             const badgeUrl = (login, prs) =>
-              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + badgeLogin(login) + ' \u2022 ' + prs + ' merged PRs')}-06b6d4?style=for-the-badge&labelColor=07080f`;
+              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + badgeLogin(login) + ' \u2022 ' + prs + (prs === 1 ? ' merged PR' : ' merged PRs'))}-06b6d4?style=for-the-badge&labelColor=07080f`;
             const copySnippet = (login, prs) =>
-              `[![FLISK HALL OF FAME @${login} • ${prs} merged PRs](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
+              `[![FLISK HALL OF FAME @${login} • ${prs} merged PR${prs === 1 ? '' : 's'}](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
 
             const hasMark = async (number, mark) => {
               const comments = await github.paginate(github.rest.issues.listComments,
@@ -116,9 +119,9 @@ jobs:
               const before = bestRank(prior.search.nodes.filter((n) => n.number !== pr.number)
                 .flatMap((n) => n.closingIssuesReferences.nodes.map((i) => i.labels.nodes.map((l) => l.name))));
               const island = [...labelNames].find((n) => n.startsWith('island: '));
-              rankLine = `You cleared a **${thisRank.name}** issue${island ? ` on ${island.replace('island: ', '')}` : ''}.`;
-              if (!before) rankLine += ` That sets your starting rank: **${thisRank.name}**. 🥋`;
-              else if (thisRank.value > before.value) rankLine += ` **Rank up!** Your highest rank goes from ${before.name} to **${thisRank.name}**. 🥋🎊`;
+              rankLine = `🥋 You cleared ${thisRank.name.startsWith('8') ? 'an' : 'a'} **${thisRank.name}** issue${island ? ` on ${island.replace('island: ', '')}` : ''}.`;
+              if (!before) rankLine += ` That sets your starting rank: **${thisRank.name}**.`;
+              else if (thisRank.value > before.value) rankLine += ` **Rank up!** Your highest rank goes from ${before.name} to **${thisRank.name}**. 🎊`;
               else rankLine += ` Your highest rank is still **${before.name}**. Take a harder one to rank up.`;
               // Link to open issues one step above the highest rank reached, so the next fix is easy to find.
               const highest = before && before.value > thisRank.value ? before : thisRank;
@@ -148,8 +151,7 @@ jobs:
             }
 
             const fixed = issues.map((i) => `#${i.number}`).join(', ');
-            const lines = [MARK_PR, `Merged, thank you @${author}! 🎉`];
-            if (fixed) lines.push('', `This fixes ${fixed}. It will ship in the next release and appear in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`);
+            const lines = [MARK_PR, `## 🎉 Merged! Thank you @${author}`];
             const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
             const MILESTONES = {
               1: 'This is your first merged PR here. Welcome to Flisk! 💜',
@@ -166,37 +168,43 @@ jobs:
             };
             lines.push('', MILESTONES[mergedCount]
               || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`);
+            if (fixed) lines.push('', `This fixes ${fixed}. It ships in the next release and will be listed in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`);
             if (rankLine) lines.push('', rankLine);
-            // Your personal FLISK HALL OF FAME badge. It is shown rendered, then the Markdown to copy
-            // sits in a fenced block (a badge wrapped in inline code renders as plain text).
+            // The Hall of Fame badge is shown rendered; the Markdown to copy sits in a fenced block,
+            // because a badge wrapped in inline code renders as plain text.
+            lines.push('', '### 🏅 Your Hall of Fame badge');
             lines.push('', copySnippet(author, mergedCount));
-            lines.push('', '<details>');
-            lines.push('<summary>Copy your badge for your portfolio or README</summary>');
-            lines.push('', 'It links back to the open Hall of Fame issue.');
-            lines.push('', '```markdown', copySnippet(author, mergedCount), '```');
-            lines.push('', '</details>');
             // Link the open hall-of-fame issue so a new contributor can find their place on it.
             try {
               const hall = (await retry(() => github.rest.search.issuesAndPullRequests({
                 q: `repo:${owner}/${repo} is:issue is:open in:title "Hall of fame: community contributors"`, per_page: 1,
               }))).data.items[0];
-              if (hall) lines.push('', `You will appear on the [Hall of fame](${hall.html_url}) once it refreshes. Take a look to see your place. 🏅`);
+              if (hall) lines.push('', `You will appear on the [Hall of fame](${hall.html_url}) once it refreshes.`);
             } catch (e) {
               core.warning(`Could not look up the hall of fame issue: ${e.message}`);
             }
-            lines.push('', `💬 Come say hi on [Discord](${discordInvite}). Contributors and maintainers chat there, and it is the quickest place to ask what to pick up next.`);
+            lines.push('', '<details>');
+            lines.push('<summary>Copy it into your portfolio or README</summary>');
+            lines.push('', '```markdown', copySnippet(author, mergedCount), '```');
+            lines.push('', '</details>');
+            lines.push('', '### 🎖️ Unlock your second badge');
+            lines.push('', discordButton('Claim your Founding Contributor role'));
+            lines.push('', `Post this PR's link in [our Discord](${discordInvite}) and you get the **Founding Contributor** role, kept for the people who join this early. You also get a direct line to the maintainers when you want to choose your next issue.`);
             if (next.length) {
-              lines.push('', 'If you want another one, these are open and unclaimed. Comment on one to claim it:');
-              for (const i of next) lines.push(`- #${i.number} ${i.title}`);
+              lines.push('', '### 🎯 Ready for another one?');
+              lines.push('', 'These are open and unclaimed. Comment on one to claim it:', '');
+              // GitHub expands a bare #123 list item to the issue title, so adding the title shows it twice.
+              for (const i of next) lines.push(`- #${i.number}`);
             }
+            lines.push('', '---');
             // Ask for a star only if the author's public starred list does not include this repo.
             // A hidden star list looks unstarred, so the ask can show up for a starred user; that is harmless.
             const starred = await retry(() => github.paginate(github.rest.activity.listReposStarredByUser,
               { username: author, per_page: 100 })).catch(() => null);
             if (starred && !starred.some((r) => r.full_name === `${owner}/${repo}`)) {
-              lines.push('', `If Flisk helps you, a ⭐ star on [${owner}/${repo}](${base}) helps other people find it. Thank you!`);
+              lines.push('', `⭐ If Flisk helps you, [a star on ${owner}/${repo}](${base}) helps other people find it.`);
             }
-            lines.push('', 'If you hit anything unclear while working on this, tell us in a comment. That is how the contributor guide gets better.');
+            lines.push('', 'Was anything unclear while you worked on this? Tell us in a comment. That is how the contributor guide gets better.');
 
             if (!(await hasMark(pr.number, MARK_PR))) {
               await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: lines.join('\n') });
@@ -207,14 +215,15 @@ jobs:
               if (await hasMark(i.number, MARK_ISSUE)) continue;
               const issueLines = [
                 MARK_ISSUE,
-                `✅ Fixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. It ships in the next release and will be listed in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`,
+                `### ✅ Fixed by #${pr.number}. Thank you @${author}! 💜`,
                 '',
-                `Thank you @${author}! 💜`,
+                `Merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. It ships in the next release and will be listed in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md). Still seeing this after the release? Comment here and we will take another look.`,
                 '',
-                'Want to stay close to Flisk?',
-                `- 💬 [Join us on Discord](${discordInvite}) to talk with contributors and maintainers.`,
+                discordButton('Join the Flisk Discord'),
+                '',
+                `- 🎖️ @${author}, your **Founding Contributor** role is waiting: post the link to #${pr.number} in [our Discord](${discordInvite}) to claim it.`,
+                `- 🧩 Want that role too? [Pick up a good first issue](${base}/issues?q=is%3Aissue+is%3Aopen+no%3Aassignee+label%3A%22good+first+issue%22).`,
                 `- 🔔 [Watch ${owner}/${repo}](${base}) to hear about the next release.`,
-                `- 🧩 [Pick up an open issue](${base}/issues?q=is%3Aissue+is%3Aopen+no%3Aassignee) if you would like to help with the next one.`,
               ];
               await github.rest.issues.createComment({
                 owner, repo, issue_number: i.number,
