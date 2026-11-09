@@ -61,6 +61,7 @@ jobs:
             const MARK_PR = '<!-- flisk:contributor-merged -->';
             const MARK_ISSUE = `<!-- flisk:issue-fixed:${pr.number} -->`;
             const base = `https://github.com/${owner}/${repo}`;
+            const discordInvite = 'https://discord.gg/Sjhb3tnq3';
             // shields.io splits badge segments on `-` and does not allow escaping
             // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
             // Replace `-` with `_` in the badge subject only; the link text keeps
@@ -183,7 +184,7 @@ jobs:
             } catch (e) {
               core.warning(`Could not look up the hall of fame issue: ${e.message}`);
             }
-            lines.push('', '💬 Come say hi on [Discord](https://discord.gg/Sjhb3tnq3). Contributors and maintainers chat there, and it is the quickest place to ask what to pick up next.');
+            lines.push('', `💬 Come say hi on [Discord](${discordInvite}). Contributors and maintainers chat there, and it is the quickest place to ask what to pick up next.`);
             if (next.length) {
               lines.push('', 'If you want another one, these are open and unclaimed. Comment on one to claim it:');
               for (const i of next) lines.push(`- #${i.number} ${i.title}`);
@@ -206,12 +207,14 @@ jobs:
               if (await hasMark(i.number, MARK_ISSUE)) continue;
               const issueLines = [
                 MARK_ISSUE,
-                `Fixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. This closes the issue. The fix ships in the next release and appears in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`,
+                `✅ Fixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. It ships in the next release and will be listed in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`,
                 '',
-                `Thank you @${author}! 💜 If you want to keep up with Flisk:`,
+                `Thank you @${author}! 💜`,
+                '',
+                'Want to stay close to Flisk?',
+                `- 💬 [Join us on Discord](${discordInvite}) to talk with contributors and maintainers.`,
                 `- 🔔 [Watch ${owner}/${repo}](${base}) to hear about the next release.`,
-                `- 📣 Share this issue or the fix with someone who hits the same problem.`,
-                `- 🏢 Follow the [${owner}](https://github.com/${owner}) org to see what ships next.`,
+                `- 🧩 [Pick up an open issue](${base}/issues?q=is%3Aissue+is%3Aopen+no%3Aassignee) if you would like to help with the next one.`,
               ];
               await github.rest.issues.createComment({
                 owner, repo, issue_number: i.number,
