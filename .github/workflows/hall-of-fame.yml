@@ -75,7 +75,9 @@ jobs:
                 if (!pr.author || pr.author.__typename !== 'User') continue;
                 // The Actions token often reports maintainers as CONTRIBUTOR, so list them by name too.
                 if (MAINTAINERS.includes(pr.author.login)) continue;
-                if (['OWNER', 'MEMBER', 'COLLABORATOR'].includes(pr.authorAssociation)) continue;
+                // COLLABORATOR stays in: an outside contributor given write access is still
+                // a contributor, and filtering on it dropped three of the most active people.
+                if (['OWNER', 'MEMBER'].includes(pr.authorAssociation)) continue;
                 const p = people.get(pr.author.login) || { prs: 0, issues: 0, best: null };
                 p.prs += 1;
                 for (const i of pr.closingIssuesReferences.nodes) {
