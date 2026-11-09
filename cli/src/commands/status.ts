@@ -54,14 +54,9 @@ export const statusCommand = new Command("status")
           );
         }
         if (options.json) {
-          const states = runState
-            ? { [inferredProject.service.name]: { status: "ready" } }
-            : { [inferredProject.service.name]: { status: "unknown" } };
           console.log(
-            JSON.stringify({
-              version: "v1alpha1",
-              errors: [],
-              data: {
+            JSON.stringify(
+              createMachineEnvelope({
                 runtime: "native",
                 inferred: true,
                 tilt: {
@@ -82,8 +77,8 @@ export const statusCommand = new Command("status")
                     status: runState ? "ready" : "unknown",
                   },
                 ],
-              },
-            }),
+              }),
+            ),
           );
         }
         return;

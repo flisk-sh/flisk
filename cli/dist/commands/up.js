@@ -27,6 +27,7 @@ import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
+import { findFreePort } from "../utils/native-demo.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
 import { formatMixedRuntimeRefusal, isNativeProject, isNativeService, resolveRuntimeMode, } from "../utils/native-service.js";
 import { runNativeUp } from "../utils/native-up.js";
@@ -500,12 +501,17 @@ export const upCommand = new Command("up")
     const inferredProject = inferNodeProject(process.cwd());
     if (inferredProject && !stackName && !options.only && !options.envFile && !options.profile) {
         const stateRoot = inferredStateRoot(process.cwd());
+        // No --port/-p in the script: take the first free port from 3000; runNativeUp passes it to the process as PORT.
+        const service = inferredProject.service;
+        if (service.config && service.config.port === undefined) {
+            service.config.port = await findFreePort(3000);
+        }
         if (!options.quiet) {
             console.log(chalk.gray(`Inferred service from package.json: ${inferredProject.service.name}`));
         }
         await runNativeUp({
             projectRoot: stateRoot,
-            selected: [inferredProject.service],
+            selected: [service],
             dependencies: [],
             dryRun: options.dryRun,
             quiet: options.quiet,

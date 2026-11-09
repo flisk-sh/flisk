@@ -91,9 +91,9 @@ http.createServer((_q, s) => s.end("ok")).listen(process.env.PORT, () => console
       ok: true,
       dryRun: true,
       runtime: "native",
-      inferred: true,
     });
     expect(dryParsed.data.services).toContain("plain-node");
+    // A dry run reports what was inferred (the plan); a real run, status and down report `inferred: true`.
     expect(dryParsed.data.inferred).toMatchObject({
       command: expect.stringContaining("bun run dev"),
       script: "dev",

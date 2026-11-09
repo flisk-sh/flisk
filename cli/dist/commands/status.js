@@ -44,35 +44,28 @@ export const statusCommand = new Command("status")
                 console.log(`  ${runState ? "✓" : "…"} ${inferredProject.service.name} ${runState ? "ready" : "unknown"}\n`);
             }
             if (options.json) {
-                const states = runState
-                    ? { [inferredProject.service.name]: { status: "ready" } }
-                    : { [inferredProject.service.name]: { status: "unknown" } };
-                console.log(JSON.stringify({
-                    version: "v1alpha1",
-                    errors: [],
-                    data: {
-                        runtime: "native",
-                        inferred: true,
-                        tilt: {
-                            available: false,
-                            resourcesQueried: false,
-                            resources: null,
-                            readiness: null,
-                            tiltfileError: null,
-                            staleDisabled: [],
-                        },
-                        resourceCount: 1,
-                        resources: [
-                            {
-                                name: inferredProject.service.name,
-                                stack: null,
-                                type: "backend",
-                                port: inferredProject.service.config?.port ?? null,
-                                status: runState ? "ready" : "unknown",
-                            },
-                        ],
+                console.log(JSON.stringify(createMachineEnvelope({
+                    runtime: "native",
+                    inferred: true,
+                    tilt: {
+                        available: false,
+                        resourcesQueried: false,
+                        resources: null,
+                        readiness: null,
+                        tiltfileError: null,
+                        staleDisabled: [],
                     },
-                }));
+                    resourceCount: 1,
+                    resources: [
+                        {
+                            name: inferredProject.service.name,
+                            stack: null,
+                            type: "backend",
+                            port: inferredProject.service.config?.port ?? null,
+                            status: runState ? "ready" : "unknown",
+                        },
+                    ],
+                })));
             }
             return;
         }
