@@ -44,4 +44,5 @@ it("includes an Examples block in flisk ui --help", () => {
   expect(helpOutput).toContain("Examples:");
   expect(helpOutput).toContain("flisk ui --high-contrast");
   expect(helpOutput).toContain("flisk ui --no-animations");
+  expect(helpOutput.trimEnd().endsWith("flisk ui --no-animations")).toBe(true);
 });
