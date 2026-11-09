@@ -31,6 +31,31 @@ To claim yours, post the link to a merged PR in `#start-here` on the [Flisk Disc
 
 Each person gets one badge. Claimed seats are listed in the [Founding Contributors](https://github.com/flisk-sh/flisk/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity+%22Founding+Contributors%22) issue.
 
+## Tiers and belts
+
+Once you hold a numbered badge, you also level up. Within about an hour of a merge, a bot updates your Discord roles and announces any new level in `#contributors`, with badge markdown to paste into your GitHub profile. You hold one tier and one belt, always the highest you have earned, and a level never goes down.
+
+Your **tier** comes from your merged PRs across every `flisk-sh` repository:
+
+| Tier | Merged PRs |
+| --- | ---: |
+| Flisk Regular | 5 |
+| Flisk Core | 15 |
+| Flisk Veteran | 30 |
+| Flisk Elite | 50 |
+| Flisk Legend | 100 |
+
+Your **belt** comes from the hardest `rank:` label on the issues your PRs fixed:
+
+| Belt | Issue rank |
+| --- | --- |
+| White Belt | 8 to 7 kyu |
+| Green Belt | 6 to 5 kyu |
+| Brown Belt | 4 to 1 kyu |
+| Black Belt | dan |
+
+Reaching 15 merged PRs also tells the maintainers you are a candidate for the maintainer path, starting with helping to review other contributors' PRs.
+
 ## How badges are awarded
 
 - Badges are generated automatically on every merged community PR; you do not need to request one.

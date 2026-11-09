@@ -8,6 +8,7 @@
 // numbers live in one GitHub issue so they stay the same forever.
 
 import { fileURLToPath } from "node:url";
+import { beltBadge, BELTS, INVITE, MAINTAINER_PATH_PRS, syncLevels, tierBadge, TIERS } from "./discord-contributor-levels.mjs";
 
 const API = "https://discord.com/api/v10";
 const GUILD_ID = "1562937840071999538";
@@ -18,7 +19,6 @@ const CONTRIBUTOR_ROLE = "Flisk Contributor";
 export const FOUNDING_SEATS = 100;
 const ORG = "flisk-sh";
 const REPO = `${ORG}/flisk`;
-const INVITE = "https://discord.gg/qMu5Xn8Kaq";
 const MAINTAINERS = new Set(["kburym", "odykyi"]);
 const MAX_PAGES = 20;
 
@@ -233,6 +233,19 @@ export async function run({ discord, github, log = console.log }) {
   if (failed > 0) throw new Error(`${failed} of ${pending.length} messages failed.`);
 }
 
+const levelCell = ({ tier, belt, github: login }) => {
+  const tierLevel = TIERS.find((t) => t.name === tier);
+  const beltLevel = BELTS.find((b) => b.name === belt);
+  return (
+    [
+      tierLevel ? `![${tierLevel.role}](${tierBadge(tierLevel, login)})` : "",
+      beltLevel ? `![${beltLevel.role}](${beltBadge(beltLevel, login)})` : "",
+    ]
+      .filter(Boolean)
+      .join(" ") || "-"
+  );
+};
+
 export function renderRegistry(entries) {
   const live = entries.filter((e) => !e.revoked);
   const founding = entries.filter((e) => isFounding(e.n)).length;
@@ -242,9 +255,11 @@ export function renderRegistry(entries) {
     "",
     `**${founding} of ${FOUNDING_SEATS} Founding seats claimed.** This issue is updated by the bot.`,
     "",
-    "| # | Contributor | Badge | PR |",
-    "| ---: | --- | --- | --- |",
-    ...live.map((e) => `| ${e.n} | @${e.github} | ![${badgeTitle(e.n)}](${badgeImage(e.n, e.github)}) | ${ORG}/${e.pr} |`),
+    "| # | Contributor | Badge | Levels | PR |",
+    "| ---: | --- | --- | --- | --- |",
+    ...live.map(
+      (e) => `| ${e.n} | @${e.github} | ![${badgeTitle(e.n)}](${badgeImage(e.n, e.github)}) | ${levelCell(e)} | ${ORG}/${e.pr} |`,
+    ),
     "",
     'Maintainers: to revoke a seat, add `"revoked":true` to its entry in the data comment in this issue\'s source and remove the Discord role. Numbers are never reused.',
     "",
@@ -287,6 +302,15 @@ export function discordClient(token, { fetchImpl = fetch, sleep = wait } = {}) {
     guild: () => call("GET", `/guilds/${GUILD_ID}`),
     member: (userId) => call("GET", `/guilds/${GUILD_ID}/members/${userId}`, { allow404: true }),
     grant: (userId, roleId) => call("PUT", `/guilds/${GUILD_ID}/members/${userId}/roles/${roleId}`),
+    revoke: (userId, roleId) => call("DELETE", `/guilds/${GUILD_ID}/members/${userId}/roles/${roleId}`),
+    announce: (content, images, userId) =>
+      call("POST", `/channels/${CONTRIBUTORS_CHANNEL_ID}/messages`, {
+        body: {
+          content,
+          embeds: images.map((url) => ({ image: { url } })),
+          allowed_mentions: { parse: [], users: [userId] },
+        },
+      }),
     react: (messageId, emoji) =>
       call("PUT", `/channels/${CHANNEL_ID}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}/@me`),
     reply: (messageId, content, image) =>
@@ -355,6 +379,48 @@ export function githubClient(token, { fetchImpl = fetch } = {}) {
         registryIssue = created.number;
       }
     },
+    // Search counts every flisk-sh repository, the same rule the seats use. Sizes are
+    // kept small because each person costs GraphQL points on the hourly sync.
+    async mergedWork(login) {
+      const query = `query($q:String!,$after:String){search(query:$q,type:ISSUE,first:50,after:$after){
+        issueCount pageInfo{hasNextPage endCursor}
+        nodes{... on PullRequest{closingIssuesReferences(first:5){nodes{labels(first:20){nodes{name}}}}}}}}`;
+      const labels = [];
+      let prs = 0;
+      let after = null;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const result = await call("POST", "/graphql", {
+          body: { query, variables: { q: `is:pr is:merged author:${login} org:${ORG}`, after } },
+        });
+        if (result.errors?.length) throw new Error(`GitHub search for ${login}: ${result.errors[0].message}`);
+        const { issueCount, pageInfo, nodes } = result.data.search;
+        prs = issueCount;
+        for (const pr of nodes) {
+          for (const issue of pr.closingIssuesReferences?.nodes ?? []) {
+            labels.push(...issue.labels.nodes.map((label) => label.name));
+          }
+        }
+        if (!pageInfo.hasNextPage) break;
+        after = pageInfo.endCursor;
+      }
+      return { prs, labels };
+    },
+    // The profile link does not ping the person: the maintainers decide first.
+    flagMaintainerCandidate: (entry, prs, belt) =>
+      call("POST", `/repos/${REPO}/issues`, {
+        body: {
+          title: `Maintainer path: ${entry.github} reached ${MAINTAINER_PATH_PRS} merged PRs`,
+          labels: ["community"],
+          assignees: [...MAINTAINERS],
+          body: [
+            `[${entry.github}](https://github.com/${entry.github}) holds contributor seat #${entry.n} and has ${prs} merged PRs across ${ORG}${belt ? `, at ${belt.role}` : ""}.`,
+            "",
+            `Their work: https://github.com/search?q=${encodeURIComponent(`is:pr is:merged author:${entry.github} org:${ORG}`)}&type=pullrequests`,
+            "",
+            "Maintainers: decide whether to ask them to review PRs on the way to joining the maintainer team, then close this issue.",
+          ].join("\n"),
+        },
+      }),
     refreshHallOfFame: () =>
       call("POST", `/repos/${REPO}/actions/workflows/hall-of-fame.yml/dispatches`, { body: { ref: "main" } }),
   };
@@ -362,7 +428,8 @@ export function githubClient(token, { fetchImpl = fetch } = {}) {
 
 if (import.meta.main ?? process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.env.DISCORD_BOT_TOKEN) {
-    await run({
+    const job = process.argv[2] === "sync-levels" ? syncLevels : run;
+    await job({
       discord: discordClient(process.env.DISCORD_BOT_TOKEN),
       github: githubClient(process.env.GITHUB_TOKEN),
     });
