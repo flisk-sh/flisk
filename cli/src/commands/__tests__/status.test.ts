@@ -505,12 +505,14 @@ describe("flisk status", () => {
           resourceCount: 1,
           resources: ["invoices"],
           healthyCount: 1,
+          healthTotal: 1,
         },
         {
           name: "shop",
           resourceCount: 2,
           resources: ["orders-api", "orders-web"],
           healthyCount: 0,
+          healthTotal: 2,
         },
       ]);
       expect(data.unhealthy).toEqual(["orders-api", "orders-web"]);

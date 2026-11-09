@@ -16,7 +16,7 @@ import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
-import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
+import { groupServicesByStack, hasNoOwnProcess, healthCountedResources, unhealthyServiceNames, } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
@@ -216,6 +216,8 @@ export const statusCommand = new Command("status")
                     resourceCount: stack.resourceCount,
                     resources: stack.resources.map((resource) => resource.name),
                     healthyCount: stack.resources.filter((resource) => serviceStates?.[resource.name]?.status === "ready").length,
+                    // What healthyCount is out of: resourceCount less any database with no process of its own.
+                    healthTotal: healthCountedResources(stack.resources, serviceStates).length,
                 })),
                 unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
                 sharedInfra: sharedInfraGroup,
@@ -303,8 +305,12 @@ export const statusCommand = new Command("status")
                     const state = states[resource.name];
                     if (!state)
                         continue;
+                    const noOwnProcess = hasNoOwnProcess(resource, state);
                     let mark = chalk.yellow("…");
-                    if (state.status === "ready") {
+                    if (noOwnProcess) {
+                        mark = chalk.dim("-");
+                    }
+                    else if (state.status === "ready") {
                         mark = chalk.green("✓");
                     }
                     else if (state.status === "error") {
@@ -315,7 +321,7 @@ export const statusCommand = new Command("status")
                     const extraPart = ports.extraPorts.length
                         ? `  ${chalk.dim(ports.extraPorts.map((p) => p.address).join(", "))}`
                         : "";
-                    showDetail(`${mark} ${resource.name}${urlPart}${extraPart}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`, 6);
+                    showDetail(`${mark} ${resource.name}${urlPart}${extraPart}  ${noOwnProcess ? chalk.dim("no process of its own") : state.status}${state.reason ? ` (${state.reason})` : ""}`, 6);
                 }
             }
         }
