@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DetailPanel,
   FileTree,
+  HelpPanel,
   ResourceSelectInput,
   ResourceTable,
   ServiceIssues,
@@ -25,7 +26,6 @@ import type {
   DiscoveredStack,
   ErrorScreenProps,
   FileNode,
-  HelpPanelProps,
   LoadingScreenProps,
   SelectItem,
   TabId,
@@ -61,50 +61,13 @@ import {
   TiltEventsLoadError,
 } from "../utils/tilt-events.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
-import { formatUiKeyHint, formatUiKeyNames, UI_KEYMAP } from "../utils/ui-keymap.js";
+import { formatUiKeyHint } from "../utils/ui-keymap.js";
 import {
   applyServiceStates,
   fetchServiceStates,
   type ServiceStates,
 } from "../utils/ui-service-state.js";
 import { copyToClipboard, openUrl } from "../utils/url-actions.js";
-
-// biome-ignore lint/correctness/noUnusedFunctionParameters: reserved callback prop kept in the component API
-const HelpPanel: React.FC<HelpPanelProps> = ({ onClose }) => {
-  const theme = useTUITheme();
-  return (
-    <Box
-      {...(theme.ascii ? {} : { borderStyle: "single" as const, borderColor: theme.accent })}
-      paddingX={2}
-      paddingY={1}
-      flexDirection="column"
-      width={60}
-    >
-      <Text bold color={theme.accent}>
-        Keyboard Shortcuts
-      </Text>
-      <Box marginY={1} flexDirection="column">
-        {(["Navigation", "Actions"] as const).map((group) => (
-          <Box key={group} marginTop={group === "Actions" ? 1 : 0} flexDirection="column">
-            <Text bold underline color={theme.foreground}>
-              {group}
-            </Text>
-            {UI_KEYMAP.filter((shortcut) => shortcut.group === group).map((shortcut) => (
-              <Text key={shortcut.id} color={theme.foreground}>
-                {` ${formatUiKeyNames(shortcut.id, theme.ascii)} ${shortcut.label}`}
-              </Text>
-            ))}
-          </Box>
-        ))}
-      </Box>
-      <Box marginTop={1}>
-        <Text color={theme.muted} dimColor={theme.dimMuted}>
-          Press any key to close...
-        </Text>
-      </Box>
-    </Box>
-  );
-};
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const ASCII_SPINNER_FRAMES = ["-", "/", "|", "\\"];
@@ -951,8 +914,8 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
       )}
 
       {showHelp && (
-        <Box paddingX={1} flexGrow={1}>
-          <HelpPanel onClose={() => setShowHelp(false)} />
+        <Box paddingX={1} flexGrow={1} alignItems="center" justifyContent="center">
+          <HelpPanel activeTab={activeTab} onClose={() => setShowHelp(false)} />
         </Box>
       )}
 
@@ -1098,11 +1061,26 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
                           <Text bold color={theme.muted}>
                             Current resources
                           </Text>
-                          {eventSnapshot.resources.slice(0, 12).map((resource) => (
-                            <Text key={resource.name} color={theme.accent}>
-                              {resource.name}: {formatResourceStatus(resource)}
-                            </Text>
-                          ))}
+                          {eventSnapshot.resources.slice(0, 12).map((resource) => {
+                            const resIcon =
+                              resource.runtimeStatus === "ok"
+                                ? theme.ascii
+                                  ? "[+] "
+                                  : "✓ "
+                                : resource.runtimeStatus === "error"
+                                  ? theme.ascii
+                                    ? "[x] "
+                                    : "✗ "
+                                  : theme.ascii
+                                    ? "[~] "
+                                    : "○ ";
+                            return (
+                              <Text key={resource.name} color={theme.accent}>
+                                {resIcon}
+                                {resource.name}: {formatResourceStatus(resource)}
+                              </Text>
+                            );
+                          })}
                           {eventSnapshot.resources.length > 12 && (
                             <Text color={theme.muted}>Showing first 12 resources</Text>
                           )}
@@ -1116,29 +1094,48 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
                       )}
                       {eventSnapshot?.events.length ? (
                         <Box flexDirection="column" marginTop={1}>
-                          {eventSnapshot.events.slice(0, 20).map((event) => (
-                            <Box key={event.id} flexDirection="column" marginBottom={1}>
-                              <Text
-                                color={
-                                  event.kind === "failed"
-                                    ? theme.error
-                                    : event.kind === "warning"
-                                      ? theme.warning
-                                      : event.kind === "running"
-                                        ? theme.info
-                                        : theme.success
-                                }
-                              >
-                                {formatEventTime(event.occurredAt)} {event.resourceName}{" "}
-                                {event.title}
-                              </Text>
-                              {event.details && (
-                                <Text color={theme.muted}>
-                                  {formatEventDetails(event.details, mainPanelWidth)}
+                          {eventSnapshot.events.slice(0, 20).map((event) => {
+                            const eventBadge =
+                              event.kind === "failed"
+                                ? theme.ascii
+                                  ? "[x] FAIL "
+                                  : "✗ FAIL "
+                                : event.kind === "warning"
+                                  ? theme.ascii
+                                    ? "[~] WARN "
+                                    : "○ WARN "
+                                  : event.kind === "running"
+                                    ? theme.ascii
+                                      ? "[>] RUN  "
+                                      : "▶ RUN  "
+                                    : theme.ascii
+                                      ? "[+] OK   "
+                                      : "✓ OK   ";
+                            return (
+                              <Box key={event.id} flexDirection="column" marginBottom={1}>
+                                <Text
+                                  color={
+                                    event.kind === "failed"
+                                      ? theme.error
+                                      : event.kind === "warning"
+                                        ? theme.warning
+                                        : event.kind === "running"
+                                          ? theme.info
+                                          : theme.success
+                                  }
+                                >
+                                  {eventBadge}
+                                  {formatEventTime(event.occurredAt)} {event.resourceName}{" "}
+                                  {event.title}
                                 </Text>
-                              )}
-                            </Box>
-                          ))}
+                                {event.details && (
+                                  <Text color={theme.muted}>
+                                    {formatEventDetails(event.details, mainPanelWidth)}
+                                  </Text>
+                                )}
+                              </Box>
+                            );
+                          })}
                         </Box>
                       ) : (
                         <Text color={theme.muted}>
@@ -1230,7 +1227,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
                 {services.filter((s: DiscoveredResource) => s.stack).length} in stack
               </Text>
               <Text color={theme.warning}>
-                {theme.ascii ? "-" : "\u25cb"}{" "}
+                {theme.ascii ? "[-]" : "\u25cb"}{" "}
                 {services.filter((s: DiscoveredResource) => !s.stack).length} no stack
               </Text>
             </Box>
@@ -1248,8 +1245,8 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
                       ? "[+] enabled"
                       : "\u2713 enabled"
                     : theme.ascii
-                      ? "[+] all"
-                      : "\u2713 all"}
+                      ? "[*] all"
+                      : "\u25cb all"}
                 </Text>
                 {theme.separator}
                 {formatUiKeyHint("help", "Help", theme.ascii)}

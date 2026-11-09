@@ -26,7 +26,13 @@ export interface TUITheme {
 type TUIEnvironment = {
     NO_COLOR?: string;
     TERM?: string;
+    COLORFGBG?: string;
 };
+/**
+ * Detect whether the terminal environment reports a light background.
+ * Terminals commonly export COLORFGBG as "fg;bg" or "fg;bg;extra" (e.g. "0;15" or "0;7").
+ */
+export declare function isLightTerminal(environment?: TUIEnvironment): boolean;
 /** Build the TUI palette from the requested theme and terminal environment. */
 export declare function createTUITheme(highContrast: boolean, environment?: TUIEnvironment): TUITheme;
 /** Map a formatter status color to the active theme palette. */

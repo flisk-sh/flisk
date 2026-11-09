@@ -14,6 +14,7 @@ const uiKeymap = [
         label: "Navigate list items",
         group: "Navigation",
         display: { ascii: "UP/DOWN or k/j", unicode: "↑/↓ or k/j" },
+        tabs: ["overview", "resources", "files", "config"],
     },
     {
         id: "first-last",
@@ -21,6 +22,7 @@ const uiKeymap = [
         label: "First/last item",
         group: "Navigation",
         display: { ascii: "g/G or Home/End", unicode: "g/G or Home/End" },
+        tabs: ["overview", "resources", "files", "config"],
     },
     {
         id: "page-list",
@@ -28,6 +30,7 @@ const uiKeymap = [
         label: "Move one page",
         group: "Navigation",
         display: { ascii: "PgUp/PgDn", unicode: "PgUp/PgDn" },
+        tabs: ["overview", "resources", "files", "config"],
     },
     {
         id: "select",
@@ -35,6 +38,7 @@ const uiKeymap = [
         label: "Select item / Open detail",
         group: "Navigation",
         display: { ascii: "Enter or Space", unicode: "Enter or Space" },
+        tabs: ["overview", "resources", "files", "config"],
     },
     {
         id: "cycle-tabs",
@@ -67,6 +71,7 @@ const uiKeymap = [
         keys: ["e"],
         label: "Toggle enabled/disabled services",
         group: "Actions",
+        tabs: ["overview", "resources", "files", "config"],
     },
     {
         id: "refresh",
@@ -79,18 +84,21 @@ const uiKeymap = [
         keys: ["o"],
         label: "Open resource URL in browser",
         group: "Actions",
+        tabs: ["overview", "resources"],
     },
     {
         id: "copy-url",
         keys: ["y"],
         label: "Copy resource URL to clipboard",
         group: "Actions",
+        tabs: ["overview", "resources"],
     },
     {
         id: "search",
         keys: ["/"],
         label: "Search/filter",
         group: "Actions",
+        tabs: ["overview", "resources", "files", "config"],
     },
     {
         id: "help",
@@ -129,4 +137,13 @@ export function formatUiKeyNames(id, ascii = false) {
 export function formatUiKeyHint(id, label, ascii = false) {
     const entry = getUiKeymapEntry(id);
     return `[${formatUiKeyNames(id, ascii)}] ${label ?? entry.label}`;
+}
+/**
+ * Return the active keymap entries for a specific screen/tab.
+ * When tab is undefined, all entries are returned.
+ */
+export function getActiveKeymap(tab) {
+    if (!tab)
+        return UI_KEYMAP;
+    return UI_KEYMAP.filter((entry) => !entry.tabs || entry.tabs.includes(tab));
 }

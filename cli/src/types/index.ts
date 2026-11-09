@@ -555,6 +555,7 @@ export interface ErrorScreenProps {
 
 export interface HelpPanelProps {
   onClose: () => void;
+  activeTab?: TabId;
 }
 
 // ============================================================================

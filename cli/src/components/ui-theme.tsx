@@ -32,6 +32,7 @@ export interface TUITheme {
 type TUIEnvironment = {
   NO_COLOR?: string;
   TERM?: string;
+  COLORFGBG?: string;
 };
 
 const FILE_TYPES: FileType[] = ["docker", "tilt", "config", "prisma", "generated", "unknown"];
@@ -54,6 +55,21 @@ const HIGH_CONTRAST_FILE_COLORS: Record<FileType, string> = {
   unknown: "whiteBright",
 };
 
+/**
+ * Detect whether the terminal environment reports a light background.
+ * Terminals commonly export COLORFGBG as "fg;bg" or "fg;bg;extra" (e.g. "0;15" or "0;7").
+ */
+export function isLightTerminal(environment: TUIEnvironment = process.env): boolean {
+  const colorfgbg = environment.COLORFGBG;
+  if (!colorfgbg) return false;
+  const parts = colorfgbg.split(";");
+  if (parts.length >= 2) {
+    const bg = Number.parseInt(parts.at(-1) ?? "", 10);
+    return bg === 7 || bg === 15 || bg >= 8;
+  }
+  return false;
+}
+
 /** Build the TUI palette from the requested theme and terminal environment. */
 export function createTUITheme(
   highContrast: boolean,
@@ -62,6 +78,7 @@ export function createTUITheme(
   const ascii =
     environment.NO_COLOR !== undefined ||
     environment.TERM?.toLowerCase().startsWith("dumb") === true;
+  const light = !highContrast && !ascii && isLightTerminal(environment);
   const palette = highContrast
     ? {
         accent: "cyanBright",
@@ -80,23 +97,41 @@ export function createTUITheme(
         dimMuted: false,
         fileColors: HIGH_CONTRAST_FILE_COLORS,
       }
-    : {
-        accent: "cyan",
-        border: "gray",
-        muted: "gray",
-        foreground: "white",
-        success: "green",
-        warning: "yellow",
-        error: "red",
-        info: "blue",
-        secondary: "magenta",
-        selectedBackground: "black",
-        selectedForeground: "cyan",
-        selectionBackground: "blue",
-        selectionForeground: "cyan",
-        dimMuted: true,
-        fileColors: DEFAULT_FILE_COLORS,
-      };
+    : light
+      ? {
+          accent: "blue",
+          border: "gray",
+          muted: "gray",
+          foreground: "black",
+          success: "green",
+          warning: "yellow",
+          error: "red",
+          info: "blue",
+          secondary: "magenta",
+          selectedBackground: "black",
+          selectedForeground: "white",
+          selectionBackground: "blue",
+          selectionForeground: "white",
+          dimMuted: false,
+          fileColors: DEFAULT_FILE_COLORS,
+        }
+      : {
+          accent: "cyan",
+          border: "gray",
+          muted: "gray",
+          foreground: "white",
+          success: "green",
+          warning: "yellow",
+          error: "red",
+          info: "blue",
+          secondary: "magenta",
+          selectedBackground: "black",
+          selectedForeground: "cyan",
+          selectionBackground: "blue",
+          selectionForeground: "cyan",
+          dimMuted: true,
+          fileColors: DEFAULT_FILE_COLORS,
+        };
 
   const colorless = ascii
     ? {

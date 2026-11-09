@@ -1,4 +1,4 @@
-import type { Tab } from "../types/index.js";
+import type { Tab, TabId } from "../types/index.js";
 export type UiKeymapGroup = "Navigation" | "Actions";
 export interface UiKeymapEntry {
     id: string;
@@ -9,6 +9,7 @@ export interface UiKeymapEntry {
         ascii?: string;
         unicode?: string;
     };
+    tabs?: readonly TabId[];
 }
 export declare const TABS: Tab[];
 export declare const UI_KEYMAP: readonly [{
@@ -20,6 +21,7 @@ export declare const UI_KEYMAP: readonly [{
         readonly ascii: "UP/DOWN or k/j";
         readonly unicode: "↑/↓ or k/j";
     };
+    readonly tabs: readonly ["overview", "resources", "files", "config"];
 }, {
     readonly id: "first-last";
     readonly keys: readonly ["g", "G", "Home", "End"];
@@ -29,6 +31,7 @@ export declare const UI_KEYMAP: readonly [{
         readonly ascii: "g/G or Home/End";
         readonly unicode: "g/G or Home/End";
     };
+    readonly tabs: readonly ["overview", "resources", "files", "config"];
 }, {
     readonly id: "page-list";
     readonly keys: readonly ["PageUp", "PageDown"];
@@ -38,6 +41,7 @@ export declare const UI_KEYMAP: readonly [{
         readonly ascii: "PgUp/PgDn";
         readonly unicode: "PgUp/PgDn";
     };
+    readonly tabs: readonly ["overview", "resources", "files", "config"];
 }, {
     readonly id: "select";
     readonly keys: readonly ["Enter", "Space"];
@@ -47,6 +51,7 @@ export declare const UI_KEYMAP: readonly [{
         readonly ascii: "Enter or Space";
         readonly unicode: "Enter or Space";
     };
+    readonly tabs: readonly ["overview", "resources", "files", "config"];
 }, {
     readonly id: "cycle-tabs";
     readonly keys: readonly ["Tab", "Shift+Tab"];
@@ -80,6 +85,7 @@ export declare const UI_KEYMAP: readonly [{
     readonly keys: readonly ["e"];
     readonly label: "Toggle enabled/disabled services";
     readonly group: "Actions";
+    readonly tabs: readonly ["overview", "resources", "files", "config"];
 }, {
     readonly id: "refresh";
     readonly keys: readonly ["r"];
@@ -90,16 +96,19 @@ export declare const UI_KEYMAP: readonly [{
     readonly keys: readonly ["o"];
     readonly label: "Open resource URL in browser";
     readonly group: "Actions";
+    readonly tabs: readonly ["overview", "resources"];
 }, {
     readonly id: "copy-url";
     readonly keys: readonly ["y"];
     readonly label: "Copy resource URL to clipboard";
     readonly group: "Actions";
+    readonly tabs: readonly ["overview", "resources"];
 }, {
     readonly id: "search";
     readonly keys: readonly ["/"];
     readonly label: "Search/filter";
     readonly group: "Actions";
+    readonly tabs: readonly ["overview", "resources", "files", "config"];
 }, {
     readonly id: "help";
     readonly keys: readonly ["?"];
@@ -119,3 +128,8 @@ export declare const UI_KEYMAP: readonly [{
 export type UiKeymapId = (typeof UI_KEYMAP)[number]["id"];
 export declare function formatUiKeyNames(id: UiKeymapId, ascii?: boolean): string;
 export declare function formatUiKeyHint(id: UiKeymapId, label?: string, ascii?: boolean): string;
+/**
+ * Return the active keymap entries for a specific screen/tab.
+ * When tab is undefined, all entries are returned.
+ */
+export declare function getActiveKeymap(tab?: TabId): readonly UiKeymapEntry[];
