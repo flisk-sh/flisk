@@ -321,10 +321,21 @@ describe("distribute kit", () => {
       fs.existsSync(path.join(root, "distribution", "helper", ".claude-plugin", "plugin.json")),
     ).toBe(true);
   });
-  it("displays usage examples in help text", async()=>{
-    const out = await runDistribute(project(fullDist), ["kit", "--help"]);
+  it("shows usage examples in the kit help text", async () => {
+    const { distributeCommand } = await import("../distribute.js");
+    const kit = distributeCommand.commands.find((c) => c.name() === "kit");
+    expect(kit).toBeDefined();
+    let out = "";
+    kit?.configureOutput({
+      writeOut: (s) => {
+        out += s;
+      },
+    });
+    kit?.outputHelp();
     expect(out).toContain("Examples:");
     expect(out).toContain("flisk distribute kit my-resource --dry-run");
+    expect(out).toContain("flisk distribute kit my-resource --out ./listing");
+    expect(out).toContain("flisk distribute kit my-resource --force");
   });
 });
 

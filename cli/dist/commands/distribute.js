@@ -88,7 +88,8 @@ const kitCommand = new Command("kit")
         for (const warning of kit.warnings)
             console.log(`⚠️  ${warning}`);
     });
-});
+})
+    .addHelpText("after", "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force");
 const statusSubcommand = new Command("status")
     .description(`Print the channel grid from ${DISTRIBUTION_FILE}`)
     .option("--json", "Output the grid as a versioned JSON envelope", false)
