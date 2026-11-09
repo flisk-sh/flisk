@@ -5,10 +5,10 @@ import { PROMPTS, TOOLS } from "../src/mcp.js";
 
 globalThis.caches ??= { default: { async match() {}, async put() {}, async delete() {} } };
 
-const env = { PUBLIC_ORIGIN: "https://mcp.flisk.sh" };
+const env = { PUBLIC_ORIGIN: "https://build.flisk.si" };
 const post = (body, init = {}) =>
   worker.fetch(
-    new Request("https://mcp.flisk.sh/mcp", { method: "POST", headers: { "content-type": "application/json" }, body: typeof body === "string" ? body : JSON.stringify(body), ...init }),
+    new Request("https://build.flisk.si/mcp", { method: "POST", headers: { "content-type": "application/json" }, body: typeof body === "string" ? body : JSON.stringify(body), ...init }),
     env,
     { waitUntil() {} },
   );
@@ -73,9 +73,9 @@ test("unknown tools and methods get JSON-RPC errors, notifications get 202", asy
 });
 
 test("only POST is accepted, with CORS for the preflight", async () => {
-  const get = await worker.fetch(new Request("https://mcp.flisk.sh/mcp"), env, { waitUntil() {} });
+  const get = await worker.fetch(new Request("https://build.flisk.si/mcp"), env, { waitUntil() {} });
   assert.equal(get.status, 405);
-  const opt = await worker.fetch(new Request("https://mcp.flisk.sh/mcp", { method: "OPTIONS" }), env, { waitUntil() {} });
+  const opt = await worker.fetch(new Request("https://build.flisk.si/mcp", { method: "OPTIONS" }), env, { waitUntil() {} });
   assert.equal(opt.status, 204);
   assert.equal(opt.headers.get("access-control-allow-origin"), "*");
   assert.equal((await post("not json")).status, 400);
@@ -83,13 +83,13 @@ test("only POST is accepted, with CORS for the preflight", async () => {
 
 test("the icons the directory looks for are served as real images", async () => {
   for (const [path, type] of [["/favicon.ico", "image/x-icon"], ["/icon-512.png", "image/png"], ["/apple-touch-icon.png", "image/png"], ["/icon.svg", "image/svg+xml"]]) {
-    const res = await worker.fetch(new Request(`https://mcp.flisk.sh${path}`), env, { waitUntil() {} });
+    const res = await worker.fetch(new Request(`https://build.flisk.si${path}`), env, { waitUntil() {} });
     assert.equal(res.status, 200, path);
     assert.equal(res.headers.get("content-type"), type, path);
     assert.ok((await res.arrayBuffer()).byteLength > 100, path);
   }
-  assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/health"), env, { waitUntil() {} })).status, 200);
-  assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/nope"), env, { waitUntil() {} })).status, 404);
+  assert.equal((await worker.fetch(new Request("https://build.flisk.si/health"), env, { waitUntil() {} })).status, 200);
+  assert.equal((await worker.fetch(new Request("https://build.flisk.si/nope"), env, { waitUntil() {} })).status, 404);
 });
 
 // An in-memory stand-in for the Cache API, so the per-IP counters can be checked.
@@ -105,7 +105,7 @@ function withCache(fn) {
     }
   };
 }
-const asIp = (ip, body) => new Request("https://mcp.flisk.sh/mcp", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": ip }, body: JSON.stringify(body) });
+const asIp = (ip, body) => new Request("https://build.flisk.si/mcp", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": ip }, body: JSON.stringify(body) });
 
 test("a caller over the per-minute cap gets 429 with retry-after, and others are not affected", withCache(async () => {
   const e = { MAX_CALLS_PER_IP_MINUTE: "3", MAX_CALLS_PER_IP_HOUR: "300" };
@@ -129,14 +129,14 @@ test("the per-hour cap holds even when the minute cap is not reached", withCache
 }));
 
 test("a request body far larger than any real message is refused", async () => {
-  const res = await worker.fetch(new Request("https://mcp.flisk.sh/mcp", { method: "POST", headers: { "content-type": "application/json", "content-length": "99999" }, body: "{}" }), env, { waitUntil() {} });
+  const res = await worker.fetch(new Request("https://build.flisk.si/mcp", { method: "POST", headers: { "content-type": "application/json", "content-length": "99999" }, body: "{}" }), env, { waitUntil() {} });
   assert.equal(res.status, 413);
 });
 
 test("GET, preflight and the icons are not counted", withCache(async () => {
   const e = { MAX_CALLS_PER_IP_MINUTE: "1", MAX_CALLS_PER_IP_HOUR: "1" };
-  for (let i = 0; i < 5; i += 1) assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/favicon.ico", { headers: { "cf-connecting-ip": "4.4.4.4" } }), e, { waitUntil() {} })).status, 200);
-  assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/mcp", { method: "OPTIONS" }), e, { waitUntil() {} })).status, 204);
+  for (let i = 0; i < 5; i += 1) assert.equal((await worker.fetch(new Request("https://build.flisk.si/favicon.ico", { headers: { "cf-connecting-ip": "4.4.4.4" } }), e, { waitUntil() {} })).status, 200);
+  assert.equal((await worker.fetch(new Request("https://build.flisk.si/mcp", { method: "OPTIONS" }), e, { waitUntil() {} })).status, 204);
 }));
 
 // Fixes for the review findings on this worker.

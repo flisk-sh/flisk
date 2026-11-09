@@ -1,6 +1,6 @@
 # Flisk App Builder (MCP)
 
-`https://mcp.flisk.sh/mcp`: a remote, read-only MCP server (Streamable HTTP, no key, nothing stored) for people who are not developers. It is the connector for the Claude directory; `flisk mcp` is local stdio and cannot be listed there.
+`https://build.flisk.si/mcp`: a remote, read-only MCP server (Streamable HTTP, no key, nothing stored) for people who are not developers. It is the connector for the Claude directory; `flisk mcp` is local stdio and cannot be listed there.
 
 - `plan_app`: a plain description of an app in, its parts in everyday words and the exact `npx @flisk-sh/flisk` commands out.
 - `list_app_starters`: the ready-made apps and the words that pick each.
@@ -14,3 +14,7 @@ cd workers/app-builder-mcp
 node --test        # tests
 npx wrangler@4 deploy
 ```
+
+## Hosts
+
+`build.flisk.si` is the address. `mcp.flisk.sh` still answers the same worker until the Claude directory listing is approved with the new address. `mcp.flisk.si` is the Put My Page Online server, not this one.
