@@ -99,7 +99,9 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk ui` | `interactive` | Interactive terminal UI |
 | `flisk os` | | Start FliskOS, the local desktop app for projects and agents |
 | `flisk mcp` | | MCP server over stdio for coding agents |
+| `flisk agent sessions <resource>` | | List a running AI agent's sessions, or inspect one session's checkpoint |
 | `flisk runtime` | | Inspect packaged engine and template assets |
+| `flisk export <subcommand>` | | Write `render.yaml`, `wrangler.toml` or a standalone `docker-compose.yml` from `service.json`; never deploys or calls a cloud API |
 | `flisk completion [shell]` | | Shell completion scripts |
 | `flisk upgrade` | `update` | Self-update |
 | `flisk version` | `v` | Print the version |
@@ -485,6 +487,24 @@ flisk os --scan-root ~/code           # also look for Flisk projects under ~/cod
 
 Runs a Model Context Protocol server over stdio for coding agents. No flags. See [agent hosts](agent-hosts.md).
 
+### `flisk agent sessions <resource>`
+
+Lists the stored sessions of a running `agent` resource, or prints one session's checkpoint. The resource must exist in the current Flisk project and be of type `agent`. The command reaches a container agent through its ingress route, and a native project's agent directly at its localhost port. It reads the agent's `GET /sessions` (or `GET /session` with `--session-id`); it does not start or restart anything.
+
+```bash
+flisk agent sessions bot                     # session table
+flisk agent sessions bot --session-id demo   # that session's checkpoint
+flisk agent sessions bot --json              # one JSON object on stdout
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--session-id <id>` | Print that session's checkpoint instead of the session list |
+| `--watch` | Redraw the session list, or the checkpoint with `--session-id`, every 2 seconds until interrupted (Ctrl+C). A failed refresh is shown and retried |
+| `--json` | One JSON object on stdout and exit. Cannot be combined with `--watch` |
+
+Without `--session-id`, `--json` returns the rows under `data.sessions`; with `--session-id` it returns the checkpoint under `data.session`. With `--json`, listing sessions from an agent scaffolded before `GET /sessions` existed returns `SESSION_LIST_UNSUPPORTED`; `--session-id <id>` can still read a checkpoint. Without `--json`, that failure prints an error message and hints. See [AI agents](agents/ai-agents.md) and the [machine-readable CLI](reference/machine-readable-cli.md).
+
 ### `flisk completion [shell]`
 
 Generates tab completion for `bash`, `zsh`, `fish` and `powershell`. Without a shell argument, `flisk completion` uses the shell named in `$SHELL` when it is one of these four, and `bash` otherwise.
@@ -567,7 +587,9 @@ Checks that `MAINTAINERS.md` (or `[file]`) lists 3 maintainers from 2 companies.
 
 ## 🤖 JSON output and exit codes
 
-Commands with `--json`: `projects`, `resources`, `stacks`, `status`, `up`, `down`, `logs`, `networks`, `doctor`, `runtime`, `config verify`, `config explain`.
+Commands with `--json`: `projects`, `resources`, `stacks`, `status`, `up`, `down`, `logs`, `networks`, `doctor`, `runtime`, `agent sessions`, `config verify`, `config explain`.
+
+`flisk agent sessions --watch --json` is refused: it exits 1 with `USAGE` in the JSON envelope, not a command failure.
 
 | Exit code | Meaning |
 | --- | --- |
