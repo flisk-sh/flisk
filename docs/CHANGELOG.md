@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.46 (2026-11-09)
+
 - Editing a new Bun backend now reloads it. The `development` image of a Bun backend used to be the compiled `dist` build, so `flisk up` copied your edit into the container and the old code kept answering. When the `dev` script in `package.json` runs under `bun --watch` (the scaffold does), `flisk up` now builds a development image that runs that script, and a saved edit restarts the app within seconds. Set `"dev": { "liveReload": false }` in `service.json` to keep the compiled build; a Dockerfile you wrote yourself is still built as `production`. Fixes #3395.
 - Flisk can be installed on Windows with Scoop: `scoop bucket add flisk https://github.com/flisk-sh/scoop-bucket`, then `scoop install flisk/flisk`. On such an install, `flisk upgrade` now tells you to run `scoop update flisk` instead of replacing files Scoop owns.
 
