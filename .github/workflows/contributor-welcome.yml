@@ -45,6 +45,8 @@ jobs:
               '- A maintainer will review it. Small follow-ups are normal and not a sign that something is wrong.',
               '',
               `See the [contributing guide](https://github.com/${owner}/${repo}/blob/main/.github/CONTRIBUTING.md) for the checks to run (\`bun run typecheck\`, \`bun run lint\`, \`bun run test\`).`,
+              '',
+              '💬 **While you wait:** [join our Discord](https://discord.gg/qMu5Xn8Kaq) if you get stuck or want to talk it through. Once this PR is merged, post its link in #start-here and you get the **Founding Contributor** role.',
             ].join('\n');
             await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
 
