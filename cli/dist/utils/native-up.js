@@ -83,6 +83,7 @@ export async function runNativeUp(input) {
             ok: true,
             dryRun: true,
             runtime: "native",
+            ...(input.inferred ? { inferred: input.inferred } : {}),
             stack: input.stackName ?? null,
             services: serviceNames,
             ...(input.only ? { requested: input.only, declaredDependencies: input.dependencies } : {}),
@@ -162,6 +163,7 @@ export async function runNativeUp(input) {
     emit?.({
         ok: true,
         runtime: "native",
+        ...(input.inferred ? { inferred: true } : {}),
         stack: input.stackName ?? null,
         services: serviceNames,
         ...(input.only ? { requested: input.only, dependencies: input.dependencies } : {}),
