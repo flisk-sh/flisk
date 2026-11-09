@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import { makeResource } from "../../test-support/index.js";
 import type { DiscoveredResource, ServiceRuntimeState } from "../../types/index.js";
 import {
   groupServicesByStack,
@@ -11,10 +12,11 @@ import {
   unhealthyServiceNames,
 } from "../status-groups.js";
 
-const resource = (name: string, type: string) => ({ name, type }) as DiscoveredResource;
-const web = resource("web", "frontend");
-const api = resource("api", "backend");
-const db = resource("db", "database");
+const typed = (name: string, type: string) =>
+  ({ ...makeResource(name, type), type }) as DiscoveredResource;
+const web = typed("web", "frontend");
+const api = typed("api", "backend");
+const db = typed("db", "database");
 const state = (status: ServiceRuntimeState["status"]) => ({ status });
 
 function summary(resources: DiscoveredResource[], states: Record<string, ServiceRuntimeState>) {
