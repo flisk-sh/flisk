@@ -8,7 +8,7 @@
 // numbers live in one GitHub issue so they stay the same forever.
 
 import { fileURLToPath } from "node:url";
-import { beltBadge, BELTS, INVITE, MAINTAINER_PATH_PRS, syncLevels, tierBadge, TIERS } from "./discord-contributor-levels.mjs";
+import { beltBadge, BELTS, discordImage, INVITE, MAINTAINER_PATH_PRS, syncLevels, tierBadge, TIERS } from "./discord-contributor-levels.mjs";
 
 const API = "https://discord.com/api/v10";
 const GUILD_ID = "1562937840071999538";
@@ -56,7 +56,7 @@ const isFounding = (seat) => seat <= FOUNDING_SEATS;
 const badgeTitle = (seat) => (isFounding(seat) ? "Founding Contributor" : "Flisk Contributor");
 
 // The static form of the shields URL takes plain query values, so a hyphen in a login stays a hyphen.
-export function badgeImage(seat, login, host = "img.shields.io") {
+export function badgeImage(seat, login) {
   const params = new URLSearchParams({
     label: isFounding(seat) ? "⚡ FOUNDING CONTRIBUTOR" : "⚡ FLISK CONTRIBUTOR",
     message: `${isFounding(seat) ? `#${seat} of ${FOUNDING_SEATS}` : `#${seat}`} • @${login}`,
@@ -64,7 +64,7 @@ export function badgeImage(seat, login, host = "img.shields.io") {
     labelColor: "07080f",
     style: "for-the-badge",
   });
-  return `https://${host}/static/v1?${params.toString().replaceAll("+", "%20")}`;
+  return `https://img.shields.io/static/v1?${params.toString().replaceAll("+", "%20")}`;
 }
 
 export function badgeMarkdown(seat, login) {
@@ -191,7 +191,7 @@ async function handle(message, ctx) {
 
   const role = isFounding(seat) ? roles.founding : roles.contributor;
   if (!member.roles.includes(role)) await discord.grant(authorId, role);
-  await finish(DONE, grantedReply(seat, pr, entries.length), badgeImage(seat, pr.user.login, "raster.shields.io"));
+  await finish(DONE, grantedReply(seat, pr, entries.length), discordImage(badgeImage(seat, pr.user.login)));
 }
 
 export async function run({ discord, github, log = console.log }) {

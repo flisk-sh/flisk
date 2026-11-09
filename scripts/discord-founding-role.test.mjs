@@ -85,7 +85,9 @@ test("the first claim gets seat 1, the role, the badge and an explanation", asyn
   assert.match(text, /<#\d+>/);
   assert.match(text, /For your CV:/);
   assert.match(text, /Founding seats left: \*\*99 of 100\*\*/);
-  assert.match(image, /^https:\/\/raster\.shields\.io\//);
+  const shown = new URL(image);
+  assert.equal(shown.host, "wsrv.nl");
+  assert.match(shown.searchParams.get("url"), /message=%231%20of%20100%20%E2%80%A2%20%40ann-gh/);
   assert.deepEqual(calls.reactions, [["m1", DONE]]);
   assert.equal(calls.refreshed, 1);
 });
