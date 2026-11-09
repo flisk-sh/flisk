@@ -759,6 +759,7 @@ export const uiCommand = new Command("ui")
     .option("-v, --verbose", "Enable verbose output", false)
     .option("--no-animations", "Disable animations")
     .option("--high-contrast", "Enable high contrast mode")
+    .addHelpText("after", "\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations")
     .action(async (options) => {
     const tiltAvailable = await isTiltAvailable();
     if (!tiltAvailable) {
