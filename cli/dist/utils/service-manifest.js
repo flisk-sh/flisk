@@ -1517,6 +1517,14 @@ export function parseHealthCheckConfig(manifest, options = {}) {
         ...(startPeriod !== undefined ? { startPeriod } : {}),
     };
 }
+// App types whose Bun image runs the `dev` script under a watcher (mirrors BUN_LIVE_RELOAD_APP_TYPES in language_dockerfile.star).
+const BUN_LIVE_RELOAD_APP_TYPES = new Set(["backend", "worker", "agent", "mcp"]);
+function liveReloadApplies(manifest) {
+    const language = manifest.language ?? "bun";
+    if (language === "go")
+        return true;
+    return language === "bun" && BUN_LIVE_RELOAD_APP_TYPES.has(String(manifest.appType ?? "backend"));
+}
 export function validateServiceManifest(value, displayPath) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
         return { errors: [`${displayPath}: expected a JSON object`], warnings: [] };
@@ -1592,8 +1600,10 @@ export function validateServiceManifest(value, displayPath) {
         return [];
     });
     warnings.push(...secretConflictWarnings(manifest, displayPath));
-    if (liveReload === true && manifest.language !== "go") {
-        warnings.push(`${displayPath}.dev.liveReload: only applies to Go services (language "go"); it is ignored here`);
+    // Go opts in with `true`. A Bun backend, worker, agent or MCP server reloads by default (#3395), so `true` only restates that; other
+    // Bun app types (frontend, bring-your-own, library, SDK) have no watcher, and any other language ignores it.
+    if (liveReload === true && !liveReloadApplies(manifest)) {
+        warnings.push(`${displayPath}.dev.liveReload: only applies to Go services and Bun backends, workers, agents and MCP servers; it is ignored here`);
     }
     const testOnSave = dev && typeof dev === "object" && !Array.isArray(dev)
         ? dev.testOnSave

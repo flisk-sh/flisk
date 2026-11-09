@@ -23,3 +23,22 @@ def bun_hoisted_packages_symlink_fix():
         + "RUN chmod +x /usr/local/bin/bun-hoisted-symlink-fix.sh && /usr/local/bin/bun-hoisted-symlink-fix.sh\n"
         + "USER bun\n"
     )
+
+
+def bun_dev_script(res_path):
+    """The `dev` script of a service's package.json, or '' without one (found the way the runtime stage finds `start`)."""
+    package_json_path = res_path + '/package.json'
+    if not res_path.startswith('/'):
+        package_json_path = os.environ.get('FLISK_PROJECT_ROOT', '.') + '/' + package_json_path
+    if not os.path.exists(package_json_path):
+        return ''
+    package_json = read_json(package_json_path, default = {}) or {}
+    scripts = package_json.get('scripts', {}) or {}
+    script = scripts.get('dev', '')
+    return script if type(script) == 'string' else ''
+
+
+def bun_dev_script_watches(script):
+    """True when a `dev` script keeps Bun under a watcher (`bun --watch`, `bun run --watch`, `--hot`), so a synced edit restarts it."""
+    tokens = (script or '').split()
+    return 'bun' in tokens and ('--watch' in tokens or '--hot' in tokens)

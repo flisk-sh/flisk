@@ -285,7 +285,7 @@
           }
         },
         "liveReload": {
-          "description": "Opt-in live reload for compiled backend runtimes (e.g. Go).",
+          "description": "Live reload of the development image. Go services opt in with true. Bun backends, workers, agents and MCP servers reload by default when the package.json dev script runs under bun --watch (or --hot); false runs the compiled build instead.",
           "type": "boolean"
         },
         "testOnSave": {
