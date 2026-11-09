@@ -5,6 +5,7 @@ import type { DiscoveredResource } from "../../types/index.js";
 import {
   declaredDependsOn,
   dependencyEdges,
+  dependsOnEntryName,
   dependsOnOf,
   unknownBackendNames,
   unnamedEntries,
@@ -25,7 +26,35 @@ const svc = (
 
 const edges = (resources: DiscoveredResource[]) => Object.fromEntries(dependencyEdges(resources));
 
+describe("dependsOnEntryName", () => {
+  it("extracts name from strings and objects, returning null for non-names", () => {
+    expect(dependsOnEntryName("db")).toBe("db");
+    expect(dependsOnEntryName({ name: "db" })).toBe("db");
+    expect(dependsOnEntryName({ name: "db", condition: "service_healthy" })).toBe("db");
+    expect(dependsOnEntryName({ name: "" })).toBeNull();
+    expect(dependsOnEntryName({ name: 123 })).toBeNull();
+    expect(dependsOnEntryName({})).toBeNull();
+    expect(dependsOnEntryName(null)).toBeNull();
+    expect(dependsOnEntryName(undefined)).toBeNull();
+    expect(dependsOnEntryName(123)).toBeNull();
+    expect(dependsOnEntryName(true)).toBeNull();
+    expect(dependsOnEntryName(false)).toBeNull();
+    expect(dependsOnEntryName([])).toBeNull();
+    expect(dependsOnEntryName(["db"])).toBeNull();
+    const arrayWithName = ["db"] as unknown as Record<string, unknown>;
+    arrayWithName.name = "db";
+    expect(dependsOnEntryName(arrayWithName)).toBeNull();
+    function namedFunction() {}
+    expect(dependsOnEntryName(namedFunction)).toBeNull();
+    expect(dependsOnEntryName(() => "db")).toBeNull();
+  });
+});
+
 describe("dependsOnOf", () => {
+  it("handles missing config gracefully", () => {
+    expect(dependsOnOf(undefined)).toEqual([]);
+  });
+
   it("counts a bring-your-own sidecar's host as a dependency, once", () => {
     expect(
       dependsOnOf({ appType: "bring-your-own", sidecarOf: "tubehaus", dependsOn: ["postgres"] }),
@@ -33,6 +62,8 @@ describe("dependsOnOf", () => {
     expect(
       dependsOnOf({ appType: "bring-your-own", sidecarOf: "tubehaus", dependsOn: ["tubehaus"] }),
     ).toEqual(["tubehaus"]);
+    // Empty sidecarOf should not be counted
+    expect(dependsOnOf({ appType: "bring-your-own", sidecarOf: "" })).toEqual([]);
     // Only bring-your-own resources have sidecars; config verify reports sidecarOf elsewhere.
     expect(dependsOnOf({ appType: "backend", sidecarOf: "tubehaus" })).toEqual([]);
   });
@@ -50,14 +81,23 @@ describe("dependsOnOf", () => {
   });
   it("ignores a deprecated key that is not a list of strings", () => {
     expect(dependsOnOf({ dependsOn: ["a"], dependencies: "b" })).toEqual(["a"]);
+    expect(dependsOnOf({ dependencies: ["b", 123] })).toEqual([]);
+    expect(dependsOnOf({ dependencies: [123] })).toEqual([]);
   });
 });
 
 describe("declaredDependsOn", () => {
+  it("handles missing config gracefully", () => {
+    expect(declaredDependsOn(undefined)).toEqual([]);
+  });
+
   it("tells a missing dependsOn (none) from a wrong-typed one (null)", () => {
     expect(declaredDependsOn({})).toEqual([]);
     expect(declaredDependsOn({ dependsOn: null })).toBeNull();
     expect(declaredDependsOn({ dependsOn: "api" })).toBeNull();
+    expect(declaredDependsOn({ dependsOn: ["valid", 123] })).toBeNull();
+    expect(declaredDependsOn({ dependsOn: ["valid", null] })).toBeNull();
+    expect(declaredDependsOn({ dependsOn: ["valid", { condition: "no-name" }] })).toBeNull();
   });
 
   it("reads Compose-style { name, condition } entries by their name", () => {
@@ -82,6 +122,35 @@ describe("declaredDependsOn", () => {
 });
 
 describe("dependencyEdges", () => {
+  it("handles resources with undefined config or without stack", () => {
+    expect(edges([{ name: "bare", stack: "s", type: "backend" } as DiscoveredResource])).toEqual({
+      bare: [],
+    });
+    expect(edges([{ name: "ui", stack: "s", type: "frontend" } as DiscoveredResource])).toEqual({
+      ui: [],
+    });
+    const graph = edges([
+      { name: "orphan", stack: "", config: {} } as DiscoveredResource,
+      { name: "caller", config: { dependsOn: [""] } } as DiscoveredResource,
+    ]);
+    expect(graph.caller).toEqual([]);
+  });
+
+  it("sorts targets alphabetically", () => {
+    const graph = edges([
+      svc("web", { dependsOn: ["zebra", "apple", "mango"] }),
+      svc("zebra"),
+      svc("apple"),
+      svc("mango"),
+    ]);
+    expect(graph.web).toEqual(["apple", "mango", "zebra"]);
+  });
+
+  it("does not add self-dependency if a frontend sets backendName to its own name", () => {
+    const graph = edges([svc("ui", { appType: "frontend", backendName: "ui" })]);
+    expect(graph.ui).toEqual([]);
+  });
+
   it("follows service names and ignores names that are not services", () => {
     const graph = edges([svc("api"), svc("web", { dependsOn: ["api", "ghost", "postgres"] })]);
     expect(graph).toEqual({ api: [], web: ["api"] });
@@ -133,9 +202,37 @@ describe("unnamedEntries", () => {
     );
     expect(found).toEqual([{ resource: "web", name: "ghost" }]);
   });
+
+  it("handles resources without stacks or with empty stack strings", () => {
+    const found = unnamedEntries([
+      { name: "orphan", stack: "", config: { dependsOn: [""] } } as DiscoveredResource,
+      { name: "bare", stack: undefined, config: { dependsOn: ["ghost"] } } as DiscoveredResource,
+    ]);
+    expect(found).toEqual([
+      { resource: "orphan", name: "" },
+      { resource: "bare", name: "ghost" },
+    ]);
+  });
 });
 
 describe("unknownBackendNames", () => {
+  it("handles resources with undefined config", () => {
+    expect(unknownBackendNames([{ name: "bare" } as DiscoveredResource])).toEqual([]);
+    expect(unknownBackendNames([{ name: "ui", type: "frontend" } as DiscoveredResource])).toEqual(
+      [],
+    );
+  });
+
+  it("ignores non-string backendName values", () => {
+    expect(
+      unknownBackendNames([
+        svc("ui1", { appType: "frontend", backendName: 123 }),
+        svc("ui2", { appType: "frontend", backendName: true }),
+        svc("ui3", { appType: "frontend", backendName: { name: "api" } }),
+      ]),
+    ).toEqual([]);
+  });
+
   it("lists a frontend whose backendName is no service", () => {
     const found = unknownBackendNames([
       svc("api"),
