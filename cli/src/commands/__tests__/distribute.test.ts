@@ -321,6 +321,11 @@ describe("distribute kit", () => {
       fs.existsSync(path.join(root, "distribution", "helper", ".claude-plugin", "plugin.json")),
     ).toBe(true);
   });
+  it("displays usage examples in help text", async()=>{
+    const out = await runDistribute(project(fullDist), ["kit", "--help"]);
+    expect(out).toContain("Examples:");
+    expect(out).toContain("flisk distribute kit my-resource --dry-run");
+  });
 });
 
 describe("distribute status", () => {
