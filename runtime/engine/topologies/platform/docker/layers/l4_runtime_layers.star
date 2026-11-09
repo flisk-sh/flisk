@@ -30,6 +30,7 @@ load('./prisma/prisma_runtime.star',
 )
 
 load('./bun_helpers.star', 'bun_hoisted_packages_symlink_fix')
+load('../dockerfile/language_dockerfile.star', 'bun_live_reload_enabled')
 load('../config/healthcheck.star', 'DOCKER_HEALTHCHECK', 'dockerfile_healthcheck_flags', 'manifest_health_check')
 # Infisical is opt-in: use_infisical defaults to False and nothing in the free engine passes True, so the generator behind this
 # (tilt/generators/infisical/secrets_generator.star) is not on the default path. It is an older contract with fixed secret names and
@@ -125,6 +126,26 @@ def _backend_healthcheck_instruction(port, manifest = None):
     return "HEALTHCHECK " + dockerfile_healthcheck_flags() + " CMD bun -e \"" + probe + "\" || exit 1\n"
 
 
+def _bun_development_stage(port, manifest):
+    """The `development` target of a Bun service whose `dev` script watches (#3395): the build stage's sources and full node_modules, run by that script.
+
+    The runtime stage runs the compiled dist, so a synced edit would never be served. This stage keeps the sources, which Tilt
+    syncs into the container, and `bun --watch` in the script restarts the app on each change. It runs as root like the build stage
+    it extends, and keeps the same port and health probe as the runtime stage.
+    """
+    parts = [
+        "\n# ---- development: `dev` script under bun --watch; synced sources reload the app ----\n",
+        "FROM l3_backend_build AS development\n",
+        "ENV NODE_ENV=development\n",
+    ]
+    if "hugo" in (manifest.get('featuresEnabled', []) if manifest else []):
+        parts.append("RUN apk add --no-cache hugo\n")
+    parts.append("EXPOSE " + str(port) + "\n")
+    parts.append(_backend_healthcheck_instruction(port, manifest))
+    parts.append(_cmd_instruction("bun run dev"))
+    return "".join(parts)
+
+
 def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun run start', use_infisical = False, resource_name = 'service', use_golden = True, use_prisma = True, has_prisma_config = False, manifest = None):
     """
     Generate the backend runtime layer for deployed services.
@@ -216,8 +237,13 @@ def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun r
     else:
         parts.append(_cmd_instruction(cmd))
 
-    # Provide build targets that match external tooling (e.g. --target production/ development)
-    parts.append("\nFROM l4_backend_runtime AS production\nFROM l4_backend_runtime AS development\n")
+    # Provide build targets that match external tooling (e.g. --target production/ development).
+    # `production` stays the last stage, so a build without --target still gets the production image.
+    if not use_infisical and bun_live_reload_enabled(manifest, res_path):
+        parts.append(_bun_development_stage(port, manifest))
+    else:
+        parts.append("\nFROM l4_backend_runtime AS development\n")
+    parts.append("\nFROM l4_backend_runtime AS production\n")
 
     return "".join(parts)
 

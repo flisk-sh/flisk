@@ -154,7 +154,9 @@ describe("Go development wiring", () => {
     expect(registration).toContain(
       "return 'development' if Docker.go_live_reload(manifest) else 'production'",
     );
-    expect(registration).toContain("if Docker.bun_live_reload(manifest):");
+    expect(registration).toContain(
+      "if _uses_generated_dockerfile(config) and Docker.bun_live_reload(manifest, config['res_path']):",
+    );
     // docker_build gets its target from the shared helper.
     expect(registration).toContain("target = _image_target(config),");
   });

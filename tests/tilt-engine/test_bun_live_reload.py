@@ -1,72 +1,186 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
-Bun backend development stage and live reload: Bun runs the dev script under bun --watch (#3395).
+Bun backend live reload (#3395): a synced edit must reach a running process.
 
-Tests verify the source code integration for Bun live reload support.
+Executes the real Starlark through Tilt's interpreter (`tilt alpha tiltfile-result`):
+- the generated Dockerfile has a `development` stage that runs a watching `dev` script, not an alias of `production`;
+- the stage Tilt builds (`image_target`) is `development` only where that stage exists and watches.
 """
 
 from __future__ import annotations
 
+import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-REGISTRATION_FILE = REPO_ROOT / "runtime/engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star"
-LANGUAGE_DOCKERFILE = REPO_ROOT / "runtime/engine/topologies/platform/docker/dockerfile/language_dockerfile.star"
-DOCKER_INDEX = REPO_ROOT / "runtime/engine/topologies/platform/docker/index.star"
+import pytest
+
+pytestmark = [
+    pytest.mark.generator,
+    pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed"),
+]
+
+ENGINE = Path(__file__).resolve().parents[2] / "runtime" / "engine" / "topologies"
+DOCKER_DIR = ENGINE / "platform" / "docker"
+ORCHESTRATOR_DIR = ENGINE / "tilt" / "resources" / "orchestrator"
+RESULT_MARKER = "Error in fail: RESULT"
+
+WATCHING_DEV = "bun run --watch src/index.ts"
 
 
-def read_file(path):
-    """Read a file as text."""
-    return path.read_text("utf-8")
+def run_starlark(tmp_path: Path, body: str) -> dict:
+    """Run `body` in a Tiltfile, from a project rooted at `tmp_path`; `body` must assign a dict to `r`."""
+    tiltfile = tmp_path / "Tiltfile"
+    tiltfile.write_text(
+        body.replace("@DOCKER", str(DOCKER_DIR)).replace("@ORCHESTRATOR", str(ORCHESTRATOR_DIR))
+        + "\nfail('RESULT' + encode_json(r))\n"
+    )
+    proc = subprocess.run(
+        ["tilt", "alpha", "tiltfile-result", "-f", str(tiltfile)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "FLISK_PROJECT_ROOT": str(tmp_path)},
+        timeout=180,
+    )
+    output = proc.stdout + proc.stderr
+    assert RESULT_MARKER in output, output[-3000:]
+    return json.loads(output.split(RESULT_MARKER, 1)[1].strip())
 
 
-def test_development_stage_runs_the_dev_script_on_the_build_stage():
-    """_image_target checks for Bun live reload and returns 'development' to build the dev stage."""
-    registration = read_file(REGISTRATION_FILE)
-    # _image_target() should check bun_live_reload and return development
-    assert "if Docker.bun_live_reload(manifest):" in registration
-    assert "return 'development'" in registration
+def write_service(tmp_path: Path, dev_script: str | None) -> None:
+    scripts = {"start": "bun run dist/index.js"}
+    if dev_script is not None:
+        scripts["dev"] = dev_script
+    service_dir = tmp_path / "svc"
+    service_dir.mkdir(exist_ok=True)
+    (service_dir / "package.json").write_text(json.dumps({"name": "svc", "scripts": scripts}))
 
 
-def test_shell_dev_script_falls_back_to_bun_run_dev():
-    """bun_live_reload_enabled is exported from Docker module."""
-    docker_index = read_file(DOCKER_INDEX)
-    # bun_live_reload_enabled should be imported and exported
-    assert "bun_live_reload_enabled" in docker_index
-    assert "bun_live_reload = bun_live_reload_enabled" in docker_index
+def stage(dockerfile: str, name: str) -> str:
+    """The text of the stage `FROM ... AS <name>`, up to the next FROM."""
+    after = dockerfile.split(f" AS {name}\n", 1)[1]
+    return after.split("\nFROM ", 1)[0]
 
 
-def test_no_dev_script_means_no_development_stage():
-    """bun_live_reload_enabled returns True for Bun backends with optional dev script."""
-    lang_dockerfile = read_file(LANGUAGE_DOCKERFILE)
-    # Function should be defined
-    assert "def bun_live_reload_enabled(manifest):" in lang_dockerfile
-    # Should check for Bun language
-    assert 'manifest.get("language", "bun") != "bun"' in lang_dockerfile
-    # Should check for allowed app types
-    assert '["backend", "worker", "agent", "mcp"]' in lang_dockerfile
+def backend_runtime(tmp_path: Path, manifest: dict | None, **kwargs: object) -> str:
+    args = "".join(f", {key}={value!r}" for key, value in kwargs.items())
+    r = run_starlark(
+        tmp_path,
+        "load('@DOCKER/layers/l4_runtime_layers.star', 'L4_generate_backend_runtime')\n"
+        f"r = {{'df': L4_generate_backend_runtime('svc', manifest={manifest!r}{args})}}\n",
+    )
+    return r["df"]
 
 
-def test_opt_out_and_other_services_get_no_development_stage():
-    """bun_live_reload_enabled respects dev.liveReload: false opt-out."""
-    lang_dockerfile = read_file(LANGUAGE_DOCKERFILE)
-    # Should check for explicit False
-    assert 'dev.get("liveReload") == False' in lang_dockerfile
+@pytest.mark.parametrize(
+    "dev_script",
+    [WATCHING_DEV, "bun --watch src/index.ts", "bun --hot src/index.ts", "bun run --hot src/index.ts"],
+)
+def test_watching_dev_script_gets_its_own_development_stage(tmp_path, dev_script):
+    write_service(tmp_path, dev_script)
+    df = backend_runtime(tmp_path, {"appType": "backend"})
+
+    development = stage(df, "development")
+    assert df.count(" AS development\n") == 1
+    # Sources and the full node_modules come from the build stage, not the compiled runtime image.
+    assert "FROM l3_backend_build AS development" in df
+    assert 'CMD ["bun", "run", "dev"]' in development
+    assert "ENV NODE_ENV=development" in development
+    # The runtime stage keeps running the compiled dist, and stays the last stage for a build without --target.
+    assert 'CMD ["bun", "dist/index.js"]' in df
+    assert df.rstrip().endswith("FROM l4_backend_runtime AS production")
+    assert "FROM l4_backend_runtime AS development" not in df
 
 
-def test_runtime_stage_keeps_the_development_alias_only_without_a_watch_stage():
-    """The _image_target function is called to determine which Dockerfile target to build."""
-    registration = read_file(REGISTRATION_FILE)
-    # _image_target should be called in docker_build registration
-    assert "target = _image_target(config)," in registration
-    # It should also be called in prebuild
-    assert "target = _image_target(config)" in registration
+def test_development_stage_keeps_the_health_probe_and_port(tmp_path):
+    write_service(tmp_path, WATCHING_DEV)
+    df = backend_runtime(tmp_path, {"appType": "backend", "port": 4123}, port=4123)
+
+    development = stage(df, "development")
+    assert "EXPOSE 4123" in development
+    assert "fetch('http://127.0.0.1:4123/health')" in development
 
 
-def test_generated_backend_dockerfile_has_one_development_stage():
-    """The test framework can verify manifest and language integration."""
-    # Check that the test framework file imports correctly
-    assert LANGUAGE_DOCKERFILE.exists()
-    assert REGISTRATION_FILE.exists()
-    assert DOCKER_INDEX.exists()
+def test_development_stage_installs_hugo_when_the_service_declares_it(tmp_path):
+    write_service(tmp_path, WATCHING_DEV)
+    with_hugo = backend_runtime(tmp_path, {"appType": "backend", "featuresEnabled": ["hugo"]})
+    without = backend_runtime(tmp_path, {"appType": "backend"})
+
+    assert "apk add --no-cache hugo" in stage(with_hugo, "development")
+    assert "apk add --no-cache hugo" not in stage(without, "development")
+
+
+@pytest.mark.parametrize(
+    ("label", "dev_script", "manifest"),
+    [
+        ("no dev script", None, {"appType": "backend"}),
+        ("dev script that does not watch", "bun run src/index.ts", {"appType": "backend"}),
+        ("opted out", WATCHING_DEV, {"appType": "backend", "dev": {"liveReload": False}}),
+        ("frontend", WATCHING_DEV, {"appType": "frontend"}),
+        ("bring-your-own", WATCHING_DEV, {"appType": "bring-your-own"}),
+        ("python", WATCHING_DEV, {"appType": "backend", "language": "python"}),
+        ("no manifest", WATCHING_DEV, None),
+    ],
+)
+def test_other_services_keep_development_as_an_alias_of_production(tmp_path, label, dev_script, manifest):
+    write_service(tmp_path, dev_script)
+    df = backend_runtime(tmp_path, manifest)
+
+    assert "FROM l4_backend_runtime AS development" in df, label
+    assert "FROM l3_backend_build AS development" not in df, label
+    assert df.rstrip().endswith("FROM l4_backend_runtime AS production"), label
+
+
+@pytest.mark.parametrize("app_type", ["backend", "worker", "agent", "mcp"])
+def test_bun_app_types_that_reload(tmp_path, app_type):
+    write_service(tmp_path, WATCHING_DEV)
+    df = backend_runtime(tmp_path, {"appType": app_type})
+    assert "FROM l3_backend_build AS development" in df
+
+
+def target_for(tmp_path: Path, config: dict) -> str:
+    config = {"res_path": "svc", "project_root": str(tmp_path), "manifest": {"appType": "backend"}, **config}
+    r = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'image_target')\n"
+        f"r = {{'target': image_target({config!r})}}\n",
+    )
+    return r["target"]
+
+
+def test_bun_backend_with_a_watching_dev_script_builds_development(tmp_path):
+    write_service(tmp_path, WATCHING_DEV)
+    assert target_for(tmp_path, {}) == "development"
+    # The same Dockerfile, named the way a manifest names it, is still the generated one.
+    assert target_for(tmp_path, {"dockerfile": ".autogenerated/Dockerfile.app.autogenerated"}) == "development"
+
+
+def test_bun_backend_without_a_watching_dev_script_builds_production(tmp_path):
+    write_service(tmp_path, "bun run src/index.ts")
+    assert target_for(tmp_path, {}) == "production"
+    write_service(tmp_path, None)
+    assert target_for(tmp_path, {}) == "production"
+
+
+def test_opt_out_and_other_app_types_build_production(tmp_path):
+    write_service(tmp_path, WATCHING_DEV)
+    opted_out = {"manifest": {"appType": "backend", "dev": {"liveReload": False}}}
+    assert target_for(tmp_path, opted_out) == "production"
+    assert target_for(tmp_path, {"manifest": {"appType": "migrator"}}) == "production"
+    assert target_for(tmp_path, {"manifest": {"appType": "backend", "language": "rust"}}) == "production"
+
+
+def test_custom_dockerfile_keeps_building_production(tmp_path):
+    """A Dockerfile the user wrote may define only `production`, or a `development` stage that needs a script that is not there."""
+    write_service(tmp_path, WATCHING_DEV)
+    assert target_for(tmp_path, {"dockerfile": "Dockerfile"}) == "production"
+    assert target_for(tmp_path, {"dockerfile": "docker/Dockerfile.api"}) == "production"
+
+
+def test_go_with_live_reload_still_builds_development(tmp_path):
+    go = {"appType": "backend", "language": "go", "dev": {"liveReload": True}}
+    assert target_for(tmp_path, {"manifest": go}) == "development"
+    assert target_for(tmp_path, {"manifest": {"appType": "backend", "language": "go"}}) == "production"

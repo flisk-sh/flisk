@@ -111,7 +111,7 @@ Add `dev.liveReload` to the service's `service.json` and run `flisk up` again:
 
 Tilt then builds the image's `development` target instead of `production`, copies each edit into the running container, and a small
 watcher (`flisk-go-watch`, written into the image by the engine) recompiles and restarts the app. An ordinary edit is not an image rebuild.
-Without the switch nothing changes, and `liveReload` on a non-Go service logs a warning and is ignored.
+Without the switch nothing changes. `liveReload: true` on a language that has no watcher logs a warning and is ignored. Bun backends need no switch: they reload by default when their `dev` script runs under `bun --watch`, and `liveReload: false` opts out (see [`service.json` reference](service-json.md#development-options-dev)).
 
 - **Build, then swap.** A change is compiled into a staging binary while the running app keeps serving. Only when that build succeeds is
   the old process stopped and the new binary started, so a slow compile or a compile error never takes the service down. Air, the first

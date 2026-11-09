@@ -7,7 +7,12 @@
 # context (project root), `production` target, health check, and PORT contract stay the
 # same as every other backend.
 
+load("../layers/bun_helpers.star", "bun_dev_script", "bun_dev_script_watches")
+
 BASE_PORT_BACKEND = 4000
+
+# App types whose Bun image can run the `dev` script under a watcher (service.json `dev.liveReload` applies to these).
+BUN_LIVE_RELOAD_APP_TYPES = ["backend", "worker", "agent", "mcp"]
 
 # Languages whose runtime files are owned by the provider (no Vite/tsconfig/Bun config).
 PROVIDER_OWNED_LANGUAGES = ["python", "go", "rust", "node"]
@@ -269,17 +274,19 @@ def go_live_reload_enabled(manifest):
         return False
     return dev.get("liveReload") == True
 
-def bun_live_reload_enabled(manifest):
-    """True for a Bun backend that has a dev script and has not opted out with `dev.liveReload: false` (#3395)."""
+def bun_live_reload_enabled(manifest, res_path):
+    """True for a Bun service that reloads on a synced edit (#3395): its package.json `dev` script runs under `bun --watch`/`--hot` and `dev.liveReload` is not `false`.
+
+    Only the Dockerfile Flisk generates has a `development` stage that runs that script; see L4_generate_backend_runtime.
+    """
     if not manifest or manifest.get("language", "bun") != "bun":
         return False
-    app_type = manifest.get("appType", "backend")
-    if app_type not in ["backend", "worker", "agent", "mcp"]:
+    if manifest.get("appType", "backend") not in BUN_LIVE_RELOAD_APP_TYPES:
         return False
     dev = manifest.get("dev")
     if type(dev) == "dict" and dev.get("liveReload") == False:
         return False
-    return True
+    return bun_dev_script_watches(bun_dev_script(res_path))
 
 def python_test_on_save_enabled(manifest):
     """True for a Python service that opted in with `dev.testOnSave` (boolean or dict with enabled: True); anything else stays off."""

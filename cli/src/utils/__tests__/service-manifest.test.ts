@@ -322,9 +322,35 @@ describe("service manifest compatibility", () => {
     );
     expect(resultFalse.warnings).toEqual([]);
 
-    // A Bun service reloads by default, so the flag is not ignored there.
+    // A Bun backend reloads by default, so the flag is not ignored there.
     const bun = validateServiceManifest({ ...base, dev: { liveReload: true } }, "service.json");
     expect(bun.warnings).toEqual([]);
+  });
+
+  it("warns that dev.liveReload is ignored for Bun app types that have no watcher", () => {
+    const base = manifestBase();
+    for (const appType of ["backend", "worker", "agent", "mcp"]) {
+      const result = validateServiceManifest(
+        { ...base, appType, dev: { liveReload: true } },
+        "service.json",
+      );
+      expect(result.warnings.filter((w) => w.includes("dev.liveReload"))).toEqual([]);
+    }
+    for (const appType of ["bring-your-own", "frontend", "library", "sdk"]) {
+      const result = validateServiceManifest(
+        { ...base, appType, language: "bun", dev: { liveReload: true } },
+        "service.json",
+      );
+      expect(result.warnings.join("\n")).toMatch(
+        /service\.json\.dev\.liveReload: only applies to .*Bun backends.*ignored/,
+      );
+      // false is a valid opt-out and never warns
+      const off = validateServiceManifest(
+        { ...base, appType, dev: { liveReload: false } },
+        "service.json",
+      );
+      expect(off.warnings.filter((w) => w.includes("dev.liveReload"))).toEqual([]);
+    }
   });
 
   it("warns specifically that a jwtSecret in service.json is ignored and must not be committed", () => {
