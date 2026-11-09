@@ -166,16 +166,14 @@ jobs:
             lines.push('', MILESTONES[mergedCount]
               || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`);
             if (rankLine) lines.push('', rankLine);
-            // Your personal FLISK HALL OF FAME badge, ready to copy into your portfolio or README.
+            // Your personal FLISK HALL OF FAME badge. It is shown rendered, then the Markdown to copy
+            // sits in a fenced block (a badge wrapped in inline code renders as plain text).
+            lines.push('', copySnippet(author, mergedCount));
             lines.push('', '<details>');
-            lines.push('', '<summary>Your FLISK HALL OF FAME badge</summary>');
-            lines.push('', '');
-            lines.push('', 'Paste this into your portfolio or README. It links back to the open Hall of Fame issue.');
-            lines.push('', '');
-            lines.push('', '`- ' + copySnippet(author, mergedCount) + '`');
-            lines.push('', '');
+            lines.push('<summary>Copy your badge for your portfolio or README</summary>');
+            lines.push('', 'It links back to the open Hall of Fame issue.');
+            lines.push('', '```markdown', copySnippet(author, mergedCount), '```');
             lines.push('', '</details>');
-            lines.push('', '');
             // Link the open hall-of-fame issue so a new contributor can find their place on it.
             try {
               const hall = (await retry(() => github.rest.search.issuesAndPullRequests({
@@ -185,6 +183,7 @@ jobs:
             } catch (e) {
               core.warning(`Could not look up the hall of fame issue: ${e.message}`);
             }
+            lines.push('', '💬 Come say hi on [Discord](https://discord.gg/Sjhb3tnq3). Contributors and maintainers chat there, and it is the quickest place to ask what to pick up next.');
             if (next.length) {
               lines.push('', 'If you want another one, these are open and unclaimed. Comment on one to claim it:');
               for (const i of next) lines.push(`- #${i.number} ${i.title}`);
