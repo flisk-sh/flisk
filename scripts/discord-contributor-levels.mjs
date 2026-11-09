@@ -75,7 +75,7 @@ export function levelUpMessage({ discordId, login, tier, belt, raisedTier, raise
     linked(`${level.role} @${login}`, level === tier ? tierBadge(tier, login) : beltBadge(belt, login)),
   );
   return [
-    `🥋 <@${discordId}> levelled up to ${news.join(" and ")}, with ${prs} merged PRs so far.`,
+    `🥋 <@${discordId}> levelled up to ${news.join(" and ")}, with ${prs} merged PR${prs === 1 ? "" : "s"} so far.`,
     "",
     `**Add it to your GitHub profile:**\n\`\`\`markdown\n${snippets.join("\n")}\n\`\`\``,
     `**For your CV:** \`${raised.map((level) => level.role).join(", ")}, Flisk (open source), flisk.sh\``,
