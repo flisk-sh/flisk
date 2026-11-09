@@ -25,6 +25,19 @@ export function shouldReport(run, pr) {
 	return Boolean(pr?.merged_at) && pr.head?.sha === run.head_sha;
 }
 
+// The jobs that really failed. A run with none is not a red check: GitHub closes a fork's runs still waiting for approval as
+// `failure`, with no jobs, the moment the pull request merges, and jobs cancelled by the merge end `cancelled`. The start time is
+// deliberately not used: jobs that start after an early merge still run the pull request's tests, and those failures are real.
+export function redJobs(jobs) {
+	return jobs.filter((job) => FAILED.includes(job.conclusion));
+}
+
+// The issue every reporter of a merge settles on: the oldest open one with exactly this title.
+export function canonicalIssue(issues, title) {
+	const matching = issues.filter((issue) => issue.title === title).map((issue) => issue.number);
+	return matching.length > 0 ? Math.min(...matching) : null;
+}
+
 export function commentBody(run) {
 	return [
 		MARKER,
@@ -60,11 +73,46 @@ function pullRequestNumbers(run, repo) {
 	return found.map((p) => p.number);
 }
 
-function findIssue(title) {
-	const found = JSON.parse(
-		gh(["issue", "list", "--state", "open", "--search", `in:title "${title}"`, "--json", "number,title"]),
-	);
-	return found.find((i) => i.title === title) ?? null;
+// Every workflow that fails for a merge runs its own reporter at the same moment, so several can find no issue and each create one.
+// A concurrency group cannot serialize them (it keeps one pending run and cancels the rest, which would lose reports). Instead, a
+// reporter that created an issue looks again and closes its own if an older one exists, so they all converge on the oldest.
+export function fileIssue(pr, run, api) {
+	const title = issueTitle(pr.number);
+	const line = `${run.name}: ${run.conclusion} - ${run.html_url}`;
+	const existing = canonicalIssue(api.list(), title);
+	if (existing !== null) {
+		api.comment(existing, line);
+		return existing;
+	}
+	const created = api.create(title, issueBody(pr, run));
+	const canonical = canonicalIssue(api.list(), title) ?? created;
+	if (canonical === created) return created;
+	api.comment(canonical, line);
+	api.close(created, canonical);
+	return canonical;
+}
+
+// A plain listing, not --search: the search index lags behind by seconds, which is the window the reporters race in.
+const issueApi = {
+	list: () => JSON.parse(gh(["issue", "list", "--state", "open", "--limit", "1000", "--json", "number,title"])),
+	comment: (number, body) => gh(["issue", "comment", String(number), "--body-file", "-"], body),
+	create: (title, body) => {
+		const url = gh(["issue", "create", "--title", title, "--body-file", "-"], body).trim();
+		return Number(url.split("/").pop());
+	},
+	close: (number, canonical) =>
+		gh(["issue", "close", String(number), "--reason", "not planned", "--comment", `Duplicate of #${canonical}.`]),
+};
+
+function runJobs(run, repo) {
+	const lines = gh([
+		"api",
+		"--paginate",
+		`repos/${repo}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs?per_page=100`,
+		"--jq",
+		".jobs[] | {conclusion}",
+	]);
+	return lines.split("\n").filter(Boolean).map((line) => JSON.parse(line));
 }
 
 function hasComment(prNumber, run) {
@@ -88,15 +136,15 @@ function main(argv) {
 			console.log(`#${number}: not merged or not its head commit, skipped`);
 			continue;
 		}
+		if (redJobs(runJobs(run, repo)).length === 0) {
+			console.log(`#${number}: ${run.name} ${run.conclusion}, but no job failed, skipped`);
+			continue;
+		}
 		console.log(`#${number}: ${run.name} ${run.conclusion} after merge`);
 		if (dryRun) continue;
 		if (!hasComment(number, run))
 			gh(["pr", "comment", String(number), "--body-file", "-"], commentBody(run));
-		const title = issueTitle(number);
-		const issue = findIssue(title);
-		if (issue)
-			gh(["issue", "comment", String(issue.number), "--body-file", "-"], `${run.name}: ${run.conclusion} - ${run.html_url}`);
-		else gh(["issue", "create", "--title", title, "--body-file", "-"], issueBody(pr, run));
+		fileIssue(pr, run, issueApi);
 	}
 	return 0;
 }
