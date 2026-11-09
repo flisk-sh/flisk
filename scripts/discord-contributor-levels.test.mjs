@@ -164,6 +164,13 @@ test("one failing seat does not stop the others, and the run still fails", async
   assert.equal(calls.announced.length, 1);
 });
 
+test("a seat holder with zero merged PRs fails the run instead of passing quietly", async () => {
+  const entries = [seat(1, "ann-gh", "ann")];
+  const { calls, go } = setup({ entries, work: { "ann-gh": { prs: 0, labels: [] } } });
+  await assert.rejects(go, /1 of 1 seats failed/);
+  assert.deepEqual([calls.grants, calls.announced], [[], []]);
+});
+
 test("a missing Discord role stops the sync with its name", async () => {
   const { go } = setup({ entries: [], missingRole: "Black Belt" });
   await assert.rejects(go, /no role named Black Belt/);

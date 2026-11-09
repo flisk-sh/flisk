@@ -93,7 +93,9 @@ async function syncSeat(entry, { discord, github, entries, roleIds }) {
   }
 
   const work = await github.mergedWork(entry.github);
-  const tier = higher(TIERS, tierFor(work.prs), entry.tier);
+  // A seat needs a merged PR, so zero means the search cannot see PRs, not that they have none.
+  if (work.prs === 0) throw new Error(`GitHub search found no merged PRs for ${entry.github}.`);
+  const tier =higher(TIERS, tierFor(work.prs), entry.tier);
   const belt = higher(BELTS, beltFor(work.labels), entry.belt);
 
   const wanted = [tier, belt].filter(Boolean).map((level) => roleIds[level.role]);
