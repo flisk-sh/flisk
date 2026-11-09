@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BELTS, beltBadge, beltFor, levelRoleNames, syncLevels, TIERS, tierBadge, tierFor } from "./discord-contributor-levels.mjs";
+import { BELTS, beltBadge, beltFor, discordImage, levelRoleNames, syncLevels, TIERS, tierBadge, tierFor } from "./discord-contributor-levels.mjs";
 import { githubClient, renderRegistry } from "./discord-founding-role.mjs";
 
 const roleOf = (name) => `id:${name}`;
@@ -56,9 +56,18 @@ test("badges are static shields that keep hyphens in a login", () => {
   const tier = new URL(tierBadge(TIERS[1], "AK-Lmn"));
   assert.equal(tier.searchParams.get("label"), "FLISK CORE");
   assert.equal(tier.searchParams.get("message"), "15+ merged PRs • @AK-Lmn");
-  const belt = new URL(beltBadge(BELTS[3], "AK-Lmn", "raster.shields.io"));
-  assert.equal(belt.host, "raster.shields.io");
+  const belt = new URL(beltBadge(BELTS[3], "AK-Lmn"));
+  assert.equal(belt.host, "img.shields.io");
   assert.equal(belt.searchParams.get("label"), "FLISK BLACK BELT");
+});
+
+test("the Discord image is the badge SVG rendered at four times its 28px height", () => {
+  const badge = tierBadge(TIERS[1], "AK-Lmn");
+  const image = new URL(discordImage(badge));
+  assert.equal(image.host, "wsrv.nl");
+  assert.equal(image.searchParams.get("url"), badge);
+  assert.equal(image.searchParams.get("h"), "112");
+  assert.equal(image.searchParams.get("output"), "png");
 });
 
 test("a first sync grants both roles, announces once and saves the levels", async () => {
@@ -75,6 +84,7 @@ test("a first sync grants both roles, announces once and saves the levels", asyn
   assert.match(text, /<@ann> levelled up to \*\*Flisk Regular\*\* \(5\+ merged PRs\) and \*\*Green Belt\*\*/);
   assert.match(text, /For your CV:/);
   assert.equal(images.length, 2);
+  assert.ok(images.every((url) => new URL(url).host === "wsrv.nl"));
   assert.equal(entries[0].tier, "Regular");
   assert.equal(entries[0].belt, "Green");
   assert.equal(calls.saved, 1);

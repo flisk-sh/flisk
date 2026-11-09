@@ -50,17 +50,23 @@ function higher(levels, computed, storedName) {
   return levels.indexOf(stored) > levels.indexOf(computed) ? stored : computed;
 }
 
-function shield(label, message, color, host) {
+function shield(label, message, color) {
   const params = new URLSearchParams({ label, message, color, labelColor: "07080f", style: "for-the-badge" });
-  return `https://${host}/static/v1?${params.toString().replaceAll("+", "%20")}`;
+  return `https://img.shields.io/static/v1?${params.toString().replaceAll("+", "%20")}`;
 }
 
-export function tierBadge(tier, login, host = "img.shields.io") {
-  return shield(`FLISK ${tier.name.toUpperCase()}`, `${tier.at}+ merged PRs • @${login}`, tier.color, host);
+export function tierBadge(tier, login) {
+  return shield(`FLISK ${tier.name.toUpperCase()}`, `${tier.at}+ merged PRs • @${login}`, tier.color);
 }
 
-export function beltBadge(belt, login, host = "img.shields.io") {
-  return shield(`FLISK ${belt.name.toUpperCase()} BELT`, `${belt.ranks} • @${login}`, belt.color, host);
+export function beltBadge(belt, login) {
+  return shield(`FLISK ${belt.name.toUpperCase()} BELT`, `${belt.ranks} • @${login}`, belt.color);
+}
+
+// Discord does not show SVG, and the PNG from raster.shields.io is only 28px tall, so it
+// looks soft. This renders the same SVG at four times that height.
+export function discordImage(badgeUrl) {
+  return `https://wsrv.nl/?${new URLSearchParams({ url: badgeUrl, h: "112", output: "png" })}`;
 }
 
 const linked = (title, image) => `[![${title}](${image})](${INVITE})`;
@@ -106,8 +112,8 @@ async function syncSeat(entry, { discord, github, entries, roleIds }) {
   const raisedBelt = (belt?.name ?? null) !== (entry.belt ?? null);
   if (raisedTier || raisedBelt) {
     const images = [
-      raisedTier ? tierBadge(tier, entry.github, "raster.shields.io") : null,
-      raisedBelt ? beltBadge(belt, entry.github, "raster.shields.io") : null,
+      raisedTier ? discordImage(tierBadge(tier, entry.github)) : null,
+      raisedBelt ? discordImage(beltBadge(belt, entry.github)) : null,
     ].filter(Boolean);
     await discord.announce(
       levelUpMessage({
