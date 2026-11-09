@@ -8,7 +8,14 @@ name: 🤖 BOT | Community | Discord founding role
 on:
   schedule:
     - cron: "*/5 * * * *"
+  # A Cloudflare Worker starts this every minute (workers/discord-bot-trigger), because
+  # GitHub's schedule above can go hours without firing.
   workflow_dispatch:
+    inputs:
+      claims_only:
+        description: Only handle new claims
+        type: boolean
+        default: false
 
 permissions: {}
 
