@@ -164,7 +164,8 @@ def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun r
         "COPY --from=l3_production_purger /app/" + res_path + "/node_modules ./node_modules\n",
         prisma_runtime_copy(res_path) if use_prisma else "",
         prisma_cli_runtime_copy(res_path) if use_prisma else "",
-        "COPY --from=l3_backend_build /app/" + res_path + "/dist ./dist\n",
+        # Owned by bun, the user the process runs as: live update rebuilds dist/ in the running container.
+        "COPY --chown=bun:bun --from=l3_backend_build /app/" + res_path + "/dist ./dist\n",
         "COPY " + res_path_rel + "/package.json ./package.json\n",
         prisma_bun_symlink_fix() if use_prisma else "",
         bun_hoisted_packages_symlink_fix(),
