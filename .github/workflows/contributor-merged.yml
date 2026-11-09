@@ -75,6 +75,27 @@ jobs:
             const copySnippet = (login, prs) =>
               `[![FLISK HALL OF FAME @${login} • ${prs} merged PR${prs === 1 ? '' : 's'}](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
 
+            // How many numbered badges are left, from the issue the Discord bot keeps. The count
+            // is a nicety, so a failure here falls back to wording without a number.
+            const SEATS = 100;
+            let seatsLeft = null;
+            try {
+              const community = await retry(() => github.paginate(github.rest.issues.listForRepo,
+                { owner, repo, state: 'open', labels: 'community', per_page: 100 }));
+              const registry = community.find((i) => i.body && i.body.includes('<!-- flisk:founding-registry -->'));
+              const data = /<!-- flisk:founding-data (.*?) -->/s.exec(registry?.body ?? '');
+              seatsLeft = Math.max(SEATS - (data ? JSON.parse(data[1]).length : 0), 0);
+            } catch (e) {
+              core.warning(`Could not count founding seats: ${e.message}`);
+            }
+            const founding = seatsLeft !== 0;
+            const badgeName = founding ? 'Founding Contributor' : 'Flisk Contributor';
+            const lockedBadgeUrl = `https://img.shields.io/static/v1?${new URLSearchParams({
+              label: `\u{1F512} ${badgeName.toUpperCase()}`,
+              message: founding && seatsLeft !== null ? `${seatsLeft} of ${SEATS} left` : 'claim yours',
+              color: '06b6d4', labelColor: '07080f', style: 'for-the-badge',
+            }).toString().replaceAll('+', '%20')}`;
+
             const hasMark = async (number, mark) => {
               const comments = await github.paginate(github.rest.issues.listComments,
                 { owner, repo, issue_number: number, per_page: 100 });
@@ -187,9 +208,12 @@ jobs:
             lines.push('<summary>Copy it into your portfolio or README</summary>');
             lines.push('', '```markdown', copySnippet(author, mergedCount), '```');
             lines.push('', '</details>');
-            lines.push('', '### 🎖️ Unlock your second badge');
-            lines.push('', discordButton('Claim your Founding Contributor role'));
-            lines.push('', `Post this PR's link in [our Discord](${discordInvite}) and you get the **Founding Contributor** role, kept for the people who join this early. You also get a direct line to the maintainers when you want to choose your next issue.`);
+            lines.push('', `### 🔒 Unlock your numbered ${badgeName} badge`);
+            lines.push('', `[![${badgeName} badge, locked](${lockedBadgeUrl})](${discordInvite})`);
+            lines.push('', founding
+              ? `The first ${SEATS} people to ship code to Flisk each get a numbered, permanent badge to show on their GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers.`
+              : `All ${SEATS} Founding badges are taken, and yours is a numbered **Flisk Contributor** badge for your GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers.`);
+            lines.push('', discordButton('Claim your badge'));
             if (next.length) {
               lines.push('', '### 🎯 Ready for another one?');
               lines.push('', 'These are open and unclaimed. Comment on one to claim it:', '');
@@ -221,8 +245,8 @@ jobs:
                 '',
                 discordButton('Join the Flisk Discord'),
                 '',
-                `- 🎖️ @${author}, your **Founding Contributor** role is waiting: post the link to #${pr.number} in [our Discord](${discordInvite}) to claim it.`,
-                `- 🧩 Want that role too? [Pick up a good first issue](${base}/issues?q=is%3Aissue+is%3Aopen+no%3Aassignee+label%3A%22good+first+issue%22).`,
+                `- 🎖️ @${author}, your numbered **${badgeName}** badge is waiting: post the link to #${pr.number} in [our Discord](${discordInvite}) to claim it.`,
+                `- 🧩 Want a badge too? [Pick up a good first issue](${base}/issues?q=is%3Aissue+is%3Aopen+no%3Aassignee+label%3A%22good+first+issue%22).`,
                 `- 🔔 [Watch ${owner}/${repo}](${base}) to hear about the next release.`,
               ];
               await github.rest.issues.createComment({

@@ -1,7 +1,7 @@
 name: 🤖 BOT | Community | Discord founding role
 
-# Grants the Founding Contributor role to anyone who posts a merged PR link in
-# #start-here, and replies to say so. Discord has no webhook for new messages, so
+# Gives a numbered badge and role to anyone who posts a merged PR link in
+# #start-here, and replies with it. Seat numbers live in one tracking issue. Discord has no webhook for new messages, so
 # this polls. It runs from the default branch and never reads PR code; PR links
 # and message text are only passed to the Discord and GitHub APIs.
 
@@ -23,7 +23,9 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
+      actions: write
       contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

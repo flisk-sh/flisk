@@ -100,6 +100,23 @@ jobs:
             const rows = [...people.entries()].sort((a, b) =>
               b[1].prs - a[1].prs || (b[1].best?.value ?? -1) - (a[1].best?.value ?? -1) || a[0].localeCompare(b[0]));
             const base = `https://github.com/${owner}/${repo}`;
+            // Seat numbers live in the issue the Discord bot keeps. Issues are listed here,
+            // not search: its index lags, and two runs in a row would each create the issue.
+            const listTracked = () => github.paginate(github.rest.issues.listForRepo,
+              { owner, repo, state: 'open', labels: 'community', per_page: 100 });
+            const open = await retry('list community issues', listTracked);
+            const registry = open.find((i) => !i.pull_request && i.body && i.body.includes('<!-- flisk:founding-registry -->'));
+            const seatData = /<!-- flisk:founding-data (.*?) -->/s.exec(registry?.body ?? '');
+            const seats = seatData ? JSON.parse(seatData[1]) : [];
+            const SEATS = 100;
+            const discordInvite = 'https://discord.gg/qMu5Xn8Kaq';
+            const seatOf = (login) => seats.find((s) => s.github.toLowerCase() === login.toLowerCase());
+            const seatCell = (login) => {
+              const seat = seatOf(login);
+              if (!seat) return `🔒 [Claim in Discord](${discordInvite})`;
+              if (seat.revoked) return '';
+              return seat.n <= SEATS ? `⚡ #${seat.n} of ${SEATS}` : `#${seat.n}`;
+            };
             // shields.io splits badge segments on `-` and does not allow escaping
             // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
             // Replace `-` with `_` in the badge subject only; the link text keeps
@@ -115,10 +132,12 @@ jobs:
               '',
               'Ranks come from the `rank:` label of the issues your PRs fixed. The easiest is 8 kyu, then 7 down to 1 kyu, then 1 dan, which is the hardest. Pick a harder issue to rank up.',
               '',
-              '| Contributor | Badge | Merged PRs | Issues fixed | Highest rank |',
-              '| --- | --- | ---: | ---: | --- |',
+              `**Founding badges: ${seats.filter((s) => s.n <= SEATS).length} of ${SEATS} claimed.** A numbered badge for the first ${SEATS} people to ship code to Flisk. Post a merged PR in [#start-here on Discord](${discordInvite}) to claim yours.`,
+              '',
+              '| Contributor | Badge | Merged PRs | Issues fixed | Highest rank | Founding |',
+              '| --- | --- | ---: | ---: | --- | --- |',
               ...rows.map(([login, p]) =>
-                `| @${login} | [![FLISK HALL OF FAME](${badgeUrl(login, p.prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity) | ${p.prs} | ${p.issues} | ${p.best ? p.best.name : '-'} |`),
+                `| @${login} | [![FLISK HALL OF FAME](${badgeUrl(login, p.prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity) | ${p.prs} | ${p.issues} | ${p.best ? p.best.name : '-'} | ${seatCell(login)} |`),
               '',
               '<details>',
               '<summary>Copy your badge</summary>',
@@ -132,10 +151,6 @@ jobs:
               `Last updated for the ${rows.length} contributors above. Want to be on this list? Start with a [good first issue](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).`,
             ].join('\n');
 
-            // Not search: its index lags, and two runs in a row would each create the issue.
-            const listTracked = () => github.paginate(github.rest.issues.listForRepo,
-              { owner, repo, state: 'open', labels: 'community', per_page: 100 });
-            const open = await retry('list community issues', listTracked);
             const found = open.find((i) => !i.pull_request && i.body && i.body.includes(MARK));
             if (found) {
               // Setting the same body twice is harmless, so a retry cannot duplicate anything.

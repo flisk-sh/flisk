@@ -19,6 +19,18 @@ Open the Hall of Fame issue, find your row, and copy the snippet in the **Copy y
 
 Paste it into your portfolio README, GitHub profile README, personal site, or anywhere markdown images render. The badge links back to the open Hall of Fame issue so anyone can verify your contribution.
 
+## Founding Contributor badge
+
+The first 100 people to ship code to any `flisk-sh` repository earn a permanent, numbered **Founding Contributor** badge to show on their GitHub profile or CV. After that, the badge is a numbered **Flisk Contributor** badge.
+
+To claim yours, post the link to a merged PR in `#start-here` on the [Flisk Discord](https://discord.gg/qMu5Xn8Kaq). Within a few minutes a bot replies with:
+
+- Your number, given in the order people claim them
+- Your badge and ready-to-paste markdown
+- The matching Discord role, and access to the private `#contributors` channel with the maintainers
+
+Each person gets one badge. Claimed seats are listed in the [Founding Contributors](https://github.com/flisk-sh/flisk/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity+%22Founding+Contributors%22) issue.
+
 ## How badges are awarded
 
 - Badges are generated automatically on every merged community PR; you do not need to request one.

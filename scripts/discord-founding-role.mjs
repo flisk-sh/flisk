@@ -2,20 +2,29 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-// Grants the Founding Contributor role to people who post a merged flisk-sh/flisk
-// PR in #start-here, then replies to say so. Runs on a schedule, so it keeps no
-// state of its own: the bot's reaction on a message records that it was handled,
-// and a merged PR counts for the first person who posts it.
+// Gives a numbered contributor badge to people who post a merged flisk-sh PR in
+// #start-here, grants the matching Discord role and replies with the badge. Runs on
+// a schedule. The bot's reaction records that a message was handled, and seat
+// numbers live in one GitHub issue so they stay the same forever.
 
 import { fileURLToPath } from "node:url";
 
 const API = "https://discord.com/api/v10";
 const GUILD_ID = "1562937840071999538";
 const CHANNEL_ID = "1562939740301299733";
-const ROLE_NAME = "Founding Contributor";
-const REPO = "flisk-sh/flisk";
+const CONTRIBUTORS_CHANNEL_ID = "1569474203944755322";
+const FOUNDING_ROLE = "Founding Contributor";
+const CONTRIBUTOR_ROLE = "Flisk Contributor";
+export const FOUNDING_SEATS = 100;
+const ORG = "flisk-sh";
+const REPO = `${ORG}/flisk`;
+const INVITE = "https://discord.gg/qMu5Xn8Kaq";
 const MAINTAINERS = new Set(["kburym", "odykyi"]);
 const MAX_PAGES = 20;
+
+export const REGISTRY_MARK = "<!-- flisk:founding-registry -->";
+const REGISTRY_TITLE = "Founding Contributors: the first 100";
+const REGISTRY_DATA = /<!-- flisk:founding-data (.*?) -->/s;
 
 export const DONE = "✅";
 export const WAITING = "⏳";
@@ -25,8 +34,10 @@ const MARKS = [DONE, WAITING, REFUSED];
 const NEXT_ISSUES = `https://github.com/${REPO}/issues?q=is%3Aissue+is%3Aopen+no%3Aassignee+label%3A%22good+first+issue%22`;
 
 export function prLinks(content) {
-  const found = (content ?? "").matchAll(/https?:\/\/(?:www\.)?github\.com\/flisk-sh\/flisk\/pull\/(\d+)/gi);
-  return [...new Set([...found].map((match) => Number(match[1])))];
+  const found = (content ?? "").matchAll(/https?:\/\/(?:www\.)?github\.com\/flisk-sh\/([\w.-]+)\/pull\/(\d+)/gi);
+  const links = new Map();
+  for (const [, repo, number] of found) links.set(`${repo}#${number}`, { repo, number: Number(number) });
+  return [...links.values()];
 }
 
 const hasMark = (message, marks) => (message.reactions ?? []).some((r) => r.me && marks.includes(r.emoji.name));
@@ -41,102 +52,209 @@ function assertContentVisible(messages) {
   }
 }
 
-const grantedReply = (prs) =>
-  `🎖️ Confirmed: ${prs.map((pr) => `#${pr.number} by \`${pr.user.login}\``).join(", ")} merged. ` +
-  `You now have the **${ROLE_NAME}** role: a blue name and your own group at the top of the member list, ` +
-  `kept for the people who join this early. Thank you for helping build Flisk!\n\n` +
-  `Looking for your next one? <${NEXT_ISSUES}>`;
+const isFounding = (seat) => seat <= FOUNDING_SEATS;
+const badgeTitle = (seat) => (isFounding(seat) ? "Founding Contributor" : "Flisk Contributor");
 
-const waitingReply = (numbers) =>
-  `⏳ ${numbers.map((n) => `#${n}`).join(", ")} ${numbers.length === 1 ? "has" : "have"} not merged yet. ` +
-  `Post the link here again once it merges and you get the **${ROLE_NAME}** role.`;
+// The static form of the shields URL takes plain query values, so a hyphen in a login stays a hyphen.
+export function badgeImage(seat, login, host = "img.shields.io") {
+  const params = new URLSearchParams({
+    label: isFounding(seat) ? "⚡ FOUNDING CONTRIBUTOR" : "⚡ FLISK CONTRIBUTOR",
+    message: `${isFounding(seat) ? `#${seat} of ${FOUNDING_SEATS}` : `#${seat}`} • @${login}`,
+    color: "06b6d4",
+    labelColor: "07080f",
+    style: "for-the-badge",
+  });
+  return `https://${host}/static/v1?${params.toString().replaceAll("+", "%20")}`;
+}
 
-const takenReply = (numbers) =>
-  `❌ ${numbers.map((n) => `#${n}`).join(", ")} already earned the **${ROLE_NAME}** role for the person who posted it first. ` +
-  `If that PR is yours, ask in #help and a maintainer will sort it out.`;
+export function badgeMarkdown(seat, login) {
+  return `[![${badgeTitle(seat)} #${seat} @${login}](${badgeImage(seat, login)})](${INVITE})`;
+}
+
+const seatLine = (seat) => (isFounding(seat) ? `#${seat} of ${FOUNDING_SEATS}` : `#${seat}`);
+
+const badgeBlock = (seat, login) =>
+  `**Add it to your GitHub profile:**\n\`\`\`markdown\n${badgeMarkdown(seat, login)}\n\`\`\`\n` +
+  `**For your CV:** \`${badgeTitle(seat)} ${seatLine(seat)}, Flisk (open source), flisk.sh\``;
+
+function grantedReply(seat, pr, seatsTaken) {
+  const left = Math.max(FOUNDING_SEATS - seatsTaken, 0);
+  const about = isFounding(seat)
+    ? `**What this is:** a numbered badge for the first ${FOUNDING_SEATS} people to ship code to Flisk. Yours is permanent, and nobody can earn one once they are gone.`
+    : `**What this is:** the numbered badge for people who ship code to Flisk. The first ${FOUNDING_SEATS} went to the Founding Contributors, and you are building on from there.`;
+  return [
+    `🎖️ **You are ${badgeTitle(seat)} ${seatLine(seat)}!** ${pr.repo}#${pr.number} by \`${pr.user.login}\` merged.`,
+    "",
+    about,
+    "",
+    "**What you get**",
+    "• Your personal badge, ready for your GitHub profile or CV",
+    `• The ${badgeTitle(seat)} role and your own group in the member list`,
+    `• Access to <#${CONTRIBUTORS_CHANNEL_ID}>, where contributors talk directly with the maintainers`,
+    "",
+    badgeBlock(seat, pr.user.login),
+    "",
+    isFounding(seat) ? `Founding seats left: **${left} of ${FOUNDING_SEATS}**.` : "",
+    `Looking for your next one? <${NEXT_ISSUES}>`,
+  ]
+    .filter((line, i, all) => line !== "" || all[i - 1] !== "")
+    .join("\n");
+}
+
+const alreadyReply = (entry) =>
+  `✅ You already hold **${badgeTitle(entry.n)} ${seatLine(entry.n)}**, one per person. Here it is again:\n\n${badgeBlock(entry.n, entry.github)}`;
+
+const waitingReply = (links) =>
+  `⏳ ${links.map((l) => `${l.repo}#${l.number}`).join(", ")} ${links.length === 1 ? "has" : "have"} not merged yet. ` +
+  "Post the link here again once it merges and the bot gives you your numbered badge.";
+
+const takenReply = () =>
+  "❌ The badge for that GitHub account has already been claimed, and each person gets one. If that account is yours, ask in #help and a maintainer will sort it out.";
 
 const notEligibleReply = () =>
-  `❌ I could not find a merged community PR in that link, so I did not add the **${ROLE_NAME}** role. ` +
-  `It needs a merged PR in ${REPO}. If this looks wrong, ask in #help.`;
+  `❌ I could not find a merged community PR in that link, so there is no badge yet. It needs a merged PR in a ${ORG} repository. If this looks wrong, ask in #help.`;
 
-// Sorts a message's links into what the role decision needs.
-async function classify(numbers, authorId, claims, github) {
-  const result = { merged: [], open: [], taken: [] };
-  for (const number of numbers) {
-    const claimedBy = claims.get(number);
-    if (claimedBy && claimedBy !== authorId) {
-      result.taken.push(number);
-      continue;
-    }
-    const pr = await github.pull(number);
+function isCommunityPr(pr) {
+  return (
+    pr.user?.type === "User" && !MAINTAINERS.has(pr.user.login) && !["OWNER", "MEMBER"].includes(pr.author_association)
+  );
+}
+
+// Sorts a message's links into what the badge decision needs.
+async function classify(links, authorId, entries, github) {
+  const result = { free: [], open: [], taken: false };
+  for (const link of links) {
+    const pr = await github.pull(link.repo, link.number);
     if (!pr) continue;
-    if (!pr.merged_at) result.open.push(number);
-    else if (pr.user?.type === "User" && !MAINTAINERS.has(pr.user.login)) result.merged.push(pr);
+    if (!pr.merged_at) {
+      result.open.push(link);
+    } else if (isCommunityPr(pr)) {
+      const owner = entries.find((e) => e.github.toLowerCase() === pr.user.login.toLowerCase());
+      if (owner && owner.discord !== authorId) result.taken = true;
+      else result.free.push({ ...pr, repo: link.repo });
+    }
   }
   return result;
 }
 
-async function handle(message, { discord, github, claims, roleId }) {
-  const numbers = prLinks(message.content);
-  if (numbers.length === 0) return;
+async function handle(message, ctx) {
+  const { discord, github, entries, roles } = ctx;
+  const links = prLinks(message.content);
+  if (links.length === 0) return;
 
-  const links = await classify(numbers, message.author.id, claims, github);
-  const finish = async (mark, text) => {
-    if (text) await discord.reply(message.id, text);
+  const finish = async (mark, text, image) => {
+    if (text) await discord.reply(message.id, text, image);
     await discord.react(message.id, mark);
   };
+  const authorId = message.author.id;
 
-  if (links.merged.length === 0) {
-    if (links.open.length > 0) await finish(WAITING, waitingReply(links.open));
-    else if (links.taken.length > 0) await finish(REFUSED, takenReply(links.taken));
+  const held = entries.find((e) => e.discord === authorId);
+  if (held) {
+    if (held.revoked) {
+      await finish(REFUSED);
+      return;
+    }
+    const holder = await discord.member(authorId);
+    const role = isFounding(held.n) ? roles.founding : roles.contributor;
+    if (holder && !holder.roles.includes(role)) await discord.grant(authorId, role);
+    await finish(DONE, alreadyReply(held));
+    return;
+  }
+
+  const result = await classify(links, authorId, entries, github);
+  if (result.free.length === 0) {
+    if (result.open.length > 0) await finish(WAITING, waitingReply(result.open));
+    else if (result.taken) await finish(REFUSED, takenReply());
     else await finish(REFUSED, notEligibleReply());
     return;
   }
 
-  const member = await discord.member(message.author.id);
+  const member = await discord.member(authorId);
   if (!member) {
     await finish(REFUSED); // They left the server, so there is nobody to give it to.
     return;
   }
-  for (const pr of links.merged) claims.set(pr.number, message.author.id);
-  if (member.roles.includes(roleId)) {
-    await finish(DONE); // Quiet, so a re-run or a second PR does not repeat the reply.
-    return;
-  }
-  await discord.grant(message.author.id, roleId);
-  await finish(DONE, grantedReply(links.merged));
+
+  const pr = result.free[0];
+  const seat = entries.reduce((max, e) => Math.max(max, e.n), 0) + 1;
+  const entry = {
+    n: seat,
+    github: pr.user.login,
+    discord: authorId,
+    pr: `${pr.repo}#${pr.number}`,
+    at: message.timestamp ?? new Date().toISOString(),
+  };
+  // Saved first, so a crash after this point can never hand the same number to two people.
+  await github.saveRegistry([...entries, entry]);
+  entries.push(entry);
+  ctx.changed = true;
+
+  const role = isFounding(seat) ? roles.founding : roles.contributor;
+  if (!member.roles.includes(role)) await discord.grant(authorId, role);
+  await finish(DONE, grantedReply(seat, pr, entries.length), badgeImage(seat, pr.user.login, "raster.shields.io"));
 }
 
 export async function run({ discord, github, log = console.log }) {
   const guild = await discord.guild();
-  const role = guild.roles.find((r) => r.name === ROLE_NAME);
-  if (!role) throw new Error(`The server has no role named ${ROLE_NAME}.`);
+  const roleId = (name) => {
+    const role = guild.roles.find((r) => r.name === name);
+    if (!role) throw new Error(`The server has no role named ${name}.`);
+    return role.id;
+  };
+  const roles = { founding: roleId(FOUNDING_ROLE), contributor: roleId(CONTRIBUTOR_ROLE) };
 
   const messages = await discord.messages();
   assertContentVisible(messages);
+  const entries = await github.readRegistry();
 
-  const claims = new Map();
-  for (const message of messages) {
-    if (!hasMark(message, [DONE])) continue;
-    for (const number of prLinks(message.content)) claims.set(number, message.author.id);
-  }
+  // A message marked done before seats existed still needs its number.
+  const needsWork = (m) =>
+    !hasMark(m, MARKS) ||
+    (hasMark(m, [DONE]) && !hasMark(m, [WAITING, REFUSED]) && !entries.some((e) => e.discord === m.author.id));
+  const pending = messages.filter((m) => !m.author.bot && !m.webhook_id && m.author.id !== guild.owner_id && needsWork(m));
 
-  const pending = messages.filter(
-    (m) => !m.author.bot && !m.webhook_id && m.author.id !== guild.owner_id && !hasMark(m, MARKS),
-  );
   // One bad message must not hold up everyone after it. It stays unmarked, so the
   // next run retries it, and the run still goes red so the failure gets seen.
+  const ctx = { discord, github, entries, roles, changed: false };
   let failed = 0;
   for (const message of pending) {
+    if (!needsWork(message)) continue; // An earlier message in this run gave this person a seat.
     try {
-      await handle(message, { discord, github, claims, roleId: role.id });
+      await handle(message, ctx);
     } catch (error) {
       failed++;
       log(`::warning::Message ${message.id} failed: ${error.message}`);
     }
   }
-  log(`Checked ${messages.length} messages, handled ${pending.length}.`);
+  if (ctx.changed) {
+    await github.refreshHallOfFame().catch((error) => log(`::warning::Hall of Fame refresh failed: ${error.message}`));
+  }
+  log(`Checked ${messages.length} messages, handled ${pending.length}, ${entries.length} seats taken.`);
   if (failed > 0) throw new Error(`${failed} of ${pending.length} messages failed.`);
+}
+
+export function renderRegistry(entries) {
+  const live = entries.filter((e) => !e.revoked);
+  const founding = entries.filter((e) => isFounding(e.n)).length;
+  return [
+    REGISTRY_MARK,
+    `The first ${FOUNDING_SEATS} people to ship code to any ${ORG} repository earn a numbered **Founding Contributor** badge. Seats go in the order people claim them: post a merged PR in [#start-here on Discord](${INVITE}) and the bot does the rest. After that it is a numbered **Flisk Contributor** badge.`,
+    "",
+    `**${founding} of ${FOUNDING_SEATS} Founding seats claimed.** This issue is updated by the bot.`,
+    "",
+    "| # | Contributor | Badge | PR |",
+    "| ---: | --- | --- | --- |",
+    ...live.map((e) => `| ${e.n} | @${e.github} | ![${badgeTitle(e.n)}](${badgeImage(e.n, e.github)}) | ${ORG}/${e.pr} |`),
+    "",
+    'Maintainers: to revoke a seat, add `"revoked":true` to its entry in the data comment in this issue\'s source and remove the Discord role. Numbers are never reused.',
+    "",
+    `<!-- flisk:founding-data ${JSON.stringify(entries)} -->`,
+  ].join("\n");
+}
+
+export function parseRegistry(body) {
+  const match = REGISTRY_DATA.exec(body ?? "");
+  return match ? JSON.parse(match[1]) : [];
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -171,10 +289,11 @@ export function discordClient(token, { fetchImpl = fetch, sleep = wait } = {}) {
     grant: (userId, roleId) => call("PUT", `/guilds/${GUILD_ID}/members/${userId}/roles/${roleId}`),
     react: (messageId, emoji) =>
       call("PUT", `/channels/${CHANNEL_ID}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}/@me`),
-    reply: (messageId, content) =>
+    reply: (messageId, content, image) =>
       call("POST", `/channels/${CHANNEL_ID}/messages`, {
         body: {
           content,
+          ...(image ? { embeds: [{ image: { url: image } }] } : {}),
           message_reference: { message_id: messageId, fail_if_not_exists: false },
           allowed_mentions: { parse: [], replied_user: true },
         },
@@ -195,19 +314,49 @@ export function discordClient(token, { fetchImpl = fetch, sleep = wait } = {}) {
 }
 
 export function githubClient(token, { fetchImpl = fetch } = {}) {
+  const call = async (method, path, { body, allow404 = false } = {}) => {
+    const response = await fetchImpl(`https://api.github.com${path}`, {
+      method,
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "flisk-discord-founding-role",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (response.status === 404 && allow404) return null;
+    if (!response.ok) throw new Error(`GitHub ${method} ${path}: ${response.status} ${await response.text()}`);
+    return response.status === 204 ? true : response.json();
+  };
+
+  let registryIssue = null;
   return {
-    async pull(number) {
-      const response = await fetchImpl(`https://api.github.com/repos/${REPO}/pulls/${number}`, {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "flisk-discord-founding-role",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (response.status === 404) return null;
-      if (!response.ok) throw new Error(`GitHub pull ${number}: ${response.status} ${await response.text()}`);
-      return response.json();
+    pull: (repo, number) => call("GET", `/repos/${ORG}/${encodeURIComponent(repo)}/pulls/${number}`, { allow404: true }),
+    async readRegistry() {
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const issues = await call("GET", `/repos/${REPO}/issues?state=all&labels=community&per_page=100&page=${page}`);
+        const found = issues.find((i) => i.body?.includes(REGISTRY_MARK));
+        if (found) {
+          registryIssue = found.number;
+          return parseRegistry(found.body);
+        }
+        if (issues.length < 100) break;
+      }
+      return [];
     },
+    async saveRegistry(entries) {
+      const body = renderRegistry(entries);
+      if (registryIssue) {
+        await call("PATCH", `/repos/${REPO}/issues/${registryIssue}`, { body: { body } });
+      } else {
+        const created = await call("POST", `/repos/${REPO}/issues`, {
+          body: { title: REGISTRY_TITLE, body, labels: ["community"] },
+        });
+        registryIssue = created.number;
+      }
+    },
+    refreshHallOfFame: () =>
+      call("POST", `/repos/${REPO}/actions/workflows/hall-of-fame.yml/dispatches`, { body: { ref: "main" } }),
   };
 }
 

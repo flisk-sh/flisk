@@ -25,14 +25,14 @@ function pr(login, authorAssociation, typename = "User") {
 }
 
 // Runs the workflow script over one page of merged PRs and returns the issue body it writes.
-async function rebuild(nodes) {
+async function rebuild(nodes, communityIssues = []) {
   const AsyncFunction = (async () => {}).constructor;
   const created = [];
   const github = {
     graphql: async () => ({
       repository: { pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes } },
     }),
-    paginate: async () => [],
+    paginate: async () => communityIssues,
     rest: {
       issues: {
         listForRepo: () => {},
@@ -57,6 +57,23 @@ async function rebuild(nodes) {
 const rowFor = (body, login) => body.split("\n").find((line) => line.startsWith(`| @${login} |`));
 
 describe("hall of fame table", () => {
+  it("shows a claimed seat, and a locked claim link for everyone else", async () => {
+    const seats = [{ n: 3, github: "AK-Lmn", discord: "1" }];
+    const registry = {
+      body: `<!-- flisk:founding-registry -->\n<!-- flisk:founding-data ${JSON.stringify(seats)} -->`,
+    };
+    const body = await rebuild([pr("AK-Lmn", "COLLABORATOR"), pr("regular", "CONTRIBUTOR")], [registry]);
+    assert.match(rowFor(body, "AK-Lmn"), /⚡ #3 of 100 \|$/);
+    assert.match(rowFor(body, "regular"), /🔒 \[Claim in Discord\]/);
+    assert.match(body, /Founding badges: 1 of 100 claimed/);
+  });
+
+  it("locks every row when no seats exist yet", async () => {
+    const body = await rebuild([pr("regular", "CONTRIBUTOR")]);
+    assert.match(rowFor(body, "regular"), /🔒/);
+    assert.match(body, /Founding badges: 0 of 100 claimed/);
+  });
+
   it("lists a collaborator with write access and counts every merged PR", async () => {
     const body = await rebuild([pr("AK-Lmn", "COLLABORATOR"), pr("AK-Lmn", "COLLABORATOR")]);
     const row = rowFor(body, "AK-Lmn");
