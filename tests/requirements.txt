@@ -3,3 +3,5 @@
 pytest
 pytest-asyncio   # test_code_executor.py and test_daemon_polling.py use async tests
 pytest-cov       # only for: make test-tilt-engine-coverage
+hypothesis       # property-based testing for service manifest validation (#3306)
+
