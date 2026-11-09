@@ -80,6 +80,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 
 | Command | Aliases | What it does |
 | --- | --- | --- |
+| `flisk create [name]` | | Pick what you are building with a few key presses and get a project that runs |
 | `flisk project [template]` | `init` | Create or check the project's master configs, or clone a starter |
 | `flisk projects` | `info` | Show project info and config status |
 | `flisk import [dir]` | | Import the services in a directory's root `docker-compose.yml` |
@@ -108,6 +109,26 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk maintainers check [file]` | | Check `MAINTAINERS.md` |
 
 ## 🌍 Project
+
+### `flisk create [name]`
+
+```bash
+flisk create                           # interactive
+flisk create my-app --yes              # defaults, no prompts
+flisk create my-app --dry-run          # print the commands that would run
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--starter <name>` | A ready-made starter project (see flisk project --list) |
+| `--runtime <runtime>` | local (plain processes on your computer; default) or docker (Docker and Tilt) |
+| `--frontend <id>` | Website framework (see flisk resource --frameworks --type frontend), or none |
+| `--backend <id>` | API framework (see flisk resource --frameworks --type backend), or none |
+| `--language <id>` | API language (see flisk resource --help) |
+| `--extras <list>` | Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none |
+| `--dry-run` | Print the commands that would run, and stop |
+| `--start` | Install dependencies and start what was written (the local app route; a starter is never started here) |
+| `-y`, `--yes` | Skip prompts and confirmations; use defaults |
 
 ### `flisk project [template]` (alias: `flisk init`)
 
