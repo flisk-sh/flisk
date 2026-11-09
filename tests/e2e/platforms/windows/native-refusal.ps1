@@ -13,14 +13,24 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($version | Out-String)
 }
 Write-Output $version
 
+$fliskBin = Join-Path (Get-Location).Path 'bin/flisk.js'
+
 function Invoke-NativeWindowsRefusal {
   param(
     [Parameter(Mandatory = $true)][string]$Label,
-    [Parameter(Mandatory = $true)][string[]]$CliArgs
+    [Parameter(Mandatory = $true)][string[]]$CliArgs,
+    # The folder to run in. A folder holding a plain package.json with a dev or start script is a runnable project
+    # (flisk infers one local process from it, #3396), so a refusal has to be asked from a folder with no project.
+    [string]$WorkingDirectory = (Get-Location).Path
   )
 
-  $output = & node bin/flisk.js @CliArgs 2>&1
-  $exitCode = $LASTEXITCODE
+  Push-Location $WorkingDirectory
+  try {
+    $output = & node $fliskBin @CliArgs 2>&1
+    $exitCode = $LASTEXITCODE
+  } finally {
+    Pop-Location
+  }
   $text = $output | Out-String
   Write-Host "$Label exit code: $exitCode"
   Write-Host $text
@@ -44,7 +54,13 @@ if ($doctorText -notmatch '(?i)Docker container mode|Windows containers|Linux co
 if ($doctorText -notmatch '(?i)flisk\.localhost|Windows ports and DNS|core\.autocrlf|File sharing') {
   throw 'flisk doctor did not report Windows ports/DNS or autocrlf diagnostics on native Windows.'
 }
-$null = Invoke-NativeWindowsRefusal -Label 'flisk up --dry-run' -CliArgs @('up', '--dry-run')
+$emptyDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "flisk-w3-$([guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $emptyDirectory | Out-Null
+try {
+  $null = Invoke-NativeWindowsRefusal -Label 'flisk up --dry-run' -CliArgs @('up', '--dry-run') -WorkingDirectory $emptyDirectory
+} finally {
+  Remove-Item -Recurse -Force $emptyDirectory -ErrorAction SilentlyContinue
+}
 
 $beforeRuntimeProcesses = @(
   Get-Process -Name @('tilt', 'dockerd', 'containerd', 'com.docker.backend') -ErrorAction SilentlyContinue |

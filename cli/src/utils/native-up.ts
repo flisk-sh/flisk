@@ -45,6 +45,8 @@ export interface NativeUpInput {
   /** Overrides for tests. */
   readyTimeoutMs?: number;
   exit?: (code: number) => never;
+  /** Inferred from package.json (plain Node repo). */
+  inferred?: { command: string; script: string };
 }
 
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
@@ -146,6 +148,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       ok: true,
       dryRun: true,
       runtime: "native",
+      ...(input.inferred ? { inferred: input.inferred } : {}),
       stack: input.stackName ?? null,
       services: serviceNames,
       ...(input.only ? { requested: input.only, declaredDependencies: input.dependencies } : {}),
@@ -240,6 +243,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   emit?.({
     ok: true,
     runtime: "native",
+    ...(input.inferred ? { inferred: true } : {}),
     stack: input.stackName ?? null,
     services: serviceNames,
     ...(input.only ? { requested: input.only, dependencies: input.dependencies } : {}),

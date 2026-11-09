@@ -17,6 +17,11 @@ export interface NativeUpInput {
     /** Overrides for tests. */
     readyTimeoutMs?: number;
     exit?: (code: number) => never;
+    /** Inferred from package.json (plain Node repo). */
+    inferred?: {
+        command: string;
+        script: string;
+    };
 }
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
 /** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
