@@ -2,7 +2,7 @@
 
 English | [简体中文](../docs/contributing/translations/CONTRIBUTING-zh_cn.md) | [繁體中文](../docs/contributing/translations/CONTRIBUTING-zh_tw.md) | [日本語](../docs/contributing/translations/CONTRIBUTING-ja.md) | [한국어](../docs/contributing/translations/CONTRIBUTING-ko.md)
 
-Welcome! **Your first step: [say hello on Discord](https://discord.gg/Sjhb3tnq3).** Tell us who you are and what you want to work on, and we will help you pick a first task. Small fixes and large features are both useful. Start with the short [contributor guide](../docs/contributing/README.md); it walks you through finding a change, making it, checking it, and opening a pull request.
+Welcome! **Your first step: [say hello on Discord](https://discord.gg/qMu5Xn8Kaq).** Tell us who you are and what you want to work on, and we will help you pick a first task. Small fixes and large features are both useful. Start with the short [contributor guide](../docs/contributing/README.md); it walks you through finding a change, making it, checking it, and opening a pull request.
 
 ## Table of contents
 
@@ -114,7 +114,7 @@ If you have questions or encounter issues while contributing:
 
 - **Bug report**: Use the [Bug report](https://github.com/flisk-sh/flisk/issues/new?template=bug_report.yml) template. Include steps to reproduce, what happened, what you expected, and the output of `flisk doctor` and `flisk --version`.
 - **Feature request**: Use the [Feature request](https://github.com/flisk-sh/flisk/issues/new?template=feature_request.yml) template to suggest an idea or improvement.
-- **Chat**: Ask in the [Flisk Discord](https://discord.gg/Sjhb3tnq3). It is the fastest way to get an answer.
+- **Chat**: Ask in the [Flisk Discord](https://discord.gg/qMu5Xn8Kaq). It is the fastest way to get an answer.
 - **Questions**: For quick questions, ideas, or general discussions that do not require an issue, use [GitHub Discussions](https://github.com/flisk-sh/flisk/discussions) or open a question via a blank issue.
 
 Maintainers aim to reply within one working day.

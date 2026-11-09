@@ -99,4 +99,4 @@ where it runs, or ask your helper to run `flisk down`.
 
 - Ask your helper: "Run flisk doctor, explain every problem in plain words, and fix what you can."
 - Look up a word in [Words you'll see](words.md).
-- Ask a question in our [Discord](https://discord.gg/Sjhb3tnq3) or [open an issue](https://github.com/flisk-sh/flisk/issues).
+- Ask a question in our [Discord](https://discord.gg/qMu5Xn8Kaq) or [open an issue](https://github.com/flisk-sh/flisk/issues).

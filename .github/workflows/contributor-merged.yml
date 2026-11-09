@@ -61,7 +61,7 @@ jobs:
             const MARK_PR = '<!-- flisk:contributor-merged -->';
             const MARK_ISSUE = `<!-- flisk:issue-fixed:${pr.number} -->`;
             const base = `https://github.com/${owner}/${repo}`;
-            const discordInvite = 'https://discord.gg/Sjhb3tnq3';
+            const discordInvite = 'https://discord.gg/qMu5Xn8Kaq';
             // Shields reads `-` as a separator, so button text must not contain one.
             const discordButton = (text) =>
               `[![${text}](https://img.shields.io/badge/${encodeURIComponent(text)}-5865F2?style=for-the-badge&logo=discord&logoColor=white)](${discordInvite})`;

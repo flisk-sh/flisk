@@ -25,7 +25,7 @@ You do not need to understand the whole repository. Pick one small change, follo
 
 ## The whole process
 
-1. **Say hello.** Join the [Flisk Discord](https://discord.gg/Sjhb3tnq3), introduce yourself, and tell us what you would like to work on. A maintainer will help you pick a first task.
+1. **Say hello.** Join the [Flisk Discord](https://discord.gg/qMu5Xn8Kaq), introduce yourself, and tell us what you would like to work on. A maintainer will help you pick a first task.
 2. [Get the repository ready](01-first-change.md).
 3. Make one focused change. Ask for help if you get stuck.
 4. Run the checks that match your change. The recipes say which ones.
@@ -38,4 +38,4 @@ You do not need to understand the whole repository. Pick one small change, follo
 
 ## Need a hand?
 
-Ask in the [Flisk Discord](https://discord.gg/Sjhb3tnq3), or [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose) with what you tried, what you expected, and what happened. You do not need to solve the problem before asking.
+Ask in the [Flisk Discord](https://discord.gg/qMu5Xn8Kaq), or [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose) with what you tried, what you expected, and what happened. You do not need to solve the problem before asking.
