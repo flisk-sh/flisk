@@ -46,7 +46,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
       # One job, so a sync can never overwrite the seats a grant is saving.
       - name: Sync tier and belt roles
-        if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 * * * *') }}
+        if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && inputs.claims_only != true) || github.event.schedule == '17 * * * *') }}
         run: node scripts/discord-founding-role.mjs sync-levels
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
