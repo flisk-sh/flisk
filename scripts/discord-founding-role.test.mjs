@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { DONE, discordClient, prLinks, REFUSED, run, WAITING } from "./discord-founding-role.mjs";
 
 const OWNER = "owner";
@@ -23,7 +25,12 @@ function setup({ messages, pulls = {}, members = {} }) {
     reply: async (id, text) => calls.replies.push([id, text]),
     react: async (id, emoji) => calls.reactions.push([id, emoji]),
   };
-  const github = { pull: async (n) => (pulls[n] ? { number: n, ...pulls[n] } : null) };
+  const github = {
+    pull: async (n) => {
+      if (pulls[n] instanceof Error) throw pulls[n];
+      return pulls[n] ? { number: n, ...pulls[n] } : null;
+    },
+  };
   return { calls, go: () => run({ discord, github, log: () => {} }) };
 }
 
@@ -99,6 +106,7 @@ test("a PR claimed in an earlier run stays claimed", async () => {
 for (const [name, pull] of [
   ["maintainer", merged("odykyi")],
   ["bot", merged("renovate", "Bot")],
+  ["deleted account", { merged_at: "2026-11-09T00:00:00Z", user: null }],
   ["missing", undefined],
 ]) {
   test(`a ${name} PR does not earn the role`, async () => {
@@ -139,6 +147,35 @@ test("someone who left the server is marked without a reply", async () => {
 test("blank messages fail loudly because the content intent is off", async () => {
   const { go } = setup({ messages: [post("m1", "ann", "")] });
   await assert.rejects(go, /Message Content Intent/);
+});
+
+test("a failing message does not stop later ones, and the run still fails", async () => {
+  const { calls, go } = setup({
+    messages: [post("m1", "ann", url(7)), post("m2", "bob", url(8))],
+    pulls: { 7: new Error("GitHub is down"), 8: merged("bob-gh") },
+  });
+  await assert.rejects(go, /1 of 2 messages failed/);
+  assert.deepEqual(calls.grants, [["bob", ROLE]]);
+  assert.deepEqual(calls.reactions, [["m2", DONE]]);
+});
+
+test("a rate limit without a JSON body falls back to the default wait", async () => {
+  const slept = [];
+  const responses = [new Response("slow down", { status: 429 }), new Response(null, { status: 204 })];
+  const client = discordClient("t", {
+    fetchImpl: async () => responses.shift(),
+    sleep: async (ms) => slept.push(ms),
+  });
+  assert.equal(await client.grant("ann", ROLE), true);
+  assert.deepEqual(slept, [1000]);
+});
+
+test("run as a script without a token, it warns and exits cleanly", () => {
+  const script = fileURLToPath(new URL("discord-founding-role.mjs", import.meta.url));
+  const { DISCORD_BOT_TOKEN: _token, ...env } = process.env;
+  const result = spawnSync(process.execPath, [script], { env, encoding: "utf8" });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /DISCORD_BOT_TOKEN is not set/);
 });
 
 test("the client waits out a rate limit and retries", async () => {

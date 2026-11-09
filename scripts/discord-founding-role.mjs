@@ -7,6 +7,8 @@
 // state of its own: the bot's reaction on a message records that it was handled,
 // and a merged PR counts for the first person who posts it.
 
+import { fileURLToPath } from "node:url";
+
 const API = "https://discord.com/api/v10";
 const GUILD_ID = "1562937840071999538";
 const CHANNEL_ID = "1562939740301299733";
@@ -69,7 +71,7 @@ async function classify(numbers, authorId, claims, github) {
     const pr = await github.pull(number);
     if (!pr) continue;
     if (!pr.merged_at) result.open.push(number);
-    else if (pr.user.type === "User" && !MAINTAINERS.has(pr.user.login)) result.merged.push(pr);
+    else if (pr.user?.type === "User" && !MAINTAINERS.has(pr.user.login)) result.merged.push(pr);
   }
   return result;
 }
@@ -122,10 +124,19 @@ export async function run({ discord, github, log = console.log }) {
   const pending = messages.filter(
     (m) => !m.author.bot && !m.webhook_id && m.author.id !== guild.owner_id && !hasMark(m, MARKS),
   );
+  // One bad message must not hold up everyone after it. It stays unmarked, so the
+  // next run retries it, and the run still goes red so the failure gets seen.
+  let failed = 0;
   for (const message of pending) {
-    await handle(message, { discord, github, claims, roleId: role.id });
+    try {
+      await handle(message, { discord, github, claims, roleId: role.id });
+    } catch (error) {
+      failed++;
+      log(`::warning::Message ${message.id} failed: ${error.message}`);
+    }
   }
   log(`Checked ${messages.length} messages, handled ${pending.length}.`);
+  if (failed > 0) throw new Error(`${failed} of ${pending.length} messages failed.`);
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -143,7 +154,7 @@ export function discordClient(token, { fetchImpl = fetch, sleep = wait } = {}) {
         body: body ? JSON.stringify(body) : undefined,
       });
       if (response.status === 429) {
-        const { retry_after: seconds = 1 } = await response.json();
+        const { retry_after: seconds = 1 } = await response.json().catch(() => ({}));
         await sleep(Math.ceil(seconds * 1000));
         continue;
       }
@@ -200,7 +211,7 @@ export function githubClient(token, { fetchImpl = fetch } = {}) {
   };
 }
 
-if (import.meta.main ?? process.argv[1] === new URL(import.meta.url).pathname) {
+if (import.meta.main ?? process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.env.DISCORD_BOT_TOKEN) {
     await run({
       discord: discordClient(process.env.DISCORD_BOT_TOKEN),
