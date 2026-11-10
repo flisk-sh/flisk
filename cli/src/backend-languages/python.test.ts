@@ -59,4 +59,14 @@ describe("Python backend language module", () => {
     expect(testFile).toContain('client.get("/health")');
     expect(testFile).toContain("def test_root()");
   });
+
+  it("falls back to port 3000 for invalid generated-server PORT values", () => {
+    const mainFile = generatedFile("test-app", "src/main.py");
+    expect(mainFile).toContain("def read_port() -> int:");
+    expect(mainFile).toContain("except ValueError:");
+    expect(mainFile).toContain("1 <= port <= 65535");
+    expect(mainFile).toContain("return 3000");
+    expect(mainFile).toContain("port=read_port()");
+    expect(mainFile).not.toContain('port=int(os.environ.get("PORT", "3000"))');
+  });
 });
