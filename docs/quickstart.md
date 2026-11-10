@@ -246,7 +246,7 @@ Full troubleshooting: [troubleshooting.md](troubleshooting.md)
 ## Next steps
 
 - **Explore the demo**: `flisk demo` → browse the frontend, check `flisk ui`
-- **Add a database migrator**: `flisk resource migrate --type migrator --stack main --yes`
+- **Add a database migrator**: `flisk resource orders-api --type backend --stack main --feature prisma --yes` writes `orders-api` and `orders-api-migrator`, which runs the migrations before the API starts ([example](service-json.md#example-postgres-then-a-migrator-then-an-api))
 - **Enable shared Postgres**: edit `.flisk/project.json` → `optional_infra.database-management: true`. It has no effect unless `capabilities.database` is also `true` in the same file
 - **Run alongside Helm**: see [with-helm.md](with-helm.md)
 - **Bring your own service**: see [byo.md](byo.md)

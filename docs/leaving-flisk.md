@@ -7,7 +7,7 @@ Core is MIT ([FAQ](faq-teams.md#what-if-the-project-stops-being-maintained)), so
 ## Short answer
 
 - Your **service source code**, your **own Dockerfiles** and your **bring-your-own images** do not depend on Flisk.
-- There is **no command that turns a Flisk project into plain Docker Compose**. `flisk eject` does not do that; see below.
+- `flisk eject` does **not** turn a Flisk project into plain Docker Compose; see below. A later CLI added `flisk export compose`, which writes a standalone `docker-compose.yml` from the `service.json` files; it was not run for this page, so check its output before relying on it.
 - The files that run the stack (Tiltfile, per-service Compose files, the golden-layer Dockerfile, the Traefik file) are **generated into git-ignored folders** and, for the most part, only exist after `flisk up` has run once.
 - Moving to plain Compose or Helm is manual work, and nothing keeps `service.json` and your new files in step.
 
@@ -34,7 +34,7 @@ What was observed:
 - 1.3.86 printed "Next: tilt up", which cannot work: there is no `Tiltfile` at the project root after eject, and `tilt alpha tiltfile-result` there answered `No Tiltfile found at paths '<project>/Tiltfile'`. Flisk runs `tilt up -f <project>/.flisk/.flisk-out/Tiltfile -- --focus=<stack>` (`flisk up shop --dry-run` printed exactly that, from `cli/src/utils/tilt.ts`). The command now prints that form. `flisk up` also chooses host ports and exports them before Tilt starts; a hand-run Tilt skips that. Starting it by hand was **not tried**.
 - Without `.flisk/.flisk-out/` it fails: `Generated Tilt files are missing. Run \`flisk project --yes\` before ejecting.` (exit 1). Outside a project: `flisk eject: no .flisk/project.json in this directory or parents` (exit 1).
 
-Treat `flisk eject` as a note-writer, not as an exit path. A command that exports plain Compose files and Dockerfiles does not exist.
+Treat `flisk eject` as a note-writer, not as an exit path. For a plain Compose file, try `flisk export compose` (not checked here).
 
 ## What exists on disk, and when
 
