@@ -102,6 +102,7 @@ jobs:
       - run: node --test scripts/docs/llms-demo-links.test.mjs
       - run: node --test scripts/sync-llms-demos.test.mjs
       - run: node --test scripts/agent-plugin.test.mjs
+      - run: node --test scripts/contributor-merged.test.mjs
 
   lint:
     name: 🛡️ Lint

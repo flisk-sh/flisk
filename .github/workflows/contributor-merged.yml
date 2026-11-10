@@ -1,7 +1,7 @@
 name: 🤖 BOT | Community | Contributor merged
 
-# Posts one thank-you on a community PR when it is merged, and one closing note on
-# each issue that PR fixed. Maintainer and bot PRs are skipped.
+# Posts one thank-you on a community PR when it is merged, and the same full note
+# (rank, badges, next issues) on each issue that PR fixed. Maintainer and bot PRs are skipped.
 #
 # pull_request_target runs from the base branch with a write token, so this job never
 # checks out or runs PR code. Everything it reads (title, labels, author) is used only
@@ -128,7 +128,9 @@ jobs:
               const m = /^rank: (\d+) (kyu|dan)$/.exec(name);
               return m ? { name: `${m[1]} ${m[2]}`, value: m[2] === 'dan' ? 100 + Number(m[1]) : 100 - Number(m[1]) } : null;
             };
-            const bestRank = (labelLists) => labelLists.flat().map(rankOf).filter(Boolean)
+            // An issue with no rank label counts as 8 kyu, the easiest rank.
+            const withDefaultRank = (names) => (names.some(rankOf) ? names : [...names, 'rank: 8 kyu']);
+            const bestRank = (labelLists) => labelLists.map(withDefaultRank).flat().map(rankOf).filter(Boolean)
               .reduce((best, r) => (!best || r.value > best.value ? r : best), null);
             const thisRank = bestRank(issues.map((i) => i.labels.nodes.map((l) => l.name)));
             let rankLine = null;
@@ -172,7 +174,6 @@ jobs:
             }
 
             const fixed = issues.map((i) => `#${i.number}`).join(', ');
-            const lines = [MARK_PR, `## 🎉 Merged! Thank you @${author}`];
             const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
             const MILESTONES = {
               1: 'This is your first merged PR here. Welcome to Flisk! 💜',
@@ -187,9 +188,10 @@ jobs:
               80: 'Your 80th merged PR. Few projects are lucky enough to have a contributor like you. Thank you. 🏆',
               100: 'Your 100th merged PR! 🎉🎉🎉 An extraordinary contribution to Flisk. Thank you, truly. 💯',
             };
-            lines.push('', MILESTONES[mergedCount]
-              || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`);
-            if (fixed) lines.push('', `This fixes ${fixed}. It ships in the next release and will be listed in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`);
+            const milestone = MILESTONES[mergedCount]
+              || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`;
+            // Everything below the opening lines is shared by the PR comment and each fixed issue's comment.
+            const lines = [];
             if (rankLine) lines.push('', rankLine);
             // The Hall of Fame badge is shown rendered; the Markdown to copy sits in a fenced block,
             // because a badge wrapped in inline code renders as plain text.
@@ -231,26 +233,25 @@ jobs:
             lines.push('', 'Was anything unclear while you worked on this? Tell us in a comment. That is how the contributor guide gets better.');
 
             if (!(await hasMark(pr.number, MARK_PR))) {
-              await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: lines.join('\n') });
+              const prLines = [MARK_PR, `## 🎉 Merged! Thank you @${author}`, '', milestone];
+              if (fixed) prLines.push('', `This fixes ${fixed}. It ships in the next release and will be listed in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md).`);
+              await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: [...prLines, ...lines].join('\n') });
             }
 
-            // One short note on each fixed issue, so the issue thread explains why it closed.
+            // The same full note on each fixed issue, so the issue thread explains why it closed
+            // and people who follow the issue see the rank, the badges and what to pick up next.
             for (const i of issues) {
               if (await hasMark(i.number, MARK_ISSUE)) continue;
               const issueLines = [
                 MARK_ISSUE,
-                `### ✅ Fixed by #${pr.number}. Thank you @${author}! 💜`,
+                `## ✅ Fixed by #${pr.number}. Thank you @${author}! 💜`,
+                '',
+                milestone,
                 '',
                 `Merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. It ships in the next release and will be listed in the [CHANGELOG](${base}/blob/main/docs/CHANGELOG.md). Still seeing this after the release? Comment here and we will take another look.`,
-                '',
-                discordButton('Join the Flisk Discord'),
-                '',
-                `- 🎖️ @${author}, your numbered **${badgeName}** badge is waiting: post the link to #${pr.number} in [our Discord](${discordInvite}) to claim it.`,
-                `- 🧩 Want a badge too? [Pick up a good first issue](${base}/issues?q=is%3Aissue+is%3Aopen+no%3Aassignee+label%3A%22good+first+issue%22).`,
-                `- 🔔 [Watch ${owner}/${repo}](${base}) to hear about the next release.`,
               ];
               await github.rest.issues.createComment({
                 owner, repo, issue_number: i.number,
-                body: issueLines.join('\n'),
+                body: [...issueLines, ...lines].join('\n'),
               });
             }
