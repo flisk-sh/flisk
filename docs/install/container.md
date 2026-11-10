@@ -62,6 +62,17 @@ cosign verify ghcr.io/flisk-sh/flisk:1.4.28 \
 
 **Update** by pulling again (`docker pull ghcr.io/flisk-sh/flisk`), or pin a version tag. `flisk upgrade` does not apply inside the image.
 
+**With Docker Compose instead.** [flisk-docker-compose-example](https://github.com/flisk-sh/flisk-docker-compose-example) wraps the same idea in a `compose.yaml`, so `docker compose run --rm flisk flisk <command>` stands in for the `docker run` line above:
+
+```bash
+git clone https://github.com/flisk-sh/flisk-docker-compose-example.git
+cd flisk-docker-compose-example
+docker compose run --rm flisk flisk --version
+docker compose run --rm flisk flisk project --yes
+```
+
+Its README was last updated on 2026-10-26 and some of its `service.json` samples use older field names (`type`, `internalDependencies`); [configuration](../configuration.md) has the current ones.
+
 </td></tr>
 </table>
 <!-- /tabs:install -->
