@@ -10,6 +10,8 @@ import { type ReadinessProbe } from "./service-manifest.js";
  * - Output is prefixed with the service name and also appended to `.flisk/native/logs/<service>.log`.
  * - A process that exits is restarted with a growing delay, unless the service sets `"restart": "no"`. Five quick crashes in a
  *   row stop the restarts.
+ * - A process that exits while something it depends on is down is not counted as crashing: it waits, and starts again once
+ *   everything it depends on is ready again. One that already stopped restarting gets a fresh start then too.
  * - `.flisk/native/run.json` records the supervisor and service process ids so `flisk down` can stop a run it did not start.
  */
 /** Everything the supervisor needs to start one service. */
@@ -97,6 +99,8 @@ export interface NativeRunState {
         job?: boolean;
         /** A container started with `docker run` in a mixed run. */
         container?: string;
+        /** The dependencies a service exited without is waiting for before it starts again. */
+        waitingFor?: string[];
     }>;
 }
 export declare function nativeRunStatePath(projectRoot: string): string;
@@ -195,6 +199,15 @@ export declare class NativeSupervisor {
     private resolveServiceEnv;
     private spawn;
     private onExit;
+    /** Starts a service again after it exited, and reports when it is ready again. */
+    private respawn;
+    /** The dependencies of this run that are not ready now (one that is restarting, or waiting itself). */
+    private dependenciesDown;
+    /**
+     * `name` became ready again: start each dependent that exited while it was down, and give a fresh start to one that stopped
+     * restarting (it may have crashed before the supervisor saw the dependency go).
+     */
+    private resumeDependents;
     private pipeLines;
     private saveState;
 }
