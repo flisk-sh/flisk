@@ -934,7 +934,7 @@ export const completionCommand = new Command("completion")
   .option("--install", "Install completion; prints any shell configuration steps still needed")
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk completion zsh --install\n  flisk completion bash > ~/.bash_completion.d/flisk\n  flisk completion fish --install",
+    "\nExamples:\n  flisk completion zsh --install\n  flisk completion bash --install\n  flisk completion fish --install",
   )
   .action((shellArgument, options, command) => {
     const requestedShell = options.shell ?? shellArgument;

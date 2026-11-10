@@ -104,7 +104,10 @@ export const logsCommand = new Command("logs")
   .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
   .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
   .option("--unhealthy", "Only services that are failing or still starting", false)
-  .option("--port <n>", "Tilt UI port for Docker runtime (default: TILT_PORT or 10350)")
+  .option(
+    "--port <n>",
+    "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
+  )
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(
     "after",

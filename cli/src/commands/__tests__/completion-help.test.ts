@@ -11,4 +11,6 @@ it("explains installation steps and shows completion examples", () => {
   expect(help).toContain("Examples:");
   expect(help).toContain("flisk completion zsh --install");
   expect(help).toContain("flisk completion fish --install");
+  expect(help).toContain("flisk completion bash --install");
+  expect(help).not.toContain("> ~/.bash_completion.d");
 });

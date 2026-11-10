@@ -17,4 +17,5 @@ it("describes service names and the Docker-only Tilt port", () => {
   logsCommand.outputHelp();
   expect(help).toContain("names as in flisk resources");
   expect(help).toContain("Tilt UI port for Docker runtime");
+  expect(help.replace(/\s+/g, " ")).toContain("saved port");
 });
