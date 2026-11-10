@@ -35,7 +35,7 @@ const COMMAND_GROUPS = [
       },
       {
         name: "repos",
-        desc: "Manage declared Git service repositories",
+        desc: "Clone the Git repositories listed in .flisk/project.json",
         alias: "clone",
       },
       {
