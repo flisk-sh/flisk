@@ -164,7 +164,7 @@ K6() { # restart one HTTP resource the seed picks; it comes back and a neighbour
 
 K7() { # restarting a resource the plan never drew is one error envelope, with the stack still up
   log "K7 flisk restart of an undrawn resource prints one error envelope"
-  common_error_envelope TILT_TRIGGER_FAILED restart e99-never-drawn --json
+  common_error_envelope UNKNOWN_RESOURCE restart e99-never-drawn --json
 }
 
 e2e_main "$@"

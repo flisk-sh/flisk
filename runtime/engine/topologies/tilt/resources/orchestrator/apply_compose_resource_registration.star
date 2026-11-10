@@ -844,7 +844,7 @@ def _register_docker_build(config, live_update_rules):
     )
 
 
-def _register_deferred_image_prebuild(config, auto_init_apps):
+def _register_deferred_image_prebuild(config, auto_init_apps, deps=None):
     """Build a deferStart resource's image during `flisk up` without creating its container.
 
     `auto_init=False` on the dc_resource skips its docker_build too (confirmed
@@ -889,9 +889,30 @@ def _register_deferred_image_prebuild(config, auto_init_apps):
             'FLISK_BUILD_CONTEXT': project_root or '.',
         },
         labels=config['labels'],
-        resource_deps=config['res_deps'],
+        resource_deps=config['res_deps'] if deps == None else deps,
         auto_init=auto_init_apps,
+        allow_parallel=deps != None,
     )
+
+
+def image_prebuild_deps(res_deps):
+    """The subset of a resource's deps its image build needs: the generated Dockerfile, the package registry and the golden images.
+
+    The rest (Postgres, the migrator, other services) only matter once the container starts.
+    """
+    return [
+        dep for dep in res_deps
+        if dep.endswith('-config-gen') or dep == 'golden-layers-build' or dep == PlatformDockerConstants.VERDACCIO_RESOURCE_NAME
+    ]
+
+
+def needs_image_prebuild(res_deps):
+    """True when the resource waits for something its image build does not need (see image_prebuild_deps).
+
+    Tilt holds a dc_resource's docker_build until every resource_dep is ready, so without a separate build step a service
+    that depends on another is built only after that one is healthy, and a chain of dependsOn builds one image at a time.
+    """
+    return len(image_prebuild_deps(res_deps)) < len(res_deps)
 
 
 def _resolve_dockerfile(config):
@@ -1071,6 +1092,7 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
     effective_auto_init = auto_init_apps and not defers_start
 
     debug_log("REGISTER: Registering '{}' app_type='{}' auto_init={}".format(res_name, app_type, effective_auto_init))
+    prebuilt_image = None
 
     # Skip docker_build for libraries and SDKs - they don't have Dockerfiles
     if app_type not in ['library', 'sdk', 'bring-your-own'] and config.get('syncs'):
@@ -1098,6 +1120,11 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
         _register_docker_build(config, live_update_rules)
         if defers_start:
             _register_deferred_image_prebuild(config, auto_init_apps)
+        elif needs_image_prebuild(config['res_deps']):
+            # Build the image as soon as its inputs exist, in parallel with the services it must wait for; the
+            # docker_build that follows the wait then finds every layer cached.
+            _register_deferred_image_prebuild(config, auto_init_apps, image_prebuild_deps(config['res_deps']))
+            prebuilt_image = config['res_name'] + '-image'
     else:
         debug_log("REGISTER: '{}' skipping docker_build (app_type='{}', syncs={})".format(res_name, app_type, config.get('syncs')))
 
@@ -1105,7 +1132,7 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
     dc_resource(
         config['res_name'],
         labels=config['labels'],
-        resource_deps=config['res_deps'],
+        resource_deps=config['res_deps'] + ([prebuilt_image] if prebuilt_image else []),
         auto_init=effective_auto_init,
     )
     debug_log("REGISTER: dc_resource completed for '{}'".format(res_name))

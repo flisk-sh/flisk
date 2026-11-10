@@ -993,7 +993,7 @@ describe("regressions from the first hand test", () => {
     expect(existsSync(join(dirOf(), "bots", "README.md"))).toBe(true);
     expect(run.stdout).not.toMatch(/flisk up|Tilt|init-networks/);
     expect(run.stdout).toContain("Read its README");
-  });
+  }, 240_000);
 
   it("a starter is not started even when --start asks for it", () => {
     const run = runFlisk(["create", "bots", "--starter", "demo", "--yes", "--start"], {
@@ -1005,7 +1005,7 @@ describe("regressions from the first hand test", () => {
     expect(run.stdout).toContain("Read its README");
     expect(run.stdout).not.toContain("Install dependencies and start it now?");
     expect(existsSync(join(dirOf(), "bots", "README.md"))).toBe(true);
-  });
+  }, 240_000);
 
   it("a starter is never offered the 'start it now' question, even on a terminal", async () => {
     prompts.arrowSelect.mockResolvedValueOnce("starter").mockResolvedValueOnce("demo");

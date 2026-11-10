@@ -35,11 +35,38 @@ describe("flisk restart", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-no-tilt-"));
     fs.mkdirSync(path.join(tmp, ".flisk"), { recursive: true });
     fs.writeFileSync(path.join(tmp, ".flisk", "project.json"), "{}\n");
+    // The resource must exist in the project so restart passes the name check and
+    // reaches the Tilt probe; otherwise it fails earlier with UNKNOWN_RESOURCE.
+    fs.mkdirSync(path.join(tmp, "services", "api"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, "services", "api", "service.json"),
+      JSON.stringify({ appName: "api", appType: "backend", port: 4000 }),
+    );
     try {
       const res = runFlisk(["restart", "api", "--json", "--port=59999"], tmp);
       expect(res.status).not.toBe(0);
       const envelope = JSON.parse(res.stdout);
       expect(envelope.errors[0].code).toBe("TILT_NOT_RUNNING");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("reports UNKNOWN_RESOURCE for a name not in the project, before probing Tilt", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-unknown-"));
+    fs.mkdirSync(path.join(tmp, ".flisk"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, ".flisk", "project.json"), "{}\n");
+    fs.mkdirSync(path.join(tmp, "services", "api"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, "services", "api", "service.json"),
+      JSON.stringify({ appName: "api", appType: "backend", port: 4000 }),
+    );
+    try {
+      const res = runFlisk(["restart", "nope", "--json", "--port=59999"], tmp);
+      expect(res.status).not.toBe(0);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope.errors[0].code).toBe("UNKNOWN_RESOURCE");
+      expect(envelope.errors[0].message).toBe('Resource "nope" not found in project.');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

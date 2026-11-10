@@ -9,6 +9,8 @@ extend-exclude = [
   "docs/README-*.md",
   # Generated images are named after a content hash (score-84.3dbe6268.svg), which the word list reads as typos.
   "docs/assets/fit/**",
+  # Recorded chaos report: it keeps a validator message cut off mid-word ("contro").
+  "tests/chaos/docker-chaos-report.json",
 ]
 
 [default]
