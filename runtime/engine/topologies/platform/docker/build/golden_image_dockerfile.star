@@ -120,11 +120,8 @@ LABEL layer="l3-backend" \
       description="Backend build tools with Prisma" \
       maintainer="{prefix}"
 
-# Install Prisma CLI globally (pinned for deterministic builds)
-RUN bun add -g prisma@7.5.0 @prisma/client@7.5.0
-
-# Verify Prisma installation
-RUN echo "Prisma version: $(bunx prisma --version | head -1)"
+# No global Prisma CLI or client here: every service pins its own Prisma in node_modules, and the development
+# stage descends from this image, so a global copy shipped the engines a second time (flisk#3709).
 
 # ⚠️ CRITICAL: Infisical CLI is NOT installed in golden L3 images
 # Reason: curl to dl.cloudsmith.io hangs during Docker builds when CDN is slow

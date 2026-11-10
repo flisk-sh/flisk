@@ -123,3 +123,11 @@ def test_golden_dockerfile_is_the_same_for_every_project(tmp_path):
         )
     assert texts[0] == texts[1]
     assert "alpha-shop" not in texts[0] and "beta-clinic" not in texts[0]
+
+
+def test_l3_backend_does_not_install_a_global_prisma(golden):
+    # The `development` stage of every Prisma service descends from l3-backend. A global Prisma CLI there sat next to
+    # the pinned copy in the service's own node_modules, so the engines shipped twice (flisk#3709).
+    stage = golden["df"].split("AS l3_backend_golden", 1)[1].split("\nFROM ", 1)[0]
+    assert "bun add -g" not in stage
+    assert "bunx prisma --version" not in stage
