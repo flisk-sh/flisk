@@ -25,6 +25,10 @@ export const resourcesCommand = new Command("resources")
   .option("--no-stack", "Show only resources without a stack")
   .option("--ports", "Show port assignments", false)
   .option("--json", "Output a versioned JSON resource report", false)
+  .addHelpText(
+    "after",
+    "\nExamples:\n  flisk resources\n  flisk resources --type database\n  flisk resources --ports",
+  )
   .action(async (options) => {
     const action = async (): Promise<void> => {
       if (options.json) {

@@ -750,6 +750,10 @@ export function createUpgradeCommand(): Command {
     .option("-f, --force", "Upgrade even if already on the latest version", false)
     .option("--all", "Upgrade every Flisk installation found on PATH", false)
     .option("--dry-run", "Show what would be upgraded without actually doing it", false)
+    .addHelpText(
+      "after",
+      "\nExamples:\n  flisk upgrade\n  flisk upgrade --dry-run\n  flisk upgrade --all",
+    )
     .action(async (options) => {
       console.log(chalk.cyan("🚀 Flisk CLI Upgrade\n"));
 

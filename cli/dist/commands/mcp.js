@@ -10,6 +10,16 @@ export const mcpCommand = new Command("mcp")
     .description("Run a Model Context Protocol server over stdio for coding agents")
     // `flisk mcp` with no subcommand is still the stdio server; `flisk mcp check` is the only subcommand.
     .addCommand(createMcpCheckCommand())
+    .addHelpText("after", [
+    "",
+    "The server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.",
+    "Add it to an MCP client instead:",
+    '  { "command": "flisk", "args": ["mcp"] }',
+    "",
+    "Examples:",
+    "  flisk mcp                # started by an MCP client",
+    "  flisk mcp check tools    # check the MCP resource named tools",
+].join("\n"))
     .action(async () => {
     const server = createMcpServer(createFliskTools(), {
         name: "flisk",
