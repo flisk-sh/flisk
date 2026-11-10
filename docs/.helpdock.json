@@ -3,7 +3,8 @@
     "marketing/**",
     "launch/**",
     "outreach/**",
-    "drafts/**"
+    "drafts/**",
+    "adoption-plan.md"
   ],
   "groups": [
     {
@@ -42,7 +43,6 @@
         "leaving-flisk.md",
         "faq-teams.md",
         "pilot-scorecard.md",
-        "adoption-plan.md",
         "journey/**"
       ]
     },
