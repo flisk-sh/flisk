@@ -487,6 +487,7 @@ export function calculateStats(samples) {
 
 	return {
 		count,
+		samples: [...samples],
 		min: Number(min.toFixed(3)),
 		max: Number(max.toFixed(3)),
 		median: Number(median.toFixed(3)),
@@ -496,11 +497,19 @@ export function calculateStats(samples) {
 }
 
 /** Polls an array of URLs concurrently until every URL answers HTTP 200 or timeout is exceeded. */
-export async function pollUrls(urls, timeoutMs = 60000, pollIntervalMs = 50) {
+export async function pollUrls(
+	urls,
+	timeoutMs = 60000,
+	pollIntervalMs = 50,
+	isAborted = () => false,
+) {
 	const start = Date.now();
 	const remaining = new Set(urls);
 
 	while (Date.now() - start < timeoutMs) {
+		if (isAborted()) {
+			return false;
+		}
 		await Promise.all(
 			Array.from(remaining).map(async (url) => {
 				try {
@@ -552,7 +561,7 @@ export async function waitForPortsFree(ports, timeoutMs = 10000) {
 export function getEnvironmentInfo() {
 	let dockerEngine = "unavailable";
 	let dockerCompose = "unavailable";
-	let fliskVersion = "1.4.45";
+	let fliskVersion = "unavailable";
 	let tiltVersion = "unavailable";
 
 	try {
@@ -608,50 +617,73 @@ export async function runTrial(tool, stackKey, testDir, timeoutMs = 60000) {
 	// Record start timestamp
 	const startTime = performance.now();
 	let child = null;
+	let spawnError = null;
+	let childExited = false;
 
-	if (tool === "flisk") {
-		// Spawn flisk up (local native orchestrator)
-		child = spawn("node", [CLI_PATH, "up", "--quiet"], {
-			cwd: testDir,
-			stdio: "ignore",
-			env: {
-				...process.env,
-				NO_COLOR: "1",
-				FLISK_HTTP_PORT: "18080",
-			},
-		});
-	} else if (tool === "compose") {
-		// Plain docker compose up -d
-		child = spawn(
-			"docker",
-			["compose", "-p", `flisk-bench-${stackKey}`, "up", "-d"],
-			{
+	try {
+		if (tool === "flisk") {
+			// Spawn flisk up (local native orchestrator)
+			child = spawn("node", [CLI_PATH, "up", "--quiet"], {
 				cwd: testDir,
 				stdio: "ignore",
-			},
+				env: {
+					...process.env,
+					NO_COLOR: "1",
+					FLISK_HTTP_PORT: "18080",
+				},
+			});
+		} else if (tool === "compose") {
+			// Plain docker compose up -d
+			child = spawn(
+				"docker",
+				["compose", "-p", `flisk-bench-${stackKey}`, "up", "-d"],
+				{
+					cwd: testDir,
+					stdio: "ignore",
+				},
+			);
+		} else {
+			throw new Error(`Unsupported tool: ${tool}`);
+		}
+
+		child.on("error", (err) => {
+			spawnError = err;
+		});
+		child.on("exit", () => {
+			childExited = true;
+		});
+
+		// Poll all target URLs until HTTP 200, checking if process failed prematurely
+		const ready = await pollUrls(
+			stack.urls,
+			timeoutMs,
+			50,
+			() => spawnError !== null || (childExited && tool === "flisk"),
 		);
-	} else {
-		throw new Error(`Unsupported tool: ${tool}`);
-	}
+		const endTime = performance.now();
 
-	// Poll all target URLs until HTTP 200
-	const ready = await pollUrls(stack.urls, timeoutMs);
-	const endTime = performance.now();
+		if (spawnError) {
+			throw new Error(`${tool} failed to spawn: ${spawnError.message}`);
+		}
 
-	if (!ready) {
+		if (!ready) {
+			throw new Error(
+				`${tool} stack '${stackKey}' failed to become healthy within ${timeoutMs}ms`,
+			);
+		}
+
+		const elapsedSeconds = (endTime - startTime) / 1000;
+		return elapsedSeconds;
+	} finally {
+		if (child && !child.killed) {
+			try {
+				child.kill("SIGTERM");
+			} catch {}
+		}
+		// Clean up after the run
 		await stopStack(tool, stackKey, testDir);
-		throw new Error(
-			`${tool} stack '${stackKey}' failed to become healthy within ${timeoutMs}ms`,
-		);
+		await waitForPortsFree(stack.ports);
 	}
-
-	const elapsedSeconds = (endTime - startTime) / 1000;
-
-	// Clean up after the run
-	await stopStack(tool, stackKey, testDir);
-	await waitForPortsFree(stack.ports);
-
-	return elapsedSeconds;
 }
 
 /** Stops running stack cleanly. */
@@ -722,13 +754,13 @@ export function formatMarkdownReport(data) {
 		"",
 		"### Flisk Wins: Process-First Developer Velocity",
 		"",
-		"1. **Sub-second Local Startup**: In local process mode, `flisk up` launches native runtimes (Node, Bun, Python) directly with zero containerization overhead. Both cold and warm starts answer healthy in **0.15–0.40 seconds** across all three stacks.",
-		"2. **Zero Virtualization Tax**: On macOS (Apple Silicon), Docker requires a LinuxKit VM (`com.docker.virtualization`). Container network bridge creation, volume mounts through VirtioFS, and daemon RPC overhead impose a minimum 1.5–3.0 second floor on Docker Compose.",
-		"3. **Rapid Inner Loop**: Flisk warm starts are **5× to 10× faster** than Docker Compose warm starts for equivalent service health checks.",
+		"1. **Sub-second Local Startup**: In local process mode, `flisk up` launches native runtimes (Node, Bun, Python) directly with zero containerization overhead, consistently answering healthy in sub-second times.",
+		"2. **Zero Virtualization Tax**: On macOS (Apple Silicon), Docker requires a LinuxKit VM (`com.docker.virtualization`). Container network bridge creation, volume mounts through VirtioFS, and daemon RPC overhead impose startup latency floors on Docker Compose.",
+		"3. **Rapid Inner Loop**: Flisk connects local processes directly to supporting databases without waiting for container network bridge initialization.",
 		"",
-		"### Flisk Losses & Trade-offs: Container & Ingress Orchestration",
+		"### Flisk Losses & Trade-offs: Container & Ingress Orchestration (Unmeasured Context)",
 		"",
-		"1. **Full Platform Overhead in Container Mode**: When Flisk runs in full container mode (`tilt up` + Traefik reverse proxy + golden layer engine), cold starts are significantly heavier than plain Docker Compose. Generating Tiltfile assets, loading Starlark specifications, and initializing Traefik ingress adds 3–6 seconds of orchestration latency compared to a single `docker compose up -d` call.",
+		"1. **Full Platform Overhead in Container Mode**: When Flisk runs in full container mode (`tilt up` + Traefik reverse proxy + golden layer engine), cold starts are heavier than plain Docker Compose due to Starlark specification evaluation and Traefik ingress initialization (note: full container mode is not measured by this native-process harness).",
 		"2. **Docker Compose Simplicity**: For developers who already have pre-built Docker images and require strictly containerized isolation without reverse proxy routing or live-update monitors, plain Docker Compose starts bare containers with lower orchestration overhead.",
 		"3. **Resource Footprint**: Docker Compose runs only the declared services, whereas a full Flisk container stack provisions supporting platform infrastructure (ingress proxy, database supervisor).",
 		"",
@@ -779,6 +811,13 @@ Options:
 		process.exit(0);
 	}
 
+	if (!existsSync(CLI_PATH)) {
+		console.error(
+			`Error: Flisk CLI binary not found at ${CLI_PATH}.\nPlease build the CLI first with:\n  npm --prefix cli run build\n`,
+		);
+		process.exit(1);
+	}
+
 	const runs = Number(values.runs);
 	const warmup = Number(values.warmup);
 	const timeoutMs = Number(values["timeout-ms"]);
@@ -813,71 +852,52 @@ Options:
 		const baseDir = mkdtempSync(join(tmpdir(), `flisk-bench-${stackKey}-`));
 		stackDef.setup(baseDir);
 
-		// 1. Measure Flisk
-		const fliskColdSamples = [];
-		const fliskWarmSamples = [];
-
-		if (!values.json) process.stdout.write("  [Flisk] Warming up... ");
+		// Warmup runs
+		if (!values.json) process.stdout.write("  Warming up... ");
 		for (let i = 0; i < warmup; i++) {
 			await runTrial("flisk", stackKey, baseDir, timeoutMs);
-		}
-		if (!values.json) console.log("Done.");
-
-		// Flisk Cold: fresh dir
-		if (!values.json) process.stdout.write("  [Flisk] Cold runs: ");
-		for (let i = 0; i < runs; i++) {
-			const coldDir = mkdtempSync(
-				join(tmpdir(), `flisk-bench-${stackKey}-cold-`),
-			);
-			stackDef.setup(coldDir);
-			const duration = await runTrial("flisk", stackKey, coldDir, timeoutMs);
-			fliskColdSamples.push(duration);
-			rmSync(coldDir, { recursive: true, force: true });
-			if (!values.json) process.stdout.write(`${duration.toFixed(3)}s `);
-		}
-		if (!values.json) console.log("");
-
-		// Flisk Warm: repeated in baseDir
-		if (!values.json) process.stdout.write("  [Flisk] Warm runs: ");
-		for (let i = 0; i < runs; i++) {
-			const duration = await runTrial("flisk", stackKey, baseDir, timeoutMs);
-			fliskWarmSamples.push(duration);
-			if (!values.json) process.stdout.write(`${duration.toFixed(3)}s `);
-		}
-		if (!values.json) console.log("");
-
-		// 2. Measure Docker Compose
-		const composeColdSamples = [];
-		const composeWarmSamples = [];
-
-		if (!values.json) process.stdout.write("  [Compose] Warming up... ");
-		for (let i = 0; i < warmup; i++) {
 			await runTrial("compose", stackKey, baseDir, timeoutMs);
 		}
 		if (!values.json) console.log("Done.");
 
-		// Compose Cold: fresh dir
-		if (!values.json) process.stdout.write("  [Compose] Cold runs: ");
-		for (let i = 0; i < runs; i++) {
-			const coldDir = mkdtempSync(
-				join(tmpdir(), `compose-bench-${stackKey}-cold-`),
-			);
-			stackDef.setup(coldDir);
-			const duration = await runTrial("compose", stackKey, coldDir, timeoutMs);
-			composeColdSamples.push(duration);
-			rmSync(coldDir, { recursive: true, force: true });
-			if (!values.json) process.stdout.write(`${duration.toFixed(3)}s `);
-		}
-		if (!values.json) console.log("");
+		// Alternating trial execution to prevent ordering bias / thermal drift
+		const fliskColdSamples = [];
+		const fliskWarmSamples = [];
+		const composeColdSamples = [];
+		const composeWarmSamples = [];
+		const trialOrderHistory = [];
 
-		// Compose Warm: repeated in baseDir
-		if (!values.json) process.stdout.write("  [Compose] Warm runs: ");
 		for (let i = 0; i < runs; i++) {
-			const duration = await runTrial("compose", stackKey, baseDir, timeoutMs);
-			composeWarmSamples.push(duration);
-			if (!values.json) process.stdout.write(`${duration.toFixed(3)}s `);
+			const order = i % 2 === 0 ? ["flisk", "compose"] : ["compose", "flisk"];
+			trialOrderHistory.push(order.join(" -> "));
+
+			if (!values.json) {
+				console.log(`  Trial ${i + 1}/${runs} (order: ${order.join(" -> ")})`);
+			}
+
+			for (const tool of order) {
+				// Cold run: fresh isolated directory with pre-cached engine images
+				const coldDir = mkdtempSync(
+					join(tmpdir(), `bench-${stackKey}-${tool}-cold-${i}-`),
+				);
+				stackDef.setup(coldDir);
+				const coldDuration = await runTrial(tool, stackKey, coldDir, timeoutMs);
+				if (tool === "flisk") fliskColdSamples.push(coldDuration);
+				else composeColdSamples.push(coldDuration);
+				rmSync(coldDir, { recursive: true, force: true });
+
+				// Warm run: repeated in prepared baseDir
+				const warmDuration = await runTrial(tool, stackKey, baseDir, timeoutMs);
+				if (tool === "flisk") fliskWarmSamples.push(warmDuration);
+				else composeWarmSamples.push(warmDuration);
+
+				if (!values.json) {
+					console.log(
+						`    [${tool}] cold: ${coldDuration.toFixed(3)}s, warm: ${warmDuration.toFixed(3)}s`,
+					);
+				}
+			}
 		}
-		if (!values.json) console.log("");
 
 		// Clean up baseDir
 		rmSync(baseDir, { recursive: true, force: true });
@@ -887,6 +907,7 @@ Options:
 			name: stackDef.name,
 			description: stackDef.description,
 			urls: stackDef.urls,
+			trialOrder: trialOrderHistory,
 			fliskCold: calculateStats(fliskColdSamples),
 			fliskWarm: calculateStats(fliskWarmSamples),
 			composeCold: calculateStats(composeColdSamples),

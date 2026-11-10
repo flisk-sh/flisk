@@ -72,16 +72,16 @@ test("formatMarkdownReport produces clean GitHub-flavored markdown", () => {
 			dockerEngine: "29.8.2",
 			dockerCompose: "v5.5.1",
 			flisk: "1.4.45",
-			node: "v24.15.0",
+			nodeVersion: "v24.15.0",
 		},
 		results: [
 			{
 				stack: "demo",
 				name: "Demo (Web + API)",
-				fliskCold: { median: 0.32, p90: 0.35 },
-				fliskWarm: { median: 0.18, p90: 0.21 },
-				composeCold: { median: 2.45, p90: 2.6 },
-				composeWarm: { median: 1.85, p90: 1.95 },
+				fliskCold: { count: 3, median: 0.32, p90: 0.35, samples: [0.31, 0.32, 0.35] },
+				fliskWarm: { count: 3, median: 0.18, p90: 0.21, samples: [0.17, 0.18, 0.21] },
+				composeCold: { count: 3, median: 2.45, p90: 2.6, samples: [2.4, 2.45, 2.6] },
+				composeWarm: { count: 3, median: 1.85, p90: 1.95, samples: [1.8, 1.85, 1.95] },
 			},
 		],
 	};
@@ -90,4 +90,6 @@ test("formatMarkdownReport produces clean GitHub-flavored markdown", () => {
 	assert.ok(md.includes("# Benchmark: Flisk vs Docker Compose"));
 	assert.ok(md.includes("Demo (Web + API)"));
 	assert.ok(md.includes("0.320 s") || md.includes("0.32 s"));
+	assert.ok(md.includes("v24.15.0"), "Node version line should be rendered");
+	assert.ok(md.includes("29.8.2"), "Docker engine line should be rendered");
 });

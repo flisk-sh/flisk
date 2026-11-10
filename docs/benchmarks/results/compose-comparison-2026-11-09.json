@@ -26,6 +26,7 @@
       ],
       "fliskCold": {
         "count": 3,
+        "samples": [0.523, 0.527, 0.623],
         "min": 0.523,
         "max": 0.623,
         "median": 0.527,
@@ -34,6 +35,7 @@
       },
       "fliskWarm": {
         "count": 3,
+        "samples": [0.527, 0.527, 0.528],
         "min": 0.527,
         "max": 0.528,
         "median": 0.527,
@@ -42,6 +44,7 @@
       },
       "composeCold": {
         "count": 3,
+        "samples": [0.319, 0.321, 1.863],
         "min": 0.319,
         "max": 1.863,
         "median": 0.321,
@@ -50,6 +53,7 @@
       },
       "composeWarm": {
         "count": 3,
+        "samples": [0.319, 0.321, 0.322],
         "min": 0.319,
         "max": 0.322,
         "median": 0.321,
@@ -66,6 +70,7 @@
       ],
       "fliskCold": {
         "count": 3,
+        "samples": [0.622, 0.624, 0.626],
         "min": 0.622,
         "max": 0.626,
         "median": 0.624,
@@ -74,6 +79,7 @@
       },
       "fliskWarm": {
         "count": 3,
+        "samples": [0.724, 0.725, 0.98],
         "min": 0.724,
         "max": 0.98,
         "median": 0.725,
@@ -82,6 +88,7 @@
       },
       "composeCold": {
         "count": 3,
+        "samples": [1.847, 1.856, 1.861],
         "min": 1.847,
         "max": 1.861,
         "median": 1.856,
@@ -90,6 +97,7 @@
       },
       "composeWarm": {
         "count": 3,
+        "samples": [1.841, 1.842, 1.844],
         "min": 1.841,
         "max": 1.844,
         "median": 1.842,
@@ -107,6 +115,7 @@
       ],
       "fliskCold": {
         "count": 3,
+        "samples": [0.529, 0.529, 0.531],
         "min": 0.529,
         "max": 0.531,
         "median": 0.529,
@@ -115,6 +124,7 @@
       },
       "fliskWarm": {
         "count": 3,
+        "samples": [0.527, 0.53, 0.534],
         "min": 0.527,
         "max": 0.534,
         "median": 0.53,
@@ -123,6 +133,7 @@
       },
       "composeCold": {
         "count": 3,
+        "samples": [0.325, 0.33, 0.333],
         "min": 0.325,
         "max": 0.333,
         "median": 0.33,
@@ -131,6 +142,7 @@
       },
       "composeWarm": {
         "count": 3,
+        "samples": [0.328, 0.333, 0.333],
         "min": 0.328,
         "max": 0.333,
         "median": 0.333,

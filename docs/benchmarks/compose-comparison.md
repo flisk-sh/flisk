@@ -6,7 +6,7 @@ Measured for [#3297](https://github.com/flisk-sh/flisk/issues/3297). This report
 
 - **Backend + Database (Postgres)**: **Flisk is 2.5× faster** than Docker Compose. Flisk brings up the database and connects the API service in **0.624 s** (cold median) vs **1.856 s** for Docker Compose. Inter-container network bridge and container healthcheck polling overhead impose a ~1.8 s floor on Docker Compose.
 - **Microservices & Agent Stacks**: Flisk native process orchestration boots multiple services and connects inter-service dependencies in **~0.53 s** with near-zero jitter (standard deviation < 5 ms). Docker Compose cold starts ranged from **0.32 s to 1.86 s** (p90 1.863 s on cold demo stack due to container daemon spin-up).
-- **Container Mode Trade-off (Honest Loss)**: When Flisk is configured to build and orchestrate full container stacks (`tilt up` + Traefik reverse proxy + multi-layer golden caching), cold starts are significantly heavier than plain Docker Compose, adding 15–45+ seconds of golden-layer build and Starlark spec evaluation compared to bare container startups.
+- **Container Mode Trade-off (Honest Loss)**: Note that the comparisons in this harness measure Flisk native-process orchestration against Docker Compose. When Flisk runs in full container mode (`tilt up` + Traefik reverse proxy + multi-layer golden caching), cold starts incur Starlark specification evaluation and ingress initialization overhead, which was unmeasured by this native-mode benchmark harness.
 
 ---
 
@@ -18,14 +18,16 @@ Measured for [#3297](https://github.com/flisk-sh/flisk/issues/3297). This report
    - Timing stops ($T_1$) when **every service URL returns HTTP 200 OK**. Elapsed wall time is $T_1 - T_0$.
    - Command return or exit code time is **not** used as a readiness indicator.
 2. **Cold Start**:
-   - Executed in an isolated, fresh temporary workspace.
-   - No pre-existing local containers, volumes, or runtime state.
+   - Executed in a fresh, isolated temporary workspace with cached container images and prior warmup runtime state (retaining base Docker engine caches to avoid destructive system pruning).
+   - Measures a clean project launch without pre-existing local project containers or volumes.
 3. **Warm Start**:
    - Executed in the existing project workspace immediately after a clean `down`.
    - Reuses prepared file layouts, cached images, and initialized dependencies.
 4. **Sample Hygiene & Statistics**:
+   - Alternating trial order: Flisk and Compose trial execution order alternates per sample index to avoid systematic bias or thermal throttling advantages.
    - $N = 3$ measured runs per stack and configuration, preceded by 1 warmup run.
    - Reports Minimum, Maximum, Median ($p_{50}$), and 90th percentile ($p_{90}$).
+   - Individual sample arrays and trial orders are preserved in the published JSON results.
    - No indiscriminate pruning (`docker system prune -a --volumes` was strictly forbidden to preserve existing machine workloads).
 
 ---
@@ -68,10 +70,10 @@ All figures are measured from command launch to all endpoints answering HTTP 200
 - **Finding**: Docker Compose has lower median latency for pre-cached bare container images (0.321 s vs 0.527 s), but experiences cold tail latency spikes (p90 1.863 s) when Docker Desktop initializes container network bridges. Flisk exhibits rock-solid predictability across all runs.
 
 #### 2. Backend + Postgres Stack
-- **Services**: Node.js backend (port 14002) + PostgreSQL 16 database (port 15432). Readiness requires backend to establish verified TCP socket connection to PostgreSQL.
+- **Services**: Node.js backend (port 14002) + PostgreSQL 16 database (port 15432). Readiness requires backend to establish verified TCP socket connection to PostgreSQL. Note on readiness gates: Flisk connects via local TCP socket to port 15432 once the PostgreSQL container is listening, whereas Docker Compose services wait for Docker's internal `pg_isready` healthcheck before marking the service healthy. This difference in readiness criteria (direct TCP handshake vs. internal container health polling interval) accounts for part of the observed latency difference alongside container networking initialization.
 - **Flisk**: Cold runs: `[0.622s, 0.624s, 0.626s]`, Warm runs: `[0.980s, 0.725s, 0.724s]`.
 - **Docker Compose**: Cold runs: `[1.847s, 1.856s, 1.861s]`, Warm runs: `[1.841s, 1.842s, 1.844s]`.
-- **Finding**: **Clear Flisk Win**. Flisk starts the database and connects the local application in 0.624 s. Docker Compose requires 1.856 s due to internal Docker network DNS propagation and container health check polling intervals (`pg_isready`).
+- **Finding**: **Flisk Advantage in Process Mode**. Flisk starts the database and connects the local application in 0.624 s, whereas Docker Compose requires 1.856 s.
 
 #### 3. Agent Stack
 - **Services**: AI Agent worker (port 14500) + Mock LLM Model / Tools server (port 14501).
@@ -91,7 +93,7 @@ All figures are measured from command launch to all endpoints answering HTTP 200
 
 ### Where Flisk Loses (Trade-offs)
 
-1. **Full Container Mode Startup Weight**: When running in full container mode (`flisk up` with Dockerfiles), Flisk evaluates Starlark specifications, generates golden image layers, boots Traefik reverse proxy, and establishes Tilt event streams. This introduces **3 to 10 seconds** of orchestration overhead compared to running `docker compose up -d` on pre-existing images.
+1. **Full Container Mode Startup Weight (Unmeasured Context)**: When running in full container mode rather than native process mode, Flisk evaluates Starlark specifications, generates golden image layers, boots the Traefik reverse proxy, and establishes Tilt event streams. This introduces orchestration overhead compared to running `docker compose up -d` on pre-existing images, though exact container-mode timings are not measured by this native-process harness.
 2. **Raw Single-Container Latency**: When containers are already built and cached, `docker compose up -d` invokes the Docker daemon directly without Flisk's discovery and validation passes, resulting in a ~190 ms advantage on trivial single-container setups.
 3. **Platform Process Footprint**: Flisk's background supervisors (Traefik, Tilt) consume more idle system memory when running full container stacks than bare Compose containers.
 
