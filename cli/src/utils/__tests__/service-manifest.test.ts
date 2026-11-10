@@ -141,6 +141,36 @@ describe("appTypeAndPortErrors", () => {
   });
 });
 
+describe("env on a container service", () => {
+  it("warns that env is ignored without a command and points to params", () => {
+    const result = validateServiceManifest(
+      { ...manifestBase(), env: { CATALOG_URL: "http://catalog:4001" } },
+      "service.json",
+    );
+    expect(result.warnings).toEqual([
+      expect.stringMatching(/^service\.json\.env: only applies .*"params"/),
+    ]);
+  });
+
+  it("does not warn for a command service or an empty env", () => {
+    const command = validateServiceManifest(
+      { ...manifestBase(), command: "node server.js", env: { A: "1" } },
+      "service.json",
+    );
+    expect(command.warnings.filter((w) => w.includes(".env:"))).toEqual([]);
+    const empty = validateServiceManifest({ ...manifestBase(), env: {} }, "service.json");
+    expect(empty.warnings).toEqual([]);
+  });
+
+  it("does not warn for a bring-your-own resource, which reads env", () => {
+    const byo = validateServiceManifest(
+      { ...manifestBase(), appType: "bring-your-own", image: "example/x:1", env: { A: "1" } },
+      "service.json",
+    );
+    expect(byo.warnings).toEqual([]);
+  });
+});
+
 describe("service manifest compatibility", () => {
   it("rejects non-object, null, and array manifests", () => {
     expect(validateServiceManifest(null, "service.json")).toEqual({
