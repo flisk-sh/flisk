@@ -4,7 +4,7 @@
 
 종단간(E2E) 테스트는 실제 Docker, Tilt, Traefik 및 생성된 파일이 포함된 실제 스택을 대상으로 실제 `flisk`를 실행합니다. 단위 테스트로는 깨진 라우트, 준비 상태가 되지 않는 컨테이너, 또는 실제 오류로 인해 스택 트레이스로 변하는 JSON 엔벨로프를 잡아낼 수 없습니다. E2E 테스트는 이를 잡아낼 수 있습니다.
 
-이 페이지에서는 E2E 테스트가 언제 필요한지, 어디에 배치하는지, 어떻게 작성하는지, 그리고 어떻게 동작을 증명하는지 설명합니다. 전체 과정에서 [에이전트 스위트](../../tests/e2e/resource-types/agent/run.sh)를 실전 예제로 활용합니다. AI 어시스턴트는 `flisk-e2e-author` 스킬(`.claude/skills/flisk-e2e-author/`)을 사용하여 동일한 단계를 따를 수 있습니다.
+이 페이지에서는 E2E 테스트가 언제 필요한지, 어디에 배치하는지, 어떻게 작성하는지, 그리고 어떻게 동작을 증명하는지 설명합니다. 전체 과정에서 [에이전트 스위트](../../../tests/e2e/resource-types/agent/run.sh)를 실전 예제로 활용합니다. AI 어시스턴트는 `flisk-e2e-author` 스킬(`.claude/skills/flisk-e2e-author/`)을 사용하여 동일한 단계를 따를 수 있습니다.
 
 ## E2E 테스트가 필요한가요?
 
@@ -31,7 +31,7 @@
 
 실행 중인 에이전트를 읽는 MCP 도구를 추가하시나요? 그렇다면 `agent` 스위트(또는 MCP 리소스의 경우 `mcp` 스위트)에 속합니다. 케이스 C1~C3의 형식을 따르세요.
 
-현재까지는 `resource-types/agent`만 이전되었습니다. 다른 E2E 테스트는 여전히 `.github/workflows/*-e2e.yml`, `scripts/e2e/`, `scripts/verify-*.sh` 및 `tests/e2e/*.test.sh`에 위치합니다. 이들은 [`openspec/changes/organize-e2e-suites`](../../openspec/changes/organize-e2e-suites/tasks.md)에 설명된 대로 풀 리퀘스트당 하나의 스위트씩 이전됩니다. 변경 사항이 이들 중 하나와 관련된 경우, 현재 위치에서 확장하거나 먼저 이전하세요.
+현재까지는 `resource-types/agent`만 이전되었습니다. 다른 E2E 테스트는 여전히 `.github/workflows/*-e2e.yml`, `scripts/e2e/`, `scripts/verify-*.sh` 및 `tests/e2e/*.test.sh`에 위치합니다. 이들은 [`openspec/changes/organize-e2e-suites`](../../../openspec/changes/organize-e2e-suites/tasks.md)에 설명된 대로 풀 리퀘스트당 하나의 스위트씩 이전됩니다. 변경 사항이 이들 중 하나와 관련된 경우, 현재 위치에서 확장하거나 먼저 이전하세요.
 
 ---
 
