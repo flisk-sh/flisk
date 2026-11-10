@@ -33,6 +33,7 @@ export const statusCommand = new Command("status")
     .option("--tilt", "Show tilt resource status", false)
     .option("--no-gateway", "Disable gateway status reporting")
     .option("--unhealthy", "Show only services that are failing or still starting", false)
+    .addHelpText("after", "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json")
     .action(async (options) => {
     const action = async () => {
         // Check for inferred Node project first

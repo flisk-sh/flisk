@@ -39,6 +39,7 @@ export const stackCommand = addYesOption(new Command("stack"))
     .option("--resources <names...>", "Resource names to add (comma- or space-separated)")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes and needs --list or <stack-name> --resources", false)
+    .addHelpText("after", "\nExamples:\n  flisk stack --list\n  flisk stack shop --resources orders-api web")
     .action(async (stackName, options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();

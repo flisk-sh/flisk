@@ -16,6 +16,7 @@ export const restartCommand = new Command("restart")
     .argument("<resource>", "Name of the resource (service) to restart")
     .option("--port <n>", "Tilt UI port (default: TILT_PORT or 10350)")
     .option("--json", "Output one JSON object and exit", false)
+    .addHelpText("after", "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json")
     .action(async (resourceName, options) => {
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText)) {

@@ -1318,6 +1318,7 @@ export const doctorCommand = new Command("doctor")
     .option("--scope <scope>", "With --fix: project (default) or machine, which also removes unused networks of other Flisk projects", "project")
     .option("-y, --yes", "With --fix: apply every repair without asking", false)
     .option("--ping-timeout <ms>", "Per-service ping timeout in milliseconds", String(DEFAULT_PING_TIMEOUT_MS))
+    .addHelpText("after", "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --fix --dry-run\n  flisk doctor --json")
     .action(async (options) => {
     // Validate before running any probe; parseInt would silently accept "100ms" or "1.5".
     const pingTimeout = Number(options.pingTimeout);

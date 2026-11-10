@@ -14,6 +14,10 @@ export const stacksCommand = new Command("stacks")
   .option("-v, --verbose", "Show detailed information about each stack", false)
   .option("--services", "Include list of services in each stack", false)
   .option("--json", "Output a versioned JSON stack report", false)
+  .addHelpText(
+    "after",
+    "\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json",
+  )
   .action(async (options) => {
     const action = async (): Promise<void> => {
       if (options.json && !findProjectRoot()) {

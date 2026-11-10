@@ -156,6 +156,7 @@ export const downCommand = addYesOption(new Command("down"))
     .option("--dry-run", "Show what would be stopped without stopping", false)
     .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
     .option("--project <path>", "Stop the Flisk project in this folder (default: the current project, or the only running one)")
+    .addHelpText("after", "\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose")
     .action(async (options, command) => {
     // Check for inferred Node project first, before resolveDownProject tries to find a Flisk project
     const guess = inferNodeProject(process.cwd());
