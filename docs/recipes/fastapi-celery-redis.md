@@ -111,7 +111,7 @@ Flisk probes `http://127.0.0.1:8000/health` to confirm the API is ready.
 ## Live Reload Verification
 
 Uvicorn's `--reload --reload-dir src` flag monitors the API source directory:
-- Editing `services/app/api/src/main.py` causes Uvicorn to restart its worker process in < 200ms.
+- Editing `services/app/api/src/main.py` causes Uvicorn to automatically reload its worker process.
 - The parent process PID remains alive, so Flisk's process supervisor detects no disruption.
 - Celery worker and Redis remain active; ongoing jobs and task state are completely preserved.
 

@@ -12,6 +12,7 @@ BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 
 def http_get(path: str) -> Dict[str, Any]:
+    """Sends an HTTP GET request to the target API and parses the JSON response."""
     url = f"{BASE_URL}{path}"
     req = urllib.request.Request(url)
     with urllib.request.urlopen(req, timeout=10) as resp:
@@ -19,6 +20,7 @@ def http_get(path: str) -> Dict[str, Any]:
 
 
 def http_post(path: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Sends an HTTP POST request with a JSON payload and parses the JSON response."""
     url = f"{BASE_URL}{path}"
     payload = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
@@ -27,6 +29,7 @@ def http_post(path: str, data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def test_health():
+    """Verifies the /health service endpoint."""
     data = http_get("/health")
     assert data.get("status") == "ok", f"Expected ok status, got: {data}"
     assert data.get("service") == "api", f"Expected service api, got: {data}"
@@ -34,6 +37,7 @@ def test_health():
 
 
 def test_root():
+    """Verifies the root metadata endpoint."""
     data = http_get("/")
     assert "message" in data, f"Expected message in root response: {data}"
     assert data.get("health") == "/health"
@@ -41,6 +45,7 @@ def test_root():
 
 
 def test_task_queue_execution():
+    """Verifies end-to-end asynchronous task enqueueing, execution, and polling."""
     # 1. Enqueue task
     x, y = 14, 3
     post_res = http_post("/tasks", {"x": x, "y": y})
@@ -79,4 +84,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         sys.exit(1)
-

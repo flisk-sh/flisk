@@ -41,6 +41,7 @@ class TaskStatusResponse(BaseModel):
 
 @app.get("/")
 def read_root() -> Dict[str, str]:
+    """Root metadata endpoint describing service capabilities and endpoints."""
     return {
         "message": "FastAPI + Celery + Redis running under Flisk",
         "docs": "/docs",
@@ -51,11 +52,13 @@ def read_root() -> Dict[str, str]:
 
 @app.get("/health")
 def read_health() -> Dict[str, str]:
+    """Service health probe endpoint."""
     return {"status": "ok", "service": "api"}
 
 
 @app.post("/tasks", response_model=TaskResponse, status_code=202)
 def create_task(payload: TaskPayload) -> TaskResponse:
+    """Enqueues an asynchronous compute task to Celery via Redis broker."""
     try:
         async_result = celery_app.send_task("tasks.compute", args=[payload.x, payload.y])
         return TaskResponse(task_id=async_result.id, status=async_result.status)
@@ -65,6 +68,7 @@ def create_task(payload: TaskPayload) -> TaskResponse:
 
 @app.get("/tasks/{task_id}", response_model=TaskStatusResponse)
 def get_task_status(task_id: str) -> TaskStatusResponse:
+    """Retrieves current execution status and result for an enqueued task."""
     async_result = AsyncResult(task_id, app=celery_app)
     result_val = None
     if async_result.ready():
@@ -82,7 +86,3 @@ def get_task_status(task_id: str) -> TaskStatusResponse:
         ready=async_result.ready(),
         result=result_val,
     )
-
-@app.get("/test-live-reload")
-def test_live_reload():
-    return {"live_reload": "active", "timestamp": 123456789}
