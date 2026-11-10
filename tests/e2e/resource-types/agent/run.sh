@@ -267,12 +267,12 @@ A4b() { # reply shapes: an array stays an array; agent/port keys in the reply ca
   assert check "$OUT/a4b-array.out" "Array.isArray(j.data.session) && j.data.session[0].id === 'a'" "an array reply stays an array"
 }
 
-B5() { # TILT_TRIGGER_FAILED (Tilt is up)
-  log "B5 TILT_TRIGGER_FAILED"
+B5() { # UNKNOWN_RESOURCE (a mistyped name is refused before Tilt is probed)
+  log "B5 UNKNOWN_RESOURCE"
   run b5 restart no-such-resource --json
   [ "$RC" -eq 1 ] || die "expected exit 1, got $RC"
-  assert envelope "$OUT/b5.out" TILT_TRIGGER_FAILED
-  assert check "$OUT/b5.out" "j.errors[0].message.includes('no-such-resource')" "Tilt's error text names the resource"
+  assert envelope "$OUT/b5.out" UNKNOWN_RESOURCE
+  assert check "$OUT/b5.out" "j.errors[0].message.includes('no-such-resource')" "the error names the resource"
 }
 
 B6() { # no --session-id is the list case: it makes a request, so with nothing listening it is AGENT_NOT_RUNNING
@@ -352,7 +352,7 @@ C3() { # projectPath from another cwd; an unknown resource is a structured tool 
   assert check "$OUT/c3b.out" "j.calls[0].result.isError === true" "unknown resource: isError is true"
   mcp_structured c3b 1
   assert check "$OUT/c3b.1.json" "j.errors.length === 0 && Array.isArray(j.data.sessions) && j.data.sessions.some(s => s.sessionId === 's1')" "no sessionId lists the agent's sessions"
-  assert check "$OUT/c3b.2.json" "j.errors[0].code === 'TILT_TRIGGER_FAILED'" "resource_restart on an unknown resource: structured error"
+  assert check "$OUT/c3b.2.json" "j.errors[0].code === 'UNKNOWN_RESOURCE'" "resource_restart on an unknown resource: structured error"
   assert check "$OUT/c3b.out" "j.calls[3].result.isError === false" "the server still answers after the failed calls, under a former tool name"
   rm -rf "$elsewhere"
 }

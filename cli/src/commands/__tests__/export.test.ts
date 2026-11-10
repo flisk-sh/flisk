@@ -26,9 +26,14 @@ function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
   const spawnFn = ((command: string, args: string[], options: unknown) => {
     calls.push([command, args, options]);
     const child = new EventEmitter();
-    queueMicrotask(() =>
-      outcome.error ? child.emit("error", outcome.error) : child.emit("close", outcome.code),
-    );
+    queueMicrotask(() => {
+      if (outcome.error) {
+        child.emit("error", outcome.error);
+        child.emit("close", -2);
+        return;
+      }
+      child.emit("close", outcome.code);
+    });
     return child;
   }) as never;
   return { calls, spawnFn };
@@ -118,6 +123,8 @@ describe("flisk export", () => {
       const missing = fakeSpawn({ error: new Error("spawn npx ENOENT") });
       expect(await runExport(["render"], missing.spawnFn, {})).toBe(127);
       expect(String(error.mock.calls[0][0])).toContain("could not run npx (spawn npx ENOENT)");
+      // A failed spawn still emits close afterwards; that must not print the unavailable hint too.
+      expect(error.mock.calls).toHaveLength(1);
     } finally {
       error.mockRestore();
     }

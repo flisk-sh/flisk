@@ -174,6 +174,37 @@ describe("flisk stacks (in-process)", () => {
     expect(run.stdout).not.toContain("Run with --verbose");
   });
 
+  it("--verbose lists each resource with its type, unlike the default listing", async () => {
+    const run = await runStacks(["--verbose"]);
+
+    // Each stack shows a service count using the same "services" wording as the default branch...
+    expect(run.stdout).toMatch(/shop\n\s+Storefront and API\n\s+2 services/);
+    expect(run.stdout).toMatch(/ops\n\s+Background jobs\n\s+1 service\b/);
+    // ...and then lists every resource by name with its type.
+    expect(run.stdout).toMatch(/ {4}web {2}frontend/);
+    expect(run.stdout).toMatch(/ {4}orders-api {2}backend/);
+    expect(run.stdout).toMatch(/ {4}jobs {2}worker/);
+  });
+
+  it("--verbose shows a resource's port when it has one", async () => {
+    const context = contextWith([
+      {
+        name: "app",
+        description: "Storefront and API",
+        resources: [
+          { ...makeResource("shop-demo-web", "frontend"), port: 3001 },
+          { ...makeResource("shop-demo-api", "backend"), port: 4000 },
+        ],
+      },
+    ]);
+    discovery.createDiscoveryContext.mockReturnValue(context);
+
+    const run = await runStacks(["--verbose"]);
+
+    expect(run.stdout).toMatch(/ {4}shop-demo-web {2}frontend {2}:3001/);
+    expect(run.stdout).toMatch(/ {4}shop-demo-api {2}backend {2}:4000/);
+  });
+
   it("--services lists each stack's services", async () => {
     const run = await runStacks(["--services"]);
 

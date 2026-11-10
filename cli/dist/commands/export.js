@@ -30,15 +30,19 @@ export function unavailableHint(pkg, exitCode) {
 export function runExport(args, spawnFn = spawn, env = process.env) {
     const invocation = exportInvocation(args, env);
     return new Promise((resolve) => {
+        let spawnFailed = false;
         const child = spawnFn(invocation.command, invocation.args, {
             stdio: "inherit",
             shell: invocation.shell,
         });
         child.on("error", (err) => {
+            spawnFailed = true;
             console.error(`flisk export: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`);
             resolve(127);
         });
         child.on("close", (code) => {
+            if (spawnFailed)
+                return;
             const exitCode = code ?? 1;
             if (exitCode !== 0)
                 console.error(unavailableHint(invocation.pkg, exitCode));
