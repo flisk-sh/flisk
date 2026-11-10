@@ -40,7 +40,17 @@ export const stacksCommand = new Command("stacks")
             for (const stack of discovery.stacks) {
                 console.log(chalk.bold(`${stack.name}`));
                 showDetail(`${stack.description}`);
-                if (options.services) {
+                if (verbose) {
+                    // --verbose adds real detail over the default listing: the service count
+                    // (same "services" wording as the default branch) plus each resource's type and port.
+                    showDetail(formatCount(stack.resources.length, "service"));
+                    for (const service of stack.resources) {
+                        const type = service.config?.appType ?? service.type ?? "unknown";
+                        const port = service.port ? `  :${service.port}` : "";
+                        showDetail(`${service.name}  ${type}${port}`, 4);
+                    }
+                }
+                else if (options.services) {
                     showDetail("Services:");
                     for (const service of stack.resources) {
                         showDetail(`${service.name}`, 4);
