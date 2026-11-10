@@ -982,6 +982,22 @@
 			"required": false,
 			"reason": "Weekly Stryker mutation run on the generators, scored by scripts/scores/mutation-score.mjs",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "shop-bench.yml",
+			"job": "measure",
+			"tier": "report",
+			"required": false,
+			"reason": "Scripted 10-part shop benchmark per tool (bench/competitors); informational, weekly and on runtime/up changes",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "shop-bench.yml",
+			"job": "comment",
+			"tier": "report",
+			"required": false,
+			"reason": "Posts or updates the shop benchmark pull request comment",
+			"owner": "maintainers"
 		}
 	]
 }

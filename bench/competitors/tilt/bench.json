@@ -1,0 +1,21 @@
+{
+  "id": "tilt",
+  "name": "Tilt",
+  "tool": { "name": "tilt", "version": "tilt version | sed 's/,.*//'" },
+  "requires": ["docker", "tilt"],
+  "start": "tilt up --stream=false --web-mode=prod --host 127.0.0.1 --port $BENCH_PORT2",
+  "stop": "pkill -f \"tilt up .*--port $BENCH_PORT2\"; sleep 1; tilt down",
+  "purge": "docker compose -p $BENCH_PROJECT down -v --remove-orphans --rmi local",
+  "clean": "docker compose -p $BENCH_PROJECT down -v --remove-orphans",
+  "base": "http://localhost:${BENCH_PORT}",
+  "health": [
+    "http://localhost:${BENCH_PORT}/health",
+    "http://localhost:${BENCH_PORT}/health/storefront",
+    "http://localhost:${BENCH_PORT}/health/admin",
+    "http://localhost:${BENCH_PORT}/api/products/health",
+    "http://localhost:${BENCH_PORT}/api/orders/health",
+    "http://localhost:${BENCH_PORT}/api/payments/health",
+    "http://localhost:${BENCH_PORT}/api/notifications/health"
+  ],
+  "wiring": { "configFiles": ["Tiltfile", "docker-compose.yml"], "waitsOnHealthy": "service_healthy|service_completed_successfully|depends_on|resource_deps" }
+}

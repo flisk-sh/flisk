@@ -1,0 +1,79 @@
+# The 10-part shop as plain Docker Compose. The app code is shared: bench/shop (BENCH_SHOP is set by the runner).
+name: ${BENCH_PROJECT:-flisk-bench-compose}
+
+x-db: &db
+  DATABASE_URL: postgres://shop:shop@postgres:5432/shop
+x-queue: &queue
+  REDIS_URL: redis://queue:6379
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: shop, POSTGRES_PASSWORD: shop, POSTGRES_DB: shop }
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U shop -d shop"], interval: 2s, timeout: 3s, retries: 30 }
+
+  queue:
+    image: redis:7-alpine
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 2s, timeout: 3s, retries: 30 }
+
+  migrator:
+    build: ${BENCH_SHOP}/db
+    restart: "no"
+    environment: *db
+    depends_on: { postgres: { condition: service_healthy } }
+
+  catalog:
+    build: ${BENCH_SHOP}/catalog
+    environment: *db
+    depends_on: { migrator: { condition: service_completed_successfully } }
+
+  payments:
+    build: ${BENCH_SHOP}/payments
+    environment: *db
+    depends_on: { migrator: { condition: service_completed_successfully } }
+
+  orders:
+    build: ${BENCH_SHOP}/orders
+    environment:
+      <<: [*db, *queue]
+      CATALOG_URL: http://catalog:3000
+      PAYMENTS_URL: http://payments:3000
+    depends_on:
+      migrator: { condition: service_completed_successfully }
+      queue: { condition: service_healthy }
+      catalog: { condition: service_started }
+      payments: { condition: service_started }
+
+  notifications:
+    build: ${BENCH_SHOP}/notifications
+    environment:
+      <<: [*db, *queue]
+    depends_on:
+      migrator: { condition: service_completed_successfully }
+      queue: { condition: service_healthy }
+
+  fulfilment:
+    build: ${BENCH_SHOP}/fulfilment
+    environment:
+      <<: *queue
+      ORDERS_URL: http://orders:3000
+      SHIP_DELAY_MS: "5000"
+    depends_on:
+      queue: { condition: service_healthy }
+      orders: { condition: service_started }
+
+  storefront:
+    build: ${BENCH_SHOP}/storefront
+
+  admin:
+    build: ${BENCH_SHOP}/admin
+    environment: { BASE_PATH: /admin }
+
+  gateway:
+    build: ${BENCH_SHOP}/gateway
+    ports: ["${BENCH_PORT:-18700}:80"]
+    depends_on: [storefront, admin, catalog, orders, payments, notifications]
+
+volumes:
+  pgdata:
