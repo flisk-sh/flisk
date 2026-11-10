@@ -71,6 +71,7 @@ import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter, type JsonError } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
+import { collectRequiredModels, runModelPreflight } from "../utils/model-preflight.js";
 import { findFreePort } from "../utils/native-demo.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
 import {
@@ -1432,6 +1433,40 @@ export const upCommand = new Command("up")
       if (coldNotice) {
         if (options.json) console.warn(coldNotice);
         else if (!options.quiet) console.log(chalk.cyan(`\n${coldNotice}`));
+      }
+
+      if (!options.dryRun) {
+        const requiredModels = collectRequiredModels(servicesToStart);
+        if (requiredModels.length > 0) {
+          if (!options.quiet) {
+            console.log(
+              chalk.gray(
+                `Checking required models with Docker Model Runner (${requiredModels.join(", ")})...`,
+              ),
+            );
+          }
+          const preflightResult = await runModelPreflight(requiredModels, {
+            onRetry: options.quiet
+              ? undefined
+              : ({ model, attempt, maxAttempts, delayMs, error }) => {
+                  console.log(
+                    chalk.yellow(
+                      `Retrying model pull for ${model} (attempt ${attempt}/${maxAttempts}) in ${delayMs / 1000}s: ${error}`,
+                    ),
+                  );
+                },
+          });
+          if (!preflightResult.ok) {
+            const message = `Failed to pull required model "${preflightResult.failedModel}" after ${preflightResult.attempts} attempts: ${preflightResult.error}`;
+            const suggestions = [
+              `Docker Model Runner failed to pull: ${preflightResult.failedModel}`,
+              preflightResult.error,
+              "Verify Docker Model Runner is active and reachable, or pull the model manually.",
+            ];
+            emit?.({ ok: false }, [{ code: "MODEL_PULL_FAILED", message, suggestions }]);
+            showErrorAndExit(message, 1, suggestions);
+          }
+        }
       }
 
       if (!options.quiet) {
