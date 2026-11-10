@@ -1,0 +1,18 @@
+[project]
+name = "fastapi-celery-redis"
+version = "0.1.0"
+description = "FastAPI + Celery + Redis example managed with Flisk"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "celery[redis]>=5.4.0",
+    "redis>=6.1.0",
+    "packaging>=24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+]

@@ -1,0 +1,16 @@
+{
+  "group": "examples",
+  "suite": "fastapi-celery-redis",
+  "description": "FastAPI + Celery + Redis example running under Flisk's mixed runtime: redis in Docker, api and worker as local processes, task queue execution, live reload, and clean teardown.",
+  "paths": [
+    "examples/fastapi-celery-redis/**",
+    "docs/recipes/fastapi-celery-redis.md",
+    "cli/src/utils/native-*.ts",
+    "tests/e2e/examples/fastapi-celery-redis/**"
+  ],
+  "cases": ["T1_PREREQS", "T2_START_AND_TASKS", "T3_LIVE_RELOAD", "T4_TEARDOWN"],
+  "triggers": ["pr", "manual"],
+  "timeoutMinutes": 10,
+  "needsSecrets": []
+}
+
