@@ -1,4 +1,4 @@
-// "Flisk App Builder" as an MCP server for the Claude directory: say what app you want, get a plain-words plan and
+// The Build Me an App MCP: an MCP server for the Claude directory: say what app you want, get a plain-words plan and
 // the exact commands to build and run it on your own computer. Read-only, no key, no storage, no model: the plan
 // comes from the same planner as the demos (plan.js), so nothing is invented. MCP over HTTP, JSON-RPC 2.0, one POST per
 // message, no sessions. Source of truth: the flisk repo (workers/app-builder-mcp).
@@ -146,7 +146,7 @@ export async function appBuilderMcpRoute(request, json) {
       rpc(id, {
         protocolVersion: PROTOCOL,
         capabilities: { tools: {}, prompts: {} },
-        serverInfo: { name: "flisk-app-builder", version: "1.0.0", icons: [{ src: "https://build.flisk.si/icon-512.png", mimeType: "image/png", sizes: ["512x512"] }] },
+        serverInfo: { name: "flisk-app-builder", title: "Build Me an App MCP", version: "1.0.0", icons: [{ src: "https://build.flisk.si/icon-512.png", mimeType: "image/png", sizes: ["512x512"] }] },
         instructions: "plan_app turns a plain description of an app into the parts it needs and the commands to run it on the user's own computer. list_app_starters shows ready-made apps. Prompts build_my_app and pick_a_starter start those two flows.",
       }),
     );

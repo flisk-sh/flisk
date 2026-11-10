@@ -20,6 +20,7 @@ test("initialize names the server and offers tools only", async () => {
   const body = await res.json();
   assert.equal(res.status, 200);
   assert.equal(body.result.serverInfo.name, "flisk-app-builder");
+  assert.equal(body.result.serverInfo.title, "Build Me an App MCP");
   assert.deepEqual(body.result.capabilities, { tools: {}, prompts: {} });
 });
 
@@ -217,4 +218,9 @@ test("prompts/get refuses an unknown prompt or a missing what", async () => {
 test("prompts/get pick_a_starter needs no arguments", async () => {
   const body = await (await post({ jsonrpc: "2.0", id: 7, method: "prompts/get", params: { name: "pick_a_starter" } })).json();
   assert.match(body.result.messages[0].content.text, /list_app_starters/);
+});
+
+test("the home page starts with the product name and what it does", async () => {
+  const res = await worker.fetch(new Request("https://build.flisk.si/"), env, { waitUntil() {} });
+  assert.match((await res.text()).split("\n")[0], /^Build Me an App: /);
 });
