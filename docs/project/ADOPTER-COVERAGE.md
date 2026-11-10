@@ -19,6 +19,8 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | liketrek/TREK, open-wanderer/wanderer | Single app plus database | Discussions open | bare published ports, host-based routing for a web app |
 | catchpoint/WebPageTest (4e157836) | WebPageTest server and agent | RFC / reproduction | file-backed Compose `secrets:` (`wpt_settings_ini`) mounted to custom container target |
 | sameersbn/docker-gitlab (9003c09b) | GitLab with PostgreSQL and Redis | RFC / reproduction | file-backed Compose `configs:` (`gitlab-configs`) mounted to container target |
+| paperless-ngx/paperless-ngx | Document management (Python, Valkey, Postgres) | Tested | Postgres 18 volume, Valkey broker, `depends_on`, `env_file`, relative bind mounts |
+| supabase/supabase | Backend-as-a-Service (11 microservices) | Tested | Envoy gateway, GoTrue auth, Edge runtime, PostgREST, Studio, Supavisor multi-ports, healthchecks |
 
 ## Compose features
 
