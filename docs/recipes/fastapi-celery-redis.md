@@ -50,7 +50,7 @@ Flisk runs `docker run --name flisk-<project>-redis -p 127.0.0.1:6379:6379 ...` 
   "schemaVersion": 1,
   "appName": "worker",
   "appType": "worker",
-  "command": "sh -c 'if [ -n \"$VIRTUAL_ENV\" ] && [ -x \"$VIRTUAL_ENV/bin/celery\" ]; then exec \"$VIRTUAL_ENV/bin/celery\" -A src.tasks.celery_app worker --loglevel=info; elif [ -x ../../../.venv/bin/celery ]; then exec ../../../.venv/bin/celery -A src.tasks.celery_app worker --loglevel=info; elif [ -x .venv/bin/celery ]; then exec .venv/bin/celery -A src.tasks.celery_app worker --loglevel=info; elif command -v celery >/dev/null 2>&1; then exec celery -A src.tasks.celery_app worker --loglevel=info; else exec python3 -m celery -A src.tasks.celery_app worker --loglevel=info; fi'",
+  "command": "sh -c 'if [ -n \"$VIRTUAL_ENV\" ] && [ -x \"$VIRTUAL_ENV/bin/celery\" ]; then exec \"$VIRTUAL_ENV/bin/celery\" -A src.tasks.celery_app worker --loglevel=info --pool=solo; elif [ -x ../../../.venv/bin/celery ]; then exec ../../../.venv/bin/celery -A src.tasks.celery_app worker --loglevel=info --pool=solo; elif [ -x .venv/bin/celery ]; then exec .venv/bin/celery -A src.tasks.celery_app worker --loglevel=info --pool=solo; elif command -v celery >/dev/null 2>&1; then exec celery -A src.tasks.celery_app worker --loglevel=info --pool=solo; else exec python3 -m celery -A src.tasks.celery_app worker --loglevel=info --pool=solo; fi'",
   "dependsOn": ["redis"],
   "env": {
     "REDIS_URL": "redis://127.0.0.1:6379/0"

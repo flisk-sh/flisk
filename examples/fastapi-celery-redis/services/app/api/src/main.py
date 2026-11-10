@@ -70,8 +70,9 @@ def create_task(payload: TaskPayload) -> TaskResponse:
 def get_task_status(task_id: str) -> TaskStatusResponse:
     """Retrieves current execution status and result for an enqueued task."""
     async_result = AsyncResult(task_id, app=celery_app)
+    is_ready = async_result.ready()
     result_val = None
-    if async_result.ready():
+    if is_ready:
         try:
             val = async_result.result
             if isinstance(val, Exception):
@@ -83,6 +84,6 @@ def get_task_status(task_id: str) -> TaskStatusResponse:
     return TaskStatusResponse(
         task_id=task_id,
         status=async_result.status,
-        ready=async_result.ready(),
+        ready=is_ready,
         result=result_val,
     )

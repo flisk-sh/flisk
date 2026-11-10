@@ -14,10 +14,23 @@ EXAMPLE_DIR="$REPO_ROOT/examples/fastapi-celery-redis"
 FLISK_BIN="${FLISK_BIN:-$REPO_ROOT/cli/bin/flisk.js}"
 
 up_pid=""
+live_reload_bak=""
+
+restore_live_reload_main() {
+  if [ -n "${live_reload_bak:-}" ] && [ -f "$live_reload_bak" ]; then
+    local api_main="$EXAMPLE_DIR/services/app/api/src/main.py"
+    if [ -f "$api_main" ]; then
+      cp "$live_reload_bak" "$api_main" 2>/dev/null || true
+    fi
+    rm -f "$live_reload_bak"
+    live_reload_bak=""
+  fi
+}
 
 e2e_cleanup() {
   local exit_code=$?
   echo "Cleaning up stack..."
+  restore_live_reload_main
   local pid="${up_pid:-}"
   if [ -z "$pid" ] && [ -f "$EXAMPLE_DIR/.flisk.pid" ]; then
     pid="$(cat "$EXAMPLE_DIR/.flisk.pid" 2>/dev/null || true)"
@@ -28,9 +41,6 @@ e2e_cleanup() {
   rm -f "$EXAMPLE_DIR/.flisk.pid"
 
   (cd "$EXAMPLE_DIR" && node "$FLISK_BIN" down >/dev/null 2>&1 || true)
-  if [ -f "$EXAMPLE_DIR/services/app/api/src/main.py.bak" ]; then
-    mv "$EXAMPLE_DIR/services/app/api/src/main.py.bak" "$EXAMPLE_DIR/services/app/api/src/main.py"
-  fi
   return "$exit_code"
 }
 
@@ -115,7 +125,20 @@ T3_LIVE_RELOAD() {
   fi
 
   local api_main="services/app/api/src/main.py"
-  cp "$api_main" "$api_main.bak"
+  local bak_file
+  bak_file="$(mktemp "${TMPDIR:-/tmp}/flisk_main_bak_XXXXXX.py")"
+  cp "$api_main" "$bak_file"
+  live_reload_bak="$bak_file"
+
+  # Ensure restoration on any exit, signal, or failure (including standalone runs)
+  local previous_exit_trap
+  previous_exit_trap="$(trap -p EXIT | sed -e "s/^trap -- '//" -e "s/' EXIT$//" || true)"
+  if [ -n "$previous_exit_trap" ]; then
+    trap 'restore_live_reload_main; '"$previous_exit_trap" EXIT
+  else
+    trap 'restore_live_reload_main' EXIT
+  fi
+  trap 'restore_live_reload_main; exit 1' INT TERM
 
   # 1. Verify endpoint does not exist initially (must return 404)
   local initial_code
@@ -155,7 +178,7 @@ PY
   echo "PASS: Celery and Redis remained fully operational across live reload."
 
   # 5. Revert change and verify endpoint returns 404 again
-  mv "$api_main.bak" "$api_main"
+  restore_live_reload_main
   local reverted=false
   for _ in $(seq 1 30); do
     local code
@@ -168,6 +191,14 @@ PY
   done
   [ "$reverted" = "true" ] || fail "Uvicorn did not revert the removed route"
   echo "PASS: Live reload successfully reverted /test-live-reload back to 404."
+
+  # Restore previous trap once T3 finishes successfully
+  if [ -n "$previous_exit_trap" ]; then
+    trap "$previous_exit_trap" EXIT
+  else
+    trap - EXIT
+  fi
+  trap - INT TERM
 }
 
 T4_TEARDOWN() {
