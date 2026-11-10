@@ -35,6 +35,7 @@ import {
   parseResourceType,
   TSCONFIG_TEMPLATE,
   TYPE_SPECIFIC,
+  withViteEnvTypes,
 } from "../../commands/resource.js";
 import {
   FRONTEND_FRAMEWORKS,
@@ -235,6 +236,24 @@ describe("resource command", () => {
       });
       expect(manifest.exposeViaProxy).toBe(false);
       expect(manifest.restart).toBe("always");
+    });
+  });
+
+  describe("withViteEnvTypes", () => {
+    const file = (filename: string) => ({ filename, content: "", description: "", emoji: "" });
+
+    it("adds Vite client types to a Vite frontend that has none", () => {
+      const files = withViteEnvTypes([file("src/App.tsx")], getFrontendFramework("react"));
+      expect(files.map((f) => f.filename)).toEqual(["src/App.tsx", "src/vite-env.d.ts"]);
+      expect(files[1]?.content).toContain('/// <reference types="vite/client" />');
+    });
+
+    it("keeps a framework's own vite-env.d.ts and adds nothing to Next.js", () => {
+      const own = [file("src/vite-env.d.ts")];
+      expect(withViteEnvTypes(own, getFrontendFramework("vue"))).toEqual(own);
+      expect(
+        withViteEnvTypes([file("src/app/page.tsx")], getFrontendFramework("next")),
+      ).toHaveLength(1);
     });
   });
 
