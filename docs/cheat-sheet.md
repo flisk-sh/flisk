@@ -94,12 +94,16 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk down` | | Stop services |
 | `flisk status` | | Show stack and service state |
 | `flisk logs` | | Print recent logs from the running stack |
+| `flisk run <service> -- <command>` | | Run a one-off command with the environment a service has in the stack |
+| `flisk restart <resource>` | | Restart a running resource in the stack |
 | `flisk networks` | `urls`, `traefik` | Show Traefik-routed URLs |
+| `flisk open` | | Open the first frontend of the project in your browser |
 | `flisk config <subcommand>` | | Regenerate, verify, migrate or edit project config |
 | `flisk doctor` | | Check environment readiness |
 | `flisk ui` | `interactive` | Interactive terminal UI |
 | `flisk os` | | Start FliskOS, the local desktop app for projects and agents |
 | `flisk mcp` | | MCP server over stdio for coding agents |
+| `flisk connect <host>` | | Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills |
 | `flisk agent sessions <resource>` | | List a running AI agent's sessions, or inspect one session's checkpoint |
 | `flisk runtime` | | Inspect packaged engine and template assets |
 | `flisk export <subcommand>` | | Write `render.yaml`, `wrangler.toml` or a standalone `docker-compose.yml` from `service.json`; never deploys or calls a cloud API |
@@ -239,6 +243,7 @@ flisk resource old-api --path services/old-api --register-existing
 | `--framework <id>` | Frontend: `react` (default), `vue`, `svelte`, `preact`, `lit`, `solid`, `qwik`, `vanilla`, `tanstack-router`, `next` (Next.js App Router, a Node server). Backend: `hono` (default), `express`, `elysia`, `fastify`, `nestjs`, `koa`, `h3` |
 | `--frameworks` | List registered frameworks for the resource type and exit (`--type frontend`, `--type backend`) |
 | `--language <id>` | Backend language: `bun` (default), `python`, `go`, `rust`, `node` |
+| `--base-path <path>` | Base path for frontend routing (e.g., /storefront). Default is /{stack}s. Frontend only. |
 | `-s`, `--stack <stack>` | Stack to assign the resource to |
 | `-p`, `--path <path>` | Custom resource directory. `--resource-path` is an older alias |
 | `--register-existing` | Register an existing resource without creating templates |
@@ -321,6 +326,10 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | --- | --- |
 | `--only <services...>` | Start only these services, plus their `dependsOn` services and shared infrastructure. With a stack, names must belong to it |
 | `--profile <names...>` | Also start the services whose `profiles` in `service.json` include one of these names; without it they are left out. A name no service declares is refused |
+| `--env-file <path>` | Use this project env file for the run instead of .env (for example: --env-file .env.integration) |
+| `--no-gateway` | Run without gateway routing (no Traefik). Needs `"capabilities": { "gateway": false }` in `.flisk/project.json`; regenerates `.flisk/.flisk-out/` from it |
+| `--wait` | Start the stack in the background and return once every service is healthy (exit 0), or when it fails or `--wait-timeout` passes (exit 1). The stack keeps running; `flisk down` stops it |
+| `--wait-timeout <seconds>` | With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800) |
 | `--dry-run` | Show what would start |
 | `-f`, `--force` | Kill an existing Tilt process before starting |
 | `--ignore-drift` | Start even if generated files differ from `service.json` |
@@ -342,6 +351,8 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | --- | --- |
 | `-f`, `--force` | Accepted for script compatibility; has no effect |
 | `--prune-networks` | Also remove this project's Docker networks that no container uses |
+| `--prune-cache [age]` | Also prune Docker build cache (shared across all projects on this machine; default age: 24h) |
+| `--cache-until <age>` | With --prune-cache: age filter for prune (e.g. 24h, 168h, 7d; default: 24h) |
 | `--purge` | Also delete this project's Docker volumes (database data), networks and images |
 | `--project <path>` | Stop the Flisk project in that folder, from any folder |
 | `--dry-run` | Show what would stop |
@@ -394,6 +405,18 @@ flisk run orders-api --json -- bun run migrate:status
 | Flag | Effect |
 | --- | --- |
 | `--json` | Run without input and print one JSON object: `exitCode`, `stdout` and `stderr` (the last 64 KB of each) |
+
+### `flisk restart <resource>`
+
+```bash
+flisk restart orders-api
+flisk restart orders-api --json
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--port <n>` | Tilt UI port (default: TILT_PORT or 10350) |
+| `--json` | Output one JSON object and exit |
 
 ### `flisk networks` (aliases `urls`, `traefik`)
 
@@ -455,10 +478,13 @@ flisk doctor --ping-timeout 2000
 
 | Flag | Effect |
 | --- | --- |
+| `--all` | Run every check and show Machine and Project sections with a summary |
 | `--no-ping` | Skip pinging running services' `/health` endpoints |
+| `--no-gateway` | Skip gateway checks (ports 80/443) |
 | `--no-database` | Skip the shared Postgres checks for this run |
 | `--ping-timeout <ms>` | Per-service ping timeout (default 5000) |
 | `--fix` | Remove this project's unused Docker networks and leftover doctor probes (asks first) |
+| `--scope <scope>` | With --fix: project (default) or machine, which also removes unused networks of other Flisk projects |
 | `--dry-run` | With `--fix`, print the commands without running them |
 | `-y, --yes` | With `--fix`, do not ask before each repair |
 | `--strict` | Fail on warnings, such as a WSL project under `/mnt/c` |
@@ -507,6 +533,21 @@ flisk os --scan-root ~/code           # also look for Flisk projects under ~/cod
 ### `flisk mcp`
 
 Runs a Model Context Protocol server over stdio for coding agents. No flags. See [agent hosts](agent-hosts.md).
+
+### `flisk connect <host>`
+
+```bash
+flisk connect cursor --dry-run
+flisk connect cursor
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--project` | Write into this project (default) |
+| `--global` | Write the MCP entry to the host's user config instead (no skills) |
+| `--dry-run` | Print what would be written, without changing any file |
+| `--force` | Replace an existing, different flisk entry or edited Flisk skill |
+| `--json` | Print the result as a JSON envelope |
 
 ### `flisk agent sessions <resource>`
 
