@@ -14,7 +14,7 @@ ${localFrontendOriginConst()}
 
 @Controller()
 class AppController {
-  // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+  // Health check: Flisk uses this endpoint to check service health
   @Get('health')
   health() {
     return { status: 'ok', service: '${name}' };

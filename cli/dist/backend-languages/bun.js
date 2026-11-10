@@ -36,7 +36,7 @@ const app = new Hono();
 ${localFrontendOriginConst()}
 app.use('*', cors({ origin: (origin) => (LOCAL_FRONTEND_ORIGIN.test(origin) ? origin : undefined) }));
 
-// Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+// Health check: Flisk uses this endpoint to check service health
 app.get('/health', (c) => {
   return c.json({ status: 'ok', service: '${name}' });
 });

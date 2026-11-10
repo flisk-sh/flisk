@@ -71,6 +71,7 @@ import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter, type JsonError } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
+import { collectRequiredModels, runModelPreflight } from "../utils/model-preflight.js";
 import { findFreePort } from "../utils/native-demo.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
 import {
@@ -141,6 +142,7 @@ import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import {
+  alreadyRunningReport,
   parseTiltPort,
   resolveTiltPort,
   secondUpAction,
@@ -155,6 +157,9 @@ import {
   shouldRedrawUpProgress,
 } from "../utils/up-progress.js";
 import {
+  evaluateTiltReadiness,
+  getDisabledHealthResourceNames,
+  healthProbeCannotRun,
   tiltGetUiResources,
   tiltResourceLogs,
   waitForTiltResourcesReady,
@@ -1329,13 +1334,63 @@ export const upCommand = new Command("up")
           emit?.({ ok: false }, [{ code: "ENV_FILE_ALREADY_RUNNING", message }]);
           showErrorAndExit(message);
         }
-        const message = `Environment is already running on port ${decision.ports.join(", ")}.`;
-        emit?.({
-          ok: true,
-          alreadyRunning: true,
-          tiltUrl: `http://localhost:${decision.ports[0]}`,
-        });
-        if (!options.quiet) console.log(chalk.green(message));
+        const runningPort = decision.ports[0] ?? watchedPort;
+        const tiltUrl = `http://localhost:${runningPort}`;
+        const deferred = getDeferredResourceNames(discoveredResources);
+        if (emit) {
+          // `ok` means the stack is healthy (`flisk up --wait` prints "Stack is healthy" from it), so wait for the running
+          // stack as a first run would. A Tilt left by a failed `flisk up` answers on its port with every service in error.
+          const dependsOn = Object.fromEntries(
+            discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]),
+          );
+          const parsedWaitTimeout =
+            typeof options.waitTimeout !== "undefined"
+              ? parseWaitTimeout(options.waitTimeout)
+              : undefined;
+          if (parsedWaitTimeout && !parsedWaitTimeout.ok) {
+            emit({ ok: false }, [
+              { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
+            ]);
+            showErrorAndExit(parsedWaitTimeout.message, 1, []);
+          }
+          const readiness = await waitForTiltResourcesReady(runningPort, {
+            timeoutMs: parsedWaitTimeout?.ok ? parsedWaitTimeout.seconds * 1000 : undefined,
+            deferred,
+            isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
+          });
+          const report = alreadyRunningReport(runningPort, readiness);
+          if (report.ok) {
+            emit({ ok: true, alreadyRunning: true, tiltUrl });
+          } else {
+            emit({ ok: false, alreadyRunning: true, tiltUrl, failures: readiness.failures }, [
+              { code: report.code, message: report.message, suggestions: report.suggestions },
+            ]);
+            process.exitCode = 1;
+          }
+          return;
+        }
+        // Attached: one look is enough. A stack that is still building is running; one with a failed resource is not.
+        const snapshot = await tiltGetUiResources(runningPort);
+        // The same health filters as the --json wait, so a service with its health check disabled, or whose probe cannot run,
+        // does not fail the attached run while --json calls the stack healthy.
+        const current = snapshot
+          ? evaluateTiltReadiness(
+              snapshot,
+              deferred,
+              undefined,
+              getDisabledHealthResourceNames(discoveredResources),
+              healthProbeCannotRun,
+            ).result
+          : undefined;
+        if (current && current.failures.length > 0) {
+          const report = alreadyRunningReport(runningPort, current);
+          if (!report.ok) showErrorAndExit(report.message, 1, report.suggestions);
+        }
+        if (!options.quiet) {
+          console.log(
+            chalk.green(`Environment is already running on port ${decision.ports.join(", ")}.`),
+          );
+        }
         return;
       }
       if (decision.action === "only-blocked") {
@@ -1378,6 +1433,40 @@ export const upCommand = new Command("up")
       if (coldNotice) {
         if (options.json) console.warn(coldNotice);
         else if (!options.quiet) console.log(chalk.cyan(`\n${coldNotice}`));
+      }
+
+      if (!options.dryRun) {
+        const requiredModels = collectRequiredModels(servicesToStart);
+        if (requiredModels.length > 0) {
+          if (!options.quiet) {
+            console.log(
+              chalk.gray(
+                `Checking required models with Docker Model Runner (${requiredModels.join(", ")})...`,
+              ),
+            );
+          }
+          const preflightResult = await runModelPreflight(requiredModels, {
+            onRetry: options.quiet
+              ? undefined
+              : ({ model, attempt, maxAttempts, delayMs, error }) => {
+                  console.log(
+                    chalk.yellow(
+                      `Retrying model pull for ${model} (attempt ${attempt}/${maxAttempts}) in ${delayMs / 1000}s: ${error}`,
+                    ),
+                  );
+                },
+          });
+          if (!preflightResult.ok) {
+            const message = `Failed to pull required model "${preflightResult.failedModel}" after ${preflightResult.attempts} attempts: ${preflightResult.error}`;
+            const suggestions = [
+              `Docker Model Runner failed to pull: ${preflightResult.failedModel}`,
+              preflightResult.error,
+              "Verify Docker Model Runner is active and reachable, or pull the model manually.",
+            ];
+            emit?.({ ok: false }, [{ code: "MODEL_PULL_FAILED", message, suggestions }]);
+            showErrorAndExit(message, 1, suggestions);
+          }
+        }
       }
 
       if (!options.quiet) {

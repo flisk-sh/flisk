@@ -33,7 +33,9 @@ function listFiles(root: string, dir = root): string[] {
   return readdirSync(dir)
     .flatMap((entry) => {
       const path = join(dir, entry);
-      return statSync(path).isDirectory() ? listFiles(root, path) : [relative(root, path)];
+      return statSync(path).isDirectory()
+        ? listFiles(root, path)
+        : [relative(root, path).split("\\").join("/")];
     })
     .sort();
 }
@@ -63,7 +65,7 @@ const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "068f15a55176c3960bae240a370244f1976879f126fddb01920c3eca3af5dd89",
   "package.json": "d1614a133b3f74c3829c8d55ade1f125dfb11873c9f4a7ea7545e6bf16e47b8b",
   "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
-  "src/index.ts": "0a59131aaa6763472c901d2a121e34a23f4259af28ff0b426bb01fd0bc3071e3",
+  "src/index.ts": "431072306a4be139b9d4ff599f639b32f125f5349443aebf7c5d384c43a3b3e5",
   "tests/orders-api.test.ts": "acbe72a5661b26a5f26a3a3cd3372a7139b90daab19da88f587fe0e5bd815620",
   "tsconfig.json": "c0503e8c2d9e7cb0b77a1e0eaea674f4ee03f3182ff9f5429b9bb7ba0fabee41",
 };

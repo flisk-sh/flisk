@@ -1356,6 +1356,14 @@ describe("template-engine", () => {
           "Dockerfile: generated-file snapshot is missing (run flisk up to regenerate)",
         );
 
+        // The image build step's copies of the Dockerfile are written while Tilt runs and have no snapshot.
+        fs.writeFileSync(path.join(generatedDir, "Dockerfile.prebuild"), "FROM oven/bun:1.2\n");
+        fs.writeFileSync(
+          path.join(generatedDir, "Dockerfile.prebuild.dockerignore"),
+          "node_modules\n",
+        );
+        expect(generatedErrors().join("\n")).not.toContain("prebuild");
+
         // Nested files are collected recursively and compared to their nested snapshot.
         const nestedSource = path.join(generatedDir, "docker", "entrypoint.sh");
         const nestedSnapshot = path.join(contractDir, "docker", "entrypoint.sh");

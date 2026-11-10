@@ -10,6 +10,8 @@ export declare function enableDiscoveredStacks(projectRoot: string, resources?: 
 export declare function templateTargetDir(templateName: string, targetDir?: string): string;
 /** The last non-empty line of a child process error, for a one-line failure message. */
 export declare function lastLine(text: string): string;
+/** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
+export declare function exitUnknownTemplate(templateName: string): never;
 /** Clones (or copies) a starter template and resolves to the absolute directory it landed in. */
 export declare function cloneProjectTemplate(templateName: string, targetDir: string | undefined, runtimeNextSteps: string[], options?: {
     quiet?: boolean;

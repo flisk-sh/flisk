@@ -13,7 +13,7 @@ ${localFrontendOriginConst()}
 
 const app = new Elysia()
   .use(cors({ origin: LOCAL_FRONTEND_ORIGIN }))
-  // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+  // Health check: Flisk uses this endpoint to check service health
   .get('/health', () => ({ status: 'ok', service: '${name}' }))
   .get('/health/live', () => ({ status: 'alive', timestamp: Date.now() }))
   .get('/health/ready', ({ set }) => {

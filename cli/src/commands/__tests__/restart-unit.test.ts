@@ -23,8 +23,13 @@ const tilt = vi.hoisted(() => ({
     >(),
 }));
 
+const discovery = vi.hoisted(() => ({
+  createDiscoveryContext: vi.fn<() => { resources: Array<{ name: string }> }>(),
+}));
+
 vi.mock("../../utils/paths.js", () => paths);
 vi.mock("../../utils/tilt.js", () => tilt);
+vi.mock("../../utils/discovery-context.js", () => discovery);
 
 interface EnvelopeResult {
   schemaVersion: number;
@@ -93,6 +98,10 @@ describe("restart command unit tests", () => {
     paths.findProjectRoot.mockReturnValue("/workspace/myproject");
     tilt.isTiltAvailable.mockResolvedValue(true);
     tilt.runTilt.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
+    // Resources the existing cases restart; a name absent from this list is unknown.
+    discovery.createDiscoveryContext.mockReturnValue({
+      resources: [{ name: "api" }, { name: "web" }, { name: "unknown-service" }],
+    });
   });
 
   afterEach(() => {
@@ -130,6 +139,26 @@ describe("restart command unit tests", () => {
 
     expect(exitCode).toBe(1);
     expect(stderr).toContain("Could not find project root");
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("reports UNKNOWN_RESOURCE in text mode for a name not in the project, before probing Tilt", async () => {
+    const { exitCode, stderr } = await runRestart(["nope"]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('Resource "nope" not found in project.');
+    expect(stderr).toContain("See the names with: flisk resources");
+    expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("reports UNKNOWN_RESOURCE in --json mode for a name not in the project, before probing Tilt", async () => {
+    const { envelope, exitCode } = await runRestart(["nope", "--json"]);
+
+    expect(exitCode).toBe(1);
+    expect(envelope?.errors[0]?.code).toBe("UNKNOWN_RESOURCE");
+    expect(envelope?.errors[0]?.message).toBe('Resource "nope" not found in project.');
+    expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
     expect(tilt.runTilt).not.toHaveBeenCalled();
   });
 

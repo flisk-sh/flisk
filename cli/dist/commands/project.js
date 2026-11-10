@@ -101,17 +101,21 @@ export function lastLine(text) {
         .filter(Boolean);
     return lines.pop() ?? "unknown error";
 }
+/** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
+export function exitUnknownTemplate(templateName) {
+    console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
+    console.log(chalk.yellow("\nAvailable templates:"));
+    for (const [name, info] of Object.entries(PROJECT_TEMPLATES)) {
+        console.log(`  ${chalk.cyan(name)} ${chalk.gray(`- ${info.description}`)}`);
+    }
+    console.log(chalk.gray("\nOr run `flisk project` with no template for a blank project."));
+    process.exit(1);
+}
 /** Clones (or copies) a starter template and resolves to the absolute directory it landed in. */
 export async function cloneProjectTemplate(templateName, targetDir, runtimeNextSteps, options = {}) {
     const template = PROJECT_TEMPLATES[templateName];
-    if (!template) {
-        console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
-        console.log(chalk.yellow("\nAvailable templates:"));
-        for (const [name, info] of Object.entries(PROJECT_TEMPLATES)) {
-            console.log(`  ${chalk.cyan(name)} ${chalk.gray(`- ${info.description}`)}`);
-        }
-        console.log(chalk.gray("\nOr run `flisk project` with no template for a blank project."));
-        process.exit(1);
+    if (!template || !Object.hasOwn(PROJECT_TEMPLATES, templateName)) {
+        exitUnknownTemplate(templateName);
     }
     const dirName = templateTargetDir(templateName, targetDir);
     if (!isTargetDirSafe(dirName)) {

@@ -28,7 +28,7 @@ app.use(async (ctx, next) => {
 
 // Plain Koa middleware, so the scaffold needs no router dependency.
 app.use(async (ctx) => {
-  // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+  // Health check: Flisk uses this endpoint to check service health
   if (ctx.path === '/health') {
     ctx.body = { status: 'ok', service: '${name}' };
     return;

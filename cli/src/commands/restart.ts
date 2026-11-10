@@ -3,6 +3,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { STANDARD_PORTS } from "../utils/constants.js";
+import { createDiscoveryContext } from "../utils/discovery-context.js";
 import {
   errorFactories,
   FliskError,
@@ -46,6 +47,23 @@ export const restartCommand = new Command("restart")
         const error = errorFactories.notInProject();
         if (options.json) writeMachineError(error);
         return error.exit();
+      }
+
+      // Check the name against the project's resources before probing Tilt, so a
+      // typo reports UNKNOWN_RESOURCE instead of a misleading "Could not reach Tilt".
+      const discovery = createDiscoveryContext();
+      const resource = discovery.resources.find((r) => r.name === resourceName);
+      if (!resource) {
+        const msg = `Resource "${resourceName}" not found in project.`;
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              createMachineEnvelope(null, [{ code: "UNKNOWN_RESOURCE", message: msg }]),
+            ),
+          );
+          process.exit(1);
+        }
+        throw new FliskError(msg, ["See the names with: flisk resources"]);
       }
 
       let tiltAvailable = false;

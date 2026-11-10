@@ -36,6 +36,7 @@ import { writeJsonFile } from "../utils/file-helpers.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import {
   checkCircularDependencies,
@@ -527,7 +528,7 @@ export const configCommand = new Command("config")
           }
           if (!prismaConsistency.didPass) showError(prismaConsistency.message);
 
-          if (sharedPostgres.willStart) {
+          if (!isNativeProject(resources) && sharedPostgres.willStart) {
             // Project resource set (discoverResourcesFromRoot), not a flisk up --only filter.
             // Feature-on alone is not new behavior — print gray so default projects are not noisy.
             // dependsOn is the reason Postgres starts when the feature is off — green.
@@ -554,7 +555,10 @@ export const configCommand = new Command("config")
                 ),
               );
             }
-          } else if (sharedPostgres.focusWouldEnableDatabaseManagement) {
+          } else if (
+            !isNativeProject(resources) &&
+            sharedPostgres.focusWouldEnableDatabaseManagement
+          ) {
             console.log(
               chalk.yellow(
                 "ℹ️  Postgres will not start from project.json/generated Tiltfile, but default focus/CORE_INFRA expansion would enable database-management on a typical flisk up",

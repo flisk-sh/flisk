@@ -26,7 +26,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+// Health check: Flisk uses this endpoint to check service health
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: '${name}' });
 });

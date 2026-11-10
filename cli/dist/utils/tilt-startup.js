@@ -26,6 +26,31 @@ export function secondUpAction(input) {
         return { action: "only-blocked", ports: input.runningPorts };
     return { action: "already-running", ports: input.runningPorts };
 }
+/**
+ * What a second `flisk up` says about the Tilt it found running. A failed `flisk up` leaves its Tilt running, so
+ * "a Tilt answers on the port" is not "the stack is healthy": report what that Tilt is running.
+ */
+export function alreadyRunningReport(port, readiness) {
+    if (readiness.ready) {
+        return { ok: true, message: `Environment is already running on port ${port}.` };
+    }
+    const detail = readiness.failures.map((f) => `${f.name}: ${f.message}`).join("; ");
+    const building = readiness.stillBuilding && readiness.stillBuilding.length > 0
+        ? ` (${readiness.stillBuilding.join(", ")} still building)`
+        : "";
+    const state = readiness.failures.length > 0
+        ? `is not healthy${detail ? ` (${detail})` : ""}`
+        : `is still starting${building}`;
+    return {
+        ok: false,
+        code: readiness.failures.length > 0 ? "UP_RESOURCE_FAILED" : "UP_TIMEOUT",
+        message: `The stack already running on port ${port} ${state}. An earlier flisk up left it running.`,
+        suggestions: [
+            "See what failed: flisk status",
+            "Fix the cause, then replace the running stack: flisk down && flisk up",
+        ],
+    };
+}
 export async function resolveTiltPort(options) {
     if (options.configuredPort !== undefined) {
         return { port: options.configuredPort, autoSwitched: false };
