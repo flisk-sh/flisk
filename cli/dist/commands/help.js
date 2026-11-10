@@ -17,7 +17,7 @@ const COMMAND_GROUPS = [
             },
             {
                 name: "project",
-                desc: "Initialize master configs (TILT_RESOURCE_DEFAULTS.star)",
+                desc: "Initialize or validate project-level configuration",
                 alias: "",
             },
             { name: "projects, info", desc: "Show project information and config status", alias: "" },

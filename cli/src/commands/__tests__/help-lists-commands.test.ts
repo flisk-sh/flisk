@@ -13,6 +13,19 @@ import { getRegisteredCommands } from "../registry.js";
 const NOT_LISTED = new Set(["maintainers"]);
 
 describe("flisk --help", () => {
+  it("describes project setup and validation in the command list", () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
+      logs.push(args.map(String).join(" "));
+    });
+    try {
+      showHelp();
+      expect(logs.join("\n")).toMatch(/project\s+Initialize or validate project-level configuration/);
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   it("lists every command that the CLI registers", () => {
     const commands = getRegisteredCommands();
     expect(commands.length).toBeGreaterThan(15);
