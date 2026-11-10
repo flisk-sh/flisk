@@ -1,4 +1,6 @@
 FROM oven/bun:1-alpine
 WORKDIR /app
 COPY src ./src
+USER bun
+HEALTHCHECK --interval=5s --timeout=3s --retries=10 CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 CMD ["bun", "src/index.ts"]

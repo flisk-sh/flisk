@@ -39,15 +39,19 @@ function entries(res: any): [string, Record<string, string>][] {
 }
 try { await redis.send("XGROUP", ["CREATE", STREAM, GROUP, "0", "MKSTREAM"]); } catch (e: any) { if (!String(e).includes("BUSYGROUP")) throw e; }
 console.log("notifications worker up");
+// Entries read before a restart but never acknowledged are still pending: read them once (ID "0"), then new ones (">").
+let cursor = "0";
 while (true) {
   try {
-    const res = await redis.send("XREADGROUP", ["GROUP", GROUP, ME, "COUNT", "10", "BLOCK", "2000", "STREAMS", STREAM, ">"]);
-    for (const [id, f] of entries(res)) {
+    const res = await redis.send("XREADGROUP", ["GROUP", GROUP, ME, "COUNT", "10", "BLOCK", "2000", "STREAMS", STREAM, cursor]);
+    const got = entries(res);
+    for (const [id, f] of got) {
       const d = JSON.parse(f.data);
       await sql`INSERT INTO notifications (order_id, message) VALUES (${d.orderId}, ${`Order paid: ${d.productName} for ${d.customer} (${(d.amountCents / 100).toFixed(2)})`}) ON CONFLICT (order_id) DO NOTHING`;
       await redis.send("XACK", [STREAM, GROUP, id]);
       console.log("notified", d.orderId);
     }
+    if (cursor === "0" && got.length === 0) cursor = ">";
   } catch (e) {
     console.error("loop error", e);
     await Bun.sleep(1000);

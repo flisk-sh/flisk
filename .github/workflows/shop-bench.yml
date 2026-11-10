@@ -85,7 +85,7 @@ jobs:
   comment:
     name: 💬 Pull request comment
     needs: measure
-    if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
@@ -93,6 +93,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        continue-on-error: true # no report when the measure job died before writing one
         with:
           name: shop-bench-${{ github.run_id }}
           path: report
@@ -101,6 +102,7 @@ jobs:
           retries: 3
           script: |
             const fs = require("node:fs");
+            if (!fs.existsSync("report/report.md")) return core.notice("No shop benchmark report to post");
             const marker = "<!-- shop-bench -->";
             const body = `${marker}\n${fs.readFileSync("report/report.md", "utf8")}\n[Run ${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
             const { owner, repo } = context.repo;

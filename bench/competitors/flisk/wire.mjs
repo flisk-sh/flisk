@@ -55,7 +55,6 @@ for (const r of ["storefront", "admin"]) {
 		.replace(
 			"fetch('/api/'+k)",
 			`fetch(({orders:'${api("orders")}',payments:'${api("payments")}',notifications:'${api("notifications")}'})[k]+'/api/'+k)`,
-		)
-		.replaceAll('href="/admin/"', 'href="/admin/"');
+		);
 	fs.writeFileSync(`${dir}/${r}/index.html`, h);
 }

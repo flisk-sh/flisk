@@ -29,10 +29,14 @@ async function ship(id: string, orderId: string) {
 }
 try { await redis.send("XGROUP", ["CREATE", STREAM, GROUP, "0", "MKSTREAM"]); } catch (e: any) { if (!String(e).includes("BUSYGROUP")) throw e; }
 console.log("fulfilment worker up");
+// Entries this consumer read before a restart but never acknowledged are still pending: read them once (ID "0"), then new ones (">").
+let cursor = "0";
 while (true) {
   try {
-    const res = await redis.send("XREADGROUP", ["GROUP", GROUP, ME, "COUNT", "10", "BLOCK", "2000", "STREAMS", STREAM, ">"]);
-    for (const [id, f] of entries(res)) ship(id, JSON.parse(f.data).orderId);
+    const res = await redis.send("XREADGROUP", ["GROUP", GROUP, ME, "COUNT", "10", "BLOCK", "2000", "STREAMS", STREAM, cursor]);
+    const got = entries(res);
+    for (const [id, f] of got) ship(id, JSON.parse(f.data).orderId).catch((e) => console.error("ship error", e));
+    if (cursor === "0" && got.length === 0) cursor = ">";
   } catch (e) {
     console.error("loop error", e);
     await Bun.sleep(1000);

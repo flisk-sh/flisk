@@ -17,10 +17,10 @@ $F resource migrator --type bring-your-own --dockerfile Dockerfile --restart no 
 cp "$S/db/Dockerfile" "$S/db/migrate.ts" services/$STACK/migrator/
 cp -R "$S/db/migrations" services/$STACK/migrator/migrations
 
-# Backends and workers.
+# Backends (notifications serves an HTTP API, so it is routed like the others) and the fulfilment worker.
 for r in catalog payments orders notifications fulfilment; do
 	type=backend
-	case $r in notifications|fulfilment) type=worker ;; esac
+	case $r in fulfilment) type=worker ;; esac
 	$F resource $r --type $type --stack $STACK --yes >/dev/null
 	rm -rf services/$STACK/$r/src services/$STACK/$r/tests
 	cp -R "$S/$r/src" services/$STACK/$r/src
