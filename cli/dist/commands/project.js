@@ -114,7 +114,7 @@ export function exitUnknownTemplate(templateName) {
 /** Clones (or copies) a starter template and resolves to the absolute directory it landed in. */
 export async function cloneProjectTemplate(templateName, targetDir, runtimeNextSteps, options = {}) {
     const template = PROJECT_TEMPLATES[templateName];
-    if (!template) {
+    if (!template || !Object.hasOwn(PROJECT_TEMPLATES, templateName)) {
         exitUnknownTemplate(templateName);
     }
     const dirName = templateTargetDir(templateName, targetDir);

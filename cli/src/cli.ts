@@ -101,7 +101,7 @@ if (templateArg) {
 
   // A mistyped starter name is refused before the machine check and before anything is drawn,
   // so the error and the list of templates are the only output.
-  if (!PROJECT_TEMPLATES[templateArg]) {
+  if (!Object.hasOwn(PROJECT_TEMPLATES, templateArg)) {
     exitUnknownTemplate(templateArg);
   }
 

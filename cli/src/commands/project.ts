@@ -158,7 +158,7 @@ export async function cloneProjectTemplate(
 ): Promise<string> {
   const template = PROJECT_TEMPLATES[templateName];
 
-  if (!template) {
+  if (!template || !Object.hasOwn(PROJECT_TEMPLATES, templateName)) {
     exitUnknownTemplate(templateName);
   }
 
