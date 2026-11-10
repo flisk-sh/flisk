@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
+      actions: read
       contents: read
       pull-requests: write
       issues: write

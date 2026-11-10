@@ -1,9 +1,17 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { cleanEnv, createTempDir, createTempProject, parseEnvelope, runFlisk } from "../index.js";
+import {
+  cleanEnv,
+  createTempDir,
+  createTempProject,
+  installFakeContainerTools,
+  parseEnvelope,
+  runFlisk,
+} from "../index.js";
 
 describe("runFlisk", () => {
   it("returns status, stdout and stderr of a finished run", () => {
@@ -163,5 +171,28 @@ describe("parseEnvelope", () => {
       parseEnvelope(JSON.stringify({ schemaVersion: 1, data: 1, errors: [], x: 1 })),
     ).toThrow();
     expect(() => parseEnvelope("null")).toThrow();
+  });
+});
+
+describe("installFakeContainerTools", () => {
+  it("stubs docker and tilt on PATH, answering version and liveness probes without daemon", () => {
+    const originalPath = process.env.PATH;
+    const restore = installFakeContainerTools();
+    try {
+      expect(process.env.PATH).not.toBe(originalPath);
+      const dockerVer = execFileSync("docker", ["--version"], { encoding: "utf8" });
+      expect(dockerVer).toContain("Docker version 27.0.0");
+      const composeVer = execFileSync("docker", ["compose", "version", "--short"], {
+        encoding: "utf8",
+      });
+      expect(composeVer.trim()).toBe("2.29.0");
+      const dockerInfo = execFileSync("docker", ["info"], { encoding: "utf8" });
+      expect(dockerInfo.trim()).toBe("stub");
+      const tiltVer = execFileSync("tilt", ["version"], { encoding: "utf8" });
+      expect(tiltVer).toContain("v0.37.8");
+    } finally {
+      restore();
+    }
+    expect(process.env.PATH).toBe(originalPath);
   });
 });

@@ -1,4 +1,4 @@
-// Flisk App Builder: a remote, read-only, keyless MCP server at https://mcp.flisk.sh/mcp for the Claude directory.
+// Flisk App Builder: a remote, read-only, keyless MCP server at https://build.flisk.si/mcp for the Claude directory.
 // Say what app you want, get a plain-words plan and the commands to run it on your own computer. No storage, no model.
 import { APPLE_TOUCH_PNG_BASE64, FAVICON_ICO_BASE64, ICON_512_PNG_BASE64, ICON_SVG } from "./icons.js";
 import { MAX_BODY_BYTES, overLimit } from "./limits.js";
@@ -12,7 +12,7 @@ const PAGE = `Flisk App Builder (MCP)
 
 Tell your AI what app you want. It plans the parts and gives you the exact commands to build and run it on your own computer.
 
-MCP server (Streamable HTTP, no key, read-only): https://mcp.flisk.sh/mcp
+MCP server (Streamable HTTP, no key, read-only): https://build.flisk.si/mcp
 Tools: plan_app, list_app_starters
 Try it without an AI: npx @flisk-sh/flisk demo
 Source: https://github.com/flisk-sh/flisk/tree/main/workers/app-builder-mcp

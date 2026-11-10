@@ -39,6 +39,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 )
 
 // ${LOCAL_FRONTEND_CORS_REASON}
@@ -87,11 +88,17 @@ func newMux() *http.ServeMux {
 	return mux
 }
 
-func main() {
+func portFromEnv() string {
 	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
+	number, err := strconv.Atoi(port)
+	if err != nil || number < 1 || number > 65535 {
+		return "3000"
 	}
+	return port
+}
+
+func main() {
+	port := portFromEnv()
 
 	// ":" + port listens on every interface, which Traefik needs inside the container network.
 	log.Printf("${name} listening on :%s", port)
@@ -145,6 +152,27 @@ func TestRoot(t *testing.T) {
 	endpoints, ok := body["endpoints"].([]any)
 	if !ok || len(endpoints) != 1 || endpoints[0] != "/health" {
 		t.Errorf("endpoints = %v, want [/health]", body["endpoints"])
+	}
+}
+
+func TestPortFromEnv(t *testing.T) {
+	cases := []struct{ value, want string }{
+		{"", "3000"},
+		{"abc", "3000"},
+		{"70000", "3000"},
+		{"0", "3000"},
+		{"-1", "3000"},
+		{"3000.5", "3000"},
+		{"3001", "3001"},
+		{"65535", "65535"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.value, func(t *testing.T) {
+			t.Setenv("PORT", tt.value)
+			if got := portFromEnv(); got != tt.want {
+				t.Errorf("portFromEnv() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 `,

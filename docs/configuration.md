@@ -21,6 +21,156 @@ Here is valid JSON; the explanations are outside the file so it remains parseabl
 
 `appName`, `appType`, `stack`, and `schemaVersion` are required. A backend also needs a port in the supported backend range. See the [authoritative service schema](../runtime/engine/schemas/service-schema.json). The `$schema` property is supported by the schema. `flisk doctor` checks local environment readiness and discovered service issues.
 
+This page covers the fields you set most often. The [`service.json` reference](service-json.md) lists every field.
+
+### Required fields
+
+#### `appName`
+
+The service's name: lowercase letters, numbers and hyphens, matching the service's folder name.
+
+```json
+"appName": "catalog-api"
+```
+
+#### `appType`
+
+The kind of service. It picks the generators that run and the checks that apply.
+
+| `appType` | What it is |
+| --- | --- |
+| `backend` | An HTTP API service |
+| `frontend` | A Vite web app |
+| `library` | Shared code package |
+| `sdk` | Shared SDK package |
+| `worker` | Background job processor |
+| `migrator` | Runs database migrations, then exits |
+| `mcp` | A Model Context Protocol server, run like a backend |
+| `agent` | A long-running AI agent, run like a backend (see [AI agents](agents/ai-agents.md)) |
+| `database` | The project's Postgres, declared as a resource |
+| `bring-your-own` | Your own `Dockerfile` or `image` (see [byo.md](byo.md)) |
+
+A `worker` must list `nats` in `featuresEnabled`. Workers have no HTTP server, so they get no Traefik route and no HTTP health check.
+
+#### `stack`
+
+Groups related services. `flisk up <stack>` starts one stack. A service that declares a top-level `command` (a local process) can leave it out.
+
+```json
+"stack": "reports"
+```
+
+#### `port`
+
+The port the service listens on. Flisk sets `PORT` to this value inside the container, and other containers reach it as `http://<appName>:<port>`. Ranges by type: backends `4000`–`4999`; `mcp`, `agent` and `bring-your-own` `4000`–`5999`; frontends `3000`–`3999`; workers, when they set one, `6000`–`6999`.
+
+```json
+"port": 4410
+```
+
+Backend ports are not published on `localhost`. Reach a backend through Traefik at `http://api.<project>.localhost/api/<name>`, where `<name>` is the `appName` with a trailing `-api` removed (or the `apiPath` you set). `flisk up` prints each URL.
+
+### Optional fields
+
+#### `framework`
+
+For a frontend, the single-page-app provider that generates its Vite and TypeScript config. Leave it out and you get React, so older manifests are unchanged. `vue` selects Vue 3:
+
+```bash
+flisk resource web --type frontend --framework vue --stack shop
+```
+
+That writes `"framework": "vue"` into the new `service.json`. Docker, nginx, Traefik and Tilt are the same as for React frontends. The CLI provider registry lists every id and rejects an unknown one; see [frontend framework providers](frontend-framework-providers.md).
+
+#### `featuresEnabled`
+
+Platform features to turn on. The common ones:
+
+| Feature | What it adds |
+| --- | --- |
+| `nats` | NATS JetStream eventing. Flisk injects `TILT_NATS_URL` into the container |
+| `prisma` | Database ORM and migrations |
+| `drizzle` | Database ORM on Postgres through `DATABASE_URL`, with no migrator |
+| `redis` | Caching layer |
+| `infisical` | Secrets management |
+| `vitest` | Test framework |
+| `traefik` | Reverse-proxy routing |
+| `websocket` | WebSocket support |
+| `graphql` | GraphQL server |
+| `grpc` | gRPC protocol |
+
+The schema also accepts generator features (`vite`, `tsconfig`, `dockerfile`, `nginx`, `agents-md` and more). See the [resource features guide](resource-features.md) for the full list and what each one generates.
+
+#### `dependsOn`
+
+Services that must start before this one. Flisk works out the boot order.
+
+```json
+"dependsOn": ["auth-emulator", "catalog-api"]
+```
+
+Entries can also carry a condition (`service_healthy`, `service_completed_successfully`); see [dependencies](service-json.md#dependencies-routes-and-health-checks).
+
+#### `params`
+
+Non-secret environment variables for the container. Use them to point one service at another by resource name and port, so swapping a local stand-in for a managed service is a config change. Secrets go in `secrets`, not here (see [environment, params and secrets](environment.md)).
+
+```json
+"params": {
+  "OIDC_ISSUER": "http://api.my-project.localhost/api/auth-emulator",
+  "OIDC_JWKS_URL": "http://auth-emulator:4400/.well-known/jwks.json"
+}
+```
+
+#### `package.json` scripts
+
+A JavaScript or TypeScript service also needs a `package.json` next to its `service.json`, with the npm scripts its `appType` requires. See [`package.json` scripts](scripts.md).
+
+### Examples by type
+
+Real manifests from the starter repositories are on the [examples page](examples/README.md). These show the shape of each type.
+
+A backend with Prisma:
+
+```json
+{
+  "schemaVersion": 1,
+  "appName": "catalog-api",
+  "appType": "backend",
+  "stack": "store",
+  "port": 4300,
+  "featuresEnabled": ["prisma"],
+  "dependsOn": []
+}
+```
+
+A Vue frontend that calls it:
+
+```json
+{
+  "schemaVersion": 1,
+  "appName": "storefront-web",
+  "appType": "frontend",
+  "framework": "vue",
+  "stack": "store",
+  "port": 3300,
+  "basePath": "/storefront-web",
+  "dependsOn": ["catalog-api"]
+}
+```
+
+A worker:
+
+```json
+{
+  "schemaVersion": 1,
+  "appName": "report-worker",
+  "appType": "worker",
+  "stack": "reports",
+  "featuresEnabled": ["nats"]
+}
+```
+
 ### `smoke`: check the public URL after `flisk up`
 
 `healthCheckPath` is a GET inside the container, and `traefik.healthCheck` is Traefik's own probe. Neither opens the URL `flisk up` prints, so a container can be green while the route is a 404, the router is shared with another backend, or the database is not the one the service uses. A `smoke` block closes that gap:

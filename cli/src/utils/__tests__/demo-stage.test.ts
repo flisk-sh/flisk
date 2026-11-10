@@ -5,6 +5,7 @@ import chalk from "chalk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createDemoStage,
+  DEMO_DISCORD_URL,
   DEMO_STAR_URL,
   type DemoState,
   FRAME_ROWS,
@@ -118,6 +119,47 @@ describe("renderDemoFrame", () => {
 
     const withoutStar = frameToPlain(renderDemoFrame(baseState({ done }), 80)).join("\n");
     expect(withoutStar).not.toContain("A star helps");
+  });
+
+  it("fits the Discord and star rows in the fixed height, with the version still on screen", () => {
+    const rows = frameToPlain(
+      renderDemoFrame(
+        baseState({
+          done: {
+            urls: ["localhost:3000", "localhost:4000/api"],
+            summary: "2 services",
+            hint: "Edit a file.",
+            version: "1.4.20",
+            discordUrl: "discord.gg/example",
+            starUrl: "github.com/flisk-sh/flisk",
+          },
+        }),
+        80,
+      ),
+    );
+    expect(rows).toHaveLength(FRAME_ROWS);
+    expect(rows[FRAME_ROWS - 3]).toContain("flisk 1.4.20");
+    expect(rows[FRAME_ROWS - 2]).toContain("Questions? Join us on Discord: discord.gg/example");
+    expect(rows[FRAME_ROWS - 1]).toContain("A star helps");
+  });
+
+  it("keeps the blank row and shows no Discord row without a Discord URL", () => {
+    const rows = frameToPlain(
+      renderDemoFrame(
+        baseState({
+          done: {
+            urls: ["localhost:3000", "localhost:4000/api"],
+            summary: "2 services",
+            hint: "Edit a file.",
+            version: "1.4.20",
+          },
+        }),
+        80,
+      ),
+    );
+    expect(rows.join("\n")).not.toContain("Discord");
+    const versionRow = rows.findIndex((row) => row.includes("flisk 1.4.20"));
+    expect(rows[versionRow - 1].trim()).toBe("");
   });
 
   it("keeps the failure cause, the fix and the log path", () => {
@@ -240,7 +282,7 @@ describe("createDemoStage", () => {
     expect(output).toContain("1m 12s");
   });
 
-  describe("star line on finish", () => {
+  describe("star and Discord lines on finish", () => {
     const done = {
       urls: ["localhost:3000"],
       summary: "2 services",
@@ -252,7 +294,7 @@ describe("createDemoStage", () => {
       vi.unstubAllEnvs();
     });
 
-    it("shows it on an interactive terminal", () => {
+    it("shows them on an interactive terminal", () => {
       vi.stubEnv("CI", "");
       const stream = fakeStream(true);
       const stage = createDemoStage(baseState(), stream);
@@ -260,24 +302,28 @@ describe("createDemoStage", () => {
       stage.stop();
       expect(stream.chunks.join("")).toContain(`A star helps: ${DEMO_STAR_URL}`);
       expect(DEMO_STAR_URL).toBe("github.com/flisk-sh/flisk");
+      expect(stream.chunks.join("")).toContain(`Join us on Discord: ${DEMO_DISCORD_URL}`);
+      expect(DEMO_DISCORD_URL).toBe("discord.gg/qMu5Xn8Kaq");
     });
 
-    it("leaves it out of a piped log", () => {
+    it("leaves them out of a piped log", () => {
       vi.stubEnv("CI", "");
       const stream = fakeStream(false);
       const stage = createDemoStage(baseState(), stream);
       stage.finish(done);
       stage.stop();
       expect(stream.chunks.join("")).not.toContain("A star helps");
+      expect(stream.chunks.join("")).not.toContain("Discord");
     });
 
-    it("leaves it out of a CI run, even with a TTY", () => {
+    it("leaves them out of a CI run, even with a TTY", () => {
       vi.stubEnv("CI", "true");
       const stream = fakeStream(true);
       const stage = createDemoStage(baseState(), stream);
       stage.finish(done);
       stage.stop();
       expect(stream.chunks.join("")).not.toContain("A star helps");
+      expect(stream.chunks.join("")).not.toContain("Discord");
     });
   });
 

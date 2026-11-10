@@ -97,6 +97,79 @@ What you will see: Flisk starts each part, waits until it answers, and prints th
 
 ---
 
+## Start from a working example
+
+With Docker and Tilt running, the shortest way to a full container stack is a known-good example: check the machine, copy the example, and start it.
+
+```bash
+flisk doctor
+flisk project example
+cd flisk-example
+flisk up
+```
+
+`flisk project example` copies the order tracker bundled with the CLI: a Hono API with Postgres, a NATS worker and a Vite UI in the `shop` stack. Keep `flisk up` running; it prints the URLs when the stack is ready, and `flisk networks` lists them again. Other starters (`restaurant`, `saas`, `erp` and more) are on the [examples page](examples/README.md).
+
+## Build from scratch
+
+After the example makes sense, create a blank project and add your first backend:
+
+```bash
+mkdir my-service && cd my-service
+flisk project --yes
+flisk resource api --type backend --stack shop --yes
+flisk project --check
+flisk up shop
+```
+
+Add a frontend the same way. It is React unless you pass `--framework`:
+
+```bash
+flisk resource web --type frontend --stack shop --yes                   # React + Vite
+flisk resource web --type frontend --framework vue --stack shop --yes   # Vue 3 + Vite
+```
+
+`flisk project --check` checks that the project configuration exists and is in sync. `flisk up` generates its files in `.flisk/.flisk-out/` and reads the boot order from each service's `dependsOn` list. [Full control](start/manual.md) walks through the same steps with the output of each one.
+
+## More ways to install
+
+The [README](../README.md#installation) has the four install pages (npm, Bun, prebuilt binary, container image). A few more options:
+
+| Situation | Command |
+| --- | --- |
+| Run once without installing | `npx @flisk-sh/flisk --version` |
+| Scaffold a project without installing | `npx @flisk-sh/flisk project --yes` |
+| pnpm | `pnpm add -g @flisk-sh/flisk` |
+| Windows (PowerShell) | `irm https://flisk.sh/install.ps1 \| iex` (see [prebuilt binary](install/binary.md#windows-powershell)) |
+
+**Using an AI coding agent?** Paste this into its chat. It points the agent at the docs index, which tells it how to install Flisk and connect `flisk mcp`:
+
+```text
+Please install Flisk and configure its local MCP server for this agent: https://flisk.sh/llms.txt
+```
+
+Or run `flisk connect claude`, `flisk connect cursor` or `flisk connect codex` yourself; see [Flisk for AI agents](agents/flisk-for-agents.md).
+
+**Coming from the old package?** The CLI used to ship as `@tdk-landscape/tdk-cli-core`, and that package still owns the `flisk` command on a machine that installed it. Remove it once, then install Flisk:
+
+```bash
+npm uninstall -g @tdk-landscape/tdk-cli-core && npm install -g @flisk-sh/flisk
+```
+
+Without that, npm stops with `EEXIST: file already exists` and the new `flisk` command never lands on your `PATH`. The prebuilt binary installer writes `flisk` directly and has no such conflict.
+
+## License key (premium features only)
+
+The free engine needs no key. A premium key unlocks paid extras such as Verdaccio (a local npm registry) and Sablier (stopping idle services). Export it before `flisk up`:
+
+```bash
+export FLISK_LICENSE_KEY=<your-license-key>
+```
+
+Add that line to `~/.zshrc` or `~/.bashrc` to keep it. If the key is missing, invalid or expired, `flisk up` keeps running the free stack. The [operator runbook](operator-runbook.md#license-key) describes each case and the 12-hour cache.
+
+---
+
 ## What `flisk up` does
 
 On the demo, full control and guided paths, [`flisk up`](start/words.md#flisk-up) does these steps for you, in this order. You do not need to know them to use Flisk.
@@ -203,4 +276,6 @@ Maintainers: `node scripts/umux-lite-score.mjs` reads the form's issues and prin
 - [Troubleshooting](troubleshooting.md)
 - [Generated files & drift](generated-files.md)
 - [Configuration & schemas](configuration.md)
-- [Examples](../examples/)
+- [Examples and starter repositories](examples/README.md)
+- [`package.json` scripts](scripts.md)
+- [Examples in this repository](../examples/)

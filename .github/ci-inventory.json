@@ -314,6 +314,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "discord-founding-role.yml",
+			"job": "grant",
+			"tier": "bot",
+			"required": false,
+			"reason": "Grants the Discord Founding Contributor role for merged PR links posted in #start-here, and syncs tier and belt roles hourly",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "contributor-merged.yml",
 			"job": "thank",
 			"tier": "bot",
@@ -529,6 +537,14 @@
 			"tier": "release",
 			"required": false,
 			"reason": "Backfills and verifies an existing public npm version in GitHub Packages (manual)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "discord-release-post.yml",
+			"job": "post",
+			"tier": "release",
+			"required": false,
+			"reason": "Posts one released version in the Discord releases channel, run by hand",
 			"owner": "maintainers"
 		},
 		{

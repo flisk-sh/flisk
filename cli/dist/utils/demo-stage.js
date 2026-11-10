@@ -12,6 +12,8 @@ import { stripTerminalControls } from "./tilt-events.js";
 export const FRAME_ROWS = 12;
 /** Where the finished frame points someone who liked the demo. */
 export const DEMO_STAR_URL = CLI_REPOSITORY.replace(/^https:\/\//, "");
+/** Where the finished frame points someone with a question. The invite never expires. */
+export const DEMO_DISCORD_URL = "discord.gg/qMu5Xn8Kaq";
 /** The narrowest frame that still reads. Below this the labels are truncated to nothing. */
 const MIN_FRAME_WIDTH = 24;
 const STYLES = {
@@ -162,11 +164,22 @@ export function renderDemoFrame(state, columns = 80) {
             { text: " ", style: "plain" },
             { text: sanitizeCell(state.done.hint), style: "dim" },
         ]);
-        blank();
+        // The frame has a fixed height, so the Discord row takes this blank row's place.
+        if (!state.done.discordUrl)
+            blank();
         push([
             { text: " ", style: "plain" },
             { text: `flisk ${sanitizeCell(state.done.version)}`, style: "dim" },
         ]);
+        if (state.done.discordUrl) {
+            push([
+                { text: " ", style: "plain" },
+                {
+                    text: `Questions? Join us on Discord: ${sanitizeCell(state.done.discordUrl)}`,
+                    style: "dim",
+                },
+            ]);
+        }
         if (state.done.starUrl) {
             push([
                 { text: " ", style: "plain" },
@@ -312,9 +325,11 @@ export function createDemoStage(initial, stream = process.stderr, now = Date.now
             paint();
         },
         finish(done) {
-            // A piped log or a CI run is not a person who could star the repo.
-            const starUrl = animate && !process.env.CI ? DEMO_STAR_URL : undefined;
-            state = { ...state, elapsedMs: now() - startedAt, done: { ...done, starUrl } };
+            // A piped log or a CI run is not a person who could star the repo or join Discord.
+            const isPerson = animate && !process.env.CI;
+            const starUrl = isPerson ? DEMO_STAR_URL : undefined;
+            const discordUrl = isPerson ? DEMO_DISCORD_URL : undefined;
+            state = { ...state, elapsedMs: now() - startedAt, done: { ...done, starUrl, discordUrl } };
             paint();
         },
         stop() {

@@ -72,6 +72,16 @@ export const INTENTIONAL = [
 		reason: "pins LEGACY_PACKAGE and the uninstall step to the published package name",
 	},
 	{
+		file: "docs/quickstart.md",
+		line: /tdk-landscape\/tdk-cli-core/,
+		reason: "tells people who installed the old npm package to uninstall it, since it still owns the flisk command",
+	},
+	{
+		file: "docs/claims.md",
+		line: /benchmarks\/results\/tdk-up-warm-start-/,
+		reason: "links the warm-start result folder, which keeps the name it was recorded under",
+	},
+	{
 		file: "cli/src/utils/env-compat.ts",
 		line: /TDK_/,
 		reason: "the TDK_ -> FLISK_ alias layer: reading and mirroring the old prefix is its job",

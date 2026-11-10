@@ -4,7 +4,7 @@
 
 # Flisk: local development for multi-service apps, started with one command
 
-[![Flisk Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/Sjhb3tnq3) [![Docs on Helpdock](https://img.shields.io/badge/Docs-Helpdock-0A7EA4?logo=readthedocs&logoColor=white)](https://helpdock.flisk.sh/flisk-sh/flisk/)
+[![Discord](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FqMu5Xn8Kaq%3Fwith_counts%3Dtrue&query=%24%5B%27approximate_presence_count%27%2C%27approximate_member_count%27%5D&label=Discord&suffix=%20(online%2C%20total)&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/qMu5Xn8Kaq) [![Docs on Helpdock](https://img.shields.io/badge/Docs-Helpdock-0A7EA4?logo=readthedocs&logoColor=white)](https://helpdock.flisk.sh/flisk-sh/flisk/)
 [![npm version](https://img.shields.io/npm/v/@flisk-sh/flisk.svg?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![npm weekly downloads](https://img.shields.io/npm/dw/@flisk-sh/flisk?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![GitHub stars](https://img.shields.io/github/stars/flisk-sh/flisk?style=flat&logo=github)](https://github.com/flisk-sh/flisk/stargazers)
 
 **[What is Flisk?](#what-is-flisk) · [Key features](#key-features) · [Quick start](#quick-start) · [Commands](#commands) · [Configuration](#configuration) · [With your AI agent](#use-flisk-with-your-ai-agent) · [FAQ](#faq) · [Docs](#docs)**
@@ -741,7 +741,7 @@ Then run `flisk doctor` and retry the same task. If the problem persists, [open 
 
 ## Contributing and license
 
-Contributions are welcome. **First step: [say hello on Discord](https://discord.gg/Sjhb3tnq3)**, tell us what you want to work on, and we will point you to a good first task. Then start with [CONTRIBUTING.md](.github/CONTRIBUTING.md) and the [contributor guide](docs/contributing/README.md). For the project structure, see the [architecture and repository map](docs/project-overview.md). To review pull requests, see [Review a pull request](docs/contributing/04-review-a-pr.md). Report security issues using [SECURITY.md](.github/SECURITY.md).
+Contributions are welcome. **First step: [say hello on Discord](https://discord.gg/qMu5Xn8Kaq)**, tell us what you want to work on, and we will point you to a good first task. Then start with [CONTRIBUTING.md](.github/CONTRIBUTING.md) and the [contributor guide](docs/contributing/README.md). For the project structure, see the [architecture and repository map](docs/project-overview.md). To review pull requests, see [Review a pull request](docs/contributing/04-review-a-pr.md). Report security issues using [SECURITY.md](.github/SECURITY.md).
 
 <div align="center">
 

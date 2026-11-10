@@ -1,6 +1,6 @@
 # Pilot Flisk on a real repository
 
-For a team lead who wants more than a quickstart before putting Flisk on a real repository. Flisk CLI turns a `service.json` per service into a local Docker stack, with Tilt watching services and live-updating containers as you code. It is not a deploy tool and not a Compose replacement. Production stays on Helm.
+For a team lead who wants more than a quickstart before adding Flisk to an existing repository. Flisk CLI turns a `service.json` per service into a local Docker stack, with Tilt watching services and live-updating containers as you code. It is not a deploy tool and not a Compose replacement. Production stays on Helm.
 
 The command output below was captured on one machine (macOS, Flisk 1.3.86, Docker 29.8.0, Tilt 0.37.7, Bun 1.3.11) from a scaffolded `backend` service in an empty directory. It was not captured on an existing application. Your output will differ.
 
@@ -25,6 +25,13 @@ flisk project --yes
 ```
 
 In an empty directory this wrote `.flisk/project.json`, a `.env` with working defaults, the generated files under `.flisk/.flisk-out/`, and also a root `package.json`, a `.tiltignore` and `shared-platform-engineering/docker-templates/`. It added `.env`, `.flisk/.flisk-out/`, `.flisk/.project-id` and `.flisk/smoke/` to `.gitignore` (and, in a git repository, `flisk up` adds the generated root files in a marked block, see [layout](layout.md)), plus `node_modules/` in that empty directory. In an existing repository, run `git status` after this step and read what changed before you commit. In a repository that already had a `package.json`, `.tiltignore`, `Tiltfile` and `docker-compose.yml`, `flisk project --yes` left all of them byte-for-byte unchanged and only appended to `.gitignore`; see [gradual adoption](gradual-adoption.md).
+
+Already have a root `docker-compose.yml`? Import it instead of adding services one by one. `flisk import` writes one bring-your-own `service.json` per Compose service and names what it did not translate ([what it reads](operator-runbook.md#importing-an-existing-repo)):
+
+```bash
+flisk import . --dry-run
+flisk import . --yes
+```
 
 Add each service. To wrap a service you already have, use a [bring-your-own resource](byo.md); it does not generate application code:
 
