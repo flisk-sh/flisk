@@ -1,0 +1,14 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "api",
+  "appType": "backend",
+  "command": "sh -c 'if [ -n \"$VIRTUAL_ENV\" ] && [ -x \"$VIRTUAL_ENV/bin/uvicorn\" ]; then exec \"$VIRTUAL_ENV/bin/uvicorn\" main:app --app-dir src --host 0.0.0.0 --port ${PORT:-8000} --reload --reload-dir src; elif [ -x ../../../.venv/bin/uvicorn ]; then exec ../../../.venv/bin/uvicorn main:app --app-dir src --host 0.0.0.0 --port ${PORT:-8000} --reload --reload-dir src; elif [ -x .venv/bin/uvicorn ]; then exec .venv/bin/uvicorn main:app --app-dir src --host 0.0.0.0 --port ${PORT:-8000} --reload --reload-dir src; elif command -v uvicorn >/dev/null 2>&1; then exec uvicorn main:app --app-dir src --host 0.0.0.0 --port ${PORT:-8000} --reload --reload-dir src; else exec python3 -m uvicorn main:app --app-dir src --host 0.0.0.0 --port ${PORT:-8000} --reload --reload-dir src; fi'",
+  "port": 8000,
+  "healthCheckPath": "/health",
+  "dependsOn": ["redis"],
+  "env": {
+    "REDIS_URL": "redis://127.0.0.1:6379/0"
+  }
+}
+

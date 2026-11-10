@@ -1,0 +1,10 @@
+{
+  "project": {
+    "name": "fastapi-celery-redis",
+    "version": "1.0.0"
+  },
+  "discovery": {
+    "paths": ["services/*/*"]
+  }
+}
+

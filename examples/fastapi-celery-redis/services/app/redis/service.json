@@ -1,0 +1,10 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "redis",
+  "appType": "bring-your-own",
+  "image": "redis:7-alpine",
+  "port": 6379,
+  "exposeViaProxy": false
+}
+
