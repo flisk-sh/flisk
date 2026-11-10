@@ -43,3 +43,17 @@ export declare function pruneDockerBuildCache(options?: {
     reclaimed: string;
     until: string;
 }>;
+/** The build cache is trimmed on `flisk up` when it grows past this many GiB. `0` turns the ceiling off. */
+export declare const DEFAULT_BUILD_CACHE_CEILING_GIB = 20;
+export declare const BUILD_CACHE_CEILING_ENV = "FLISK_BUILD_CACHE_MAX_GIB";
+export declare function resolveBuildCacheCeilingGib(env?: Record<string, string | undefined>): number;
+export interface BuildCacheCeilingResult {
+    pruned: boolean;
+    ceilingGib: number;
+    sizeGib?: number;
+}
+/**
+ * Keeps the shared BuildKit cache from growing without a limit: when it is above the ceiling, the least recently used
+ * entries are removed until it fits. Best effort; a Docker that cannot be asked leaves the cache as it is.
+ */
+export declare function enforceBuildCacheCeiling(run?: DockerRunner, env?: Record<string, string | undefined>): Promise<BuildCacheCeilingResult>;

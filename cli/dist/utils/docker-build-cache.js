@@ -161,3 +161,44 @@ export async function pruneDockerBuildCache(options = {}) {
     const reclaimed = parseReclaimedFromPrune(stdout);
     return { reclaimed, until };
 }
+/** The build cache is trimmed on `flisk up` when it grows past this many GiB. `0` turns the ceiling off. */
+export const DEFAULT_BUILD_CACHE_CEILING_GIB = 20;
+export const BUILD_CACHE_CEILING_ENV = "FLISK_BUILD_CACHE_MAX_GIB";
+export function resolveBuildCacheCeilingGib(env = process.env) {
+    const raw = env[BUILD_CACHE_CEILING_ENV];
+    if (raw === undefined || raw.trim() === "")
+        return DEFAULT_BUILD_CACHE_CEILING_GIB;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 ? value : DEFAULT_BUILD_CACHE_CEILING_GIB;
+}
+/**
+ * Keeps the shared BuildKit cache from growing without a limit: when it is above the ceiling, the least recently used
+ * entries are removed until it fits. Best effort; a Docker that cannot be asked leaves the cache as it is.
+ */
+export async function enforceBuildCacheCeiling(run = defaultDockerRunner, env = process.env) {
+    const ceilingGib = resolveBuildCacheCeilingGib(env);
+    if (ceilingGib === 0)
+        return { pruned: false, ceilingGib };
+    try {
+        const df = await run([
+            "system",
+            "df",
+            "--format",
+            "{{.Type}}\t{{.TotalCount}}\t{{.Size}}\t{{.Reclaimable}}",
+        ]);
+        const sizeGib = parseDockerBuildCache(df)?.sizeGib;
+        if (sizeGib === undefined || sizeGib <= ceilingGib)
+            return { pruned: false, ceilingGib, sizeGib };
+        await run([
+            "builder",
+            "prune",
+            "-f",
+            "--keep-storage",
+            String(Math.round(ceilingGib * 1024 ** 3)),
+        ]);
+        return { pruned: true, ceilingGib, sizeGib };
+    }
+    catch {
+        return { pruned: false, ceilingGib };
+    }
+}
