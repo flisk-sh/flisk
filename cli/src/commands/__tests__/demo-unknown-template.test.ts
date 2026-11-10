@@ -25,7 +25,7 @@ class ExitSignal extends Error {
 const originalArgv = process.argv;
 
 /** Runs cli.ts from scratch with the given arguments and returns the exit code. */
-async function runCli(...args: string[]): Promise<number | undefined> {
+async function importCli(...args: string[]): Promise<number | undefined> {
   vi.resetModules();
   process.argv = [originalArgv[0], "/fake/bin/flisk.js", ...args];
 
@@ -57,7 +57,7 @@ describe("flisk --template with an unknown name", () => {
       }) as never);
       machine.ready.mockClear();
 
-      const code = await runCli("--template", name, "--project", "./t-x");
+      const code = await importCli("--template", name, "--project", "./t-x");
 
       expect(code).toBe(1);
       const output = lines.join("\n");
