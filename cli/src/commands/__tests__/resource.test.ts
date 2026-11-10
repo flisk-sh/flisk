@@ -250,6 +250,14 @@ describe("resource command", () => {
       expect(service.scripts.start).toBe("bun run dist/index.js");
     });
 
+    it("ships the pg types with Prisma, so code that imports 'pg' compiles in the image", () => {
+      const service = createPackageJson("orders-api", "backend", undefined, true);
+      expect(service.devDependencies).toMatchObject({ "@types/pg": "^8.11.0" });
+      expect(createPackageJson("orders-api", "backend").devDependencies).not.toHaveProperty(
+        "@types/pg",
+      );
+    });
+
     it("uses the Prisma 7 client generator and generated config shape", () => {
       expect(PRISMA_SCHEMA_TEMPLATE).toContain('provider = "prisma-client"');
       expect(PRISMA_SCHEMA_TEMPLATE).toContain('output   = "../generated/prisma"');

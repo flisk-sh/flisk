@@ -141,6 +141,7 @@ import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import {
+  alreadyRunningReport,
   parseTiltPort,
   resolveTiltPort,
   secondUpAction,
@@ -155,6 +156,7 @@ import {
   shouldRedrawUpProgress,
 } from "../utils/up-progress.js";
 import {
+  evaluateTiltReadiness,
   tiltGetUiResources,
   tiltResourceLogs,
   waitForTiltResourcesReady,
@@ -1329,13 +1331,47 @@ export const upCommand = new Command("up")
           emit?.({ ok: false }, [{ code: "ENV_FILE_ALREADY_RUNNING", message }]);
           showErrorAndExit(message);
         }
-        const message = `Environment is already running on port ${decision.ports.join(", ")}.`;
-        emit?.({
-          ok: true,
-          alreadyRunning: true,
-          tiltUrl: `http://localhost:${decision.ports[0]}`,
-        });
-        if (!options.quiet) console.log(chalk.green(message));
+        const runningPort = decision.ports[0] ?? watchedPort;
+        const tiltUrl = `http://localhost:${runningPort}`;
+        const deferred = getDeferredResourceNames(discoveredResources);
+        if (emit) {
+          // `ok` means the stack is healthy (`flisk up --wait` prints "Stack is healthy" from it), so wait for the running
+          // stack as a first run would. A Tilt left by a failed `flisk up` answers on its port with every service in error.
+          const dependsOn = Object.fromEntries(
+            discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]),
+          );
+          const parsedWaitTimeout =
+            typeof options.waitTimeout !== "undefined"
+              ? parseWaitTimeout(options.waitTimeout)
+              : undefined;
+          const readiness = await waitForTiltResourcesReady(runningPort, {
+            timeoutMs: parsedWaitTimeout?.ok ? parsedWaitTimeout.seconds * 1000 : undefined,
+            deferred,
+            isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
+          });
+          const report = alreadyRunningReport(runningPort, readiness);
+          if (report.ok) {
+            emit({ ok: true, alreadyRunning: true, tiltUrl });
+          } else {
+            emit({ ok: false, alreadyRunning: true, tiltUrl, failures: readiness.failures }, [
+              { code: report.code, message: report.message, suggestions: report.suggestions },
+            ]);
+            process.exitCode = 1;
+          }
+          return;
+        }
+        // Attached: one look is enough. A stack that is still building is running; one with a failed resource is not.
+        const snapshot = await tiltGetUiResources(runningPort);
+        const current = snapshot ? evaluateTiltReadiness(snapshot, deferred).result : undefined;
+        if (current && current.failures.length > 0) {
+          const report = alreadyRunningReport(runningPort, current);
+          if (!report.ok) showErrorAndExit(report.message, 1, report.suggestions);
+        }
+        if (!options.quiet) {
+          console.log(
+            chalk.green(`Environment is already running on port ${decision.ports.join(", ")}.`),
+          );
+        }
         return;
       }
       if (decision.action === "only-blocked") {

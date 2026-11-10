@@ -312,8 +312,9 @@ export function createPackageJson(name, type, frameworkId, prismaEnabled = false
             // ERR_PACKAGE_PATH_NOT_EXPORTED ('./module-runner'), in every resource once it is hoisted.
             ...(isFrontend && !framework?.scripts ? { vite: "^6.4.1" } : {}),
             ...(drizzleEnabled ? { "drizzle-kit": DRIZZLE_KIT_RANGE } : {}),
-            // Both import 'pg' (src/db.ts, the agent's checkpoint store); without the types the image's `tsc` fails with TS7016.
-            ...(drizzleEnabled || isPostgresAgent ? { "@types/pg": "^8.11.0" } : {}),
+            // Each of these ships `pg` as a dependency (Drizzle's src/db.ts, the agent's checkpoint store, Prisma's pg adapter);
+            // without the types the image's `tsc` fails with TS7016 as soon as the code imports 'pg'.
+            ...(drizzleEnabled || prismaEnabled || isPostgresAgent ? { "@types/pg": "^8.11.0" } : {}),
             ...(framework?.devDependencies ?? {}),
             ...(backendFramework?.devDependencies ?? {}),
         },

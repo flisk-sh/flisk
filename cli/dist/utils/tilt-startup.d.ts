@@ -18,6 +18,27 @@ export declare function secondUpAction(input: {
     action: "already-running" | "only-blocked";
     ports: number[];
 };
+/**
+ * What a second `flisk up` says about the Tilt it found running. A failed `flisk up` leaves its Tilt running, so
+ * "a Tilt answers on the port" is not "the stack is healthy": report what that Tilt is running.
+ */
+export declare function alreadyRunningReport(port: number, readiness: {
+    ready: boolean;
+    failures: Array<{
+        name: string;
+        message: string;
+    }>;
+    timedOut: boolean;
+    stillBuilding?: string[];
+}): {
+    ok: true;
+    message: string;
+} | {
+    ok: false;
+    code: "UP_RESOURCE_FAILED" | "UP_TIMEOUT";
+    message: string;
+    suggestions: string[];
+};
 export declare function resolveTiltPort(options: {
     configuredPort: number | undefined;
     force: boolean;
