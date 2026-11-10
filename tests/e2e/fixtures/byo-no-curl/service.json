@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "appName": "no-curl-app",
+  "appType": "bring-your-own",
+  "stack": "app",
+  "port": 8080,
+  "dockerfile": "./Dockerfile",
+  "healthCheck": {
+    "command": ["curl", "-f", "http://127.0.0.1:8080/health"],
+    "interval": 2,
+    "timeout": 2,
+    "retries": 1,
+    "startPeriod": 1
+  }
+}
