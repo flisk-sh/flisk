@@ -741,7 +741,8 @@ export const completionCommand = new Command("completion")
     .description("Generate shell completion scripts")
     .option("-s, --shell <shell>", "Target shell (bash, zsh, fish, powershell)")
     .option("-o, --output <path>", "Output file path (default: stdout)")
-    .option("--install", "Install to shell config automatically")
+    .option("--install", "Install completion; prints any shell configuration steps still needed")
+    .addHelpText("after", "\nExamples:\n  flisk completion zsh --install\n  flisk completion bash > ~/.bash_completion.d/flisk\n  flisk completion fish --install")
     .action((shellArgument, options, command) => {
     const requestedShell = options.shell ?? shellArgument;
     const environmentShell = basename(process.env.SHELL ?? "")
