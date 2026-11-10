@@ -19,7 +19,7 @@ app.use(defineEventHandler((event) => {
   }
 }));
 
-// Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+// Health check: Flisk uses this endpoint to check service health
 router.get('/health', defineEventHandler(() => ({ status: 'ok', service: '${name}' })));
 
 router.get('/health/live', defineEventHandler(() => ({ status: 'alive', timestamp: Date.now() })));

@@ -63,7 +63,7 @@ fn local_frontend_cors() -> CorsLayer {
 fn app() -> Router {
     Router::new()
         .route("/", get(root))
-        // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+        // Health check: Flisk uses this endpoint to check service health
         .route("/health", get(health))
         .layer(local_frontend_cors())
 }

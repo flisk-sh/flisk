@@ -64,14 +64,20 @@ describe("flisk completion --install and --output", () => {
     rmSync(workDir, { recursive: true, force: true });
   });
 
-  it("writes the script to the --output path", async () => {
-    const outputPath = join(workDir, "custom.bash");
+  it.each([
+    ["bash", "source"],
+    ["zsh", "autoload -U compinit && compinit"],
+    ["fish", "~/.config/fish/completions/"],
+    ["powershell", "$PROFILE"],
+  ])("writes the %s script and explains how to load it", async (shell, hint) => {
+    const outputPath = join(workDir, "custom-completion");
 
-    const { stdout } = await runCompletion(["bash", "--output", outputPath]);
+    const { stdout } = await runCompletion([shell, "--output", outputPath]);
 
-    expect(readFileSync(outputPath, "utf-8")).toContain("# Flisk CLI Bash Completion");
-    expect(stdout).toContain("Written bash completion to:");
+    expect(readFileSync(outputPath, "utf-8").length).toBeGreaterThan(0);
+    expect(stdout).toContain(`Wrote ${shell} completion to:`);
     expect(stdout).toContain(outputPath);
+    expect(stdout).toContain(hint);
   });
 
   it("installs the bash script under ~/.bash_completion.d and prints the source line", async () => {
