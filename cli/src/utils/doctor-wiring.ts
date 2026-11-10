@@ -321,9 +321,10 @@ function isRoutedToPort(resource: DiscoveredResource): boolean {
  */
 export function checkDuplicateResourcePorts(
   projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
   const byPort = new Map<number, string[]>();
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     const port = resource.config?.port;
     // A bring-your-own port is the port inside its own container, so two Postgres images on 5432 do not collide.
     if (typeof port !== "number" || !isRoutedToPort(resource)) continue;

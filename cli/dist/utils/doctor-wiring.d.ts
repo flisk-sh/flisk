@@ -15,7 +15,7 @@ export declare function checkDuplicateResourceNames(projectRoot?: string, resour
  * so two containers can listen on 4000 at once. The pair still confuses the checks and URLs that identify
  * a backend by its port, and usually means a copied service.json.
  */
-export declare function checkDuplicateResourcePorts(projectRoot?: string): CheckResult;
+export declare function checkDuplicateResourcePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**
  * A bring-your-own service.json that `provides` REDIS_URL, QDRANT_URL or AMQP_URL and has no `framework`: written by
  * `flisk resource --type redis|qdrant|rabbitmq`, which became `--type database|queue --framework ...`. The file keeps working

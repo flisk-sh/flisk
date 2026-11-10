@@ -12,14 +12,14 @@ import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { explainConfigFile } from "../utils/config-explain.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON, RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE, } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
-import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
+import { checkDuplicateResourcePorts, checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand, showError, } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { checkCircularDependencies, checkDependsOnShape, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
+import { checkCircularDependencies, checkDependsOnShape, checkServicePorts, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
 import { describeSharedPostgresUsers, evaluateSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
@@ -329,18 +329,27 @@ export const configCommand = new Command("config")
             ...problems.map((p) => p.path),
         ];
         const verified = verifyMasterConfigs(projectRoot, { manifestPaths });
-        // A warning only: Postgres 18+ with a volume at the pre-18 path is valid config that will not start.
+        // Warnings only: Postgres 18+ with a volume at the pre-18 path is valid config that will not start, and two
+        // routed resources on one port still run (each in its own container) but is usually a copied service.json.
+        const duplicatePorts = checkDuplicateResourcePorts(projectRoot, resources);
         const result = {
             ...verified,
-            warnings: [...verified.warnings, ...postgresVolumeWarnings(projectRoot, resources)],
+            warnings: [
+                ...verified.warnings,
+                ...postgresVolumeWarnings(projectRoot, resources),
+                ...(duplicatePorts.didPass
+                    ? []
+                    : [`${duplicatePorts.message}\n    Fix: ${duplicatePorts.fix}`]),
+            ],
         };
         // Same predicate as flisk doctor's Shared platform Postgres check.
         const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
         const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
-        // A wrong-typed dependsOn and a circular dependsOn are what `flisk up` refuses, so verify says the same.
+        // A wrong-typed dependsOn, a circular dependsOn and an invalid port are what `flisk up` refuses, so verify says the same.
         const graphErrors = [
             checkDependsOnShape(projectRoot, resources),
             checkCircularDependencies(projectRoot, resources),
+            checkServicePorts(projectRoot, resources),
         ]
             .filter((check) => !check.didPass)
             .map((check) => check.fix ? `${check.message}\n    Fix: ${check.fix}` : check.message);

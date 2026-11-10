@@ -24,7 +24,7 @@ import {
   TECH_STACK_FILE,
 } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
-import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
+import { checkDuplicateResourcePorts, checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import {
   errorFactories,
   FliskError,
@@ -40,6 +40,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import {
   checkCircularDependencies,
   checkDependsOnShape,
+  checkServicePorts,
   postgresVolumeWarnings,
 } from "../utils/service-config-checks.js";
 import {
@@ -459,18 +460,27 @@ export const configCommand = new Command("config")
             ...problems.map((p) => p.path),
           ];
           const verified = verifyMasterConfigs(projectRoot, { manifestPaths });
-          // A warning only: Postgres 18+ with a volume at the pre-18 path is valid config that will not start.
+          // Warnings only: Postgres 18+ with a volume at the pre-18 path is valid config that will not start, and two
+          // routed resources on one port still run (each in its own container) but is usually a copied service.json.
+          const duplicatePorts = checkDuplicateResourcePorts(projectRoot, resources);
           const result = {
             ...verified,
-            warnings: [...verified.warnings, ...postgresVolumeWarnings(projectRoot, resources)],
+            warnings: [
+              ...verified.warnings,
+              ...postgresVolumeWarnings(projectRoot, resources),
+              ...(duplicatePorts.didPass
+                ? []
+                : [`${duplicatePorts.message}\n    Fix: ${duplicatePorts.fix}`]),
+            ],
           };
           // Same predicate as flisk doctor's Shared platform Postgres check.
           const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
           const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
-          // A wrong-typed dependsOn and a circular dependsOn are what `flisk up` refuses, so verify says the same.
+          // A wrong-typed dependsOn, a circular dependsOn and an invalid port are what `flisk up` refuses, so verify says the same.
           const graphErrors = [
             checkDependsOnShape(projectRoot, resources),
             checkCircularDependencies(projectRoot, resources),
+            checkServicePorts(projectRoot, resources),
           ]
             .filter((check) => !check.didPass)
             .map((check) =>
