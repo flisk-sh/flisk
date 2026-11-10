@@ -29,7 +29,7 @@ describe("next frontend provider", () => {
   });
 
   it("enables the Next.js TypeScript plugin", () => {
-    expect(nextFrontendProvider.tsconfig.compilerOptions.plugins).toEqual([{ name: "next" }]);
+    expect(nextFrontendProvider.tsconfig?.compilerOptions?.plugins).toEqual([{ name: "next" }]);
   });
 
   it("generates the App Router files", () => {
