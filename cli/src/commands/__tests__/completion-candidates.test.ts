@@ -5,7 +5,7 @@ import { BACKEND_FRAMEWORKS } from "../../backend-frameworks/registry.js";
 import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 import { FRONTEND_FRAMEWORKS } from "../../frontend-frameworks/registry.js";
 import { createProgram } from "../../program.js";
-import { RESOURCE_TYPE_VALUES } from "../../types/index.js";
+import { RESOURCE_CREATE_TYPE_VALUES } from "../../types/index.js";
 import { VALID_RESOURCE_TYPES } from "../../utils/constants.js";
 import { renderCompletionScript } from "../completion.js";
 import { buildCompletionCandidates } from "../completion-candidates.js";
@@ -396,12 +396,12 @@ describe("shell completion candidates", () => {
     }
   });
 
-  it("offers the resource types of the command that asks for them", () => {
-    // `flisk resource` creates a resource, `flisk resources` filters the resources of the project.
-    for (const shell of SHELLS) {
-      expect(valuesOf(shell, "resource", "--type"), shell).toEqual([...RESOURCE_TYPE_VALUES]);
-      expect(valuesOf(shell, "resources", "--type"), shell).toEqual([...VALID_RESOURCE_TYPES]);
-    }
+  it.each(SHELLS)("offers the resource types of each command in %s", (shell) => {
+    // Creation includes the inference preset and sdk; filtering uses stored resource types.
+    const resourceTypes = valuesOf(shell, "resource", "--type");
+    expect(resourceTypes).toContain("inference");
+    expect(resourceTypes).toEqual([...RESOURCE_CREATE_TYPE_VALUES, "sdk"]);
+    expect(valuesOf(shell, "resources", "--type"), shell).toEqual([...VALID_RESOURCE_TYPES]);
   });
 
   it("offers the frameworks of the type of the command line", () => {
