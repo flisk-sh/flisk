@@ -38,7 +38,9 @@ describe("flisk --help", () => {
     });
     try {
       showHelp();
-      expect(logs.join("\n")).toMatch(/project\s+Initialize or validate project-level configuration/);
+      expect(logs.join("\n")).toMatch(
+        /project\s+Initialize or validate project-level configuration/,
+      );
     } finally {
       logSpy.mockRestore();
     }
