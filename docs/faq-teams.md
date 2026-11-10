@@ -2,6 +2,24 @@
 
 Questions a team lead usually asks before moving client projects onto a new tool. Each answer says what is supported, what is not, and what is not written down yet. Anything marked **Gap** has an open issue; if your question is not here, [ask us](https://github.com/flisk-sh/flisk/issues/new?template=adoption-question.yml).
 
+## Do we need Kubernetes to run Flisk?
+
+No. Flisk runs your services on Docker with Tilt, or as local processes (ordinary programs) when a service declares a `command`, without a cluster. It does not deploy anything and writes no Kubernetes manifests. If you test Kubernetes itself (operators, CRDs, Helm charts), keep a local cluster for that: see [Flisk vs kind and minikube](compare/local-kubernetes.md) and [Flisk and Helm](with-helm.md).
+
+## How do I run database migrations?
+
+In a migrator resource that runs once before the API starts. `flisk resource orders-api --type backend --stack shop --feature prisma` creates `orders-api` and `orders-api-migrator`, and `dependsOn` orders them: Postgres, then the migrator, then the API ([example](service-json.md#example-postgres-then-a-migrator-then-an-api)). For a tool Flisk does not scaffold (dbmate, Flyway, Alembic), run it as a [one-shot job](byo.md#one-shot-jobs-migrations-seeders). Migrating at container start is the escape hatch, and `flisk doctor` warns about it ([scope](scope.md)). Resetting and seeding the database is in [local data](data.md).
+
+## How do AI agents use Flisk?
+
+Two ways. Your coding agent (Claude Code, Cursor, Codex) drives Flisk through `flisk mcp`, which gives it the commands as tools: scaffold services, start the stack, read logs, check the generated files. `flisk connect <host>` sets that up; see [Flisk for agents](agents/flisk-for-agents.md). And an app can run its own agents as `agent` resources, with health and readiness routes and sessions that survive restarts; see [Running AI agents in Flisk](agents/ai-agents.md).
+
+## How do we remove Flisk later?
+
+`flisk eject` hands the generated Tilt files over so the stack runs without Flisk, and [Leaving Flisk](leaving-flisk.md) lists what to delete from the repository. Uninstalling the CLI itself is one line per install method: [npm](install/npm.md), [Bun](install/bun.md), [Homebrew, Scoop or the binary](install/binary.md).
+
+Command pairs that look alike (`flisk init` and `flisk project`, `flisk up` and `tilt up`, and others) are explained in [Flisk commands compared](commands-compared.md).
+
 ## Will it run our stacks (Java, .NET, PHP, Node, Python)?
 
 - **Generated for you:** Bun/TypeScript (the default, with Hono, Express, Fastify, NestJS and others), Python, Go and Rust. See [backend language providers](backend-language-providers.md).

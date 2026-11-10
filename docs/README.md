@@ -10,6 +10,7 @@
 - [Run one Python backend locally](../examples/one-backend-python/README.md)
 - [Full multi-service example](../examples/flisk-example/README.md)
 - [Mega cheat sheet](cheat-sheet.md): every `flisk` command, alias and flag
+- [Flisk commands compared](commands-compared.md): look-alike commands side by side (`flisk init` vs `flisk project`, `flisk up` vs `tilt up`, and 22 more)
 - [Configuration and editor schemas](configuration.md): the `service.json` fields you set most, and the project file
 - [`package.json` scripts](scripts.md): the `dev`, `build` and `start` scripts each `appType` needs, and how `flisk doctor` checks them
 - [Resource features](resource-features.md): code generators, Prisma, and `featuresEnabled`
