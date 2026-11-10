@@ -4,9 +4,9 @@ Can an AI fix a broken multi-service app? Flisk-Bench breaks a small Flisk proje
 player with the sentence a developer would type, and checks the result with Flisk's own JSON output.
 
 ```bash
-bun tests/bench/run.ts                                   # every player, every task
-bun tests/bench/run.ts --players nothing,doctor-fix      # no model, about 6 minutes
-bun tests/bench/run.ts --players claude-sonnet --tasks port-clash --out results.json
+bun docs/benchmarks/flisk-bench/run.ts                                   # every player, every task
+bun docs/benchmarks/flisk-bench/run.ts --players nothing,doctor-fix      # no model, about 6 minutes
+bun docs/benchmarks/flisk-bench/run.ts --players claude-sonnet --tasks port-clash --out results.json
 ```
 
 Needs Bun and, for the Claude players, a logged-in `claude` CLI. Nothing starts a container: the checks use
@@ -39,3 +39,16 @@ billing does not wait for orders, plus the task's own rule (orders keeps its nam
 | `claude-haiku`, `claude-sonnet` | `claude -p` with the prompt, `flisk` on `PATH`, at most 40 turns |
 
 Add a player in `players.ts` and a task in `tasks.ts`.
+
+## Results
+
+First run, 2026-11-10 on a Mac (rows in [`results/flisk-bench-2026-11-10.json`](../results/flisk-bench-2026-11-10.json) for the Claude players):
+
+| Player | Fixed | Tokens | Cost | Time |
+| --- | --- | --- | --- | --- |
+| Do nothing (control) | 0 / 5 | 0 | $0.00 | 0 s |
+| `flisk doctor --fix` | 0 / 5 | 0 | $0.00 | 357 s |
+| Claude Haiku | 5 / 5 | 955,318 | $0.28 | 486 s |
+| Claude Sonnet | 5 / 5 | 2,913,145 | $1.42 | 1123 s |
+
+The v0 tasks are too easy to separate the models; v1 adds harder breaks and a local model player.

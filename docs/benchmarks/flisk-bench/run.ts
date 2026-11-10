@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 // Flisk-Bench runner: every player tries every task on its own copy of the broken project.
-//   bun tests/bench/run.ts [--players nothing,doctor-fix] [--tasks typo-dependson] [--out results.json]
+//   bun docs/benchmarks/flisk-bench/run.ts [--players nothing,doctor-fix] [--tasks typo-dependson] [--out results.json]
 import { cpSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

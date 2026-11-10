@@ -5,7 +5,7 @@ import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const FLISK_BIN = process.env.FLISK_BIN ?? join(REPO_ROOT, "cli/bin/flisk.js");
 
 /** Run this repository's CLI with the runtime running the bench. */

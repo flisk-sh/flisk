@@ -1,0 +1,118 @@
+{
+  "version": "v0",
+  "date": "2026-11-10T12:07:20.133Z",
+  "workDir": "/private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-bench-Ov7zxh",
+  "rows": [
+    {
+      "task": "typo-dependson",
+      "player": "claude-haiku",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 111.1,
+      "tokens": 287993,
+      "costUsd": 0.06520909999999999,
+      "turns": 11,
+      "note": ""
+    },
+    {
+      "task": "typo-dependson",
+      "player": "claude-sonnet",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 78.9,
+      "tokens": 292189,
+      "costUsd": 0.1673246,
+      "turns": 8,
+      "note": ""
+    },
+    {
+      "task": "dependency-cycle",
+      "player": "claude-haiku",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 64.6,
+      "tokens": 191584,
+      "costUsd": 0.062177500000000004,
+      "turns": 8,
+      "note": ""
+    },
+    {
+      "task": "dependency-cycle",
+      "player": "claude-sonnet",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 366.8,
+      "tokens": 775184,
+      "costUsd": 0.3363662,
+      "turns": 17,
+      "note": ""
+    },
+    {
+      "task": "object-dependson",
+      "player": "claude-haiku",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 117.2,
+      "tokens": 186397,
+      "costUsd": 0.0529617,
+      "turns": 7,
+      "note": ""
+    },
+    {
+      "task": "object-dependson",
+      "player": "claude-sonnet",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 417.5,
+      "tokens": 837018,
+      "costUsd": 0.34339200000000003,
+      "turns": 19,
+      "note": ""
+    },
+    {
+      "task": "uppercase-app-name",
+      "player": "claude-haiku",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 169.3,
+      "tokens": 180423,
+      "costUsd": 0.0521956,
+      "turns": 7,
+      "note": ""
+    },
+    {
+      "task": "uppercase-app-name",
+      "player": "claude-sonnet",
+      "pass": true,
+      "reason": "verify clean, orders starts after billing",
+      "seconds": 205.8,
+      "tokens": 584935,
+      "costUsd": 0.3123234,
+      "turns": 14,
+      "note": ""
+    },
+    {
+      "task": "port-clash",
+      "player": "claude-haiku",
+      "pass": true,
+      "reason": "orders moved to 4001",
+      "seconds": 23.5,
+      "tokens": 108921,
+      "costUsd": 0.046030699999999994,
+      "turns": 6,
+      "note": ""
+    },
+    {
+      "task": "port-clash",
+      "player": "claude-sonnet",
+      "pass": true,
+      "reason": "orders moved to 4001",
+      "seconds": 54.2,
+      "tokens": 423819,
+      "costUsd": 0.2611346,
+      "turns": 10,
+      "note": ""
+    }
+  ],
+  "table": "| Player | Fixed | Tokens | Cost | Time |\n| --- | --- | --- | --- | --- |\n| Claude Haiku | 5 / 5 | 955,318 | $0.28 | 486 s |\n| Claude Sonnet | 5 / 5 | 2,913,145 | $1.42 | 1123 s |"
+}
