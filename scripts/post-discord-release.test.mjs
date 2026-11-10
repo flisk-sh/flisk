@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMessage, run } from "./post-discord-release.mjs";
+import { buildMessage, releaseNoteBullets, run } from "./post-discord-release.mjs";
 
 const CHANGELOG = `# Changelog
 
@@ -55,4 +55,21 @@ test("run does nothing without credentials", async () => {
   const logs = [];
   await run({ version: "1.4.50", changelog: CHANGELOG, fetchImpl: async () => { throw new Error("no"); }, log: (m) => logs.push(m) });
   assert.match(logs[0], /not set/);
+});
+
+test("releaseNoteBullets reads the Pull requests list", () => {
+  const body = "## Flisk CLI 1.4.50\n\n## Pull requests\n\n- fix(up): reload a Bun backend: [#1](https://x/1) (@a)\n- docs: add a thing: [#2](https://x/2) (@b)\n\n## Contributors\n- @a";
+  assert.deepEqual(releaseNoteBullets(body), ["reload a Bun backend", "add a thing"]);
+});
+
+test("run falls back to the release notes when the changelog has no entry", async () => {
+  const body = "## Pull requests\n\n- fix: one: [#1](https://x/1) (@a)\n";
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    calls.push(url);
+    if (url.includes("api.github.com")) return { ok: true, json: async () => ({ body }) };
+    return init.method === "POST" ? { ok: true, text: async () => "" } : { ok: true, json: async () => [] };
+  };
+  await run({ version: "9.9.9", changelog: CHANGELOG, token: "t", channelId: "c", fetchImpl, log: () => {} });
+  assert.ok(calls.some((u) => u.includes("/channels/c/messages") ));
 });
