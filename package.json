@@ -85,14 +85,16 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1165.0",
+    "@aws-sdk/client-sqs": "^3.1165.0",
     "commander": "^15.0.0"
   },
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "chalk": "^6.0.1",
     "ink": "^8.0.0",
-    "react": "^19.3.0",
-    "@types/node": "^26.6.5",
     "knip": "^6.38.0",
+    "react": "^19.3.0",
     "yaml": "^2.9.1"
   },
   "engines": {

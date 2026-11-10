@@ -17,6 +17,19 @@ services:
       start_period: 5s
       retries: 20
 
+  localstack:
+    image: localstack/localstack:3.8.1
+    container_name: flisk_example_localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs
+      - AWS_DEFAULT_REGION=us-east-1
+    networks:
+      flisk_example_backend:
+        aliases:
+          - localstack
+
 networks:
   flisk_example_backend:
     external: true
