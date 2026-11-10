@@ -24,7 +24,7 @@ Short answers to "X vs Y" questions about Flisk commands and resource types, eac
 - [backend vs worker resource](#backend-vs-worker-resource)
 - [agent vs mcp resource](#agent-vs-mcp-resource)
 - [backend vs bring-your-own resource](#backend-vs-bring-your-own-resource)
-- [migrator resource vs migrating at start (AUTO_MIGRATE)](#migrator-resource-vs-migrating-at-start-auto_migrate)
+- [migrator resource vs migrating at start](#migrator-resource-vs-migrating-at-start)
 - [flisk upgrade vs reinstalling](#flisk-upgrade-vs-reinstalling)
 
 ## flisk init vs flisk project
@@ -115,7 +115,7 @@ An `agent` resource is a long-running AI agent with sessions; an `mcp` resource 
 
 A `backend` is code Flisk scaffolds and builds for you (Bun and Hono by default); a `bring-your-own` resource runs your own Dockerfile or image. Use `backend` for a new API: `flisk resource api --type backend --yes`. Use `bring-your-own` for an existing service or a third-party image, for example `flisk resource cache --type bring-your-own --image redis:7 --no-proxy`. A bring-your-own container gets only what its `service.json` declares, and is restarted with `unless-stopped` unless you set `--restart`. See [bring-your-own](byo.md).
 
-## migrator resource vs migrating at start (AUTO_MIGRATE)
+## migrator resource vs migrating at start
 
 A migrator runs your migrations once and exits; migrating at start runs them each time an API container boots. New services should use a migrator. `flisk resource api --type backend --feature prisma --yes` scaffolds an `api-migrator` next to the API, and the API lists it in `dependsOn`. Any other migration tool can run as a one-shot bring-your-own job with `--restart no`. `AUTO_MIGRATE` (default `true` in Flisk-built containers) is an escape hatch: set `AUTO_MIGRATE=false` in the project `.env` to skip migration at boot. See [one-shot jobs](byo.md#one-shot-jobs-migrations-seeders) and [scope](scope.md#what-differs-from-production).
 
