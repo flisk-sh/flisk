@@ -9,5 +9,5 @@ export function ServiceIssues({ resources }) {
     const issues = resources.filter((r) => r.status !== "ready" && r.statusReason);
     if (issues.length === 0)
         return null;
-    return (_jsx(Box, { flexDirection: "column", marginTop: 1, children: issues.map((resource) => (_jsxs(Text, { color: theme.muted, children: [resource.name, ": ", resource.statusReason] }, resource.name))) }));
+    return (_jsx(Box, { flexDirection: "column", marginTop: 1, children: issues.map((resource) => (_jsxs(Text, { color: theme.muted, children: [theme.ascii ? "[!] " : "⚠ ", resource.name, ": ", resource.statusReason] }, resource.name))) }));
 }

@@ -48,6 +48,20 @@ describe("flisk ui theme", () => {
     expect(createTUITheme(false, { TERM: "dumb" }).separator).toBe(" | ");
   });
 
+  it("adapts colors for light terminal backgrounds (COLORFGBG)", () => {
+    const lightTheme = createTUITheme(false, { COLORFGBG: "0;15" });
+    expect(lightTheme.foreground).toBe("black");
+    expect(lightTheme.accent).toBe("blue");
+    expect(lightTheme.dimMuted).toBe(false);
+
+    const lightTheme7 = createTUITheme(false, { COLORFGBG: "0;7" });
+    expect(lightTheme7.foreground).toBe("black");
+
+    const darkTheme = createTUITheme(false, { COLORFGBG: "15;0" });
+    expect(darkTheme.foreground).toBe("white");
+    expect(darkTheme.accent).toBe("cyan");
+  });
+
   it.each([{ NO_COLOR: "1" }, { NO_COLOR: "" }, { TERM: "dumb" }, { TERM: "dumb-256color" }])(
     "disables styling and uses ASCII markers for a plain terminal",
     (environment) => {

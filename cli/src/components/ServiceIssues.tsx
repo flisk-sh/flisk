@@ -13,6 +13,7 @@ export function ServiceIssues({ resources }: { resources: ResourceMetadata[] }) 
     <Box flexDirection="column" marginTop={1}>
       {issues.map((resource) => (
         <Text key={resource.name} color={theme.muted}>
+          {theme.ascii ? "[!] " : "⚠ "}
           {resource.name}: {resource.statusReason}
         </Text>
       ))}

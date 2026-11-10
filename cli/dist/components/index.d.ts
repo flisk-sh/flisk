@@ -1,6 +1,7 @@
 export { AccessibleTooltip } from "./Accessible.js";
 export { DetailPanel } from "./DetailPanel.js";
 export { FileTree } from "./FileTree.js";
+export { HelpPanel } from "./HelpPanel.js";
 export { ResourceSelectInput } from "./ResourceSelectInput.js";
 export { ResourceTable } from "./ResourceTable.js";
 export { ServiceIssues } from "./ServiceIssues.js";

@@ -22,7 +22,9 @@ import { AccessibleTooltip } from "../Accessible.js";
 import { BaseTooltip } from "../BaseTooltip.js";
 import { DetailPanel } from "../DetailPanel.js";
 import { FileTree } from "../FileTree.js";
+import { HelpPanel } from "../HelpPanel.js";
 import { ResourceTable } from "../ResourceTable.js";
+import { ServiceIssues } from "../ServiceIssues.js";
 import { TabBar } from "../TabBar.js";
 import { TUIHeader } from "../TUIHeader.js";
 import { createTUITheme, TUIThemeContext } from "../ui-theme.js";
@@ -175,6 +177,20 @@ describe("ASCII mode only draws printable ASCII", () => {
   it("covers the accessible tooltip, which swaps its info sign for [i]", () => {
     expectAscii(
       inAsciiMode(createElement(AccessibleTooltip, { content: "Tip text", visible: true })),
+    );
+  });
+
+  it.each(TABS.map((tab) => tab.id))("covers the help overlay with %s active", (tab) => {
+    expectAscii(inAsciiMode(createElement(HelpPanel, { activeTab: tab, onClose: () => {} })));
+  });
+
+  it("covers service issues with accessible status markers", () => {
+    expectAscii(
+      inAsciiMode(
+        createElement(ServiceIssues, {
+          resources: [{ ...resource("api", "error"), statusReason: "database offline" }],
+        }),
+      ),
     );
   });
 

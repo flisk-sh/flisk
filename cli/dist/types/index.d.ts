@@ -425,6 +425,7 @@ export interface ErrorScreenProps {
 }
 export interface HelpPanelProps {
     onClose: () => void;
+    activeTab?: TabId;
 }
 export interface CacheEntry<T> {
     value: T;
