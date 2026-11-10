@@ -32,6 +32,10 @@ describe("getExpressIndexTemplate", () => {
     expect(template).toContain("res.status(allReady ? 200 : 503).json({ status, dependencies });");
   });
 
+  it("explains the health endpoint to the generated service owner", () => {
+    expect(template).toContain("Health check: Flisk uses this endpoint to check service health");
+  });
+
   it("serves service metadata at the root endpoint", () => {
     expect(template).toContain("app.get('/', (_req, res) => {");
     expect(template).toContain("service: 'billing-api'");

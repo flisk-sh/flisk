@@ -77,7 +77,7 @@ async function readBody(req: IncomingMessage) {
 export const httpServer = createServer(async (req, res) => {
   const path = (req.url ?? '/').split('?')[0];
 
-  // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+  // Health check: Flisk uses this endpoint to check service health
   if (path === '/health') {
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ status: 'ok', service: '${name}' }));

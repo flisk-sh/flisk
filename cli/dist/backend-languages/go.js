@@ -66,7 +66,7 @@ func withCORS(next http.Handler) http.Handler {
 func newMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+	// Health check: Flisk uses this endpoint to check service health
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "${name}"})
 	})

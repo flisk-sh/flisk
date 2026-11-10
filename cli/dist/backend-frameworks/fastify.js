@@ -15,7 +15,7 @@ await app.register(cors, {
   methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH']
 });
 
-// Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+// Health check: Flisk uses this endpoint to check service health
 app.get('/health', async () => ({ status: 'ok', service: '${name}' }));
 
 app.get('/health/live', async () => ({ status: 'alive', timestamp: Date.now() }));

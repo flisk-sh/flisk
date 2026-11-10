@@ -92,7 +92,7 @@ function handleRequest(req, res) {
 
   if (handleCors(req, res)) return;
 
-  // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
+  // Health check: Flisk uses this endpoint to check service health
   if (req.method === "GET" && url.pathname === "/health") {
     return sendJson(res, 200, { status: "ok", service: name });
   }
