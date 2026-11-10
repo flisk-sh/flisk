@@ -150,7 +150,12 @@ function queueSessionOperation(sessionId: string, operation: () => Promise<void>
 const server = createServer(async (req, res) => {
   inFlight++;
   res.on('close', () => inFlight--);
-  const url = new URL(req.url ?? '/', 'http://localhost');
+  let url: URL;
+  try {
+    url = new URL(req.url ?? '/', 'http://localhost');
+  } catch {
+    return sendJson(res, 400, { error: 'bad_request' });
+  }
 
   try {
     if (url.pathname === '/health') {
@@ -356,7 +361,12 @@ function queueSessionOperation(sessionId: string, operation: () => Promise<void>
 const server = createServer(async (req, res) => {
   inFlight++;
   res.on('close', () => inFlight--);
-  const url = new URL(req.url ?? '/', 'http://localhost');
+  let url: URL;
+  try {
+    url = new URL(req.url ?? '/', 'http://localhost');
+  } catch {
+    return sendJson(res, 400, { error: 'bad_request' });
+  }
 
   try {
     if (url.pathname === '/health') {

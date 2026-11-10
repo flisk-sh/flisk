@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { type ChildProcess, execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { request } from "node:http";
 import { type AddressInfo, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -375,6 +376,28 @@ describe("flisk resource --type agent", () => {
 
       try {
         running = await startHealthy();
+        // Pass the raw request target: URL-based clients can normalize away malformed paths.
+        for (const path of ["//", "///"]) {
+          const response = await new Promise<{ status: number | undefined; body: string }>(
+            (resolveResponse, reject) => {
+              const req = request({ hostname: "127.0.0.1", port: currentPort, path }, (res) => {
+                let body = "";
+                res.setEncoding("utf8");
+                res.on("data", (chunk) => {
+                  body += chunk;
+                });
+                res.on("error", reject);
+                res.on("end", () => resolveResponse({ status: res.statusCode, body }));
+              });
+              req.setTimeout(3000, () => req.destroy(new Error(`No response for ${path}`)));
+              req.on("error", reject);
+              req.end();
+            },
+          );
+          expect(response.status).toBe(400);
+          expect(JSON.parse(response.body)).toEqual({ error: "bad_request" });
+        }
+        expect((await fetch(agentUrl(currentPort, "/health"))).status).toBe(200);
         expect(await turn("first")).toMatchObject({ sessionId: "sess-1", turns: 1 });
         const ready = await fetch(agentUrl(currentPort, "/ready"));
         expect(ready.status).toBe(200);
