@@ -69,7 +69,11 @@ const COMMAND_GROUPS = [
         color: chalk.green,
         commands: [
             { name: "up, deploy", desc: "Start services (optionally by stack)", alias: "[stack-name]" },
-            { name: "down", desc: "Stop all tilt resources", alias: "" },
+            {
+                name: "down",
+                desc: "Stop every running service of this project (local processes or Docker/Tilt)",
+                alias: "",
+            },
             { name: "restart", desc: "Restart a running resource in the stack", alias: "<resource>" },
             {
                 name: "run",
