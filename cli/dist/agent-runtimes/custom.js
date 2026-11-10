@@ -170,7 +170,16 @@ const server = createServer(async (req, res) => {
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) {
         return sendJson(res, 400, { error: 'x-session-id header is required (1-128 letters, digits, - or _)' });
       }
-      const body = await readJson(req);
+      let body: any;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
+        return sendJson(res, 400, { error: 'invalid_json' });
+      }
+      if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+        return sendJson(res, 400, { error: 'invalid_json' });
+      }
       const input = String(body.input ?? '');
       // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
       return await queueSessionOperation(sessionId, async () => {
@@ -367,7 +376,16 @@ const server = createServer(async (req, res) => {
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) {
         return sendJson(res, 400, { error: 'x-session-id header is required (1-128 letters, digits, - or _)' });
       }
-      const body = await readJson(req);
+      let body: any;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
+        return sendJson(res, 400, { error: 'invalid_json' });
+      }
+      if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+        return sendJson(res, 400, { error: 'invalid_json' });
+      }
       const input = String(body.input ?? '');
       // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
       return await queueSessionOperation(sessionId, async () => {
