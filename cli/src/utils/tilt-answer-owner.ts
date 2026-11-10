@@ -19,47 +19,32 @@ export function tiltAnswerIsForeign(
     return false; // Unparseable; treat as not foreign (status quo: no gate).
   }
 
-  const items = (resources as Record<string, unknown[]>).items;
-  if (items.length === 0) {
-    return false; // No resources; inconclusive.
+  const names = resourceNames((resources as Record<string, unknown[]>).items);
+  // A project resource takes precedence over any foreign resources in the answer.
+  if (names.some((name) => projectResourceNames.has(name))) {
+    return false;
   }
 
-  // Check if any item is a project resource (not a platform resource like traefik, service-discovery-daemon).
   const platformResources = new Set([
     "traefik",
     "service-discovery-daemon",
     "(Tiltfile)", // Tiltfile errors don't indicate a foreign Tilt; they belong to the running project.
   ]);
 
+  // Empty or platform-only answers remain inconclusive.
+  return names.some((name) => !platformResources.has(name));
+}
+
+function resourceNames(items: unknown[]): string[] {
+  const names: string[] = [];
   for (const item of items) {
     if (!item || typeof item !== "object") continue;
-    const name = (item as Record<string, unknown>).metadata;
-    if (!name || typeof name !== "object") continue;
-    const resourceName = (name as Record<string, unknown>).name;
+    const metadata = (item as Record<string, unknown>).metadata;
+    if (!metadata || typeof metadata !== "object") continue;
+    const resourceName = (metadata as Record<string, unknown>).name;
     if (typeof resourceName !== "string") continue;
 
-    // If this Tilt is answering with a project resource, it's ours (or unknown owner, treat as ours).
-    if (projectResourceNames.has(resourceName)) {
-      return false;
-    }
+    names.push(resourceName);
   }
-
-  // If we see any non-platform resources that are not project resources, this is a foreign Tilt.
-  for (const item of items) {
-    if (!item || typeof item !== "object") continue;
-    const name = (item as Record<string, unknown>).metadata;
-    if (!name || typeof name !== "object") continue;
-    const resourceName = (name as Record<string, unknown>).name;
-    if (typeof resourceName !== "string") continue;
-
-    // Platform resources don't count.
-    if (platformResources.has(resourceName)) {
-      continue;
-    }
-    // Found a non-platform resource that's not ours; this is a foreign Tilt.
-    return true;
-  }
-
-  // Only platform resources; inconclusive.
-  return false;
+  return names;
 }
