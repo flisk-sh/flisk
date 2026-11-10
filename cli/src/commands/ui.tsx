@@ -1334,7 +1334,7 @@ const TUIRoot: React.FC<{ animated?: boolean; highContrast?: boolean }> = ({
 );
 
 export const uiCommand = new Command("ui")
-  .description("Interactive TUI for managing stacks and services (Neon Edition)")
+  .description("Terminal dashboard to watch and manage your stacks and services")
   .alias("interactive")
   .option("-v, --verbose", "Enable verbose output", false)
   .option("--no-animations", "Disable animations")
