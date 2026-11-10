@@ -779,7 +779,7 @@ export function createHelpHint(activeTab, selectedStack, selectedService, showEn
 }
 const TUIRoot = ({ animated, highContrast, }) => (_jsx(TUIThemeContext.Provider, { value: createTUITheme(Boolean(highContrast)), children: _jsx(TUIApp, { animated: animated }) }));
 export const uiCommand = new Command("ui")
-    .description("Interactive TUI for managing stacks and services (Neon Edition)")
+    .description("Terminal dashboard to watch and manage your stacks and services")
     .alias("interactive")
     .option("-v, --verbose", "Enable verbose output", false)
     .option("--no-animations", "Disable animations")

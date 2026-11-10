@@ -99,38 +99,3 @@ def test_the_vite_build_stage_gets_the_generated_env_file(tmp_path):
     # Vite reads .env when the build starts, so the file has to be there before the build runs.
     build = next(index for index, line in enumerate(lines) if line.startswith("RUN bun run build"))
     assert lines.index(copy) < build
-
-
-def _stack_api_path(tmp_path: Path, backends: list[str], web: dict | None = None) -> str:
-    for name in backends:
-        # services/product/<stack>/<resource> is the registry's default scan root.
-        folder = tmp_path / "services" / "product" / "main" / name
-        folder.mkdir(parents=True)
-        (folder / "service.json").write_text(
-            json.dumps({"schemaVersion": 1, "appName": name, "name": name, "appType": "backend", "stack": "main", "port": 4000 + len(name)})
-        )
-    manifest = {"appType": "frontend", "stack": "main", "appName": "web", "name": "web", "_resource_path": "services/main/web"}
-    manifest.update(web or {})
-    result = _run(
-        tmp_path,
-        f"load('{RESOLVER_STAR}', 'resolve_frontend_api_path')\n"
-        + f"manifest = decode_json('{json.dumps(manifest)}')\n"
-        + "fail('RESULT' + encode_json({'path': resolve_frontend_api_path(manifest, '/api/main-management')}))\n",
-    )
-    return result["path"]
-
-
-@needs_tilt
-def test_a_frontend_without_a_backend_keeps_the_stack_route_of_a_one_backend_stack(tmp_path):
-    assert _stack_api_path(tmp_path, ["orders-api"]) == "/api/main-management"
-
-
-@needs_tilt
-def test_a_frontend_without_a_backend_gets_the_api_root_when_the_stack_route_is_gone(tmp_path):
-    # Two routable backends in one stack: the engine drops /api/main-management, and each backend answers at /api/<name>.
-    assert _stack_api_path(tmp_path, ["orders-api", "catalog-api"]) == "/api"
-
-
-@needs_tilt
-def test_a_frontend_with_its_own_backend_keeps_that_backend(tmp_path):
-    assert _stack_api_path(tmp_path, ["orders-api", "catalog-api"], {"backendName": "orders-api"}) == "/api/orders"

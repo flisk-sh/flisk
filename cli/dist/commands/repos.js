@@ -6,10 +6,11 @@ import { readProjectConfig } from "../generator/template-engine.js";
 import { requireProjectRoot } from "../utils/errors.js";
 import { createMachineEnvelope, toMachineError } from "../utils/machine-output.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
-export const reposCommand = new Command("repos").description("Manage external Git service repositories");
+export const reposCommand = new Command("repos").description("Clone the Git repositories listed in .flisk/project.json");
 reposCommand
     .command("clone")
     .description("Clone missing service repositories configured in .flisk/project.json")
+    .addHelpText("after", '\nEach entry of "repos" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md')
     .option("--json", "Output JSON result", false)
     .action(async (options) => {
     if (options.json) {

@@ -520,6 +520,7 @@ export function recoveryMessage(projectDir, steps, failedIndex, createdFolder = 
 }
 export const createCommand = addYesOption(new Command("create"))
     .description("Pick what you are building with a few key presses and get a project that runs")
+    .addHelpText("after", "\nExamples:\n  flisk create\n  flisk create my-app --yes --start\n  flisk create shop --frontend react --backend hono\n  flisk create api --runtime docker --extras worker,queue:nats\n  flisk create --dry-run")
     .argument("[name]", "Project folder to create (default: my-app)")
     .option("--starter <name>", "A ready-made starter project (see flisk project --list)")
     .option("--runtime <runtime>", "local (plain processes on your computer; default) or docker (Docker and Tilt)")

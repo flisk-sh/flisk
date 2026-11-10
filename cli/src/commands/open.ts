@@ -6,11 +6,13 @@ import { Command } from "commander";
 import { probeHostPort } from "../utils/doctor-runtime.js";
 import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
 import { readProjectName } from "../utils/shared-infra.js";
 import { startSpinner } from "../utils/spinner.js";
+import { buildServicePorts } from "../utils/status-ports.js";
 import { openUrl } from "../utils/url-actions.js";
 
 export interface FrontendTarget {
@@ -21,6 +23,14 @@ export interface FrontendTarget {
 /** The frontends of the current project, with the URL each one is published under. */
 export async function listFrontendTargets(projectRoot: string): Promise<FrontendTarget[]> {
   const { resources } = discoverResourcesWithProblems(projectRoot);
+  if (isNativeProject(resources)) {
+    return resources
+      .filter((resource) => resource.config?.appType === "frontend")
+      .flatMap((resource) => {
+        const { directUrl } = buildServicePorts(resource, undefined, { native: true });
+        return directUrl ? [{ name: resource.name, url: directUrl }] : [];
+      });
+  }
   const plan = await getHostPortPlan(projectRoot, { inspectDocker: false });
   const { appBase } = resolveSubdomainBases(plan?.ingressHttp, projectRoot);
   return resources
@@ -77,24 +87,36 @@ export async function findReadyFrontend(
 }
 
 /**
- * Opens the first ready frontend of the project in the browser. Returns the URL it opened, or
- * null when the project has no frontend.
+ * Opens the first ready frontend, or prints its URL when isPrintOnly is set. Returns the URL,
+ * or null when there is no ready frontend.
  */
-export async function openFirstFrontend(projectRootOverride?: string): Promise<string | null> {
+export async function openFirstFrontend(
+  projectRootOverride?: string,
+  options: { isPrintOnly?: boolean } = {},
+): Promise<string | null> {
+  const report = options.isPrintOnly ? console.error : console.log;
   const projectRoot = projectRootOverride ?? findProjectRoot();
   if (!projectRoot) {
-    console.log(chalk.yellow("Not in a Flisk project, so there is no frontend to open."));
-    console.log(chalk.gray("Run `flisk project --yes` first, or `flisk open` inside a project."));
+    report(chalk.yellow("Not in a Flisk project, so there is no frontend to open."));
+    report(chalk.gray("Run `flisk project --yes` first, or `flisk open` inside a project."));
     return null;
   }
 
   const targets = await listFrontendTargets(projectRoot);
   if (targets.length === 0) {
-    console.log(chalk.yellow("This project has no frontend service to open."));
-    console.log(
-      chalk.gray("Start the stack with `flisk up` and add a frontend with `flisk resource`."),
-    );
+    report(chalk.yellow("This project has no frontend service to open."));
+    report(chalk.gray("Start the stack with `flisk up` and add a frontend with `flisk resource`."));
     return null;
+  }
+
+  if (options.isPrintOnly) {
+    const first = await pickReadyFrontend(targets, 120000);
+    if (!first) {
+      console.error("No frontend answered yet. Start the stack with `flisk up` and try again.");
+      return null;
+    }
+    console.log(first.url);
+    return first.url;
   }
 
   const projectName = readProjectName(projectRoot);
@@ -155,7 +177,9 @@ export async function openFirstFrontend(projectRootOverride?: string): Promise<s
 }
 
 export const openCommand = new Command("open")
-  .description("Open the first frontend of the project in your browser")
-  .action(async () => {
-    await openFirstFrontend();
+  .description("Open the first ready frontend of the project in your browser")
+  .option("--print", "Print the first ready frontend URL without opening a browser")
+  .action(async (options: { print?: boolean }) => {
+    const url = await openFirstFrontend(undefined, { isPrintOnly: options.print });
+    if (options.print && url === null) process.exitCode = 1;
   });

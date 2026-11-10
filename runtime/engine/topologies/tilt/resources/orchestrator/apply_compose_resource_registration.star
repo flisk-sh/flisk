@@ -714,11 +714,15 @@ def _bun_backend_entry(config):
     return None
 
 
+# Files whose change only a fresh install fixes, for every language with live update (Go lists its own).
+_DEPENDENCY_FILES = ['package.json', 'bun.lock', 'bun.lockb', 'package-lock.json', 'pyproject.toml', 'uv.lock', 'requirements.txt']
+
+
 def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False, node_frontend=False, bun_backend_entry=None):
     """Build live update sync and run rules for a resource.
 
     Python backends reload their own process after a sync (uvicorn --reload), so they have
-    no Bun install step. A changed pyproject.toml is not synced, so Tilt rebuilds the image instead.
+    no Bun install step. A changed dependency file (package.json, a lockfile, pyproject.toml) rebuilds the image.
     Rust backends, and Go backends without `dev.liveReload`, have no live update (see the early return).
     """
     # Go and Rust are compiled into the image and have no reload process, so syncing sources would leave the
@@ -740,7 +744,10 @@ def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', la
             sync(source_dir.rstrip('/'), '/app/' + full_res_path),
         ]
 
-    live_update_rules = []
+    # A dependency change needs the image's install layer, which a sync cannot run: rebuild the image. Tilt matches these
+    # against local paths, so they are anchored at the project root like the syncs (a container path never matches).
+    source_dir = _live_update_sync_source(project_root, full_res_path, '')
+    live_update_rules = [fall_back_on([source_dir + name for name in _DEPENDENCY_FILES])]
     for sync_path in syncs:
         # Python and Node images never read the Bun registry config, and the engine does not
         # generate it for provider-owned languages, so there is nothing to sync.
@@ -759,10 +766,6 @@ def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', la
     if language == 'python' or language == 'node' or node_frontend:
         return live_update_rules
     
-    package_json_path = '/app/' + full_res_path + '/package.json'
-    bun_lock_path = '/app/' + full_res_path + '/bun.lock'
-    live_update_rules.append(run('cd /app/' + full_res_path + ' && bun install', 
-                                 trigger=[package_json_path, bun_lock_path]))
     if bun_backend_entry:
         # `bun build`, not the image's `tsc`: the runtime image has no dev dependencies. Packages stay external, as `tsc` leaves them.
         # A compile error writes nothing and stops before the restart, so the last good build keeps running.

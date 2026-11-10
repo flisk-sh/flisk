@@ -26,6 +26,14 @@ load(
 
 
 
+def router_port_suffix():
+    """`:<port>` for a URL the browser opens, empty on port 80. `flisk up` exports the port it picked for this project's Traefik."""
+    port = os.environ.get('FLISK_HTTP_PORT', '80')
+    if port == '' or port == '80':
+        return ''
+    return ':' + port
+
+
 def build_entrypoints(enable_http, enable_https):
     entrypoints = []
     if enable_http:
@@ -174,14 +182,6 @@ def get_api_path(stack, manifest=None):
         base=TRAEFIK_API_BASE_PATH,
         stack=stack,
     )
-
-
-def router_port_suffix():
-    """`:<port>` for a URL the browser opens, empty on port 80. `flisk up` exports the port it picked for this project's Traefik."""
-    port = os.environ.get('FLISK_HTTP_PORT', '80')
-    if port == '' or port == '80':
-        return ''
-    return ':' + port
 
 
 def cli_api_path(resource_name, manifest=None):

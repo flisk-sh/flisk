@@ -18,8 +18,10 @@ export declare function pickReadyFrontend(targets: FrontendTarget[], waitMs?: nu
  */
 export declare function findReadyFrontend(projectRoot: string, waitMs?: number, onWait?: (elapsedMs: number) => void): Promise<FrontendTarget | undefined>;
 /**
- * Opens the first ready frontend of the project in the browser. Returns the URL it opened, or
- * null when the project has no frontend.
+ * Opens the first ready frontend, or prints its URL when isPrintOnly is set. Returns the URL,
+ * or null when there is no ready frontend.
  */
-export declare function openFirstFrontend(projectRootOverride?: string): Promise<string | null>;
+export declare function openFirstFrontend(projectRootOverride?: string, options?: {
+    isPrintOnly?: boolean;
+}): Promise<string | null>;
 export declare const openCommand: Command;

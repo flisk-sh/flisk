@@ -17,7 +17,7 @@ const COMMAND_GROUPS = [
             },
             {
                 name: "project",
-                desc: "Initialize master configs (TILT_RESOURCE_DEFAULTS.star)",
+                desc: "Initialize or validate project-level configuration",
                 alias: "",
             },
             { name: "projects, info", desc: "Show project information and config status", alias: "" },
@@ -33,7 +33,7 @@ const COMMAND_GROUPS = [
             },
             {
                 name: "repos",
-                desc: "Manage declared Git service repositories",
+                desc: "Clone the Git repositories listed in .flisk/project.json",
                 alias: "clone",
             },
             {
@@ -55,7 +55,7 @@ const COMMAND_GROUPS = [
         title: "Resource Level",
         color: chalk.yellow,
         commands: [
-            { name: "resource", desc: "Create new resource with templates", alias: "" },
+            { name: "resource", desc: "Create a new resource, or register an existing one", alias: "" },
             { name: "resources", desc: "List all resources with filtering", alias: "--stack, --ports" },
             {
                 name: "agent",
@@ -69,14 +69,18 @@ const COMMAND_GROUPS = [
         color: chalk.green,
         commands: [
             { name: "up, deploy", desc: "Start services (optionally by stack)", alias: "[stack-name]" },
-            { name: "down", desc: "Stop all tilt resources", alias: "" },
+            {
+                name: "down",
+                desc: "Stop every running service of this project (local processes or Docker/Tilt)",
+                alias: "",
+            },
             { name: "restart", desc: "Restart a running resource in the stack", alias: "<resource>" },
             {
                 name: "run",
                 desc: "Run a one-off command with a service's stack environment",
                 alias: "<service> -- <command>",
             },
-            { name: "status", desc: "Show status of services and stacks", alias: "" },
+            { name: "status", desc: "Show status of resources and stacks", alias: "" },
             { name: "open", desc: "Open the first ready frontend in your browser", alias: "" },
             { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },
         ],
@@ -96,7 +100,11 @@ const COMMAND_GROUPS = [
         title: "Utilities",
         color: chalk.cyan,
         commands: [
-            { name: "ui, interactive", desc: "Interactive TUI for managing services", alias: "" },
+            {
+                name: "ui, interactive",
+                desc: "Terminal dashboard to watch and manage your stacks and services",
+                alias: "",
+            },
             {
                 name: "os",
                 desc: "Start FliskOS, the local desktop app for projects and agents",

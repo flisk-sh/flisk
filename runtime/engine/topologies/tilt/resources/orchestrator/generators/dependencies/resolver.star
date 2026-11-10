@@ -9,7 +9,6 @@
 
 load("../../../../../../../discovery/registry.star", "get_app_resources", "get_resource_by_name")
 load("../../../../../platform/docker/networking/traefik_helpers.star", "cli_api_path")
-load("../../../../../platform/docker/networking/traefik_helpers.star", "TRAEFIK_API_BASE_PATH")
 load("../../../../common/dependencies.star", "declared_dependencies")
 
 def _find_backend_resource(resource_name):
@@ -43,7 +42,8 @@ def _find_frontend_backend(manifest):
 
     for dep_name in declared_dependencies(manifest):
         dep = _find_backend_resource(dep_name)
-        if dep and dep.get("_manifest", {}).get("appType") in ["backend", "mcp", "agent"]:
+        # A service.json without appType is a backend: discovery defaults it the same way.
+        if dep and (dep.get("_manifest", {}).get("appType") or "backend") in ["backend", "mcp", "agent"]:
             return dep_name, dep.get("_manifest", {})
 
     return None, None
@@ -68,48 +68,6 @@ def resolve_backend_api_path(manifest):
     return cli_api_path(backend_name, backend_manifest)
 
 
-def _routable_backend_count(stack):
-    """How many resources of `stack` get a Traefik route: the rule `count_routable_backends_by_stack` applies when it registers them."""
-    # Without FLISK_PROJECT_ROOT the registry did not discover at load time, and discovering now would write to its frozen state.
-    if not os.environ.get("FLISK_PROJECT_ROOT", ""):
-        return 0
-    count = 0
-    for service in get_app_resources():
-        for resource in service.get("resources", []):
-            resource_manifest = resource.get("_manifest", {})
-            app_type = resource_manifest.get("appType") or resource.get("appType") or "backend"
-            if resource.get("frontend", False) or app_type in ["frontend", "worker", "migrator", "library", "sdk", "infra", "database"]:
-                continue
-            if app_type == "bring-your-own" and (not resource_manifest.get("exposeViaProxy", True) or resource_manifest.get("webUi") == True):
-                continue
-            if resource_manifest.get("stack", service.get("name")) == stack:
-                count += 1
-    return count
-
-
-def resolve_frontend_api_path(manifest, stack_api_path):
-    """The URL path a frontend's VITE_API_URL (and its env.ts / api-client.ts fallback) points at.
-
-    Its own backend's route when it has one (`backendName`, or the first API in `dependsOn`). A frontend with no backend of its
-    own keeps the stack route (`stack_api_path`), which serves the stack's one backend. A stack with two or more routable
-    backends has no such route (Traefik could not tell them apart, so the engine drops it), and the frontend then gets the API
-    root: every backend answers under it at `/<name>`, so `${VITE_API_URL}/orders/...` reaches orders-api.
-
-    Args:
-        manifest: Frontend service manifest
-        stack_api_path: The stack-scoped route, e.g. "/api/shop-management"
-
-    Returns:
-        str: API path for the browser, e.g. "/api/orders", "/api/shop-management" or "/api"
-    """
-    backend_api_path = resolve_backend_api_path(manifest)
-    if backend_api_path:
-        return backend_api_path
-    if _routable_backend_count(manifest.get("stack", "app")) > 1:
-        return TRAEFIK_API_BASE_PATH
-    return stack_api_path
-
-
 def resolve_dependency_api_path(dep_name):
     """Resolve the URL path of one dependency, or None when it is not a backend-side service.
 
@@ -121,7 +79,7 @@ def resolve_dependency_api_path(dep_name):
     if not dep:
         return None
     dep_manifest = dep.get("_manifest", {})
-    if dep_manifest.get("appType") not in ["backend", "mcp", "agent"]:
+    if (dep_manifest.get("appType") or "backend") not in ["backend", "mcp", "agent"]:
         return None
     return cli_api_path(dep_name, dep_manifest)
 
