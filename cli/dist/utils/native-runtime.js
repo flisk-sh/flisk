@@ -494,6 +494,10 @@ export function shellInvocation(command, platform = process.platform, comSpec = 
     }
     return { file: "/bin/sh", args: ["-c", command], windowsVerbatimArguments: false };
 }
+/** True while the process has neither exited nor been ended by a signal (Node leaves `exitCode` null in the second case). */
+function isChildRunning(child) {
+    return child !== undefined && child.exitCode === null && child.signalCode === null;
+}
 export class NativeSupervisor {
     projectRoot;
     events;
@@ -719,7 +723,7 @@ export class NativeSupervisor {
             return;
         this.spawn(service);
         void waitForServiceReady(service.plan, {
-            isAlive: () => !this.stopping && service.child?.exitCode === null,
+            isAlive: () => !this.stopping && isChildRunning(service.child),
             timeoutMs: this.options.readyTimeoutMs,
         }).then((isReady) => {
             if (!isReady || this.stopping)
@@ -730,11 +734,14 @@ export class NativeSupervisor {
             this.resumeDependents(service.plan.name);
         });
     }
-    /** The dependencies of this run that are not ready now (one that is restarting, or waiting itself). */
+    /**
+     * The dependencies of this run that are not ready now but may come back (restarting, or waiting themselves). One that gave up
+     * never comes back, so a dependent is not made to wait for it: it counts its crashes and gives up with a visible message.
+     */
     dependenciesDown(service) {
         return service.plan.dependsOn.filter((dep) => {
             const other = this.services.get(dep);
-            return other !== undefined && !other.isReady;
+            return other !== undefined && !other.isReady && !other.gaveUp;
         });
     }
     /**
@@ -749,7 +756,7 @@ export class NativeSupervisor {
                 continue;
             if (!service.waitingFor && !service.gaveUp)
                 continue;
-            if (service.restartTimer || service.child?.exitCode === null)
+            if (service.restartTimer || isChildRunning(service.child))
                 continue;
             if (this.dependenciesDown(service).length > 0)
                 continue;

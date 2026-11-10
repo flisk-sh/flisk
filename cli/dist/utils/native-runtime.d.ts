@@ -201,7 +201,10 @@ export declare class NativeSupervisor {
     private onExit;
     /** Starts a service again after it exited, and reports when it is ready again. */
     private respawn;
-    /** The dependencies of this run that are not ready now (one that is restarting, or waiting itself). */
+    /**
+     * The dependencies of this run that are not ready now but may come back (restarting, or waiting themselves). One that gave up
+     * never comes back, so a dependent is not made to wait for it: it counts its crashes and gives up with a visible message.
+     */
     private dependenciesDown;
     /**
      * `name` became ready again: start each dependent that exited while it was down, and give a fresh start to one that stopped
