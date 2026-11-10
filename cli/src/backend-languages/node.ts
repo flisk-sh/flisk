@@ -82,7 +82,12 @@ function handleCors(req, res) {
 export const server = http.createServer((req, res) => {
   if (handleCors(req, res)) return;
 
-  const url = new URL(req.url, \`http://\${req.headers.host || "localhost"}\`);
+  let url;
+  try {
+    url = new URL(req.url, "http://localhost");
+  } catch {
+    return sendJson(res, 400, { error: "Bad Request" });
+  }
 
   // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
   if (req.method === "GET" && url.pathname === "/health") {
