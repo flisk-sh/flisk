@@ -21,6 +21,16 @@
 
 ## What is Flisk?
 
+## Prerequisites (install once)
+
+Node.js 22.12+ (و Docker و Tilt اختياريان للتطبيقات الأكبر).
+
+## Installation
+
+```bash
+npm install -g @flisk-sh/flisk
+```
+
 Flisk is a command-line tool for local development. It runs every part of your app (API, website, workers, AI agents, database) on your computer with one command. Docker is optional: a small app runs as plain local processes, and a bigger one gets containers, one address in front of every part and live reload on Docker and Tilt. Have a `docker-compose.yml`? `flisk import` reads it. Otherwise describe each part in a small `service.json`; for the Docker path Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. An MCP server lets your AI agent run it too. It does not deploy: production stays with your own tools.
 
 Try it first. One command, nothing to install except Node.js 22.12+, and no Docker needed:
