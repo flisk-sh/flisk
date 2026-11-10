@@ -97,3 +97,22 @@ scripts/benchmark/flisk-up-warm-start.sh \
 `.github/workflows/benchmarks.yml` runs this benchmark on the restaurant example nightly on the latest `main`, after each release, and when it is started by hand from the Actions tab (manual runs measure but do not publish). The cases are in `tests/e2e/scale/benchmarks/` (`run.sh B1 B2 B3`). It builds the CLI from the tested commit, measures one cold and three warm starts on a GitHub-hosted runner, and publishes an HTML report with tabs for warm and cold starts, per-service build times, the committed history and the environment: <https://flisk-sh.github.io/flisk/>.
 
 The same page is built locally by `node scripts/benchmark/build-report.mjs --run <run dir> --out <dir>`; it needs no network access.
+
+## Flisk vs Docker Compose benchmark
+
+Times `flisk up` against plain `docker compose up` on three sample application stacks (demo, backend + Postgres, and an agent stack) under cold and warm conditions (#3297). Time is measured from command invocation until every service endpoint answers HTTP 200 OK.
+
+```bash
+node scripts/benchmark/compose-comparison.mjs --runs 3 --warmup 1
+```
+
+Options:
+- `--stacks <list>`: comma-separated list of stacks to test (`demo`, `backend-postgres`, `agent-stack`).
+- `--runs <count>`: measured trials per tool and condition (default 3).
+- `--warmup <count>`: warmup trials per tool and condition (default 1).
+- `--timeout-ms <ms>`: per-run readiness timeout (default 60000).
+- `--output <path>`: JSON file output path.
+- `--json`: emit JSON results to stdout.
+
+Published baseline numbers and findings are documented in [docs/benchmarks/compose-comparison.md](../../docs/benchmarks/compose-comparison.md).
+
