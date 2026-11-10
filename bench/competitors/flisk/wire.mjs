@@ -24,7 +24,7 @@ edit("payments", (j) => {
 });
 edit("orders", (j) => {
 	j.dependsOn = ["migrator", "queue", "catalog", "payments"];
-	j.env = { CATALOG_URL: url("catalog"), PAYMENTS_URL: url("payments") };
+	j.params = { CATALOG_URL: url("catalog"), PAYMENTS_URL: url("payments") };
 });
 edit("notifications", (j) => {
 	j.dependsOn = ["migrator", "queue"];
@@ -32,7 +32,7 @@ edit("notifications", (j) => {
 });
 edit("fulfilment", (j) => {
 	j.dependsOn = ["queue", "orders"];
-	j.env = { ORDERS_URL: url("orders"), SHIP_DELAY_MS: "5000" };
+	j.params = { ORDERS_URL: url("orders"), SHIP_DELAY_MS: "5000" };
 });
 edit("storefront", (j) => {
 	j.dependsOn = ["catalog", "orders"];
