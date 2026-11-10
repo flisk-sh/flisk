@@ -1322,6 +1322,10 @@ def _register_dc_resources(resource_configs, resource_path, compose_project_name
         _register_single_resource(config, resource_path, compose_project_name, auto_init_apps)
 
 
+# Exported for tests (a Starlark module cannot load an underscore name).
+register_dc_resources = _register_dc_resources
+
+
 # appTypes whose containers get DATABASE_URL and therefore need their logical database provisioned. Bring-your-own
 # containers receive DATABASE_URL too (docs/byo.md), so without provisioning they point at a database that never exists.
 # A migrator's whole job is that database.
