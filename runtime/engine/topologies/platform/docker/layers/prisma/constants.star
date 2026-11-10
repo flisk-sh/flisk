@@ -59,6 +59,8 @@ MIGRATE_SH_FILE = "migrate.sh"
 MIGRATE_SH_ABS_PATH = APP_DIR + "/" + MIGRATE_SH_FILE
 
 L3_MIGRATION_BUILD_STAGE = "l3_migration_build"
+# Where l3_production_purger keeps the pinned Prisma CLI package for the backend runtime image.
+PRISMA_CLI_STASH_DIR = "/tmp/prisma-cli"
 
 ROOT_USER = "root"
 BUN_USER = RUNTIME

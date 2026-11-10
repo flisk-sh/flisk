@@ -45,11 +45,9 @@ def L4_generate_orchestrator(res_path, res_type = 'backend', resource_name = 'se
         parts.append(L3_generate_frontend_builder(res_path, build_cmd, use_infisical, use_shared_libs, use_golden=use_golden))
     else:
         parts.append(L3_generate_backend_compiler(res_path, build_cmd, use_prisma, use_shared_libs, use_infisical, use_golden=use_golden, has_prisma_config=prisma_config_exists))
-        # Backend runtime needs production-purged deps. Prisma migration stage
-        # is only required when Prisma is enabled for this resource.
-        if use_prisma:
-            parts.append(L3_generate_migration_engine(res_path, use_golden=use_golden))
-        parts.append(L3_generate_production_purger(res_path))
+        # Backend runtime needs production-purged deps. The pinned Prisma CLI comes from that same
+        # install (pin_prisma_cli), not from a migration stage with installs of its own (flisk#3710).
+        parts.append(L3_generate_production_purger(res_path, pin_prisma_cli=use_prisma))
 
     if res_type == 'frontend':
         parts.append(L4_generate_frontend_runtime(res_path, target_path, use_nginx, use_golden=use_golden, port=port))
