@@ -8,5 +8,6 @@ it("shows examples in mcp help", () => {
   mcpCommand.configureOutput({ writeOut: (text) => (help += text) });
   mcpCommand.outputHelp();
   expect(help).toContain("Examples:");
-  expect(help).toContain("flisk mcp");
+  expect(help).toContain('{ "command": "flisk", "args": ["mcp"] }');
+  expect(help).toContain("flisk mcp check tools");
 });

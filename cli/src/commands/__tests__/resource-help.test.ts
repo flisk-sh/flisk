@@ -8,5 +8,6 @@ it("shows examples in resource help", () => {
   resourceCommand.configureOutput({ writeOut: (text) => (help += text) });
   resourceCommand.outputHelp();
   expect(help).toContain("Examples:");
-  expect(help).toContain("flisk resource api");
+  expect(help).toContain("flisk resource api --language python");
+  expect(help).toContain("flisk resource jobs --type worker");
 });

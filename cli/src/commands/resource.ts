@@ -886,7 +886,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk resource api\n  flisk resource worker --language python\n  flisk resource api --dry-run",
+    "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker\n  flisk resource api --dry-run",
   )
   .action(async (name, options, command: Command) => {
     // The frontend listing is the historical default; `--type` selects the listing when it is given.
