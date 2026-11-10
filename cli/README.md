@@ -109,6 +109,8 @@ For non-interactive assignment of unassigned resources, pass the stack name and 
 
 Create and manage individual services:
 
+Queues and inference services are saved as `bring-your-own` resources. To list them, use `flisk resources --type bring-your-own`. Passing `--type queue` or `--type inference` to `flisk resources` reports this filter in the error message.
+
 ```bash
 # 📋 List all resources
 flisk resources

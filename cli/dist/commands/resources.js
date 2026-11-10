@@ -31,7 +31,9 @@ export const resourcesCommand = new Command("resources")
         }
         if (options.type !== undefined && !includes(VALID_RESOURCE_TYPES, options.type)) {
             throw new FliskError(`Invalid resource type "${options.type}"`, [
-                `Valid types: ${VALID_RESOURCE_TYPES.join(", ")}`,
+                options.type === "queue" || options.type === "inference"
+                    ? `Resources created with --type ${options.type} are saved as bring-your-own resources: flisk resources --type bring-your-own`
+                    : `Valid types: ${VALID_RESOURCE_TYPES.join(", ")}`,
             ]);
         }
         const discovery = createDiscoveryContext();
