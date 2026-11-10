@@ -26,6 +26,9 @@ vi.mock("../../utils/project-repos.js", () => ({
 describe("repos command", () => {
   it("defines repos and clone sub-command", () => {
     expect(reposCommand.name()).toBe("repos");
+    expect(reposCommand.description()).toBe(
+      "Clone the Git repositories listed in .flisk/project.json",
+    );
     const clone = reposCommand.commands.find((c) => c.name() === "clone");
     expect(clone).toBeDefined();
     expect(clone?.options.some((o) => o.long === "--json")).toBe(true);

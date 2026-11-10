@@ -6,7 +6,7 @@ import { readProjectConfig } from "../generator/template-engine.js";
 import { requireProjectRoot } from "../utils/errors.js";
 import { createMachineEnvelope, toMachineError } from "../utils/machine-output.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
-export const reposCommand = new Command("repos").description("Manage external Git service repositories");
+export const reposCommand = new Command("repos").description("Clone the Git repositories listed in .flisk/project.json");
 reposCommand
     .command("clone")
     .description("Clone missing service repositories configured in .flisk/project.json")

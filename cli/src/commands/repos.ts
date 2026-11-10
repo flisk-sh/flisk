@@ -8,7 +8,7 @@ import { createMachineEnvelope, toMachineError } from "../utils/machine-output.j
 import { cloneMissingRepos } from "../utils/project-repos.js";
 
 export const reposCommand = new Command("repos").description(
-  "Manage external Git service repositories",
+  "Clone the Git repositories listed in .flisk/project.json",
 );
 
 reposCommand
