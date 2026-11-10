@@ -9,8 +9,6 @@ dependencies = [
     "celery[redis]>=5.4.0",
     "redis>=6.1.0",
     "packaging>=24.0",
-    "anyio>=4.4.0",
-    "certifi>=2024.7.4",
 ]
 
 [project.optional-dependencies]
