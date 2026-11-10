@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
+import { RESOURCE_CONFIG_APP_TYPES } from "../types/index.js";
 import { parseHostMapping, publishVariables, substitutePublish } from "./extra-port-publish.js";
 import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { isGenerateName, parseGenerateSpec } from "./generated-secrets.js";
@@ -228,8 +229,8 @@ export function dockerNameErrors(manifest, displayPath) {
  * ignored: the Tiltfile calls `.get` on an object field or `+` on a string field and stops with a Starlark error
  * ("string has no .get field or method"), after `flisk up` has already said yes. `null` reads as unset, as it does there.
  * Only fields whose shape is unambiguous are listed: `syncs`, `secrets`, `playwright`, `runtime` and `dev` are written in forms the
- * published schema does not describe, so they stay as they are. Fields checked elsewhere (appName, appType, stack, port,
- * schemaVersion, dependsOn, smoke, healthCheckPath, the command-service fields) are not repeated.
+ * published schema does not describe, so they stay as they are. Fields checked in validateServiceManifest (appName, appType,
+ * stack, port, schemaVersion, dependsOn, smoke, healthCheckPath, the command-service fields) are not repeated.
  */
 const FIELD_KINDS = {
     apiBasePath: "string",
@@ -1525,6 +1526,33 @@ function liveReloadApplies(manifest) {
         return true;
     return language === "bun" && BUN_LIVE_RELOAD_APP_TYPES.has(String(manifest.appType ?? "backend"));
 }
+const PORT_MIN = 1;
+const PORT_MAX = 65535;
+/**
+ * An appType outside the published enum, or a port that is not an integer from 1 to 65535. Tilt discovery only logs these as
+ * warnings during `flisk up` (runtime/discovery/validation.star), so `flisk config verify` reports them first. The schema's
+ * per-appType port ranges are not applied here: discovery uses different ranges, so the shared bound is the one both accept.
+ */
+/** A value short and plain enough to echo in an error (a line break in it could forge a second line, see lineBreakErrors). */
+function echoValue(value) {
+    const text = JSON.stringify(value);
+    return text !== undefined && /^[\w".:+-]{1,40}$/.test(text) ? ` ${text}` : "";
+}
+export function appTypeAndPortErrors(manifest, displayPath) {
+    const errors = [];
+    const appType = manifest.appType;
+    if (typeof appType === "string" &&
+        !RESOURCE_CONFIG_APP_TYPES.includes(appType)) {
+        errors.push(`${displayPath}.appType: unknown type${echoValue(appType)}; expected one of ${RESOURCE_CONFIG_APP_TYPES.join(", ")}`);
+    }
+    const port = manifest.port;
+    if (port !== undefined &&
+        port !== null &&
+        !(typeof port === "number" && Number.isInteger(port) && port >= PORT_MIN && port <= PORT_MAX)) {
+        errors.push(`${displayPath}.port: expected an integer from ${PORT_MIN} to ${PORT_MAX}${echoValue(port) ? `, got${echoValue(port)}` : ""}`);
+    }
+    return errors;
+}
 export function validateServiceManifest(value, displayPath) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
         return { errors: [`${displayPath}: expected a JSON object`], warnings: [] };
@@ -1545,6 +1573,7 @@ export function validateServiceManifest(value, displayPath) {
             errors.push(`${displayPath}.${field}: expected a string`);
         }
     }
+    errors.push(...appTypeAndPortErrors(manifest, displayPath));
     if ("schemaVersion" in manifest && manifest.schemaVersion !== SERVICE_MANIFEST_SCHEMA_VERSION) {
         errors.push(`${displayPath}.schemaVersion: unsupported version ${String(manifest.schemaVersion)} (supported: ${SERVICE_MANIFEST_SCHEMA_VERSION})`);
     }

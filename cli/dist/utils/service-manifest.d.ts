@@ -154,6 +154,7 @@ export declare function healthCheckPathOf(manifest?: HealthCheckSource, fallback
 export declare function parseHealthCheckConfig(manifest?: HealthCheckSource, options?: {
     defaultPath?: string;
 }): ParsedHealthCheckConfig;
+export declare function appTypeAndPortErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function validateServiceManifest(value: unknown, displayPath: string): ServiceManifestValidation;
 /**
  * Generated-output errors for one service.json. A file that cannot be read or parsed returns none here, because

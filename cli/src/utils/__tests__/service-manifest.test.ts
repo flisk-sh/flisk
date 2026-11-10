@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { substitutePublish } from "../extra-port-publish.js";
 import {
+  appTypeAndPortErrors,
   buildArgsErrors,
   byoEnvErrors,
   configsErrors,
@@ -42,6 +43,103 @@ function manifestBase(): Record<string, unknown> {
     schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
   };
 }
+
+describe("appTypeAndPortErrors", () => {
+  it("reports an unknown appType and a string port together (the file `flisk config verify` used to pass)", () => {
+    const result = validateServiceManifest(
+      { schemaVersion: 1, appName: "billing-api", appType: "api", stack: "shop", port: "4300" },
+      "services/billing-api/service.json",
+    );
+    expect(result.errors).toEqual([
+      'services/billing-api/service.json.appType: unknown type "api"; expected one of backend, frontend, library, sdk, worker, migrator, mcp, agent, database, bring-your-own',
+      'services/billing-api/service.json.port: expected an integer from 1 to 65535, got "4300"',
+    ]);
+  });
+
+  it.each([
+    "backend",
+    "frontend",
+    "library",
+    "sdk",
+    "worker",
+    "migrator",
+    "mcp",
+    "agent",
+    "database",
+    "bring-your-own",
+  ])("accepts appType %s", (appType) => {
+    expect(appTypeAndPortErrors({ ...manifestBase(), appType }, "service.json")).toEqual([]);
+  });
+
+  it.each(["api", "infra", "Backend", ""])("rejects appType %j", (appType) => {
+    expect(appTypeAndPortErrors({ ...manifestBase(), appType }, "service.json")).toEqual([
+      expect.stringMatching(/^service\.json\.appType: unknown type/),
+    ]);
+  });
+
+  it("leaves a missing or non-string appType to the required and string checks", () => {
+    const { appType: _omit, ...withoutType } = manifestBase();
+    expect(appTypeAndPortErrors(withoutType, "service.json")).toEqual([]);
+    expect(appTypeAndPortErrors({ ...manifestBase(), appType: 3 }, "service.json")).toEqual([]);
+    expect(
+      validateServiceManifest({ ...manifestBase(), appType: 3 }, "service.json").errors,
+    ).toEqual(["service.json.appType: expected a string"]);
+  });
+
+  it.each([1, 80, 4300, 5432, 65535])("accepts port %d", (port) => {
+    expect(appTypeAndPortErrors({ ...manifestBase(), port }, "service.json")).toEqual([]);
+  });
+
+  it("accepts a missing or null port", () => {
+    expect(appTypeAndPortErrors(manifestBase(), "service.json")).toEqual([]);
+    expect(appTypeAndPortErrors({ ...manifestBase(), port: null }, "service.json")).toEqual([]);
+  });
+
+  it.each([
+    ["4300", ', got "4300"'],
+    [0, ", got 0"],
+    [-1, ", got -1"],
+    [65536, ", got 65536"],
+    [4300.5, ", got 4300.5"],
+    [true, ", got true"],
+    [[4300], ""],
+    [{ port: 4300 }, ""],
+  ])("rejects port %j", (port, got) => {
+    expect(appTypeAndPortErrors({ ...manifestBase(), port }, "service.json")).toEqual([
+      `service.json.port: expected an integer from 1 to 65535${got}`,
+    ]);
+  });
+
+  it("does not echo a value that holds a line break", () => {
+    const errors = appTypeAndPortErrors(
+      {
+        ...manifestBase(),
+        appType: "api\n    privileged: true",
+        port: "4000\n    privileged: true",
+      },
+      "service.json",
+    );
+    expect(errors).toHaveLength(2);
+    for (const error of errors) expect(error).not.toContain("privileged");
+  });
+
+  it("checks command services too", () => {
+    const result = validateServiceManifest(
+      {
+        schemaVersion: 1,
+        appName: "api",
+        appType: "service",
+        command: "node server.js",
+        port: "4000",
+      },
+      "service.json",
+    );
+    expect(result.errors).toEqual([
+      expect.stringMatching(/^service\.json\.appType: unknown type "service"/),
+      'service.json.port: expected an integer from 1 to 65535, got "4000"',
+    ]);
+  });
+});
 
 describe("service manifest compatibility", () => {
   it("rejects non-object, null, and array manifests", () => {
@@ -224,7 +322,6 @@ describe("service manifest compatibility", () => {
       { featuresEnabled: [] },
       { restart: "always" },
       { appType: "bring-your-own" },
-      { appType: "api" },
       { restart: "sometimes" },
     ])("accepts %j", (extra) => {
       expect(errorsFor(extra)).toEqual([]);

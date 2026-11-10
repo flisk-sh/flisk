@@ -405,7 +405,7 @@ describe("config migrate", () => {
   it("adds appType from the legacy type field and stamps schemaVersion", async () => {
     const root = createTempProject({
       projectJson: projectJson(),
-      resources: { "shop/api": { type: "api", stack: "core", extra: true } },
+      resources: { "shop/api": { type: "backend", stack: "core", extra: true } },
     });
 
     const result = await runCommandInProcess(configCommand, ["migrate"], root);
@@ -418,7 +418,7 @@ describe("config migrate", () => {
       unknown
     >;
     expect(migrated).toMatchObject({
-      appType: "api",
+      appType: "backend",
       schemaVersion: 1,
       extra: true,
     });
@@ -437,6 +437,20 @@ describe("config migrate", () => {
 
     expect(result.status).toBeUndefined();
     expect(result.stdout).toContain("Migrated 0 service.json files");
+    expect(fs.readFileSync(serviceFile(root, "shop/api"))).toEqual(before);
+  });
+
+  it("refuses a legacy type that is not an appType and writes nothing", async () => {
+    const root = createTempProject({
+      projectJson: projectJson(),
+      resources: { "shop/api": { type: "api", stack: "core", port: 4300 } },
+    });
+    const before = fs.readFileSync(serviceFile(root, "shop/api"));
+
+    const result = await runCommandInProcess(configCommand, ["migrate"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('.appType: unknown type "api"; expected one of backend,');
     expect(fs.readFileSync(serviceFile(root, "shop/api"))).toEqual(before);
   });
 
