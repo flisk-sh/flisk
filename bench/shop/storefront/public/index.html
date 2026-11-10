@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bench Shop</title>
+<style>body{font:16px system-ui;max-width:640px;margin:2rem auto;padding:0 1rem}li{margin:.5rem 0}.s{font-weight:600}</style></head><body>
+<h1>Bench Shop</h1><p><a href="/admin/">Admin</a></p>
+<label>Your name <input id="c" value="visitor"></label>
+<ul id="p">loading…</ul><h2>Your orders</h2><ul id="o"></ul>
+<script>
+const mine=JSON.parse(localStorage.getItem('orders')||'[]');
+const money=c=>'$'+(c/100).toFixed(2);
+fetch('/api/products').then(r=>r.json()).then(ps=>{
+ p.innerHTML='';ps.forEach(x=>{const li=document.createElement('li');
+  li.innerHTML=`<b>${x.name}</b> — ${money(x.price_cents)} <button>Order</button><br><small>${x.description}</small>`;
+  li.querySelector('button').onclick=async()=>{
+   const r=await fetch('/api/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({productId:x.id,quantity:1,customer:c.value})});
+   const o=await r.json(); if(!r.ok) return alert(o.error);
+   mine.unshift(o.id);localStorage.setItem('orders',JSON.stringify(mine));render();};
+  p.appendChild(li);});});
+async function render(){
+ const rows=await Promise.all(mine.map(id=>fetch('/api/orders/'+id).then(r=>r.json())));
+ o.innerHTML=rows.map(x=>`<li>${x.product_name} x${x.quantity} — <span class="s">${x.status}</span> <small>${x.id}</small></li>`).join('');}
+render();setInterval(render,1500);
+</script></body></html>

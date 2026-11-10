@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bench Admin</title>
+<style>body{font:14px system-ui;margin:1.5rem}table{border-collapse:collapse;margin-bottom:1.5rem}td,th{border:1px solid #ccc;padding:.25rem .5rem;text-align:left}</style></head><body>
+<h1>Admin</h1><p><a href="/">Storefront</a></p>
+<h2>Orders</h2><div id="orders"></div><h2>Payments</h2><div id="payments"></div><h2>Notifications</h2><div id="notifications"></div>
+<script>
+const cols={orders:['id','product_name','quantity','amount_cents','customer','status','updated_at'],payments:['id','order_id','amount_cents','status','created_at'],notifications:['id','order_id','message','created_at']};
+async function load(k){const rows=await fetch('/api/'+k).then(r=>r.json());
+ document.getElementById(k).innerHTML=`<table><tr>${cols[k].map(c=>`<th>${c}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols[k].map(c=>`<td>${r[c]}</td>`).join('')}</tr>`).join('')}</table>`;}
+function all(){Object.keys(cols).forEach(load)}all();setInterval(all,2000);
+</script></body></html>

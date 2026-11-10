@@ -1,0 +1,111 @@
+# Scripted benchmark of the 10-part shop, one folder per tool under bench/competitors/. No LLM agent: it starts the shop
+# with each tool, places an order, stops, restarts and reads the wiring from the files (scripts/bench/run.mjs, bench/README.md).
+# The agent-driven bench (docs/benchmarks/agent-build-bench-2026-11-10.md) stays a manual job.
+#
+# INFORMATIONAL, not a gate: a Linux runner is not the Colima Mac the agent bench numbers came from, and there are no repeat
+# runs yet. Nothing here is a required check. Results: the job summary, one pull request comment (updated in place), and an
+# artifact. The weekly run keeps the trend as artifacts; to keep one in the repo, download it into docs/benchmarks/results/
+# (CI never pushes).
+name: 📊 CI | Shop benchmark
+
+on:
+  pull_request:
+    paths:
+      - "runtime/**"
+      - "cli/src/commands/up*"
+      - "bench/**"
+      - "scripts/bench/**"
+      - ".github/workflows/shop-bench.yml"
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Comma separated competitor ids (empty: all)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shop-bench${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.pull_request.number) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  measure:
+    name: ⏱️ Shop benchmark (informational)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Build the CLI from this commit
+        run: |
+          bun install --frozen-lockfile
+          (cd cli && npm run build)
+          chmod +x cli/bin/flisk.js
+      - name: Install Tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Machine
+        run: |
+          echo "cpus: $(nproc)"; free -h; df -h / | tail -1
+          docker version --format 'docker {{.Server.Version}}'; docker compose version; tilt version | head -1
+      - name: Measure every competitor
+        env:
+          FLISK_CMD: node ${{ github.workspace }}/cli/bin/flisk.js
+          ONLY: ${{ inputs.only }}
+        run: |
+          args=()
+          [ -n "${ONLY:-}" ] && args+=(--only "$ONLY")
+          node scripts/bench/run.mjs "${args[@]}" --out "$RUNNER_TEMP/shop-bench" --work "$RUNNER_TEMP/shop-bench-work" >/dev/null
+      - name: Job summary
+        if: always()
+        run: |
+          [ -f "$RUNNER_TEMP/shop-bench/report.md" ] && cat "$RUNNER_TEMP/shop-bench/report.md" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: shop-bench-${{ github.run_id }}
+          path: ${{ runner.temp }}/shop-bench
+          retention-days: 400
+          if-no-files-found: warn
+      - name: Stop anything left running
+        if: always()
+        run: |
+          for d in "$RUNNER_TEMP"/shop-bench-work/*/; do (cd "$d" && docker compose down -v --remove-orphans 2>/dev/null) || true; done
+          exit 0
+
+  comment:
+    name: 💬 Pull request comment
+    needs: measure
+    if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: shop-bench-${{ github.run_id }}
+          path: report
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 3
+          script: |
+            const fs = require("node:fs");
+            const marker = "<!-- shop-bench -->";
+            const body = `${marker}\n${fs.readFileSync("report/report.md", "utf8")}\n[Run ${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const mine = comments.find((c) => c.body?.startsWith(marker));
+            if (mine) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });

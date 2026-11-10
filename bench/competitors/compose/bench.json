@@ -1,0 +1,21 @@
+{
+  "id": "compose",
+  "name": "Docker Compose",
+  "tool": { "name": "docker compose", "version": "docker compose version --short" },
+  "requires": ["docker"],
+  "start": "docker compose up -d --build",
+  "stop": "docker compose down --remove-orphans",
+  "purge": "docker compose down -v --remove-orphans --rmi local",
+  "clean": "docker compose down -v --remove-orphans",
+  "base": "http://localhost:${BENCH_PORT}",
+  "health": [
+    "http://localhost:${BENCH_PORT}/health",
+    "http://localhost:${BENCH_PORT}/health/storefront",
+    "http://localhost:${BENCH_PORT}/health/admin",
+    "http://localhost:${BENCH_PORT}/api/products/health",
+    "http://localhost:${BENCH_PORT}/api/orders/health",
+    "http://localhost:${BENCH_PORT}/api/payments/health",
+    "http://localhost:${BENCH_PORT}/api/notifications/health"
+  ],
+  "wiring": { "configFiles": ["compose.yaml"] }
+}

@@ -1,0 +1,79 @@
+# The Compose file Tilt runs; Tilt builds the images (see Tiltfile).
+name: ${BENCH_PROJECT:-flisk-bench-tilt}
+
+x-db: &db
+  DATABASE_URL: postgres://shop:shop@postgres:5432/shop
+x-queue: &queue
+  REDIS_URL: redis://queue:6379
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: shop, POSTGRES_PASSWORD: shop, POSTGRES_DB: shop }
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U shop -d shop"], interval: 2s, timeout: 3s, retries: 30 }
+
+  queue:
+    image: redis:7-alpine
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 2s, timeout: 3s, retries: 30 }
+
+  migrator:
+    image: ${BENCH_PROJECT}-migrator
+    restart: "no"
+    environment: *db
+    depends_on: { postgres: { condition: service_healthy } }
+
+  catalog:
+    image: ${BENCH_PROJECT}-catalog
+    environment: *db
+    depends_on: { migrator: { condition: service_completed_successfully } }
+
+  payments:
+    image: ${BENCH_PROJECT}-payments
+    environment: *db
+    depends_on: { migrator: { condition: service_completed_successfully } }
+
+  orders:
+    image: ${BENCH_PROJECT}-orders
+    environment:
+      <<: [*db, *queue]
+      CATALOG_URL: http://catalog:3000
+      PAYMENTS_URL: http://payments:3000
+    depends_on:
+      migrator: { condition: service_completed_successfully }
+      queue: { condition: service_healthy }
+      catalog: { condition: service_started }
+      payments: { condition: service_started }
+
+  notifications:
+    image: ${BENCH_PROJECT}-notifications
+    environment:
+      <<: [*db, *queue]
+    depends_on:
+      migrator: { condition: service_completed_successfully }
+      queue: { condition: service_healthy }
+
+  fulfilment:
+    image: ${BENCH_PROJECT}-fulfilment
+    environment:
+      <<: *queue
+      ORDERS_URL: http://orders:3000
+      SHIP_DELAY_MS: "5000"
+    depends_on:
+      queue: { condition: service_healthy }
+      orders: { condition: service_started }
+
+  storefront:
+    image: ${BENCH_PROJECT}-storefront
+
+  admin:
+    image: ${BENCH_PROJECT}-admin
+    environment: { BASE_PATH: /admin }
+
+  gateway:
+    image: ${BENCH_PROJECT}-gateway
+    ports: ["${BENCH_PORT:-18700}:80"]
+    depends_on: [storefront, admin, catalog, orders, payments, notifications]
+
+volumes:
+  pgdata:

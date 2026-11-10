@@ -1,0 +1,12 @@
+# The 10-part shop under plain Tilt: Tilt builds the images and runs the Compose file. App code is bench/shop.
+shop = os.getenv('BENCH_SHOP')
+project = os.getenv('BENCH_PROJECT', 'flisk-bench-tilt')
+
+docker_compose('docker-compose.yml', project_name=project)
+
+docker_build(project + '-migrator', shop + '/db')
+for s in ['catalog', 'orders', 'payments', 'notifications', 'fulfilment', 'storefront', 'admin', 'gateway']:
+    docker_build(project + '-' + s, shop + '/' + s)
+
+dc_resource('migrator', labels=['db'])
+dc_resource('gateway', labels=['edge'])
