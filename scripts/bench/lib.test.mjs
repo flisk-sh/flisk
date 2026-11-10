@@ -53,9 +53,8 @@ test("validateContract names every missing field", () => {
 
 test("scanWiring counts hardcoded web ports, secret literals and config lines", () => {
   const bench = tmp();
-  // nosemgrep: javascript.lang.security.audit.unknown-value-with-script-tag.unknown-value-with-script-tag -- fixture text written to a temp file, never rendered
   write(
-    bench,
+    bench, // nosemgrep: javascript.lang.security.audit.unknown-value-with-script-tag.unknown-value-with-script-tag -- fixture text written to a temp file, never rendered
     "shop/storefront/public/index.html",
     "<script>fetch('http://localhost:4000/api')</script>",
   );

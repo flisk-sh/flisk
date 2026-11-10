@@ -161,6 +161,18 @@ jobs:
           pipx run semgrep==1.180.0 scan \
             --config p/default --config p/typescript --config p/dockerfile --config p/github-actions \
             --metrics=off --sarif --output semgrep.sarif || true
+      # Semgrep keeps `# nosemgrep` findings in the SARIF with an inSource suppression, and Code scanning still opens an
+      # alert for each. Drop them here so a reviewed in-source suppression closes the alert.
+      - name: Drop findings suppressed in source
+        if: hashFiles('semgrep.sarif') != ''
+        run: |
+          python3 - <<'PY'
+          import json
+          d = json.load(open("semgrep.sarif"))
+          for run in d.get("runs", []):
+              run["results"] = [r for r in run.get("results", []) if not r.get("suppressions")]
+          json.dump(d, open("semgrep.sarif", "w"))
+          PY
       - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
