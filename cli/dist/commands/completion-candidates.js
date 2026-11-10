@@ -1,7 +1,7 @@
 import { BACKEND_FRAMEWORKS } from "../backend-frameworks/registry.js";
 import { BACKEND_LANGUAGES } from "../backend-languages/registry.js";
 import { FRONTEND_FRAMEWORKS } from "../frontend-frameworks/registry.js";
-import { DATABASE_FRAMEWORKS, QUEUE_FRAMEWORKS, RESOURCE_TYPE_VALUES } from "../types/index.js";
+import { DATABASE_FRAMEWORKS, QUEUE_FRAMEWORKS, RESOURCE_CREATE_TYPE_VALUES, } from "../types/index.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 /**
  * The positional argument of a command, keyed by the command path (`"agent sessions"`). Only the
@@ -18,8 +18,8 @@ const POSITIONALS = {
 /**
  * The values of a flag, for the commands that accept another set than the default.
  *
- * `flisk resource` creates a resource and accepts the creatable types plus `sdk`
- * (`RESOURCE_TYPE_VALUES`), while `flisk resources` filters the resources of the project and accepts
+ * `flisk resource` creates a resource and accepts `RESOURCE_CREATE_TYPE_VALUES` plus `sdk`,
+ * while `flisk resources` filters the resources of the project and accepts
  * every type a resource can have (`VALID_RESOURCE_TYPES`), which also holds `library` and
  * `migrator`. The completion offers exactly what the command accepts, so it never suggests a type
  * the command rejects.
@@ -111,7 +111,7 @@ export function buildCompletionCandidates(program) {
         ],
         globalOptions: [...toOptions(program.options), ...(helpOption ? toOptions([helpOption]) : [])],
         values: {
-            "--type": [...RESOURCE_TYPE_VALUES],
+            "--type": [...RESOURCE_CREATE_TYPE_VALUES, "sdk"],
         },
         typeValues: TYPE_VALUES,
     };
