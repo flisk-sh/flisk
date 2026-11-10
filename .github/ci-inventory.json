@@ -540,6 +540,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "discord-release-post.yml",
+			"job": "post",
+			"tier": "release",
+			"required": false,
+			"reason": "Posts one released version in the Discord releases channel, run by hand",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "release-binaries.yml",
 			"job": "changes",
 			"tier": "release",

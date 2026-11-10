@@ -1,0 +1,32 @@
+name: Discord | Post a release
+
+# Posts one released version in the Discord releases channel. release-binaries.yml does this on every release;
+# run this by hand to post a version that step missed. A version already in the channel is skipped.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Released version, for example 1.4.47
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+      - name: Post the release in the Discord releases channel
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_RELEASES_CHANNEL_ID: "1569404328081358938"
+        run: node scripts/post-discord-release.mjs

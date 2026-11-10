@@ -30,6 +30,26 @@ export function buildMessage(version, bullets) {
   return content;
 }
 
+// Bullets from a GitHub release body's "Pull requests" list, for releases whose changelog entry is not written yet.
+export function releaseNoteBullets(body) {
+  const lines = (body ?? "").split("\n");
+  const start = lines.findIndex((line) => /^##\s+Pull requests/i.test(line));
+  if (start === -1) return [];
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => line.startsWith("## "));
+  return (end === -1 ? rest : rest.slice(0, end))
+    .filter((line) => line.startsWith("- "))
+    .map((line) =>
+      line
+        .slice(2)
+        .replace(/:\s*\[#\d+\]\([^)]*\).*$/, "")
+        .replace(/^\w+(\([^)]*\))?!?:\s*/, "")
+        .replace(/`/g, "")
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
 export async function run({
   version,
   changelog,
@@ -39,7 +59,17 @@ export async function run({
   log = console.log,
 }) {
   if (!token || !channelId) return log("Discord token or channel is not set; not posting.");
-  const content = buildMessage(version, changelogBullets(changelog, version));
+  let bullets = changelogBullets(changelog, version);
+  if (bullets.length === 0) {
+    try {
+      const res = await fetchImpl(
+        `https://api.github.com/repos/flisk-sh/releases/releases/tags/v${version}`,
+        { headers: { Accept: "application/vnd.github+json" } },
+      );
+      if (res.ok) bullets = releaseNoteBullets((await res.json()).body);
+    } catch {}
+  }
+  const content = buildMessage(version, bullets);
   if (!content) return log(`::warning::No changelog entry for ${version}; not posting on Discord.`);
   try {
     const headers = { Authorization: `Bot ${token}`, "Content-Type": "application/json" };
@@ -64,7 +94,7 @@ export async function run({
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   await run({
-    version: JSON.parse(readFileSync("package.json", "utf8")).version,
+    version: process.env.RELEASE_VERSION || JSON.parse(readFileSync("package.json", "utf8")).version,
     changelog: readFileSync("docs/CHANGELOG.md", "utf8"),
     token: process.env.DISCORD_BOT_TOKEN,
     channelId: process.env.DISCORD_RELEASES_CHANNEL_ID,
