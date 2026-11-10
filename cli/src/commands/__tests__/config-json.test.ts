@@ -78,4 +78,31 @@ describe("flisk config verify --json", () => {
       expect.stringMatching(/^services\/shop\/api\/service\.json: invalid JSON \(/),
     );
   }, 120_000);
+  it("reports a port flisk up refuses and warns about two backends on one port", () => {
+    const backend = { appType: "backend", type: "backend", dependsOn: [] };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-ports"),
+      stacks: {
+        shop: {
+          billing: { ...backend, port: 4000 },
+          orders: { ...backend, port: 4000 },
+          mailer: { ...backend, port: "4002" },
+        },
+      },
+    });
+
+    const result = runVerify(projectRoot);
+
+    expect(result.status).toBe(1);
+    const report = parseEnvelope(result.stdout);
+    expect(report.data.valid).toBe(false);
+    expect(report.data.errors).toContainEqual(
+      expect.stringContaining(
+        'services/shop/mailer/service.json port "4002": not an integer from 1 to 65535',
+      ),
+    );
+    expect(report.data.warnings).toContainEqual(
+      expect.stringMatching(/port 4000: (billing, orders|orders, billing)/),
+    );
+  }, 120_000);
 });
