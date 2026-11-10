@@ -76,9 +76,13 @@ async fn health() -> Json<Value> {
     Json(json!({ "status": "ok", "service": "${name}" }))
 }
 
+fn parse_port(value: &str) -> u16 {
+    value.parse::<u16>().ok().filter(|port| *port != 0).unwrap_or(3000)
+}
+
 #[tokio::main]
 async fn main() {
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let port = parse_port(&std::env::var("PORT").unwrap_or_default());
 
     // 0.0.0.0 listens on every interface, which Traefik needs inside the container network.
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
@@ -96,6 +100,15 @@ mod tests {
     async fn health_reports_ok() {
         let Json(body) = health().await;
         assert_eq!(body["status"], "ok");
+    }
+
+    #[test]
+    fn port_validation() {
+        for invalid in ["", "abc", "70000", "0", "-1", "3000.5"] {
+            assert_eq!(parse_port(invalid), 3000);
+        }
+        assert_eq!(parse_port("3001"), 3001);
+        assert_eq!(parse_port("65535"), 65535);
     }
 }
 `,
