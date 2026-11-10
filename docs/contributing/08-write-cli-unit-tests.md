@@ -22,7 +22,7 @@ Flisk uses [Vitest](https://vitest.dev/) for CLI unit testing.
 
 ```ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isPathSafe } from "../paths.js";
+import { isPathSafe } from "../validation.js";
 
 describe("isPathSafe", () => {
   afterEach(() => {
@@ -31,9 +31,9 @@ describe("isPathSafe", () => {
 
   it.each([
     ["ordinary relative path", "src/index.ts", true],
-    ["parent traversal", "../secret", false],
-    ["nested traversal", "a/../../b", false],
-    ["empty string", "", false],
+    ["parent traversal (not checked here)", "../secret", true],
+    ["null byte", "a\0b", false],
+    ["reserved character", "a|b", false],
   ])("%s -> %s", (_label, input, expected) => {
     expect(isPathSafe(input)).toBe(expected);
   });

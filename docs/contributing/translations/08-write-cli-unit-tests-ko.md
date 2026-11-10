@@ -4,7 +4,7 @@
 
 Flisk의 단위 테스트는 실제 Docker나 Tilt 스택을 실행하지 않고 CLI 명령어, 생성기(generator), 유틸리티 모듈을 검증합니다. 이 가이드에서는 Vitest를 사용하여 빠르고 격리되며(hermetic) 결정론적인(deterministic) 단위 테스트를 작성하는 방법, 외부 시스템을 모킹(mock)하는 방법, 임시 프로젝트와 골든 파일(golden files)로 테스트하는 방법, 그리고 흔한 실수를 방지하는 방법을 설명합니다.
 
-실행 중인 스택을 부팅하는 종단간(E2E) 테스트는 [E2E 테스트 작성하기](05-write-e2e.md)를 참고하세요. CI 샤드 전반에서 단위 테스트가 어떻게 구성되는지는 [매트릭스에서 단위 테스트 실행하기](07-unit-test-matrix.md)를 참고하세요.
+실행 중인 스택을 부팅하는 종단간(E2E) 테스트는 [E2E 테스트 작성하기](../05-write-e2e.md)를 참고하세요. CI 샤드 전반에서 단위 테스트가 어떻게 구성되는지는 [매트릭스에서 단위 테스트 실행하기](../07-unit-test-matrix.md)를 참고하세요.
 
 ---
 
@@ -24,7 +24,7 @@ Flisk는 CLI 단위 테스트에 [Vitest](https://vitest.dev/)를 사용합니�
 
 ```ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isPathSafe } from "../paths.js";
+import { isPathSafe } from "../validation.js";
 
 describe("isPathSafe", () => {
   afterEach(() => {
@@ -33,9 +33,9 @@ describe("isPathSafe", () => {
 
   it.each([
     ["ordinary relative path", "src/index.ts", true],
-    ["parent traversal", "../secret", false],
-    ["nested traversal", "a/../../b", false],
-    ["empty string", "", false],
+    ["parent traversal (not checked here)", "../secret", true],
+    ["null byte", "a\0b", false],
+    ["reserved character", "a|b", false],
   ])("%s -> %s", (_label, input, expected) => {
     expect(isPathSafe(input)).toBe(expected);
   });
