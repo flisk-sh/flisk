@@ -459,7 +459,28 @@ export function firstPort(projectDir) {
         if (typeof port === "number")
             return port;
     }
+    // Starters that group services as services/<group>/<name> (the Launch page one).
+    const groups = subdirs(join(projectDir, "services"));
+    for (const group of groups) {
+        for (const dir of subdirs(join(projectDir, "services", group))) {
+            const port = readJson(join(projectDir, "services", group, dir, "service.json"))?.port;
+            if (typeof port === "number")
+                return port;
+        }
+    }
     return undefined;
+}
+/** Sorted names of the folders directly inside `dir`; empty when it cannot be read. */
+function subdirs(dir) {
+    try {
+        return readdirSync(dir, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+            .sort();
+    }
+    catch {
+        return [];
+    }
 }
 /** Where to look once it runs: the website's page, or the API's health check when there is no website. */
 export function whereToOpen(services) {
@@ -474,13 +495,15 @@ export function whereToOpen(services) {
 /** The commands to run next, from what was generated. */
 export function nextSteps(projectDir, answers, services = generatedServices(projectDir, answers)) {
     if (answers.starter) {
-        if (!starterInfo(answers.starter).local)
-            return [`cd ${answers.name}`, "Read its README for what it needs, then run it."];
         const port = firstPort(projectDir);
+        const docker = !starterInfo(answers.starter).local;
         return [
             `cd ${answers.name}`,
-            "flisk up        # starts it",
+            docker
+                ? "flisk up        # starts it (Docker must be running)"
+                : "flisk up        # starts it",
             ...(port ? [`Then open http://localhost:${port} in your browser.`] : []),
+            ...(docker ? ["Its README says what else it needs."] : []),
         ];
     }
     if (answers.runtime === "docker")
