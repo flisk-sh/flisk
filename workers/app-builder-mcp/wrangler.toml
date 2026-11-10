@@ -4,7 +4,7 @@ compatibility_date = "2026-10-01"
 
 # Needs no KV, no database and no secrets.
 # build.flisk.si is the address for people; mcp.flisk.sh stays served until the Claude directory listing points at the new one.
-# mcp.flisk.si belongs to the Put My Page Online worker: never route it here.
+# mcp.flisk.si belongs to the Pages MCP worker: never route it here.
 routes = [
   { pattern = "build.flisk.si", custom_domain = true },
   { pattern = "mcp.flisk.sh", custom_domain = true },
