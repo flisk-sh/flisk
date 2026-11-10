@@ -362,6 +362,10 @@ export const projectCommand = addYesOption(new Command("project"))
     false,
   )
   .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
+  .addHelpText(
+    "after",
+    "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check",
+  )
   .action(async (template, options) => {
     const json = Boolean(options.json);
     if (options.list) {

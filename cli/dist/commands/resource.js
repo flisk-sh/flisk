@@ -597,6 +597,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--local", "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
+    .addHelpText("after", "\nExamples:\n  flisk resource api\n  flisk resource worker --language python\n  flisk resource api --dry-run")
     .action(async (name, options, command) => {
     // The frontend listing is the historical default; `--type` selects the listing when it is given.
     const isTypeExplicit = command.getOptionValueSource("type") === "cli";
