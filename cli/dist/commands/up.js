@@ -429,6 +429,7 @@ export const upCommand = new Command("up")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
+    .addHelpText("after", "\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
     .action(async (stackName, options) => {
     const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
     // `flisk up <git-url>`: clone the repository into ./<name> and start it from there, as a plain `flisk up` would.

@@ -86,6 +86,7 @@ export const logsCommand = new Command("logs")
     .option("--unhealthy", "Only services that are failing or still starting", false)
     .option("--port <n>", "Tilt UI port (default: TILT_PORT or 10350)")
     .option("--json", "Output one JSON object and exit", false)
+    .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json")
     .action(async (options) => {
     let secrets = [];
     const fail = (code, rawMessage, exitCode = 1, suggestions = []) => {

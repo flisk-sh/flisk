@@ -76,6 +76,10 @@ export const stackCommand = addYesOption(new Command("stack"))
     "Print one JSON envelope on stdout; implies --yes and needs --list or <stack-name> --resources",
     false,
   )
+  .addHelpText(
+    "after",
+    "\nExamples:\n  flisk stack --list\n  flisk stack shop --resources orders-api web",
+  )
   .action(async (stackName, options) => {
     const action = async (): Promise<JsonCommandResult> => {
       const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
