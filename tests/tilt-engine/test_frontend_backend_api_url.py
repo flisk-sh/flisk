@@ -63,7 +63,7 @@ def test_frontend_env_file_uses_backend_route_not_stack_management_route():
 def test_frontend_api_client_and_env_ts_fallback_use_resolved_path():
     source = FRONTEND_STAR.read_text()
     assert source.count("backend_api_path = resolve_backend_api_path(manifest)") == 2
-    assert "import.meta.env.VITE_API_URL || 'http://{local_domain}{api_path}'" in source
+    assert "import.meta.env.VITE_API_URL || 'http://{local_domain}{port}{api_path}'" in source
 
 
 def test_frontend_without_backend_keeps_stack_management_fallback():
@@ -71,3 +71,11 @@ def test_frontend_without_backend_keeps_stack_management_fallback():
     source = _resolver_source()
     assert "if backend_name == None:\n        return None" in source
     assert "api_path = get_api_path(stack, manifest)" in FRONTEND_STAR.read_text()
+
+
+def test_a_backend_without_app_type_counts_as_a_backend():
+    # Discovery defaults a missing appType to backend; the resolver must too, or the frontend falls back to a
+    # stack-management route that 404s when the stack has several backends.
+    source = _resolver_source()
+    assert '(dep.get("_manifest", {}).get("appType") or "backend") in ["backend", "mcp", "agent"]' in source
+    assert '(dep_manifest.get("appType") or "backend") not in ["backend", "mcp", "agent"]' in source

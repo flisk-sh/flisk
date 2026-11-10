@@ -42,7 +42,8 @@ def _find_frontend_backend(manifest):
 
     for dep_name in declared_dependencies(manifest):
         dep = _find_backend_resource(dep_name)
-        if dep and dep.get("_manifest", {}).get("appType") in ["backend", "mcp", "agent"]:
+        # A service.json without appType is a backend: discovery defaults it the same way.
+        if dep and (dep.get("_manifest", {}).get("appType") or "backend") in ["backend", "mcp", "agent"]:
             return dep_name, dep.get("_manifest", {})
 
     return None, None
@@ -78,7 +79,7 @@ def resolve_dependency_api_path(dep_name):
     if not dep:
         return None
     dep_manifest = dep.get("_manifest", {})
-    if dep_manifest.get("appType") not in ["backend", "mcp", "agent"]:
+    if (dep_manifest.get("appType") or "backend") not in ["backend", "mcp", "agent"]:
         return None
     return cli_api_path(dep_name, dep_manifest)
 
