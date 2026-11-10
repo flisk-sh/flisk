@@ -4,7 +4,7 @@ Measured for [#3297](https://github.com/flisk-sh/flisk/issues/3297). This report
 
 ## Executive Summary
 
-- **Backend + Database (Postgres)**: **Flisk is faster** than Docker Compose (warm median **0.678 s** vs **1.842 s**; cold median **1.131 s** vs **1.892 s**). Flisk brings up the database container and establishes the backend TCP connection faster than Docker Compose, where inter-container network bridge initialization and container healthcheck polling impose a ~1.84 s–1.95 s floor.
+- **Backend + Database (Postgres)**: **Flisk is faster** than Docker Compose (warm median **0.678 s** vs **1.842 s**; cold median **1.131 s** vs **1.892 s**). The two fixtures use different readiness gates: the Flisk backend answers once its TCP connection to PostgreSQL opens, while the Compose API also waits for a `pg_isready` healthcheck with a one-second interval. Part of the gap comes from that gate, so this result does not isolate Docker network overhead.
 - **Microservices & Agent Stacks**: Both Flisk native process orchestration and Docker Compose answer healthy in sub-second times. Flisk boots multiple local services directly with no containerization layer. Docker Compose warm starts are fast on bare cached images (~0.33 s–0.64 s), but can experience tail latency spikes (e.g. 1.042 s warm on Agent Stack, 1.945 s cold on Postgres) during Docker daemon container lifecycle operations.
 - **Container Mode Trade-off (Honest Loss)**: Note that the comparisons in this harness measure Flisk native-process orchestration against Docker Compose. When Flisk runs in full container mode (`tilt up` + Traefik reverse proxy + multi-layer golden caching), cold starts incur Starlark specification evaluation and ingress initialization overhead, which was unmeasured by this native-mode benchmark harness.
 
@@ -89,7 +89,7 @@ All figures are measured from command launch to all endpoints answering HTTP 200
 
 ### Where Flisk Wins
 
-1. **Integrated Service + Database Boot**: Connecting local application processes to managed databases is over **2.5× faster** in Flisk than in Docker Compose. Developers don't wait for inter-container virtual network bridging.
+1. **Integrated Service + Database Boot**: On this fixture Flisk answered about **2.5× faster** than Docker Compose. The fixtures use different readiness gates (TCP connect vs. a `pg_isready` healthcheck), so the gap is not attributed to container networking alone.
 2. **Predictable Low Latency (Zero Virtualization Jitter)**: macOS Docker Desktop relies on a hypervisor VM (`com.docker.virtualization`). Periodic VM context switching and file-sharing synchronizations through VirtioFS cause occasional 1–2 second pauses during Docker container creation. Flisk local execution has no VM layer.
 3. **Developer Ergonomics & Features**: Flisk automatically wires subdomain routing, status monitoring, live reload tracking, and agent session preservation without requiring manual YAML port mapping.
 
