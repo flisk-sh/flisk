@@ -49,7 +49,7 @@ function run(root: string, args: string[]) {
 describe("config command boundaries", () => {
   // One generated project for the tests that only read regenerated output. Each copies it, so the regenerate
   // run happens once per file instead of once per test.
-  const baseService = { appName: "api", appType: "api", stack: "core", extra: true };
+  const baseService = { appName: "api", appType: "backend", stack: "core", extra: true };
   let baseRoot = "";
 
   beforeAll(() => {
@@ -71,7 +71,7 @@ describe("config command boundaries", () => {
 
   it("regenerate rewrites generated files and leaves service.json byte-identical", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-regen-"));
-    const service = { appName: "api", appType: "api", stack: "core", extra: true };
+    const service = { appName: "api", appType: "backend", stack: "core", extra: true };
     const servicePath = writeProject(root, service);
     const before = fs.readFileSync(servicePath);
     try {
@@ -86,7 +86,7 @@ describe("config command boundaries", () => {
 
   it("regenerate --dry-run writes nothing", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-regen-dry-"));
-    writeProject(root, { appName: "api", appType: "api", stack: "core" });
+    writeProject(root, { appName: "api", appType: "backend", stack: "core" });
     try {
       const result = run(root, ["config", "regenerate", "--dry-run"]);
       expect(result.status, result.stderr).toBe(0);
@@ -98,7 +98,7 @@ describe("config command boundaries", () => {
 
   it("a second regenerate is byte-identical and verify exits 0", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-regen-stable-"));
-    writeProject(root, { appName: "api", appType: "api", stack: "core", schemaVersion: 1 });
+    writeProject(root, { appName: "api", appType: "backend", stack: "core", schemaVersion: 1 });
     try {
       expect(run(root, ["config", "regenerate"]).status).toBe(0);
       const first = fs.readFileSync(path.join(root, ".flisk", ".flisk-out", "Tiltfile"));
@@ -152,7 +152,7 @@ describe("config command boundaries", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-migrate-bad-"));
     const servicePath = writeProject(root, {
       appName: "api",
-      appType: "api",
+      appType: "backend",
       stack: "core",
       schemaVersion: 99,
     });
