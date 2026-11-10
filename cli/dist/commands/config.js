@@ -400,7 +400,8 @@ export const configCommand = new Command("config")
                 console.log(chalk.green(`ℹ️  Postgres will start because ${describeSharedPostgresUsers(sharedPostgres)} (project resource set; flisk up may select a subset)`));
             }
         }
-        else if (!isNativeProject(resources) && sharedPostgres.focusWouldEnableDatabaseManagement) {
+        else if (!isNativeProject(resources) &&
+            sharedPostgres.focusWouldEnableDatabaseManagement) {
             console.log(chalk.yellow("ℹ️  Postgres will not start from project.json/generated Tiltfile, but default focus/CORE_INFRA expansion would enable database-management on a typical flisk up"));
         }
         if (result.valid && sharedPostgresErrors.length === 0 && prismaConsistency.didPass) {

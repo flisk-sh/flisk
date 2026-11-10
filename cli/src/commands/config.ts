@@ -555,7 +555,10 @@ export const configCommand = new Command("config")
                 ),
               );
             }
-          } else if (!isNativeProject(resources) && sharedPostgres.focusWouldEnableDatabaseManagement) {
+          } else if (
+            !isNativeProject(resources) &&
+            sharedPostgres.focusWouldEnableDatabaseManagement
+          ) {
             console.log(
               chalk.yellow(
                 "ℹ️  Postgres will not start from project.json/generated Tiltfile, but default focus/CORE_INFRA expansion would enable database-management on a typical flisk up",
