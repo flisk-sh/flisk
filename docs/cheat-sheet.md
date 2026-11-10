@@ -86,6 +86,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk import [dir]` | | Import the services in a directory's root `docker-compose.yml` |
 | `flisk import tiltfile [path]` | | Make `flisk up` run an existing Tiltfile without changing it |
 | `flisk eject` | | Write `EJECTED.md` describing the generated Tilt files |
+| `flisk repos clone` | | Clone the Git repositories listed in `.flisk/project.json` |
 | `flisk resource [name]` | | Create a resource, or register an existing one |
 | `flisk resources` | | List resources |
 | `flisk stack [stack-name]` | | Assign resources to a stack |
@@ -106,6 +107,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk mcp` | | MCP server over stdio for coding agents |
 | `flisk connect <host>` | | Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills |
 | `flisk agent sessions <resource>` | | List a running AI agent's sessions, or inspect one session's checkpoint |
+| `flisk distribute <board\|kit\|status>` | | Board, listing kit and channel status for getting an app to users (local files only) |
 | `flisk runtime` | | Inspect packaged engine and template assets |
 | `flisk export <subcommand>` | | Write `render.yaml`, `wrangler.toml` or a standalone `docker-compose.yml` from `service.json`; never deploys or calls a cloud API |
 | `flisk completion [shell]` | | Shell completion scripts |
@@ -214,6 +216,16 @@ Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the 
 | `--json` | One JSON object on stdout. Implies `--yes` |
 
 See [leaving Flisk](leaving-flisk.md).
+
+### `flisk repos clone`
+
+Clones the missing service repositories configured in `.flisk/project.json`. Each entry of the `repos` array has a `url`, a `dir` relative to the project root and an optional `branch`. Existing directories are left untouched, and `flisk up` also clones missing repositories.
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | One JSON result object on stdout |
+
+See [layout](layout.md) for the `repos` array.
 
 ## 📦 Resources
 
@@ -570,6 +582,18 @@ flisk agent sessions bot --json              # one JSON object on stdout
 | `--json` | One JSON object on stdout and exit. Cannot be combined with `--watch` |
 
 Without `--session-id`, `--json` returns the rows under `data.sessions`; with `--session-id` it returns the checkpoint under `data.session`. With `--json`, listing sessions from an agent scaffolded before `GET /sessions` existed returns `SESSION_LIST_UNSUPPORTED`; `--session-id <id>` can still read a checkpoint. Without `--json`, that failure prints an error message and hints. See [AI agents](agents/ai-agents.md) and the [machine-readable CLI](reference/machine-readable-cli.md).
+
+### `flisk distribute`
+
+Board, listing kit and channel status for getting an app to users. Everything is written from local files; nothing is uploaded.
+
+| Subcommand | What it does |
+| --- | --- |
+| `flisk distribute board` | Print the Zachman board: six perspectives (Planner to User) by six questions, each cell read from `service.json` or `distribution.json` |
+| `flisk distribute kit <resource>` | Write a listing kit for one resource (`plugin.json`, `.mcp.json`, `server.json`, `listing.md`) |
+| `flisk distribute status` | Print the channel grid from `distribution.json` |
+
+Each subcommand takes `--json` for machine-readable output. `flisk distribute kit` also takes `--out <dir>` (default `distribution/<resource>`), `--dry-run` and `--force`.
 
 ### `flisk completion [shell]`
 
