@@ -1344,6 +1344,10 @@ function createUnifiedDiff(file: string, actual: string, expected: string): stri
 // these (a `database` resource) has no generated outputs to verify.
 const UNSNAPSHOTTED_ENTRIES = new Set([".flisk-contract", "service.yaml"]);
 
+// `<Dockerfile>.prebuild` and its `.dockerignore` are copies the image-build step writes next to the Dockerfile while Tilt
+// runs (a deferred or parallel image build). They derive from the Dockerfile, which is snapshotted, so they have none.
+const isImageBuildCopy = (name: string): boolean => /\.prebuild(\.dockerignore)?$/.test(name);
+
 /**
  * Services whose generated files (the app compose, the Dockerfile) were written from an older service.json than the one on disk,
  * as project-relative service.json paths. `flisk config regenerate` rewrites only the master files; these are written by
@@ -1360,7 +1364,9 @@ export function staleServiceOutputs(projectRoot: string): string[] {
       isStale = fs.readFileSync(snapshot, "utf-8") !== fs.readFileSync(manifestPath, "utf-8");
     } catch {
       // No snapshot: verify reports it the same way, and only when generated files exist.
-      isStale = fs.readdirSync(generatedDir).some((entry) => !UNSNAPSHOTTED_ENTRIES.has(entry));
+      isStale = fs
+        .readdirSync(generatedDir)
+        .some((entry) => !UNSNAPSHOTTED_ENTRIES.has(entry) && !isImageBuildCopy(entry));
     }
     if (isStale) stale.push(path.relative(projectRoot, manifestPath).split(path.sep).join("/"));
   }
@@ -1379,6 +1385,7 @@ function verifyGeneratedResourceFiles(
   const collect = (directory: string, relativeDir = ""): void => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       if (relativeDir === "" && UNSNAPSHOTTED_ENTRIES.has(entry.name)) continue;
+      if (isImageBuildCopy(entry.name)) continue;
       const relativeFile = path.join(relativeDir, entry.name);
       const fullPath = path.join(directory, entry.name);
       if (entry.isDirectory()) collect(fullPath, relativeFile);
