@@ -24,7 +24,15 @@ def root() -> dict[str, object]:
     return {"service": "api-backend", "version": "1.0.0", "endpoints": ["/health"]}
 
 
+def read_port() -> int:
+    try:
+        port = int(os.environ.get("PORT", "3000"))
+    except ValueError:
+        return 3000
+    return port if 1 <= port <= 65535 else 3000
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "3000")))
+    uvicorn.run(app, host="0.0.0.0", port=read_port())
