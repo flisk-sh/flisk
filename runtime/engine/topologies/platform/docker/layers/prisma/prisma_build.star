@@ -83,6 +83,22 @@ def prisma_normalize_output():
     return prisma_normalize_output_block(include_generated_client_export = True)
 
 
+def prisma_cli_pin_step():
+    """
+    Dockerfile steps that add the Prisma CLI at the version of the installed @prisma/client.
+
+    Shared by the migration stage and the backend's production-install stage, so a backend gets
+    the pinned CLI without running a second install of its own.
+    """
+    return (
+        "# Prisma CLI is often in devDependencies; install it explicitly without mutating manifest files.\n"
+        + "# Pin it to the @prisma/client the install above resolved, not to the package.json range with its ^ dropped:\n"
+        + "# ^7.5.0 resolves the client to the newest 7.x, and adding prisma@7.5.0 next to it downloaded a second Prisma\n"
+        + "# (CLI, studio and client) and generated the client with an older CLI than the one it runs with.\n"
+        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared PRISMA_VERSION=$(sed -n 's/.*\"version\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' node_modules/@prisma/client/package.json 2>/dev/null | head -n 1) && { [ -n \"$PRISMA_VERSION\" ] || PRISMA_VERSION=$(sed -n 's/.*\"prisma\"[[:space:]]*:[[:space:]]*\"[~^]*\\([^\"]*\\)\".*/\\1/p' package.json | head -n 1); } && [ -n \"$PRISMA_VERSION\" ] && n=0 && until BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun add --no-save --exact prisma@\"$PRISMA_VERSION\" --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun add stalled or failed, retry $n of 2\"; done\n"
+    )
+
+
 def L3_generate_migration_engine(res_path, use_golden = True):
     """
     Generate the migration engine layer for Prisma database migrations.
@@ -118,11 +134,7 @@ def L3_generate_migration_engine(res_path, use_golden = True):
         + "# A Prisma engine download in a postinstall can stall with no timeout of its own and hold the build for\n"
         + "# many minutes, so each attempt is time-boxed and retried (the cache mount makes a retry fast).\n"
         + "RUN --mount=type=cache,target=/cache/bun,sharing=shared rm -f bun.lock bun.lockb && n=0 && until env -u CI BUN_CONFIG_FROZEN_LOCKFILE=false BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun install --production --no-frozen-lockfile --concurrent-scripts --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
-        + "# Prisma CLI is often in devDependencies; install it explicitly without mutating manifest files.\n"
-        + "# Pin it to the @prisma/client the install above resolved, not to the package.json range with its ^ dropped:\n"
-        + "# ^7.5.0 resolves the client to the newest 7.x, and adding prisma@7.5.0 next to it downloaded a second Prisma\n"
-        + "# (CLI, studio and client) and generated the client with an older CLI than the one it runs with.\n"
-        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared PRISMA_VERSION=$(sed -n 's/.*\"version\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' node_modules/@prisma/client/package.json 2>/dev/null | head -n 1) && { [ -n \"$PRISMA_VERSION\" ] || PRISMA_VERSION=$(sed -n 's/.*\"prisma\"[[:space:]]*:[[:space:]]*\"[~^]*\\([^\"]*\\)\".*/\\1/p' package.json | head -n 1); } && [ -n \"$PRISMA_VERSION\" ] && n=0 && until BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun add --no-save --exact prisma@\"$PRISMA_VERSION\" --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun add stalled or failed, retry $n of 2\"; done\n"
+        + prisma_cli_pin_step()
         + "# Generate Prisma client and normalize output location for runtime compatibility\n"
         + PRISMA_GENERATE_RUN
         + prisma_normalize_output_block(include_generated_client_export = False)

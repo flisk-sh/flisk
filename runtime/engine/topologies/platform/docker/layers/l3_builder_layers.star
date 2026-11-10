@@ -29,10 +29,12 @@ load('./prisma/prisma_build.star',
     'prisma_generate_instructions',
     'prisma_normalize_output',
     'L3_generate_migration_engine',
+    'prisma_cli_pin_step',
 )
 # Infisical is opt-in: use_infisical defaults to False and nothing in the free engine passes True, so the generator behind this
 # (tilt/generators/infisical/secrets_generator.star) is not on the default path. It is an older contract with fixed secret names and
 # ports. Do not wire `secrets.required` through it; the default provider is platform/docker/secrets/env_secrets.star.
+load('./prisma/constants.star', 'PRISMA_CLI_STASH_DIR')
 load('./infisical/infisical_docker.star', 'InfisicalDocker')
 
 # Load project name for dynamic golden image naming
@@ -186,7 +188,7 @@ def L3_generate_frontend_builder(res_path, build_cmd = RUNTIME_CONFIG["bun"]["ba
 # L3_generate_migration_engine is now loaded from prisma/prisma_build.star
 
 
-def L3_generate_production_purger(res_path, use_golden = True):
+def L3_generate_production_purger(res_path, use_golden = True, pin_prisma_cli = False):
     """
     Generate the production purger layer that removes development dependencies.
 
@@ -199,6 +201,8 @@ def L3_generate_production_purger(res_path, use_golden = True):
     Args:
         res_path: Resource path (service directory)
         use_golden: Whether to use golden L2 image (default: True)
+        pin_prisma_cli: Add the Prisma CLI at the installed @prisma/client's version and keep a copy of it
+            outside node_modules (the prune below would delete its .bin and docs), for the backend runtime.
 
     Returns:
         Dockerfile content string for the l3_production_purger stage
@@ -208,6 +212,12 @@ def L3_generate_production_purger(res_path, use_golden = True):
     
     # Use golden L2 image if enabled (Bun + system deps pre-installed)
     base_image = GOLDEN_L2_IMAGE if use_golden else BUN_BASE
+
+    prisma_cli = (
+        prisma_cli_pin_step()
+        + "# Keep the pinned CLI aside: the prune below would strip it, and the runtime image copies it from here.\n"
+        + "RUN cp -a node_modules/prisma " + PRISMA_CLI_STASH_DIR + "\n"
+    ) if pin_prisma_cli else ""
 
     return (
         "# ---- L3: production_purger ----\n"
@@ -223,6 +233,7 @@ def L3_generate_production_purger(res_path, use_golden = True):
         # cache across stages via its target+sharing=shared, with no COPY needed.
         # sharing=shared allows parallel builds without lock contention (Bun cache is atomic)
         + "RUN --mount=type=cache,target=/cache/bun,sharing=shared n=0 && until timeout 150 bun install --production --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
+        + prisma_cli
         + "# Option 2: Aggressive node_modules pruning to reduce size\n"
         + "# NOTE: Keep .d.ts files - they are needed for Bun module resolution with subpath exports\n"
         + "RUN find node_modules -type f \\( -name '*.md' -o -name '*.ts' ! -name '*.d.ts' -o -name '*.map' -o -name '*.test.js' -o -name '*.spec.js' -o -name 'README*' -o -name 'CHANGELOG*' -o -name 'LICENSE*' \\) -delete\n"
