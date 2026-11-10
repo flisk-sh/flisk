@@ -101,8 +101,10 @@ export const VARIANTS: Variant[] = [
   v("build=null", { build: null }, "accept"),
 
   ...bad("appType", [7]),
-  // An unknown appType string is not refused (real projects use legacy values such as "api") and nothing downstream breaks.
-  ...good("appType", ["database", "Backend", "backend frontend"]),
+  // An appType outside the schema enum is refused since #3603 (a legacy value such as "api" only logged a warning during
+  // flisk up); the enum is case-sensitive.
+  ...bad("appType", ["Backend", "backend frontend"]),
+  ...good("appType", ["database"]),
   v("appType=empty", { appType: "" }, "accept"),
   v("appType=null", { appType: null }, "accept"),
   // A language other than bun needs that language's files (go.mod, pyproject.toml, ...), which this project does not have.

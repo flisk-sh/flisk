@@ -3,28 +3,28 @@
     "id": "apiPath#0=\"api\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-113/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-113/services/main/orders/service.json.apiPath: must be a path such as /api/v1 (no spaces,",
     "detail": []
   },
   {
     "id": "apiPath#1=\"/a b\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-114/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-114/services/main/orders/service.json.apiPath: must be a path such as /api/v1 (no spaces,",
     "detail": []
   },
   {
     "id": "apiPath#2=\"/a;b\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-115/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-115/services/main/orders/service.json.apiPath: must be a path such as /api/v1 (no spaces,",
     "detail": []
   },
   {
     "id": "apiPath#3=7",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-116/services/main/orders/service.json: apiPath: expected a string\",\"suggestions\":[\"Fix that service.json\",\"Check every service.json with: flisk config verify\"]}]}",
     "detail": []
   },
   {
@@ -193,14 +193,20 @@
     "detail": []
   },
   {
+    "id": "appType#0=\"Backend\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appType: unknown type \"Backend\"; expected one of backend, frontend, library, sdk, worker, migrator, mcp, agent, database, bring-your-own |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
     "id": "appType#0=\"database\"",
     "expect": "accept",
     "gate": true,
     "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
     "detail": [],
     "tilt": true,
-    "compose": true,
-    "dockerfile": true
+    "compose": true
   },
   {
     "id": "appType#0=7",
@@ -210,27 +216,34 @@
     "detail": []
   },
   {
-    "id": "appType#1=\"Backend\"",
-    "expect": "accept",
-    "gate": true,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
-    "detail": [],
-    "tilt": true,
-    "compose": true,
-    "dockerfile": true
-  },
-  {
-    "id": "appType#2=\"backend frontend\"",
-    "expect": "accept",
-    "gate": true,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
-    "detail": [],
-    "tilt": true,
-    "compose": true,
-    "dockerfile": true
+    "id": "appType#1=\"backend frontend\"",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.appType: unknown type; expected one of backend, frontend, library, sdk, worker, migrator, mcp, agent, database, bring-your-own |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
   },
   {
     "id": "appType=empty",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appType=migrator",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "appType=migrator+deps",
     "expect": "accept",
     "gate": true,
     "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
@@ -273,7 +286,7 @@
     "id": "basePath#0=\"storefront\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-104/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-104/services/main/orders/service.json.basePath: must be a path such as /storefront (no sp",
     "detail": []
   },
   {
@@ -290,7 +303,7 @@
     "id": "basePath#1=\"/Store Front\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-105/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-105/services/main/orders/service.json.basePath: must be a path such as /storefront (no sp",
     "detail": []
   },
   {
@@ -307,28 +320,28 @@
     "id": "basePath#2=\"/a b\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-106/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-106/services/main/orders/service.json.basePath: must be a path such as /storefront (no sp",
     "detail": []
   },
   {
     "id": "basePath#3=\"/a;b\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-107/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-107/services/main/orders/service.json.basePath: must be a path such as /storefront (no sp",
     "detail": []
   },
   {
     "id": "basePath#4=\"/A\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-108/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-108/services/main/orders/service.json.basePath: must be a path such as /storefront (no sp",
     "detail": []
   },
   {
     "id": "basePath#5=\"/x/../y\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-109/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-109/services/main/orders/service.json.basePath: must be a path such as /storefront (no sp",
     "detail": []
   },
   {
@@ -430,10 +443,20 @@
     "dockerfile": true
   },
   {
+    "id": "buildContext+dockerfile",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
     "id": "databaseName=bad",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-137/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-137/services/main/orders/service.json.databaseName: must be letters, digits, '_' or '-' (",
     "detail": []
   },
   {
@@ -481,7 +504,7 @@
     "id": "dev.command.newline",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-124/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-124/services/main/orders/service.json.dev.command: must not contain line breaks or contro",
     "detail": []
   },
   {
@@ -547,14 +570,24 @@
     "id": "dockerfile#4=\"Dockerfile\\nFROM x\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-74/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-74/services/main/orders/service.json.dockerfile: must not contain line breaks or control c",
     "detail": []
+  },
+  {
+    "id": "dockerfile=Dockerfile",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
   },
   {
     "id": "env.newline",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-121/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-121/services/main/orders/service.json.env.A: must not contain line breaks or control char",
     "detail": []
   },
   {
@@ -622,7 +655,7 @@
     "id": "featuresEnabled#3=[\"x\\ny\"]",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-99/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-99/services/main/orders/service.json.featuresEnabled[0]: must not contain line breaks or c",
     "detail": []
   },
   {
@@ -639,14 +672,14 @@
     "id": "healthCheckPath#0=\"health\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-49/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-49/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
     "id": "healthCheckPath#1=\"/he alth\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-50/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-50/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
@@ -673,7 +706,7 @@
     "id": "healthCheckPath#2=\"/h'ealth\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-51/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-51/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
@@ -690,35 +723,35 @@
     "id": "healthCheckPath#3=\"/health\\\"\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-52/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-52/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
     "id": "healthCheckPath#4=\"/a;b\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-53/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-53/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
     "id": "healthCheckPath#5=\"/{x}\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-54/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-54/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
     "id": "healthCheckPath#6=\"$(id)\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-55/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-55/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
     "id": "healthCheckPath#7=\"/A/B\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-56/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-56/services/main/orders/service.json.healthCheckPath: must be a path such as /health (no s",
     "detail": []
   },
   {
@@ -729,14 +762,81 @@
     "detail": []
   },
   {
+    "id": "image+healthCheckPath",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "image+port",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "image+replicas",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
     "id": "image=bad",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-129/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-129/services/main/orders/service.json.image: must be an image reference such as ghcr.io/a",
+    "detail": []
+  },
+  {
+    "id": "image=digest",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "image=empty",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "image=number",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-170/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-170/services/main/orders/service.json.image: expected a string\",\"suggestions\":[\"Fix that ",
     "detail": []
   },
   {
     "id": "image=ok",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "image=registry",
     "expect": "accept",
     "gate": true,
     "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
@@ -780,14 +880,14 @@
     "id": "nats.queueGroup=bad",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-140/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-140/services/main/orders/service.json.nats.queueGroup: must be letters, digits, '_', '.' ",
     "detail": []
   },
   {
     "id": "params.newline",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-122/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-122/services/main/orders/service.json.params.A: must not contain line breaks or control c",
     "detail": []
   },
   {
@@ -993,6 +1093,160 @@
     "detail": []
   },
   {
+    "id": "secrets+params overlap",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "secrets=array",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets: expected an object like { \"required\": [\"NAME\"] } |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=both",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "secrets=dash",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: \"A-B\" is not an environment variable name (letters, digits and underscores, not starting with a digit) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=digit first",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: \"1BAD\" is not an environment variable name (letters, digits and underscores, not starting with a digit) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=dollar",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: \"A${B}\" is not an environment variable name (letters, digits and underscores, not starting with a digit) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=empty name",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: \"\" is not an environment variable name (letters, digits and underscores, not starting with a digit) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=newline",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-153/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-153/services/main/orders/service.json.secrets.required[0]: must not contain line breaks o",
+    "detail": []
+  },
+  {
+    "id": "secrets=null",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "secrets=number name",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: 7 is not an environment variable name (letters, digits and underscores, not starting with a digit) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=optional",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "secrets=optional, no value",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "secrets=quote",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: \"A\\\"B\" is not an environment variable name (letters, digits and underscores, not starting with a digit) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=required",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "secrets=required string",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: expected a list of environment variable names |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=required, no value",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json: secret NO_VALUE_KEY has no value |   Fix: Add NAME=value to .env (it is gitignored), or export it in the environment, or move it to \"optional\"",
+    "detail": []
+  },
+  {
+    "id": "secrets=same name twice",
+    "expect": "accept",
+    "gate": true,
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":true,\"dryRun\":true,\"stack\":null,\"services\":[\"orders\"],\"command\":\"tilt up\"},\"errors\":[]}",
+    "detail": [],
+    "tilt": true,
+    "compose": true,
+    "dockerfile": true
+  },
+  {
+    "id": "secrets=space",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets.required: \"A B\" is not an environment variable name (letters, digits and underscores, not starting with a digit) |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
+    "id": "secrets=string",
+    "expect": "reject",
+    "gate": false,
+    "gateSaid": "    services/main/orders/service.json.secrets: expected an object like { \"required\": [\"NAME\"] } |   Fix: Correct the field in service.json; the published schema (flisk.sh/schema.service.json) lists each field's type",
+    "detail": []
+  },
+  {
     "id": "stack#0=\"main\"",
     "expect": "accept",
     "gate": true,
@@ -1030,7 +1284,7 @@
     "id": "stack#2=\"back office\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-24/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-24/services/main/orders/service.json.stack: must be letters, digits, '_' or '-' (no spaces",
     "detail": []
   },
   {
@@ -1105,21 +1359,21 @@
     "id": "stack#7=\"x/y\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-29/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-29/services/main/orders/service.json.stack: must be letters, digits, '_' or '-' (no spaces",
     "detail": []
   },
   {
     "id": "stack#8=\"x:y\"",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-30/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-30/services/main/orders/service.json.stack: must be letters, digits, '_' or '-' (no spaces",
     "detail": []
   },
   {
     "id": "traefik.host=bad",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-117/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-117/services/main/orders/service.json.traefik.host: must be a hostname such as shop.backe",
     "detail": []
   },
   {
@@ -1136,7 +1390,7 @@
     "id": "traefik.pathPrefix=bad",
     "expect": "reject",
     "gate": false,
-    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"flisk up exited with code 1\"}]}",
+    "gateSaid": "{\"schemaVersion\":1,\"data\":{\"ok\":false},\"errors\":[{\"code\":\"UP_FAILED\",\"message\":\"Invalid service.json at /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-119/services/main/orders/service.json: /private/var/folders/hw/kqd4kkjj4bv33zwhkf2hdx1h0000gn/T/flisk-chaos-YYyxnV/variant-119/services/main/orders/service.json.traefik.pathPrefix: must be a path such as /api/v1/",
     "detail": []
   },
   {
