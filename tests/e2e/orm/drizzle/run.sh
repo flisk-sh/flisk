@@ -23,6 +23,8 @@ RESOURCES=("$API")
 
 api_container() { running_container "$API"; }
 api_running() { [ -n "$(api_container)" ]; }
+api_restart_count() { docker inspect -f '{{.RestartCount}}' "$1"; } # <container>
+postgres_healthy() { [ -n "$(docker ps -q --filter "name=^${PROJECT}_postgres$" --filter health=healthy)" ]; }
 api_db_healthy() { [ "$(traefik_request "$API" /health/db -o /dev/null -w '%{http_code}')" = "200" ]; }
 
 D1() { # scaffold a backend with the drizzle feature
@@ -67,6 +69,21 @@ D5() { # flisk restart, then /health/db answers 200 again through Traefik
 D6() { # restart with Tilt unreachable prints one TILT_NOT_RUNNING error envelope and exits 1
   log "D6 flisk restart with no Tilt on the port: one error envelope"
   common_error_envelope TILT_NOT_RUNNING restart "$API" --port 1 --json
+}
+
+D7() { # restart Postgres under the running stack: /health/db answers 200 again, and the API process never stopped
+  log "D7 docker restart ${PROJECT}_postgres, then $API answers /health/db again on its own"
+  # A query now leaves an idle pool connection open, which the restart then breaks: the case the pool must survive.
+  poll_until "$API answers /health/db 200 through Traefik" "$READY_TIMEOUT" api_db_healthy
+  local api; api="$(api_container)"; [ -n "$api" ] || die "no running $API container"
+  local restarts; restarts="$(api_restart_count "$api")"
+  local pg; pg="$(docker ps -q --filter "name=^${PROJECT}_postgres$")"; [ -n "$pg" ] || die "no ${PROJECT}_postgres container"
+  docker restart "$pg" >/dev/null
+  poll_until "${PROJECT}_postgres is healthy again" "$READY_TIMEOUT" postgres_healthy
+  poll_until "$API answers /health/db 200 again with no flisk restart" "$READY_TIMEOUT" api_db_healthy
+  [ "$(api_container)" = "$api" ] || die "the $API container was replaced; it should have reconnected"
+  [ "$(api_restart_count "$api")" = "$restarts" ] || die "the $API process crashed when Postgres restarted (Docker restarted it); the pool needs an error listener"
+  echo "$API reconnected to Postgres without restarting"
 }
 
 e2e_main "$@"

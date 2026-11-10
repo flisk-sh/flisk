@@ -702,6 +702,8 @@ describe("resource command", () => {
     it("reads DATABASE_URL in the Drizzle client and the drizzle-kit config", () => {
       expect(DRIZZLE_DB_TEMPLATE).toContain("process.env.DATABASE_URL");
       expect(DRIZZLE_DB_TEMPLATE).toContain("drizzle(pool)");
+      // A Postgres restart must not stop the API: the pool needs an error listener to drop dead idle connections.
+      expect(DRIZZLE_DB_TEMPLATE).toContain("pool.on('error'");
       expect(DRIZZLE_CONFIG_TEMPLATE).toContain("process.env.DATABASE_URL");
       expect(DRIZZLE_CONFIG_TEMPLATE).toContain("dialect: 'postgresql'");
       expect(DRIZZLE_SCHEMA_TEMPLATE).toContain("export {}");

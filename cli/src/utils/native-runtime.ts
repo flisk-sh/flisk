@@ -51,6 +51,8 @@ import { findOnPath } from "./which.js";
  * - Output is prefixed with the service name and also appended to `.flisk/native/logs/<service>.log`.
  * - A process that exits is restarted with a growing delay, unless the service sets `"restart": "no"`. Five quick crashes in a
  *   row stop the restarts.
+ * - A process that exits while something it depends on is down is not counted as crashing: it waits, and starts again once
+ *   everything it depends on is ready again. One that already stopped restarting gets a fresh start then too.
  * - `.flisk/native/run.json` records the supervisor and service process ids so `flisk down` can stop a run it did not start.
  */
 
@@ -427,6 +429,8 @@ export interface NativeRunState {
       job?: boolean;
       /** A container started with `docker run` in a mixed run. */
       container?: string;
+      /** The dependencies a service exited without is waiting for before it starts again. */
+      waitingFor?: string[];
     }
   >;
 }
@@ -571,6 +575,12 @@ export function nativeServiceStates(
             ? [name, { status: "ready", reason: "finished" }]
             : [name, { status: "pending", reason: "the job did not exit 0" }];
         }
+        if (service.waitingFor?.length) {
+          return [
+            name,
+            { status: "pending", reason: `waiting for ${service.waitingFor.join(", ")}` },
+          ];
+        }
         return [name, { status: "pending", reason: "restarting" }];
       }
       return service.ready
@@ -639,6 +649,8 @@ interface RunningService {
   /** Passed its readiness check since it last started; recorded so `flisk status` can tell ready from starting. */
   isReady: boolean;
   gaveUp: boolean;
+  /** Exited while these dependencies were down; it starts again once they are all ready. */
+  waitingFor?: string[];
   restartTimer?: NodeJS.Timeout;
   /** Resolves with the exit code of the current process (null when a signal ended it). */
   exited?: Promise<number | null>;
@@ -662,6 +674,11 @@ export function shellInvocation(
     };
   }
   return { file: "/bin/sh", args: ["-c", command], windowsVerbatimArguments: false };
+}
+
+/** True while the process has neither exited nor been ended by a signal (Node leaves `exitCode` null in the second case). */
+function isChildRunning(child: ChildProcess | undefined): boolean {
+  return child !== undefined && child.exitCode === null && child.signalCode === null;
 }
 
 export class NativeSupervisor {
@@ -737,6 +754,7 @@ export class NativeSupervisor {
             service.isReady = true;
             this.saveState();
             this.events.onNote?.(name, "ready");
+            this.resumeDependents(name);
           } else if (!this.stopping) {
             failures.push({
               name,
@@ -886,6 +904,18 @@ export class NativeSupervisor {
       this.events.onNote?.(service.plan.name, `${how}; not restarting ("restart": "no")`);
       return;
     }
+    // Exiting because a database or API it needs went away is not the service's own crash: wait for it instead of giving up.
+    const down = this.dependenciesDown(service);
+    if (down.length > 0) {
+      service.quickCrashes = 0;
+      service.waitingFor = down;
+      this.saveState();
+      this.events.onNote?.(
+        service.plan.name,
+        `${how} while ${down.join(", ")} ${down.length === 1 ? "is" : "are"} down; starts again once ${down.length === 1 ? "it is" : "they are"} ready`,
+      );
+      return;
+    }
     const ranFor = Date.now() - service.startedAt;
     service.quickCrashes = ranFor < QUICK_CRASH_MS ? service.quickCrashes + 1 : 1;
     if (service.quickCrashes >= MAX_QUICK_CRASHES) {
@@ -898,19 +928,54 @@ export class NativeSupervisor {
     }
     const delay = (this.options.restartDelayMs ?? 1_000) * 2 ** (service.quickCrashes - 1);
     this.events.onNote?.(service.plan.name, `${how}; restarting in ${delay / 1000}s`);
-    service.restartTimer = setTimeout(() => {
-      if (this.stopping) return;
-      this.spawn(service);
-      void waitForServiceReady(service.plan, {
-        isAlive: () => !this.stopping && service.child?.exitCode === null,
-        timeoutMs: this.options.readyTimeoutMs,
-      }).then((isReady) => {
-        if (!isReady || this.stopping) return;
-        service.isReady = true;
-        this.saveState();
-        this.events.onNote?.(service.plan.name, "ready again");
-      });
-    }, delay);
+    service.restartTimer = setTimeout(() => this.respawn(service), delay);
+  }
+
+  /** Starts a service again after it exited, and reports when it is ready again. */
+  private respawn(service: RunningService): void {
+    service.restartTimer = undefined;
+    if (this.stopping) return;
+    this.spawn(service);
+    void waitForServiceReady(service.plan, {
+      isAlive: () => !this.stopping && isChildRunning(service.child),
+      timeoutMs: this.options.readyTimeoutMs,
+    }).then((isReady) => {
+      if (!isReady || this.stopping) return;
+      service.isReady = true;
+      this.saveState();
+      this.events.onNote?.(service.plan.name, "ready again");
+      this.resumeDependents(service.plan.name);
+    });
+  }
+
+  /**
+   * The dependencies of this run that are not ready now but may come back (restarting, or waiting themselves). One that gave up
+   * never comes back, so a dependent is not made to wait for it: it counts its crashes and gives up with a visible message.
+   */
+  private dependenciesDown(service: RunningService): string[] {
+    return service.plan.dependsOn.filter((dep) => {
+      const other = this.services.get(dep);
+      return other !== undefined && !other.isReady && !other.gaveUp;
+    });
+  }
+
+  /**
+   * `name` became ready again: start each dependent that exited while it was down, and give a fresh start to one that stopped
+   * restarting (it may have crashed before the supervisor saw the dependency go).
+   */
+  private resumeDependents(name: string): void {
+    for (const service of this.services.values()) {
+      if (this.stopping || !service.plan.dependsOn.includes(name)) continue;
+      if (service.plan.job || !service.plan.restart) continue;
+      if (!service.waitingFor && !service.gaveUp) continue;
+      if (service.restartTimer || isChildRunning(service.child)) continue;
+      if (this.dependenciesDown(service).length > 0) continue;
+      service.waitingFor = undefined;
+      service.gaveUp = false;
+      service.quickCrashes = 0;
+      this.events.onNote?.(service.plan.name, `${name} is ready again; starting`);
+      this.respawn(service);
+    }
   }
 
   private pipeLines(
@@ -952,6 +1017,7 @@ export class NativeSupervisor {
         ready: service.isReady,
         ...(service.plan.job ? { job: true } : {}),
         ...(service.plan.container ? { container: service.plan.container } : {}),
+        ...(service.waitingFor ? { waitingFor: service.waitingFor } : {}),
       };
     }
     writeNativeRunState(this.projectRoot, {

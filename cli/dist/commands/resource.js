@@ -346,6 +346,10 @@ import { Pool } from 'pg';
 // unreachable database fails /health/db instead of stopping the service at startup.
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool);
+
+// A Postgres restart closes the idle connections and the pool reports it here. Without a listener that error stops the
+// process; with one the pool drops the dead connection and the next query opens a new one.
+pool.on('error', (err) => console.error('postgres connection lost:', err.message));
 `;
 export const DRIZZLE_SCHEMA_TEMPLATE = `// Define tables here, for example with pgTable from 'drizzle-orm/pg-core'.
 export {};

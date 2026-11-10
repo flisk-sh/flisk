@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -47,6 +47,26 @@ createServer((req, res) => {
   res.end(process.env.GREETING ?? "");
 }).listen(port, () => console.log("listening on " + port));
 `;
+
+// A database that stays down (port closed, process alive) while a `down` file exists, like Postgres during an outage.
+const DB_SCRIPT = `import { createServer } from "node:http";
+import { existsSync } from "node:fs";
+const serve = () => existsSync("down")
+  ? setTimeout(serve, 50)
+  : createServer((_req, res) => { res.writeHead(200); res.end(); }).listen(Number(process.env.PORT));
+serve();`;
+
+// An API that exits as soon as it cannot reach the database, at start or later: an app with no reconnect logic.
+const API_SCRIPT = `import { createServer } from "node:http";
+import { connect } from "node:net";
+const probe = () => new Promise((resolve) => {
+  const socket = connect(Number(process.env.DB_PORT), "127.0.0.1");
+  socket.once("connect", () => { socket.destroy(); resolve(true); });
+  socket.once("error", () => resolve(false));
+});
+if (!(await probe())) process.exit(1);
+createServer((req, res) => { res.writeHead(req.url === "/health" ? 200 : 404); res.end(); }).listen(Number(process.env.PORT));
+setInterval(async () => { if (!(await probe())) process.exit(1); }, 50);`;
 
 function nativeService(dir: string, name: string, config: Record<string, unknown>) {
   const resource = makeResource(name, "bring-your-own", config);
@@ -373,6 +393,91 @@ describe("native supervisor", () => {
     expect(notes).toContain("was stopped by SIGKILL; restarting in 0.05s");
     expect(supervisor.pidOf("api")).not.toBe(firstPid);
     expect((await fetch(localUrl(port, "/health"))).status).toBe(200);
+  });
+
+  it("waits for a dependency that went down instead of giving up, then starts the dependent again", async () => {
+    const root = createTempDir();
+    const [dbDir, apiDir] = [join(root, "db"), join(root, "api")];
+    mkdirSync(dbDir);
+    mkdirSync(apiDir);
+    writeFileSync(join(dbDir, "db.mjs"), DB_SCRIPT);
+    writeFileSync(join(apiDir, "api.mjs"), API_SCRIPT);
+    const [dbPort, apiPort] = [await freePort(), await freePort()];
+    const plan = planNativeRun([
+      nativeService(dbDir, "db", {
+        command: `${NODE} db.mjs`,
+        port: dbPort,
+        healthCheckPath: "/health",
+      }),
+      nativeService(apiDir, "api", {
+        command: `${NODE} api.mjs`,
+        port: apiPort,
+        healthCheckPath: "/health",
+        dependsOn: ["db"],
+        env: { DB_PORT: String(dbPort) },
+      }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onNote: (name, message) => notes.push(`${name}: ${message}`) },
+      { restartDelayMs: 10 },
+    );
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+
+    writeFileSync(join(dbDir, "down"), "");
+    process.kill(-(supervisor.pidOf("db") as number), "SIGKILL");
+    await waitFor(() =>
+      notes.some((note) => note.startsWith("api: exited with code 1 while db is down")),
+    );
+    expect(nativeServiceStates(root, ["api"]).api).toEqual({
+      status: "pending",
+      reason: "waiting for db",
+    });
+    // Five 10ms restarts would have run out long before this: the API is waiting, not crashing.
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    expect(notes.filter((note) => /^api: .*not restarted/.test(note))).toEqual([]);
+
+    rmSync(join(dbDir, "down"));
+    await waitFor(() => notes.includes("api: ready again"));
+    expect(notes).toContain("api: db is ready again; starting");
+    expect((await fetch(localUrl(apiPort, "/health"))).status).toBe(200);
+  });
+
+  it("does not wait for a dependency that gave up: the dependent counts its crashes and stops", async () => {
+    const root = createTempDir();
+    const [dbDir, apiDir] = [join(root, "db"), join(root, "api")];
+    mkdirSync(dbDir);
+    mkdirSync(apiDir);
+    writeFileSync(join(dbDir, "db.mjs"), DB_SCRIPT);
+    writeFileSync(join(apiDir, "api.mjs"), API_SCRIPT);
+    const [dbPort, apiPort] = [await freePort(), await freePort()];
+    const plan = planNativeRun([
+      // "restart": "no" with a port: once it exits it is never started again.
+      nativeService(dbDir, "db", { command: `${NODE} db.mjs`, port: dbPort, restart: "no" }),
+      nativeService(apiDir, "api", {
+        command: `${NODE} api.mjs`,
+        port: apiPort,
+        healthCheckPath: "/health",
+        dependsOn: ["db"],
+        env: { DB_PORT: String(dbPort) },
+      }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onNote: (name, message) => notes.push(`${name}: ${message}`) },
+      { restartDelayMs: 10 },
+    );
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+
+    process.kill(-(supervisor.pidOf("db") as number), "SIGKILL");
+    await waitFor(() => notes.some((note) => /^api: .*exited 5 times in a row/.test(note)));
+    expect(notes.filter((note) => note.includes("while db is down"))).toEqual([]);
   });
 
   it('starts the services that depend on a no-port "restart": "no" service that exits 0, whatever its appType', async () => {

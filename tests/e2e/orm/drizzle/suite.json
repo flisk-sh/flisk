@@ -1,7 +1,7 @@
 {
   "group": "orm",
   "suite": "drizzle",
-  "description": "A backend with the drizzle feature on a live stack: scaffold with flisk resource --feature drizzle, flisk up, DATABASE_URL set, a /health/db route that queries Postgres through Drizzle answers 200 through Traefik, flisk restart, and one error envelope (#1488).",
+  "description": "A backend with the drizzle feature on a live stack: scaffold with flisk resource --feature drizzle, flisk up, DATABASE_URL set, a /health/db route that queries Postgres through Drizzle answers 200 through Traefik, flisk restart, one error envelope (#1488), and a Postgres restart under the running stack that the API survives without restarting.",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/utils/resource-features.ts",
@@ -13,7 +13,7 @@
     "tests/e2e/orm/drizzle/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["D1", "D2", "D3", "D4", "D5", "D6"],
+  "cases": ["D1", "D2", "D3", "D4", "D5", "D6", "D7"],
   "triggers": ["pr", "nightly", "release", "manual"],
   "timeoutMinutes": 25,
   "needsSecrets": []
