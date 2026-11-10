@@ -2,56 +2,30 @@
 // SPDX-License-Identifier: MIT
 import { statfsSync } from "node:fs";
 import { homedir } from "node:os";
+import { DISK_CLEANUP_FIX, DISK_FAIL_GIB, DISK_SAFE_CLEANUP, DISK_WARN_GIB, evaluateDisk, } from "./disk-guard.js";
 export const DISK_SPACE_CHECK = "Disk Space";
-const GIB = 1024 ** 3;
 // Docker Desktop keeps images and containers in one large disk image. When the host disk fills up, the engine
 // stops answering while the Docker Desktop app keeps running, so `flisk up` waits with no visible error.
-export const DISK_FAIL_GIB = 2;
-export const DISK_WARN_GIB = 10;
-/** The first cleanup offered: Docker's build cache only, safe while a stack is running. */
-export const DISK_SAFE_CLEANUP = "docker builder prune -f";
-export const DISK_CLEANUP_FIX = [
-    "This is about the machine, not the project: free disk space, then retry: flisk doctor",
-    `  ${DISK_SAFE_CLEANUP}        # build cache only; keeps images, containers and volumes`,
-    "  docker image prune -f          # dangling images only",
-    "  docker system prune -af        # last resort: every unused image, rebuilt on the next flisk up",
-    "  npm cache clean --force",
-    "  bun pm cache rm",
-    "  brew cleanup -s",
-].join("\n");
-export function checkDiskSpace(statfs = statfsSync, path = homedir()) {
-    let freeGib;
-    try {
-        const stats = statfs(path);
-        freeGib = (Number(stats.bavail) * Number(stats.bsize)) / GIB;
+// The thresholds and the cleanup text live in disk-guard.ts, shared with `flisk up` and `flisk down`.
+export { DISK_CLEANUP_FIX, DISK_FAIL_GIB, DISK_SAFE_CLEANUP, DISK_WARN_GIB };
+export function checkDiskSpace(statfs = statfsSync, path = homedir(), vmFreeGib) {
+    const disk = evaluateDisk({ statfs, path, vmFreeGib });
+    if (disk.level === "unknown") {
+        return { name: DISK_SPACE_CHECK, didPass: true, isSkipped: true, message: disk.message };
     }
-    catch {
-        return {
-            name: DISK_SPACE_CHECK,
-            didPass: true,
-            isSkipped: true,
-            message: "Could not read free disk space",
-        };
+    if (disk.level === "fail") {
+        return { name: DISK_SPACE_CHECK, didPass: false, message: disk.message, fix: disk.fix };
     }
-    const shown = `${freeGib.toFixed(1)} GB free`;
-    if (freeGib < DISK_FAIL_GIB) {
-        return {
-            name: DISK_SPACE_CHECK,
-            didPass: false,
-            message: `${shown}: Docker cannot build or start containers`,
-            fix: DISK_CLEANUP_FIX,
-        };
-    }
-    if (freeGib < DISK_WARN_GIB) {
+    if (disk.level === "warn") {
         return {
             name: DISK_SPACE_CHECK,
             didPass: false,
             isWarning: true,
-            message: `${shown}: image builds may fail`,
-            fix: DISK_CLEANUP_FIX,
+            message: disk.message,
+            fix: disk.fix,
         };
     }
-    return { name: DISK_SPACE_CHECK, didPass: true, message: shown };
+    return { name: DISK_SPACE_CHECK, didPass: true, message: disk.message };
 }
 export const DOCKER_DESKTOP_STUCK_FIX = "Quit Docker Desktop completely (whale icon > Quit Docker Desktop), reopen it, and wait until it shows Running. If it keeps getting stuck, check free disk space. Then retry: flisk doctor";
 /**

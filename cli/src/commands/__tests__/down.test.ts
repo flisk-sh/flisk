@@ -62,6 +62,13 @@ vi.mock("../../utils/project-purge.js", async (importOriginal) => ({
   removeProjectArtifacts: removeProjectArtifactsMock,
 }));
 
+// `down` reports what the project still holds; the tests give it fixed numbers instead of asking Docker.
+const collectLeftoversMock = vi.hoisted(() => vi.fn());
+vi.mock("../../utils/down-leftovers.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/down-leftovers.js")>()),
+  collectLeftovers: collectLeftoversMock,
+}));
+
 vi.mock("../../utils/project-registry.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/project-registry.js")>()),
   readProjectRecords: () => [
@@ -128,6 +135,7 @@ describe("flisk down", () => {
     stopProjectComposeProjectsMock.mockReset();
     listProjectArtifactsMock.mockReset();
     removeProjectArtifactsMock.mockReset();
+    collectLeftoversMock.mockReset().mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -602,8 +610,58 @@ describe("flisk down", () => {
       try {
         await downCommand.parseAsync(["node", "flisk"], { from: "node" });
 
-        expect(listProjectArtifactsMock).not.toHaveBeenCalled();
+        // Only a read for the report of what is still held; nothing is removed.
         expect(removeProjectArtifactsMock).not.toHaveBeenCalled();
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+  });
+
+  describe("what the stopped project still holds (#3708, cycle 4)", () => {
+    it("prints the size of the images and the shared cache and the commands that free them", async () => {
+      const tempDir = setupTestProject();
+      listProjectArtifactsMock.mockReturnValue({
+        containers: [],
+        volumes: [],
+        networks: [],
+        images: ["test_project_api:latest"],
+      });
+      collectLeftoversMock.mockResolvedValue({ imageCount: 1, imageGib: 1.4, cacheGib: 23.4 });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      try {
+        await downCommand.parseAsync(["node", "flisk"], { from: "node" });
+        expect(collectLeftoversMock).toHaveBeenCalledWith(["test_project_api:latest"]);
+        const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
+        expect(output).toContain("1.4 GiB");
+        expect(output).toContain("flisk down --purge");
+        expect(output).toContain("23.4 GiB");
+        expect(output).toContain("docker builder prune -f");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("does not report after --purge, which already removed the images", async () => {
+      const tempDir = setupTestProject();
+      listProjectArtifactsMock.mockReturnValue({
+        containers: [],
+        volumes: [],
+        networks: [],
+        images: [],
+      });
+      removeProjectArtifactsMock.mockReturnValue({
+        removed: { containers: [], volumes: [], networks: [], images: [] },
+        kept: [],
+      });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--purge", "--yes"], { from: "node" });
+        expect(collectLeftoversMock).not.toHaveBeenCalled();
       } finally {
         process.chdir(originalCwd);
         rmSync(tempDir, { recursive: true, force: true });

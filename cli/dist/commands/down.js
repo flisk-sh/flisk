@@ -7,6 +7,7 @@ import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { pruneDockerBuildCache, validateCacheUntil } from "../utils/docker-build-cache.js";
 import { findRunningFliskProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
+import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
 import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
@@ -156,7 +157,7 @@ export const downCommand = addYesOption(new Command("down"))
     .option("--dry-run", "Show what would be stopped without stopping", false)
     .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
     .option("--project <path>", "Stop the Flisk project in this folder (default: the current project, or the only running one)")
-    .addHelpText("after", "\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose")
+    .addHelpText("after", "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose")
     .action(async (options, command) => {
     // Check for inferred Node project first, before resolveDownProject tries to find a Flisk project
     const guess = inferNodeProject(process.cwd());
@@ -358,9 +359,26 @@ export const downCommand = addYesOption(new Command("down"))
                 }
             }
         }
+        // The stack is down but its images, volumes and the shared build cache still fill the disk (#3708).
+        let retained;
+        try {
+            const projectInfo = options.purge ? undefined : projectArtifacts(projectRoot);
+            if (projectInfo) {
+                retained = (await collectLeftovers(projectInfo.artifacts?.images ?? [])) ?? undefined;
+                if (retained && !options.json) {
+                    for (const line of formatLeftovers(retained, projectInfo.name)) {
+                        console.log(chalk.yellow(line));
+                    }
+                }
+            }
+        }
+        catch {
+            // Only a report: a Docker that cannot be asked must not fail `down`.
+        }
         emit?.({
             ok: true,
             stoppedTilt,
+            ...(retained ? { retained } : {}),
             ...(composeFallback
                 ? {
                     composeFallback: {

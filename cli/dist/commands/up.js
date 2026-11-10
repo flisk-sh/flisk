@@ -13,6 +13,8 @@ import { coldStartNotice } from "../utils/cold-start.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
+import { diskWarningField, enforceDiskGuard, readDockerVmFreeGib } from "../utils/disk-guard.js";
+import { enforceBuildCacheCeiling } from "../utils/docker-build-cache.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
 import { applyEnvFileSelection, assertEngineSupportsEnvFile, EnvFileError, envFileWarning, PROJECT_ENV_FILE_VAR, selectEnvFile, } from "../utils/env-selection.js";
 import { completeEnvFile } from "../utils/env-validator.js";
@@ -430,9 +432,26 @@ export const upCommand = new Command("up")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
-    .addHelpText("after", "\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
+    .addHelpText("after", "\nFree disk space is checked first: under 5 GiB flisk up stops, under 15 GiB it warns (FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits). The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
     .action(async (stackName, options) => {
-    const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
+    const baseEmit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
+    // A low-disk warning (5 to 15 GiB free) rides along in every successful --json result.
+    let diskWarning;
+    const emit = baseEmit
+        ? (data, errors) => baseEmit(diskWarning && data.ok === true ? { ...data, diskWarning } : data, errors)
+        : undefined;
+    // Before any build or process starts: fail below the hard threshold, warn below the soft one (#3708).
+    const guardDisk = (isDockerRun) => {
+        if (options.dryRun)
+            return;
+        const disk = enforceDiskGuard({
+            vmFreeGib: isDockerRun ? readDockerVmFreeGib() : null,
+            emit: baseEmit,
+            quiet: options.quiet || options.json,
+            warn: (line) => console.warn(chalk.yellow(line)),
+        });
+        diskWarning = diskWarningField(disk) ?? diskWarning;
+    };
     // `flisk up <git-url>`: clone the repository into ./<name> and start it from there, as a plain `flisk up` would.
     if (isGitRepoArg(stackName)) {
         try {
@@ -511,6 +530,7 @@ export const upCommand = new Command("up")
         if (!options.quiet) {
             console.log(chalk.gray(`Inferred service from package.json: ${inferredProject.service.name}`));
         }
+        guardDisk(false);
         await runNativeUp({
             projectRoot: stateRoot,
             selected: [service],
@@ -566,6 +586,7 @@ export const upCommand = new Command("up")
         if (nativeProfiles.skipped.length > 0 && !options.quiet) {
             console.log(chalk.gray(skippedProfilesNote(nativeProfiles.skipped)));
         }
+        guardDisk(false);
         await runNativeUp({
             projectRoot,
             selected: nativeProfiles.kept,
@@ -614,6 +635,14 @@ export const upCommand = new Command("up")
         emit?.({ ok: false }, [{ code: "HOST_UNSUPPORTED", message: hostRefusal }]);
         showErrorAndExit(hostRefusal);
     }
+    // The shared build cache has a size ceiling (20 GiB; FLISK_BUILD_CACHE_MAX_GIB): trim it first, so the disk check sees the space.
+    if (!options.dryRun) {
+        const cache = await enforceBuildCacheCeiling();
+        if (cache.pruned && !options.quiet) {
+            console.log(chalk.gray(`Build cache was ${cache.sizeGib?.toFixed(1)} GiB; trimmed to ${cache.ceilingGib} GiB (FLISK_BUILD_CACHE_MAX_GIB changes the limit, 0 turns it off).`));
+        }
+    }
+    guardDisk(true);
     const platformRefusal = nativeWindowsUpRefusal(process.platform, process.env.FLISK_ALLOW_NATIVE_WINDOWS);
     if (platformRefusal)
         showErrorAndExit(platformRefusal);

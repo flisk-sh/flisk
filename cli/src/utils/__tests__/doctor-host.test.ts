@@ -17,11 +17,11 @@ const statfsWith = (freeGib: number) => () => ({
 });
 
 describe("checkDiskSpace", () => {
-  it("fails below 2 GB with cleanup commands", () => {
+  it("fails below 5 GiB with cleanup commands", () => {
     const result = checkDiskSpace(statfsWith(1.9));
     expect(result).toMatchObject({ name: DISK_SPACE_CHECK, didPass: false });
     expect(result.isWarning).toBeUndefined();
-    expect(result.message).toMatch(/1\.9 GB free/);
+    expect(result.message).toMatch(/1\.9 GiB free/);
     // The safe build-cache cleanup comes first; the image-deleting prune is only the labelled last resort.
     const fix = result.fix ?? "";
     expect(fix.indexOf("docker builder prune -f")).toBeGreaterThan(-1);
@@ -31,44 +31,46 @@ describe("checkDiskSpace", () => {
     expect(fix).toMatch(/last resort/);
   });
 
-  it("handles boundary at exactly 2 GB as a warning rather than a failure", () => {
-    const result = checkDiskSpace(statfsWith(2.0));
+  it("handles boundary at exactly 5 GiB as a warning rather than a failure", () => {
+    const result = checkDiskSpace(statfsWith(5.0));
     expect(result).toMatchObject({
       name: DISK_SPACE_CHECK,
       didPass: false,
       isWarning: true,
-      message: "2.0 GB free: image builds may fail",
+      message: expect.stringMatching(/^5\.0 GiB free on this machine: image builds may fail/),
     });
   });
 
-  it("warns between 2 and 10 GB", () => {
-    const result = checkDiskSpace(statfsWith(6));
+  it("warns between 5 and 15 GiB", () => {
+    const result = checkDiskSpace(statfsWith(10));
     expect(result).toMatchObject({ didPass: false, isWarning: true });
   });
 
-  it("handles boundary at exactly 10 GB as passing", () => {
-    const result = checkDiskSpace(statfsWith(10.0));
+  it("handles boundary at exactly 15 GiB as passing", () => {
+    const result = checkDiskSpace(statfsWith(15.0));
     expect(result).toMatchObject({
       name: DISK_SPACE_CHECK,
       didPass: true,
-      message: "10.0 GB free",
+      message: "15.0 GiB free on this machine",
     });
     expect(result.isWarning).toBeUndefined();
   });
 
-  it("fails at 0 GB free space", () => {
+  it("fails at 0 GiB free space", () => {
     const result = checkDiskSpace(statfsWith(0));
     expect(result).toMatchObject({
       name: DISK_SPACE_CHECK,
       didPass: false,
-      message: "0.0 GB free: Docker cannot build or start containers",
+      message: expect.stringMatching(
+        /^0\.0 GiB free on this machine: building images needs at least 5 GiB/,
+      ),
     });
   });
 
   it("passes with plenty of space", () => {
     expect(checkDiskSpace(statfsWith(40))).toMatchObject({
       didPass: true,
-      message: "40.0 GB free",
+      message: "40.0 GiB free on this machine",
     });
   });
 
@@ -125,8 +127,8 @@ describe("dockerDesktopStuck", () => {
 
 describe("disk space thresholds", () => {
   it("pins failure and warning thresholds and enforces ordering", () => {
-    expect(DISK_FAIL_GIB).toBe(2);
-    expect(DISK_WARN_GIB).toBe(10);
+    expect(DISK_FAIL_GIB).toBe(5);
+    expect(DISK_WARN_GIB).toBe(15);
     expect(DISK_FAIL_GIB).toBeLessThan(DISK_WARN_GIB);
   });
 });
