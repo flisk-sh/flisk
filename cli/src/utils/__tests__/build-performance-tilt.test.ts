@@ -193,47 +193,41 @@ RESULT = compute_max_parallel_builds(${cpus}, ${memoryBytes})`,
     ) as number;
   const GIB = 1024 ** 3;
 
-  it("reserves two CPUs and about 1.5 GiB per build, clamped to 3..8", () => {
+  it("plans one build per CPU and about 1.5 GiB per build, clamped to 3..8", () => {
     expect(max(8, Math.round(8.3 * GIB))).toBe(5); // memory allows 5
-    expect(max(4, 16 * GIB)).toBe(3); // 2 CPUs left, clamped up to the minimum
+    expect(max(4, 16 * GIB)).toBe(4); // a 4-CPU engine builds 4 images at once, not 3
+    expect(max(4, 8 * GIB)).toBe(4); // the 4-CPU/8 GB Colima VM of issue 3710
+    expect(max(6, 64 * GIB)).toBe(6);
     expect(max(32, 64 * GIB)).toBe(8); // plenty of room, clamped down to the maximum
     expect(max(12, 8 * GIB)).toBe(5); // memory is the limit
   });
 
   it("falls back to the minimum when the engine reports no CPUs or memory", () => {
     expect(max(0, 0)).toBe(3);
-    expect(max(1, 64 * GIB)).toBe(3); // fewer CPUs than the reserve
+    expect(max(1, 64 * GIB)).toBe(3);
+    expect(max(2, 64 * GIB)).toBe(3);
     expect(max(32, GIB)).toBe(3); // less than one build's memory
   });
 
   it("rounds memory down to whole builds at the boundary", () => {
     expect(max(32, 6 * GIB)).toBe(4); // exactly four 1.5 GiB builds
     expect(max(32, 6 * GIB - 1)).toBe(3); // one byte short of four
-    expect(max(10, 64 * GIB)).toBe(8); // CPUs give exactly the maximum
+    expect(max(8, 64 * GIB)).toBe(8); // CPUs give exactly the maximum
   });
 
-  it("handles edge memory and CPU budgets at exact boundaries", () => {
-    expect(max(5, 4.5 * GIB)).toBe(3); // 3 CPUs left, 3 builds of 1.5 GiB
-    expect(max(6, 6 * GIB)).toBe(4); // 4 CPUs left, 4 builds of 1.5 GiB
-    expect(max(7, 7.5 * GIB)).toBe(5); // 5 CPUs left, 5 builds of 1.5 GiB
-    expect(max(8, 9 * GIB)).toBe(6); // 6 CPUs left, 6 builds of 1.5 GiB
-    expect(max(9, 10.5 * GIB)).toBe(7); // 7 CPUs left, 7 builds of 1.5 GiB
-    expect(max(10, 12 * GIB)).toBe(8); // 8 CPUs left, 8 builds of 1.5 GiB
+  it("is bottlenecked by the smaller of CPU or memory budget", () => {
+    expect(max(32, 4.5 * GIB)).toBe(3); // memory: 4.5 GiB // 1.5 GiB = 3
+    expect(max(5, 64 * GIB)).toBe(5); // CPU: one build per CPU
+    expect(max(5, 6 * GIB)).toBe(4); // memory below the CPU count
   });
 
-  it("clamps concurrency to minimum when CPUs or memory are severely constrained or negative", () => {
+  it("clamps concurrency to minimum when CPUs or memory are negative", () => {
     expect(max(-2, 16 * GIB)).toBe(3);
     expect(max(8, -100)).toBe(3);
-    expect(max(2, 64 * GIB)).toBe(3); // 2 - 2 = 0 CPUs
   });
 
   it("caps concurrency at maximum of 8 even with abundant resources", () => {
     expect(max(128, 512 * GIB)).toBe(8);
-  });
-
-  it("is bottlenecked by the smaller of CPU or memory budget", () => {
-    expect(max(32, 4.5 * GIB)).toBe(3); // memory is the bottleneck: 4.5 GiB // 1.5 GiB = 3
-    expect(max(5, 64 * GIB)).toBe(3); // CPU is the bottleneck: 5 - 2 = 3
   });
 });
 
@@ -259,7 +253,7 @@ describe("Tilt build concurrency wiring", () => {
   it("defines expected build concurrency constants", () => {
     expect(source).toContain("MIN_PARALLEL_BUILDS = 3");
     expect(source).toContain("MAX_PARALLEL_BUILDS = 8");
-    expect(source).toContain("RESERVED_CPUS = 2");
+    expect(source).toContain("RESERVED_CPUS = 0");
     expect(source).toContain("BUILD_MEMORY_BUDGET_BYTES = 1610612736");
   });
 
