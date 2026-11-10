@@ -64,7 +64,7 @@ node cli/bin/flisk.js doctor
 
 ## 8. 변경 사항 작성
 
-파일을 수정한 후 3단계부터 5단계까지의 검사 과정을 다시 실행합니다. [DCO](../../.github/CONTRIBUTING.md) 서명과 함께 커밋합니다:
+파일을 수정한 후 3단계부터 5단계까지의 검사 과정을 다시 실행합니다. [DCO](../../../.github/CONTRIBUTING.md) 서명과 함께 커밋합니다:
 
 ```bash
 git add path/to/your/files
@@ -79,4 +79,4 @@ git commit -s -m "docs: describe the change"
 git push -u origin my-change
 ```
 
-GitHub에서 작업 브랜치에서 `main` 브랜치를 대상으로 풀 리퀘스트를 열고, 본문에 `Fixes #<issue-number>`를 기재합니다. 템플릿 작성 요령 및 CI 실행 항목은 [변경 사항 확인 및 풀 리퀘스트 열기](03-open-a-pr.md)를 참고하세요.
+GitHub에서 작업 브랜치에서 `main` 브랜치를 대상으로 풀 리퀘스트를 열고, 본문에 `Fixes #<issue-number>`를 기재합니다. 템플릿 작성 요령 및 CI 실행 항목은 [변경 사항 확인 및 풀 리퀘스트 열기](../03-open-a-pr.md)를 참고하세요.
