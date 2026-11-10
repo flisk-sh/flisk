@@ -1,0 +1,154 @@
+{
+  "exclude": [
+    "marketing/**",
+    "launch/**",
+    "outreach/**",
+    "drafts/**"
+  ],
+  "groups": [
+    {
+      "name": "Get started",
+      "pages": [
+        "README.md",
+        "project-overview.md",
+        "quickstart.md",
+        "start/demo.md",
+        "start/*.md",
+        "install/*.md",
+        "setup/*.md",
+        "start-here-on-windows.md",
+        "wsl2.md",
+        "run-without-docker.md",
+        "scripts.md"
+      ]
+    },
+    {
+      "name": "Flisk 101 course",
+      "pages": [
+        "101/README.md",
+        "101/**"
+      ]
+    },
+    {
+      "name": "Adopt it in your team",
+      "pages": [
+        "adopt-flisk.md",
+        "gradual-adoption.md",
+        "layout.md",
+        "ci.md",
+        "upgrading.md",
+        "scope.md",
+        "with-helm.md",
+        "leaving-flisk.md",
+        "faq-teams.md",
+        "pilot-scorecard.md",
+        "adoption-plan.md",
+        "journey/**"
+      ]
+    },
+    {
+      "name": "AI agents",
+      "pages": [
+        "agents/**",
+        "agent-hosts.md",
+        "agent-tooling/**",
+        "mcp.md"
+      ]
+    },
+    {
+      "name": "Reference",
+      "pages": [
+        "service-json.md",
+        "configuration.md",
+        "environment.md",
+        "data.md",
+        "byo.md",
+        "resource-features.md",
+        "generated-files.md",
+        "cheat-sheet.md",
+        "ui.md",
+        "local-webhooks.md",
+        "FEATURES.md",
+        "reference/**",
+        "recipes/**",
+        "examples/**",
+        "CHANGELOG.md"
+      ]
+    },
+    {
+      "name": "How it works",
+      "pages": [
+        "ARCHITECTURE.md",
+        "how-flisk-up-works.md",
+        "TOPOLOGY.md",
+        "tech-stack-lock.md",
+        "design/**",
+        "benchmarks/**",
+        "reports/**"
+      ]
+    },
+    {
+      "name": "Troubleshooting",
+      "pages": [
+        "troubleshooting.md",
+        "troubleshoot-*.md",
+        "windows-hardware.md",
+        "smoke.md"
+      ]
+    },
+    {
+      "name": "Compare",
+      "pages": [
+        "compare-honest.md",
+        "compare/**",
+        "comparison.md",
+        "competitors/**"
+      ]
+    },
+    {
+      "name": "Claims and numbers",
+      "pages": [
+        "claims.md"
+      ]
+    },
+    {
+      "name": "Security and project",
+      "pages": [
+        "security.md",
+        "assurance-case.md",
+        "ACCESS-CONTINUITY.md",
+        "ROADMAP.md",
+        "project/**",
+        "operator-runbook.md",
+        "releasing.md",
+        "github-packages.md",
+        "branding.md",
+        "strategy-memo-gap-analysis.md"
+      ]
+    },
+    {
+      "name": "Contribute",
+      "pages": [
+        "contributing/**",
+        "scoreboard/**",
+        "backend-language-providers.md",
+        "frontend-framework-providers.md",
+        "byo-nestjs-spec.md"
+      ]
+    },
+    {
+      "name": "Is Flisk a fit? By stack",
+      "pages": [
+        "fit/**"
+      ]
+    }
+  ],
+  "start": [
+    "quickstart.md",
+    "start/demo.md",
+    "adopt-flisk.md",
+    "ci.md",
+    "compare-honest.md",
+    "leaving-flisk.md"
+  ]
+}
