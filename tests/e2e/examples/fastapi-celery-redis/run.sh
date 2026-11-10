@@ -5,13 +5,17 @@
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../lib/lib.sh
+source "$SUITE_DIR/../../lib/lib.sh"
+e2e_init fastapi-celery-redis fastapi-celery-redis
+
 REPO_ROOT="$(cd "$SUITE_DIR/../../../../" && pwd)"
 EXAMPLE_DIR="$REPO_ROOT/examples/fastapi-celery-redis"
 FLISK_BIN="${FLISK_BIN:-$REPO_ROOT/cli/bin/flisk.js}"
 
 up_pid=""
 
-cleanup() {
+e2e_cleanup() {
   local exit_code=$?
   echo "Cleaning up stack..."
   if [ -n "$up_pid" ]; then
@@ -21,9 +25,15 @@ cleanup() {
   if [ -f "$EXAMPLE_DIR/services/app/api/src/main.py.bak" ]; then
     mv "$EXAMPLE_DIR/services/app/api/src/main.py.bak" "$EXAMPLE_DIR/services/app/api/src/main.py"
   fi
-  exit "$exit_code"
+  return "$exit_code"
 }
-trap cleanup EXIT INT TERM
+
+e2e_diagnostics() {
+  if [ -f "$EXAMPLE_DIR/up.log" ]; then
+    echo "Tail of up.log:"
+    tail -40 "$EXAMPLE_DIR/up.log" >&2
+  fi
+}
 
 log() {
   echo -e "\n\033[1;34m===> $*\033[0m"
@@ -31,7 +41,7 @@ log() {
 
 fail() {
   echo -e "\n\033[1;31mFAIL: $*\033[0m" >&2
-  [ -f "$EXAMPLE_DIR/up.log" ] && tail -40 "$EXAMPLE_DIR/up.log" >&2
+  e2e_diagnostics
   exit 1
 }
 
@@ -136,10 +146,4 @@ T4_TEARDOWN() {
   echo "PASS: Clean teardown verified."
 }
 
-# Run selected cases or all
-cases="${*:-T1_PREREQS T2_START_AND_TASKS T3_LIVE_RELOAD T4_TEARDOWN}"
-for c in $cases; do
-  "$c"
-done
-
-echo -e "\n\033[1;32mALL FASTAPI-CELERY-REDIS E2E TESTS PASSED\033[0m"
+e2e_main "${@:-all}"
