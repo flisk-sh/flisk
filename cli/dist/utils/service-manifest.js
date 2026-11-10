@@ -1645,6 +1645,13 @@ export function validateServiceManifest(value, displayPath) {
     if (testOnSaveEnabled && manifest.language !== "python") {
         warnings.push(`${displayPath}.dev.testOnSave: only applies to Python services (language "python"); it is ignored here`);
     }
+    if (manifest.env &&
+        typeof manifest.env === "object" &&
+        Object.keys(manifest.env).length > 0 &&
+        manifest.appType !== "bring-your-own" &&
+        !declaresCommand(manifest)) {
+        warnings.push(`${displayPath}.env: only applies to a service that declares a "command" (a local process) or to a bring-your-own resource; it is ignored here. Use "params" for non-secret values and "secrets" for secrets`);
+    }
     return { errors: [...new Set(errors)], warnings, manifest };
 }
 /**
