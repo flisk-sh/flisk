@@ -114,7 +114,7 @@ const worktreeName = basename(match[1].trim()); // e.g. "agent-feature-auth"
 ```
 
 ### 2. Scoped Project Naming
-When worktree isolation is active (via `FLISK_WORKTREE_ISOLATION=true` or `--worktree` flag), project names become scoped:
+When worktree isolation is active (e.g. via a `--worktree` flag or future configuration), project names become scoped:
 ```typescript
 projectName = `${baseProjectName}-${worktreeName}`
 ```
@@ -124,7 +124,7 @@ projectName = `${baseProjectName}-${worktreeName}`
 
 ### 3. Deterministic Port Offsetting
 To prevent `EADDRINUSE`:
-- Worktrees calculate a deterministic port offset (e.g. `+100`, `+200`) based on `FLISK_PORT_OFFSET` or a hash of the worktree name.
+- Worktrees calculate a deterministic port offset (e.g. `+100`, `+200`) based on manual configuration or a hash of the worktree name.
 - In Docker mode, Traefik, Tilt, and Postgres host ports offset:
   `FLISK_HTTP_PORT=8080`, `FLISK_HTTPS_PORT=8443`, `TILT_PORT=10351`, `FLISK_POSTGRES_PORT=15433`.
 - In Native mode, service environment `PORT` expands with the offset.
@@ -139,3 +139,4 @@ Until automatic worktree isolation lands in core:
    - Worktree 1: `PORT=3001`, `FLISK_HTTP_PORT=8001`
    - Worktree 2: `PORT=3002`, `FLISK_HTTP_PORT=8002`
 3. **Avoid Simultaneous `flisk up` Without Scoping**: If running unmodified repositories, execute agent verification runs sequentially rather than concurrently.
+

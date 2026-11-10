@@ -52,3 +52,4 @@ PORT=3002
 
 ### 3. Run Verification Workloads Sequentially
 If modifying `.flisk/project.json` or `.env` is undesirable during automated agent runs, configure the orchestration harness to run `flisk up`, verify test suites, and run `flisk down` sequentially per worktree rather than in parallel.
+
