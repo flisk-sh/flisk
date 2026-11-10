@@ -328,7 +328,7 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | `--profile <names...>` | Also start the services whose `profiles` in `service.json` include one of these names; without it they are left out. A name no service declares is refused |
 | `--env-file <path>` | Use this project env file for the run instead of .env (for example: --env-file .env.integration) |
 | `--no-gateway` | Run without gateway routing (no Traefik). Needs `"capabilities": { "gateway": false }` in `.flisk/project.json`; regenerates `.flisk/.flisk-out/` from it |
-| `--wait` | Start the stack in the background and return once every service is healthy (exit 0), or when it fails or `--wait-timeout` passes (exit 1). An already-active native run returns success without checking health. The stack keeps running; `flisk down` stops it |
+| `--wait` | Start the stack in the background and return once every service is healthy (exit 0), or when it fails or `--wait-timeout` passes (exit 1). Services with `sablier.deferStart` are not waited for: they stay stopped until their first request. A stack that is already running (local processes, or a Tilt started earlier) returns success without checking health. The stack keeps running; `flisk down` stops it |
 | `--wait-timeout <seconds>` | With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800) |
 | `--dry-run` | Show what would start |
 | `-f`, `--force` | Kill an existing Tilt process before starting |
@@ -394,7 +394,7 @@ flisk logs --since 5m --json
 
 ### `flisk run <service> -- <command>`
 
-Runs a one-off command (a seed script, a test-data generator, a shell, a migration status check). A container service must be running: the command runs in its container with `docker exec` and its environment. A local-process service (one with a `command`) runs it on this machine from the service folder, with the project `.env`, shell, its `env` and `PORT`. It does not use a file selected by `flisk up --env-file`, so check the environment before running seeds or migrations. Nothing is started or restarted. The exit code is the command's.
+Runs a one-off command (a seed script, a test-data generator, a shell, a migration status check). A container service must be running: the command runs in its container with `docker exec` and its environment. A local-process service (one with a `command`) runs it on this machine from the service folder, with the project `.env`, shell, its `env` and `PORT`. It does not use a file selected by `flisk up --env-file`, so check the environment before running seeds or migrations. In a local-process run, an image-based service runs in a plain `docker run` container that `flisk run` cannot find; use `docker exec` on it instead (`docker ps --filter label=sh.flisk.native-root` lists them). Nothing is started or restarted. The exit code is the command's.
 
 ```bash
 flisk run orders-api -- printenv DATABASE_URL
