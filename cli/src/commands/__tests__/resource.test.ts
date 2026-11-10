@@ -247,6 +247,8 @@ describe("resource command", () => {
         "@prisma/adapter-pg": "^7.5.0",
         pg: "^8.13.0",
       });
+      // Code that imports 'pg' next to the adapter fails the image's `tsc` (TS7016) without its types.
+      expect(service.devDependencies).toHaveProperty("@types/pg");
       expect(service.scripts.start).toBe("bun run dist/index.js");
     });
 
