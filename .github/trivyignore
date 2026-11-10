@@ -18,3 +18,8 @@ CVE-2026-118764 exp:2026-12-01
 # Dockerfile explains how a caller drops privileges with --user. `USER root` there states the choice.
 DS-0002 exp:2027-11-01
 AVD-DS-0002 exp:2027-11-01
+
+# DS-0026 (no HEALTHCHECK) on tests/e2e/fixtures/byo-no-curl/Dockerfile: the fixture is a busybox image without curl so the e2e
+# test can check the diagnostic when Flisk's own health probe fails. Adding HEALTHCHECK NONE changes that diagnostic and fails the test.
+DS-0026 exp:2027-11-01
+AVD-DS-0026 exp:2027-11-01
