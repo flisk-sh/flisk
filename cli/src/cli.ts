@@ -94,13 +94,22 @@ if (templateArg) {
     process.exit(1);
   }
 
-  const { cloneProjectTemplate, templateTargetDir } = await import("./commands/project.js");
+  const { cloneProjectTemplate, exitUnknownTemplate, templateTargetDir } = await import(
+    "./commands/project.js"
+  );
+  const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
+
+  // A mistyped starter name is refused before the machine check and before anything is drawn,
+  // so the error and the list of templates are the only output.
+  if (!PROJECT_TEMPLATES[templateArg]) {
+    exitUnknownTemplate(templateArg);
+  }
+
   const { assertMachineReadyOrExit } = await import("./utils/cold-preflight.js");
   await assertMachineReadyOrExit({ scope: "scaffold" });
 
   // A second demo in the same folder gets its own directory instead of failing.
   const { nextAvailableProjectDir } = await import("./utils/one-command.js");
-  const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
   const { listFrontendTargets, pickReadyFrontend } = await import("./commands/open.js");
   const { discoverResourcesWithProblems } = await import("./utils/services.js");
   const { openUrl } = await import("./utils/url-actions.js");
