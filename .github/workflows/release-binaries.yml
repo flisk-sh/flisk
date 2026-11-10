@@ -808,3 +808,9 @@ jobs:
         env:
           TOOLRADAR_API_KEY: ${{ secrets.TOOLRADAR_API_KEY }}
         run: node scripts/post-toolradar-update.mjs
+
+      - name: Post the release in the Discord releases channel
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_RELEASES_CHANNEL_ID: "1569404328081358938"
+        run: node scripts/post-discord-release.mjs
