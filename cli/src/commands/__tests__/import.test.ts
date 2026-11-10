@@ -97,7 +97,9 @@ describe("flisk import", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const { spawnFn } = fakeSpawn({ error: new Error("ENOENT") });
     expect(await runImport([], spawnFn, () => "1.3.182")).toBe(127);
-    expect(err).toHaveBeenCalledWith(expect.stringContaining("could not run npx"));
+    expect(err).toHaveBeenCalledWith(
+      "flisk import: could not run npx (ENOENT). Install Node.js 22.12 or later, which provides npx, and retry.",
+    );
     err.mockRestore();
   });
 
@@ -547,7 +549,9 @@ describe("flisk import --json", () => {
     const missing = fakeCapturedSpawn({ error: new Error("ENOENT") });
     const run = await runImportCaptured(["."], missing.spawnFn, () => "1.3.200");
     expect(run.exitCode).toBe(127);
-    expect(run.stderr).toContain("could not run npx (ENOENT)");
+    expect(run.stderr).toBe(
+      "flisk import: could not run npx (ENOENT). Install Node.js 22.12 or later, which provides npx, and retry.",
+    );
     expect(
       (await runImportCaptured(["."], fakeCapturedSpawn({ code: null }).spawnFn)).exitCode,
     ).toBe(1);

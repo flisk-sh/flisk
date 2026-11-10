@@ -157,6 +157,8 @@ import {
 } from "../utils/up-progress.js";
 import {
   evaluateTiltReadiness,
+  getDisabledHealthResourceNames,
+  healthProbeCannotRun,
   tiltGetUiResources,
   tiltResourceLogs,
   waitForTiltResourcesReady,
@@ -1344,6 +1346,12 @@ export const upCommand = new Command("up")
             typeof options.waitTimeout !== "undefined"
               ? parseWaitTimeout(options.waitTimeout)
               : undefined;
+          if (parsedWaitTimeout && !parsedWaitTimeout.ok) {
+            emit({ ok: false }, [
+              { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
+            ]);
+            showErrorAndExit(parsedWaitTimeout.message, 1, []);
+          }
           const readiness = await waitForTiltResourcesReady(runningPort, {
             timeoutMs: parsedWaitTimeout?.ok ? parsedWaitTimeout.seconds * 1000 : undefined,
             deferred,
@@ -1362,7 +1370,17 @@ export const upCommand = new Command("up")
         }
         // Attached: one look is enough. A stack that is still building is running; one with a failed resource is not.
         const snapshot = await tiltGetUiResources(runningPort);
-        const current = snapshot ? evaluateTiltReadiness(snapshot, deferred).result : undefined;
+        // The same health filters as the --json wait, so a service with its health check disabled, or whose probe cannot run,
+        // does not fail the attached run while --json calls the stack healthy.
+        const current = snapshot
+          ? evaluateTiltReadiness(
+              snapshot,
+              deferred,
+              undefined,
+              getDisabledHealthResourceNames(discoveredResources),
+              healthProbeCannotRun,
+            ).result
+          : undefined;
         if (current && current.failures.length > 0) {
           const report = alreadyRunningReport(runningPort, current);
           if (!report.ok) showErrorAndExit(report.message, 1, report.suggestions);

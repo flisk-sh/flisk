@@ -54,7 +54,7 @@ def test_resolver_finds_backend_through_depends_on_when_backend_name_is_missing(
 
 def test_frontend_env_file_uses_backend_route_not_stack_management_route():
     source = ENV_STAR.read_text()
-    assert "resolve_frontend_api_path(manifest, api_path)" in source
+    assert "resolve_backend_api_path(manifest) or api_path" in source
     assert "api_url=frontend_api_url" in source
     # Backends keep the stack-management URL: only the frontend branch changes.
     assert "API_URL={api_url}" not in source.split("if app_type == 'frontend':")[0]
@@ -62,14 +62,20 @@ def test_frontend_env_file_uses_backend_route_not_stack_management_route():
 
 def test_frontend_api_client_and_env_ts_fallback_use_resolved_path():
     source = FRONTEND_STAR.read_text()
-    assert source.count("api_path = resolve_frontend_api_path(manifest, get_api_path(stack, manifest))") == 2
-    assert "import.meta.env.VITE_API_URL || 'http://{local_domain}{router_port}{api_path}'" in source
+    assert source.count("backend_api_path = resolve_backend_api_path(manifest)") == 2
+    assert "import.meta.env.VITE_API_URL || 'http://{local_domain}{port}{api_path}'" in source
 
 
 def test_frontend_without_backend_keeps_stack_management_fallback():
     # resolve_backend_api_path returns None when no backend is found, and every caller then falls back.
     source = _resolver_source()
     assert "if backend_name == None:\n        return None" in source
-    # resolve_frontend_api_path hands the stack route back unless the stack has two or more routable backends.
-    assert "return stack_api_path" in source
-    assert "resolve_frontend_api_path(manifest, get_api_path(stack, manifest))" in FRONTEND_STAR.read_text()
+    assert "api_path = get_api_path(stack, manifest)" in FRONTEND_STAR.read_text()
+
+
+def test_a_backend_without_app_type_counts_as_a_backend():
+    # Discovery defaults a missing appType to backend; the resolver must too, or the frontend falls back to a
+    # stack-management route that 404s when the stack has several backends.
+    source = _resolver_source()
+    assert '(dep.get("_manifest", {}).get("appType") or "backend") in ["backend", "mcp", "agent"]' in source
+    assert '(dep_manifest.get("appType") or "backend") not in ["backend", "mcp", "agent"]' in source

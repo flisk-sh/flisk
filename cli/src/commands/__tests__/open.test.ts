@@ -1,8 +1,12 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import { execFile } from "node:child_process";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTempProject } from "../../test-support/index.js";
+import { cleanEnv, createTempProject, fliskBin } from "../../test-support/index.js";
 import type { HostPortPlan } from "../../types/index.js";
 import { writeSavedHostPortPlan } from "../../utils/host-port-config.js";
 import { openUrl } from "../../utils/url-actions.js";
@@ -112,6 +116,22 @@ describe("listFrontendTargets", () => {
       { name: "storefront", url: "http://app.demo-shop.localhost/shop" },
     ]);
   });
+
+  it("uses direct ports for local frontends and excludes ones without a port", async () => {
+    const root = createTempProject({
+      stacks: {
+        web: {
+          storefront: { appType: "frontend", command: "npm run dev", port: 5173 },
+          unconfigured: { appType: "frontend", command: "npm run dev" },
+          api: { appType: "backend", command: "node server.js", port: 4000 },
+        },
+      },
+    });
+
+    expect(await listFrontendTargets(root)).toEqual([
+      { name: "storefront", url: "http://localhost:5173" },
+    ]);
+  });
 });
 
 describe("findReadyFrontend", () => {
@@ -196,5 +216,33 @@ describe("openFirstFrontend", () => {
 
     expect(openedUrl).toBeNull();
     expect(openUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe("flisk open --print, built CLI", () => {
+  it("prints a reachable local URL with no extra terminal output", async () => {
+    const server = createServer((_request, response) => response.end("ready"));
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    try {
+      const { port } = server.address() as AddressInfo;
+      const root = createTempProject({
+        stacks: {
+          web: { storefront: { appType: "frontend", command: "npm run dev", port } },
+        },
+      });
+      const result = await promisify(execFile)(process.execPath, [fliskBin, "open", "--print"], {
+        cwd: root,
+        env: cleanEnv({ NO_COLOR: "1" }),
+        timeout: 15_000,
+      });
+
+      expect(result.stdout).toBe(`http://localhost:${port}\n`);
+      expect(result.stderr).toBe("");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });

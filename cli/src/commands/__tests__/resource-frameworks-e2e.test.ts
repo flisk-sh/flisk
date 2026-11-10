@@ -306,7 +306,11 @@ describe("frontend resource framework selection", () => {
     expect(pkg.devDependencies).not.toHaveProperty("@vitejs/plugin-react");
     expect(cliPackage.dependencies).not.toHaveProperty("preact");
     expect(tsconfig.compilerOptions.jsxImportSource).toBe("preact");
-    expect(readdirSync(join(preactPath, "src")).sort()).toEqual(["App.tsx", "main.tsx"]);
+    expect(readdirSync(join(preactPath, "src")).sort()).toEqual([
+      "App.tsx",
+      "main.tsx",
+      "vite-env.d.ts",
+    ]);
     expect(existsSync(join(preactPath, "vite.config.ts"))).toBe(false);
     expect(readFileSync(join(preactPath, "src", "main.tsx"), "utf-8")).toContain("from 'preact'");
     expect(
@@ -348,7 +352,11 @@ describe("frontend resource framework selection", () => {
     expect(pkg.dependencies).not.toHaveProperty("react");
     expect(pkg.devDependencies).not.toHaveProperty("@vitejs/plugin-react");
     expect(cliPackage.dependencies).not.toHaveProperty("lit");
-    expect(readdirSync(join(litPath, "src")).sort()).toEqual(["app-root.ts", "main.ts"]);
+    expect(readdirSync(join(litPath, "src")).sort()).toEqual([
+      "app-root.ts",
+      "main.ts",
+      "vite-env.d.ts",
+    ]);
     expect(existsSync(join(litPath, "vite.config.ts"))).toBe(false);
     expect(
       existsSync(
@@ -387,7 +395,11 @@ describe("frontend resource framework selection", () => {
     expect(pkg.dependencies ?? {}).toEqual({});
     expect(pkg.dependencies).not.toHaveProperty("react");
     expect(pkg.devDependencies).not.toHaveProperty("@vitejs/plugin-react");
-    expect(readdirSync(join(vanillaPath, "src")).sort()).toEqual(["app.ts", "main.ts"]);
+    expect(readdirSync(join(vanillaPath, "src")).sort()).toEqual([
+      "app.ts",
+      "main.ts",
+      "vite-env.d.ts",
+    ]);
     expect(existsSync(join(vanillaPath, "vite.config.ts"))).toBe(false);
     expect(
       existsSync(
@@ -432,7 +444,11 @@ describe("frontend resource framework selection", () => {
     expect(cliPackage.dependencies).not.toHaveProperty("solid-js");
     expect(tsconfig.compilerOptions.jsx).toBe("preserve");
     expect(tsconfig.compilerOptions.jsxImportSource).toBe("solid-js");
-    expect(readdirSync(join(solidPath, "src")).sort()).toEqual(["App.tsx", "main.tsx"]);
+    expect(readdirSync(join(solidPath, "src")).sort()).toEqual([
+      "App.tsx",
+      "main.tsx",
+      "vite-env.d.ts",
+    ]);
     expect(existsSync(join(solidPath, "vite.config.ts"))).toBe(false);
     expect(
       existsSync(
@@ -472,7 +488,11 @@ describe("frontend resource framework selection", () => {
     expect(pkg.dependencies).toHaveProperty("@tanstack/react-router");
     expect(pkg.devDependencies).toHaveProperty("@vitejs/plugin-react");
     expect(tsconfig.compilerOptions.jsx).toBe("react-jsx");
-    expect(readdirSync(join(path, "src")).sort()).toEqual(["main.tsx", "router.tsx"]);
+    expect(readdirSync(join(path, "src")).sort()).toEqual([
+      "main.tsx",
+      "router.tsx",
+      "vite-env.d.ts",
+    ]);
     expect(existsSync(join(path, "vite.config.ts"))).toBe(false);
   }, 60000);
 
@@ -559,7 +579,11 @@ describe("frontend resource framework selection", () => {
     expect(cliPackage.dependencies).not.toHaveProperty("@builder.io/qwik");
     expect(tsconfig.compilerOptions.jsx).toBe("react-jsx");
     expect(tsconfig.compilerOptions.jsxImportSource).toBe("@builder.io/qwik");
-    expect(readdirSync(join(qwikPath, "src")).sort()).toEqual(["App.tsx", "main.tsx"]);
+    expect(readdirSync(join(qwikPath, "src")).sort()).toEqual([
+      "App.tsx",
+      "main.tsx",
+      "vite-env.d.ts",
+    ]);
     expect(existsSync(join(qwikPath, "vite.config.ts"))).toBe(false);
     expect(
       existsSync(

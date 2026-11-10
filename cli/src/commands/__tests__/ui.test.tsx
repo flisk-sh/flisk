@@ -115,7 +115,7 @@ describe("ui command definition", () => {
     expect(uiCommand.name()).toBe("ui");
     expect(uiCommand.alias()).toBe("interactive");
     expect(uiCommand.description()).toBe(
-      "Interactive TUI for managing stacks and services (Neon Edition)",
+      "Terminal dashboard to watch and manage your stacks and services",
     );
   });
 

@@ -10,3 +10,10 @@ it("shows examples in down help", () => {
   expect(help).toContain("Examples:");
   expect(help).toContain("flisk down --dry-run");
 });
+
+it("says down stops local processes too, not only Tilt resources", () => {
+  expect(downCommand.description()).toBe(
+    "Stop every running service of this project (local processes or Docker/Tilt)",
+  );
+  expect(downCommand.description()).not.toContain("tilt resources");
+});

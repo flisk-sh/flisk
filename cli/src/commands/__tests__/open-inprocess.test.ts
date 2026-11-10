@@ -41,6 +41,7 @@ const SHOP = "http://app.demo-shop.localhost:8080/shop";
 let stdout = "";
 let stderr = "";
 const baseUrlBefore = process.env.FLISK_SERVICE_BASE_URL;
+const exitCodeBefore = process.exitCode;
 
 function shopProject(): string {
   const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
@@ -74,6 +75,8 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "Date"] });
   stdout = "";
   stderr = "";
+  process.exitCode = 0;
+  openCommand.setOptionValue("print", false);
   vi.spyOn(console, "log").mockImplementation((...lines: unknown[]) => {
     stdout += `${lines.map(String).join(" ")}\n`;
   });
@@ -81,10 +84,14 @@ beforeEach(() => {
     stderr += String(chunk);
     return true;
   }) as never);
-  vi.mocked(getHostPortPlan).mockResolvedValue(PLAN);
+  vi.spyOn(console, "error").mockImplementation((...lines: unknown[]) => {
+    stderr += `${lines.map(String).join(" ")}\n`;
+  });
+  vi.mocked(getHostPortPlan).mockClear().mockResolvedValue(PLAN);
 });
 
 afterEach(() => {
+  process.exitCode = exitCodeBefore;
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -240,6 +247,81 @@ describe("frontend readiness", () => {
 });
 
 describe("flisk open, in process", () => {
+  async function print(root: string): Promise<void> {
+    const cwd = process.cwd();
+    process.chdir(root);
+    try {
+      const pending = openCommand.exitOverride().parseAsync(["--print"], { from: "user" });
+      const result = pending.catch((error: unknown) => error);
+      await vi.runAllTimersAsync();
+      const error = await result;
+      if (error instanceof Error) throw error;
+    } finally {
+      process.chdir(cwd);
+    }
+  }
+
+  it("prints only the first ready frontend URL without opening a browser", async () => {
+    const root = shopProject();
+    answer((url) => (url === SHOP ? 200 : 503));
+
+    await print(root);
+
+    expect(stdout).toBe(`${SHOP}\n`);
+    expect(stderr).toBe("");
+    expect(process.exitCode).toBe(0);
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("prints the local frontend port rather than a gateway URL", async () => {
+    const root = shopProject();
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    answer(() => 200);
+
+    await print(root);
+
+    expect(stdout).toBe("http://localhost:5173\n");
+    expect(stderr).toBe("");
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(getHostPortPlan).not.toHaveBeenCalled();
+  });
+
+  it("fails on stderr with no URL outside a project", async () => {
+    await print(createTempDir());
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Not in a Flisk project");
+    expect(process.exitCode).toBe(1);
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("fails on stderr with no URL when there is no frontend", async () => {
+    const root = shopProject();
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({ resources: [], problems: [] });
+
+    await print(root);
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("no frontend service");
+    expect(process.exitCode).toBe(1);
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("fails on stderr when no frontend becomes ready", async () => {
+    const root = shopProject();
+    answer(() => 503);
+
+    await print(root);
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("No frontend answered yet");
+    expect(process.exitCode).toBe(1);
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
   it("opens the first frontend of the project it runs in", async () => {
     const root = shopProject();
     answer(() => 200);

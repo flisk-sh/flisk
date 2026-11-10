@@ -1,7 +1,7 @@
 {
   "name": "flisk-cli-internal",
   "private": true,
-  "version": "1.4.48",
+  "version": "1.4.49",
   "description": "Flisk: local development for multi-service apps, started with one command.",
   "keywords": [
     "flisk",

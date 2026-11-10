@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { captureExit, parseEnvelope } from "../../test-support/index.js";
+import { captureExit, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { resourcesCommand } from "../resources.js";
 
@@ -109,6 +109,31 @@ describe("resources command", () => {
     expect(exit).toHaveBeenCalledWith(1);
     errorSpy.mockRestore();
   });
+
+  it.each(["queue", "inference"])("suggests the stored resource type for --type %s", (type) => {
+    setupProject([]);
+    const result = runFlisk(["resources", "--type", type], { cwd: tempDir });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`Invalid resource type "${type}"`);
+    expect(result.stderr).toContain("saved as bring-your-own resources");
+    expect(result.stderr).toContain("flisk resources --type bring-your-own");
+  });
+
+  it.each(["queue", "inference"])(
+    "includes the filter hint for --type %s in JSON errors",
+    (type) => {
+      setupProject([]);
+      const result = runFlisk(["resources", "--type", type, "--json"], { cwd: tempDir });
+
+      expect(result.status).toBe(1);
+      const envelope = parseEnvelope(result.stdout);
+      expect(envelope.errors[0]).toMatchObject({
+        message: `Invalid resource type "${type}"`,
+        suggestions: [expect.stringContaining("flisk resources --type bring-your-own")],
+      });
+    },
+  );
 
   it("exits when requested stack does not exist", async () => {
     setupProject([{ name: "api", type: "backend", stack: "shop", port: 4000 }]);

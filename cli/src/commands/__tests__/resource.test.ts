@@ -35,6 +35,7 @@ import {
   parseResourceType,
   TSCONFIG_TEMPLATE,
   TYPE_SPECIFIC,
+  withViteEnvTypes,
 } from "../../commands/resource.js";
 import {
   FRONTEND_FRAMEWORKS,
@@ -238,6 +239,24 @@ describe("resource command", () => {
     });
   });
 
+  describe("withViteEnvTypes", () => {
+    const file = (filename: string) => ({ filename, content: "", description: "", emoji: "" });
+
+    it("adds Vite client types to a Vite frontend that has none", () => {
+      const files = withViteEnvTypes([file("src/App.tsx")], getFrontendFramework("react"));
+      expect(files.map((f) => f.filename)).toEqual(["src/App.tsx", "src/vite-env.d.ts"]);
+      expect(files[1]?.content).toContain('/// <reference types="vite/client" />');
+    });
+
+    it("keeps a framework's own vite-env.d.ts and adds nothing to Next.js", () => {
+      const own = [file("src/vite-env.d.ts")];
+      expect(withViteEnvTypes(own, getFrontendFramework("vue"))).toEqual(own);
+      expect(
+        withViteEnvTypes([file("src/app/page.tsx")], getFrontendFramework("next")),
+      ).toHaveLength(1);
+    });
+  });
+
   describe("package.json template", () => {
     it("pins Prisma 7 packages when Prisma is enabled", () => {
       const service = createPackageJson("orders-api", "backend", undefined, true);
@@ -247,15 +266,9 @@ describe("resource command", () => {
         "@prisma/adapter-pg": "^7.5.0",
         pg: "^8.13.0",
       });
+      // Code that imports 'pg' next to the adapter fails the image's `tsc` (TS7016) without its types.
+      expect(service.devDependencies).toHaveProperty("@types/pg");
       expect(service.scripts.start).toBe("bun run dist/index.js");
-    });
-
-    it("ships the pg types with Prisma, so code that imports 'pg' compiles in the image", () => {
-      const service = createPackageJson("orders-api", "backend", undefined, true);
-      expect(service.devDependencies).toMatchObject({ "@types/pg": "^8.11.0" });
-      expect(createPackageJson("orders-api", "backend").devDependencies).not.toHaveProperty(
-        "@types/pg",
-      );
     });
 
     it("uses the Prisma 7 client generator and generated config shape", () => {

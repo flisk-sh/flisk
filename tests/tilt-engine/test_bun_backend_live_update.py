@@ -30,11 +30,11 @@ def test_live_update_rebuilds_dist_then_restarts():
     restart = rules.index("restart_container()")
     assert "--outdir dist" in rules
     assert build < restart, "restart_container must be the last live update step"
-    assert restart > rules.index("bun install"), "restart_container must follow every run step"
+    assert restart > rules.rindex("live_update_rules.append(run("), "restart_container must follow every run step"
 
 
 def test_rebuild_runs_only_when_a_source_changed():
-    # A package.json sync already has its own install step and must not restart the container by itself.
+    # A package.json change rebuilds the image (fall_back_on); only a source change rebuilds dist/ and restarts.
     rules = _function(REGISTRATION.read_text(), "_build_live_update_rules")
     assert "trigger=[_live_update_sync_source(project_root, full_res_path, 'src')]" in rules
 
@@ -59,3 +59,10 @@ def test_a_service_without_a_typescript_entry_keeps_its_old_rules():
     assert "os.path.exists(service_dir + '/src/' + entry + '.ts')" in _function(
         REGISTRATION.read_text(), "_bun_backend_entry"
     )
+
+
+def test_dependency_changes_rebuild_the_image_first():
+    rules = _function(REGISTRATION.read_text(), "_build_live_update_rules")
+    fall_back = rules.index("fall_back_on([source_dir + name for name in _DEPENDENCY_FILES])")
+    assert fall_back < rules.index("for sync_path in syncs:"), "fall_back_on must be the first live update step"
+    assert "trigger=[package_json_path" not in rules

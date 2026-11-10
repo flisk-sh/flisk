@@ -39,7 +39,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## 1.4.33 (2026-11-02)
 
-- Cycle-time scorer with median, p90, and slow PR detection (#3147): `flisk scores` now tracks cycle time (time from open to merge) for each PR, reporting the median and 90th percentile to help identify process bottlenecks.
+- Cycle-time scorer with median, p90, and slow PR detection (#3147): `make scores ARGS="--source all"` includes cycle time (time from open to merge) for recent PRs, reporting the median and 90th percentile to help identify process bottlenecks.
 
 - Shared project checks between container and local-process lists (#3146): `flisk doctor` refactored to deduplicate project validation logic, ensuring the same checks run whether services use Docker or run locally.
 
@@ -47,7 +47,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 - Service directory .env expansion (#3143): Services can now use `${VAR}` in their `env` values, with variables read from the service folder's `.env` file, allowing environment-specific configuration.
 
-- Secrets generation to .env (#3144): `flisk secrets generate` now writes generated development secrets directly into the git-ignored `.env` file once, avoiding repeated prompts during local development.
+- Secrets generation to .env (#3144): `secrets.generate` entries in `service.json` let `flisk up` write missing development secrets into the project's `.env` once, without overwriting existing values.
 
 ## 1.4.24 (2026-10-31)
 
