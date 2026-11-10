@@ -146,7 +146,7 @@ export async function openFirstFrontend(projectRootOverride, options = {}) {
     return first.url;
 }
 export const openCommand = new Command("open")
-    .description("Open the first frontend of the project in your browser")
+    .description("Open the first ready frontend of the project in your browser")
     .option("--print", "Print the first ready frontend URL without opening a browser")
     .action(async (options) => {
     const url = await openFirstFrontend(undefined, { isPrintOnly: options.print });

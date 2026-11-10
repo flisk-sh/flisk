@@ -55,7 +55,7 @@ const COMMAND_GROUPS = [
         title: "Resource Level",
         color: chalk.yellow,
         commands: [
-            { name: "resource", desc: "Create new resource with templates", alias: "" },
+            { name: "resource", desc: "Create a new resource, or register an existing one", alias: "" },
             { name: "resources", desc: "List all resources with filtering", alias: "--stack, --ports" },
             {
                 name: "agent",
@@ -80,7 +80,7 @@ const COMMAND_GROUPS = [
                 desc: "Run a one-off command with a service's stack environment",
                 alias: "<service> -- <command>",
             },
-            { name: "status", desc: "Show status of services and stacks", alias: "" },
+            { name: "status", desc: "Show status of resources and stacks", alias: "" },
             { name: "open", desc: "Open the first ready frontend in your browser", alias: "" },
             { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },
         ],

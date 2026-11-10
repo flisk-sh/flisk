@@ -7,12 +7,30 @@ import { describe, expect, it, vi } from "vitest";
 import pkg from "../../../package.json" with { type: "json" };
 import { createTempDir, runFlisk } from "../../test-support/index.js";
 import { listedCommandNames, showHelp } from "../help.js";
+import { openCommand } from "../open.js";
 import { getRegisteredCommands } from "../registry.js";
 
 // Commands that exist for maintainers of this repository, not for people using Flisk.
 const NOT_LISTED = new Set(["maintainers"]);
 
 describe("flisk --help", () => {
+  it("describes resource, status and open consistently with their behavior", () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
+      logs.push(args.map(String).join(" "));
+    });
+    try {
+      showHelp();
+      const output = logs.join("\n");
+      expect(output).toMatch(/resource\s+Create a new resource, or register an existing one/);
+      expect(output).toMatch(/status\s+Show status of resources and stacks/);
+      expect(output).toMatch(/open\s+Open the first ready frontend in your browser/);
+      expect(openCommand.helpInformation()).toContain("Open the first ready frontend");
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   it("describes project setup and validation in the command list", () => {
     const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
