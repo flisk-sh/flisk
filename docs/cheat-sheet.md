@@ -127,7 +127,7 @@ flisk create my-app --dry-run          # print the commands that would run
 | `--language <id>` | API language (see flisk resource --help) |
 | `--extras <list>` | Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none |
 | `--dry-run` | Print the commands that would run, and stop |
-| `--start` | Install dependencies and start what was written (the local app route; a starter is never started here) |
+| `--start` | Install dependencies and start what was written. A local app runs with `flisk up`; a Docker app with `flisk up app`. A starter is never started here |
 | `-y`, `--yes` | Skip prompts and confirmations; use defaults |
 
 ### `flisk project [template]` (alias: `flisk init`)
