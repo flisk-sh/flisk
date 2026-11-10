@@ -98,6 +98,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk restart <resource>` | | Restart a running Tilt resource; for native services use `flisk down` then `flisk up` |
 | `flisk networks` | `urls`, `traefik` | Show Traefik-routed URLs |
 | `flisk open` | | Open the first frontend of the project in your browser |
+| `flisk open --print` | | Print the first ready frontend URL without launching a browser |
 | `flisk config <subcommand>` | | Regenerate, verify, migrate or edit project config |
 | `flisk doctor` | | Check environment readiness |
 | `flisk ui` | `interactive` | Interactive terminal UI |
