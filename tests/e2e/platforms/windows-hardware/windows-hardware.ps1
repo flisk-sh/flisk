@@ -646,10 +646,10 @@ function Invoke-Wh5 {
 }
 
 function Invoke-Wh6 {
-  # WH6: the one-command demo flow on native Windows. The demo clones a starter, installs the CLI
-  # globally, installs the service dependencies and boots the stack. Native Windows cannot boot a
-  # stack, so the demo must not start one. A release that refuses early must not clone or install
-  # anything either; a release that predates that refusal says so in the report.
+  # WH6: the one-command demo flow on native Windows. Without WSL2 or Docker the demo falls back to
+  # the small two-service app run as local processes (platforms/windows W5 checks the current build;
+  # this checks the published release): it must exit 0, say it runs without Docker, serve the menu
+  # from the API behind it, start no Tilt and no container, and stop when `flisk down` runs.
   Write-Step 'WH6 the one-command demo flow on native Windows'
   if ($script:LocalExe) {
     $exe = $script:LocalExe
@@ -659,6 +659,7 @@ function Invoke-Wh6 {
   }
   $workDir = Join-Path $script:WorkDir 'demo'
   New-Item -ItemType Directory -Force -Path $workDir | Out-Null
+  $demoDir = Join-Path $workDir 'project'
 
   # The demo writes into the home directory and installs the CLI globally. Give it a home and a
   # prefix of its own, so an acceptance run does not change the machine it runs on.
@@ -678,7 +679,7 @@ function Invoke-Wh6 {
     $env:HOME = $tempHome
     $env:npm_config_prefix = $tempPrefix
     Remove-Item Env:FLISK_ALLOW_NATIVE_WINDOWS -ErrorAction SilentlyContinue
-    $result = Invoke-Exe $exe @('demo') $workDir 600
+    $result = Invoke-Exe $exe @('demo', '--project', $demoDir) $workDir 600
   } finally {
     if ($null -eq $homeBefore) { Remove-Item Env:USERPROFILE -ErrorAction SilentlyContinue } else { $env:USERPROFILE = $homeBefore }
     if ($null -eq $homeEnvBefore) { Remove-Item Env:HOME -ErrorAction SilentlyContinue } else { $env:HOME = $homeEnvBefore }
@@ -686,33 +687,49 @@ function Invoke-Wh6 {
     if ($allowBefore) { $env:FLISK_ALLOW_NATIVE_WINDOWS = $allowBefore }
   }
 
-  if ($result.ExitCode -eq 0) { throw 'the demo command succeeded on native Windows; it must not boot a stack' }
+  if ($result.ExitCode -ne 0) {
+    $log = Join-Path $demoDir '.flisk\demo-native.log'
+    if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 40 | Write-Host }
+    throw "the demo did not start on native Windows (exit $($result.ExitCode))"
+  }
+  Assert-Text $result.Text '(?i)without Docker' 'the demo did not say it runs without Docker'
+  $web = [regex]::Match($result.Text, 'http://localhost:\d+').Value
+  if (-not $web) { throw 'the demo printed no localhost URL' }
 
   $observations = @()
-  $cloned = Test-Path -LiteralPath (Join-Path $tempHome '.flisk\flisk-demo')
-  $installedGlobally = $result.Text -match '(?i)installed globally'
-  $refused = ($result.Text -match '(?i)WSL2') -and ($result.Text -match '(?i)Ubuntu')
+  try {
+    $page = Invoke-WebRequest -UseBasicParsing -TimeoutSec 15 -Uri "$web/"
+    if ($page.Content -notmatch "Tonight's menu") { throw "$web did not serve the demo page" }
+    $menu = Invoke-WebRequest -UseBasicParsing -TimeoutSec 15 -Uri "$web/api/menu"
+    if ($menu.Content -notmatch 'Margherita') { throw "$web/api/menu did not reach the menu API" }
+    $observations += "the demo served its page and menu API at $web without Docker"
 
-  if ($refused) {
-    if ($cloned) { throw 'the demo command cloned a starter before it refused' }
-    if ($installedGlobally) { throw 'the demo command installed the CLI globally before it refused' }
-    $observations += 'the demo refused with the WSL2 guidance before it cloned or installed anything'
-  } else {
-    $lastLine = ($result.Text -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 1)
-    $observations += "the demo did not refuse with the WSL2 guidance; it stopped with '$($lastLine.Trim())'"
-    if ($cloned) { $observations += 'the demo cloned the starter before it stopped' }
-    if ($installedGlobally) { $observations += 'the demo installed the CLI globally before it stopped' }
+    $processesAfter = Get-RuntimeProcesses
+    $newProcesses = @($processesAfter | Where-Object { $_ -notin $processesBefore })
+    if ($newProcesses.Count -gt 0) { throw "the demo started Tilt or Docker processes: $($newProcesses -join ', ')" }
+    $containersAfter = Get-ContainerIds
+    $newContainers = @($containersAfter | Where-Object { $_ -notin $containersBefore })
+    if ($newContainers.Count -gt 0) { throw "the demo started containers: $($newContainers -join ', ')" }
+  } finally {
+    # Stop it with the same home the demo ran under, so down finds the run the demo recorded there.
+    $env:USERPROFILE = $tempHome
+    $env:HOME = $tempHome
+    try {
+      $down = Invoke-Exe $exe @('down') $demoDir 120
+    } finally {
+      if ($null -eq $homeBefore) { Remove-Item Env:USERPROFILE -ErrorAction SilentlyContinue } else { $env:USERPROFILE = $homeBefore }
+      if ($null -eq $homeEnvBefore) { Remove-Item Env:HOME -ErrorAction SilentlyContinue } else { $env:HOME = $homeEnvBefore }
+    }
+    if ($down.ExitCode -ne 0) { Write-Host $down.Text }
   }
-
-  $processesAfter = Get-RuntimeProcesses
-  $newProcesses = @($processesAfter | Where-Object { $_ -notin $processesBefore })
-  if ($newProcesses.Count -gt 0) { throw "the demo started runtime processes: $($newProcesses -join ', ')" }
-  $containersAfter = Get-ContainerIds
-  $newContainers = @($containersAfter | Where-Object { $_ -notin $containersBefore })
-  if ($newContainers.Count -gt 0) { throw "the demo started containers: $($newContainers -join ', ')" }
+  if ($down.ExitCode -ne 0) { throw 'flisk down failed in the demo folder' }
+  $stillUp = $true
+  try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Uri "$web/health" | Out-Null } catch { $stillUp = $false }
+  if ($stillUp) { throw "$web still answers after flisk down" }
+  $observations += 'flisk down stopped the demo'
 
   return @{
-    Detail = 'the demo command did not boot a stack'
+    Detail = 'the demo ran as local processes and stopped with flisk down'
     Observations = $observations
   }
 }
@@ -725,7 +742,7 @@ $cases = [ordered]@{
   'WH3' = @{ Title = 'the exe reports the release version and finds its own engine'; Run = { Invoke-Wh3 } }
   'WH4' = @{ Title = 'native Windows refuses doctor and up with WSL2 guidance and starts nothing'; Run = { Invoke-Wh4 } }
   'WH5' = @{ Title = 'the exe starts from a path with a space, resolves through PATH and refuses in a spaced project'; Run = { Invoke-Wh5 } }
-  'WH6' = @{ Title = 'the one-command demo flow does not boot a stack on native Windows'; Run = { Invoke-Wh6 } }
+  'WH6' = @{ Title = 'the one-command demo flow runs as local processes on native Windows'; Run = { Invoke-Wh6 } }
 }
 
 $selected = if ($Case -eq 'all') { @($cases.Keys) } else { @($Case) }

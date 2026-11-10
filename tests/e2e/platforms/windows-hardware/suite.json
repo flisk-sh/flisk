@@ -1,7 +1,7 @@
 {
   "group": "platforms",
   "suite": "windows-hardware",
-  "description": "The published Windows binary on a real Windows host (#1765): WH1 checks the released exe and engine archive against checksums.txt, WH2 runs the official PowerShell installer on this machine and checks what it installs, WH3 checks the version and the bundled runtime assets, WH4 checks that native Windows refuses doctor and up with WSL2 guidance and starts nothing, WH5 checks the host differences a hosted runner cannot show: a path with a space, PATH lookup and a project directory with a space, WH6 checks that the one-command demo flow does not boot a stack on native Windows.",
+  "description": "The published Windows binary on a real Windows host (#1765): WH1 checks the released exe and engine archive against checksums.txt, WH2 runs the official PowerShell installer on this machine and checks what it installs, WH3 checks the version and the bundled runtime assets, WH4 checks that native Windows refuses doctor and up with WSL2 guidance and starts nothing, WH5 checks the host differences a hosted runner cannot show: a path with a space, PATH lookup and a project directory with a space, WH6 checks that the one-command demo flow runs as local processes on native Windows and stops with flisk down.",
   "paths": [
     "cli/src/cli.ts",
     "cli/src/utils/platform.ts",
