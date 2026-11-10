@@ -1047,8 +1047,15 @@ export const completionCommand = new Command("completion")
       console.log(chalk.yellow(installInstructions));
     } else if (options.output) {
       writeFileSync(options.output, completionScript, "utf-8");
-      console.log(chalk.green(`✅ Written ${shell} completion to:`));
+      console.log(chalk.green(`✅ Wrote ${shell} completion to:`));
       console.log(chalk.cyan(`   ${options.output}`));
+      const hints: Record<string, string> = {
+        bash: "# Source this file in your shell; add the source command to ~/.bashrc to load it automatically.",
+        zsh: "# Put this file in a folder on $fpath as _flisk, then run: autoload -U compinit && compinit",
+        fish: "# Copy this file to ~/.config/fish/completions/ as flisk.fish.",
+        powershell: "# Dot-source this file in PowerShell; add the command to your $PROFILE to load it automatically.",
+      };
+      console.log(chalk.yellow(hints[shell]));
     } else {
       console.log(completionScript);
     }
