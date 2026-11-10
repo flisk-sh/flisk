@@ -638,3 +638,18 @@ def test_golden_loader_tells_the_builder_when_no_resource_needs_it(tmp_path):
         "r = {'byo': Infra.load_golden_image(enabled, provider, app_resources=byo), 'built': Infra.load_golden_image(enabled, provider, app_resources=built)}\n",
     )
     assert result == {"byo": False, "built": True}
+
+
+@TILT_REQUIRED
+def test_sablier_runs_only_when_a_resource_opts_in(tmp_path):
+    """#3753: no resource with `sablier.enable` means no sablier and no wake-gateway in the project."""
+    infra_dir = INFRA_LOADER.parent
+    result = run_starlark(
+        tmp_path,
+        f"load('{infra_dir}/infra-loader.star', 'project_uses_sablier')\n"
+        "plain = [{'resources': [{'name': 'a', '_manifest': {'appType': 'backend'}}]}]\n"
+        "off = [{'resources': [{'name': 'a', '_manifest': {'sablier': {'enable': False}}}]}]\n"
+        "on = plain + [{'resources': [{'name': 'b', '_manifest': {'sablier': {'enable': True, 'deferStart': True}}}]}]\n"
+        "r = {'plain': project_uses_sablier(plain), 'off': project_uses_sablier(off), 'on': project_uses_sablier(on), 'none': project_uses_sablier([])}\n",
+    )
+    assert result == {"plain": False, "off": False, "on": True, "none": False}
