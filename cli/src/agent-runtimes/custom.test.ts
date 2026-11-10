@@ -1,10 +1,32 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { portFromEnv } from "../utils/generated-port.js";
 import { customAgentRuntime, getCustomAgentIndexTemplate } from "./custom.js";
 
 const SERVICE = "support-agent";
+
+type RequestPrelude = (
+  req: { url: string },
+  res: { on: (event: string, listener: () => void) => void },
+  sendJson: (res: unknown, status: number, body: unknown) => void,
+) => string | undefined;
+
+// Execute the generated request prelude, before route dispatch, for either storage variant.
+function loadRequestPrelude(source: string): RequestPrelude {
+  const marker = "const server = createServer(async (req, res) => {";
+  const start = source.indexOf(marker);
+  expect(start).toBeGreaterThan(-1);
+  const end = source.indexOf("\n  try {\n    if (url.pathname", start);
+  expect(end).toBeGreaterThan(start);
+  const prelude = source.slice(start + marker.length, end).replace("let url: URL;", "let url;");
+  return new Function(
+    "req",
+    "res",
+    "sendJson",
+    `let inFlight = 0;\n${prelude}\nreturn url.pathname;`,
+  ) as RequestPrelude;
+}
 
 // Pull the body of `async close()` out of the generated postgres index so the assertions read the real output.
 function closeBody(source: string): string {
@@ -75,6 +97,23 @@ describe("custom agent runtime provider", () => {
 
 describe.each(["files", "postgres"] as const)("%s durability template", (durability) => {
   const index = getCustomAgentIndexTemplate(SERVICE, durability);
+
+  it.each(["//", "///"])("answers an unparsable path %s with 400", (path) => {
+    const sendJson = vi.fn();
+    const response = { on: vi.fn() };
+    expect(loadRequestPrelude(index)({ url: path }, response, sendJson)).toBeUndefined();
+    expect(sendJson).toHaveBeenCalledExactlyOnceWith(response, 400, { error: "bad_request" });
+    expect(response.on).toHaveBeenCalledWith("close", expect.any(Function));
+  });
+
+  it.each(["/health", "/ready", "/turn", "/sessions"])(
+    "keeps a valid path %s available for routing",
+    (path) => {
+      const sendJson = vi.fn();
+      expect(loadRequestPrelude(index)({ url: path }, { on: vi.fn() }, sendJson)).toBe(path);
+      expect(sendJson).not.toHaveBeenCalled();
+    },
+  );
 
   it("names the service in the health response and the startup log", () => {
     expect(index).toContain(`{ status: 'ok', service: '${SERVICE}', draining }`);
