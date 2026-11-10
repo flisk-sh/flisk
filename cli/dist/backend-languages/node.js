@@ -76,10 +76,21 @@ function handleCors(req, res) {
   return true;
 }
 
-export const server = http.createServer((req, res) => {
-  if (handleCors(req, res)) return;
+/** Reject malformed request targets before processing CORS or application routes. */
+function handleRequest(req, res) {
+  let url;
+  try {
+    url = new URL(req.url, "http://localhost");
+  } catch {
+    return sendJson(res, 400, { error: "Bad Request" });
+  }
 
-  const url = new URL(req.url, \`http://\${req.headers.host || "localhost"}\`);
+  // A network-path or absolute target must not route against a different authority.
+  if (req.url?.startsWith("//") || url.origin !== "http://localhost") {
+    return sendJson(res, 400, { error: "Bad Request" });
+  }
+
+  if (handleCors(req, res)) return;
 
   // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
   if (req.method === "GET" && url.pathname === "/health") {
@@ -95,7 +106,9 @@ export const server = http.createServer((req, res) => {
   }
 
   return sendJson(res, 404, { error: "Not Found" });
-});
+}
+
+export const server = http.createServer(handleRequest);
 
 if (process.env.NODE_ENV !== "test") {
   // "0.0.0.0" listens on every interface, which Traefik needs inside the container network.
@@ -111,11 +124,31 @@ if (process.env.NODE_ENV !== "test") {
             {
                 filename: "tests/health.test.js",
                 content: `import assert from "node:assert/strict";
+import http from "node:http";
 import { after, before, describe, it } from "node:test";
 import { server } from "../src/index.js";
 
 describe("health check", () => {
   let baseUrl;
+
+  function requestTarget(path, options = {}) {
+    return new Promise((resolve, reject) => {
+      const req = http.request(baseUrl, { ...options, path }, (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { body += chunk; });
+        res.on("end", () => {
+          resolve({
+            status: res.statusCode,
+            headers: res.headers,
+            body: body ? JSON.parse(body) : null,
+          });
+        });
+      });
+      req.on("error", reject);
+      req.end();
+    });
+  }
 
   before((_, done) => {
     server.listen(0, "127.0.0.1", () => {
@@ -134,6 +167,46 @@ describe("health check", () => {
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.deepEqual(body, { status: "ok", service: "${name}" });
+  });
+
+  it("GET / returns the original service metadata", async () => {
+    const res = await fetch(\`\${baseUrl}/\`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), {
+      service: "${name}",
+      version: "1.0.0",
+      endpoints: ["/health"],
+    });
+  });
+
+  it("rejects malformed or authority-changing targets and keeps serving requests", async () => {
+    for (const path of [
+      "//",
+      "///",
+      "//other-host/health",
+      "//localhost/health",
+      "http://other-host/health",
+    ]) {
+      const res = await requestTarget(path);
+      assert.equal(res.status, 400);
+      assert.deepEqual(res.body, { error: "Bad Request" });
+    }
+
+    const res = await requestTarget("/health", { headers: { Host: "bad host" } });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { status: "ok", service: "${name}" });
+  });
+
+  it("rejects malformed CORS preflights but retains valid preflight responses", async () => {
+    const origin = "http://app.demo.localhost";
+    const options = { method: "OPTIONS", headers: { Origin: origin } };
+    const malformed = await requestTarget("//", options);
+    assert.equal(malformed.status, 400);
+    assert.deepEqual(malformed.body, { error: "Bad Request" });
+
+    const valid = await requestTarget("/health", options);
+    assert.equal(valid.status, 204);
+    assert.equal(valid.headers["access-control-allow-origin"], origin);
   });
 });
 `,
