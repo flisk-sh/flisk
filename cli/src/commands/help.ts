@@ -98,7 +98,11 @@ const COMMAND_GROUPS = [
     title: "Utilities",
     color: chalk.cyan,
     commands: [
-      { name: "ui, interactive", desc: "Terminal dashboard to watch and manage your stacks and services", alias: "" },
+      {
+        name: "ui, interactive",
+        desc: "Terminal dashboard to watch and manage your stacks and services",
+        alias: "",
+      },
       {
         name: "os",
         desc: "Start FliskOS, the local desktop app for projects and agents",

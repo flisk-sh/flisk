@@ -131,7 +131,7 @@ export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersio
             shell: invocation.shell,
         });
         child.on("error", (err) => {
-            console.error(`flisk import: could not run npx (${err.message}). Install Node.js/npm and retry.`);
+            console.error(`flisk import: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`);
             resolve(127);
         });
         child.on("close", (code) => resolve(code ?? 1));
@@ -164,7 +164,7 @@ export function runImportCaptured(args, spawnFn = spawn, getVersionFn = getPacka
             resolve({
                 exitCode: 127,
                 stdout,
-                stderr: `flisk import: could not run npx (${err.message}). Install Node.js/npm and retry.`,
+                stderr: `flisk import: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`,
             });
         });
         child.on("close", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
