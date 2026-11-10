@@ -10,7 +10,8 @@
 - [Run one Python backend locally](../examples/one-backend-python/README.md)
 - [Full multi-service example](../examples/flisk-example/README.md)
 - [Mega cheat sheet](cheat-sheet.md): every `flisk` command, alias and flag
-- [Configuration and editor schemas](configuration.md)
+- [Configuration and editor schemas](configuration.md): the `service.json` fields you set most, and the project file
+- [`package.json` scripts](scripts.md): the `dev`, `build` and `start` scripts each `appType` needs, and how `flisk doctor` checks them
 - [Resource features](resource-features.md): code generators, Prisma, and `featuresEnabled`
 - [Generated service files](generated-files.md): what Flisk writes from `service.json`, and how to handle drift
 - [Environment, params and secrets](environment.md): the project `.env`, `params`, `secrets` and auth
@@ -57,6 +58,7 @@
 - [Smoke check](smoke.md): `flisk up` checks a service through the URL it prints
 - [Agent hosts](agent-hosts.md): Dev Containers, Codespaces and WebContainers, and what `flisk doctor` reports for them
 - [AI agents in Flisk](agents/ai-agents.md): hosting agents, persistent checkpoint volumes, session routing, and recipes
+- [Flisk for AI agents](agents/flisk-for-agents.md): connect Claude Code, Cursor or Codex with `flisk connect`, and install the flisk-skills catalog
 - [Flisk agent tooling](agent-tooling/README.md): overview of the local `flisk mcp` server and its guides
 - [Flisk MCP setup](agent-tooling/flisk-mcp-setup.md): install Flisk and connect Codex or Claude Code over local stdio
 - [Flisk MCP quick guide](agent-tooling/flisk-mcp.md): the tools a connected client exposes, and how to target a project
@@ -67,6 +69,7 @@
 
 ## Recipes and examples
 
+- [Examples and starter repositories](examples/README.md): `flisk project <template>` starters, their stacks and services, and manifest patterns
 - [Recipes](recipes/): using Flisk next to other tools. [moon](recipes/moon.md), [Rsbuild](recipes/rsbuild.md)
 - [Bring-your-own examples](../examples/byo/README.md): one folder per framework, each with its own README and a check command
 - [One-shot job examples](../examples/byo-jobs/README.md): database migrations (dbmate, Atlas, Ptah, Prisma, TypeORM, MikroORM, Drizzle) that run once and exit

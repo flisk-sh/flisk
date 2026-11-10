@@ -52,6 +52,49 @@ flisk --version
 
 **Uninstall:** `brew uninstall flisk`.
 
+## Windows (PowerShell)
+
+Each release includes `flisk-windows-amd64.exe`; Windows ARM64 binaries are not published. Install it from PowerShell:
+
+```powershell
+irm https://flisk.sh/install.ps1 | iex
+```
+
+Or download the script and read it before running it:
+
+```powershell
+Invoke-WebRequest https://flisk.sh/install.ps1 -OutFile install-flisk.ps1
+powershell -ExecutionPolicy Bypass -File .\install-flisk.ps1
+```
+
+The script downloads the release, checks its checksum, unpacks the engine and adds Flisk to your user `PATH`. Close PowerShell and open a new window so the new `PATH` is loaded, then check the binary and its bundled files:
+
+```powershell
+flisk --version
+flisk runtime --check-assets
+flisk doctor
+```
+
+On native Windows, `flisk demo` and projects whose services each declare a `command` run as local processes. A Docker stack needs WSL2 Ubuntu: `flisk doctor` says so, and `flisk up` on a Docker project refuses with WSL2 guidance. Follow [Start here on Windows](../start-here-on-windows.md) for that setup. Known installer issue: on a machine whose `PATH` puts Git for Windows' `tar.exe` first, unpacking fails; see [Windows hardware checks](../windows-hardware.md).
+
+## Download the files yourself
+
+To skip the install script, download the binary, its engine files and the checksums, and check them yourself. The binary looks for the `flisk-cli/` folder next to it.
+
+```bash
+os=$(uname -s | tr A-Z a-z)
+arch=$(uname -m | sed "s/x86_64/amd64/;s/aarch64/arm64/")
+base=https://github.com/flisk-sh/releases/releases/latest/download
+curl -fsSL -O "$base/flisk-$os-$arch" \
+  -O "$base/flisk-cli-engine.tar.gz" -O "$base/checksums.txt"
+shasum -a 256 -c --ignore-missing checksums.txt
+mkdir -p ~/.local/bin/flisk-cli
+install -m 755 "flisk-$os-$arch" ~/.local/bin/flisk
+tar -xzf flisk-cli-engine.tar.gz -C ~/.local/bin/flisk-cli --strip-components=1
+```
+
+The release assets are listed on [flisk-sh/releases](https://github.com/flisk-sh/releases/releases). `~/.local/bin` must be on your `PATH`.
+
 ## Scoop
 
 On Windows with [Scoop](https://scoop.sh), this installs the same binary and engine:
