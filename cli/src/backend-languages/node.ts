@@ -88,6 +88,11 @@ function handleRequest(req, res) {
     return sendJson(res, 400, { error: "Bad Request" });
   }
 
+  // A network-path or absolute target must not route against a different authority.
+  if (req.url?.startsWith("//") || url.origin !== "http://localhost") {
+    return sendJson(res, 400, { error: "Bad Request" });
+  }
+
   if (handleCors(req, res)) return;
 
   // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
@@ -177,8 +182,14 @@ describe("health check", () => {
     });
   });
 
-  it("returns JSON 400 for malformed targets and keeps serving requests", async () => {
-    for (const path of ["//", "///"]) {
+  it("rejects malformed or authority-changing targets and keeps serving requests", async () => {
+    for (const path of [
+      "//",
+      "///",
+      "//other-host/health",
+      "//localhost/health",
+      "http://other-host/health",
+    ]) {
       const res = await requestTarget(path);
       assert.equal(res.status, 400);
       assert.deepEqual(res.body, { error: "Bad Request" });

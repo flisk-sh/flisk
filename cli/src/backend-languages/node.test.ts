@@ -28,6 +28,12 @@ describe("Node backend language module", () => {
     );
   });
 
+  it("rejects network-path and authority-changing request targets", () => {
+    const server = generatedServer();
+    expect(server).toContain('req.url?.startsWith("//")');
+    expect(server).toContain('url.origin !== "http://localhost"');
+  });
+
   it("preserves the health and root response contracts", () => {
     const server = generatedServer();
     expect(server).toContain('url.pathname === "/health"');
