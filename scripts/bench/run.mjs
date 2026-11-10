@@ -11,6 +11,7 @@
 // Results: <out>/results.json and <out>/report.md. The contract is described in bench/README.md.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -84,29 +85,56 @@ function have(cmd) {
   return spawnSync("sh", ["-c", `command -v ${cmd}`], { encoding: "utf8" }).status === 0;
 }
 
+/** One HTTP request. `*.localhost` names (Flisk routes by Host) are sent to loopback with their Host header kept: fetch cannot set Host. */
+function request(url, { method = "GET", headers = {}, body, timeoutMs = 5000 } = {}) {
+  const u = new URL(url);
+  const local = u.hostname.endsWith(".localhost");
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: local ? "127.0.0.1" : u.hostname,
+        port: u.port || 80,
+        path: u.pathname + u.search,
+        method,
+        headers: { ...headers, host: u.host },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () =>
+          resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }),
+        );
+      },
+    );
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+    req.end(body);
+  });
+}
+
 async function get(url, init = {}) {
   try {
-    // `*.localhost` names (Flisk routes by host) do not resolve through every libc: connect to loopback, keep the Host header.
-    const u = new URL(url);
-    const headers = { ...(init.headers ?? {}) };
-    if (u.hostname.endsWith(".localhost")) {
-      headers.host = u.host;
-      u.hostname = "127.0.0.1";
-    }
-    const res = await fetch(u, {
-      ...init,
-      headers,
-      signal: AbortSignal.timeout(init.timeoutMs ?? 5000),
-    });
-    const text = await res.text();
+    const { status, text } = await request(url, init);
     let json = null;
     try {
       json = JSON.parse(text);
     } catch {}
-    return { ok: res.ok, status: res.status, json, text };
+    return { ok: status >= 200 && status < 300, status, json, text };
   } catch (e) {
     return { ok: false, status: 0, json: null, text: String(e) };
   }
+}
+
+/** Calls `fn` until `done(result)` or `windowMs` has passed: a 502 right after "healthy" is a race, not a failure. */
+async function retrying(fn, done, windowMs = 45_000) {
+  const t0 = now();
+  let r = await fn();
+  while (!done(r) && now() - t0 < windowMs) {
+    await sleep(1000);
+    r = await fn();
+  }
+  return r;
 }
 
 async function waitHealthy(urls, timeoutMs, child) {
@@ -143,6 +171,7 @@ function startBackground(cmd, { cwd, env, logFile }) {
 }
 
 async function runOne(c, opts, ctx) {
+  const runStart = now();
   const res = {
     id: c.id,
     name: c.name,
@@ -197,15 +226,22 @@ async function runOne(c, opts, ctx) {
 
     // 2. order flow
     const paths = c.paths;
-    const products = await get(url(paths.products));
+    const products = await retrying(
+      () => get(url(paths.products)),
+      (r) => Array.isArray(r.json) && r.json.length > 0,
+    );
     const first = Array.isArray(products.json) ? products.json[0] : null;
     res.checks.catalogLists = Boolean(first);
     const t1 = now();
-    const created = await get(url(paths.orders), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ productId: first?.id ?? 1, quantity: 1, customer: "bench" }),
-    });
+    const created = await retrying(
+      () =>
+        get(url(paths.orders), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ productId: first?.id ?? 1, quantity: 1, customer: "bench" }),
+        }),
+      (r) => r.status < 500,
+    );
     const orderId = created.json?.id;
     res.checks.orderCreated = created.status === 201 && Boolean(orderId);
     res.checks.orderPaid = created.json?.status === "paid";
@@ -253,6 +289,7 @@ async function runOne(c, opts, ctx) {
     res.status = Object.values(res.checks).every(Boolean) ? "ok" : "failed";
   } catch (e) {
     res.status = e.skip ? "skipped" : "failed";
+    res.failedAfterSeconds = secs(now() - runStart);
     res.error = String(e.message ?? e);
   } finally {
     if (started && !opts.keep) {

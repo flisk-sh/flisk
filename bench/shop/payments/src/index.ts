@@ -6,7 +6,7 @@ const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers
 async function handle(req: Request): Promise<Response> {
     const p = new URL(req.url).pathname.replace(PREFIX, "").replace(/\/$/, "");
     if (p === "/health" || p === "/api/payments/health") {
-      await sql`SELECT 1`;
+      await sql`SELECT 1 FROM payments LIMIT 1`; // fails until the migrator has created the table
       return Response.json({ ok: true, service: "payments" });
     }
     if (p === "/api/payments" && req.method === "GET")

@@ -240,7 +240,7 @@ export function renderReport(doc) {
     L.push("", "### Problems", "");
     for (const x of bad)
       L.push(
-        `- **${x.name}** (${x.status}): ${[
+        `- **${x.name}** (${x.status}${x.failedAfterSeconds !== undefined ? ` after ${x.failedAfterSeconds} s` : ""}): ${[
           x.error.split("\n")[0],
           x.error.split("\n").filter(Boolean).pop(),
         ]

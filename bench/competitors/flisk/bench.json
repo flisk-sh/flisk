@@ -14,19 +14,19 @@
   "stop": "${FLISK_CMD:-flisk} down",
   "purge": "${FLISK_CMD:-flisk} down --purge --prune-networks",
   "clean": "${FLISK_CMD:-flisk} down --prune-networks",
-  "timeoutSeconds": 1500,
-  "base": "http://flisk.localhost:${BENCH_PORT}",
+  "timeoutSeconds": 900,
+  "base": "http://app.flisk.localhost:${BENCH_PORT}",
   "paths": {
     "products": "http://api.flisk.localhost:${BENCH_PORT}/api/catalog/api/products",
     "orders": "http://api.flisk.localhost:${BENCH_PORT}/api/orders/api/orders",
     "payments": "http://api.flisk.localhost:${BENCH_PORT}/api/payments/api/payments",
     "notifications": "http://api.flisk.localhost:${BENCH_PORT}/api/notifications/api/notifications",
     "storefront": "/",
-    "admin": "/admin/"
+    "admin": "/admin"
   },
   "health": [
-    "http://flisk.localhost:${BENCH_PORT}/",
-    "http://flisk.localhost:${BENCH_PORT}/admin/",
+    "http://app.flisk.localhost:${BENCH_PORT}/",
+    "http://app.flisk.localhost:${BENCH_PORT}/admin",
     "http://api.flisk.localhost:${BENCH_PORT}/api/catalog/health",
     "http://api.flisk.localhost:${BENCH_PORT}/api/orders/health",
     "http://api.flisk.localhost:${BENCH_PORT}/api/payments/health",

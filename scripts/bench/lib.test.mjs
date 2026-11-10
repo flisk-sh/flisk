@@ -145,3 +145,23 @@ test("writeResults leaves a readable results.json and report.md after each call,
   );
   assert.match(fs.readFileSync(path.join(out, "report.md"), "utf8"), /\| A \|/);
 });
+
+test("a failed tool shows why and how long it ran", () => {
+  const md = renderReport({
+    commit: "c",
+    startedAt: "t",
+    runner: { os: "L", arch: "x", cpus: 1, memGB: 1, docker: "1", ci: true },
+    results: [
+      {
+        name: "F",
+        status: "failed",
+        phases: {},
+        checks: {},
+        wiring: null,
+        error: "not healthy after 1500s: http://x/",
+        failedAfterSeconds: 1503.2,
+      },
+    ],
+  });
+  assert.match(md, /\*\*F\*\* \(failed after 1503.2 s\): not healthy after 1500s/);
+});

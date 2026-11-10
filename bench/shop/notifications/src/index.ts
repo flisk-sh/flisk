@@ -8,7 +8,10 @@ const PREFIX = /^\/api\/(?:catalog|orders|payments|notifications)(?=\/(?:health|
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type", "access-control-allow-methods": "GET,POST,OPTIONS" };
 async function handle(req: Request): Promise<Response> {
     const p = new URL(req.url).pathname.replace(PREFIX, "").replace(/\/$/, "");
-    if (p === "/health" || p === "/api/notifications/health") return Response.json({ ok: true, service: "notifications" });
+    if (p === "/health" || p === "/api/notifications/health") {
+      await sql`SELECT 1 FROM notifications LIMIT 1`; // fails until the migrator has created the table
+      return Response.json({ ok: true, service: "notifications" });
+    }
     if (p === "/api/notifications") return Response.json(await sql`SELECT * FROM notifications ORDER BY created_at DESC`);
     return Response.json({ error: "not found" }, { status: 404 });
 }

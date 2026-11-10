@@ -11,7 +11,7 @@ const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers
 async function handle(req: Request): Promise<Response> {
     const p = new URL(req.url).pathname.replace(PREFIX, "").replace(/\/$/, "");
     if (p === "/health" || p === "/api/orders/health") {
-      await sql`SELECT 1`;
+      await sql`SELECT 1 FROM orders LIMIT 1`; // fails until the migrator has created the table
       await redis.send("PING", []);
       return Response.json({ ok: true, service: "orders" });
     }

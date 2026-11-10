@@ -6,7 +6,7 @@ const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers
 async function handle(req: Request): Promise<Response> {
     const p = new URL(req.url).pathname.replace(PREFIX, "").replace(/\/$/, "");
     if (p === "/health" || p === "/api/products/health") {
-      await sql`SELECT 1`;
+      await sql`SELECT 1 FROM products LIMIT 1`; // fails until the migrator has created the table
       return Response.json({ ok: true, service: "catalog" });
     }
     if (p === "/api/products") return Response.json(await sql`SELECT * FROM products ORDER BY id`);
