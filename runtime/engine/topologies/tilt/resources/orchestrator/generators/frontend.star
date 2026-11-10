@@ -22,7 +22,7 @@ def _load_npm_scope():
 
 _NPM_SCOPE = _load_npm_scope()
 
-load("../../../../platform/docker/networking/traefik_helpers.star", "get_api_path")
+load("../../../../platform/docker/networking/traefik_helpers.star", "get_api_path", "router_port_suffix")
 load("../../../../platform/docker/constants.star", "PlatformDockerConstants")
 load("./dependencies/resolver.star", "resolve_backend_api_path")
 
@@ -61,7 +61,7 @@ import {{ createApiClient }} from '@{npm_scope}/platform-api-client';
  * ```
  */
 export const apiClient = createApiClient({{
-  baseURL: import.meta.env.VITE_API_URL || 'http://{local_domain}{api_path}',
+  baseURL: import.meta.env.VITE_API_URL || 'http://{local_domain}{port}{api_path}',
   withAuth: true,
 }});
 
@@ -71,6 +71,7 @@ export default apiClient;
         npm_scope=_NPM_SCOPE,
         api_path=api_path,
         local_domain=PlatformDockerConstants.API_LOCAL_DOMAIN,
+        port=router_port_suffix(),
     )
     
     if write_fn:
@@ -107,11 +108,12 @@ def generate_frontend_env_ts(manifest, write_fn=None):
  * Base API URL for {stack} resource
  * Uses VITE_API_URL env var with fallback to local dev URL
  */
-export const API_URL = import.meta.env.VITE_API_URL || 'http://{local_domain}{api_path}';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://{local_domain}{port}{api_path}';
 '''.format(
         stack=stack,
         api_path=api_path,
         local_domain=PlatformDockerConstants.API_LOCAL_DOMAIN,
+        port=router_port_suffix(),
     )
     
     if write_fn:

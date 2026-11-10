@@ -90,13 +90,13 @@ it("configures Go live reload with fall_back_on for go.mod, go.sum, and autogene
   expect(registration).toContain("sync(source_dir.rstrip('/'), '/app/' + full_res_path)");
 });
 
-it("attaches bun install trigger on package.json and bun.lock for Bun services", () => {
-  expect(registration).toContain("package_json_path = '/app/' + full_res_path + '/package.json'");
-  expect(registration).toContain("bun_lock_path = '/app/' + full_res_path + '/bun.lock'");
+it("rebuilds the image when a dependency file changes, matched by local path", () => {
+  // A run() trigger under /app/ is a container path that Tilt never matches, so `bun install` never ran.
   expect(registration).toContain(
-    "live_update_rules.append(run('cd /app/' + full_res_path + ' && bun install',",
+    "live_update_rules = [fall_back_on([source_dir + name for name in _DEPENDENCY_FILES])]",
   );
-  expect(registration).toContain("trigger=[package_json_path, bun_lock_path]");
+  expect(registration).toContain("'package.json', 'bun.lock', 'bun.lockb', 'package-lock.json'");
+  expect(registration).not.toContain("&& bun install'");
 });
 
 it("handles empty or populated project root cleanly in _live_update_sync_source", () => {
