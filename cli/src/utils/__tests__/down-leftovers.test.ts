@@ -24,9 +24,9 @@ describe("collectLeftovers (cycle 4)", () => {
       ["shop_api:latest", "shop_web:latest"],
       docker({ "shop_api:latest": 1.5 * GIB, "shop_web:latest": 0.5 * GIB }),
     );
-    expect(left.imageCount).toBe(2);
-    expect(left.imageGib).toBeCloseTo(2, 5);
-    expect(left.cacheGib).toBeCloseTo(23.4, 1);
+    expect(left?.imageCount).toBe(2);
+    expect(left?.imageGib).toBeCloseTo(2, 5);
+    expect(left?.cacheGib).toBeCloseTo(23.4, 1);
   });
 
   it("returns null when Docker cannot be asked", async () => {

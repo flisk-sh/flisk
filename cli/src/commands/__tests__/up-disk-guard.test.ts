@@ -57,7 +57,9 @@ describe("flisk up disk guard (cycles 1 and 2)", () => {
     expect(envelope.errors[0]).toMatchObject({ code: "DISK_SPACE_LOW" });
     expect(envelope.errors[0].message).toMatch(/GiB free/);
     expect(envelope.errors[0].message).toMatch(/needs at least 99999999 GiB/);
-    expect(envelope.errors[0].suggestions.join("\n")).toContain("docker builder prune -f");
+    expect((envelope.errors[0] as { suggestions?: string[] }).suggestions?.join("\n")).toContain(
+      "docker builder prune -f",
+    );
     expect(existsSync(join(dir, ".flisk", "native"))).toBe(false);
     expect(existsSync(calls)).toBe(false);
   }, 60_000);
