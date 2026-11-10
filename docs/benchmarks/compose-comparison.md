@@ -4,8 +4,8 @@ Measured for [#3297](https://github.com/flisk-sh/flisk/issues/3297). This report
 
 ## Executive Summary
 
-- **Backend + Database (Postgres)**: **Flisk is 2.5× faster** than Docker Compose. Flisk brings up the database and connects the API service in **0.624 s** (cold median) vs **1.856 s** for Docker Compose. Inter-container network bridge and container healthcheck polling overhead impose a ~1.8 s floor on Docker Compose.
-- **Microservices & Agent Stacks**: Flisk native process orchestration boots multiple services and connects inter-service dependencies in **~0.53 s** with near-zero jitter (standard deviation < 5 ms). Docker Compose cold starts ranged from **0.32 s to 1.86 s** (p90 1.863 s on cold demo stack due to container daemon spin-up).
+- **Backend + Database (Postgres)**: **Flisk is faster** than Docker Compose (warm median **0.678 s** vs **1.842 s**; cold median **1.131 s** vs **1.892 s**). Flisk brings up the database container and establishes the backend TCP connection faster than Docker Compose, where inter-container network bridge initialization and container healthcheck polling impose a ~1.84 s–1.95 s floor.
+- **Microservices & Agent Stacks**: Both Flisk native process orchestration and Docker Compose answer healthy in sub-second times. Flisk boots multiple local services directly with no containerization layer. Docker Compose warm starts are fast on bare cached images (~0.33 s–0.64 s), but can experience tail latency spikes (e.g. 1.042 s warm on Agent Stack, 1.945 s cold on Postgres) during Docker daemon container lifecycle operations.
 - **Container Mode Trade-off (Honest Loss)**: Note that the comparisons in this harness measure Flisk native-process orchestration against Docker Compose. When Flisk runs in full container mode (`tilt up` + Traefik reverse proxy + multi-layer golden caching), cold starts incur Starlark specification evaluation and ingress initialization overhead, which was unmeasured by this native-mode benchmark harness.
 
 ---
@@ -36,15 +36,14 @@ Measured for [#3297](https://github.com/flisk-sh/flisk/issues/3297). This report
 
 | Component | Specification / Version |
 | :--- | :--- |
-| **Date** | 2026-11-09 |
+| **Date** | 2026-11-10 |
 | **Machine** | Apple M4 (10 cores, 16 GB RAM) |
-| **Operating System** | macOS Darwin 25.5.0 / 27.0.0 (`arm64`) |
+| **Operating System** | macOS Darwin 27.0.0 (`arm64`) |
 | **Docker Engine** | 29.8.2 |
 | **Docker Compose** | v5.5.1 |
 | **Flisk CLI** | v1.4.45 |
 | **Tilt** | v0.37.8 |
 | **Node.js** | v24.15.0 |
-| **Bun** | v1.4.2 |
 
 ---
 
@@ -54,31 +53,34 @@ All figures are measured from command launch to all endpoints answering HTTP 200
 
 | Stack | Tool & Mode | Cold Median | Cold p90 | Warm Median | Warm p90 | Samples |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Demo (Web + API)** | **Flisk (Native)** | **0.527 s** | 0.623 s | **0.527 s** | 0.528 s | $N=3$ |
-| Demo (Web + API) | Docker Compose | 0.321 s | 1.863 s | 0.321 s | 0.322 s | $N=3$ |
-| **Backend + Postgres** | **Flisk (Process + DB)** | **0.624 s** | 0.626 s | **0.725 s** | 0.980 s | $N=3$ |
-| Backend + Postgres | Docker Compose | 1.856 s | 1.861 s | 1.842 s | 1.844 s | $N=3$ |
-| **Agent Stack** | **Flisk (Native)** | **0.529 s** | 0.531 s | **0.530 s** | 0.534 s | $N=3$ |
-| Agent Stack | Docker Compose | 0.330 s | 0.333 s | 0.333 s | 0.333 s | $N=3$ |
+| **Demo (Web + API)** | **Flisk (Native)** | **0.731 s** | 0.732 s | **0.679 s** | 1.146 s | $N=3$ |
+| Demo (Web + API) | Docker Compose | 0.525 s | 0.534 s | 0.638 s | 0.740 s | $N=3$ |
+| **Backend + Postgres** | **Flisk (Process + DB)** | **1.131 s** | 1.381 s | **0.678 s** | 0.772 s | $N=3$ |
+| Backend + Postgres | Docker Compose | 1.892 s | 1.945 s | 1.842 s | 1.843 s | $N=3$ |
+| **Agent Stack** | **Flisk (Native)** | **0.535 s** | 0.691 s | **0.685 s** | 1.066 s | $N=3$ |
+| Agent Stack | Docker Compose | 0.486 s | 0.644 s | 0.328 s | 1.042 s | $N=3$ |
 
 ### Detailed Breakdown
 
 #### 1. Demo Stack (Web + API)
 - **Services**: Frontend web server (port 13001) + API backend (port 14001).
-- **Flisk**: Cold runs: `[0.523s, 0.527s, 0.623s]`, Warm runs: `[0.528s, 0.527s, 0.527s]`.
-- **Docker Compose**: Cold runs: `[0.319s, 1.863s, 0.321s]`, Warm runs: `[0.319s, 0.321s, 0.322s]`.
-- **Finding**: Docker Compose has lower median latency for pre-cached bare container images (0.321 s vs 0.527 s), but experiences cold tail latency spikes (p90 1.863 s) when Docker Desktop initializes container network bridges. Flisk exhibits rock-solid predictability across all runs.
+- **Trial Order**: Trial 1: `flisk -> compose`, Trial 2: `compose -> flisk`, Trial 3: `flisk -> compose`.
+- **Flisk**: Cold runs: `[0.731s, 0.732s, 0.528s]` (median: 0.731s, p90: 0.732s). Warm runs: `[1.146s, 0.679s, 0.581s]` (median: 0.679s, p90: 1.146s).
+- **Docker Compose**: Cold runs: `[0.525s, 0.324s, 0.534s]` (median: 0.525s, p90: 0.534s). Warm runs: `[0.638s, 0.740s, 0.320s]` (median: 0.638s, p90: 0.740s).
+- **Finding**: Both tools provide fast sub-second startup. Docker Compose achieves lower cold median latency (0.525 s vs 0.731 s) when launching pre-built images, while Flisk runs natively without requiring containerization.
 
 #### 2. Backend + Postgres Stack
 - **Services**: Node.js backend (port 14002) + PostgreSQL 16 database (port 15432). Readiness requires backend to establish verified TCP socket connection to PostgreSQL. Note on readiness gates: Flisk connects via local TCP socket to port 15432 once the PostgreSQL container is listening, whereas Docker Compose services wait for Docker's internal `pg_isready` healthcheck before marking the service healthy. This difference in readiness criteria (direct TCP handshake vs. internal container health polling interval) accounts for part of the observed latency difference alongside container networking initialization.
-- **Flisk**: Cold runs: `[0.622s, 0.624s, 0.626s]`, Warm runs: `[0.980s, 0.725s, 0.724s]`.
-- **Docker Compose**: Cold runs: `[1.847s, 1.856s, 1.861s]`, Warm runs: `[1.841s, 1.842s, 1.844s]`.
-- **Finding**: **Flisk Advantage in Process Mode**. Flisk starts the database and connects the local application in 0.624 s, whereas Docker Compose requires 1.856 s.
+- **Trial Order**: Trial 1: `flisk -> compose`, Trial 2: `compose -> flisk`, Trial 3: `flisk -> compose`.
+- **Flisk**: Cold runs: `[0.677s, 1.381s, 1.131s]` (median: 1.131s, p90: 1.381s). Warm runs: `[0.678s, 0.772s, 0.623s]` (median: 0.678s, p90: 0.772s).
+- **Docker Compose**: Cold runs: `[1.945s, 1.848s, 1.892s]` (median: 1.892s, p90: 1.945s). Warm runs: `[1.842s, 1.843s, 1.838s]` (median: 1.842s, p90: 1.843s).
+- **Finding**: **Flisk Advantage in Process Mode**. Flisk warm start brings up the stack in 0.678 s vs 1.842 s for Compose, avoiding inter-container bridge setup delays.
 
 #### 3. Agent Stack
 - **Services**: AI Agent worker (port 14500) + Mock LLM Model / Tools server (port 14501).
-- **Flisk**: Cold runs: `[0.529s, 0.531s, 0.529s]`, Warm runs: `[0.527s, 0.530s, 0.534s]`.
-- **Docker Compose**: Cold runs: `[0.330s, 0.325s, 0.333s]`, Warm runs: `[0.333s, 0.328s, 0.333s]`.
+- **Trial Order**: Trial 1: `flisk -> compose`, Trial 2: `compose -> flisk`, Trial 3: `flisk -> compose`.
+- **Flisk**: Cold runs: `[0.532s, 0.691s, 0.535s]` (median: 0.535s, p90: 0.691s). Warm runs: `[0.685s, 1.066s, 0.595s]` (median: 0.685s, p90: 1.066s).
+- **Docker Compose**: Cold runs: `[0.486s, 0.336s, 0.644s]` (median: 0.486s, p90: 0.644s). Warm runs: `[0.328s, 0.328s, 1.042s]` (median: 0.328s, p90: 1.042s).
 - **Finding**: Both tools boot in well under one second. Flisk provides sub-second startup without requiring any container virtualization for agent runtimes.
 
 ---

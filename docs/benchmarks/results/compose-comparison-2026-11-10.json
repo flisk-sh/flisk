@@ -1,0 +1,217 @@
+{
+  "date": "2026-11-10",
+  "environment": {
+    "date": "2026-11-10",
+    "machine": "Apple M4 (10 cores, 16 GB RAM)",
+    "os": "darwin 27.0.0 (arm64)",
+    "arch": "arm64",
+    "cpuCount": 10,
+    "memoryGb": 16,
+    "dockerEngine": "29.8.2",
+    "dockerCompose": "5.5.1",
+    "flisk": "1.4.45",
+    "tilt": "v0.37.8, built 2026-09-29",
+    "nodeVersion": "v24.15.0"
+  },
+  "runs": 3,
+  "warmup": 1,
+  "results": [
+    {
+      "stack": "demo",
+      "name": "Demo (Web + API)",
+      "description": "Two-tier web frontend and API backend services",
+      "urls": [
+        "http://localhost:13001/health",
+        "http://localhost:14001/health"
+      ],
+      "trialOrder": [
+        "flisk -> compose",
+        "compose -> flisk",
+        "flisk -> compose"
+      ],
+      "fliskCold": {
+        "count": 3,
+        "samples": [
+          0.7312547090000008,
+          0.7321362919999956,
+          0.528158958
+        ],
+        "min": 0.528,
+        "max": 0.732,
+        "median": 0.731,
+        "p90": 0.732,
+        "mean": 0.664
+      },
+      "fliskWarm": {
+        "count": 3,
+        "samples": [
+          1.1458244159999995,
+          0.6791350840000087,
+          0.5805820419999945
+        ],
+        "min": 0.581,
+        "max": 1.146,
+        "median": 0.679,
+        "p90": 1.146,
+        "mean": 0.802
+      },
+      "composeCold": {
+        "count": 3,
+        "samples": [
+          0.5248011250000054,
+          0.3241521250000005,
+          0.5335439169999882
+        ],
+        "min": 0.324,
+        "max": 0.534,
+        "median": 0.525,
+        "p90": 0.534,
+        "mean": 0.461
+      },
+      "composeWarm": {
+        "count": 3,
+        "samples": [
+          0.6382592920000024,
+          0.7398039169999975,
+          0.31961320800000975
+        ],
+        "min": 0.32,
+        "max": 0.74,
+        "median": 0.638,
+        "p90": 0.74,
+        "mean": 0.566
+      }
+    },
+    {
+      "stack": "backend-postgres",
+      "name": "Backend + Postgres",
+      "description": "Node.js REST API service connected to a PostgreSQL database",
+      "urls": [
+        "http://localhost:14002/health"
+      ],
+      "trialOrder": [
+        "flisk -> compose",
+        "compose -> flisk",
+        "flisk -> compose"
+      ],
+      "fliskCold": {
+        "count": 3,
+        "samples": [
+          0.6765827500000013,
+          1.3805280829999829,
+          1.1305548750000016
+        ],
+        "min": 0.677,
+        "max": 1.381,
+        "median": 1.131,
+        "p90": 1.381,
+        "mean": 1.063
+      },
+      "fliskWarm": {
+        "count": 3,
+        "samples": [
+          0.6782427080000052,
+          0.7724752919999882,
+          0.6231262090000091
+        ],
+        "min": 0.623,
+        "max": 0.772,
+        "median": 0.678,
+        "p90": 0.772,
+        "mean": 0.691
+      },
+      "composeCold": {
+        "count": 3,
+        "samples": [
+          1.9446424159999878,
+          1.8476993749999966,
+          1.8919213750000055
+        ],
+        "min": 1.848,
+        "max": 1.945,
+        "median": 1.892,
+        "p90": 1.945,
+        "mean": 1.895
+      },
+      "composeWarm": {
+        "count": 3,
+        "samples": [
+          1.8421411250000237,
+          1.8425542499999865,
+          1.8376322079999954
+        ],
+        "min": 1.838,
+        "max": 1.843,
+        "median": 1.842,
+        "p90": 1.843,
+        "mean": 1.841
+      }
+    },
+    {
+      "stack": "agent-stack",
+      "name": "Agent Stack",
+      "description": "AI Agent worker service + Mock LLM Model / Tools server",
+      "urls": [
+        "http://localhost:14500/health",
+        "http://localhost:14501/health"
+      ],
+      "trialOrder": [
+        "flisk -> compose",
+        "compose -> flisk",
+        "flisk -> compose"
+      ],
+      "fliskCold": {
+        "count": 3,
+        "samples": [
+          0.5322922909999906,
+          0.6906179589999956,
+          0.5348327079999726
+        ],
+        "min": 0.532,
+        "max": 0.691,
+        "median": 0.535,
+        "p90": 0.691,
+        "mean": 0.586
+      },
+      "fliskWarm": {
+        "count": 3,
+        "samples": [
+          0.6845589579999796,
+          1.0658114589999896,
+          0.5951151669999818
+        ],
+        "min": 0.595,
+        "max": 1.066,
+        "median": 0.685,
+        "p90": 1.066,
+        "mean": 0.782
+      },
+      "composeCold": {
+        "count": 3,
+        "samples": [
+          0.4863242920000339,
+          0.3362081670000334,
+          0.6441150420000195
+        ],
+        "min": 0.336,
+        "max": 0.644,
+        "median": 0.486,
+        "p90": 0.644,
+        "mean": 0.489
+      },
+      "composeWarm": {
+        "count": 3,
+        "samples": [
+          0.3275299579999992,
+          0.3279404579999973,
+          1.0422726669999538
+        ],
+        "min": 0.328,
+        "max": 1.042,
+        "median": 0.328,
+        "p90": 1.042,
+        "mean": 0.566
+      }
+    }
+  ]
+}
