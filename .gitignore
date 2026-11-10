@@ -7,6 +7,8 @@ node_modules/
 package-lock.json
 # The one lockfile that is wanted: it pins the npm CLI that release-binaries.yml installs for trusted publishing.
 !.github/npm-cli/package-lock.json
+# The TypeScript compiler benchmark installs its experimental compilers with npm ci from this lockfile.
+!scripts/benchmarks/ts-compilers/package-lock.json
 
 # Build output
 cli/dist/

@@ -2,7 +2,7 @@
 #
 # This is evidence gathering only. It changes no compiler, package.json script, lockfile, cli/dist or shipped file,
 # and it is not a required check. The experimental compilers are npm packages with prebuilt binaries, installed here
-# only (scripts/benchmarks/ts-compilers/package.json, --no-package-lock). No Rust or Go toolchain is installed on any
+# only (scripts/benchmarks/ts-compilers/package-lock.json, npm ci). No Rust or Go toolchain is installed on any
 # runner, and nothing is added to Flisk's developer setup or its installed CLI.
 #
 # Linux and macOS run the same prebuilt binaries. Windows is deliberately untested: it needs a shell for npm shims
@@ -49,14 +49,14 @@ jobs:
           node-version: 22
       # The repo's own tsc (typescript 7.0.2 from bun.lock) is the baseline.
       - run: bun install --frozen-lockfile
-      # Experimental compilers: exact pins, own directory, no lockfile written, cached by the pin file.
+      # Experimental compilers: exact pins, own directory and lockfile, cached by the lockfile.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: scripts/benchmarks/ts-compilers/node_modules
-          key: ts-compilers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/benchmarks/ts-compilers/package.json') }}
+          key: ts-compilers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/benchmarks/ts-compilers/package-lock.json') }}
       - name: Install pinned experimental compilers
         working-directory: scripts/benchmarks/ts-compilers
-        run: npm install --no-package-lock --no-audit --no-fund --ignore-scripts
+        run: npm ci --no-audit --no-fund --ignore-scripts
       - name: Run benchmark
         working-directory: scripts/benchmarks/ts-compilers
         env:

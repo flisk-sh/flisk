@@ -3,7 +3,7 @@
 //
 // EXPERIMENT ONLY. It does not change Flisk's compiler, package.json scripts, lockfile, cli/dist or any
 // shipped artifact. Compilers are installed into scripts/benchmarks/ts-compilers/node_modules by the CI
-// workflow (npm install --no-package-lock) and nothing here is imported by the CLI.
+// workflow (npm ci, from package-lock.json) and nothing here is imported by the CLI.
 //
 // Usage:
 //   node bench.mjs [--runs 5] [--out results/<dir>] [--only perf,correctness] [--drop-caches]
@@ -49,7 +49,7 @@ const COMPILERS = [
   { id: "tsc6", label: "tsc 6.0.3 (JS implementation)", role: "context", cmd: [node, path.join(NM, "typescript-6/bin/tsc")] },
 ];
 const available = COMPILERS.filter((c) => fs.existsSync(c.cmd[c.cmd.length - 1]));
-for (const c of COMPILERS) if (!available.includes(c)) console.error(`SKIP ${c.id}: ${c.cmd.at(-1)} not found (run npm install --no-package-lock here)`);
+for (const c of COMPILERS) if (!available.includes(c)) console.error(`SKIP ${c.id}: ${c.cmd.at(-1)} not found (run npm ci here)`);
 
 const TIME_BIN = fs.existsSync("/usr/bin/time") ? "/usr/bin/time" : null;
 const IS_MAC = process.platform === "darwin";
