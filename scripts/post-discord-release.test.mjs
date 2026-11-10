@@ -67,9 +67,9 @@ test("run falls back to the release notes when the changelog has no entry", asyn
   const calls = [];
   const fetchImpl = async (url, init = {}) => {
     calls.push(url);
-    if (url.includes("api.github.com")) return { ok: true, json: async () => ({ body }) };
+    if (new URL(url).hostname === "api.github.com") return { ok: true, json: async () => ({ body }) };
     return init.method === "POST" ? { ok: true, text: async () => "" } : { ok: true, json: async () => [] };
   };
   await run({ version: "9.9.9", changelog: CHANGELOG, token: "t", channelId: "c", fetchImpl, log: () => {} });
-  assert.ok(calls.some((u) => u.includes("/channels/c/messages") ));
+  assert.ok(calls.some((u) => new URL(u).pathname.endsWith("/channels/c/messages")));
 });
