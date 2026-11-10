@@ -18,9 +18,7 @@ export function resolveModelReference(rawModel, lookupEnv = (name) => process.en
         const varName = inner.slice(0, colonDash);
         const fallback = inner.slice(colonDash + 2);
         const val = lookupEnv(varName);
-        return val !== undefined && val.trim() !== ""
-            ? val.trim()
-            : fallback.trim();
+        return val !== undefined && val.trim() !== "" ? val.trim() : fallback.trim();
     }
     const dash = inner.indexOf("-");
     if (dash !== -1) {
@@ -88,13 +86,8 @@ export async function pullModelWithRetries(model, options = {}) {
                 options.onSuccess?.({ model, attempt });
                 return { ok: true, model, attempts: attempt };
             }
-            const rawError = (res.stderr ||
-                res.stdout ||
-                res.error?.message ||
-                "").trim();
-            lastError =
-                rawError ||
-                    `docker model pull exited with code ${res.status ?? "unknown"}`;
+            const rawError = (res.stderr || res.stdout || res.error?.message || "").trim();
+            lastError = rawError || `docker model pull exited with code ${res.status ?? "unknown"}`;
         }
         catch (err) {
             lastError = err instanceof Error ? err.message : String(err);

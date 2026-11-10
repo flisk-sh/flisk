@@ -71,10 +71,7 @@ import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter, type JsonError } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
-import {
-  collectRequiredModels,
-  runModelPreflight,
-} from "../utils/model-preflight.js";
+import { collectRequiredModels, runModelPreflight } from "../utils/model-preflight.js";
 import { findFreePort } from "../utils/native-demo.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
 import {
@@ -1466,9 +1463,7 @@ export const upCommand = new Command("up")
               preflightResult.error,
               "Verify Docker Model Runner is active and reachable, or pull the model manually.",
             ];
-            emit?.({ ok: false }, [
-              { code: "MODEL_PULL_FAILED", message, suggestions },
-            ]);
+            emit?.({ ok: false }, [{ code: "MODEL_PULL_FAILED", message, suggestions }]);
             showErrorAndExit(message, 1, suggestions);
           }
         }
