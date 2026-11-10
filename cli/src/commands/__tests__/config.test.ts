@@ -308,6 +308,26 @@ describe("config regenerate", () => {
 });
 
 describe("config verify", () => {
+  it("does not predict shared Postgres for local processes", async () => {
+    const root = createTempProject({
+      projectJson: projectJson(),
+      resources: {
+        "shop/api": {
+          appType: "backend",
+          stack: "shop",
+          schemaVersion: 1,
+          command: "node server.js",
+          dependsOn: ["postgres"],
+        },
+      },
+    });
+    await runCommandInProcess(configCommand, ["regenerate"], root);
+
+    const result = await runCommandInProcess(configCommand, ["verify"], root);
+
+    expect(result.stdout).not.toContain("Postgres will start");
+  });
+
   it("exits 1 and suggests regenerate when generated files are missing", async () => {
     const root = createTempProject({ projectJson: projectJson() });
 
