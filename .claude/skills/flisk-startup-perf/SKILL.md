@@ -30,7 +30,7 @@ Also check that the command ran the version you think: `npx` prefers a `node_mod
 The analysis prints wall time, parallelism (sum of build times over wall time; about 1 means one build did all the work) and idle time. Then:
 
 - One long build with parallelism near 1: read its log. For `golden-layers-build`, find the slow step: `tilt --port <p> logs golden-layers-build | grep -E '^#[0-9]+ DONE [0-9.]+s' | sort -t' ' -k3 -rn | head`. An `exporting to image` step of 100 s or more points at the Docker store or too many parallel builds, not at the Dockerfile.
-- Many builds, parallelism at the Tilt limit: raise `FLISK_MAX_PARALLEL_BUILDS` (default is from the engine's CPUs and memory, minimum 3, maximum 8, see `runtime/engine/topologies/tilt/resources/build_concurrency.star`). Check `docker info` for CPUs and memory first.
+- Many builds, parallelism at the Tilt limit: raise `FLISK_MAX_PARALLEL_BUILDS` (default is one build per engine CPU, limited by memory, minimum 3, maximum 8, see `runtime/engine/topologies/tilt/resources/build_concurrency.star`). Check `docker info` for CPUs and memory first.
 - Idle time: something waits on a serial step. `scripts/benchmark/tilt-build-durations.mjs` lists the order.
 
 Reference from a real run (4 CPU / 7.7 GB Docker, 2026-10-31): `golden-layers-build` took 167 s of a 177 s start with parallelism 1x. 102 s of it was the `exporting to image` step of `l3-backend`, and all 8 golden images are built even though a project may use fewer. Skipping unused golden targets is the next candidate; it needs a layer-usage check per project so no service loses its base image, and a cold run on healthy Docker to prove it.

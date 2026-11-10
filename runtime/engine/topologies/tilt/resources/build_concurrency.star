@@ -10,8 +10,10 @@
 
 MIN_PARALLEL_BUILDS = 3
 MAX_PARALLEL_BUILDS = 8
-# CPUs kept free for Tilt, the Traefik/Postgres containers and the host.
-RESERVED_CPUS = 2
+# CPUs kept free for Tilt and the host. None: image builds spend most of their time
+# downloading and unpacking packages, so one build per CPU keeps the engine busy and memory
+# (below) is the real limit. Reserving CPUs made a 4-CPU engine build 3 images at a time.
+RESERVED_CPUS = 0
 # Rough peak memory per concurrent image build (Vite and tsc dominate).
 BUILD_MEMORY_BUDGET_BYTES = 1610612736  # 1.5 GiB
 
