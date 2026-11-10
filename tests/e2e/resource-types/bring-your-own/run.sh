@@ -80,6 +80,7 @@ BY9() { run_verify verify-byo-providers.sh "BY9 an external provider falls back 
 
 BY10() { run_verify verify-byo-ports.sh "BY10 extraPorts publish takes its host binding from .env: default, then an override"; }
 BY11() { run_verify verify-byo-mixed.sh "BY11 image containers next to a local process: one flisk up, status, logs, down, a killed run"; }
+BY12() { run_verify verify-byo-no-curl.sh "BY12 bring-your-own image without curl fails --wait with a readable message"; }
 
 # \`all\` runs only this variant's case: every leg of this suite is one variant, not every case in suite.json.
 args=()
