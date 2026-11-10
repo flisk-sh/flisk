@@ -172,7 +172,7 @@ function purgeOrWarn(projectRoot: string, json: boolean): PurgeResult | undefine
 }
 
 export const downCommand = addYesOption(new Command("down"))
-  .description("Stop all tilt resources")
+  .description("Stop every running service of this project (local processes or Docker/Tilt)")
   .option("-v, --verbose", "Enable verbose output", false)
   .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)
   .option(

@@ -146,7 +146,7 @@ function purgeOrWarn(projectRoot, json) {
     return result;
 }
 export const downCommand = addYesOption(new Command("down"))
-    .description("Stop all tilt resources")
+    .description("Stop every running service of this project (local processes or Docker/Tilt)")
     .option("-v, --verbose", "Enable verbose output", false)
     .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)
     .option("--prune-networks", "Also remove this project's Docker networks (only those no container is attached to)", false)
