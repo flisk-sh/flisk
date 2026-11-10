@@ -98,6 +98,14 @@ describe.each(["files", "postgres"] as const)("%s durability template", (durabil
     expect(index).toContain("sendJson(res, 400, { error: 'x-session-id header is required' })");
   });
 
+  it("rejects malformed JSON and non-object turn bodies without masking server errors", () => {
+    expect(index).toContain("body = await readJson(req);");
+    expect(index).toContain("if (!(error instanceof SyntaxError)) throw error;");
+    expect(index).toContain("body === null || typeof body !== 'object' || Array.isArray(body)");
+    expect(index.match(/sendJson\(res, 400, \{ error: 'invalid_json' \}\)/g)).toHaveLength(2);
+    expect(index).toContain("return raw ? JSON.parse(raw) : {};");
+  });
+
   it("stores both sides of a turn before answering", () => {
     expect(index).toContain(
       "checkpoint.messages.push({ role: 'user', content: input, at: new Date().toISOString() });",
