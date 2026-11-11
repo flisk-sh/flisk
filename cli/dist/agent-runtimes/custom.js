@@ -185,7 +185,11 @@ const server = createServer(async (req, res) => {
       if (body === null || typeof body !== 'object' || Array.isArray(body)) {
         return sendJson(res, 400, { error: 'invalid_json' });
       }
-      const input = String(body.input ?? '');
+      // Only "input" is read: answer 400 instead of running a turn on an empty prompt when a client sends another field.
+      if (typeof body.input !== 'string' || body.input.length === 0) {
+        return sendJson(res, 400, { error: 'input_required', hint: 'send {"input": "..."}' });
+      }
+      const input: string = body.input;
       // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
       return await queueSessionOperation(sessionId, async () => {
         activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
@@ -396,7 +400,11 @@ const server = createServer(async (req, res) => {
       if (body === null || typeof body !== 'object' || Array.isArray(body)) {
         return sendJson(res, 400, { error: 'invalid_json' });
       }
-      const input = String(body.input ?? '');
+      // Only "input" is read: answer 400 instead of running a turn on an empty prompt when a client sends another field.
+      if (typeof body.input !== 'string' || body.input.length === 0) {
+        return sendJson(res, 400, { error: 'input_required', hint: 'send {"input": "..."}' });
+      }
+      const input: string = body.input;
       // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
       return await queueSessionOperation(sessionId, async () => {
         activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
