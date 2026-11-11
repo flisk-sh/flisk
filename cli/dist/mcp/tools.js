@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawn } from "node:child_process";
-import { closeSync, openSync, readFileSync } from "node:fs";
+import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { RESOURCE_CREATE_TYPE_VALUES } from "../types/index.js";
@@ -169,7 +169,7 @@ export function toTextResult(run) {
 }
 export const defaultUpDeps = {
     spawnUp(args, logFile, cwd) {
-        const fd = openSync(logFile, "a");
+        const fd = openSync(logFile, "a", 0o600);
         const [command, ...prefix] = cliInvocation();
         const child = spawn(command, [...prefix, ...args], {
             cwd,
@@ -243,8 +243,18 @@ export async function startUp(args, deps = defaultUpDeps) {
             .split("\n")
             .filter((l) => l.startsWith('{"schemaVersion"'))
             .pop();
-        if (line)
-            return { ...toToolResult({ exitCode: exited ?? null, stdout: line, stderr: "" }) };
+        if (line) {
+            const result = toToolResult({ exitCode: exited ?? null, stdout: line, stderr: "" });
+            if (!result.isError) {
+                try {
+                    rmSync(logFile, { force: true });
+                }
+                catch {
+                    // The startup result remains valid if log cleanup is unavailable.
+                }
+            }
+            return { ...result };
+        }
         if (exited !== undefined) {
             return toToolResult({ exitCode: exited, stdout: "", stderr: log.slice(-2000) });
         }

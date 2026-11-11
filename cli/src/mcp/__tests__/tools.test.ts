@@ -3,7 +3,7 @@
 /// <reference types="vite/client" />
 
 import { EventEmitter } from "node:events";
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -428,6 +428,7 @@ describe("defaultUpDeps", () => {
         expect.any(Array),
         expect.objectContaining({ cwd: "/work", detached: true }),
       );
+      if (process.platform !== "win32") expect(statSync(log).mode & 0o777).toBe(0o600);
     } finally {
       rmSync(log, { force: true });
     }
@@ -528,6 +529,14 @@ function fakeUp(options: { logs: string[]; exitAfter?: { atRead: number; code: n
 }
 
 describe("startUp", () => {
+  it("keeps a successful result when the log cannot be removed", async () => {
+    const { deps } = fakeUp({
+      logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'],
+    });
+    deps.logFile = () => tmpdir(); // Removing a directory as a file fails.
+    expect((await startUp({}, deps)).isError).toBe(false);
+  });
+
   it("returns an early refusal from the child", async () => {
     const line =
       '{"schemaVersion":1,"data":{"ok":false},"errors":[{"code":"UNKNOWN_SERVICE","message":"nope"}]}';
@@ -574,6 +583,19 @@ describe("startUp", () => {
     const line = '{"schemaVersion":1,"data":{"ok":true,"services":["api"]},"errors":[]}';
     const { deps } = fakeUp({ logs: [line] });
     expect((await startUp({}, deps)).isError).toBe(false);
+  });
+  it("removes the log after an early successful result", async () => {
+    const logFile = join(tmpdir(), `flisk-mcp-success-${Date.now()}.log`);
+    writeFileSync(logFile, '{"schemaVersion":1,"data":{"ok":true},"errors":[]}\n');
+    try {
+      const { deps } = fakeUp({ logs: [readFileSync(logFile, "utf-8")] });
+      deps.logFile = () => logFile;
+      const outcome = await startUp({}, deps);
+      expect(outcome.isError).toBe(false);
+      expect(existsSync(logFile)).toBe(false);
+    } finally {
+      rmSync(logFile, { force: true });
+    }
   });
   it("starts from an explicitly supplied project directory", async () => {
     const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });

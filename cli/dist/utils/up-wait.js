@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawn } from "node:child_process";
-import { closeSync, openSync, readFileSync } from "node:fs";
+import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 /** Seconds `flisk up --wait` waits for a healthy stack when `--wait-timeout` is not given. */
@@ -72,6 +72,14 @@ export async function upAndWait(argv, timeoutSeconds, deps, cwd) {
             try {
                 const parsed = JSON.parse(line);
                 const failed = (parsed.errors?.length ?? 0) > 0 || parsed.data?.ok === false;
+                if (!failed) {
+                    try {
+                        rmSync(logFile, { force: true });
+                    }
+                    catch {
+                        // A cleanup failure must not turn a healthy stack into a failed startup.
+                    }
+                }
                 return { kind: failed ? "failed" : "ready", json: line };
             }
             catch {
@@ -90,7 +98,7 @@ export async function upAndWait(argv, timeoutSeconds, deps, cwd) {
 }
 export const defaultUpWaitDeps = (invocation) => ({
     spawnUp(args, logFile, cwd) {
-        const fd = openSync(logFile, "a");
+        const fd = openSync(logFile, "a", 0o600);
         const [command, ...prefix] = invocation();
         const child = spawn(command, [...prefix, ...args], {
             cwd,

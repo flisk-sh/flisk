@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type ChildProcess, spawn } from "node:child_process";
-import { closeSync, openSync, readFileSync } from "node:fs";
+import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -97,6 +97,13 @@ export async function upAndWait(
       try {
         const parsed = JSON.parse(line) as { errors?: unknown[]; data?: { ok?: boolean } };
         const failed = (parsed.errors?.length ?? 0) > 0 || parsed.data?.ok === false;
+        if (!failed) {
+          try {
+            rmSync(logFile, { force: true });
+          } catch {
+            // A cleanup failure must not turn a healthy stack into a failed startup.
+          }
+        }
         return { kind: failed ? "failed" : "ready", json: line };
       } catch {
         return { kind: "failed", json: line };
@@ -115,7 +122,7 @@ export async function upAndWait(
 
 export const defaultUpWaitDeps = (invocation: () => string[]): UpWaitDeps => ({
   spawnUp(args, logFile, cwd) {
-    const fd = openSync(logFile, "a");
+    const fd = openSync(logFile, "a", 0o600);
     const [command, ...prefix] = invocation();
     const child = spawn(command as string, [...prefix, ...args], {
       cwd,
