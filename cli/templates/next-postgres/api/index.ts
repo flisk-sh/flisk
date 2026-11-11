@@ -7,12 +7,13 @@ const app = express();
 app.use(express.json());
 
 // The frontend runs on its own *.localhost origin (app.<project>.localhost), so the browser needs CORS to call this API.
-const LOCAL_FRONTEND_ORIGIN = /^https?:\/\/([a-z0-9-]+\.)+localhost(:\d+)?$/;
+const LOCAL_FRONTEND_ORIGIN = /^(https?):\/\/((?:[a-z0-9-]+\.)+localhost)(:\d+)?$/;
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && LOCAL_FRONTEND_ORIGIN.test(origin)) {
+  const match = LOCAL_FRONTEND_ORIGIN.exec(req.headers.origin ?? "");
+  if (match) {
+    // Rebuild the origin from the validated parts instead of echoing the request header.
     res.vary("Origin");
-    res.set("Access-Control-Allow-Origin", origin);
+    res.set("Access-Control-Allow-Origin", `${match[1]}://${match[2]}${match[3] ?? ""}`);
     if (req.method === "OPTIONS") {
       res.set("Access-Control-Allow-Methods", "GET, HEAD, PUT, POST, DELETE, PATCH");
       res.set("Access-Control-Allow-Headers", req.headers["access-control-request-headers"] ?? "");
@@ -22,6 +23,32 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Per-client fixed-window rate limit, so a runaway client cannot flood the database.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_REQUESTS = 600;
+const hits = new Map<string, { count: number; resetAt: number }>();
+const rateLimit: express.RequestHandler = (req, res, next) => {
+  const now = Date.now();
+  const key = req.ip ?? "unknown";
+  let entry = hits.get(key);
+  if (!entry || entry.resetAt <= now) {
+    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
+    hits.set(key, entry);
+  }
+  entry.count += 1;
+  if (entry.count > RATE_MAX_REQUESTS) {
+    res.set("Retry-After", String(Math.ceil((entry.resetAt - now) / 1000)));
+    res.status(429).json({ error: "too many requests" });
+    return;
+  }
+  next();
+};
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of hits) if (entry.resetAt <= now) hits.delete(key);
+}, RATE_WINDOW_MS).unref();
+app.use(rateLimit);
 
 // Health check: Flisk uses this endpoint to check service health
 app.get("/health", (_req, res) => {
