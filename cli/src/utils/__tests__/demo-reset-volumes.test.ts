@@ -5,14 +5,18 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
+import type { VolumeRunner } from "../demo-reset.js";
 import {
   foldersSharingProjectName,
   isDemoFolder,
   listStaleProjectVolumes,
   markDemoFolder,
   readProjectName,
+  removeProjectVolumes,
   removeStaleProjectVolumes,
   sharedNameRefusal,
+  shouldMarkDemoFolder,
+  tryListStaleProjectVolumes,
 } from "../demo-reset.js";
 import type { ProjectRecord } from "../project-registry.js";
 
@@ -216,5 +220,66 @@ describe("sharedNameRefusal", () => {
     expect(refusal.detail).toContain("vol-1");
     expect(refusal.detail).toContain("Nothing was deleted.");
     expect(refusal.detail).toContain("cd /home/me/restaurant && flisk down --purge");
+  });
+});
+
+describe("one listing for the check and the cleanup (#3963)", () => {
+  const owned = { name: "mine", composeProject: "demo-database-management" };
+
+  it("tryListStaleProjectVolumes tells a failed listing from an empty one", () => {
+    const failing: VolumeRunner = {
+      list: () => {
+        throw new Error("Cannot connect to the Docker daemon");
+      },
+      remove: vi.fn(),
+    };
+    const empty: VolumeRunner = { list: () => [], remove: vi.fn() };
+
+    expect(tryListStaleProjectVolumes("demo", failing)).toBeUndefined();
+    expect(tryListStaleProjectVolumes("demo", empty)).toEqual([]);
+    expect(tryListStaleProjectVolumes("demo", { list: () => [owned], remove: vi.fn() })).toEqual([
+      "mine",
+    ]);
+  });
+
+  it("removeProjectVolumes removes exactly the names it is given and never lists again", () => {
+    const list = vi.fn(() => [
+      owned,
+      { name: "appeared-later", composeProject: owned.composeProject },
+    ]);
+    const remove = vi.fn();
+
+    const removed = removeProjectVolumes(["mine"], { list, remove });
+
+    expect(removed).toEqual(["mine"]);
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith("mine");
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("removeProjectVolumes skips a volume that is in use and keeps going", () => {
+    const removed = removeProjectVolumes(["a", "b"], {
+      list: () => [],
+      remove: (name) => {
+        if (name === "a") throw new Error("volume is in use");
+      },
+    });
+
+    expect(removed).toEqual(["b"]);
+  });
+});
+
+describe("shouldMarkDemoFolder (#3963)", () => {
+  it("marks a folder the demo created, with or without --project", () => {
+    expect(shouldMarkDemoFolder("demo", false)).toBe(true);
+  });
+
+  it("does not mark the user's own copy of the same repository", () => {
+    expect(shouldMarkDemoFolder("restaurant", false)).toBe(false);
+    expect(shouldMarkDemoFolder("saas", false)).toBe(false);
+  });
+
+  it("does not mark a reused demo folder again", () => {
+    expect(shouldMarkDemoFolder("demo", true)).toBe(false);
   });
 });

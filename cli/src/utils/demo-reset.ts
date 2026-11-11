@@ -97,14 +97,15 @@ export function ownedComposeProjects(projectName: string, stacks: string[]): Set
 }
 
 /**
- * The volumes of this checkout's own Compose projects, by name. They are what {@link removeStaleProjectVolumes} removes,
- * and what the demo checks before it does (#3963).
+ * The volumes of this checkout's own Compose projects, by name, or undefined when Docker cannot be listed. An empty list
+ * (no volume of this project) and a failed listing are different answers: the demo's protection check must not read a
+ * failure as "nothing to protect" and then clean up with a second listing (#3963).
  */
-export function listStaleProjectVolumes(
+export function tryListStaleProjectVolumes(
   projectName: string,
   docker: VolumeRunner = dockerVolumes,
   stacks: string[] = [],
-): string[] {
+): string[] | undefined {
   const owned = ownedComposeProjects(projectName, stacks);
   try {
     return docker
@@ -112,26 +113,26 @@ export function listStaleProjectVolumes(
       .filter((volume) => owned.has(volume.composeProject))
       .map((volume) => volume.name);
   } catch {
-    return [];
+    return undefined;
   }
 }
 
-/**
- * Remove the Docker volumes an earlier run of this project left behind. A fresh demo clone generates a new random
- * DB_PASSWORD, but Postgres keeps the password of the data directory it was first started with and ignores
- * POSTGRES_PASSWORD afterwards, so the second `flisk demo` failed at the migrator with Prisma P1000.
- * A volume still mounted by a running container cannot be removed and is skipped. Returns the names removed.
- *
- * A volume carries no folder, so this cannot tell the demo's leftovers from another project of the same name: call
- * {@link foldersSharingProjectName} first.
- */
-export function removeStaleProjectVolumes(
+/** Like {@link tryListStaleProjectVolumes}, but a failed listing is an empty list. */
+export function listStaleProjectVolumes(
   projectName: string,
   docker: VolumeRunner = dockerVolumes,
   stacks: string[] = [],
 ): string[] {
+  return tryListStaleProjectVolumes(projectName, docker, stacks) ?? [];
+}
+
+/** Removes exactly these volumes and nothing else; one still in use by a container is skipped. Returns the names removed. */
+export function removeProjectVolumes(
+  names: readonly string[],
+  docker: VolumeRunner = dockerVolumes,
+): string[] {
   const removed: string[] = [];
-  for (const name of listStaleProjectVolumes(projectName, docker, stacks)) {
+  for (const name of names) {
     try {
       docker.remove(name);
       removed.push(name);
@@ -140,6 +141,23 @@ export function removeStaleProjectVolumes(
     }
   }
   return removed;
+}
+
+/**
+ * Remove the Docker volumes an earlier run of this project left behind. A fresh demo clone generates a new random
+ * DB_PASSWORD, but Postgres keeps the password of the data directory it was first started with and ignores
+ * POSTGRES_PASSWORD afterwards, so the second `flisk demo` failed at the migrator with Prisma P1000.
+ * A volume still mounted by a running container cannot be removed and is skipped. Returns the names removed.
+ *
+ * A volume carries no folder, so this cannot tell the demo's leftovers from another project of the same name: check
+ * {@link foldersSharingProjectName} against the same listing first, and remove that listing with {@link removeProjectVolumes}.
+ */
+export function removeStaleProjectVolumes(
+  projectName: string,
+  docker: VolumeRunner = dockerVolumes,
+  stacks: string[] = [],
+): string[] {
+  return removeProjectVolumes(listStaleProjectVolumes(projectName, docker, stacks), docker);
 }
 
 function canonicalFolder(path: string): string {
@@ -174,6 +192,15 @@ export function foldersSharingProjectName(
 }
 
 const DEMO_MARKER = join(".flisk", "demo-docker.json");
+
+/**
+ * Whether a one-command run creates a folder the demo may later replace. Only the demo starter qualifies: `flisk restaurant`
+ * clones the same repository, with the same project name and database volume, but it is the user's own copy (#3963).
+ * It has to depend on the starter and not on `--project`, because the demo journey runs `flisk demo --project <dir>`.
+ */
+export function shouldMarkDemoFolder(starter: string, reused: boolean): boolean {
+  return starter === "demo" && !reused;
+}
 
 /** True when the Docker demo created the folder (see {@link markDemoFolder}). */
 export function isDemoFolder(dir: string): boolean {
