@@ -137,7 +137,6 @@ import {
   buildStartupReport,
   explainFailures,
   formatStartupReport,
-  formatWaitFailures,
   isStartupStalled,
   machineProblemFixes,
   withLoggedReasons,
@@ -170,6 +169,7 @@ import {
 } from "../utils/up-readiness.js";
 import {
   defaultUpWaitDeps,
+  failedWaitMessages,
   fetchUnhealthyLogLines,
   formatUnhealthyLogTails,
   parseWaitTimeout,
@@ -567,15 +567,7 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
           chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."),
         );
       } else {
-        // Each unhealthy service's lines go under its own failure, or under a "not healthy" line of their own.
-        const failures = formatWaitFailures(
-          withUnhealthyLogs(parsed.data?.failures ?? [], unhealthy) as Parameters<
-            typeof formatWaitFailures
-          >[0],
-        );
-        const messages =
-          failures.length > 0 ? failures : (parsed.errors ?? []).map((e) => e.message ?? "");
-        showError(`flisk up failed:\n  ${messages.filter(Boolean).join("\n  ")}`);
+        showError(`flisk up failed:\n  ${failedWaitMessages(parsed, unhealthy).join("\n  ")}`);
       }
     }
     process.exit(outcome.kind === "ready" ? 0 : 1);

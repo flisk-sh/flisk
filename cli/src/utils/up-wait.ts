@@ -5,7 +5,7 @@ import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lastLines } from "./startup-report.js";
+import { formatWaitFailures, lastLines } from "./startup-report.js";
 
 /** Seconds `flisk up --wait` waits for a healthy stack when `--wait-timeout` is not given. */
 export const DEFAULT_WAIT_TIMEOUT_SECONDS = 1800;
@@ -34,10 +34,15 @@ export function unhealthyLogTails(
 ): UnhealthyLogTail[] {
   const byService = new Map<string, string[]>();
   for (const line of lines) {
-    const text = line.text.trimEnd();
-    if (!line.resource || !text.trim()) continue;
+    if (!line.resource) continue;
+    // One log entry can hold several lines (a traceback), so the caps count the lines that are printed.
+    const texts = line.text
+      .split(/\r?\n/)
+      .map((text) => text.trimEnd())
+      .filter((text) => text.trim());
+    if (texts.length === 0) continue;
     const kept = byService.get(line.resource) ?? [];
-    kept.push(text);
+    kept.push(...texts);
     byService.set(line.resource, kept);
   }
   let left = total;
@@ -99,6 +104,29 @@ export function fetchUnhealthyLogLines(
       },
     );
   });
+}
+
+/**
+ * The lines `flisk up --wait` prints for a failed `flisk up --json` result: each failure with its fix and, under it,
+ * its service's log lines, then any other unhealthy service. A result with no service failures (an env file refused,
+ * drift) keeps its error messages first, so the log lines never hide why `flisk up` stopped.
+ */
+export function failedWaitMessages(
+  result: {
+    data?: { failures?: Parameters<typeof formatWaitFailures>[0] } | null;
+    errors?: Array<{ message?: string }>;
+  },
+  unhealthy: UnhealthyLogTail[],
+): string[] {
+  const failures = result.data?.failures ?? [];
+  const lines = formatWaitFailures(
+    withUnhealthyLogs(failures, unhealthy) as Parameters<typeof formatWaitFailures>[0],
+  );
+  const messages =
+    failures.length > 0
+      ? lines
+      : [...(result.errors ?? []).map((error) => error.message ?? ""), ...lines];
+  return messages.filter(Boolean);
 }
 
 /**

@@ -4,7 +4,7 @@ import { execFile, spawn } from "node:child_process";
 import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lastLines } from "./startup-report.js";
+import { formatWaitFailures, lastLines } from "./startup-report.js";
 /** Seconds `flisk up --wait` waits for a healthy stack when `--wait-timeout` is not given. */
 export const DEFAULT_WAIT_TIMEOUT_SECONDS = 1800;
 const LOG_TAIL_CHARS = 2000;
@@ -20,11 +20,17 @@ export const UNHEALTHY_LINES_TOTAL = 20;
 export function unhealthyLogTails(lines, perService = UNHEALTHY_LINES_PER_SERVICE, total = UNHEALTHY_LINES_TOTAL) {
     const byService = new Map();
     for (const line of lines) {
-        const text = line.text.trimEnd();
-        if (!line.resource || !text.trim())
+        if (!line.resource)
+            continue;
+        // One log entry can hold several lines (a traceback), so the caps count the lines that are printed.
+        const texts = line.text
+            .split(/\r?\n/)
+            .map((text) => text.trimEnd())
+            .filter((text) => text.trim());
+        if (texts.length === 0)
             continue;
         const kept = byService.get(line.resource) ?? [];
-        kept.push(text);
+        kept.push(...texts);
         byService.set(line.resource, kept);
     }
     let left = total;
@@ -73,6 +79,19 @@ export function fetchUnhealthyLogLines(invocation, cwd, timeoutMs = 20_000) {
             }
         });
     });
+}
+/**
+ * The lines `flisk up --wait` prints for a failed `flisk up --json` result: each failure with its fix and, under it,
+ * its service's log lines, then any other unhealthy service. A result with no service failures (an env file refused,
+ * drift) keeps its error messages first, so the log lines never hide why `flisk up` stopped.
+ */
+export function failedWaitMessages(result, unhealthy) {
+    const failures = result.data?.failures ?? [];
+    const lines = formatWaitFailures(withUnhealthyLogs(failures, unhealthy));
+    const messages = failures.length > 0
+        ? lines
+        : [...(result.errors ?? []).map((error) => error.message ?? ""), ...lines];
+    return messages.filter(Boolean);
 }
 /**
  * The `flisk up --json` result with each failure that names an unhealthy service given its log lines as `logs`, and

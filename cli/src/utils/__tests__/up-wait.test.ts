@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WAIT_TIMEOUT_SECONDS,
   detachedUpArgs,
+  failedWaitMessages,
   fetchUnhealthyLogLines,
   formatUnhealthyLogTails,
   parseWaitTimeout,
@@ -149,6 +150,13 @@ describe("unhealthy services' log tails", () => {
     expect(tails[4]?.lines).toEqual([]);
   });
 
+  it("counts each line of a multi-line entry, such as a traceback, toward the caps", () => {
+    const traceback = Array.from({ length: 8 }, (_, i) => `frame ${i + 1}`).join("\n");
+    expect(
+      unhealthyLogTails([line("py", `Traceback (most recent call last):\n${traceback}\r\n`)]),
+    ).toEqual([{ name: "py", lines: ["frame 4", "frame 5", "frame 6", "frame 7", "frame 8"] }]);
+  });
+
   it("skips blank lines and lines with no service", () => {
     expect(
       unhealthyLogTails([line("py", "   "), { resource: null, text: "tilt says hi" }]),
@@ -204,5 +212,35 @@ describe("unhealthy services' log tails", () => {
         `console.log(${JSON.stringify(noData)})`,
       ]),
     ).toBeNull();
+  });
+});
+
+describe("failedWaitMessages", () => {
+  const tails = [{ name: "py", lines: ["boom"] }];
+
+  it("puts a service's log lines under its own failure", () => {
+    expect(
+      failedWaitMessages(
+        { data: { failures: [{ name: "py", message: "health check is failing" }] }, errors: [] },
+        tails,
+      ),
+    ).toEqual([
+      "py: health check is failing\n    boom\n    (last line of: flisk logs --service py)",
+    ]);
+  });
+
+  it("keeps the error of a result with no service failures before the log lines", () => {
+    expect(
+      failedWaitMessages(
+        {
+          data: { failures: [] },
+          errors: [{ message: "--env-file cannot change a stack that is already running" }],
+        },
+        tails,
+      ),
+    ).toEqual([
+      "--env-file cannot change a stack that is already running",
+      "py: not healthy\n    boom\n    (last line of: flisk logs --service py)",
+    ]);
   });
 });

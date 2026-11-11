@@ -1,4 +1,5 @@
 import { type ChildProcess } from "node:child_process";
+import { formatWaitFailures } from "./startup-report.js";
 /** Seconds `flisk up --wait` waits for a healthy stack when `--wait-timeout` is not given. */
 export declare const DEFAULT_WAIT_TIMEOUT_SECONDS = 1800;
 /** Lines of each unhealthy service's log a failed `flisk up --wait` prints, and the most it prints in all. */
@@ -28,6 +29,19 @@ export declare function fetchUnhealthyLogLines(invocation: () => string[], cwd?:
     resource: string | null;
     text: string;
 }> | null>;
+/**
+ * The lines `flisk up --wait` prints for a failed `flisk up --json` result: each failure with its fix and, under it,
+ * its service's log lines, then any other unhealthy service. A result with no service failures (an env file refused,
+ * drift) keeps its error messages first, so the log lines never hide why `flisk up` stopped.
+ */
+export declare function failedWaitMessages(result: {
+    data?: {
+        failures?: Parameters<typeof formatWaitFailures>[0];
+    } | null;
+    errors?: Array<{
+        message?: string;
+    }>;
+}, unhealthy: UnhealthyLogTail[]): string[];
 /**
  * The `flisk up --json` result with each failure that names an unhealthy service given its log lines as `logs`, and
  * any other unhealthy service added as a failure of its own.
