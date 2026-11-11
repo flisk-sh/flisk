@@ -2,8 +2,8 @@
   "$schema": "https://flisk.sh/schema.service.json",
   "schemaVersion": 1,
   "appName": "orders-app",
-  "appType": "frontent",
+  "appType": "frontend",
   "stack": "shop",
-  "port": "3000",
+  "port": 3000,
   "dependsOn": ["orders-api"]
 }
