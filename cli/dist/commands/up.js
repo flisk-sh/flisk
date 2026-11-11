@@ -49,7 +49,7 @@ import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBring
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
-import { buildStartupReport, formatStartupReport, isStartupStalled, machineProblemFixes, withLoggedReasons, } from "../utils/startup-report.js";
+import { buildStartupReport, explainFailures, formatStartupReport, formatWaitFailures, isStartupStalled, machineProblemFixes, withLoggedReasons, } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
@@ -344,8 +344,7 @@ async function runUpWait(options) {
                 console.log(chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."));
             }
             else {
-                const failures = parsed.data?.failures?.map((f) => `${f.name}: ${f.reason ?? f.message ?? "failed"}`) ??
-                    [];
+                const failures = formatWaitFailures(parsed.data?.failures ?? []);
                 const messages = failures.length > 0 ? failures : (parsed.errors ?? []).map((e) => e.message ?? "");
                 showError(`flisk up failed:\n  ${messages.filter(Boolean).join("\n  ")}`);
             }
@@ -1038,12 +1037,15 @@ export const upCommand = new Command("up")
                     deferred,
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
                 });
-                const report = alreadyRunningReport(runningPort, readiness);
+                const failures = readiness.ready
+                    ? readiness.failures
+                    : await explainFailures(readiness.failures, (name) => tiltResourceLogs(runningPort, name));
+                const report = alreadyRunningReport(runningPort, { ...readiness, failures });
                 if (report.ok) {
                     emit({ ok: true, alreadyRunning: true, tiltUrl });
                 }
                 else {
-                    emit({ ok: false, alreadyRunning: true, tiltUrl, failures: readiness.failures }, [
+                    emit({ ok: false, alreadyRunning: true, tiltUrl, failures }, [
                         { code: report.code, message: report.message, suggestions: report.suggestions },
                     ]);
                     process.exitCode = 1;
@@ -1207,13 +1209,9 @@ export const upCommand = new Command("up")
                 }
                 else {
                     startupFailed = true;
-                    const failures = await withLoggedReasons(readiness.failures, (name) => tiltResourceLogs(port, name));
-                    const fixes = await machineProblemFixes(failures, (name) => tiltResourceLogs(port, name));
+                    const failures = await explainFailures(readiness.failures, (name) => tiltResourceLogs(port, name));
                     const detail = failures
-                        .map((f) => {
-                        const fix = fixes.get(f.name);
-                        return `${f.name}: ${f.message}${fix ? `. ${fix}` : ""}`;
-                    })
+                        .map((f) => `${f.name}: ${f.message}${f.fix ? `. ${f.fix}` : ""}`)
                         .join("; ");
                     const stillBuildingMsg = readiness.stillBuilding && readiness.stillBuilding.length > 0
                         ? ` (${readiness.stillBuilding.join(", ")} still building)`

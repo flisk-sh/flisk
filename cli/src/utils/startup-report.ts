@@ -4,6 +4,7 @@
 import type { PortOccupant } from "../types/index.js";
 import { parseTiltResourceFailures, summarizeTiltBuildError } from "./doctor-runtime.js";
 import { conflictPort, portConflictFix } from "./port-conflict-fix.js";
+import { stripTerminalControls } from "./tilt-events.js";
 import {
   effectiveRuntimeStatus,
   isNeverStarted,
@@ -69,11 +70,24 @@ export async function machineProblemFixes(
 // What Tilt reports for a local_resource whose command exited non-zero: no reason at all.
 const BARE_EXIT_STATUS = /^(?:Command failed: )?exit status \d+$/i;
 
+// What Tilt reports for a failed local command (`Command "..." failed`) or compose step (`command [...] failed`): the
+// command line, often hundreds of characters, and not why it failed.
+const FAILED_COMMAND = /^command\s+(?:"[\s\S]*"|\[[\s\S]*\])\s+failed\b/i;
+
+/** The most of a failure message `flisk up` prints for one resource. */
+export const MAX_FAILURE_MESSAGE = 300;
+
+const LOG_TAIL_LINES = 3;
+
 /**
- * Failures whose message is only an exit status, given the reason their command logged instead. The health gates
+ * Failures whose message carries no reason, given the reason their command logged instead. The health gates
  * (`postgres-healthy`, `<svc>-healthy`, `<job>-done`) print the cause as their last `ERROR: ...` line, such as a container
  * that exited or a health check that kept failing past its recovery window, so `flisk up` shows that rather than
- * "exit status 1" (#3210). Other failures, and those whose log names no error, are returned unchanged.
+ * "exit status 1" (#3210). A failed command or compose step (`init-networks`, `docker compose up`) is shown as the last
+ * lines of its log, where Docker's own message is, rather than the command line. A reason taken from a log is stripped
+ * of terminal escapes and cut to MAX_FAILURE_MESSAGE characters. Other failures, and those whose log has nothing to
+ * show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters. Only the first five
+ * failures have their log read; the command text of the rest is cut the same way.
  */
 export async function withLoggedReasons<T extends { name: string; message: string }>(
   failures: T[],
@@ -81,14 +95,72 @@ export async function withLoggedReasons<T extends { name: string; message: strin
 ): Promise<T[]> {
   const out: T[] = [];
   for (const [index, failure] of failures.entries()) {
-    if (index >= 5 || !BARE_EXIT_STATUS.test(failure.message.trim())) {
+    const message = failure.message.trim();
+    const isBareExit = BARE_EXIT_STATUS.test(message);
+    const isCommand = FAILED_COMMAND.test(message);
+    if (!isBareExit && !isCommand) {
       out.push(failure);
       continue;
     }
-    const reason = loggedErrorLine((await fetchLogs(failure.name)) ?? "");
-    out.push(reason ? { ...failure, message: reason } : failure);
+    if (index >= 5) {
+      out.push(isCommand ? { ...failure, message: capStart(message) } : failure);
+      continue;
+    }
+    const log = stripTerminalControls((await fetchLogs(failure.name)) ?? "");
+    const errorLine = loggedErrorLine(log);
+    const reason = errorLine ? capStart(errorLine.trim()) : isCommand ? logTail(log) : null;
+    if (reason) out.push({ ...failure, message: reason });
+    else if (isCommand) out.push({ ...failure, message: capStart(message) });
+    else out.push(failure);
   }
   return out;
+}
+
+/**
+ * Failures with the reason their log gives (withLoggedReasons) and, when that reason names a known machine problem,
+ * its fix, for both the `flisk up --json` result and its error message.
+ */
+export async function explainFailures<T extends { name: string; message: string }>(
+  failures: T[],
+  fetchLogs: (name: string) => Promise<string | null>,
+): Promise<Array<T & { fix?: string }>> {
+  const explained = await withLoggedReasons(failures, fetchLogs);
+  const fixes = await machineProblemFixes(explained, fetchLogs);
+  return explained.map((failure) => {
+    const fix = fixes.get(failure.name);
+    return fix ? { ...failure, fix } : failure;
+  });
+}
+
+/** The last lines of a log that have text, joined on one line, keeping the end when it is too long. */
+export function logTail(log: string, lines = LOG_TAIL_LINES): string | null {
+  const tail = stripTerminalControls(log)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(-lines)
+    .join(" ");
+  if (!tail) return null;
+  return tail.length > MAX_FAILURE_MESSAGE
+    ? `…${tail.slice(tail.length - (MAX_FAILURE_MESSAGE - 1))}`
+    : tail;
+}
+
+/**
+ * The failure lines `flisk up --wait` prints from the `flisk up --json` result: each failed resource and its reason,
+ * and under it the fix when the reason names a known machine problem.
+ */
+export function formatWaitFailures(
+  failures: Array<{ name: string; reason?: string; message?: string; fix?: string }>,
+): string[] {
+  return failures.map((f) => {
+    const line = `${f.name}: ${f.reason ?? f.message ?? "failed"}`;
+    return f.fix ? `${line}\n    → ${f.fix.replace(/^Fix:\s*/, "")}` : line;
+  });
+}
+
+function capStart(text: string): string {
+  return text.length > MAX_FAILURE_MESSAGE ? `${text.slice(0, MAX_FAILURE_MESSAGE - 1)}…` : text;
 }
 
 /**
