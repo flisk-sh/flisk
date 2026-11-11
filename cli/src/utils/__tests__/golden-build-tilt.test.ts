@@ -89,6 +89,8 @@ interface RunGoldenOptions {
   registry?: string | null;
   /** `docker pull` fails for these golden layer keys (`all` for every one: offline, or the hash is not published). */
   pullFails?: string[];
+  /** The machine-wide flisk-golden-<layer>:<hash12> images exist (another project built them). */
+  sharedImages?: boolean;
 }
 
 /** Runs the generated script in a scratch project with a fake docker and returns what it did. */
@@ -149,6 +151,7 @@ case "$1" in
         echo "$FAKE_LABEL"
         exit 0
       fi
+      case "$img" in flisk-golden-*) [ "$FAKE_SHARED" = 1 ] || exit 1; echo "$FAKE_HASH"; exit 0 ;; esac
       if [ -n "$FAKE_MISSING_IMAGES" ]; then
         for m in $FAKE_MISSING_IMAGES; do
           if [ "$img" = "$m" ]; then exit 1; fi
@@ -182,6 +185,8 @@ exit 0
     encoding: "utf-8",
     env: {
       ...baseEnv,
+      FAKE_HASH: hash,
+      FAKE_SHARED: options.sharedImages ? "1" : "",
       FAKE_PULL_FAILS: (options.pullFails ?? []).join(" "),
       PATH: `${bin}:${process.env.PATH}`,
       FAKE_LOG: log,
@@ -452,7 +457,8 @@ describe.skipIf(!hasTilt)("golden layer build script", () => {
     expect(run.status).toBe(0);
     expect(run.bake).toHaveLength(1);
     expect(run.bake[0]).toContain("--load");
-    for (const image of EXPECTED_IMAGES) expect(run.hcl).toContain(`tags = ["${image}"]`);
+    for (const image of EXPECTED_IMAGES)
+      expect(run.hcl).toContain(`tags = ["${image}", "flisk-golden-`);
     expect(run.hcl.match(/^target "/gm)).toHaveLength(EXPECTED_IMAGES.length);
     expect(run.hcl).toContain('"flisk.golden.hash" = HASH');
   });
@@ -567,12 +573,43 @@ describe.skipIf(!hasTilt)("golden layer build script", () => {
       }),
     );
     expect(run.tags[0]).toBe(`tag ghcr.io/flisk-sh/golden-l1:${tag12} flisk-project-l1:latest`);
-    expect(run.tags).toHaveLength(EXPECTED_IMAGES.length);
+    // Each layer is tagged twice: the project name and the machine-wide name.
+    expect(run.tags).toHaveLength(EXPECTED_IMAGES.length * 2);
     // The registry tag is dropped again so an old hash's images do not stay tagged after an upgrade.
     expect(run.calls).toContain(`image rm ghcr.io/flisk-sh/golden-l1:${tag12}`);
     expect(run.stdout).toContain(`Golden images pulled from ghcr.io/flisk-sh (hash ${tag12})`);
     expect(run.bake).toEqual([]);
     expect(run.serialBuilds).toEqual([]);
+  });
+
+  it("tags the machine-wide flisk-golden image beside the project tag after a pull", () => {
+    const run = runGolden(script, { labelMatches: false, registry: null });
+    const tag12 = run.hash.slice(0, 12);
+    expect(run.tags).toContain(`tag ghcr.io/flisk-sh/golden-l1:${tag12} flisk-golden-l1:${tag12}`);
+    expect(run.tags).toContain(`tag ghcr.io/flisk-sh/golden-l1:${tag12} flisk-project-l1:latest`);
+  });
+
+  it("reuses the machine-wide images for a second project: no pull, no build", () => {
+    const run = runGolden(script, { labelMatches: false, registry: null, sharedImages: true });
+    const tag12 = run.hash.slice(0, 12);
+    expect(run.status).toBe(0);
+    expect(run.pulls).toEqual([]);
+    expect(run.bake).toEqual([]);
+    expect(run.serialBuilds).toEqual([]);
+    expect(run.tags).toContain(`tag flisk-golden-l1:${tag12} flisk-project-l1:latest`);
+    expect(run.tags).toHaveLength(8);
+    expect(run.stdout).toContain("reused from this machine");
+  });
+
+  it("builds again when the machine-wide images are skipped by FLISK_GOLDEN_REBUILD", () => {
+    const run = runGolden(script, { labelMatches: false, sharedImages: true, rebuild: true });
+    expect(run.bake).toHaveLength(1);
+  });
+
+  it("gives every bake target the machine-wide tag", () => {
+    const run = runGolden(script, { labelMatches: false });
+    const tag12 = run.hash.slice(0, 12);
+    expect(run.hcl).toContain(`tags = ["flisk-project-l1:latest", "flisk-golden-l1:${tag12}"]`);
   });
 
   it("falls back to the local build after the first failed pull, without trying the other layers", () => {

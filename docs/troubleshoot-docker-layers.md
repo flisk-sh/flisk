@@ -13,7 +13,7 @@ This guide maps each layer and variant to its source module, target stage, image
 
 ## Golden Layers Reference (L1–L4)
 
-The golden image hierarchy defines exactly 8 target images, all stages of one generated Dockerfile (`.flisk/.flisk-out/golden-layers.Dockerfile`, produced by `golden_image_dockerfile.star`). The files under `layers/` generate the *service* Dockerfiles that start `FROM` these images; they do not build the golden images themselves. `flisk up` pulls them from `ghcr.io/flisk-sh` (published for each golden Dockerfile hash) and builds them locally only when that pull fails; either way they are tagged with your project name prefix (loaded from `.flisk/project.json`, falling back to `flisk-project`):
+The golden image hierarchy defines exactly 8 target images, all stages of one generated Dockerfile (`.flisk/.flisk-out/golden-layers.Dockerfile`, produced by `golden_image_dockerfile.star`). The files under `layers/` generate the *service* Dockerfiles that start `FROM` these images; they do not build the golden images themselves. `flisk up` pulls them from `ghcr.io/flisk-sh` (published for each golden Dockerfile hash) and builds them locally only when that pull fails; either way each image is stored once per machine as `flisk-golden-<layer>:<hash12>` and your project name prefix is an extra tag on it, so a second project with the same golden Dockerfile pulls and builds nothing; they are tagged with your project name prefix (loaded from `.flisk/project.json`, falling back to `flisk-project`):
 
 | Layer | Purpose | Defined in | Dockerfile stage and image | Bake target (as named in build errors) |
 |---|---|---|---|---|
