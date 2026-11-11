@@ -3,6 +3,8 @@ import { BACKEND_LANGUAGES } from "../backend-languages/registry.js";
 import { FRONTEND_FRAMEWORKS } from "../frontend-frameworks/registry.js";
 import { DATABASE_FRAMEWORKS, QUEUE_FRAMEWORKS, RESOURCE_CREATE_TYPE_VALUES, } from "../types/index.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
+import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import { SUPPORTED_SHELLS } from "./completion-shells.js";
 /**
  * The positional argument of a command, keyed by the command path (`"agent sessions"`). Only the
  * commands whose argument names something in the current project are listed.
@@ -16,7 +18,7 @@ const POSITIONALS = {
     "agent sessions": "resources",
 };
 /**
- * The values of a flag, for the commands that accept another set than the default.
+ * Command-specific flag values, including overrides of the default value lists.
  *
  * `flisk resource` creates a resource and accepts `RESOURCE_CREATE_TYPE_VALUES` plus `sdk`,
  * while `flisk resources` filters the resources of the project and accepts
@@ -26,6 +28,12 @@ const POSITIONALS = {
  */
 const COMMAND_VALUES = {
     resources: { "--type": [...VALID_RESOURCE_TYPES] },
+    completion: { "--shell": [...SUPPORTED_SHELLS] },
+    doctor: { "--scope": ["project", "machine"] },
+    create: {
+        "--runtime": ["local", "docker"],
+        "--starter": Object.keys(PROJECT_TEMPLATES),
+    },
 };
 /**
  * The values of the flags that depend on the `--type` of the command line.
