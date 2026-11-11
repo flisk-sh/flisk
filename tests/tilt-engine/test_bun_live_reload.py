@@ -50,8 +50,8 @@ def run_starlark(tmp_path: Path, body: str) -> dict:
     return json.loads(output.split(RESULT_MARKER, 1)[1].strip())
 
 
-def write_service(tmp_path: Path, dev_script: str | None) -> None:
-    scripts = {"start": "bun run dist/index.js"}
+def write_service(tmp_path: Path, dev_script: str | None, **extra_scripts: str) -> None:
+    scripts = {"start": "bun run dist/index.js", **extra_scripts}
     if dev_script is not None:
         scripts["dev"] = dev_script
     service_dir = tmp_path / "svc"
@@ -102,7 +102,7 @@ def test_development_stage_installs_only_what_it_runs(tmp_path):
     development = stage(df, "development")
 
     # Production dependencies, as the runtime stage has them, not the build stage's full node_modules.
-    assert "COPY --from=l3_production_purger /app/svc/node_modules ./node_modules" in development
+    assert "COPY --from=l3_development_deps /app/svc/node_modules ./node_modules" in development
     assert "--from=l3_backend_build /app/svc/node_modules " not in development
     # The generated Prisma client is still there.
     assert "/node_modules/.prisma" in development
@@ -123,7 +123,7 @@ def test_development_stage_without_prisma_skips_the_generated_client(tmp_path):
     development = stage(df, "development")
 
     assert ".prisma" not in development
-    assert "l3_production_purger" in development
+    assert "l3_development_deps" in development
 
 
 def test_dev_script_that_chains_another_binary_keeps_the_build_stage(tmp_path):
@@ -224,3 +224,34 @@ def test_go_with_live_reload_still_builds_development(tmp_path):
     go = {"appType": "backend", "language": "go", "dev": {"liveReload": True}}
     assert target_for(tmp_path, {"manifest": go}) == "development"
     assert target_for(tmp_path, {"manifest": {"appType": "backend", "language": "go"}}) == "production"
+
+
+def test_development_deps_are_not_pruned(tmp_path):
+    """A dependency may export a .ts file (`./src/index.ts`); the runtime purger deletes those, the development install keeps them."""
+    write_service(tmp_path, WATCHING_DEV)
+    df = backend_runtime(tmp_path, {"appType": "backend"})
+
+    deps = stage(df, "l3_development_deps")
+    assert "bun install --production" in deps
+    assert "find node_modules" not in deps
+
+
+@pytest.mark.parametrize(
+    "dev_script",
+    ["bun run --watch vite", "bun --watch dev:server", "bun run --watch tsx src/index.ts", "bun x --watch src/index.ts"],
+)
+def test_bun_dispatch_to_a_script_or_binary_keeps_the_build_stage(tmp_path, dev_script):
+    """`bun run <name>` resolves package scripts and local binaries, which may be devDependencies."""
+    write_service(tmp_path, dev_script)
+    df = backend_runtime(tmp_path, {"appType": "backend"})
+
+    assert "FROM l3_backend_build AS development" in df
+
+
+@pytest.mark.parametrize("hook", ["predev", "postdev"])
+def test_dev_lifecycle_hook_keeps_the_build_stage(tmp_path, hook):
+    """bun runs predev/postdev around dev, e.g. `tsc --noEmit`, which needs typescript."""
+    write_service(tmp_path, WATCHING_DEV, **{hook: "tsc --noEmit"})
+    df = backend_runtime(tmp_path, {"appType": "backend"})
+
+    assert "FROM l3_backend_build AS development" in df
