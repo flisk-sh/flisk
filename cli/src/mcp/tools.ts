@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type ChildProcess, spawn } from "node:child_process";
-import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
+import { closeSync, openSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { RESOURCE_CREATE_TYPE_VALUES } from "../types/index.js";
@@ -462,6 +462,20 @@ function projectPath(value: unknown): string | undefined {
   if (typeof value !== "string" || !isAbsolute(value)) {
     throw new FliskError("projectPath must be an absolute path to a Flisk project root", [
       "Pass the absolute path of the directory that holds .flisk/project.json",
+      "Or omit projectPath to run in the MCP server's directory",
+    ]);
+  }
+  // The path is the child's working directory, so a missing one would fail the
+  // spawn with an ENOENT that names the binary instead of the directory. One
+  // stat call tells a path that is not there (no entry) from one this process
+  // cannot read (the error is kept, so a permission problem is not reported
+  // as a missing directory).
+  const stat = statSync(value, { throwIfNoEntry: false });
+  if (!stat?.isDirectory()) {
+    // Shared by project_init, which writes .flisk/project.json into the directory, so
+    // the guidance must not assume the directory already holds one.
+    throw new FliskError(`projectPath does not exist or is not a directory: ${value}`, [
+      "Create the directory, or pass the absolute path of an existing directory (for a project that is already set up, the one that holds .flisk/project.json)",
       "Or omit projectPath to run in the MCP server's directory",
     ]);
   }

@@ -3,12 +3,12 @@
 /// <reference types="vite/client" />
 
 import { EventEmitter } from "node:events";
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getRegisteredCommands } from "../../commands/registry.js";
 import { parseResourceType } from "../../commands/resource.js";
 import { CREATABLE_RESOURCE_TYPES, RESOURCE_CREATE_TYPE_VALUES } from "../../types/index.js";
@@ -42,6 +42,21 @@ vi.mock("node:child_process", async (importOriginal) => ({
 
 beforeEach(() => {
   spawnMock.mockReset();
+});
+
+/** A real directory: the tools check that projectPath exists before they use it. */
+let projectDir: string;
+/** A file where a directory is expected. */
+let notADirectory: string;
+
+beforeAll(() => {
+  projectDir = mkdtempSync(join(tmpdir(), "flisk-mcp-project-"));
+  notADirectory = join(projectDir, "not-a-directory.txt");
+  writeFileSync(notADirectory, "not a directory\n");
+});
+
+afterAll(() => {
+  rmSync(projectDir, { recursive: true, force: true });
 });
 
 const testDir = dirname(fileURLToPath(import.meta.url));
@@ -545,16 +560,19 @@ describe("startUp", () => {
     expect(r.isError).toBe(true);
     expect(JSON.stringify(r.data)).toContain("UNKNOWN_SERVICE");
   });
-  it("reports a child that cannot start (a projectPath that does not exist) instead of crashing the server", async () => {
+  it("reports a projectPath that does not exist instead of failing to spawn", async () => {
     const { deps, child } = fakeUp({ logs: [""] });
     // Node emits "error" and never "exit" for an ENOENT cwd; with no listener the emit throws and ends the MCP server.
     deps.spawnUp = vi.fn(() => {
       queueMicrotask(() => child.emit("error", new Error("spawn /nosuch ENOENT")));
       return child as never;
     });
-    const r = await startUp({ projectPath: "/nosuch" }, deps);
-    expect(r.isError).toBe(true);
-    expect(JSON.stringify(r.data)).toContain("Could not start flisk up: spawn /nosuch ENOENT");
+    const missing = join(projectDir, "missing");
+    await expect(startUp({ projectPath: missing }, deps)).rejects.toThrow(
+      `projectPath does not exist or is not a directory: ${missing}`,
+    );
+    // The path is checked before the child is started, so the spawn never happens.
+    expect(deps.spawnUp).not.toHaveBeenCalled();
   });
   it("reports a failed spawn even when the wait window is zero", async () => {
     const { deps, child } = fakeUp({ logs: [""] });
@@ -562,7 +580,7 @@ describe("startUp", () => {
       queueMicrotask(() => child.emit("error", new Error("spawn /nosuch ENOENT")));
       return child as never;
     });
-    const r = await startUp({ projectPath: "/nosuch", waitSeconds: 0 }, deps);
+    const r = await startUp({ projectPath: projectDir, waitSeconds: 0 }, deps);
     expect(r.isError).toBe(true);
     expect(JSON.stringify(r.data)).toContain("Could not start flisk up");
   });
@@ -599,9 +617,39 @@ describe("startUp", () => {
   });
   it("starts from an explicitly supplied project directory", async () => {
     const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });
-    await startUp({ projectPath: "/work/erp" }, deps);
-    expect(deps.spawnUp).toHaveBeenCalledWith(["up", "--json"], "/tmp/x.log", "/work/erp");
+    await startUp({ projectPath: projectDir }, deps);
+    expect(deps.spawnUp).toHaveBeenCalledWith(["up", "--json"], "/tmp/x.log", projectDir);
   });
+  it("rejects a projectPath that is not a directory", async () => {
+    const { deps } = fakeUp({ logs: [""] });
+    await expect(startUp({ projectPath: notADirectory }, deps)).rejects.toThrow(
+      `projectPath does not exist or is not a directory: ${notADirectory}`,
+    );
+  });
+  it("tells the caller to create or pick a directory, not to find an existing project.json", async () => {
+    const { deps } = fakeUp({ logs: [""] });
+    const err = await startUp({ projectPath: join(projectDir, "missing") }, deps).catch((e) => e);
+    expect(err).toBeInstanceOf(FliskError);
+    const first = (err as FliskError).suggestions[0];
+    expect(first).toMatch(/^Create the directory/);
+    expect(first).toContain("existing directory");
+  });
+  it("rejects a projectPath under a file, without starting the child", async () => {
+    const { deps } = fakeUp({ logs: [""] });
+    // The parent is a file, so the path cannot be a directory. The error says
+    // what went wrong - the platform's own, or the missing-directory message -
+    // but the child is never started either way.
+    const underFile = join(projectDir, "not-a-directory.txt", "child");
+    await expect(startUp({ projectPath: underFile }, deps)).rejects.toThrow();
+    expect(deps.spawnUp).not.toHaveBeenCalled();
+  });
+  it("accepts a projectPath that is a directory", async () => {
+    const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });
+    const r = await startUp({ projectPath: projectDir }, deps);
+    expect(r.isError).toBe(false);
+    expect(deps.spawnUp).toHaveBeenCalledWith(["up", "--json"], expect.any(String), projectDir);
+  });
+
   it("rejects a relative project path and clamps a negative wait window", async () => {
     const relative = fakeUp({ logs: [""] });
     await expect(startUp({ projectPath: "relative" }, relative.deps)).rejects.toThrow(
@@ -675,7 +723,7 @@ describe("tool list", () => {
       seen.push({ args, cwd: options?.cwd });
       return { exitCode: 0, stdout: '{"schemaVersion":1,"data":[],"errors":[]}', stderr: "" };
     });
-    await tools.find((t) => t.name === "doctor")?.handler({ projectPath: "/work/erp" });
+    await tools.find((t) => t.name === "doctor")?.handler({ projectPath: projectDir });
     await tools.find((t) => t.name === "resource_list")?.handler({ stack: "store" });
     await tools.find((t) => t.name === "status")?.handler({});
     await tools.find((t) => t.name === "down")?.handler({ dryRun: true });
@@ -689,7 +737,7 @@ describe("tool list", () => {
       ?.handler({ resource: "bot", sessionId: "sess-1" });
     await tools.find((t) => t.name === "agent_sessions")?.handler({ resource: "bot" });
     expect(seen).toEqual([
-      { args: ["doctor", "--json"], cwd: "/work/erp" },
+      { args: ["doctor", "--json"], cwd: projectDir },
       { args: ["resources", "--json", "--stack=store"], cwd: undefined },
       { args: ["status", "--json"], cwd: undefined },
       { args: ["down", "--json", "--dry-run"], cwd: undefined },
@@ -739,22 +787,22 @@ describe("tool list", () => {
     const { seen, tools } = recordingTools('{"schemaVersion":1,"data":{},"errors":[]}');
     const call = (name: string, args: Record<string, unknown>) =>
       tools.find((t) => t.name === name)?.handler(args);
-    await call("stack_list", { projectPath: "/work/erp" });
+    await call("stack_list", { projectPath: projectDir });
     await call("stack_list", { services: true, verbose: true });
     await call("project_info", {});
     await call("network_list", { stack: "shop" });
     await call("network_list", {});
-    await call("config_verify", { projectPath: "/work/erp" });
+    await call("config_verify", { projectPath: projectDir });
     await call("config_explain", { file: ".flisk/.flisk-out/Tiltfile" });
     await call("config_explain", { file: "/work/erp/services/shop/api/service.json" });
     await call("runtime_check", {});
     expect(seen).toEqual([
-      { args: ["stacks", "--json"], cwd: "/work/erp" },
+      { args: ["stacks", "--json"], cwd: projectDir },
       { args: ["stacks", "--json", "--services", "--verbose"], cwd: undefined },
       { args: ["projects", "--json"], cwd: undefined },
       { args: ["networks", "--json", "--stack=shop"], cwd: undefined },
       { args: ["networks", "--json"], cwd: undefined },
-      { args: ["config", "verify", "--json"], cwd: "/work/erp" },
+      { args: ["config", "verify", "--json"], cwd: projectDir },
       { args: ["config", "explain", ".flisk/.flisk-out/Tiltfile", "--json"], cwd: undefined },
       {
         args: ["config", "explain", "/work/erp/services/shop/api/service.json", "--json"],
@@ -792,7 +840,7 @@ describe("tool list", () => {
     const call = (name: string, args: Record<string, unknown>) =>
       tools.find((t) => t.name === name)?.handler(args);
     const created = await call("resource_create", {
-      projectPath: "/work/erp",
+      projectPath: projectDir,
       name: "api",
       type: "backend",
       stack: "shop",
@@ -802,17 +850,17 @@ describe("tool list", () => {
       isError: false,
     });
     await call("stack_assign", { stack: "shop", resources: ["api"] });
-    await call("project_init", { projectPath: "/work/new-app" });
+    await call("project_init", { projectPath: projectDir });
     await call("project_init", { template: "agent-stack" });
     await call("config_regenerate", {});
     await call("config_regenerate", { dryRun: false });
     expect(seen).toEqual([
       {
         args: ["resource", "api", "--type=backend", "--stack=shop", "--yes"],
-        cwd: "/work/erp",
+        cwd: projectDir,
       },
       { args: ["stack", "shop", "--resources=api", "--yes"], cwd: undefined },
-      { args: ["project", "--yes"], cwd: "/work/new-app", timeoutMs: 300_000 },
+      { args: ["project", "--yes"], cwd: projectDir, timeoutMs: 300_000 },
       { args: ["project", "agent-stack", "--yes"], cwd: undefined, timeoutMs: 300_000 },
       { args: ["config", "regenerate", "--dry-run"], cwd: undefined },
       { args: ["config", "regenerate"], cwd: undefined },
@@ -957,14 +1005,14 @@ describe("tool list", () => {
     await expect(eject?.handler({ confirm: false })).rejects.toThrow("it needs confirm: true");
     expect(seen).toEqual([]);
 
-    const result = await eject?.handler({ projectPath: "/work/erp", confirm: true });
+    const result = await eject?.handler({ projectPath: projectDir, confirm: true });
     expect(result).toEqual({
       data: { schemaVersion: 1, data: { created: true }, errors: [] },
       isError: false,
     });
     await eject?.handler({ dryRun: true });
     expect(seen).toEqual([
-      { args: ["eject", "--yes", "--json"], cwd: "/work/erp" },
+      { args: ["eject", "--yes", "--json"], cwd: projectDir },
       { args: ["eject", "--dry-run", "--json"], cwd: undefined },
     ]);
     expect(buildProjectEjectArgs({ confirm: true, dryRun: true })).toEqual([
@@ -983,12 +1031,12 @@ describe("tool list", () => {
     );
     const call = (args: Record<string, unknown>) =>
       tools.find((t) => t.name === "project_import")?.handler(args);
-    const result = await call({ projectPath: "/work/erp", dir: "legacy" });
+    const result = await call({ projectPath: projectDir, dir: "legacy" });
     expect(result?.isError).toBe(false);
     await call({ dryRun: true });
     await call({ dir: "/srv/legacy", dryRun: true, force: true });
     expect(seen).toEqual([
-      { args: ["import", "legacy", "--json"], cwd: "/work/erp", timeoutMs: 300_000 },
+      { args: ["import", "legacy", "--json"], cwd: projectDir, timeoutMs: 300_000 },
       { args: ["import", "--dry-run", "--json"], cwd: undefined, timeoutMs: 300_000 },
       {
         args: ["import", "/srv/legacy", "--dry-run", "--force", "--json"],
