@@ -4,6 +4,7 @@ compatibility_date = "2026-10-01"
 
 # Runs on a timer only, so it has no public URL.
 workers_dev = false
+preview_urls = false
 
 [triggers]
 # Every 3 minutes: 480 dispatches a day instead of 1,440 (#3910).
