@@ -436,15 +436,14 @@ export async function executeImport(
       // Without a terminal the importer cannot ask, so --json writes without a prompt, like --yes.
       const forwardedArgs = buildForwardedImportArgs(args, { ...options, yes: true });
       const run = await runImportCaptured(forwardedArgs);
+      // The importer writes manifests one by one, so even a failed run may have written some.
+      clearDiscoveryCache();
       // The importer's own text is for a person; stdout carries only the envelope.
       if (run.stdout.trim()) console.log(run.stdout.trimEnd());
       if (run.stderr.trim()) console.error(run.stderr.trimEnd());
       if (run.exitCode !== 0) throw importFailure(run, commandName);
       const report = importReport(forwardedArgs, run);
       syncImportedManifestCommands(report.written);
-      // The importer wrote service.json files from a subprocess, so any discovery this
-      // process already cached no longer matches the filesystem.
-      clearDiscoveryCache();
       return { data: report };
     });
     return;
@@ -457,9 +456,8 @@ export async function executeImport(
     return;
   }
   process.exitCode = await runImport(forwardedArgs);
-  if (process.exitCode === 0) {
-    clearDiscoveryCache();
-  }
+  // A partial failure may still have written manifests, so clear whatever the exit code.
+  clearDiscoveryCache();
 }
 
 /**

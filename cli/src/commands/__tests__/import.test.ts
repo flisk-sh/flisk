@@ -1024,12 +1024,16 @@ describe("import discovery cache invalidation", () => {
     const { spawnFn } = fakeCapturedSpawn({ code: 0, stdout: IMPORTER_OUTPUT });
     mocks.spawn.mockImplementation(spawnFn);
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    // The fabricated output names services/legacy/api/service.json relative to the cwd; keep it off the repo.
+    const originalCwd = process.cwd();
+    process.chdir(createTempDir());
     try {
       await executeImport(["./legacy"], { json: true, yes: true });
       expect(mocks.clearDiscoveryCache).toHaveBeenCalledTimes(1);
     } finally {
       mocks.spawn.mockReset();
       logSpy.mockRestore();
+      process.chdir(originalCwd);
     }
   });
 
@@ -1047,14 +1051,14 @@ describe("import discovery cache invalidation", () => {
     }
   });
 
-  it("keeps cached discovery when the import fails", async () => {
+  it("clears cached discovery after a failed terminal import, which may have written some manifests", async () => {
     const { spawnFn } = fakeSpawn({ code: 3 });
     mocks.spawn.mockImplementation(spawnFn);
     const previousExitCode = process.exitCode;
     try {
       await executeImport(["./legacy"], { yes: true });
       expect(process.exitCode).toBe(3);
-      expect(mocks.clearDiscoveryCache).not.toHaveBeenCalled();
+      expect(mocks.clearDiscoveryCache).toHaveBeenCalledTimes(1);
     } finally {
       mocks.spawn.mockReset();
       process.exitCode = previousExitCode;
