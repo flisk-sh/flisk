@@ -118,14 +118,15 @@ describe("deriveServiceStates", () => {
     expect(deriveServiceStates(JSON.stringify({}), deps)).toEqual({});
   });
 
-  it("treats an item with no status as ready", () => {
+  // Tilt lists a resource the moment it registers it, before it reports any status; that is not ready (#3952 main run).
+  it("treats an item with no status as pending", () => {
     const states = deriveServiceStates(json({ metadata: { name: "api" } }), deps);
-    expect(states).toEqual({ api: { status: "ready" } });
+    expect(states).toEqual({ api: { status: "pending" } });
   });
 
-  it("treats a deferred item with no status as ready", () => {
+  it("treats a deferred item with no status as waiting for its first request", () => {
     const states = deriveServiceStates(json({ metadata: { name: "idle" } }), {}, new Set(["idle"]));
-    expect(states).toEqual({ idle: { status: "ready" } });
+    expect(states).toEqual({ idle: { status: "unknown", reason: "starts on its first request" } });
   });
 
   it("blocks a running deferred service once a dependency has failed", () => {

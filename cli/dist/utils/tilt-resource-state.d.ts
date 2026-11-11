@@ -1,6 +1,8 @@
 /**
  * A Tilt resource that is not built and running yet: still waiting (`pending`, `none`) or building right now
- * (`in_progress`). Readiness must treat all of these as not ready.
+ * (`in_progress`). A resource Tilt has just registered carries no status yet (both empty); it is not ready either, or
+ * `flisk status` reports a stack as ready in the second after Tilt loads, before anything has been built. Readiness must
+ * treat all of these as not ready.
  */
 export declare function isTiltResourcePending(updateStatus: string, runtimeStatus: string): boolean;
 /**
