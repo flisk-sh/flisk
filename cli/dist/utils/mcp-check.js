@@ -138,6 +138,32 @@ export function iconUrlFor(url) {
 function isPng(body) {
     return PNG_SIGNATURE.every((byte, index) => body[index] === byte);
 }
+/** localhost, *.localhost, 127.0.0.0/8 and [::1]: hosts on this machine, where nothing else can answer instead. */
+function isLoopbackHost(hostname) {
+    const host = hostname.toLowerCase();
+    return (host === "localhost" ||
+        host.endsWith(".localhost") ||
+        host === "[::1]" ||
+        /^127(?:\.\d{1,3}){3}$/.test(host));
+}
+/**
+ * Whether a failed fetch is a refused connection to a loopback host: the operating system has said that nothing listens
+ * there, so a retry would get the same answer (#3887). Bun puts the code on the error, Node on its cause.
+ */
+export function isFinalNetworkError(target, error) {
+    const codes = [
+        error?.code,
+        error?.cause?.code,
+    ];
+    if (!codes.some((code) => code === "ECONNREFUSED" || code === "ConnectionRefused"))
+        return false;
+    try {
+        return isLoopbackHost(new URL(target).hostname);
+    }
+    catch {
+        return false;
+    }
+}
 class McpProbe {
     url;
     options;
@@ -158,7 +184,8 @@ class McpProbe {
         if (this.sessionId && target === this.url)
             headers["mcp-session-id"] = this.sessionId;
         let lastError = "";
-        // One try and two retries. Only a network error is retried: an HTTP status is the server's answer.
+        // One try and two retries. Only a network error is retried: an HTTP status is the server's answer, and so is a
+        // refused connection on this machine.
         for (let attempt = 0; attempt < 3; attempt += 1) {
             if (attempt > 0)
                 await sleep(this.options.retryDelayMs);
@@ -180,6 +207,8 @@ class McpProbe {
             catch (error) {
                 const cause = error.cause;
                 lastError = `${error instanceof Error ? error.message : String(error)}${cause?.code ? ` (${cause.code})` : cause?.message ? ` (${cause.message})` : ""}`;
+                if (isFinalNetworkError(target, error))
+                    break;
             }
         }
         return { status: 0, contentType: "", body: Buffer.alloc(0), sessionId: null, error: lastError };
