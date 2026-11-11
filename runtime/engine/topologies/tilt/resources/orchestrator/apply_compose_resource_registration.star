@@ -23,6 +23,7 @@ load('../../../platform/docker/networking/sablier_container_cycle.star', 'sablie
 # Shared platform Postgres force-start path. infra-loader.star must not load
 # apply_compose (no circular load): it only loads platform/docker + registries.
 load('../infra-loader.star', 'Infra')
+load('../infra-loader.star', 'manifest_uses_golden_image')
 load('../shared-platform-postgres.star',
      _shared_postgres_names = 'SHARED_POSTGRES_DEPENDENCY_NAMES',
      _is_shared_platform_postgres_dependency = 'is_shared_platform_postgres_dependency',
@@ -171,8 +172,7 @@ def _stack_uses_golden_image(resource_config, resource_manifests):
     infra resources build no image. A stack made only of those must not wait for the golden build.
     """
     for resource in resource_config.get('resources', []):
-        app_type = resource_manifests.get(resource['name'], {}).get('appType', 'backend')
-        if app_type not in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+        if manifest_uses_golden_image(resource_manifests.get(resource['name'], {})):
             return True
     return False
 
@@ -193,7 +193,7 @@ def _stack_waits_for_golden_step(resource_config, resource_manifests, all_servic
         return False
     for svc in (all_services_map or {}).values():
         for res in svc.get('resources', []):
-            if (res.get('_manifest', {}) or {}).get('appType', 'backend') not in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+            if manifest_uses_golden_image(res.get('_manifest', {})):
                 return True
     return False
 
