@@ -88,7 +88,7 @@ export function checkColima(deps = defaultDeps()) {
         };
     }
     if (/is running/i.test(status)) {
-        const arch = /arch:\s*(\S+)/.exec(status)?.[1];
+        const arch = /arch:\s*([^\s"]+)/.exec(status)?.[1];
         return { isColima: true, running: true, arch };
     }
     if (deps.dockerAnswers()) {
