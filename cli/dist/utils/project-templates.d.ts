@@ -20,8 +20,9 @@ export declare const PROJECT_TEMPLATES: Record<string, ProjectTemplate>;
 /** The template catalog in registration order: key, repo, description and, for a pinned template, its ref. */
 export declare function listProjectTemplates(): ProjectTemplateEntry[];
 /**
- * The git invocations that fetch a repository template into `destination`: a clone and, for a pinned template, a
- * detached checkout of its exact commit.
+ * Fetches a repository template into `destination` and keeps its source as `upstream`.
+ * Unpinned templates need only the latest commit; pinned templates retain the history needed to
+ * check out their exact commit.
  */
 export declare function templateGitCommands(template: ProjectTemplate, destination: string): string[][];
 /**

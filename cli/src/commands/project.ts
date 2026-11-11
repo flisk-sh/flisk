@@ -218,7 +218,8 @@ export async function cloneProjectTemplate(
       // Piped, not inherited: a raw git progress dump is noise for the caller and, in the
       // one-command flow, it interleaves with the frame that is already on screen.
       for (const gitArgs of templateGitCommands(template, destination)) {
-        gitStep = gitArgs[0] === "clone" ? "clone" : gitArgs[2] === "remote" ? "remote" : "checkout";
+        gitStep =
+          gitArgs[0] === "clone" ? "clone" : gitArgs[2] === "remote" ? "remote" : "checkout";
         execFileSync("git", gitArgs, {
           stdio: ["ignore", "pipe", "pipe"],
           encoding: "utf-8",

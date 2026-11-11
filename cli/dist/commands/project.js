@@ -172,7 +172,8 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
             // Piped, not inherited: a raw git progress dump is noise for the caller and, in the
             // one-command flow, it interleaves with the frame that is already on screen.
             for (const gitArgs of templateGitCommands(template, destination)) {
-                gitStep = gitArgs[0] === "clone" ? "clone" : "checkout";
+                gitStep =
+                    gitArgs[0] === "clone" ? "clone" : gitArgs[2] === "remote" ? "remote" : "checkout";
                 execFileSync("git", gitArgs, {
                     stdio: ["ignore", "pipe", "pipe"],
                     encoding: "utf-8",
@@ -184,9 +185,11 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         const detail = error instanceof Error ? error.message : String(error);
         const message = template.bundledPath
             ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
-            : gitStep === "checkout"
-                ? `git checkout of the pinned commit ${template.ref} failed: ${lastLine(detail)}. ${destination} is left at the default branch; delete it before trying again.`
-                : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
+            : gitStep === "remote"
+                ? `git remote rename origin upstream failed: ${lastLine(detail)}. The cloned repository is left in ${destination}; inspect its remotes before trying again.`
+                : gitStep === "checkout"
+                    ? `git checkout of the pinned commit ${template.ref} failed: ${lastLine(detail)}. ${destination} is left at the default branch; delete it before trying again.`
+                    : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
         // A caller that paints its own surface (the one-command flow) needs to report the
         // failure itself instead of having the process die mid-paint.
         if (options.quiet) {
@@ -215,6 +218,9 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
     showDetail(`1. cd ${dirName}`);
     showDetail("2. flisk doctor   # check Docker/Tilt are ready");
     showDetail("3. flisk up       # start the stack");
+    if (!template.bundledPath) {
+        showDetail("\nThe starter is the git remote upstream; add your own with git remote add origin <url>.", 0);
+    }
     showDetail("\nRuntime readiness:", 0);
     for (const line of runtimeNextSteps)
         showDetail(line, 0);
