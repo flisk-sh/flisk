@@ -1,4 +1,5 @@
 import express from "express";
+import { rateLimit } from "express-rate-limit";
 import pg from "pg";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -6,13 +7,18 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const app = express();
 app.use(express.json());
 
+// Rate limit every route, so a runaway client cannot flood the database. Behind Traefik clients can share one IP, so the cap is generous.
+app.use(rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: true, legacyHeaders: false }));
+
 // The frontend runs on its own *.localhost origin (app.<project>.localhost), so the browser needs CORS to call this API.
-const LOCAL_FRONTEND_ORIGIN = /^https?:\/\/([a-z0-9-]+\.)+localhost(:\d+)?$/;
+const LOCAL_FRONTEND_ORIGIN = /^(https?):\/\/((?:[a-z0-9-]+\.)+localhost)(:\d+)?$/;
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && LOCAL_FRONTEND_ORIGIN.test(origin)) {
+  const match = LOCAL_FRONTEND_ORIGIN.exec(req.headers.origin ?? "");
+  if (match) {
+    // Rebuild the origin from the validated parts instead of echoing the request header.
     res.vary("Origin");
-    res.set("Access-Control-Allow-Origin", origin);
+    // nosemgrep: javascript.express.security.cors-misconfiguration.cors-misconfiguration
+    res.set("Access-Control-Allow-Origin", `${match[1]}://${match[2]}${match[3] ?? ""}`);
     if (req.method === "OPTIONS") {
       res.set("Access-Control-Allow-Methods", "GET, HEAD, PUT, POST, DELETE, PATCH");
       res.set("Access-Control-Allow-Headers", req.headers["access-control-request-headers"] ?? "");

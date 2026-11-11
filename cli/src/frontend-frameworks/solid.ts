@@ -14,6 +14,7 @@ export const solidFrontendProvider: FrontendFrameworkProvider = {
   },
   devDependencies: {
     "vite-plugin-solid": "^2.11.0",
+    jsdom: "^27.4.0",
   },
   compilerOptions: {
     jsx: "preserve",
