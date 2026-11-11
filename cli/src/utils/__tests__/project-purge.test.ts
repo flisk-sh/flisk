@@ -103,6 +103,19 @@ describe("listProjectArtifacts", () => {
     expect(found.volumes).not.toContain("shop-staging_cache");
   });
 
+  it("finds the wake-gateway image of this project only, not one of a project named like a prefix", () => {
+    const { docker: gatewayDocker } = fakeDocker({
+      images: [
+        "foo-traefik-wake-gateway:latest",
+        "foo2-traefik-wake-gateway:latest",
+        "foo-bar-traefik-wake-gateway:latest",
+      ],
+    });
+    expect(listProjectArtifacts("foo", { stacks: ["main"] }, gatewayDocker).images).toEqual([
+      "foo-traefik-wake-gateway:latest",
+    ]);
+  });
+
   it("never claims a volume without a Compose project label, or an image that only shares the prefix", () => {
     const found = listProjectArtifacts("shop", { stacks: ["main"] }, docker);
     expect(found.volumes).not.toContain("shop_cache");

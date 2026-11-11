@@ -320,6 +320,22 @@ def _load_infisical(should_enable, root_prefix="", env_file=None):
 # 🌐 PROXY (Traefik)
 # =============================================================================
 
+def project_uses_sablier(app_resources=None):
+    """True when at least one discovered resource's manifest sets `sablier.enable` (which `deferStart` requires)."""
+    resources = APP_RESOURCES if app_resources == None else app_resources
+    for service in resources or []:
+        if type(service) != 'dict':
+            continue
+        for res in service.get('resources', []):
+            if type(res) != 'dict':
+                continue
+            manifest = res.get('_manifest', {}) or {}
+            sablier = manifest.get('sablier', {}) or {}
+            if type(sablier) == 'dict' and sablier.get('enable', False):
+                return True
+    return False
+
+
 def _proxy_deps(base_deps, golden_image_resource):
     """Traefik's resource_deps, plus the golden step when there is one.
 
@@ -333,10 +349,12 @@ def _proxy_deps(base_deps, golden_image_resource):
 def _load_standalone_traefik(root_prefix, env_file, write_fn, golden_image_resource = None):
     """Generate and load a self-contained Traefik compose for standalone projects."""
     compose_rel = ".flisk/.flisk-out/docker-compose.traefik.yml"
-    # The free-tier stub always reports "disabled"; the licensed module reports
-    # enabled for a manifest that opts in. Probing it keeps this file free of any
-    # license logic while starting the sablier containers only when they can work.
-    _, sablier_enabled = sablier_middleware_suffix({"sablier": {"enable": True}}, "probe")
+    # Sablier needs the licence AND a resource that opts in (`sablier.enable`): a project with
+    # none must not build the wake-gateway image or run the sablier containers (#3753). The
+    # free-tier stub always reports "disabled"; the licensed module reports enabled for a
+    # manifest that opts in, so probing it keeps this file free of any license logic.
+    _, licensed = sablier_middleware_suffix({"sablier": {"enable": True}}, "probe")
+    sablier_enabled = licensed and project_uses_sablier()
     content = generate_standalone_traefik_compose(
         sablier_enabled,
         os.environ.get('FLISK_HTTP_PORT', '8080'),
