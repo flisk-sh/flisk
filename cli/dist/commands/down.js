@@ -5,7 +5,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
-import { pruneDockerBuildCache, validateCacheUntil } from "../utils/docker-build-cache.js";
+import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
 import { findRunningFliskProjects, lookupProjectTiltUpPids, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
 import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
@@ -202,15 +202,18 @@ export const downCommand = addYesOption(new Command("down"))
     const project = options.project ?? command.optsWithGlobals().project;
     const resolvedRoot = resolveDownProject({ ...options, project });
     const shouldPruneCache = Boolean(options.pruneCache);
-    const cacheUntil = typeof options.pruneCache === "string" ? options.pruneCache : options.cacheUntil || "24h";
-    if (shouldPruneCache && !validateCacheUntil(cacheUntil)) {
-        const error = new FliskError(`Invalid --cache-until format: "${cacheUntil}"`, [
+    const rawCacheUntil = typeof options.pruneCache === "string" ? options.pruneCache : options.cacheUntil || "24h";
+    if (shouldPruneCache && !validateCacheUntil(rawCacheUntil)) {
+        const error = new FliskError(`Invalid --cache-until format: "${rawCacheUntil}"`, [
             "Use a duration such as 24h, 168h, 7d, or 2h30m",
         ]);
         if (options.json)
             writeMachineError(error);
         return error.exit();
     }
+    // Normalize once here so the dry-run plan, the confirmation prompt and the real prune cannot
+    // drift apart; pruneDockerBuildCache normalizes again defensively.
+    const cacheUntil = normalizeCacheUntil(rawCacheUntil);
     // Everything below reads the project from the current folder (Tiltfile, stacks, networks), so stop from its root.
     if (findProjectRoot() !== resolvedRoot)
         process.chdir(resolvedRoot);

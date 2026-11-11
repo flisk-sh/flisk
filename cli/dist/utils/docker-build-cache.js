@@ -156,6 +156,30 @@ export function validateCacheUntil(until) {
         return true;
     return false;
 }
+/**
+ * Converts a validated age filter into a value Docker accepts for `until=`. Docker parses
+ * durations with Go's time.ParseDuration, which has no "d" unit and is case-sensitive, so
+ * days become hours (7d -> 168h, 1d12h -> 36h) and units are lowercased (24H -> 24h).
+ * ISO dates and anything else pass through unchanged (T and Z keep their case).
+ */
+export function normalizeCacheUntil(until) {
+    const trimmed = until.trim();
+    if (!/^(\d+[hmsd])+$/i.test(trimmed))
+        return trimmed;
+    let hours = 0n;
+    let rest = "";
+    for (const match of trimmed.matchAll(/(\d+)([hmsd])/gi)) {
+        const value = BigInt(match[1] ?? "0");
+        const unit = (match[2] ?? "").toLowerCase();
+        if (unit === "d" || unit === "h") {
+            hours += unit === "d" ? value * 24n : value;
+        }
+        else {
+            rest += `${value}${unit}`;
+        }
+    }
+    return `${hours > 0n || !rest ? `${hours}h` : ""}${rest}`;
+}
 /** Parses reclaimed size from `docker builder prune` output. */
 export function parseReclaimedFromPrune(stdout) {
     const match = stdout.match(/(?:Total reclaimed space|Total):\s*([0-9.]+\s*[a-zA-Z]+)/i);
@@ -172,9 +196,10 @@ export async function pruneDockerBuildCache(options = {}) {
         ]);
     }
     const runner = options.runner ?? defaultDockerRunner;
-    const stdout = await runner(["builder", "prune", "-f", "--filter", `until=${until}`]);
+    const normalized = normalizeCacheUntil(until);
+    const stdout = await runner(["builder", "prune", "-f", "--filter", `until=${normalized}`]);
     const reclaimed = parseReclaimedFromPrune(stdout);
-    return { reclaimed, until };
+    return { reclaimed, until: normalized };
 }
 /** The build cache is trimmed on `flisk up` when it grows past this many GiB. `0` turns the ceiling off. */
 export const DEFAULT_BUILD_CACHE_CEILING_GIB = 20;

@@ -244,4 +244,39 @@ describe("pruneDockerBuildCache", () => {
     expect(executed).toEqual([["builder", "prune", "-f", "--filter", "until=24h"]]);
     expect(result).toEqual({ reclaimed: "0B", until: "24h" });
   });
+
+  it.each([
+    ["7d", "168h"],
+    ["24H", "24h"],
+    ["1d12h", "36h"],
+    ["0d", "0h"],
+    [" 2D30M ", "48h30m"],
+  ])(
+    "normalizes %s to the Docker duration %s before invoking the runner",
+    async (input, expected) => {
+      const executed: string[][] = [];
+      const runner = async (args: string[]) => {
+        executed.push(args);
+        return "Total reclaimed space: 0B";
+      };
+
+      const result = await pruneDockerBuildCache({ until: input, runner });
+      expect(executed).toEqual([["builder", "prune", "-f", "--filter", `until=${expected}`]]);
+      expect(result.until).toBe(expected);
+    },
+  );
+
+  it("passes ISO dates through unchanged, keeping T and Z case", async () => {
+    const executed: string[][] = [];
+    const runner = async (args: string[]) => {
+      executed.push(args);
+      return "Total reclaimed space: 0B";
+    };
+
+    const result = await pruneDockerBuildCache({ until: "2026-10-01T00:00:00Z", runner });
+    expect(executed).toEqual([
+      ["builder", "prune", "-f", "--filter", "until=2026-10-01T00:00:00Z"],
+    ]);
+    expect(result.until).toBe("2026-10-01T00:00:00Z");
+  });
 });
