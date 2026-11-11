@@ -383,8 +383,11 @@ Outside a project folder and without `--project`, `flisk down` stops the Flisk p
 | `--resources` | All discovered resources |
 | `--tilt` | Tilt resource status |
 | `--unhealthy` | Only failing or pending services (says so when all are healthy) |
+| `--strict` | Exit 1 when any service is failing or pending, or nothing is running; output is unchanged |
 | `-v`, `--verbose` | More detail |
 | `--json` | Versioned JSON report |
+
+`flisk status` exits 0 whatever the services' state. For a script, a CI step or an agent that tests `$?`, add `--strict`: it exits 1 and writes one line on stderr naming the services that are not ready, or saying nothing is running. It works with `--json` and `--unhealthy`.
 
 ### `flisk logs`
 

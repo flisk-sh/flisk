@@ -73,7 +73,7 @@ Use `flisk up`; you do not run `docker compose up` on a Flisk project. For a con
 
 ## flisk status vs flisk networks
 
-`flisk status` tells you what is running and whether it is healthy; `flisk networks` tells you where to reach it. `flisk status --tilt` shows Tilt resource state, and `flisk status --unhealthy` shows only failing or pending services. `flisk networks` (aliases `flisk urls` and `flisk traefik`) lists the Traefik-routed URLs, and `flisk networks --raw` prints one URL per line. See the [cheat sheet](cheat-sheet.md#flisk-status).
+`flisk status` tells you what is running and whether it is healthy; `flisk networks` tells you where to reach it. `flisk status --tilt` shows Tilt resource state, `flisk status --unhealthy` shows only failing or pending services, and `flisk status --strict` exits 1 unless every service is ready. `flisk networks` (aliases `flisk urls` and `flisk traefik`) lists the Traefik-routed URLs, and `flisk networks --raw` prints one URL per line. See the [cheat sheet](cheat-sheet.md#flisk-status).
 
 ## flisk logs vs the Tilt UI
 

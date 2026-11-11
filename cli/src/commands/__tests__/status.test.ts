@@ -563,6 +563,96 @@ describe("flisk status", () => {
       expect(output).not.toContain("All services are healthy");
     });
 
+    describe("--strict (#3826)", () => {
+      const allReady = tilt(
+        ["orders-api", "ok", "ok"],
+        ["orders-web", "ok", "ok"],
+        ["invoices", "ok", "ok"],
+        ["report-job", "ok", "ok"],
+      );
+      const onePending = tilt(
+        ["orders-api", "ok", "ok"],
+        ["orders-web", "pending", "pending"],
+        ["invoices", "ok", "ok"],
+        ["report-job", "ok", "ok"],
+      );
+      let errors: string[] = [];
+
+      beforeEach(() => {
+        errors = [];
+        process.exitCode = undefined;
+        vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
+          errors.push(parts.map(String).join(" "));
+        });
+      });
+
+      afterEach(() => {
+        process.exitCode = undefined;
+        vi.mocked(console.error).mockRestore();
+      });
+
+      it.each([[[]], [["--json"]], [["--unhealthy"]]])(
+        "exits 0 when every service is ready (%j)",
+        async (args) => {
+          vi.mocked(tiltGetUiResources).mockResolvedValue(allReady);
+          await runStatus([...args, "--strict"]);
+          expect(process.exitCode).toBeUndefined();
+          expect(errors).toEqual([]);
+        },
+      );
+
+      it.each([[[]], [["--json"]], [["--unhealthy"]]])(
+        "exits 1 and names the service when one is pending (%j)",
+        async (args) => {
+          vi.mocked(tiltGetUiResources).mockResolvedValue(onePending);
+          await runStatus([...args, "--strict"]);
+          expect(process.exitCode).toBe(1);
+          expect(errors).toEqual(["flisk status --strict: 1 service not ready: orders-web"]);
+        },
+      );
+
+      it("exits 1 when a service has failed and names the services it blocks", async () => {
+        vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+        await runStatus(["--strict"]);
+        expect(process.exitCode).toBe(1);
+        expect(errors).toEqual([
+          "flisk status --strict: 2 services not ready: orders-api, orders-web",
+        ]);
+      });
+
+      it.each([[[]], [["--json"]], [["--unhealthy"]]])(
+        "exits 1 with a clear line when nothing is running (%j)",
+        async (args) => {
+          await runStatus([...args, "--strict"]);
+          expect(process.exitCode).toBe(1);
+          expect(errors).toEqual([
+            "flisk status --strict: nothing is running. Start it with: flisk up",
+          ]);
+        },
+      );
+
+      it("prints the same JSON document with and without --strict", async () => {
+        vi.mocked(tiltGetUiResources).mockResolvedValue(onePending);
+        const plain = await runStatus(["--json"]);
+        const strict = await runStatus(["--json", "--strict"]);
+        expect(JSON.parse(strict)).toEqual(JSON.parse(plain));
+        expect(strict.trim().split("\n")).toHaveLength(1);
+      });
+
+      it.each([
+        ["ready", allReady],
+        ["pending", onePending],
+        ["not running", null],
+      ])("keeps exit code 0 without the flag (%s)", async (_name, answer) => {
+        vi.mocked(tiltGetUiResources).mockResolvedValue(answer);
+        await runStatus([]);
+        await runStatus(["--json"]);
+        await runStatus(["--unhealthy"]);
+        expect(process.exitCode).toBeUndefined();
+        expect(errors).toEqual([]);
+      });
+    });
+
     it("says service states are unknown in the human output when no Tilt answers", async () => {
       const output = await runStatus();
       expect(output).toContain("Services:");
