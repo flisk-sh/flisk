@@ -41,6 +41,8 @@ npx @flisk-sh/flisk create
 
 It offers every website framework, API language and starter that Flisk's generators know, read from the generators themselves (type to filter a long list), and the default runs on your computer with no Docker, no Tilt and no database: it writes a website and an API with the real `flisk resource --local` command, then you `npm install` in each and run `flisk up`. Pick "I know what I want: let me choose every part" to choose the framework and language yourself, or to add a worker, a queue (NATS, RabbitMQ), Redis, Qdrant, MinIO or an AI agent (those run with Docker and Tilt). The project name comes last and Enter takes `my-app`; a review shows what will be created and which programs it needs before anything is written. Add `--dry-run` to see the commands it would run, or flags such as `--frontend vue --backend fastify --yes` to skip the questions in a script.
 
+Want a website, an API and a Postgres database that already work together? `npx @flisk-sh/flisk create myapp --starter next-postgres` (or `flisk project next-postgres --path myapp`) writes a Next.js page with an add, tick and delete list, an Express API and a migrator that creates and seeds the table; then `cd myapp && flisk up`. It needs Docker.
+
 Install Flisk with `npm install -g @flisk-sh/flisk`, then, in a new folder:
 
 ```bash

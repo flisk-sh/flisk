@@ -6,6 +6,7 @@ compatibility_date = "2026-10-01"
 workers_dev = false
 
 [triggers]
-crons = ["* * * * *"]
+# Every 3 minutes: 480 dispatches a day instead of 1,440 (#3910).
+crons = ["*/3 * * * *"]
 
 # Needs one secret, GITHUB_DISPATCH_TOKEN. See README.md.

@@ -6,11 +6,14 @@
 # =============================================================================
 # Steady-state probes are infrequent (each probe is a `docker exec`, which adds
 # up across 100+ containers), while `start_interval` keeps first-healthy time
-# fast during the start period. `start_interval` needs Docker Engine 25+ and
+# fast during the start period: the first probe runs one `start_interval` after the container starts, so the default is
+# 0.5 s (a 2 s default made every container healthy at least 2 s after its app was ready, and every `dependsOn` hop paid it
+# again). The extra probes only run while a container is still starting; after the first success they go back to `interval`. `start_interval` needs Docker Engine 25+ and
 # Compose 2.20.2+ (checked by `flisk doctor`).
 #
 # Override per run with environment variables, e.g.:
 #   FLISK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
+# `FLISK_HEALTHCHECK_START_INTERVAL_SECONDS` takes decimals (0.5); the others take whole seconds.
 # =============================================================================
 
 
@@ -21,10 +24,22 @@ def _env_int(name, default):
     return default
 
 
+def _env_seconds(name, default):
+    """Like `_env_int`, but a positive decimal such as `0.5` is accepted too.
+
+    Returns the value as a string a Docker duration takes after an `s` ("2", "0.5"), so no float formatting reaches the
+    generated files.
+    """
+    raw = os.environ.get(name, '')
+    if raw and raw.replace('.', '', 1).isdigit() and not raw.startswith('.') and not raw.endswith('.') and float(raw) > 0:
+        return raw
+    return str(default)
+
+
 DOCKER_HEALTHCHECK = {
     "path": "/health",
     "interval_seconds": _env_int("FLISK_HEALTHCHECK_INTERVAL_SECONDS", 30),
-    "start_interval_seconds": _env_int("FLISK_HEALTHCHECK_START_INTERVAL_SECONDS", 2),
+    "start_interval_seconds": _env_seconds("FLISK_HEALTHCHECK_START_INTERVAL_SECONDS", "0.5"),
     "timeout_seconds": _env_int("FLISK_HEALTHCHECK_TIMEOUT_SECONDS", 5),
     "start_period_seconds": _env_int("FLISK_HEALTHCHECK_START_PERIOD_SECONDS", 30),
     "frontend_start_period_seconds": _env_int("FLISK_HEALTHCHECK_START_PERIOD_SECONDS", 30),

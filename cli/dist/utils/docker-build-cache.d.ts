@@ -58,9 +58,26 @@ export interface BuildCacheCeilingResult {
     pruned: boolean;
     ceilingGib: number;
     sizeGib?: number;
+    /** True when a recent check said the cache is far below the ceiling, so `docker system df` was not run. */
+    skipped?: boolean;
 }
+/** `docker system df` takes 0.8-1.3 s; the ceiling is checked at most this often while the cache is well below it. */
+export declare const BUILD_CACHE_CHECK_INTERVAL_MS: number;
+/** A last-seen size above this share of the ceiling is re-checked on every `flisk up`; the rest is room to grow in one window. */
+export declare const BUILD_CACHE_NEAR_CEILING_RATIO = 0.5;
+export interface BuildCacheCeilingOptions {
+    /** Home directory holding `.flisk/`; tests pass a temp dir. */
+    home?: string;
+    now?: () => number;
+    /** Identity of the Docker daemon asked; defaults to DOCKER_HOST, DOCKER_CONTEXT and the current docker context. */
+    daemon?: string;
+    /** Free GiB on the host disk; defaults to a statfs of the home directory. Low or unknown free space forces the check. */
+    hostFreeGib?: number | null;
+}
+/** Which Docker daemon `docker` talks to, so a size measured on one is never trusted for another. */
+export declare function dockerDaemonIdentity(env?: Record<string, string | undefined>, home?: string): string;
 /**
  * Keeps the shared BuildKit cache from growing without a limit: when it is above the ceiling, the least recently used
  * entries are removed until it fits. Best effort; a Docker that cannot be asked leaves the cache as it is.
  */
-export declare function enforceBuildCacheCeiling(run?: DockerRunner, env?: Record<string, string | undefined>): Promise<BuildCacheCeilingResult>;
+export declare function enforceBuildCacheCeiling(run?: DockerRunner, env?: Record<string, string | undefined>, options?: BuildCacheCeilingOptions): Promise<BuildCacheCeilingResult>;

@@ -128,6 +128,11 @@ export const errorFactories = {
       "Run this from within a Flisk project",
       "Run `flisk project --yes` to initialize a new project",
     ]),
+  interactiveTerminalRequired: (commandName = "flisk ui") =>
+    new FliskError(
+      `\`${commandName}\` needs an interactive terminal (stdin and stdout must be a TTY).`,
+      ["For scripts and agents: flisk status --json, flisk logs, flisk resources --json"],
+    ),
 };
 
 export function requireProjectRoot(): string {

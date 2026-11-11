@@ -59,6 +59,11 @@ export const PROJECT_TEMPLATES = {
         generated: "tool-loop",
         description: "Simple AI helper: an assistant that uses tools, with a practice model so it works offline",
     },
+    "next-postgres": {
+        repo: "https://github.com/flisk-sh/flisk.git",
+        composed: "next-postgres",
+        description: "Next.js + Postgres app: a website with a working add, tick and delete list, an API and a migrator (needs Docker)",
+    },
     launch: {
         repo: "https://github.com/flisk-sh/flisk-template-launch.git",
         ref: "f97e03a11d026715573a610a8370c3c7546c5af8",

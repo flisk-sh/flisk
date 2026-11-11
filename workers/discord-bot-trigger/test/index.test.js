@@ -22,10 +22,20 @@ test("most minutes only handle claims, on main", async () => {
   assert.deepEqual(calls[0].body, { ref: "main", inputs: { claims_only: "true" } });
 });
 
-test("minute 17 also runs the level sync", async () => {
+test("the run at minute 18 (the first on the 3-minute timer from 17) also runs the level sync", async () => {
   const { calls, fetchImpl } = recorder();
-  await startBot(at(17), "tok", fetchImpl);
+  await startBot(at(18), "tok", fetchImpl);
   assert.deepEqual(calls[0].body.inputs, { claims_only: "false" });
+});
+
+test("exactly one run an hour runs the level sync", async () => {
+  let syncs = 0;
+  for (let minute = 0; minute < 60; minute += 3) {
+    const { calls, fetchImpl } = recorder();
+    await startBot(at(minute), "tok", fetchImpl);
+    if (calls[0].body.inputs.claims_only === "false") syncs++;
+  }
+  assert.equal(syncs, 1);
 });
 
 test("a missing token fails loudly without calling GitHub", async () => {

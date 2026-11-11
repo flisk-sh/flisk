@@ -122,7 +122,15 @@ function isProjectIdle(projectRoot: string): boolean {
   }
 }
 
-function pruneNetworksOrWarn(json: boolean): ReturnType<typeof pruneProjectNetworks> | undefined {
+/**
+ * Remove this project's networks that no container uses. `isExplicit` is true when the user passed `--prune-networks`;
+ * the run that happens after every `flisk down` stays quiet about networks Docker keeps and about a Docker that cannot
+ * be asked.
+ */
+function pruneNetworksOrWarn(
+  json: boolean,
+  isExplicit: boolean,
+): ReturnType<typeof pruneProjectNetworks> | undefined {
   const root = findProjectRoot();
   if (!root) return undefined;
   try {
@@ -131,13 +139,15 @@ function pruneNetworksOrWarn(json: boolean): ReturnType<typeof pruneProjectNetwo
       if (result.removed.length > 0) {
         console.log(chalk.gray(`Removed networks: ${result.removed.join(", ")}`));
       }
-      for (const kept of result.kept) {
-        console.log(chalk.yellow(`Kept network ${kept.name}: ${kept.reason}`));
+      if (isExplicit) {
+        for (const kept of result.kept) {
+          console.log(chalk.yellow(`Kept network ${kept.name}: ${kept.reason}`));
+        }
       }
     }
     return result;
   } catch (err) {
-    if (!json) {
+    if (!json && isExplicit) {
       console.log(chalk.yellow(`Could not remove networks: ${(err as Error).message}`));
     }
     return undefined;
@@ -220,8 +230,11 @@ export const downCommand = addYesOption(new Command("down"))
   .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)
   .option(
     "--prune-networks",
-    "Also remove this project's Docker networks (only those no container is attached to)",
-    false,
+    "Remove this project's Docker networks that no container is attached to (the default; kept for scripts)",
+  )
+  .option(
+    "--no-prune-networks",
+    "Keep this project's Docker networks (by default the unused ones are removed, so Docker does not run out of address pools)",
   )
   .option(
     "--prune-cache [age]",
@@ -347,9 +360,9 @@ export const downCommand = addYesOption(new Command("down"))
     await withTiltCheck(async () => {
       const wouldPurge =
         options.purge && options.dryRun ? projectArtifacts(projectRoot) : undefined;
-      // --purge removes the networks too, so --prune-networks only previews on its own (as in the real run).
+      // Unused networks go by default (--no-prune-networks opts out); --purge removes them too, so the preview is for the plain run.
       const wouldPruneNetworks =
-        options.pruneNetworks && !options.purge && options.dryRun
+        options.pruneNetworks !== false && !options.purge && options.dryRun
           ? planNetworkPruneOrWarn(projectRoot, Boolean(options.json))
           : undefined;
       if (emit && options.dryRun) {
@@ -367,7 +380,7 @@ export const downCommand = addYesOption(new Command("down"))
           const keep = wouldPruneNetworks.keep.map((kept) => `${kept.name} (${kept.reason})`);
           console.log(
             chalk.gray(
-              `Dry run - --prune-networks would remove: ${wouldPruneNetworks.remove.join(", ") || "<none>"}\n` +
+              `Dry run - network prune would remove: ${wouldPruneNetworks.remove.join(", ") || "<none>"}\n` +
                 `          would keep: ${keep.join(", ") || "<none>"}`,
             ),
           );
@@ -392,11 +405,22 @@ export const downCommand = addYesOption(new Command("down"))
         return;
       }
 
-      const hasCleanup = Boolean(options.purge || options.pruneNetworks || shouldPruneCache);
+      // Unused networks go by default: stopped projects that kept theirs used up Docker's address pools (#3650).
+      const shouldPruneNetworks = options.pruneNetworks !== false;
+      const hasCleanup = Boolean(options.purge || shouldPruneCache);
       const idle = isProjectIdle(projectRoot);
       if (idle && !hasCleanup) {
         if (!options.json) console.log(chalk.gray("Nothing is running for this project."));
-        emit?.({ ok: true, stoppedTilt: [], idle: true });
+        // Networks an earlier `down` kept are still taken off the machine.
+        const leftover = shouldPruneNetworks
+          ? pruneNetworksOrWarn(options.json, options.pruneNetworks === true)
+          : undefined;
+        emit?.({
+          ok: true,
+          stoppedTilt: [],
+          idle: true,
+          ...(leftover ? { removedNetworks: leftover.removed, keptNetworks: leftover.kept } : {}),
+        });
         return;
       }
 
@@ -406,13 +430,14 @@ export const downCommand = addYesOption(new Command("down"))
 
       // Stop `tilt up` first: `tilt down` does not end it, and a live Tilt re-creates the containers `tilt down` just removed.
       let stoppedTilt: number[] = [];
-      try {
-        if (idle) throw new Error("nothing to stop");
-        const tiltfile = getTiltfilePath();
-        stoppedTilt = stopProjectTiltUp(tiltfile);
-        if (stoppedTilt.length > 0) await waitForTiltUpExit(tiltfile);
-      } catch {
-        // Not fatal: the containers are already down.
+      if (!idle) {
+        try {
+          const tiltfile = getTiltfilePath();
+          stoppedTilt = stopProjectTiltUp(tiltfile);
+          if (stoppedTilt.length > 0) await waitForTiltUpExit(tiltfile);
+        } catch {
+          // Not fatal: the containers are already down.
+        }
       }
       if (stoppedTilt.length > 0 && !options.json) {
         console.log(chalk.gray(`Stopped tilt up (pid ${stoppedTilt.join(", ")}).`));
@@ -463,8 +488,8 @@ export const downCommand = addYesOption(new Command("down"))
       }
 
       let networks: ReturnType<typeof pruneProjectNetworks> | undefined;
-      if (options.pruneNetworks && !options.purge) {
-        networks = pruneNetworksOrWarn(options.json);
+      if (shouldPruneNetworks && !options.purge) {
+        networks = pruneNetworksOrWarn(options.json, options.pruneNetworks === true);
       }
       // After the stack is down: containers no longer hold the volumes and networks.
       const purged = options.purge ? purgeOrWarn(projectRoot, options.json) : undefined;

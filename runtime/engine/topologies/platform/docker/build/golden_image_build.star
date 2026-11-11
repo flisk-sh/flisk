@@ -12,6 +12,9 @@ GOLDEN_HASH_LABEL = 'flisk.golden.hash'
 # Where publish-golden-images.yml pushes golden-<layer>:<hash12> (public, no login). `flisk up` pulls from here first.
 GOLDEN_REGISTRY_DEFAULT = 'ghcr.io/flisk-sh'
 
+# Machine-wide names: flisk-golden-<layer>:<hash12> is built or pulled once, every project's <project>-<layer> tag points at it.
+SHARED_GOLDEN_PREFIX = 'flisk-golden-'
+
 # Shell template for the golden build. Placeholders (@@...@@) are replaced in
 # build_golden_layers(); plain `$VAR` references are expanded by the shell.
 _GOLDEN_BUILD_TEMPLATE = '''
@@ -20,6 +23,7 @@ ROOT_REL=@@ROOT_REL@@
 DF="$(cd "$(dirname "$DF_REL")" && pwd)/$(basename "$DF_REL")"
 ROOT="$(cd "$ROOT_REL" && pwd)"
 HASH="$(cat "$DF" | (sha256sum 2>/dev/null || shasum -a 256) | cut -c1-64)"
+TAG12="$(printf '%s' "$HASH" | cut -c1-12)"
 IMAGES="@@IMAGES@@"
 
 if [ -z "$FLISK_GOLDEN_REBUILD" ]; then
@@ -33,6 +37,7 @@ if [ -z "$FLISK_GOLDEN_REBUILD" ]; then
   fi
 fi
 
+@@REUSE_SHARED@@
 @@PULL_GOLDEN@@
 echo "🏗️  Building golden layered images (@@COUNT@@ total)..."
 if docker buildx version >/dev/null 2>&1; then
@@ -94,6 +99,35 @@ echo "✅ Golden layers built (@@COUNT@@ images):"
 '''
 
 
+def _shared_ref(key):
+    """The machine-wide, content-addressed name of a golden layer: one per hash, whichever project built or pulled it."""
+    return SHARED_GOLDEN_PREFIX + key + ':$TAG12'
+
+
+def _reuse_block(keys_refs):
+    """
+    A second project on the machine builds and pulls nothing: when every shared flisk-golden-<layer>:<hash12> image
+    exists with the current hash label, this project's <project>-<layer> names become extra tags on those same images.
+    """
+    lines = ['if [ -z "$FLISK_GOLDEN_REBUILD" ]; then', '  shared=1']
+    for key, ref in keys_refs:
+        lines.append('  [ "$(docker image inspect -f \'{{index .Config.Labels "' + GOLDEN_HASH_LABEL + '"}}\' ' + _shared_ref(key)
+            + ' 2>/dev/null)" = "$HASH" ] || shared=0')
+    lines.append('  if [ "$shared" = 1 ]; then')
+    for key, ref in keys_refs:
+        lines.append('    docker tag ' + _shared_ref(key) + ' ' + ref + ' || shared=0')
+    lines += [
+        '  fi',
+        '  if [ "$shared" = 1 ]; then',
+        '    echo "✅ Golden images reused from this machine (hash $TAG12) - nothing to pull or build"',
+        '    @@PRUNE_OLD@@',
+        '    exit 0',
+        '  fi',
+        'fi',
+    ]
+    return '\n'.join(lines) + '\n'
+
+
 def _pull_line(key, ref):
     """
     Pulls golden-<key>:<hash12> from the golden registry and tags it as this project's image; any failure clears
@@ -102,6 +136,7 @@ def _pull_line(key, ref):
     """
     remote = '"$GOLDEN_REGISTRY/golden-' + key + ':$TAG12"'
     return ('[ "$pulled" = 1 ] && if docker pull -q ' + remote + ' >/dev/null 2>&1 && docker tag ' + remote + ' ' + ref
+        + ' && docker tag ' + remote + ' ' + _shared_ref(key)
         + '; then docker image rm ' + remote + ' >/dev/null 2>&1; else pulled=0; fi')
 
 
@@ -115,7 +150,6 @@ def _pull_block(pull_lines):
         'GOLDEN_REGISTRY="${FLISK_GOLDEN_REGISTRY-' + GOLDEN_REGISTRY_DEFAULT + '}"',
         'case "$GOLDEN_REGISTRY" in off|none|false|0) GOLDEN_REGISTRY="" ;; esac',
         'if [ -n "$GOLDEN_REGISTRY" ] && [ -z "$FLISK_GOLDEN_REBUILD" ]; then',
-        '  TAG12="$(printf \'%s\' "$HASH" | cut -c1-12)"',
         '  echo "⬇️  Pulling prebuilt golden images for $TAG12 from $GOLDEN_REGISTRY"',
         '  pulled=1',
     ] + ['  ' + line for line in pull_lines] + [
@@ -131,7 +165,10 @@ def _pull_block(pull_lines):
 
 # Golden images whose tag moved to a newer hash are left untagged (<none>), one set for every engine version that changed
 # the golden Dockerfile. Remove the untagged ones that carry the golden hash label; Docker skips any a container uses.
-_PRUNE_OLD_GOLDEN = 'docker image prune -f --filter "label=' + GOLDEN_HASH_LABEL + '" >/dev/null 2>&1 || true'
+# Shared tags of other hashes go first (they only untag; a project tag keeps its image), so they cannot pin old layers.
+_PRUNE_OLD_GOLDEN = ('for old in $(docker image ls --format \'{{.Repository}}:{{.Tag}}\' 2>/dev/null | grep "^' + SHARED_GOLDEN_PREFIX
+    + '" | grep -v ":$TAG12$"); do docker image rm "$old" >/dev/null 2>&1; done\n'
+    + 'docker image prune -f --filter "label=' + GOLDEN_HASH_LABEL + '" >/dev/null 2>&1 || true')
 
 
 def _sh_quote(text):
@@ -185,26 +222,28 @@ def build_golden_layers(project_root='.', needed=True):
     serial_builds = []
     target_names = []
     pull_lines = []
+    keys_refs = []
     for key in GOLDEN_LAYERS:
         layer = GOLDEN_LAYERS[key]
         ref = layer['name'] + ':' + layer['tag']
         images.append(ref)
         pull_lines.append(_pull_line(key, ref))
+        keys_refs.append((key, ref))
         summary.append('echo "  ✓ ' + ref + '"')
         target_names.append('"' + key + '"')
         bake_targets.append('''target "{key}" {{
   dockerfile = "$DF"
   context = "$ROOT"
   target = "{target}"
-  tags = ["{ref}"]
+  tags = ["{ref}", "{shared}"]
   labels = {{
     "{label}" = HASH
   }}
 }}
-'''.format(key=key, target=layer['target'], ref=ref, label=GOLDEN_HASH_LABEL))
+'''.format(key=key, target=layer['target'], ref=ref, shared=_shared_ref(key), label=GOLDEN_HASH_LABEL))
         serial_builds.append(
-            'docker build --label "{label}=$HASH" -f "$DF" --target {target} -t {ref} "$ROOT" || exit 1'.format(
-                label=GOLDEN_HASH_LABEL, target=layer['target'], ref=ref,
+            'docker build --label "{label}=$HASH" -f "$DF" --target {target} -t {ref} -t {shared} "$ROOT" || exit 1'.format(
+                label=GOLDEN_HASH_LABEL, target=layer['target'], ref=ref, shared=_shared_ref(key),
             )
         )
 
@@ -215,6 +254,7 @@ def build_golden_layers(project_root='.', needed=True):
         .replace('@@LEGACY_IMAGES@@', ' '.join(LEGACY_GOLDEN_IMAGES))
         .replace('@@HASH_LABEL@@', GOLDEN_HASH_LABEL)
         .replace('@@COUNT@@', str(len(images)))
+        .replace('@@REUSE_SHARED@@', _reuse_block(keys_refs))
         .replace('@@PULL_GOLDEN@@', _pull_block(pull_lines))
         .replace('@@PRUNE_OLD@@', _PRUNE_OLD_GOLDEN)
         .replace('@@TARGET_NAMES@@', ', '.join(target_names))

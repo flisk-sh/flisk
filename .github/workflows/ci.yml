@@ -71,39 +71,6 @@ jobs:
         id: axes
         run: echo "axes=$(node tests/e2e/lib/registry-axes.mjs)" >> "$GITHUB_OUTPUT"
 
-  spellcheck:
-    name: 🔤 Spell check
-    runs-on: ubuntu-26.04
-    timeout-minutes: 1
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
-        with:
-          config: ./.github/_typos.toml
-
-  # Runs on docs-only PRs too, which skip the test job: links and anchors (D3), the tab bars drawn from docs/tabs.json (D4),
-  # the fit calculator pages (D5) and the Flisk plugin files from scripts/agent-plugin.mjs (D6).
-  docs:
-    name: 📚 Docs links and tabs
-    runs-on: ubuntu-26.04
-    timeout-minutes: 2
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: 22
-      - run: bash tests/e2e/static/skills-and-docs.sh
-      - run: node --test scripts/docs/tabs.test.mjs
-      - run: node --test scripts/docs/fit.test.mjs
-      - run: node --test scripts/docs/llms-demo-links.test.mjs
-      - run: node --test scripts/sync-llms-demos.test.mjs
-      - run: node --test scripts/agent-plugin.test.mjs
-      - run: node --test scripts/contributor-merged.test.mjs
-
   lint:
     name: 🛡️ Lint
     runs-on: ubuntu-26.04
@@ -159,62 +126,92 @@ jobs:
       - name: Check test helpers are not duplicated
         run: node ../scripts/check-test-helper-allowlist.mjs
 
+  # Typecheck, fuzz and the published-schema check share one runner and one `bun install`. Each was its own job that ran
+  # for under 30 s and waited about 5 min for a runner (#3892).
   typecheck:
-    name: 🦴 Typecheck
+    name: 🦴 Typecheck, fuzz and schema
     runs-on: ubuntu-26.04
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
-    defaults:
-      run:
-        working-directory: cli
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - run: bun install --frozen-lockfile
+        working-directory: cli
       # tsc prints file(line,col) errors; rewrite them as ::error workflow commands so GitHub annotates the PR diff.
       - name: Typecheck
+        working-directory: cli
         run: |
           set -o pipefail
           bunx tsc --project tsconfig.typecheck.json --pretty false | sed -E 's#^([^(]+)\(([0-9]+),([0-9]+)\): error (.*)$#::error file=cli/\1,line=\2,col=\3::\4#'
-
-  fuzz:
-    name: 🧬 Fuzz
-    runs-on: ubuntu-26.04
-    needs: changes
-    # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
-    timeout-minutes: 3
-    defaults:
-      run:
+      # Each step below runs even when an earlier one failed, so one run reports every failure.
+      # The fuzz suite imports cli/src, which imports the CLI's own dependencies (chalk, via errors.ts), installed above.
+      - name: Install the fuzz suite
+        if: ${{ !cancelled() }}
         working-directory: tests/fuzz
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
-      # The suite imports cli/src, which imports the CLI's own dependencies (chalk, via errors.ts).
-      - run: bun install --frozen-lockfile
-        working-directory: cli
-      - run: bun install --frozen-lockfile
-      - run: bun run fuzz
-
-  published-schema:
-    name: 📜 Published service schema
-    runs-on: ubuntu-26.04
-    needs: changes
-    # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
-    timeout-minutes: 1
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
+        run: bun install --frozen-lockfile
+      - name: Fuzz
+        if: ${{ !cancelled() }}
+        working-directory: tests/fuzz
+        run: bun run fuzz
       - name: Validate the service schema (offline, no live fetch)
+        if: ${{ !cancelled() }}
         run: node scripts/check-published-service-schema.mjs
+
+  # Spell check, docs checks, the DCO sign-off check and the secret scan share one runner (#3892). The first two run on docs-only PRs too: links and
+  # anchors (D3), the tab bars drawn from docs/tabs.json (D4), the fit calculator pages (D5), the Flisk plugin files from
+  # scripts/agent-plugin.mjs (D6).
+  quick-checks:
+    name: ⚡ Quick checks
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # the secret scan reads the commits between the base and the head
+          persist-credentials: false
+      - uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
+        with:
+          config: ./.github/_typos.toml
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        if: ${{ !cancelled() }}
+        with:
+          node-version: 22
+      - if: ${{ !cancelled() }}
+        run: bash tests/e2e/static/skills-and-docs.sh
+      - if: ${{ !cancelled() }}
+        run: node --test scripts/docs/tabs.test.mjs scripts/docs/fit.test.mjs scripts/docs/llms-demo-links.test.mjs scripts/sync-llms-demos.test.mjs scripts/agent-plugin.test.mjs scripts/contributor-merged.test.mjs
+      # Every non-merge commit in a pull request must carry a Signed-off-by line (DCO, see CONTRIBUTING.md). Bot-authored
+      # commits are exempt. This was its own workflow (dco.yml) that used a runner for 8 s of work (#3894).
+      - name: DCO sign-off
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          failed=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            author=$(git log -1 --format='%an' "$sha")
+            case "$author" in *"[bot]") continue ;; esac
+            if ! git log -1 --format='%B' "$sha" | grep -qE '^Signed-off-by: .+ <.+>$'; then
+              echo "::error::Commit $sha is missing a Signed-off-by line"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "Add a sign-off with: git commit --amend -s (or git rebase --signoff $BASE_SHA)"
+            exit 1
+          fi
+      - uses: trufflesecurity/trufflehog@31ce31ee1abbcc7dc8eee5764c17121c3044c8b2 # v3.99.7
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        with:
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
 
   # The same unit suite on a clean macOS runner (#2898): a test that only passes on Linux (a real ~/.flisk cache, a tool on PATH,
   # a fixed port) is caught when it is added, not on a contributor's laptop. No Tilt (the Linux-only setup action), so the
@@ -250,8 +247,8 @@ jobs:
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
-    # A hang guard, not a speed target: the suite (with every Starlark test that spawns tilt) takes 23 to 89 seconds, and a one-minute
-    # limit cancelled it in 3 of 19 recent runs with no failing step.
+    # A hang guard, not a speed target: the suite (with every Starlark test that spawns tilt) takes 2 to 5 minutes on a runner (about 100 s on a laptop, with
+    # or without coverage), and a one-minute limit cancelled it in 3 of 19 recent runs with no failing step.
     timeout-minutes: 10
     permissions:
       contents: write # push the refreshed coverage badge branch
@@ -606,22 +603,6 @@ jobs:
           # --published also accepts the pre-1.4.8 layout (cli/dist/, root CHANGELOG.md); drop it once the pin is past it.
           node scripts/check-npm-package.mjs --published --tarball "${RUNNER_TEMP}/flisk-sh-flisk-${pinned}.tgz"
 
-  secret-scan:
-    name: 🔑 Secret Scan
-    runs-on: ubuntu-26.04
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: trufflesecurity/trufflehog@31ce31ee1abbcc7dc8eee5764c17121c3044c8b2 # v3.99.7
-        with:
-          base: ${{ github.event.pull_request.base.sha }}
-          head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --only-verified
-
   # Needs "Dependency graph" turned on in Settings > Code security, then the
   # repository variable DEPENDENCY_REVIEW set to true (Settings > Variables).
   dependency-review:
@@ -690,7 +671,7 @@ jobs:
     # deadline; workflow-pr-speed caps pull request jobs at 30 minutes.
     timeout-minutes: 30
     if: always()
-    needs: [lint, spellcheck, typecheck, test, package, package-smoke, npm-package-smoke, secret-scan, dependency-review, workflow-audit]
+    needs: [lint, quick-checks, typecheck, test, package, package-smoke, npm-package-smoke, dependency-review, workflow-audit]
     permissions:
       contents: read
       checks: read # reads the e2e gates' check runs on the head commit

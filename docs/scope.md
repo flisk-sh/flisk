@@ -24,7 +24,7 @@ Read from the generated Compose file and `.env` of a scaffolded backend. Check e
 | Secrets | Read from the git-ignored `.env`, or Infisical when `FLISK_SECRET_PROVIDER=infisical` ([environment](environment.md)) | Your secret store |
 | Resources | The generated Compose file sets limits: for the scaffolded backend 512 MB and 0.5 CPU, with 256 MB and 0.2 CPU reserved | Replicas, limits, autoscaling |
 | Restarts and health | `restart: unless-stopped`; for a generated service, a Compose health check that runs `curl` inside the image. A bring-your-own service gets no Compose health check (read in `compose.star`, not run): its image does not need `curl`, and Traefik's own health check applies | Readiness and liveness probes |
-| Networks | Per-project Docker networks (`<project>_backend`, `_database`, `_traefik-public`, and others), kept after `flisk down` unless you pass `--prune-networks` | Network policy |
+| Networks | Per-project Docker networks (`<project>_backend`, `_database`, `_traefik-public`, and others), removed by `flisk down` when no container uses them (`--no-prune-networks` keeps them) | Network policy |
 
 HTTPS: Traefik has an HTTPS entry point on 443 when it is free, otherwise on a port from 8443-8543. How certificates are handled was **not checked**.
 
