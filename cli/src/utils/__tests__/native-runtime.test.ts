@@ -312,7 +312,6 @@ writeFileSync("out.txt", process.env.GREETING + "|" + process.env.OTHER);`,
 });
 
 describe("native supervisor", () => {
-
   it("redacts default and selected env secrets before terminal output and private log writes", async () => {
     const root = createTempDir();
     const jwt = "NATIVE_JWT_SECRET_DO_NOT_LOG_12345";
