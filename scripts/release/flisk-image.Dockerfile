@@ -41,9 +41,10 @@ COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins/docker-compose /usr
 COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
 
 # The installed layout: the binary finds its engine in flisk-cli/ next to itself (template-engine.ts, findCliAssetRoot).
-COPY flisk-linux-${TARGETARCH} /opt/flisk/flisk
+# The mode is set here: a `RUN chmod` would store the binary again in a new layer (#3947).
+COPY --chmod=0755 flisk-linux-${TARGETARCH} /opt/flisk/flisk
 ADD flisk-cli-engine.tar.gz /opt/flisk/
-RUN chmod 0755 /opt/flisk/flisk && /opt/flisk/flisk --version
+RUN /opt/flisk/flisk --version
 
 # HOME is world-writable so `docker run --user "$(id -u):$(id -g)"` works too: Tilt, Docker and flisk keep state there.
 # TILT_HOST makes the Tilt UI listen on all interfaces, so `-p 10350:10350` reaches it from the host.
