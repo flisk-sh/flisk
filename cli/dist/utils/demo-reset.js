@@ -75,6 +75,10 @@ export function ownedComposeProjects(projectName, stacks) {
  * and what the demo checks before it does (#3963).
  */
 export function listStaleProjectVolumes(projectName, docker = dockerVolumes, stacks = []) {
+    return tryListStaleProjectVolumes(projectName, docker, stacks) ?? [];
+}
+/** Like {@link listStaleProjectVolumes}, but undefined when Docker cannot be listed, so "unknown" is not read as "none". */
+export function tryListStaleProjectVolumes(projectName, docker = dockerVolumes, stacks = []) {
     const owned = ownedComposeProjects(projectName, stacks);
     try {
         return docker
@@ -83,7 +87,7 @@ export function listStaleProjectVolumes(projectName, docker = dockerVolumes, sta
             .map((volume) => volume.name);
     }
     catch {
-        return [];
+        return undefined;
     }
 }
 /**

@@ -105,6 +105,15 @@ export function listStaleProjectVolumes(
   docker: VolumeRunner = dockerVolumes,
   stacks: string[] = [],
 ): string[] {
+  return tryListStaleProjectVolumes(projectName, docker, stacks) ?? [];
+}
+
+/** Like {@link listStaleProjectVolumes}, but undefined when Docker cannot be listed, so "unknown" is not read as "none". */
+export function tryListStaleProjectVolumes(
+  projectName: string,
+  docker: VolumeRunner = dockerVolumes,
+  stacks: string[] = [],
+): string[] | undefined {
   const owned = ownedComposeProjects(projectName, stacks);
   try {
     return docker
@@ -112,7 +121,7 @@ export function listStaleProjectVolumes(
       .filter((volume) => owned.has(volume.composeProject))
       .map((volume) => volume.name);
   } catch {
-    return [];
+    return undefined;
   }
 }
 

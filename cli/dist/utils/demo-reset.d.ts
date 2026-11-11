@@ -29,6 +29,8 @@ export declare function ownedComposeProjects(projectName: string, stacks: string
  * and what the demo checks before it does (#3963).
  */
 export declare function listStaleProjectVolumes(projectName: string, docker?: VolumeRunner, stacks?: string[]): string[];
+/** Like {@link listStaleProjectVolumes}, but undefined when Docker cannot be listed, so "unknown" is not read as "none". */
+export declare function tryListStaleProjectVolumes(projectName: string, docker?: VolumeRunner, stacks?: string[]): string[] | undefined;
 /**
  * Remove the Docker volumes an earlier run of this project left behind. A fresh demo clone generates a new random
  * DB_PASSWORD, but Postgres keeps the password of the data directory it was first started with and ignores

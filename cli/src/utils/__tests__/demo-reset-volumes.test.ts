@@ -13,6 +13,7 @@ import {
   readProjectName,
   removeStaleProjectVolumes,
   sharedNameRefusal,
+  tryListStaleProjectVolumes,
 } from "../demo-reset.js";
 import type { ProjectRecord } from "../project-registry.js";
 
@@ -123,6 +124,27 @@ describe("listStaleProjectVolumes", () => {
         remove: vi.fn(),
       }),
     ).toEqual([]);
+  });
+});
+
+describe("tryListStaleProjectVolumes", () => {
+  it("returns undefined, not an empty list, when Docker cannot be listed", () => {
+    const docker = {
+      list: () => {
+        throw new Error("Cannot connect to the Docker daemon");
+      },
+      remove: vi.fn(),
+    };
+    expect(tryListStaleProjectVolumes("demo", docker)).toBeUndefined();
+    expect(listStaleProjectVolumes("demo", docker)).toEqual([]);
+  });
+
+  it("lists the project's volumes when Docker answers", () => {
+    const docker = {
+      list: () => [{ name: "mine", composeProject: "demo-database-management" }],
+      remove: vi.fn(),
+    };
+    expect(tryListStaleProjectVolumes("demo", docker)).toEqual(["mine"]);
   });
 });
 
