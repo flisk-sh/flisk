@@ -17,6 +17,7 @@ import {
   isGatewayEnabled,
   projectNeedsDatabaseKeys,
 } from "../capabilities.js";
+import { clearDiscoveryCache } from "../discovery-context.js";
 import { evaluatePlatformServiceNeeds, needsDatabaseKeys } from "../platform-services.js";
 
 const roots: string[] = [];
@@ -156,6 +157,9 @@ describe("platform services follow the resources (#2963)", () => {
         port: 4200,
       }),
     );
+    // An in-process manifest change is invalidated through clearDiscoveryCache, the same
+    // contract the manifest-writing commands follow (#3809 caches discovery per root).
+    clearDiscoveryCache(root);
     expect(areMasterFilesStale(root)).toBe(true);
     await generateMasterConfigs(root, { quiet: true });
     expect(areMasterFilesStale(root)).toBe(false);

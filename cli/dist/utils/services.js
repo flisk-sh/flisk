@@ -150,7 +150,32 @@ function parseResource(serviceJsonPath) {
         type: config.appType,
     };
 }
+const discoveryResultCache = new Map();
+/**
+ * Invalidate cached `discoverResourcesWithProblems` results.
+ *
+ * Shares the lifetime and mutation contract of the discovery context cache:
+ * `clearDiscoveryCache()` in discovery-context.ts calls this, so any command that
+ * creates, mutates, or removes service manifests (`service.json`) keeps later
+ * discovery in the same process observing the updated filesystem state.
+ *
+ * @param projectRoot Optional project root to invalidate. If omitted, all cached results are cleared.
+ */
+export function clearDiscoveryResultCache(projectRoot) {
+    if (projectRoot !== undefined) {
+        discoveryResultCache.delete(projectRoot);
+    }
+    else {
+        discoveryResultCache.clear();
+    }
+}
 export function discoverResourcesWithProblems(projectRoot) {
+    // One walk per project root per process: several callers in one command need the
+    // same tree, and the walk dominates the cost on large folders (#3809).
+    const cached = discoveryResultCache.get(projectRoot);
+    if (cached) {
+        return { resources: [...cached.resources], problems: [...cached.problems] };
+    }
     const serviceJsonPaths = findServiceJsonFiles(projectRoot);
     const resources = [];
     const problems = [];
@@ -165,7 +190,8 @@ export function discoverResourcesWithProblems(projectRoot) {
             });
         }
     }
-    return { resources, problems };
+    discoveryResultCache.set(projectRoot, { resources, problems });
+    return { resources: [...resources], problems: [...problems] };
 }
 export function warnAboutSkippedFiles(problems) {
     for (const problem of problems) {

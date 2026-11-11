@@ -33,6 +33,7 @@ vi.mock("../../utils/tilt-events.js", async (importOriginal) => ({
 const ANSI_SGR = new RegExp([String.fromCharCode(0x1b), "\\[[0-?]*[ -/]*[@-~]"].join(""), "g");
 
 vi.mock("../../utils/services.js", () => ({
+  clearDiscoveryResultCache: vi.fn(),
   clearMetadataCache: vi.fn(),
   discoverStacks: () =>
     Array.from({ length: 30 }, (_, i) => ({

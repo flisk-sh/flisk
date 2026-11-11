@@ -4,6 +4,7 @@ import { type SpawnOptions, spawn } from "node:child_process";
 import fs from "node:fs";
 import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
 import { getPackageVersion } from "../utils/paths.js";
@@ -435,6 +436,8 @@ export async function executeImport(
       // Without a terminal the importer cannot ask, so --json writes without a prompt, like --yes.
       const forwardedArgs = buildForwardedImportArgs(args, { ...options, yes: true });
       const run = await runImportCaptured(forwardedArgs);
+      // The importer writes manifests one by one, so even a failed run may have written some.
+      clearDiscoveryCache();
       // The importer's own text is for a person; stdout carries only the envelope.
       if (run.stdout.trim()) console.log(run.stdout.trimEnd());
       if (run.stderr.trim()) console.error(run.stderr.trimEnd());
@@ -453,6 +456,8 @@ export async function executeImport(
     return;
   }
   process.exitCode = await runImport(forwardedArgs);
+  // A partial failure may still have written manifests, so clear whatever the exit code.
+  clearDiscoveryCache();
 }
 
 /**

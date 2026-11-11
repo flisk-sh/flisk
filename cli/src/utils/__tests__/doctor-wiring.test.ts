@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TemplateEngine } from "../../generator/template-engine.js";
 import type { ProjectConfig } from "../../types/index.js";
+import { clearDiscoveryCache } from "../discovery-context.js";
 import {
   checkDockerNetworkCapacity,
   checkDuplicateResourceNames,
@@ -64,6 +65,8 @@ describe("checkResourcePackageJson", () => {
     resource("app", "py", { appType: "backend", port: 4000, language: "python" }, {});
     expect(checkResourcePackageJson(root).didPass).toBe(true);
     resource("app", "bun-api", { appType: "backend", port: 4001, language: "bun" }, {});
+    // A service.json added inside the process is picked up after the discovery cache is cleared (#3809).
+    clearDiscoveryCache(root);
     expect(checkResourcePackageJson(root).message).toContain("bun-api");
   });
 
