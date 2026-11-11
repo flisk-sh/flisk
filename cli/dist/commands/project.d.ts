@@ -8,6 +8,14 @@ import type { DiscoveredResource } from "../types/index.js";
 export declare function enableDiscoveredStacks(projectRoot: string, resources?: DiscoveredResource[]): string[];
 /** The directory a template lands in: the requested path, or the template's repository name. */
 export declare function templateTargetDir(templateName: string, targetDir?: string): string;
+/**
+ * The folder asked for on `flisk project <template> [dir]`: the second argument, `--project`
+ * or `--path`. Naming it twice in different ways is refused, because one would be dropped.
+ */
+export declare function requestedProjectDir(dir: string | undefined, options: {
+    project?: string;
+    path?: string;
+}): string | undefined;
 /** The last non-empty line of a child process error, for a one-line failure message. */
 export declare function lastLine(text: string): string;
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */

@@ -145,7 +145,7 @@ flisk project --yes                    # defaults, no prompts
 flisk project --check                  # do master configs exist and match?
 flisk project --config-file cfg.json   # load project config from JSON
 flisk project saas                     # clone a starter example
-flisk project saas --path my-app       # clone into my-app/
+flisk project saas my-app              # clone into my-app/ (also --project my-app)
 ```
 
 | Flag | Effect |

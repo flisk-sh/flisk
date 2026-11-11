@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
-import { lastLine, templateTargetDir } from "../project.js";
+import { lastLine, projectCommand, requestedProjectDir, templateTargetDir } from "../project.js";
 
 describe("templateTargetDir", () => {
   it("returns targetDir when provided", () => {
@@ -66,5 +66,19 @@ describe("lastLine", () => {
 
   it("returns the trimmed single line for single-line input", () => {
     expect(lastLine("  just one error message  ")).toBe("just one error message");
+  });
+});
+
+describe("requestedProjectDir", () => {
+  it("takes the folder from the second argument, --project or --path", () => {
+    expect(requestedProjectDir("my-app", {})).toBe("my-app");
+    expect(requestedProjectDir(undefined, { project: "my-app" })).toBe("my-app");
+    expect(requestedProjectDir(undefined, { path: "my-app" })).toBe("my-app");
+    expect(requestedProjectDir(undefined, {})).toBeUndefined();
+  });
+
+  it("accepts the same folder named twice and refuses two different folders", () => {
+    expect(requestedProjectDir("my-app", { project: "my-app" })).toBe("my-app");
+    expect(() => requestedProjectDir("a", { project: "b" })).toThrow(/more than once/);
   });
 });

@@ -93,6 +93,19 @@ export function templateTargetDir(templateName, targetDir) {
     const fromRepo = template?.repo.split("/").pop() ?? templateName;
     return fromRepo.replace(/\.git$/, "");
 }
+/**
+ * The folder asked for on `flisk project <template> [dir]`: the second argument, `--project`
+ * or `--path`. Naming it twice in different ways is refused, because one would be dropped.
+ */
+export function requestedProjectDir(dir, options) {
+    const given = [dir, options.project, options.path].filter((value) => typeof value === "string" && value !== "");
+    if (new Set(given).size > 1) {
+        throw new FliskError("The project folder is given more than once", [
+            "Pass it once: `flisk project <template> <dir>` or `flisk project <template> --project <dir>`",
+        ]);
+    }
+    return given[0];
+}
 /** The last non-empty line of a child process error, for a one-line failure message. */
 export function lastLine(text) {
     const lines = text
@@ -296,6 +309,8 @@ export const projectCommand = addYesOption(new Command("project"))
     .alias("init")
     .description("Initialize or validate project-level master configuration")
     .argument("[template]", `Clone a starter example instead of a blank project (${Object.keys(PROJECT_TEMPLATES).join(", ")})`)
+    .argument("[dir]", "Directory to create the project in (default: the template's repo name)")
+    .option("--project <dir>", "Same as the [dir] argument")
     .option("--path <dir>", "Directory to clone the template into (default: the template's repo name)")
     .option("--check", "Check if master configs exist and are in sync")
     .option("--force", "Overwrite existing configuration (dangerous)")
@@ -304,8 +319,8 @@ export const projectCommand = addYesOption(new Command("project"))
     .option("--no-agent-skills", "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md")
     .option("--list", "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
-    .addHelpText("after", "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check")
-    .action(async (template, options) => {
+    .addHelpText("after", "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project saas my-app\n  flisk project saas --project my-app\n  flisk project --check")
+    .action(async (template, dir, options) => {
     const json = Boolean(options.json);
     if (options.list) {
         printTemplateCatalog(json);
@@ -322,13 +337,14 @@ export const projectCommand = addYesOption(new Command("project"))
         const runtime = detectRuntimePrerequisites();
         const runtimeNextSteps = formatRuntimeNextSteps(runtime);
         if (template) {
+            const targetDir = requestedProjectDir(dir, options);
             if (json && !Object.hasOwn(PROJECT_TEMPLATES, template)) {
                 throw new FliskError(`Unknown template: "${template}"`, [
                     `Use one of: ${Object.keys(PROJECT_TEMPLATES).join(", ")}`,
                     "Or run `flisk project` with no template for a blank project",
                 ]);
             }
-            const destination = await cloneProjectTemplate(template, options.path, runtimeNextSteps, {
+            const destination = await cloneProjectTemplate(template, targetDir, runtimeNextSteps, {
                 quiet,
             });
             return { data: { action: "cloned", template, path: destination, runtime } };

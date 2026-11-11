@@ -516,10 +516,11 @@ describe("projectCommand", () => {
     expect(projectCommand.name()).toBe("project");
     expect(projectCommand.registeredArguments.map((argument) => argument.name())).toEqual([
       "template",
+      "dir",
     ]);
 
     const flags = projectCommand.options.map((option) => option.long);
-    for (const flag of ["--yes", "--path", "--check", "--force", "--config-file"]) {
+    for (const flag of ["--yes", "--path", "--project", "--check", "--force", "--config-file"]) {
       expect(flags).toContain(flag);
     }
   });
