@@ -1,0 +1,35 @@
+{
+  "group": "journeys",
+  "suite": "next-postgres",
+  "description": "The next-postgres starter (`flisk create <name> --starter next-postgres`) on a clean machine: flisk up runs the migrator to exit 0, GET /items returns the 3 seeded rows through the router, POST, PATCH and DELETE work, the web page returns 200 and renders the starter page, and a 201-character title is refused with 400. It runs the dev stack only.",
+  "paths": [
+    "cli/**",
+    "runtime/engine/**",
+    "runtime/discovery/**",
+    "Tiltfile",
+    "package.json",
+    "tests/e2e/lib/**",
+    "tests/e2e/journeys/next-postgres/**",
+    ".github/workflows/e2e-journeys.yml",
+    "cli/templates/next-postgres/**"
+  ],
+  "cases": [
+    "NP1",
+    "NP2",
+    "NP3",
+    "NP4",
+    "NP5"
+  ],
+  "triggers": [
+    "pr",
+    "main",
+    "nightly",
+    "release",
+    "manual"
+  ],
+  "timeoutMinutes": 45,
+  "needsSecrets": [],
+  "checkName": "🗃️ next-postgres starter, live stack",
+  "install": true,
+  "freePostgres": true
+}
