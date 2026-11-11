@@ -363,6 +363,20 @@ describe("flisk down (in-process)", () => {
   });
 
   describe("--prune-cache", () => {
+    it.each([
+      ["7d", "168h"],
+      ["24H", "24h"],
+      ["1d12h", "36h"],
+    ])("dry-run shows the normalized %s filter before any stop", async (input, expected) => {
+      const run = await runDown(["--json", "--dry-run", "--prune-cache", input]);
+      expect(run.status).toBeUndefined();
+      expect(json.emitted).toEqual([
+        { ok: true, dryRun: true, wouldPruneCache: { until: expected } },
+      ]);
+      expect(tilt.runTilt).not.toHaveBeenCalled();
+      expect(cache.pruneDockerBuildCache).not.toHaveBeenCalled();
+    });
+
     it("without --yes outside a terminal skips the prune and says why", async () => {
       const run = await runDown(["--prune-cache"]);
 
@@ -386,12 +400,12 @@ describe("flisk down (in-process)", () => {
         "Notice: Docker build cache is shared across all projects on this machine.",
       );
       expect(prompt.promptConfirm).toHaveBeenCalledWith({
-        message: "Prune Docker build cache older than 7d?",
+        message: "Prune Docker build cache older than 168h?",
         initial: false,
       });
-      expect(cache.pruneDockerBuildCache).toHaveBeenCalledWith({ until: "7d" });
+      expect(cache.pruneDockerBuildCache).toHaveBeenCalledWith({ until: "168h" });
       expect(run.stdout).toContain(
-        "Pruned Docker build cache: 1.2GB reclaimed (filter: until=7d).",
+        "Pruned Docker build cache: 1.2GB reclaimed (filter: until=168h).",
       );
     });
 

@@ -31,6 +31,13 @@ export declare function checkDockerBuildCache(runner?: DockerRunner, hasDocker?:
 }>;
 /** Validates that the age filter is safe (e.g. "24h", "7d", "168h", "30m", or ISO date). */
 export declare function validateCacheUntil(until: string): boolean;
+/**
+ * Converts a validated age filter into a value Docker accepts for `until=`. Docker parses
+ * durations with Go's time.ParseDuration, which has no "d" unit and is case-sensitive, so
+ * days become hours (7d -> 168h, 1d12h -> 36h) and units are lowercased (24H -> 24h).
+ * ISO dates and anything else pass through unchanged (T and Z keep their case).
+ */
+export declare function normalizeCacheUntil(until: string): string;
 /** Parses reclaimed size from `docker builder prune` output. */
 export declare function parseReclaimedFromPrune(stdout: string): string;
 /**
