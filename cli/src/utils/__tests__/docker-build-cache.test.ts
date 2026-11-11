@@ -38,13 +38,19 @@ describe("parseSizeToBytes", () => {
     expect(parseSizeToBytes("0")).toBe(0);
   });
 
-  it("parses kilobytes, megabytes, gigabytes, and gigabytes with decimals", () => {
+  it("parses SI and IEC size suffixes", () => {
     expect(parseSizeToBytes("1024B")).toBe(1024);
-    expect(parseSizeToBytes("1KB")).toBe(1024);
-    expect(parseSizeToBytes("10MB")).toBe(10 * 1024 ** 2);
-    expect(parseSizeToBytes("2.5GB")).toBe(2.5 * 1024 ** 3);
-    expect(parseSizeToBytes("11.82GB")).toBe(11.82 * 1024 ** 3);
-    expect(parseSizeToBytes("1TB")).toBe(1024 ** 4);
+    expect(parseSizeToBytes("4.096kB")).toBe(4096);
+    expect(parseSizeToBytes("1KB")).toBe(1000);
+    expect(parseSizeToBytes("10MB")).toBe(10 * 1000 ** 2);
+    expect(parseSizeToBytes("2.5GB")).toBe(2.5 * 1000 ** 3);
+    expect(parseSizeToBytes("11.82GB")).toBe(11.82 * 1000 ** 3);
+    expect(parseSizeToBytes("1TB")).toBe(1000 ** 4);
+    expect(parseSizeToBytes("1KiB")).toBe(1024);
+    expect(parseSizeToBytes("1MiB")).toBe(1024 ** 2);
+    expect(parseSizeToBytes("1GiB")).toBe(1024 ** 3);
+    expect(parseSizeToBytes("1TiB")).toBe(1024 ** 4);
+    expect(parseSizeToBytes("1K")).toBe(1024);
   });
 
   it("handles malformed strings safely", () => {
@@ -60,7 +66,7 @@ describe("parseDockerBuildCache", () => {
     expect(info?.entries).toBe(780);
     expect(info?.size).toBe("11.82GB");
     expect(info?.reclaimable).toBe("11.82GB");
-    expect(info?.sizeGib).toBeCloseTo(11.82, 1);
+    expect(info?.sizeGib).toBeCloseTo((11.82 * 1000 ** 3) / 1024 ** 3, 2);
   });
 
   it("parses empty build cache", () => {
@@ -112,7 +118,7 @@ describe("checkDockerBuildCache", () => {
     });
   });
 
-  it("passes without warning when build cache is below 10 GB threshold", async () => {
+  it("passes when build cache is below 10 GiB threshold", async () => {
     const runner = async () => MOCK_DF_BELOW_THRESHOLD;
     const result = await checkDockerBuildCache(runner, true);
     expect(result.name).toBe(DOCKER_BUILD_CACHE_CHECK);
@@ -127,14 +133,14 @@ describe("checkDockerBuildCache", () => {
     });
   });
 
-  it("warns when build cache exceeds 10 GB threshold and suggests flisk down --prune-cache", async () => {
+  it("warns when build cache reaches 10 GiB threshold and suggests flisk down --prune-cache", async () => {
     const runner = async () => MOCK_DF_ABOVE_THRESHOLD;
     const result = await checkDockerBuildCache(runner, true);
     expect(result.name).toBe(DOCKER_BUILD_CACHE_CHECK);
     expect(result.didPass).toBe(false);
     expect(result.isWarning).toBe(true);
     expect(result.message).toContain("11.82GB across 780 entries");
-    expect(result.message).toContain(`exceeds ${DOCKER_BUILD_CACHE_WARN_GIB} GB threshold`);
+    expect(result.message).toContain(`exceeds ${DOCKER_BUILD_CACHE_WARN_GIB} GiB threshold`);
     expect(result.fix).toContain("flisk down --prune-cache");
     expect(result.fix).toContain("docker builder prune --filter until=24h");
     expect(result.buildCache).toEqual({
@@ -144,18 +150,23 @@ describe("checkDockerBuildCache", () => {
     });
   });
 
-  it("pins warning threshold at 10 GiB and tests exact boundaries", async () => {
+  it("keeps the warning threshold at 10 GiB", async () => {
     expect(DOCKER_BUILD_CACHE_WARN_GIB).toBe(10);
 
-    const makeDf = (size: string) => `Build Cache\t100\t${size}\t${size}\n`;
+    const below = await checkDockerBuildCache(
+      async () => "Build Cache\t100\t10.7GB\t10.7GB\n",
+      true,
+    );
+    expect(below.didPass).toBe(true);
+    expect(below.isWarning).toBeUndefined();
 
-    const justBelow = await checkDockerBuildCache(async () => makeDf("9.99GB"), true);
-    expect(justBelow.didPass).toBe(true);
-    expect(justBelow.isWarning).toBeUndefined();
-
-    const exactlyTen = await checkDockerBuildCache(async () => makeDf("10.0GB"), true);
-    expect(exactlyTen.didPass).toBe(false);
-    expect(exactlyTen.isWarning).toBe(true);
+    const exactlyTenGib = await checkDockerBuildCache(
+      async () => "Build Cache\t100\t10.73741824GB\t10.73741824GB\n",
+      true,
+    );
+    expect(exactlyTenGib.didPass).toBe(false);
+    expect(exactlyTenGib.isWarning).toBe(true);
+    expect(exactlyTenGib.message).toContain("10 GiB threshold");
   });
 });
 
