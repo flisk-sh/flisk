@@ -72,3 +72,33 @@ def test_migrator_installs_only_the_tools_migrate_sh_runs(tmp_path):
     for tool in ("netcat-openbsd", "jq", "curl"):
         assert tool in joined
     assert "postgresql" not in joined
+
+
+@TILT_REQUIRED
+def test_pin_step_skips_bun_add_when_the_cli_is_already_installed_and_never_installs_dev_dependencies(tmp_path):
+    # `bun add` after `bun install --production` installs devDependencies too: biome, typescript, vitest, vite and their native
+    # binaries (about 330 MB) ended up in the migrator and the backend (flisk#3709).
+    result = run_starlark(
+        tmp_path,
+        "load('@PRISMA/prisma_build.star', 'prisma_cli_pin_step')\n"
+        "r = {'pin': prisma_cli_pin_step()}\n",
+    )
+    run = [line for line in result["pin"].splitlines() if line.startswith("RUN")]
+    assert len(run) == 1, run
+    assert "node_modules/prisma/package.json" in run[0]
+    assert 'if [ "$INSTALLED_PRISMA" = "$PRISMA_VERSION" ]' in run[0]
+    assert "bun add --production " in run[0]
+    assert "bun add --no-save" not in run[0]
+
+
+@TILT_REQUIRED
+def test_migration_stage_installs_production_dependencies_then_the_pin_step_and_no_dev_install(tmp_path):
+    result = run_starlark(
+        tmp_path,
+        "load('@PRISMA/prisma_build.star', 'L3_generate_migration_engine')\n"
+        "r = {'stage': L3_generate_migration_engine('services/main/mig', False)}\n",
+    )
+    runs = [line for line in result["stage"].splitlines() if line.startswith("RUN") and "bun " in line]
+    assert any("bun install --production" in line for line in runs), runs
+    adds = [line for line in runs if "bun add" in line]
+    assert adds and all("bun add --production" in line for line in adds), adds

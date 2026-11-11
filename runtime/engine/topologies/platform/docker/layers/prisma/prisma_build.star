@@ -85,17 +85,23 @@ def prisma_normalize_output():
 
 def prisma_cli_pin_step():
     """
-    Dockerfile steps that add the Prisma CLI at the version of the installed @prisma/client.
+    Dockerfile steps that make the Prisma CLI match the version of the installed @prisma/client.
 
     Shared by the migration stage and the backend's production-install stage, so a backend gets
     the pinned CLI without running a second install of its own.
+
+    The step does nothing when the `bun install --production` before it already resolved `prisma` to that version, which is the
+    usual case (both are in `dependencies` with the same range). It used to run `bun add` unconditionally, and `bun add` also
+    installs devDependencies: biome, typescript, vitest, vite and their native binaries (about 330 MB) landed in the migrator's
+    node_modules after a `--production` install (#3709). When a pin is needed, `--production` keeps devDependencies out.
     """
     return (
         "# Prisma CLI is often in devDependencies; install it explicitly without mutating manifest files.\n"
         + "# Pin it to the @prisma/client the install above resolved, not to the package.json range with its ^ dropped:\n"
         + "# ^7.5.0 resolves the client to the newest 7.x, and adding prisma@7.5.0 next to it downloaded a second Prisma\n"
         + "# (CLI, studio and client) and generated the client with an older CLI than the one it runs with.\n"
-        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared PRISMA_VERSION=$(sed -n 's/.*\"version\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' node_modules/@prisma/client/package.json 2>/dev/null | head -n 1) && { [ -n \"$PRISMA_VERSION\" ] || PRISMA_VERSION=$(sed -n 's/.*\"prisma\"[[:space:]]*:[[:space:]]*\"[~^]*\\([^\"]*\\)\".*/\\1/p' package.json | head -n 1); } && [ -n \"$PRISMA_VERSION\" ] && n=0 && until BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun add --no-save --exact prisma@\"$PRISMA_VERSION\" --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun add stalled or failed, retry $n of 2\"; done\n"
+        + "# Skip the add when the CLI is already at that version; `bun add` would pull devDependencies back in, so it gets --production.\n"
+        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared PRISMA_VERSION=$(sed -n 's/.*\"version\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' node_modules/@prisma/client/package.json 2>/dev/null | head -n 1) && { [ -n \"$PRISMA_VERSION\" ] || PRISMA_VERSION=$(sed -n 's/.*\"prisma\"[[:space:]]*:[[:space:]]*\"[~^]*\\([^\"]*\\)\".*/\\1/p' package.json | head -n 1); } && [ -n \"$PRISMA_VERSION\" ] && INSTALLED_PRISMA=$(sed -n 's/.*\"version\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' node_modules/prisma/package.json 2>/dev/null | head -n 1) && if [ \"$INSTALLED_PRISMA\" = \"$PRISMA_VERSION\" ]; then echo \"prisma@$PRISMA_VERSION is already installed\"; else n=0; until BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun add --production --no-save --exact prisma@\"$PRISMA_VERSION\" --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun add stalled or failed, retry $n of 2\"; done; fi\n"
     )
 
 
