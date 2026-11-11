@@ -72,6 +72,55 @@ export function pruneProjectNetworks(projectName, commandRunner = run) {
     return result;
 }
 /**
+ * What {@link pruneProjectNetworks} would do, without removing anything: the same exact project network names, each
+ * checked with `docker ps --filter network=<name>` for running attached containers (the reason `docker network rm`
+ * refuses one). `down` stops before it prunes, so containers of the compose projects in `stoppedByDown` (this project's
+ * stacks, from {@link projectComposeProjects}) do not count: they will be gone by the time the network is removed.
+ */
+export function planProjectNetworkPrune(projectName, commandRunner = run, stoppedByDown = []) {
+    const existing = new Set(commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"])
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean));
+    const stopped = new Set(stoppedByDown);
+    const plan = { remove: [], keep: [] };
+    for (const name of projectNetworkNames(projectName)) {
+        if (!existing.has(name))
+            continue;
+        let composeProjects;
+        try {
+            composeProjects = commandRunner("docker", [
+                "ps",
+                "--filter",
+                `network=${name}`,
+                "--format",
+                // The `c:` prefix keeps a line for a container without a compose label (an empty label is not "no container").
+                'c:{{.Label "com.docker.compose.project"}}',
+            ])
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter((line) => line.startsWith("c:"))
+                .map((line) => line.slice(2));
+        }
+        catch (err) {
+            const stderr = String(err.stderr ?? err).trim();
+            plan.keep.push({ name, reason: stderr.split(/\r?\n/)[0] ?? "" });
+            continue;
+        }
+        const remaining = composeProjects.filter((project) => !project || !stopped.has(project)).length;
+        if (remaining > 0) {
+            plan.keep.push({
+                name,
+                reason: `${remaining} container${remaining === 1 ? " is" : "s are"} attached`,
+            });
+        }
+        else {
+            plan.remove.push(name);
+        }
+    }
+    return plan;
+}
+/**
  * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
  * so a caller can tell "no tilt up" from "could not look".
  */

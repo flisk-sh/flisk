@@ -23,6 +23,22 @@ export interface PruneNetworksResult {
  * are never removed.
  */
 export declare function pruneProjectNetworks(projectName: string, commandRunner?: CommandRunner): PruneNetworksResult;
+export interface PruneNetworksPlan {
+    /** Networks `--prune-networks` would remove: they exist and no container outside the stopped stacks is attached. */
+    remove: string[];
+    /** Networks it would leave in place, with the reason (another container is attached, or Docker could not list them). */
+    keep: {
+        name: string;
+        reason: string;
+    }[];
+}
+/**
+ * What {@link pruneProjectNetworks} would do, without removing anything: the same exact project network names, each
+ * checked with `docker ps --filter network=<name>` for running attached containers (the reason `docker network rm`
+ * refuses one). `down` stops before it prunes, so containers of the compose projects in `stoppedByDown` (this project's
+ * stacks, from {@link projectComposeProjects}) do not count: they will be gone by the time the network is removed.
+ */
+export declare function planProjectNetworkPrune(projectName: string, commandRunner?: CommandRunner, stoppedByDown?: readonly string[]): PruneNetworksPlan;
 /**
  * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
  * so a caller can tell "no tilt up" from "could not look".

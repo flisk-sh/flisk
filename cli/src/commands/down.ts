@@ -14,6 +14,7 @@ import {
   type ComposeFallbackResult,
   findRunningFliskProjects,
   lookupProjectTiltUpPids,
+  planProjectNetworkPrune,
   projectComposeProjects,
   pruneProjectNetworks,
   stopProjectComposeProjects,
@@ -153,6 +154,26 @@ function pruneNetworksOrWarn(
   } catch (err) {
     if (!json && isExplicit) {
       console.log(chalk.yellow(`Could not remove networks: ${(err as Error).message}`));
+    }
+    return undefined;
+  }
+}
+
+/** What `--prune-networks` would remove and keep, for `--dry-run`; undefined when the networks cannot be checked. */
+function planNetworkPruneOrWarn(
+  projectRoot: string,
+  json: boolean,
+): ReturnType<typeof planProjectNetworkPrune> | undefined {
+  try {
+    // `down` stops this project's stacks before it prunes, so their containers do not keep a network.
+    return planProjectNetworkPrune(
+      readProjectConfig(projectRoot).project.name,
+      undefined,
+      projectComposeProjects(projectRoot),
+    );
+  } catch (err) {
+    if (!json) {
+      console.log(chalk.yellow(`Could not check networks: ${(err as Error).message}`));
     }
     return undefined;
   }
@@ -368,16 +389,31 @@ export const downCommand = addYesOption(new Command("down"))
     await withTiltCheck(async () => {
       const wouldPurge =
         options.purge && options.dryRun ? projectArtifacts(projectRoot) : undefined;
+      // Unused networks go by default (--no-prune-networks opts out); --purge removes them too, so the preview is for the plain run.
+      const wouldPruneNetworks =
+        options.pruneNetworks !== false && !options.purge && options.dryRun
+          ? planNetworkPruneOrWarn(projectRoot, Boolean(options.json))
+          : undefined;
       if (emit && options.dryRun) {
         emit({
           ok: true,
           dryRun: true,
           ...(shouldPruneCache ? { wouldPruneCache: { until: cacheUntil } } : {}),
           ...(wouldPurge ? { wouldPurge: wouldPurge.artifacts } : {}),
+          ...(wouldPruneNetworks ? { wouldPruneNetworks } : {}),
         });
         return;
       }
       if (handleDryRun(options, "not stopping resources", "tilt down")) {
+        if (wouldPruneNetworks) {
+          const keep = wouldPruneNetworks.keep.map((kept) => `${kept.name} (${kept.reason})`);
+          console.log(
+            chalk.gray(
+              `Dry run - network prune would remove: ${wouldPruneNetworks.remove.join(", ") || "<none>"}\n` +
+                `          would keep: ${keep.join(", ") || "<none>"}`,
+            ),
+          );
+        }
         if (wouldPurge) {
           const listed = describeArtifacts(wouldPurge.artifacts);
           console.log(
