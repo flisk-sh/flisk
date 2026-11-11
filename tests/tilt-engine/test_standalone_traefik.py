@@ -470,3 +470,22 @@ def test_wake_gateway_image_is_non_root_and_can_use_docker_socket():
         assert server_version
     finally:
         subprocess.run(["docker", "rmi", "-f", tag], capture_output=True)
+
+
+INFRA_LOADER = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "infra-loader.star"
+
+
+def test_traefik_waits_for_the_golden_step():
+    """Traefik pulls its image while the golden step may be building eight images (and pruning old ones).
+
+    On the containerd image store the two collide: `failed to extract layer ... Lchown .../usr/local/bin/traefik: no such file or
+    directory` failed the demo on every PR that changed the golden Dockerfile, because no prebuilt image exists for a new hash.
+    The golden resource is an instant no-op when nothing needs building, so traefik can always wait for it.
+    """
+    source = INFRA_LOADER.read_text()
+    standalone = source.split("def _load_standalone_traefik", 1)[1].split("\ndef ", 1)[0]
+    assert "golden_image_resource" in standalone and "resource_deps" in standalone
+    assert 'resource_deps=_proxy_deps(' in standalone
+    primary = source.split("def _load_proxy", 1)[1].split("\ndef ", 1)[0]
+    assert "_proxy_deps(" in primary
+    assert "_load_proxy(should_enable, root_prefix, env_file, write_fn, golden_image_resource)" in source

@@ -26,7 +26,8 @@ describe("collectLeftovers (cycle 4)", () => {
     );
     expect(left?.imageCount).toBe(2);
     expect(left?.imageGib).toBeCloseTo(2, 5);
-    expect(left?.cacheGib).toBeCloseTo(23.4, 1);
+    // Docker prints decimal GB (#3772 parses it as such), the report shows GiB.
+    expect(left?.cacheGib).toBeCloseTo((23.4 * 1e9) / GIB, 3);
   });
 
   it("returns null when Docker cannot be asked", async () => {

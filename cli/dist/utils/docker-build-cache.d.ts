@@ -1,6 +1,6 @@
 import type { CheckResult } from "../types/index.js";
 export declare const DOCKER_BUILD_CACHE_CHECK = "Docker Build Cache";
-/** Warning threshold in GiB (matching DISK_WARN_GIB from #2362). */
+/** Keep this threshold in GiB (1 GiB = 1024 ** 3 bytes), matching DISK_WARN_GIB from #2362. */
 export declare const DOCKER_BUILD_CACHE_WARN_GIB = 10;
 export type DockerRunner = (args: string[]) => Promise<string>;
 export declare const defaultDockerRunner: DockerRunner;
@@ -17,7 +17,7 @@ export interface DockerBuildCacheInfo {
     reclaimable: string;
     reclaimableBytes: number;
 }
-/** Parses human size string like "11.82GB", "9.19 GB", "500MB", "0B" into bytes. */
+/** Parses human size strings, using SI for kB/MB/GB/TB and IEC for KiB/MiB/GiB/TiB. */
 export declare function parseSizeToBytes(raw: string): number;
 /**
  * Parses `docker system df --format "{{.Type}}\t{{.TotalCount}}\t{{.Size}}\t{{.Reclaimable}}"` output.
