@@ -320,7 +320,17 @@ def _load_infisical(should_enable, root_prefix="", env_file=None):
 # 🌐 PROXY (Traefik)
 # =============================================================================
 
-def _load_standalone_traefik(root_prefix, env_file, write_fn):
+def _proxy_deps(base_deps, golden_image_resource):
+    """Traefik's resource_deps, plus the golden step when there is one.
+
+    Traefik pulls its image while the golden step may build eight images and prune old ones; on the containerd image store the
+    two collide ("failed to extract layer ... Lchown ... no such file or directory"). The step is an instant no-op when nothing
+    needs building.
+    """
+    return base_deps + ([golden_image_resource] if golden_image_resource else [])
+
+
+def _load_standalone_traefik(root_prefix, env_file, write_fn, golden_image_resource = None):
     """Generate and load a self-contained Traefik compose for standalone projects."""
     compose_rel = ".flisk/.flisk-out/docker-compose.traefik.yml"
     # The free-tier stub always reports "disabled"; the licensed module reports
@@ -341,12 +351,12 @@ def _load_standalone_traefik(root_prefix, env_file, write_fn):
     dc_resource(
         "traefik",
         labels=["infra.tools"],
-        resource_deps=["init-networks"],
+        resource_deps=_proxy_deps(["init-networks"], golden_image_resource),
         auto_init=True,
     )
 
 
-def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None):
+def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None, golden_image_resource=None):
     """Load Traefik reverse proxy with proper health check sequencing."""
     if not should_enable('proxy'):
         debug_log("INFRA: proxy not enabled")
@@ -362,7 +372,7 @@ def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None):
     missing = [path for path in compose_files if not _file_exists(path)]
     if missing:
         debug_log("INFRA: Platform proxy compose missing ({}), using standalone Traefik".format(missing[0]))
-        _load_standalone_traefik(root_prefix, env_file, write_fn)
+        _load_standalone_traefik(root_prefix, env_file, write_fn, golden_image_resource)
         return
 
     print("🌐 Loading proxy services from Introvertic Infra...")
@@ -378,7 +388,7 @@ def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None):
     # Traefik depends on core infrastructure being healthy (not just started) to prevent 504s
     dc_resource('traefik', 
         labels=['infra.tools'], 
-        resource_deps=['init-networks', 'postgres', 'nats'], 
+        resource_deps=_proxy_deps(['init-networks', 'postgres', 'nats'], golden_image_resource),
         auto_init=True)
     dc_resource('dashy', 
         labels=['infra.tools'], 
@@ -583,7 +593,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
     _load_database_management(should_enable, root_prefix, env_file, write_fn)
     _load_verdaccio(should_enable, root_prefix, env_file)
     _load_infisical(should_enable, root_prefix, env_file)
-    _load_proxy(should_enable, root_prefix, env_file, write_fn)
+    _load_proxy(should_enable, root_prefix, env_file, write_fn, golden_image_resource)
     _load_monitoring(should_enable, root_prefix, env_file)
     _load_debezium(should_enable, root_prefix, env_file)
     _load_elk(should_enable, root_prefix, env_file)
