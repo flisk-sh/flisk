@@ -6,6 +6,17 @@ export declare function discoverResourcesWithProblems(projectRoot: string): {
     problems: DiscoveryProblem[];
 };
 export declare function warnAboutSkippedFiles(problems: DiscoveryProblem[]): void;
+/**
+ * The `skipped` field of a `--json` envelope: each service.json that discovery skipped, with its path relative to the
+ * project root (as `config verify --json` names it) and the reason. Empty when nothing was skipped, so callers can
+ * spread it and leave the field out.
+ */
+export declare function skippedServiceFiles(problems: readonly DiscoveryProblem[], projectRoot?: string | null): {
+    skipped?: {
+        file: string;
+        reason: string;
+    }[];
+};
 export declare function discoverResourcesFromRoot(projectRoot: string): DiscoveredResource[];
 export declare function discoverResources(): DiscoveredResource[];
 export declare function discoverResourcesStrict(discovered?: {

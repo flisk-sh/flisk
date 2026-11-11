@@ -22,6 +22,7 @@ import { nativeServiceStates, readNativeRunState } from "../utils/native-runtime
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
+import { skippedServiceFiles } from "../utils/services.js";
 import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
 import {
   groupServicesByStack,
@@ -338,6 +339,8 @@ export const statusCommand = new Command("status")
             healthTotal: healthCountedResources(stack.resources, serviceStates).length,
           })),
           unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
+          // The service.json files discovery skipped (invalid JSON or fields), so `resources` is not silently short.
+          ...skippedServiceFiles(discovery.problems, projectRoot),
           sharedInfra: sharedInfraGroup,
           platformServices,
           capabilities: getEnabledCapabilities(projectRoot, options),
