@@ -626,6 +626,14 @@ describe("startUp", () => {
       `projectPath does not exist or is not a directory: ${notADirectory}`,
     );
   });
+  it("tells the caller to create or pick a directory, not to find an existing project.json", async () => {
+    const { deps } = fakeUp({ logs: [""] });
+    const err = await startUp({ projectPath: join(projectDir, "missing") }, deps).catch((e) => e);
+    expect(err).toBeInstanceOf(FliskError);
+    const first = (err as FliskError).suggestions[0];
+    expect(first).toMatch(/^Create the directory/);
+    expect(first).toContain("existing directory");
+  });
   it("rejects a projectPath under a file, without starting the child", async () => {
     const { deps } = fakeUp({ logs: [""] });
     // The parent is a file, so the path cannot be a directory. The error says

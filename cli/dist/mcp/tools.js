@@ -441,8 +441,10 @@ function projectPath(value) {
     // as a missing directory).
     const stat = statSync(value, { throwIfNoEntry: false });
     if (!stat?.isDirectory()) {
+        // Shared by project_init, which writes .flisk/project.json into the directory, so
+        // the guidance must not assume the directory already holds one.
         throw new FliskError(`projectPath does not exist or is not a directory: ${value}`, [
-            "Pass the absolute path of the directory that holds .flisk/project.json",
+            "Create the directory, or pass the absolute path of an existing directory (for a project that is already set up, the one that holds .flisk/project.json)",
             "Or omit projectPath to run in the MCP server's directory",
         ]);
     }
