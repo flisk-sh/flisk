@@ -42,7 +42,7 @@ export const statusCommand = new Command("status")
   .option("-v, --verbose", "Show detailed information", false)
   .option("--stacks", "Show stack information (default)", true)
   .option("--resources", "Show all discovered resources", false)
-  .option("--tilt", "Show tilt resource status", false)
+  .option("--tilt", "Show Tilt resource status (Docker/Tilt stacks only)", false)
   .option("--no-gateway", "Disable gateway status reporting")
   .option("--unhealthy", "Show only services that are failing or still starting", false)
   .addHelpText(
@@ -466,13 +466,19 @@ export const statusCommand = new Command("status")
         } else {
           showDetail(`No Tilt is answering on port ${tiltPort}. Start it with: flisk up`);
         }
-      }
-
-      if (options.tilt && foreignTilt) {
+      } else if (options.tilt && foreignTilt) {
         console.log();
         showStep("Tilt Resources:");
         showDetail(
           `none for this project. The Tilt on port ${tiltPort}${foreignTiltRoot ? ` belongs to ${foreignTiltRoot}` : " runs another project"}.`,
+        );
+      } else if (options.tilt) {
+        // No Tilt answers at all (always the case for projects that run as local processes), so
+        // --tilt would otherwise print nothing extra. Give the reason instead of staying silent.
+        console.log();
+        showStep("Tilt Resources:");
+        showDetail(
+          "none. Tilt is not running, and projects that run as local processes do not use it. Start the stack with: flisk up",
         );
       }
 
