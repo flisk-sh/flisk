@@ -408,6 +408,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "node-pins.yml",
+			"job": "node-pins",
+			"tier": "report",
+			"required": false,
+			"reason": "Fails when a pinned node-version is behind the newest release of its Node line (scheduled)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "npm-downloads-graph.yml",
 			"job": "graph",
 			"tier": "report",
