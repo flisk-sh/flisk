@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, } from "node:fs";
 import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
@@ -12,6 +12,7 @@ import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, p
 import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainerName, removeNativeContainers, } from "./native-container.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
+import { createEnvRedactor } from "./secret-redaction.js";
 import { healthCheckPathOf, isHealthCheckDisabled, readinessProbeOf, } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
@@ -323,7 +324,9 @@ export function readNativeRunState(projectRoot) {
 }
 function writeNativeRunState(projectRoot, state) {
     const dir = join(projectRoot, NATIVE_DIR);
-    mkdirSync(join(dir, "logs"), { recursive: true });
+    const logsDir = join(dir, "logs");
+    mkdirSync(logsDir, { recursive: true, mode: 0o700 });
+    chmodSync(logsDir, 0o700);
     // Run state and logs are this machine's, never the project's: keep them out of git without touching the user's .gitignore.
     const ignore = join(dir, ".gitignore");
     if (!existsSync(ignore))
@@ -504,12 +507,14 @@ export class NativeSupervisor {
     options;
     services = new Map();
     migratorOutputs = new Map();
+    redactLine;
     startedAt = new Date().toISOString();
     stopping = false;
     constructor(projectRoot, plans, events = {}, options = {}) {
         this.projectRoot = projectRoot;
         this.events = events;
         this.options = options;
+        this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
         for (const plan of plans) {
             this.services.set(plan.name, {
                 plan,
@@ -772,15 +777,30 @@ export class NativeSupervisor {
             return;
         const logPath = nativeLogPath(this.projectRoot, name);
         let pending = "";
+        let redactionWarningShown = false;
         const emit = (line) => {
+            let safeLine;
+            try {
+                safeLine = this.redactLine(line);
+            }
+            catch {
+                // An unreadable env file must not turn a secret-scrubbing failure into a leak.
+                if (!redactionWarningShown) {
+                    this.events.onNote?.(name, "output withheld: env secrets could not be read for redaction");
+                    redactionWarningShown = true;
+                }
+                return;
+            }
             try {
                 // A timestamp per line lets `flisk logs` merge services in order and honour --since.
-                appendFileSync(logPath, `${new Date().toISOString()} ${line}\n`);
+                appendFileSync(logPath, `${new Date().toISOString()} ${safeLine}\n`, { mode: 0o600 });
+                // Also fix permissions on files left by an earlier run (append's mode only applies on creation).
+                chmodSync(logPath, 0o600);
             }
             catch {
                 // A full disk must not stop the service; the terminal still shows the line.
             }
-            this.events.onLine?.(name, line, kind);
+            this.events.onLine?.(name, safeLine, kind);
         };
         stream.setEncoding?.("utf-8");
         stream.on("data", (chunk) => {

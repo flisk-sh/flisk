@@ -14,6 +14,14 @@ import { getInvalidServiceRoutePathFields, validateGeneratedStringFields, valida
 import { deriveStackStatus } from "./stack-status.js";
 import { includes } from "./validation.js";
 const RESOURCE_JSON_FILENAME = SERVICE_JSON;
+/** Locale-independent order, so discovery is identical on every machine. */
+function compareNamesByCodeUnit(a, b) {
+    if (a.name < b.name)
+        return -1;
+    if (a.name > b.name)
+        return 1;
+    return 0;
+}
 function findServiceJsonFiles(projectRoot) {
     const discoveryPaths = readDiscoveryPaths(projectRoot, { quiet: true });
     return walkServiceJsonFiles(projectRoot, projectRoot, [], discoveryPaths);
@@ -23,7 +31,7 @@ function walkServiceJsonFiles(projectRoot, dir, dirSegments, discoveryPaths, max
     if (dirSegments.length > maxDepth) {
         return results;
     }
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const entries = fs.readdirSync(dir, { withFileTypes: true }).sort(compareNamesByCodeUnit);
     for (const entry of entries) {
         const fullPath = join(dir, entry.name);
         if (entry.isDirectory()) {

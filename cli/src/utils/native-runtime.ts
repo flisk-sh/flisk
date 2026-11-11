@@ -3,6 +3,7 @@
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import {
   appendFileSync,
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -33,6 +34,7 @@ import {
 } from "./native-container.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
+import { createEnvRedactor } from "./secret-redaction.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -454,7 +456,9 @@ export function readNativeRunState(projectRoot: string): NativeRunState | null {
 
 function writeNativeRunState(projectRoot: string, state: NativeRunState): void {
   const dir = join(projectRoot, NATIVE_DIR);
-  mkdirSync(join(dir, "logs"), { recursive: true });
+  const logsDir = join(dir, "logs");
+  mkdirSync(logsDir, { recursive: true, mode: 0o700 });
+  chmodSync(logsDir, 0o700);
   // Run state and logs are this machine's, never the project's: keep them out of git without touching the user's .gitignore.
   const ignore = join(dir, ".gitignore");
   if (!existsSync(ignore)) writeFileSync(ignore, "*\n");
@@ -684,6 +688,7 @@ function isChildRunning(child: ChildProcess | undefined): boolean {
 export class NativeSupervisor {
   private readonly services = new Map<string, RunningService>();
   private readonly migratorOutputs = new Map<string, Record<string, string>>();
+  private readonly redactLine: (line: string) => string;
   private readonly startedAt = new Date().toISOString();
   private stopping = false;
 
@@ -696,8 +701,11 @@ export class NativeSupervisor {
       restartDelayMs?: number;
       /** The environment every service starts with, before its own `env`. Defaults to the shell's. */
       baseEnv?: Readonly<Record<string, string | undefined>>;
+      /** Extra env files selected by --env-file; their values must be redacted too. */
+      extraEnvPaths?: readonly string[];
     } = {},
   ) {
+    this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
     for (const plan of plans) {
       this.services.set(plan.name, {
         plan,
@@ -986,14 +994,31 @@ export class NativeSupervisor {
     if (!stream) return;
     const logPath = nativeLogPath(this.projectRoot, name);
     let pending = "";
+    let redactionWarningShown = false;
     const emit = (line: string) => {
+      let safeLine: string;
+      try {
+        safeLine = this.redactLine(line);
+      } catch {
+        // An unreadable env file must not turn a secret-scrubbing failure into a leak.
+        if (!redactionWarningShown) {
+          this.events.onNote?.(
+            name,
+            "output withheld: env secrets could not be read for redaction",
+          );
+          redactionWarningShown = true;
+        }
+        return;
+      }
       try {
         // A timestamp per line lets `flisk logs` merge services in order and honour --since.
-        appendFileSync(logPath, `${new Date().toISOString()} ${line}\n`);
+        appendFileSync(logPath, `${new Date().toISOString()} ${safeLine}\n`, { mode: 0o600 });
+        // Also fix permissions on files left by an earlier run (append's mode only applies on creation).
+        chmodSync(logPath, 0o600);
       } catch {
         // A full disk must not stop the service; the terminal still shows the line.
       }
-      this.events.onLine?.(name, line, kind);
+      this.events.onLine?.(name, safeLine, kind);
     };
     stream.setEncoding?.("utf-8");
     stream.on("data", (chunk: string) => {

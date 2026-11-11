@@ -172,6 +172,7 @@ export declare class NativeSupervisor {
     private readonly options;
     private readonly services;
     private readonly migratorOutputs;
+    private readonly redactLine;
     private readonly startedAt;
     private stopping;
     constructor(projectRoot: string, plans: readonly NativeServicePlan[], events?: SupervisorEvents, options?: {
@@ -179,6 +180,8 @@ export declare class NativeSupervisor {
         restartDelayMs?: number;
         /** The environment every service starts with, before its own `env`. Defaults to the shell's. */
         baseEnv?: Readonly<Record<string, string | undefined>>;
+        /** Extra env files selected by --env-file; their values must be redacted too. */
+        extraEnvPaths?: readonly string[];
     });
     /** The width service names are padded to in prefixed output. */
     get prefixWidth(): number;
