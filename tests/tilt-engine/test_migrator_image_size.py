@@ -58,17 +58,12 @@ def test_node_modules_is_chowned_by_the_copy_not_by_a_later_chown_r(tmp_path):
 
 
 @TILT_REQUIRED
-def test_migrator_installs_only_the_tools_migrate_sh_runs(tmp_path):
-    # migrate.sh waits on the database with `nc`, reads Infisical with `curl` and `jq`, and runs under bash. It never runs
-    # psql: databases are created through `docker exec` on the database container (flisk#3709).
+def test_migrator_image_runs_no_apk_add_of_its_own(tmp_path):
+    # migrate.sh waits on the database with `nc` and reads Infisical with `curl` and `jq`; those tools now come from the
+    # shared golden l4-migrator layer, so a migrator image adds no package layer of its own (flisk#3709).
     result = run_starlark(
         tmp_path,
         "load('@PRISMA/prisma_runtime.star', 'L4_generate_migrator_runtime')\n"
         "r = {'runtime': L4_generate_migrator_runtime('services/main/mig', 'mig', False)}\n",
     )
-    apk = [line for line in result["runtime"].splitlines() if "apk add" in line]
-    assert apk, "the migrator is expected to install the tools migrate.sh needs"
-    joined = " ".join(apk)
-    for tool in ("netcat-openbsd", "jq", "curl"):
-        assert tool in joined
-    assert "postgresql" not in joined
+    assert "apk add" not in result["runtime"]

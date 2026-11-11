@@ -131,3 +131,16 @@ def test_l3_backend_does_not_install_a_global_prisma(golden):
     stage = golden["df"].split("AS l3_backend_golden", 1)[1].split("\nFROM ", 1)[0]
     assert "bun add -g" not in stage
     assert "bunx prisma --version" not in stage
+
+
+def test_migrator_tools_live_once_in_the_golden_migrator_layer(golden):
+    # migrate.sh needs nc (database wait) and jq + curl (Infisical). curl and bash come from l1; jq and nc are installed once
+    # here instead of in every migrator image. No postgres client: migrate.sh never runs psql (flisk#3709).
+    stage = golden["df"].split("AS l4_migrator_golden", 1)[1].split("\nFROM ", 1)[0]
+    apk = [line for line in stage.splitlines() if "apk add" in line]
+    assert len(apk) == 1, apk
+    for tool in ("jq", "netcat-openbsd"):
+        assert tool in apk[0]
+    assert "postgresql" not in apk[0]
+    assert stage.index("apk add") < stage.rindex("USER bun"), "the image must end as the bun user"
+    assert "curl" in golden["df"].split("AS l2_golden", 1)[0], "curl must stay in l1 for the Infisical fetch"
