@@ -90,6 +90,9 @@ const GITIGNORE_ENTRIES = [
   ".flisk/.project-id",
   ".flisk/smoke/",
   "node_modules/",
+  "dist/",
+  "coverage/",
+  "*.tsbuildinfo",
 ];
 
 /**

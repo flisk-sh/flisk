@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -264,6 +265,38 @@ describe("file helpers", () => {
   });
 
   describe("ensureGitignore", () => {
+    it("ignores nested generated build output and TypeScript incremental caches", () => {
+      ensureGitignore(root);
+      execFileSync("git", ["init", "-q", root]);
+      const ignored = execFileSync(
+        "git",
+        [
+          "-C",
+          root,
+          "check-ignore",
+          "--",
+          "services/app/api/dist/index.js",
+          "services/app/api/coverage/lcov.info",
+          "services/app/api/tsconfig.tsbuildinfo",
+        ],
+        { encoding: "utf-8" },
+      );
+      expect(ignored.trim().split("\n")).toEqual([
+        "services/app/api/dist/index.js",
+        "services/app/api/coverage/lcov.info",
+        "services/app/api/tsconfig.tsbuildinfo",
+      ]);
+    });
+
+    it("adds missing build output patterns to older projects exactly once", () => {
+      writeFileSync(join(root, ".gitignore"), ".env\nnode_modules/\n");
+      const added = ensureGitignore(root);
+      expect(added).toEqual(expect.arrayContaining(["dist/", "coverage/", "*.tsbuildinfo"]));
+      const first = readFileSync(join(root, ".gitignore"), "utf-8");
+      expect(ensureGitignore(root)).toEqual([]);
+      expect(readFileSync(join(root, ".gitignore"), "utf-8")).toBe(first);
+    });
+
     it("creates .gitignore with all missing entries if file does not exist", () => {
       const added = ensureGitignore(root);
 
@@ -273,6 +306,9 @@ describe("file helpers", () => {
         ".flisk/.project-id",
         ".flisk/smoke/",
         "node_modules/",
+        "dist/",
+        "coverage/",
+        "*.tsbuildinfo",
       ]);
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
@@ -282,6 +318,9 @@ describe("file helpers", () => {
       expect(content).toContain(".flisk/.project-id\n");
       expect(content).toContain(".flisk/smoke/\n");
       expect(content).toContain("node_modules/\n");
+      expect(content).toContain("dist/\n");
+      expect(content).toContain("coverage/\n");
+      expect(content).toContain("*.tsbuildinfo\n");
     });
 
     it("appends only missing entries to existing .gitignore lacking newline", () => {
@@ -293,6 +332,8 @@ describe("file helpers", () => {
         ".flisk/.project-id",
         ".flisk/smoke/",
         "node_modules/",
+        "coverage/",
+        "*.tsbuildinfo",
       ]);
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
@@ -313,7 +354,7 @@ describe("file helpers", () => {
     it("recognizes entries regardless of trailing slash presence", () => {
       writeFileSync(
         join(root, ".gitignore"),
-        ".env\n.flisk/.flisk-out\n.flisk/.project-id\n.flisk/smoke\nnode_modules\n",
+        ".env\n.flisk/.flisk-out\n.flisk/.project-id\n.flisk/smoke\nnode_modules\ndist\ncoverage\n*.tsbuildinfo\n",
       );
 
       const added = ensureGitignore(root);
@@ -324,7 +365,13 @@ describe("file helpers", () => {
       writeFileSync(join(root, ".gitignore"), "dist\r\n.env\r\nnode_modules/\r\n");
 
       const added = ensureGitignore(root);
-      expect(added).toEqual([".flisk/.flisk-out/", ".flisk/.project-id", ".flisk/smoke/"]);
+      expect(added).toEqual([
+        ".flisk/.flisk-out/",
+        ".flisk/.project-id",
+        ".flisk/smoke/",
+        "coverage/",
+        "*.tsbuildinfo",
+      ]);
     });
 
     it("handles whitespace around entries and duplicate lines in existing .gitignore", () => {
@@ -334,7 +381,14 @@ describe("file helpers", () => {
       );
 
       const added = ensureGitignore(root);
-      expect(added).toEqual([".flisk/.flisk-out/", ".flisk/smoke/", "node_modules/"]);
+      expect(added).toEqual([
+        ".flisk/.flisk-out/",
+        ".flisk/smoke/",
+        "node_modules/",
+        "dist/",
+        "coverage/",
+        "*.tsbuildinfo",
+      ]);
     });
 
     it("does not treat .env.local as .env", () => {
