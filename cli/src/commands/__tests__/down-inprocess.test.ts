@@ -194,7 +194,7 @@ describe("flisk down (in-process)", () => {
     it("asks for the strict process lookup, so a failed ps is not read as no tilt up", async () => {
       await runDown([]);
 
-      expect(cleanup.findProjectTiltUpPids.mock.calls[0]?.[3]).toBe(true);
+      expect((cleanup.findProjectTiltUpPids.mock.calls[0] as unknown[])[3]).toBe(true);
     });
 
     it("runs tilt down when Docker cannot be asked", async () => {
