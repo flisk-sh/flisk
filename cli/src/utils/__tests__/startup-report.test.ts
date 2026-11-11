@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { parseTiltResourceFailures } from "../doctor-runtime.js";
 import {
   buildStartupReport,
+  explainFailures,
   formatStartupReport,
   formatWaitFailures,
   isStartupStalled,
@@ -496,6 +497,42 @@ describe("failed commands and compose steps", () => {
     );
     const fixes = await machineProblemFixes(failures, fetchLogs);
     expect([...fixes.keys()]).toEqual(["init-networks"]);
+  });
+
+  it("cuts the command text of failures past the fifth, whose log is not read", async () => {
+    const reads = vi.fn(async () => null);
+    const failures = await withLoggedReasons(
+      Array.from({ length: 6 }, (_, i) => ({ name: `svc${i}`, message: composeCommand })),
+      reads,
+    );
+    expect(reads).toHaveBeenCalledTimes(5);
+    expect(failures[5]?.message.length).toBe(MAX_FAILURE_MESSAGE);
+    expect(failures[5]?.message.startsWith('command ["docker" "compose"')).toBe(true);
+  });
+
+  it("strips terminal escapes from a logged ERROR line and cuts it", async () => {
+    const long = `container web exited with code 1: ${"x".repeat(400)}`;
+    const [failure] = await withLoggedReasons(
+      [{ name: "web-healthy", message: "exit status 1" }],
+      async () => `\u001b[31mERROR: ${long}\u001b[0m\n`,
+    );
+    expect(failure?.message.startsWith("container web exited with code 1: ")).toBe(true);
+    expect(failure?.message).not.toContain("\u001b");
+    expect(failure?.message.length).toBe(MAX_FAILURE_MESSAGE);
+  });
+
+  it("explainFailures gives each failure its logged reason and, for the address pool, the fix", async () => {
+    const failures = await explainFailures(
+      [
+        { name: "init-networks", message: initNetworksCommand },
+        { name: "thing", message: composeCommand },
+      ],
+      fetchLogs,
+    );
+    expect(failures[0]?.message.endsWith(poolExhausted)).toBe(true);
+    expect(failures[0]?.fix).toContain("flisk doctor --fix --scope=machine");
+    expect(failures[1]?.message).toContain("pull access denied");
+    expect(failures[1]).not.toHaveProperty("fix");
   });
 });
 

@@ -84,8 +84,10 @@ const LOG_TAIL_LINES = 3;
  * (`postgres-healthy`, `<svc>-healthy`, `<job>-done`) print the cause as their last `ERROR: ...` line, such as a container
  * that exited or a health check that kept failing past its recovery window, so `flisk up` shows that rather than
  * "exit status 1" (#3210). A failed command or compose step (`init-networks`, `docker compose up`) is shown as the last
- * lines of its log, where Docker's own message is, rather than the command line. Other failures, and those whose log
- * has nothing to show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters.
+ * lines of its log, where Docker's own message is, rather than the command line. A reason taken from a log is stripped
+ * of terminal escapes and cut to MAX_FAILURE_MESSAGE characters. Other failures, and those whose log has nothing to
+ * show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters. Only the first five
+ * failures have their log read; the command text of the rest is cut the same way.
  */
 export async function withLoggedReasons<T extends { name: string; message: string }>(
   failures: T[],
@@ -96,12 +98,17 @@ export async function withLoggedReasons<T extends { name: string; message: strin
     const message = failure.message.trim();
     const isBareExit = BARE_EXIT_STATUS.test(message);
     const isCommand = FAILED_COMMAND.test(message);
-    if (index >= 5 || (!isBareExit && !isCommand)) {
+    if (!isBareExit && !isCommand) {
       out.push(failure);
       continue;
     }
-    const log = (await fetchLogs(failure.name)) ?? "";
-    const reason = loggedErrorLine(log) ?? (isCommand ? logTail(log) : null);
+    if (index >= 5) {
+      out.push(isCommand ? { ...failure, message: capStart(message) } : failure);
+      continue;
+    }
+    const log = stripTerminalControls((await fetchLogs(failure.name)) ?? "");
+    const errorLine = loggedErrorLine(log);
+    const reason = errorLine ? capStart(errorLine.trim()) : isCommand ? logTail(log) : null;
     if (reason) out.push({ ...failure, message: reason });
     else if (isCommand) out.push({ ...failure, message: capStart(message) });
     else out.push(failure);
@@ -109,11 +116,27 @@ export async function withLoggedReasons<T extends { name: string; message: strin
   return out;
 }
 
+/**
+ * Failures with the reason their log gives (withLoggedReasons) and, when that reason names a known machine problem,
+ * its fix, for both the `flisk up --json` result and its error message.
+ */
+export async function explainFailures<T extends { name: string; message: string }>(
+  failures: T[],
+  fetchLogs: (name: string) => Promise<string | null>,
+): Promise<Array<T & { fix?: string }>> {
+  const explained = await withLoggedReasons(failures, fetchLogs);
+  const fixes = await machineProblemFixes(explained, fetchLogs);
+  return explained.map((failure) => {
+    const fix = fixes.get(failure.name);
+    return fix ? { ...failure, fix } : failure;
+  });
+}
+
 /** The last lines of a log that have text, joined on one line, keeping the end when it is too long. */
 export function logTail(log: string, lines = LOG_TAIL_LINES): string | null {
-  const tail = log
+  const tail = stripTerminalControls(log)
     .split("\n")
-    .map((line) => stripTerminalControls(line).trim())
+    .map((line) => line.trim())
     .filter(Boolean)
     .slice(-lines)
     .join(" ");

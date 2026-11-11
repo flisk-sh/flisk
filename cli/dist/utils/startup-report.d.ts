@@ -35,13 +35,25 @@ export declare const MAX_FAILURE_MESSAGE = 300;
  * (`postgres-healthy`, `<svc>-healthy`, `<job>-done`) print the cause as their last `ERROR: ...` line, such as a container
  * that exited or a health check that kept failing past its recovery window, so `flisk up` shows that rather than
  * "exit status 1" (#3210). A failed command or compose step (`init-networks`, `docker compose up`) is shown as the last
- * lines of its log, where Docker's own message is, rather than the command line. Other failures, and those whose log
- * has nothing to show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters.
+ * lines of its log, where Docker's own message is, rather than the command line. A reason taken from a log is stripped
+ * of terminal escapes and cut to MAX_FAILURE_MESSAGE characters. Other failures, and those whose log has nothing to
+ * show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters. Only the first five
+ * failures have their log read; the command text of the rest is cut the same way.
  */
 export declare function withLoggedReasons<T extends {
     name: string;
     message: string;
 }>(failures: T[], fetchLogs: (name: string) => Promise<string | null>): Promise<T[]>;
+/**
+ * Failures with the reason their log gives (withLoggedReasons) and, when that reason names a known machine problem,
+ * its fix, for both the `flisk up --json` result and its error message.
+ */
+export declare function explainFailures<T extends {
+    name: string;
+    message: string;
+}>(failures: T[], fetchLogs: (name: string) => Promise<string | null>): Promise<Array<T & {
+    fix?: string;
+}>>;
 /** The last lines of a log that have text, joined on one line, keeping the end when it is too long. */
 export declare function logTail(log: string, lines?: number): string | null;
 /**
