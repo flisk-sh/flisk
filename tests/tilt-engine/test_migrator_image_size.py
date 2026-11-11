@@ -96,7 +96,7 @@ def test_pin_step_skips_bun_add_when_the_cli_is_already_installed_and_never_inst
     assert "node_modules/prisma/package.json" in run[0]
     assert "until grep -Eq" in run[0] and "node_modules/prisma/package.json" in run[0]
     assert "bun add --no-save --exact prisma@" in run[0]
-    assert '"$PRISMA_VERSION" --production ' in run[0]
+    assert "--production" not in run[0]
 
 
 @TILT_REQUIRED
@@ -109,4 +109,4 @@ def test_migration_stage_installs_production_dependencies_then_the_pin_step_and_
     runs = [line for line in result["stage"].splitlines() if line.startswith("RUN") and "bun " in line]
     assert any("bun install --production" in line for line in runs), runs
     adds = [line for line in runs if "bun add" in line]
-    assert adds and all("--production" in line for line in adds), adds
+    assert adds and all("--production" not in line for line in adds), adds
