@@ -51,16 +51,15 @@ The client launches `flisk mcp` for you. The server inherits the directory it is
 
 ### Codex
 
-Add a project-scoped entry to `.codex/config.toml` in the Flisk project. Replace the example directory with the absolute path to the folder that contains `.flisk/project.json`:
+Add a project-scoped entry to `.codex/config.toml` in the Flisk project:
 
 ```toml
 [mcp_servers.flisk]
 command = "flisk"
 args = ["mcp"]
-cwd = "/path/to/your/flisk-project"
 ```
 
-`cwd` is the directory Codex starts the server in. Codex loads project-scoped MCP settings only for trusted projects; `~/.codex/config.toml` is the global variant. You can also create the entry from a terminal with `codex mcp add flisk -- flisk mcp`, then add `cwd` to it. Confirm the server is connected with `/mcp` in the app or `codex mcp list` in the CLI. Codex's [MCP guide](https://developers.openai.com/codex/extend/mcp) lists the other options.
+Codex loads project-scoped MCP settings only for trusted projects, when it runs in that project, and the server starts in Codex's directory, so the entry needs no `cwd`. Leave it out of a project file you commit: an absolute path exists only on your machine. `~/.codex/config.toml` is the global variant; there, `cwd` is the directory Codex starts the server in, so set it to the absolute path of the folder that contains `.flisk/project.json` if you start Codex elsewhere. You can also create the entry from a terminal with `codex mcp add flisk -- flisk mcp`. Confirm the server is connected with `/mcp` in the app or `codex mcp list` in the CLI. Codex's [MCP guide](https://developers.openai.com/codex/extend/mcp) lists the other options.
 
 ### Claude Code
 

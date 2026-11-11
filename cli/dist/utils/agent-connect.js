@@ -83,11 +83,13 @@ export function jsonServerEntry(host, platform = process.platform) {
     }
     return { command: "flisk", args: ["mcp"] };
 }
-/** The `[mcp_servers.flisk]` table for Codex. A project entry pins `cwd` to the project root. */
-export function tomlServerBlock(projectRoot) {
+/**
+ * The `[mcp_servers.flisk]` table for Codex. It has no `cwd`: a project `.codex/config.toml` is meant to be committed,
+ * and an absolute path would only exist on this machine. Codex loads a project file only when it runs in that trusted
+ * project, the server inherits Codex's directory, and the flisk commands find `.flisk/project.json` from there.
+ */
+export function tomlServerBlock() {
     const lines = [`[mcp_servers.${MCP_SERVER_NAME}]`, 'command = "flisk"', 'args = ["mcp"]'];
-    if (projectRoot)
-        lines.push(`cwd = ${JSON.stringify(projectRoot)}`);
     return `${lines.join("\n")}\n`;
 }
 function invalidConfig(file, reason) {
@@ -208,7 +210,7 @@ export function connectAgentHost(options) {
         : path.join(projectRoot, spec.projectFile);
     planned.push(spec.format === "json"
         ? planJsonConfig(configFile, jsonServerEntry(host, options.platform), force)
-        : planTomlConfig(configFile, tomlServerBlock(scope === "global" ? null : projectRoot), force));
+        : planTomlConfig(configFile, tomlServerBlock(), force));
     if (scope === "project")
         planned.push(...planSkills(projectRoot, spec.skillDirs, force));
     if (!options.dryRun) {

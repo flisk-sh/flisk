@@ -220,14 +220,26 @@ describe("flisk connect: Cursor", () => {
 });
 
 describe("flisk connect: Codex", () => {
-  it("writes .codex/config.toml with cwd pinned to the project", () => {
+  it("writes .codex/config.toml without a machine path", () => {
     const project = tempDir("flisk-connect-codex-");
     connect("codex", project, tempDir("flisk-connect-home-"));
 
-    expect(fs.readFileSync(path.join(project, ".codex/config.toml"), "utf-8")).toBe(
-      `[mcp_servers.flisk]\ncommand = "flisk"\nargs = ["mcp"]\ncwd = ${JSON.stringify(project)}\n`,
-    );
+    const written = fs.readFileSync(path.join(project, ".codex/config.toml"), "utf-8");
+    expect(written).toBe('[mcp_servers.flisk]\ncommand = "flisk"\nargs = ["mcp"]\n');
+    expect(written).not.toContain(project);
+    expect(written).not.toMatch(/=\s*"(?:\/|[A-Za-z]:[\\/])/);
     expect(fs.existsSync(path.join(project, ".agents/skills/flisk-build/SKILL.md"))).toBe(true);
+  });
+
+  it("writes a byte-identical project config.toml in two different folders (#3802)", () => {
+    const first = tempDir("flisk-connect-codex-a-");
+    const second = tempDir("flisk-connect-codex-b-");
+    connect("codex", first, tempDir("flisk-connect-home-"));
+    connect("codex", second, tempDir("flisk-connect-home-"));
+
+    expect(fs.readFileSync(path.join(second, ".codex/config.toml"))).toEqual(
+      fs.readFileSync(path.join(first, ".codex/config.toml")),
+    );
   });
 
   it("appends to an existing config.toml, keeps other tables, and is idempotent", () => {
@@ -240,7 +252,7 @@ describe("flisk connect: Codex", () => {
 
     connect("codex", project, home);
     const merged = fs.readFileSync(file, "utf-8");
-    expect(merged).toBe(`${original}\n${tomlServerBlock(project)}`);
+    expect(merged).toBe(`${original}\n${tomlServerBlock()}`);
 
     const second = connect("codex", project, home);
     expect(fs.readFileSync(file, "utf-8")).toBe(merged);
@@ -261,16 +273,14 @@ describe("flisk connect: Codex", () => {
 
     connect("codex", project, tempDir("flisk-connect-home-"), { force: true });
     expect(fs.readFileSync(file, "utf-8")).toBe(
-      `${tomlServerBlock(project)}\n[mcp_servers.other]\ncommand = "o"\n`,
+      `${tomlServerBlock()}\n[mcp_servers.other]\ncommand = "o"\n`,
     );
   });
 
-  it("--global writes ~/.codex/config.toml without a project cwd", () => {
+  it("--global writes ~/.codex/config.toml without a cwd", () => {
     const home = tempDir("flisk-connect-home-");
     connect("codex", tempDir("flisk-connect-codex-"), home, { scope: "global" });
-    expect(fs.readFileSync(path.join(home, ".codex/config.toml"), "utf-8")).toBe(
-      tomlServerBlock(null),
-    );
+    expect(fs.readFileSync(path.join(home, ".codex/config.toml"), "utf-8")).toBe(tomlServerBlock());
   });
 });
 
