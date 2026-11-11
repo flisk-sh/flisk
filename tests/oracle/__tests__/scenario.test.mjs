@@ -50,3 +50,16 @@ test("multi-stack spreads resources over at least two stacks; infra-toggle names
 		assert.deepEqual(Object.keys(drawScenario(seed, { shape: "infra-toggle" }).infra), ["monitoring", "elk", "debezium", "golden_image"]);
 	}
 });
+
+test("enigma-mix records the type status reports for a queue or MySQL-style database (#3862)", () => {
+	let queues = 0;
+	for (let seed = 1; seed < 400; seed++) {
+		for (const r of drawScenario(seed, { shape: "enigma-mix", count: 8 }).resources) {
+			if (r.kind === "queue") {
+				queues++;
+				assert.equal(r.type, "bring-your-own");
+			} else if (r.kind !== "database") assert.equal(r.type, r.kind);
+		}
+	}
+	assert.ok(queues > 0, "the draw includes queues");
+});

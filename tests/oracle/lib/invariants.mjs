@@ -124,7 +124,7 @@ export const INVARIANTS = [
 		check: (s, sc) => {
 			const listed = s.status?.json?.data?.resources;
 			if (!listed) return null;
-			const want = sc.resources.map((r) => `${r.name}=${r.kind}`).sort();
+			const want = sc.resources.map((r) => `${r.name}=${r.type ?? r.kind}`).sort();
 			const got = listed.map((r) => `${r.name}=${r.type}`).sort();
 			return want.join() === got.join() ? null : fail("status-lists-scaffolded-resources", `resources ${want.join(" ")}`, `resources ${got.join(" ")}`, ["status"]);
 		},
@@ -242,7 +242,10 @@ export const INVARIANTS = [
 			// exemption belongs to the resource the error names, so another backend's refusal is never excused by it.
 			const refused = /Resource "([^"]+)" has neither a Dockerfile nor a package\.json/.exec(s.render.stderr ?? "")?.[1];
 			const culprit = sc.resources.find((r) => r.name === refused);
-			const gap = culprit?.kind === "backend" && culprit.args.some((a) => ["python", "go", "rust"].includes(a)) ? "#3243" : undefined;
+			let gap = culprit?.kind === "backend" && culprit.args.some((a) => ["python", "go", "rust"].includes(a)) ? "#3243" : undefined;
+			// Known gap #3862: a queue or database framework (rabbitmq, nats, mysql...) is an image-only bring-your-own container with
+			// no Dockerfile, and export render refuses it. It serves no HTTP, so it is not in the expected list either.
+			if (culprit && ["queue", "database"].includes(culprit.kind) && culprit.type === "bring-your-own") gap = "#3862";
 			if (s.render.code !== 0) return want ? fail("render-exports-http-resources", `render.yaml lists ${want}`, `export render exited ${s.render.code}`, ["render"], gap) : null;
 			const got = [...s.render.stdout.matchAll(/^ {2}- type: \w+\n {4}name: "([^"]+)"/gm)].map((m) => m[1]).sort().join(" ");
 			return want === got ? null : fail("render-exports-http-resources", `render.yaml lists ${want}`, `render.yaml lists ${got}`, ["render"]);
