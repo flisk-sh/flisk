@@ -21,6 +21,8 @@ const tilt = vi.hoisted(() => ({
   runTilt: vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" })),
 }));
 const cleanup = vi.hoisted(() => ({
+  lookupProjectTiltUpPids: vi.fn((): number[] | null => []),
+  projectComposeProjects: vi.fn((): string[] => []),
   findRunningFliskProjects: vi.fn((): string[] => []),
   pruneProjectNetworks: vi.fn(),
   stopProjectComposeProjects: vi.fn(),
@@ -122,6 +124,9 @@ describe("flisk down (in-process)", () => {
     tilt.isTiltAvailable.mockResolvedValue(true);
     tilt.runTilt.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
     cleanup.findRunningFliskProjects.mockReturnValue([]);
+    cleanup.lookupProjectTiltUpPids.mockReturnValue([]);
+    // Something runs by default, so `down` reaches `tilt down`; the idle cases say otherwise.
+    cleanup.projectComposeProjects.mockReturnValue(["demo-traefik"]);
     cleanup.stopProjectTiltUp.mockReturnValue([]);
     cleanup.waitForTiltUpExit.mockResolvedValue(true);
     native.readNativeRunState.mockReturnValue(null);
@@ -137,6 +142,72 @@ describe("flisk down (in-process)", () => {
     else delete (process.stdin as { isTTY?: boolean }).isTTY;
     rmSync(root, { recursive: true, force: true });
     process.exitCode = 0;
+  });
+
+  describe("a Docker project with nothing running (#3768)", () => {
+    beforeEach(() => {
+      cleanup.projectComposeProjects.mockReturnValue([]);
+    });
+
+    it("says so and never loads the Tiltfile with tilt down", async () => {
+      const run = await runDown([]);
+
+      expect(run.status).toBeUndefined();
+      expect(run.stdout).toContain("Nothing is running for this project.");
+      expect(tilt.runTilt).not.toHaveBeenCalled();
+      expect(cleanup.stopProjectTiltUp).not.toHaveBeenCalled();
+    });
+
+    it("--json reports the idle project", async () => {
+      await runDown(["--json"]);
+
+      expect(json.emitted).toEqual([{ ok: true, stoppedTilt: [], idle: true }]);
+      expect(tilt.runTilt).not.toHaveBeenCalled();
+    });
+
+    it("still runs tilt down when a container of the project exists", async () => {
+      cleanup.projectComposeProjects.mockReturnValue(["demo-traefik"]);
+
+      await runDown([]);
+
+      expect(tilt.runTilt).toHaveBeenCalledTimes(1);
+    });
+
+    it("still runs tilt down when a tilt up of the project is alive", async () => {
+      cleanup.lookupProjectTiltUpPids.mockReturnValue([777]);
+
+      await runDown([]);
+
+      expect(tilt.runTilt).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs tilt down when the process list cannot be read, as a tilt up may be alive", async () => {
+      cleanup.lookupProjectTiltUpPids.mockReturnValue(null);
+
+      await runDown([]);
+
+      expect(tilt.runTilt).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs tilt down when Docker cannot be asked", async () => {
+      cleanup.projectComposeProjects.mockImplementation(() => {
+        throw new Error("Cannot connect to the Docker daemon");
+      });
+
+      await runDown([]);
+
+      expect(tilt.runTilt).toHaveBeenCalledTimes(1);
+    });
+
+    it("--purge skips tilt down but still purges", async () => {
+      const run = await runDown(["--purge"]);
+
+      expect(tilt.runTilt).not.toHaveBeenCalled();
+      expect(run.stdout).not.toContain("Nothing is running for this project.");
+      expect(run.stdout).toMatch(
+        /No volumes, networks or images|Removed|Could not read the project name/,
+      );
+    });
   });
 
   it("--json rejects an invalid --cache-until with a machine error and exit 1", async () => {

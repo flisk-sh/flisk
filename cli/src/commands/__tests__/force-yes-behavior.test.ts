@@ -35,6 +35,13 @@ vi.mock("../../utils/docker.js", () => ({
   getContainerRuntimeStatus: vi.fn(() => "running"),
 }));
 
+// A stack that runs, so `down` reaches `tilt down` (an idle project returns early, #3768) and never asks the real Docker.
+vi.mock("../../utils/down-cleanup.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/down-cleanup.js")>()),
+  lookupProjectTiltUpPids: vi.fn(() => [] as number[]),
+  projectComposeProjects: vi.fn(() => ["demo-traefik"]),
+}));
+
 vi.mock("../../utils/tilt.js", () => ({
   buildTiltDownArgs: buildTiltDownArgsMock,
   getTiltfilePath: vi.fn(),

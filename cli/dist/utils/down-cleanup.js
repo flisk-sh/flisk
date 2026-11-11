@@ -72,18 +72,18 @@ export function pruneProjectNetworks(projectName, commandRunner = run) {
     return result;
 }
 /**
- * PIDs of `tilt up` processes started for this project's Tiltfile. Matching on the Tiltfile path keeps another
- * project's Tilt (or a Tilt the user started by hand) untouched.
+ * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
+ * so a caller can tell "no tilt up" from "could not look".
  */
-export function findProjectTiltUpPids(tiltfilePath, platform = process.platform, commandRunner = run) {
+export function lookupProjectTiltUpPids(tiltfilePath, platform = process.platform, commandRunner = run) {
     if (platform === "win32")
-        return [];
+        return null;
     let output;
     try {
         output = commandRunner("ps", ["-axo", "pid=,command="]);
     }
     catch {
-        return [];
+        return null;
     }
     const pids = [];
     for (const line of output.split(/\r?\n/)) {
@@ -103,6 +103,13 @@ export function findProjectTiltUpPids(tiltfilePath, platform = process.platform,
         }
     }
     return pids;
+}
+/**
+ * PIDs of `tilt up` processes started for this project's Tiltfile. Matching on the Tiltfile path keeps another
+ * project's Tilt (or a Tilt the user started by hand) untouched.
+ */
+export function findProjectTiltUpPids(tiltfilePath, platform = process.platform, commandRunner = run) {
+    return lookupProjectTiltUpPids(tiltfilePath, platform, commandRunner) ?? [];
 }
 const PROJECT_TILTFILE_SUFFIX = "/.flisk/.flisk-out/Tiltfile";
 /**

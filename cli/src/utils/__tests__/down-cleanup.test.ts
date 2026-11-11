@@ -9,6 +9,7 @@ import {
   findRunningFliskProjects,
   fliskNetworkOwner,
   fliskNetworkPrefixes,
+  lookupProjectTiltUpPids,
   projectComposeProjects,
   projectNetworkNames,
   pruneProjectNetworks,
@@ -230,6 +231,16 @@ describe("findProjectTiltUpPids and stopProjectTiltUp", () => {
         throw new Error("no ps");
       }),
     ).toEqual([]);
+  });
+
+  it("lookupProjectTiltUpPids answers null, not none, when ps fails or the platform has no ps", () => {
+    expect(
+      lookupProjectTiltUpPids(TILTFILE, "linux", () => {
+        throw new Error("no ps");
+      }),
+    ).toBeNull();
+    expect(lookupProjectTiltUpPids(TILTFILE, "win32", () => ps)).toBeNull();
+    expect(lookupProjectTiltUpPids(TILTFILE, "darwin", () => ps)).toEqual([100, 105, 106]);
   });
 
   it("stopProjectTiltUp sends TERM to each match and tolerates dead processes during kill", () => {

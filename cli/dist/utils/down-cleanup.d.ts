@@ -24,6 +24,11 @@ export interface PruneNetworksResult {
  */
 export declare function pruneProjectNetworks(projectName: string, commandRunner?: CommandRunner): PruneNetworksResult;
 /**
+ * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
+ * so a caller can tell "no tilt up" from "could not look".
+ */
+export declare function lookupProjectTiltUpPids(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[] | null;
+/**
  * PIDs of `tilt up` processes started for this project's Tiltfile. Matching on the Tiltfile path keeps another
  * project's Tilt (or a Tilt the user started by hand) untouched.
  */

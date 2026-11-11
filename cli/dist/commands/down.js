@@ -6,7 +6,7 @@ import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { pruneDockerBuildCache, validateCacheUntil } from "../utils/docker-build-cache.js";
-import { findRunningFliskProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
+import { findRunningFliskProjects, lookupProjectTiltUpPids, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
 import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
@@ -75,6 +75,22 @@ function resolveDownProject(options) {
         ...notInProject.suggestions,
         "Or name the project to stop from anywhere: flisk down --project <path>",
     ]));
+}
+/**
+ * True only when it is certain nothing of this project runs: no `tilt up` for its Tiltfile and no container of its
+ * generated Compose projects (`docker ps -a`, about 0.03 s). Any doubt (`ps` or Docker cannot be asked) is "not idle", so
+ * `tilt down` still runs. Loading the whole Tiltfile just to find nothing took 1.5 s (#3768).
+ */
+function isProjectIdle(projectRoot) {
+    try {
+        const tiltUp = lookupProjectTiltUpPids(getTiltfilePath());
+        if (tiltUp === null || tiltUp.length > 0)
+            return false;
+        return projectComposeProjects(projectRoot).length === 0;
+    }
+    catch {
+        return false;
+    }
 }
 function pruneNetworksOrWarn(json) {
     const root = findProjectRoot();
@@ -255,12 +271,22 @@ export const downCommand = addYesOption(new Command("down"))
             }
             return;
         }
+        const hasCleanup = Boolean(options.purge || options.pruneNetworks || shouldPruneCache);
+        const idle = isProjectIdle(projectRoot);
+        if (idle && !hasCleanup) {
+            if (!options.json)
+                console.log(chalk.gray("Nothing is running for this project."));
+            emit?.({ ok: true, stoppedTilt: [], idle: true });
+            return;
+        }
         const tiltArgs = buildTiltDownArgs({
             focusTargets: allStackNames(),
         });
         // Stop `tilt up` first: `tilt down` does not end it, and a live Tilt re-creates the containers `tilt down` just removed.
         let stoppedTilt = [];
         try {
+            if (idle)
+                throw new Error("nothing to stop");
             const tiltfile = getTiltfilePath();
             stoppedTilt = stopProjectTiltUp(tiltfile);
             if (stoppedTilt.length > 0)
@@ -272,15 +298,18 @@ export const downCommand = addYesOption(new Command("down"))
         if (stoppedTilt.length > 0 && !options.json) {
             console.log(chalk.gray(`Stopped tilt up (pid ${stoppedTilt.join(", ")}).`));
         }
-        if (!options.json)
+        if (!idle && !options.json)
             console.log(chalk.blue("Stopping all tilt resources..."));
-        if (options.verbose && !options.json) {
+        if (!idle && options.verbose && !options.json) {
             console.log(chalk.gray("Running: tilt down -f .flisk/.flisk-out/Tiltfile"));
         }
-        const result = await runTilt("down", tiltArgs, {
-            verbose: options.verbose && !options.json,
-            inheritStdio: !options.json,
-        });
+        // Idle with a purge/prune flag: skip the Tiltfile load and go straight to the cleanup steps.
+        const result = idle
+            ? { exitCode: 0 }
+            : await runTilt("down", tiltArgs, {
+                verbose: options.verbose && !options.json,
+                inheritStdio: !options.json,
+            });
         // `tilt down` evaluates the Tiltfile, so a Tiltfile that fails (stale after an upgrade, a broken edit) leaves the stack
         // running. Stop this project's Compose projects directly instead (#2899).
         let composeFallback;
