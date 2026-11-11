@@ -378,6 +378,20 @@ describe("file helpers", () => {
     });
   });
 
+  describe("ensureGitignore with an existing .env.example exception", () => {
+    it("keeps .env.example unignored when !.env.example was already above the new .env.*", () => {
+      execFileSync("git", ["init", "-q"], { cwd: root });
+      writeFileSync(join(root, ".gitignore"), "!.env.example\n.env\n");
+      ensureGitignore(root);
+
+      const ignored = (file: string) =>
+        spawnSync("git", ["check-ignore", "-q", file], { cwd: root }).status === 0;
+
+      expect(ignored(".env.integration")).toBe(true);
+      expect(ignored(".env.example")).toBe(false);
+    });
+  });
+
   describe("isInsideGitWorkTree", () => {
     it("returns false for a directory that is not in a repository", () => {
       expect(isInsideGitWorkTree(root)).toBe(false);

@@ -85,6 +85,11 @@ export function ensureGitignore(projectRoot) {
     const missing = GITIGNORE_ENTRIES.filter((entry) => !lines.has(entry.replace(/\/$/, "")));
     if (missing.length === 0)
         return [];
+    // Git uses the last matching pattern, so an `!.env.example` that sits above a newly
+    // appended `.env.*` would be overridden. Append the exception again after it.
+    if (missing.includes(".env.*") && !missing.includes("!.env.example")) {
+        missing.splice(missing.indexOf(".env.*") + 1, 0, "!.env.example");
+    }
     const prefix = existing && !existing.endsWith("\n") ? "\n" : "";
     const header = existing
         ? "\n# Flisk (generated files and secrets)\n"
