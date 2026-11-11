@@ -61,6 +61,16 @@ export function isPathStale(path, pathChecker = existsSync) {
 }
 export function findStaleProjects(options) {
     const runner = options?.commandRunner ?? defaultRun;
+    const dockerOutputCache = new Map();
+    const cachedDocker = (args) => {
+        const key = JSON.stringify(args);
+        const cached = dockerOutputCache.get(key);
+        if (cached !== undefined)
+            return cached;
+        const output = runner("docker", args);
+        dockerOutputCache.set(key, output);
+        return output;
+    };
     const pathChecker = options?.pathChecker ?? existsSync;
     const records = options?.records ?? readProjectRecords();
     const holds = options?.holds ?? folderHoldsProject;
@@ -94,7 +104,7 @@ export function findStaleProjects(options) {
     for (const record of records) {
         if (!isRecordStale(record, holds))
             continue;
-        const found = listProjectArtifacts(record.name, { stacks: record.stacks, knownNames }, (args) => runner("docker", args));
+        const found = listProjectArtifacts(record.name, { stacks: record.stacks, knownNames }, (args) => cachedDocker(args));
         recordedEntries.push({
             name: record.name,
             recordedPath: record.roots[record.roots.length - 1] ?? "",
@@ -109,7 +119,7 @@ export function findStaleProjects(options) {
     }
     // 1. Containers
     try {
-        const containerOutput = runner("docker", [
+        const containerOutput = cachedDocker([
             "ps",
             "-a",
             "--format",
@@ -144,7 +154,7 @@ export function findStaleProjects(options) {
     }
     // 2. Volumes
     try {
-        const volumeOutput = runner("docker", [
+        const volumeOutput = cachedDocker([
             "volume",
             "ls",
             "--format",
@@ -179,7 +189,7 @@ export function findStaleProjects(options) {
     }
     // 3. Networks
     try {
-        const networkOutput = runner("docker", [
+        const networkOutput = cachedDocker([
             "network",
             "ls",
             "--format",
