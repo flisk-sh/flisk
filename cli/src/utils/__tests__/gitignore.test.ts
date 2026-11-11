@@ -20,6 +20,8 @@ describe("ensureGitignore", () => {
   it("creates .gitignore with .env and generated output", () => {
     expect(ensureGitignore(dir)).toEqual([
       ".env",
+      ".env.*",
+      "!.env.example",
       ".flisk/.flisk-out/",
       ".flisk/.project-id",
       ".flisk/smoke/",
@@ -32,6 +34,8 @@ describe("ensureGitignore", () => {
     writeFileSync(join(dir, ".gitignore"), "node_modules\ndist");
     expect(ensureGitignore(dir)).toEqual([
       ".env",
+      ".env.*",
+      "!.env.example",
       ".flisk/.flisk-out/",
       ".flisk/.project-id",
       ".flisk/smoke/",
@@ -48,6 +52,8 @@ describe("ensureGitignore", () => {
   it("handles CRLF line breaks in existing .gitignore", () => {
     writeFileSync(join(dir, ".gitignore"), "dist\r\n.env\r\nnode_modules\r\n");
     expect(ensureGitignore(dir)).toEqual([
+      ".env.*",
+      "!.env.example",
       ".flisk/.flisk-out/",
       ".flisk/.project-id",
       ".flisk/smoke/",
@@ -59,7 +65,12 @@ describe("ensureGitignore", () => {
       join(dir, ".gitignore"),
       "  .env  \n.env\n\t.flisk/.project-id\t\nnode_modules/\n",
     );
-    expect(ensureGitignore(dir)).toEqual([".flisk/.flisk-out/", ".flisk/smoke/"]);
+    expect(ensureGitignore(dir)).toEqual([
+      ".env.*",
+      "!.env.example",
+      ".flisk/.flisk-out/",
+      ".flisk/smoke/",
+    ]);
   });
 
   it("does not mistake .env.example or .env.local for .env", () => {
