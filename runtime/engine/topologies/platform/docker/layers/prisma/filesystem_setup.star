@@ -37,9 +37,11 @@ load(
 
 def apk_runtime_tools():
     """
-    Install runtime utilities required by migrate.sh: bash, curl, jq, netcat-openbsd, postgresql-client.
+    Install runtime utilities required by migrate.sh: bash, curl, jq, netcat-openbsd.
+
+    No postgresql-client: migrate.sh never runs psql (databases are created through docker exec on the database container).
     """
-    return "RUN apk add --no-cache bash curl jq netcat-openbsd postgresql-client\n"
+    return "RUN apk add --no-cache bash curl jq netcat-openbsd\n"
 
 
 def prisma_dir_and_permissions():

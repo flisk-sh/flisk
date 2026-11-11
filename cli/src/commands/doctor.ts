@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { execFileSync, execSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, normalize, relative } from "node:path";
 import chalk from "chalk";
@@ -34,7 +34,12 @@ import {
 import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
-import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
+import {
+  belongsToProject,
+  checkCrashLoopingContainers,
+  type DockerRun,
+  runDocker,
+} from "../utils/doctor-crashloop.js";
 import {
   applyDoctorFixes,
   checkDuplicateFliskInstalls,
@@ -1363,33 +1368,25 @@ function parseDockerStats(raw: string): ContainerStat[] {
  * *why* -- only live resource stats catch this pattern before it's mistaken
  * for a slow migration or a flaky healthcheck.
  */
-export const checkContainerResourceHealth: DoctorCheckFn = Object.assign(
-  function checkContainerResourceHealth(): CheckResult {
-    let raw: string;
-    try {
-      raw = execFileSync(
-        findOnPath("docker") ?? "docker",
-        ["stats", "--no-stream", "--format", "{{.Name}},{{.MemPerc}},{{.CPUPerc}}"],
-        {
-          stdio: "pipe",
-          encoding: "utf-8",
-          timeout: EXEC_TIMEOUT_MS,
-          windowsHide: process.platform === "win32",
-        },
-      );
-    } catch (err) {
-      return {
-        name: "Container Resource Health",
-        didPass: true,
-        isSkipped: true,
-        message: isTimeout(err)
-          ? "Docker not responding - skipped container resource check"
-          : "Docker not running - skipped container resource check",
-      };
-    }
-
-    const stats = parseDockerStats(raw);
-    if (stats.length === 0) {
+export async function checkContainerResourceHealthFor(
+  projectName: string,
+  run: DockerRun = runDocker,
+): Promise<CheckResult> {
+  let raw: string;
+  try {
+    // `docker stats` samples CPU twice (~2 s) and covers every container on the machine, so
+    // list this project's running containers first (fast) and only sample those.
+    const listing = await run([
+      "ps",
+      "--format",
+      '{{.ID}}\t{{.Label "com.docker.compose.project"}}',
+    ]);
+    const ids = listing
+      .split(/\r?\n/)
+      .map((line) => line.split("\t"))
+      .filter(([id, project]) => id && project && belongsToProject(project, projectName))
+      .map(([id]) => id as string);
+    if (ids.length === 0) {
       return {
         name: "Container Resource Health",
         didPass: true,
@@ -1397,31 +1394,61 @@ export const checkContainerResourceHealth: DoctorCheckFn = Object.assign(
         message: "No running containers to check",
       };
     }
-
-    const hangers = stats.filter(
-      (stat) => stat.memPct >= MEM_NEAR_LIMIT_PCT && stat.cpuPct >= CPU_HANGING_PCT,
-    );
-
-    if (hangers.length === 0) {
-      return {
-        name: "Container Resource Health",
-        didPass: true,
-        message: `${formatCount(stats.length, "container")} within normal resource usage`,
-      };
-    }
-
-    const details = hangers
-      .map(
-        (stat) => `${stat.name} (mem ${stat.memPct.toFixed(0)}%, cpu ${stat.cpuPct.toFixed(0)}%)`,
-      )
-      .join("\n    ");
-
+    raw = await run([
+      "stats",
+      "--no-stream",
+      "--format",
+      "{{.Name}},{{.MemPerc}},{{.CPUPerc}}",
+      ...ids,
+    ]);
+  } catch (err) {
     return {
       name: "Container Resource Health",
-      didPass: false,
-      message: `${formatCount(hangers.length, "container")} pinned near its memory limit while burning CPU -- likely stuck in a boot-time retry/fetch loop, not a normal crash:\n    ${details}`,
-      fix: "Check the container's boot logs for a network fetch loop (e.g. `bunx <pkg>` re-downloading a CLI on every start instead of using one already installed): docker logs <container>. If a Prisma auto-migration is the cause, set AUTO_MIGRATE=false in the project's .env as a temporary unblock.",
+      didPass: true,
+      isSkipped: true,
+      message: isExecTimeout(err)
+        ? "Docker not responding - skipped container resource check"
+        : "Docker not running - skipped container resource check",
     };
+  }
+
+  const stats = parseDockerStats(raw);
+  if (stats.length === 0) {
+    return {
+      name: "Container Resource Health",
+      didPass: true,
+      isSkipped: true,
+      message: "No running containers to check",
+    };
+  }
+
+  const hangers = stats.filter(
+    (stat) => stat.memPct >= MEM_NEAR_LIMIT_PCT && stat.cpuPct >= CPU_HANGING_PCT,
+  );
+
+  if (hangers.length === 0) {
+    return {
+      name: "Container Resource Health",
+      didPass: true,
+      message: `${formatCount(stats.length, "container")} within normal resource usage`,
+    };
+  }
+
+  const details = hangers
+    .map((stat) => `${stat.name} (mem ${stat.memPct.toFixed(0)}%, cpu ${stat.cpuPct.toFixed(0)}%)`)
+    .join("\n    ");
+
+  return {
+    name: "Container Resource Health",
+    didPass: false,
+    message: `${formatCount(hangers.length, "container")} pinned near its memory limit while burning CPU -- likely stuck in a boot-time retry/fetch loop, not a normal crash:\n    ${details}`,
+    fix: "Check the container's boot logs for a network fetch loop (e.g. `bunx <pkg>` re-downloading a CLI on every start instead of using one already installed): docker logs <container>. If a Prisma auto-migration is the cause, set AUTO_MIGRATE=false in the project's .env as a temporary unblock.",
+  };
+}
+
+export const checkContainerResourceHealth: DoctorCheckFn = Object.assign(
+  function checkContainerResourceHealth(): Promise<CheckResult> {
+    return checkContainerResourceHealthFor(getProjectName());
   },
   {
     requiresContainerRuntime: true,

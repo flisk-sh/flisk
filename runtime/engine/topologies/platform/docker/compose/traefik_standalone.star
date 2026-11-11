@@ -195,6 +195,10 @@ _SABLIER_SERVICES = """  sablier:
     build: ./{vendored_gateway_dir}
     container_name: {gateway_container}
     restart: unless-stopped
+    # Docker's tiny init runs as PID 1 and forwards SIGTERM, so `flisk down`
+    # does not wait the full 10 s stop timeout for a bare Bun server (#3760).
+    init: true
+    stop_grace_period: 3s
     environment:
       - TILT_HOST=host.docker.internal
       - TILT_PORT=10350

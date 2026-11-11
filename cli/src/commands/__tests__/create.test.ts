@@ -962,13 +962,38 @@ describe("nextSteps", () => {
     ]);
     expect(nextSteps("/x", { name: "a", runtime: "docker", extras: [], starter: "demo" })).toEqual([
       "cd a",
-      "Read its README for what it needs, then run it.",
+      "flisk up        # starts it (Docker must be running)",
+      "Its README says what else it needs.",
     ]);
     expect(
       nextSteps("/x", { name: "a", runtime: "local", extras: [], frontend: "f" }, [
         { dir: "web", install: "npm install", run: "npm run dev" },
       ]),
     ).toEqual(["cd a", "(cd web && npm install)", "flisk up        # starts it"]);
+  });
+});
+
+describe("nextSteps for a Docker starter with services/<group>/<name>", () => {
+  it("finds the nested port and names the start command, Docker and the URL", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-create-nested-"));
+    try {
+      mkdirSync(join(dir, "services", "app", "web"), { recursive: true });
+      writeFileSync(
+        join(dir, "services", "app", "web", "service.json"),
+        JSON.stringify({ port: 4200 }),
+      );
+      expect(firstPort(dir)).toBe(4200);
+      expect(nextSteps(dir, { name: "m", runtime: "docker", extras: [], starter: "demo" })).toEqual(
+        [
+          "cd m",
+          "flisk up        # starts it (Docker must be running)",
+          "Then open http://localhost:4200 in your browser.",
+          "Its README says what else it needs.",
+        ],
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -991,8 +1016,9 @@ describe("regressions from the first hand test", () => {
     });
     expect(run.status, run.stdout + run.stderr).toBe(0);
     expect(existsSync(join(dirOf(), "bots", "README.md"))).toBe(true);
-    expect(run.stdout).not.toMatch(/flisk up|Tilt|init-networks/);
-    expect(run.stdout).toContain("Read its README");
+    expect(run.stdout).not.toMatch(/Tilt|init-networks/);
+    expect(run.stdout).toContain("flisk up");
+    expect(run.stdout).toContain("Docker must be running");
   }, 240_000);
 
   it("a starter is not started even when --start asks for it", () => {
@@ -1001,8 +1027,8 @@ describe("regressions from the first hand test", () => {
       timeout: 120_000,
     });
     expect(run.status, run.stdout + run.stderr).toBe(0);
-    expect(run.stdout).not.toMatch(/flisk up|Tilt|init-networks/);
-    expect(run.stdout).toContain("Read its README");
+    expect(run.stdout).not.toMatch(/Tilt|init-networks/);
+    expect(run.stdout).toContain("flisk up");
     expect(run.stdout).not.toContain("Install dependencies and start it now?");
     expect(existsSync(join(dirOf(), "bots", "README.md"))).toBe(true);
   }, 240_000);

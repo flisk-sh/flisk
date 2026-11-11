@@ -321,6 +321,19 @@ describe("flisk status", () => {
     });
   });
 
+  it("gives a reason when --tilt is requested and no Tilt is running at all", async () => {
+    vi.mocked(isTiltAvailable).mockResolvedValue(false);
+
+    const output = await runStatus(["--tilt"]);
+
+    // Before the fix this printed no "Tilt Resources:" section at all, so --tilt looked identical to a plain status.
+    expect(output).toContain("Tilt Resources:");
+    expect(output).toContain(
+      "none. Tilt is not running, and projects that run as local processes do not use it. Start the stack with: flisk up",
+    );
+    expect(runTilt).not.toHaveBeenCalled();
+  });
+
   describe("service state from a running Tilt", () => {
     const tilt = (...items: Array<[string, string, string]>) =>
       JSON.stringify({

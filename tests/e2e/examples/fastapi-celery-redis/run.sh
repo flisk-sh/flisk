@@ -71,11 +71,12 @@ T1_PREREQS() {
       python3 -m venv .venv
     fi
   fi
+  # Hash-pinned lock (regenerate: uv pip compile requirements.txt --universal --generate-hashes -o requirements.lock.txt)
   # Install requirements idempotently on every invocation to ensure complete environment
   if command -v uv >/dev/null 2>&1; then
-    uv pip install -r requirements.txt
+    uv pip install --require-hashes -r requirements.lock.txt
   else
-    .venv/bin/pip install -r requirements.txt
+    .venv/bin/pip install --require-hashes -r requirements.lock.txt
   fi
   echo "Python dependencies verified."
 }

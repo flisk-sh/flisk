@@ -29,6 +29,7 @@ load("./build_concurrency.star", "configure_build_concurrency")
 load("./tilt_image_tags.star", "register_tilt_image_tags")
 load("../../../../discovery/registry.star", "APP_RESOURCES")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
+load("../../platform/docker/dockerfile/language_dockerfile.star", "is_provider_owned_language")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
 load("../../platform/docker/networking/sablier_container_cycle.star", "sablier_middleware_suffix")
 load("../../platform/registries/verdaccio_loader.star", "load_verdaccio")
@@ -183,7 +184,7 @@ _HEALTHY_POSTGRES_SCRIPT = (
 )
 
 
-def _register_platform_postgres(should_enable, root_prefix="", env_file=None, write_fn=None, required=False):
+def _register_platform_postgres(should_enable, root_prefix="", env_file=None, write_fn=None, required=False, golden_image_resource=None):
     """Materialize the platform compose and register the shared `postgres` Tilt resource.
 
     Does NOT load messaging, kafka, redis, nats, provision-db, or Prisma.
@@ -196,7 +197,7 @@ def _register_platform_postgres(should_enable, root_prefix="", env_file=None, wr
     if _file_exists(postgres_compose):
         debug_log("INFRA: Loading postgres compose from {}".format(postgres_compose))
         _docker_compose(postgres_compose, env_file, 'database-management')
-        dc_resource('postgres', labels=['infra.tools'], resource_deps=['init-networks'], auto_init=True)
+        dc_resource('postgres', labels=['infra.tools'], resource_deps=_proxy_deps(['init-networks'], golden_image_resource), auto_init=True)
         local_resource(
             name='postgres-healthy',
             cmd=['sh', '-c', _HEALTHY_POSTGRES_SCRIPT, 'sh', PlatformDockerConstants.PROJECT_NAME],
@@ -250,7 +251,7 @@ def project_imports_own_postgres(app_resources=None):
     return False
 
 
-def _load_database_management(should_enable, root_prefix="", env_file=None, write_fn=None):
+def _load_database_management(should_enable, root_prefix="", env_file=None, write_fn=None, golden_image_resource=None):
     """Load database and messaging infrastructure."""
     if not should_enable('database-management'):
         debug_log("INFRA: database-management not enabled")
@@ -262,7 +263,7 @@ def _load_database_management(should_enable, root_prefix="", env_file=None, writ
     if project_imports_own_postgres():
         print("🗃️  Project defines its own postgres service; not registering the shared platform Postgres")
     else:
-        _register_platform_postgres(should_enable, root_prefix, env_file, write_fn)
+        _register_platform_postgres(should_enable, root_prefix, env_file, write_fn, golden_image_resource=golden_image_resource)
 
     # Load messaging if compose file exists
     messaging_compose = root_prefix + 'services/platform/messaging/docker-compose.yml'
@@ -274,7 +275,7 @@ def _load_database_management(should_enable, root_prefix="", env_file=None, writ
         if _compose_has_service(messaging_compose, 'redis'):
             dc_resource('redis', labels=['infra.messaging'], auto_init=False)
         if _compose_has_service(messaging_compose, 'nats'):
-            dc_resource('nats', labels=['infra.messaging'], auto_init=True)
+            dc_resource('nats', labels=['infra.messaging'], resource_deps=_proxy_deps([], golden_image_resource), auto_init=True)
     else:
         debug_log("INFRA: Skipping messaging (compose file not found)")
 
@@ -320,13 +321,41 @@ def _load_infisical(should_enable, root_prefix="", env_file=None):
 # 🌐 PROXY (Traefik)
 # =============================================================================
 
-def _load_standalone_traefik(root_prefix, env_file, write_fn):
+def project_uses_sablier(app_resources=None):
+    """True when at least one discovered resource's manifest sets `sablier.enable` (which `deferStart` requires)."""
+    resources = APP_RESOURCES if app_resources == None else app_resources
+    for service in resources or []:
+        if type(service) != 'dict':
+            continue
+        for res in service.get('resources', []):
+            if type(res) != 'dict':
+                continue
+            manifest = res.get('_manifest', {}) or {}
+            sablier = manifest.get('sablier', {}) or {}
+            if type(sablier) == 'dict' and sablier.get('enable', False):
+                return True
+    return False
+
+
+def _proxy_deps(base_deps, golden_image_resource):
+    """An infra resource's resource_deps, plus the golden step when there is one.
+
+    Traefik, Postgres and NATS pull their images while the golden step may build eight images and prune old ones; on the containerd image store the
+    two collide ("failed to extract layer ... Lchown ... no such file or directory"). The step is an instant no-op when nothing
+    needs building.
+    """
+    return base_deps + ([golden_image_resource] if golden_image_resource else [])
+
+
+def _load_standalone_traefik(root_prefix, env_file, write_fn, golden_image_resource = None):
     """Generate and load a self-contained Traefik compose for standalone projects."""
     compose_rel = ".flisk/.flisk-out/docker-compose.traefik.yml"
-    # The free-tier stub always reports "disabled"; the licensed module reports
-    # enabled for a manifest that opts in. Probing it keeps this file free of any
-    # license logic while starting the sablier containers only when they can work.
-    _, sablier_enabled = sablier_middleware_suffix({"sablier": {"enable": True}}, "probe")
+    # Sablier needs the licence AND a resource that opts in (`sablier.enable`): a project with
+    # none must not build the wake-gateway image or run the sablier containers (#3753). The
+    # free-tier stub always reports "disabled"; the licensed module reports enabled for a
+    # manifest that opts in, so probing it keeps this file free of any license logic.
+    _, licensed = sablier_middleware_suffix({"sablier": {"enable": True}}, "probe")
+    sablier_enabled = licensed and project_uses_sablier()
     content = generate_standalone_traefik_compose(
         sablier_enabled,
         os.environ.get('FLISK_HTTP_PORT', '8080'),
@@ -341,12 +370,12 @@ def _load_standalone_traefik(root_prefix, env_file, write_fn):
     dc_resource(
         "traefik",
         labels=["infra.tools"],
-        resource_deps=["init-networks"],
+        resource_deps=_proxy_deps(["init-networks"], golden_image_resource),
         auto_init=True,
     )
 
 
-def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None):
+def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None, golden_image_resource=None):
     """Load Traefik reverse proxy with proper health check sequencing."""
     if not should_enable('proxy'):
         debug_log("INFRA: proxy not enabled")
@@ -362,7 +391,7 @@ def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None):
     missing = [path for path in compose_files if not _file_exists(path)]
     if missing:
         debug_log("INFRA: Platform proxy compose missing ({}), using standalone Traefik".format(missing[0]))
-        _load_standalone_traefik(root_prefix, env_file, write_fn)
+        _load_standalone_traefik(root_prefix, env_file, write_fn, golden_image_resource)
         return
 
     print("🌐 Loading proxy services from Introvertic Infra...")
@@ -378,7 +407,7 @@ def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None):
     # Traefik depends on core infrastructure being healthy (not just started) to prevent 504s
     dc_resource('traefik', 
         labels=['infra.tools'], 
-        resource_deps=['init-networks', 'postgres', 'nats'], 
+        resource_deps=_proxy_deps(['init-networks', 'postgres', 'nats'], golden_image_resource),
         auto_init=True)
     dc_resource('dashy', 
         labels=['infra.tools'], 
@@ -469,8 +498,20 @@ def _init_networks(fix_docker_networks_fn):
 # 🏗️ GOLDEN IMAGE (Base Docker Image)
 # =============================================================================
 
+def manifest_uses_golden_image(manifest):
+    """True when the resource's image can be built from the golden layers (Bun/Node-on-Bun images).
+
+    Bring-your-own, library, SDK, infra and database resources build no golden-based image, and a backend
+    whose language provider owns its Dockerfile (Python, Go, Rust, Node) starts from its own base image.
+    """
+    manifest = manifest or {}
+    if manifest.get('appType', 'backend') in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+        return False
+    return not is_provider_owned_language(manifest)
+
+
 def project_uses_golden_image(app_resources=None):
-    """False when every discovered resource is a bring-your-own container or builds no image, so nothing reads the golden images.
+    """False when no discovered resource reads the golden images (bring-your-own, no-image types, Python/Go/Rust/Node backends).
 
     Unknown (nothing discovered yet) counts as used.
     """
@@ -483,8 +524,7 @@ def project_uses_golden_image(app_resources=None):
             if type(res) != 'dict':
                 continue
             found = True
-            manifest = res.get('_manifest', {}) or {}
-            if manifest.get('appType', 'backend') not in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+            if manifest_uses_golden_image(res.get('_manifest', {})):
                 return True
     return not found
 
@@ -580,10 +620,10 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
         env_file = candidate_env_file if _file_exists(candidate_env_file) else None
 
     # Load infrastructure in order
-    _load_database_management(should_enable, root_prefix, env_file, write_fn)
+    _load_database_management(should_enable, root_prefix, env_file, write_fn, golden_image_resource)
     _load_verdaccio(should_enable, root_prefix, env_file)
     _load_infisical(should_enable, root_prefix, env_file)
-    _load_proxy(should_enable, root_prefix, env_file, write_fn)
+    _load_proxy(should_enable, root_prefix, env_file, write_fn, golden_image_resource)
     _load_monitoring(should_enable, root_prefix, env_file)
     _load_debezium(should_enable, root_prefix, env_file)
     _load_elk(should_enable, root_prefix, env_file)

@@ -12,7 +12,7 @@ export const CRASH_LOOP_RESTARTS = 5;
 const RECENT_START_MS = 10 * 60_000;
 const LOG_LINES = 3;
 const LOG_LINE_MAX = 200;
-const runDocker = async (args) => {
+export const runDocker = async (args) => {
     const { stdout, stderr } = await execFilePromise("docker", args, {
         encoding: "utf-8",
         timeout: DOCKER_TIMEOUT_MS,
