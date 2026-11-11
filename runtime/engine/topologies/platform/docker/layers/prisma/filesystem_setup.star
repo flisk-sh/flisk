@@ -4,7 +4,7 @@
 Filesystem Setup Dockerfile Fragment
 
 Generates the RUN/COPY instructions that:
-  - Install Alpine utilities needed by migrate.sh at runtime (curl, jq, nc)
+  - (The Alpine tools migrate.sh needs - jq, nc - are in the golden l4-migrator image, not installed here)
   - Create required directories and fix ownership so Prisma can write generated files
   - Ensure @prisma/engines is resolvable for the CLI (engines may land under
     prisma/node_modules in Bun hoisting layouts)
@@ -33,15 +33,6 @@ load(
     'PRISMA_CONFIG_ABS_PATH',
     'PRISMA_SCHEMA_PATH',
 )
-
-
-def apk_runtime_tools():
-    """
-    Install runtime utilities required by migrate.sh: bash, curl, jq, netcat-openbsd.
-
-    No postgresql-client: migrate.sh never runs psql (databases are created through docker exec on the database container).
-    """
-    return "RUN apk add --no-cache bash curl jq netcat-openbsd\n"
 
 
 def prisma_dir_and_permissions():
@@ -129,8 +120,7 @@ def migrator_filesystem_setup():
       1. Inline prisma.config.ts
       2. Permission fixes
       3. @prisma/engines symlink
-      4. Alpine utilities
-      5. General Bun hoisted packages symlink fix
+      4. General Bun hoisted packages symlink fix
 
     The caller is responsible for wrapping these in `USER root` / `USER bun` guards.
     """
@@ -138,6 +128,5 @@ def migrator_filesystem_setup():
         prisma_config_inline()
         + prisma_dir_and_permissions()
         + prisma_engines_symlink()
-        + apk_runtime_tools()
         + bun_hoisted_packages_symlink_fix()
     )
