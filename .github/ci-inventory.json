@@ -86,7 +86,7 @@
 			"job": "quick-checks",
 			"tier": "gate",
 			"required": false,
-			"reason": "Spell check, docs checks (docs-only PRs included) and the secret scan on pull requests, in one job (#3892)",
+			"reason": "Spell check, docs checks (docs-only PRs included), the DCO sign-off check and the secret scan on pull requests, in one job (#3892)",
 			"owner": "maintainers"
 		},
 		{
@@ -311,14 +311,6 @@
 			"tier": "bot",
 			"required": false,
 			"reason": "Note on issues that are not fixed",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "dco.yml",
-			"job": "dco",
-			"tier": "gate",
-			"required": false,
-			"reason": "DCO sign-off on every PR; concurrency tracked in #1286",
 			"owner": "maintainers"
 		},
 		{
