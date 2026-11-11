@@ -127,16 +127,22 @@ export function analyse(files) {
 // Deviations from the most common node-version or runner that are on purpose: { file, kind, value, reason }. Each
 // covers that value in that file only; an entry that matches no deviation is a finding, so the list cannot go stale.
 export const EXPECTED = [
+	{
+		file: ".github/workflows/ci.yml",
+		kind: "node-version",
+		value: "22.12.0",
+		reason: "the published-package smoke and audit run on the oldest Node that cli/package.json engines.node allows (>=22.12.0)",
+	},
 	...["release-binaries.yml", "publish-flisk-import.yml", "publish-existing-npm-to-github-packages.yml"].map((name) => ({
 		file: `.github/workflows/${name}`,
 		kind: "node-version",
-		value: "24.15.0",
+		value: "24.22.3",
 		reason: "publish jobs run npm publish with the npm 11 that Node 24 bundles (npm trusted publishing needs npm >= 11.5.1)",
 	})),
 	{
 		file: ".github/workflows/release-candidate.yml",
 		kind: "node-version",
-		value: "24.15.0",
+		value: "24.22.3",
 		reason: "the release candidate tests the binaries on the Node that release-binaries.yml publishes them with (#3946)",
 	},
 	{

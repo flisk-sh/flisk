@@ -36,7 +36,7 @@ jobs:
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 22.12.0
+          node-version: 22.23.5
       # The files scorers read the CLI's command tree from cli/dist and parse cli/src with TypeScript.
       - run: bun install --frozen-lockfile
         working-directory: cli
@@ -55,7 +55,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 22.12.0
+          node-version: 22.23.5
       - name: Audit https://flisk.sh
         run: |
           npx -y lighthouse@13.5.0 https://flisk.sh/ --quiet --output=json --output-path="$RUNNER_TEMP/lhr.json" \
@@ -77,7 +77,7 @@ jobs:
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 22.12.0
+          node-version: 22.23.5
       - run: bun install --frozen-lockfile
       # Stryker is added for this job only: --no-save leaves package.json and the lockfiles alone.
       - run: bun add --no-save @stryker-mutator/core@10.0.0 @stryker-mutator/vitest-runner@10.0.0
