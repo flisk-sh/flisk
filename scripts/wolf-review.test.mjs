@@ -68,16 +68,12 @@ describe("renderComment", () => {
     assert.ok(body.startsWith(MARKER));
     assert.match(body, /found nothing to change/);
   });
-  it("shows suggestions, skipped files and the M1K3 block", () => {
-    const body = renderComment(
-      [
-        { path: "a/service.json", status: "suggest", suggestion: '{"x":1}' },
-        { path: "b/service.json", status: "unusable" },
-      ],
-      "M1K3 says ok",
-    );
+  it("shows suggestions and skipped files", () => {
+    const body = renderComment([
+      { path: "a/service.json", status: "suggest", suggestion: '{"x":1}' },
+      { path: "b/service.json", status: "unusable" },
+    ]);
     assert.match(body, /Wolf suggests/);
     assert.match(body, /Not reviewed: `b\/service.json`/);
-    assert.match(body, /M1K3 \(local\) second opinion/);
   });
 });

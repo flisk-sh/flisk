@@ -5,8 +5,6 @@
 // service.json a pull request changes, and writes one comment body.
 // Wolf is a small model tuned for service.json, so this reviews only those
 // files and only says something when its corrected JSON differs from the file.
-// Optional local second opinion: WOLF_REVIEW_M1K3=1 also asks the M1K3 Mac app
-// (`m1k3 ask`). That works on a Mac with the app running, never in CI.
 //
 // Env: FLISK_INFERENCE_KEY (required, else exits 0 writing nothing),
 // FLISK_INFERENCE_URL, BASE_SHA, HEAD_SHA, OUT_FILE.
@@ -81,7 +79,7 @@ export async function reviewFile({ path, content, diff, url, key, fetchImpl = fe
   return { path, status: "suggest", suggestion: JSON.stringify(JSON.parse(reply), null, 2) };
 }
 
-export function renderComment(results, m1k3 = "") {
+export function renderComment(results) {
   const suggest = results.filter((r) => r.status === "suggest");
   const lines = [MARKER, "### 🐺 Wolf review of `service.json` changes", ""];
   if (suggest.length === 0) {
@@ -101,7 +99,6 @@ export function renderComment(results, m1k3 = "") {
   if (skipped.length) {
     lines.push(`Not reviewed: ${skipped.map((r) => `\`${r.path}\``).join(", ")} (Wolf gave no usable answer).`, "");
   }
-  if (m1k3) lines.push("<details><summary>M1K3 (local) second opinion</summary>", "", m1k3, "", "</details>", "");
   lines.push(
     "_[Wolf](https://inference.flisk.si) is a small beta model for service.json, not a general code reviewer. It never blocks a merge._",
   );
@@ -127,20 +124,12 @@ async function main(env = process.env) {
     return;
   }
   const results = [];
-  let m1k3 = "";
   for (const path of files) {
     const content = readFileSync(path, "utf8");
     const diff = git(["diff", `${base}...${head}`, "--", path]);
     results.push(await reviewFile({ path, content, diff, url, key }));
-    if (env.WOLF_REVIEW_M1K3 === "1") {
-      try {
-        m1k3 += `**${path}**\n\n${execFileSync("m1k3", ["ask", `Review this service.json change briefly:\n${diff.slice(0, MAX_CHARS)}`], { encoding: "utf8", timeout: 120000 }).trim()}\n\n`;
-      } catch {
-        m1k3 += `**${path}**: M1K3 did not answer (is the app running?)\n\n`;
-      }
-    }
   }
-  writeFileSync(env.OUT_FILE || "wolf-review.md", renderComment(results, m1k3.trim()));
+  writeFileSync(env.OUT_FILE || "wolf-review.md", renderComment(results));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
