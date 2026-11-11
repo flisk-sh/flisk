@@ -8,6 +8,7 @@ export interface CreateOptions {
     frontend?: string;
     backend?: string;
     language?: string;
+    database?: string;
     extras?: string;
     yes?: boolean;
     dryRun?: boolean;

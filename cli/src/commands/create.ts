@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languages/registry.js";
+import { DATABASE_FRAMEWORKS, DATABASE_RESOURCE_TYPE } from "../types/index.js";
 import {
   type ArrowChoice,
   arrowMultiSelect,
@@ -107,6 +108,7 @@ export interface CreateOptions {
   frontend?: string;
   backend?: string;
   language?: string;
+  database?: string;
   extras?: string;
   yes?: boolean;
   dryRun?: boolean;
@@ -222,6 +224,12 @@ export async function collectAnswers(
     throw new FliskError(
       `--language ${options.language} has no API to apply to: --backend none leaves the API out.`,
       ["Drop --backend none to get an API in that language, or drop --language."],
+    );
+  }
+  if (options.starter && options.database !== undefined && options.database !== "none") {
+    throw new FliskError(
+      "--database cannot be combined with --starter: a starter carries its own parts.",
+      ["Drop --database, or drop --starter and add the parts with --runtime docker."],
     );
   }
   if (options.starter && options.extras !== undefined && options.extras !== "none") {
@@ -351,13 +359,20 @@ export async function collectAnswers(
       })),
     });
   }
+  // --database <id> is the same as database:<id> in --extras, and takes the ids of `--type database`.
+  if (options.database !== undefined && options.database !== "none") {
+    const id = oneOf("database", options.database, DATABASE_FRAMEWORKS, ["none"]);
+    if (!extras.includes(`${DATABASE_RESOURCE_TYPE}:${id}`))
+      extras.push(`${DATABASE_RESOURCE_TYPE}:${id}`);
+  }
   if (options.runtime)
     runtime = oneOf("runtime", options.runtime, CREATE_RUNTIMES) as CreateRuntime;
   else if (extras.length > 0 && !starter) runtime = "docker";
   if (runtime === "local" && extras.length > 0 && !starter) {
-    throw new FliskError("--extras (queues, databases, workers) need the Docker runtime.", [
-      "Use --runtime docker, or leave --extras out to run on your computer.",
-    ]);
+    throw new FliskError(
+      "--database and --extras (queues, databases, workers) need the Docker runtime.",
+      ["Use --runtime docker, or leave --extras out to run on your computer."],
+    );
   }
 
   // 7. The name comes last and has a default, so a first run is arrows and Enter, never typing.
@@ -669,7 +684,7 @@ export const createCommand = addYesOption(new Command("create"))
   .description("Pick what you are building with a few key presses and get a project that runs")
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk create\n  flisk create my-app --yes --start\n  flisk create shop --frontend react --backend hono\n  flisk create api --runtime docker --extras worker,queue:nats\n  flisk create --dry-run",
+    "\nExamples:\n  flisk create\n  flisk create my-app --yes --start\n  flisk create shop --frontend react --backend hono\n  flisk create shop --frontend next --backend express --database postgres\n  flisk create api --runtime docker --extras worker,queue:nats\n  flisk create --dry-run",
   )
   .argument("[name]", "Project folder to create (default: my-app)")
   .option("--starter <name>", "A ready-made starter project (see flisk project --list)")
@@ -687,8 +702,12 @@ export const createCommand = addYesOption(new Command("create"))
   )
   .option("--language <id>", "API language (see flisk resource --help)")
   .option(
+    "--database <id>",
+    "Docker runtime: a database (see flisk resource --frameworks --type database), e.g. postgres, or none",
+  )
+  .option(
     "--extras <list>",
-    "Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none",
+    "Docker runtime: other parts, comma-separated (worker, queue:nats, database:redis…), or none",
   )
   .option("--dry-run", "Print the commands that would run, and stop", false)
   .option(

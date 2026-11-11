@@ -127,6 +127,32 @@ describe("collectAnswers without a terminal", () => {
     ).rejects.toThrow(/need the Docker runtime/);
   });
 
+  it("--database postgres is database:postgres, implies Docker, and merges with --extras", async () => {
+    const result = await collectAnswers("shop", { database: "postgres" }, false);
+    expect(result).toMatchObject({ runtime: "docker", extras: ["database:postgres"] });
+    const both = await collectAnswers(
+      "shop",
+      { database: "postgres", extras: "database:postgres,worker" },
+      false,
+    );
+    expect(both.extras).toEqual(["database:postgres", "worker"]);
+    const alias = await collectAnswers("shop", { extras: "database:postgres" }, false);
+    expect(alias.extras).toEqual(["database:postgres"]);
+  });
+
+  it("--database none adds nothing, an unknown id and --runtime local are refused", async () => {
+    expect((await collectAnswers("shop", { database: "none" }, false)).extras).toEqual([]);
+    await expect(collectAnswers("shop", { database: "oracle" }, false)).rejects.toThrow(
+      /Unknown --database/,
+    );
+    await expect(
+      collectAnswers("shop", { runtime: "local", database: "postgres" }, false),
+    ).rejects.toThrow(/need the Docker runtime/);
+    await expect(
+      collectAnswers("shop", { starter: starterCatalog()[0]?.id, database: "postgres" }, false),
+    ).rejects.toThrow(/--database cannot be combined/);
+  });
+
   it("a starter takes its own runtime: local only when the CLI writes it itself", async () => {
     const local = starterCatalog().find((s) => s.local);
     const docker = starterCatalog().find((s) => !s.local);
