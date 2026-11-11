@@ -972,4 +972,43 @@ describe("discoverServiceManifestPaths", () => {
 
     expect(discoverServiceManifestPaths(root)).toEqual([validManifest]);
   });
+
+  it("returns manifests in deterministic sorted order regardless of filesystem order", () => {
+    const root = makeTempDir("flisk-sorted-manifests-");
+    // create in reverse alphabetical order
+    for (const name of ["zeta", "mike", "bravo", "alpha"]) {
+      const dir = join(root, name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        join(dir, "service.json"),
+        JSON.stringify({ appName: name, appType: "backend" }),
+      );
+    }
+    const actual = discoverServiceManifestPaths(root);
+    expect(actual.map((p) => p.split(/[\\/]/).slice(-2, -1)[0])).toEqual([
+      "alpha",
+      "bravo",
+      "mike",
+      "zeta",
+    ]);
+  });
+
+  it("orders names by code unit, not by host locale (accented and canonically equivalent names)", () => {
+    const root = makeTempDir("flisk-codeunit-manifests-");
+    // NFC "é" (U+00E9) and NFD "e" + U+0301 are canonically equivalent; localeCompare treats
+    // them as equal, a code-unit compare keeps them apart and puts "é" after "z".
+    const names = ["zeta", "\u00e9clair", "fox", "e\u0301clair2", "alpha"];
+    for (const name of names) {
+      const dir = join(root, name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        join(dir, "service.json"),
+        JSON.stringify({ appName: "svc", appType: "backend" }),
+      );
+    }
+    const actual = discoverServiceManifestPaths(root).map((p) => p.split(/[\\/]/).slice(-2, -1)[0]);
+    expect(actual).toEqual([...actual].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
+    expect(actual.indexOf("alpha")).toBeLessThan(actual.indexOf("fox"));
+    expect(actual.indexOf("zeta")).toBeLessThan(actual.indexOf("\u00e9clair"));
+  });
 });
