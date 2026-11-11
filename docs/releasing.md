@@ -26,6 +26,8 @@ The ops checklist for cutting a Flisk CLI release, repairing one that only half 
 
 The version is picked by the workflow, not by a file: the highest of `package.json` and the latest npm version, plus one for every version already on npm or on `flisk-sh/releases`. `package.json` on `main` can lag; the workflow bumps it back through a PR.
 
+CI runs on two pinned Node versions, so a runner image update cannot change a result. Every job uses `22.12.0`, the lowest version `engines.node` in `cli/package.json` allows, except `release-candidate.yml`, `release-binaries.yml`, `publish-flisk-import.yml` and `publish-existing-npm-to-github-packages.yml`, which use `24.15.0`: the binaries are built and published on it (npm trusted publishing needs the npm 11 that Node 24 bundles), so the candidate tests on the same Node. To move either, change every `node-version:` with that value under `.github/` and the matching `EXPECTED` entries in `scripts/scores/action-consistency.mjs`.
+
 ## The pipeline at a glance
 
 `release-binaries.yml` runs on a push to `main` that touches `package.json` or `cli/package.json`, or on `workflow_dispatch`.

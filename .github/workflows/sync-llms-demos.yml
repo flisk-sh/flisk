@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 22
+          node-version: 22.12.0
       - run: node scripts/sync-llms-demos.mjs
       - name: Open a pull request when the text changed
         # Context values go through env, never into the script text (template injection).

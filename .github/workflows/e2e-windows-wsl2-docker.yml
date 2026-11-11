@@ -95,7 +95,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 22
+          node-version: 22.12.0
 
       - name: Install dependencies (cli/dist imports them)
         # Same flags as e2e-platforms.yml: the repo has no package-lock.json, and vitest 5.1.0 needs --legacy-peer-deps on npm 10.9.9.
