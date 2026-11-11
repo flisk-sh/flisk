@@ -109,6 +109,7 @@ jobs:
         id: push
         env:
           FLISK_IMAGE_CACHE_SCOPE: cli-image
+          FLISK_IMAGE_CACHE_IMPORT: cli-image-preflight
           ASSETS: ${{ steps.release.outputs.dir }}
           LATEST: ${{ steps.release.outputs.latest }}
           REGISTRIES: ${{ steps.registries.outputs.list }}

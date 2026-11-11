@@ -53,7 +53,12 @@ output=(--push --platform linux/amd64,linux/arm64
 [ "$load" = false ] || output=(--load)
 cache=()
 if [ -n "${FLISK_IMAGE_CACHE_SCOPE:-}" ]; then
-  cache=(--cache-from "type=gha,scope=$FLISK_IMAGE_CACHE_SCOPE" --cache-to "type=gha,scope=$FLISK_IMAGE_CACHE_SCOPE,mode=max")
+  # FLISK_IMAGE_CACHE_IMPORT lists more scopes to read from (never written), so the amd64-only pre-flight and the two-platform push
+  # each write their own scope: a pre-flight export into the push's scope would replace its arm64 records.
+  cache=(--cache-from "type=gha,scope=$FLISK_IMAGE_CACHE_SCOPE")
+  for scope in ${FLISK_IMAGE_CACHE_IMPORT:-}; do cache+=(--cache-from "type=gha,scope=$scope"); done
+  # ignore-error: a cache outage must not fail a build whose image is already pushed (it would skip signing and the smoke test).
+  cache+=(--cache-to "type=gha,scope=$FLISK_IMAGE_CACHE_SCOPE,mode=max,ignore-error=true")
 fi
 metadata="$context/metadata.json"
 echo "building flisk $version -> ${tags[*]}"

@@ -223,7 +223,8 @@ jobs:
       - name: Build the image into the local Docker (the publish job's build, without the push)
         env:
           VERSION: ${{ needs.build.outputs.version }}
-          FLISK_IMAGE_CACHE_SCOPE: cli-image
+          FLISK_IMAGE_CACHE_SCOPE: cli-image-preflight
+          FLISK_IMAGE_CACHE_IMPORT: cli-image
         run: bash scripts/release/push-flisk-image.sh release-dist "$VERSION" --load
 
       - name: Run tests/e2e/platforms/container-image CI1 CI2 CI3 on it
