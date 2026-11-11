@@ -2,6 +2,7 @@ import { Command } from "commander";
 import type { CheckResult } from "../types/index.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
+import { type DockerRun } from "../utils/doctor-crashloop.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { type ExecAsync } from "../utils/exec-async.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
@@ -89,6 +90,7 @@ export declare function checkFrontendDockerPreflight(): CheckResult;
  * *why* -- only live resource stats catch this pattern before it's mistaken
  * for a slow migration or a flaky healthcheck.
  */
+export declare function checkContainerResourceHealthFor(projectName: string, run?: DockerRun): Promise<CheckResult>;
 export declare const checkContainerResourceHealth: DoctorCheckFn;
 /**
  * Pings every routable service on the same /health URLs `flisk up` advertises.

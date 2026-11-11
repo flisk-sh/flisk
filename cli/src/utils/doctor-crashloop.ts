@@ -18,7 +18,7 @@ const LOG_LINE_MAX = 200;
 /** Runs `docker` with args; resolves with stdout and stderr joined (logs write to both). */
 export type DockerRun = (args: string[]) => Promise<string>;
 
-const runDocker: DockerRun = async (args) => {
+export const runDocker: DockerRun = async (args) => {
   const { stdout, stderr } = await execFilePromise("docker", args, {
     encoding: "utf-8",
     timeout: DOCKER_TIMEOUT_MS,
