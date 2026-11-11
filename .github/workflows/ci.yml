@@ -162,7 +162,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: node scripts/check-published-service-schema.mjs
 
-  # Spell check, docs checks and the secret scan share one runner (#3892). The first two run on docs-only PRs too: links and
+  # Spell check, docs checks, the DCO sign-off check and the secret scan share one runner (#3892). The first two run on docs-only PRs too: links and
   # anchors (D3), the tab bars drawn from docs/tabs.json (D4), the fit calculator pages (D5), the Flisk plugin files from
   # scripts/agent-plugin.mjs (D6).
   quick-checks:
@@ -185,6 +185,27 @@ jobs:
         run: bash tests/e2e/static/skills-and-docs.sh
       - if: ${{ !cancelled() }}
         run: node --test scripts/docs/tabs.test.mjs scripts/docs/fit.test.mjs scripts/docs/llms-demo-links.test.mjs scripts/sync-llms-demos.test.mjs scripts/agent-plugin.test.mjs scripts/contributor-merged.test.mjs
+      # Every non-merge commit in a pull request must carry a Signed-off-by line (DCO, see CONTRIBUTING.md). Bot-authored
+      # commits are exempt. This was its own workflow (dco.yml) that used a runner for 8 s of work (#3894).
+      - name: DCO sign-off
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          failed=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            author=$(git log -1 --format='%an' "$sha")
+            case "$author" in *"[bot]") continue ;; esac
+            if ! git log -1 --format='%B' "$sha" | grep -qE '^Signed-off-by: .+ <.+>$'; then
+              echo "::error::Commit $sha is missing a Signed-off-by line"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "Add a sign-off with: git commit --amend -s (or git rebase --signoff $BASE_SHA)"
+            exit 1
+          fi
       - uses: trufflesecurity/trufflehog@31ce31ee1abbcc7dc8eee5764c17121c3044c8b2 # v3.99.7
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         with:
