@@ -297,9 +297,7 @@ export const downCommand = addYesOption(new Command("down"))
                 ok: true,
                 stoppedTilt: [],
                 idle: true,
-                ...(leftover
-                    ? { removedNetworks: leftover.removed, keptNetworks: leftover.kept }
-                    : {}),
+                ...(leftover ? { removedNetworks: leftover.removed, keptNetworks: leftover.kept } : {}),
             });
             return;
         }
