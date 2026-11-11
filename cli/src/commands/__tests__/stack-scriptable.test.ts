@@ -208,4 +208,113 @@ describe("flisk stack command scriptability", () => {
     expect(result.status).toBe(0);
     expect(result.stdout + result.stderr).toContain("api");
   });
+
+  it("moves named resources and reports the resulting stack counts", () => {
+    const root = createProject();
+    const api = addResource(root, "api", "legacy");
+    addResource(root, "worker", "legacy");
+    addResource(root, "web", "backend");
+    addResource(root, "fresh");
+    const result = runFlisk(root, [
+      "stack",
+      "backend",
+      "--move",
+      "--resources",
+      "api,fresh",
+      "web",
+      "api",
+      "--json",
+    ]);
+    expect(result.status).toBe(0);
+    expect(JSON.parse(fs.readFileSync(api, "utf8")).stack).toBe("backend");
+    expect(JSON.parse(result.stdout).data).toMatchObject({
+      stacks: [
+        { name: "backend", resourceCount: 3 },
+        { name: "legacy", resourceCount: 1 },
+      ],
+      unassigned: [],
+      stack: "backend",
+      assigned: [{ name: "api" }, { name: "fresh" }, { name: "web" }],
+    });
+    const listed = runFlisk(root, ["stack", "--list", "--json"]);
+    expect(JSON.parse(result.stdout).data.stacks).toEqual(JSON.parse(listed.stdout).data.stacks);
+  });
+
+  it("removes assignments without deleting resources or their other settings", () => {
+    const root = createProject();
+    const api = addResource(root, "api", "legacy");
+    const fresh = addResource(root, "fresh");
+    const before = JSON.parse(fs.readFileSync(api, "utf8"));
+    const result = runFlisk(root, ["stack", "--remove", "--resources", "api,fresh", "--json"]);
+    expect(result.status).toBe(0);
+    delete before.stack;
+    expect(JSON.parse(fs.readFileSync(api, "utf8"))).toEqual(before);
+    expect(JSON.parse(fs.readFileSync(fresh, "utf8"))).not.toHaveProperty("stack");
+    const data = JSON.parse(result.stdout).data;
+    expect(data).toMatchObject({
+      stacks: [],
+      stack: null,
+      assigned: [],
+      removed: [{ name: "api" }, { name: "fresh" }],
+      unassigned: [{ name: "api" }, { name: "fresh" }],
+    });
+    const listed = JSON.parse(runFlisk(root, ["stack", "--list", "--json"]).stdout).data;
+    expect(data.stacks).toEqual(listed.stacks);
+    expect(data.unassigned).toEqual(listed.unassigned);
+    const repeated = runFlisk(root, ["stack", "--remove", "--resources", "api", "--yes"]);
+    expect(repeated.status).toBe(0);
+    expect(repeated.stdout + repeated.stderr).not.toContain("flisk up");
+  });
+
+  it.each(["--move", "--remove"])("validates all names before %s writes anything", (flag) => {
+    const root = createProject();
+    const api = addResource(root, "api", "legacy");
+    const args = flag === "--move" ? ["stack", "backend"] : ["stack"];
+    const result = runFlisk(root, [...args, flag, "--resources", "api", "missing", "--json"]);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).errors[0].message).toContain('Resource "missing" not found');
+    expect(JSON.parse(fs.readFileSync(api, "utf8")).stack).toBe("legacy");
+  });
+
+  it.each([
+    {
+      args: ["--move", "--remove", "--resources", "api", "--yes"],
+      error: "cannot be used together",
+    },
+    {
+      args: ["--list", "--move", "--resources", "api", "--yes"],
+      error: "--list cannot be combined",
+    },
+    {
+      args: ["--list", "--remove", "--resources", "api", "--yes"],
+      error: "--list cannot be combined",
+    },
+    {
+      args: ["backend", "--remove", "--resources", "api", "--yes"],
+      error: "does not take a stack name",
+    },
+    { args: ["backend", "--move", "--yes"], error: "require --resources" },
+    { args: ["--remove", "--yes"], error: "require --resources" },
+    { args: ["--move", "--resources", "api", "--yes"], error: "A stack name is required" },
+    { args: ["backend", "--move", "--resources", "api"], error: "Confirmation requires a TTY" },
+    { args: ["--remove", "--resources", "api"], error: "Confirmation requires a TTY" },
+  ])("rejects invalid or unconfirmed mutation arguments: $args", ({ args, error }) => {
+    const root = createProject();
+    const api = addResource(root, "api", "legacy");
+    const result = runFlisk(root, ["stack", ...args]);
+    expect(result.status).toBe(1);
+    expect(result.stdout + result.stderr).toContain(error);
+    expect(JSON.parse(fs.readFileSync(api, "utf8")).stack).toBe("legacy");
+  });
+
+  it("moves the last resource to a new stack without leaving an empty old stack in the report", () => {
+    const root = createProject();
+    addResource(root, "api", "legacy");
+    const result = runFlisk(root, ["stack", "new-stack", "--move", "--resources", "api", "--yes"]);
+    expect(result.status).toBe(0);
+    const listed = runFlisk(root, ["stack", "--list", "--json"]);
+    expect(JSON.parse(listed.stdout).data.stacks).toEqual([
+      { name: "new-stack", resourceCount: 1 },
+    ]);
+  });
 });

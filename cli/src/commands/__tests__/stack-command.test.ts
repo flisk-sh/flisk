@@ -55,6 +55,8 @@ describe("stackCommand", () => {
     Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
     stackCommand.setOptionValue("resources", undefined);
     stackCommand.setOptionValue("list", false);
+    stackCommand.setOptionValue("move", false);
+    stackCommand.setOptionValue("remove", false);
     stackCommand.setOptionValue("json", false);
     stackCommand.setOptionValue("yes", false);
     stackCommand.setOptionValue("ignoreVersion", false);
@@ -378,7 +380,7 @@ describe("stackCommand", () => {
 
     expect(exit).toHaveBeenCalledWith(1);
     const errOutput = errorSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(errOutput).toContain("Cannot assign resources while duplicate names are present.");
+    expect(errOutput).toContain("Cannot update resources while duplicate names are present.");
   });
 
   it("rejects assigning a resource that already belongs to a stack", async () => {
@@ -443,5 +445,24 @@ describe("stackCommand", () => {
     expect(logSpy.mock.calls.map((c) => c.join(" ")).join("\n")).toContain(
       "No resources selected. Exiting.",
     );
+  });
+
+  it.each([
+    { flag: "--move", confirmed: false },
+    { flag: "--move", confirmed: true },
+    { flag: "--remove", confirmed: false },
+    { flag: "--remove", confirmed: true },
+  ])("honors TTY confirmation for $flag: $confirmed", async ({ flag, confirmed }) => {
+    const paths = setupProject([{ name: "users-api", stack: "legacy" }]);
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const confirmSpy = vi.spyOn(commandHelpers, "confirmOrCancel").mockResolvedValue(confirmed);
+    const promptSpy = vi.spyOn(promptUtils, "promptText");
+    const args = flag === "--move" ? ["backend", flag] : [flag];
+    await stackCommand.parseAsync([...args, "--resources", "users-api"], { from: "user" });
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(promptSpy).not.toHaveBeenCalled();
+    const expectedStack = confirmed ? (flag === "--move" ? "backend" : undefined) : "legacy";
+    expect(JSON.parse(readFileSync(paths["main/users-api"], "utf8")).stack).toBe(expectedStack);
   });
 });

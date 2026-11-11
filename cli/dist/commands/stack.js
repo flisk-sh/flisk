@@ -36,10 +36,12 @@ export const stackCommand = addYesOption(new Command("stack"))
     .description("Organize resources into stacks (groups)")
     .argument("[stack-name]", "Stack name to assign to resources")
     .option("--list", "List resources without a stack", false)
-    .option("--resources <names...>", "Resource names to add (comma- or space-separated)")
+    .option("--resources <names...>", "Resource names to update (comma- or space-separated)")
+    .option("--move", "Allow moving named resources from another stack", false)
+    .option("--remove", "Remove the stack field from named resources", false)
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
-    .option("--json", "Print one JSON envelope on stdout; implies --yes and needs --list or <stack-name> --resources", false)
-    .addHelpText("after", "\nExamples:\n  flisk stack --list\n  flisk stack shop --resources orders-api web")
+    .option("--json", "Print one JSON envelope on stdout; implies --yes and needs --list, <stack-name> --resources, or --remove --resources", false)
+    .addHelpText("after", "\nExamples:\n  flisk stack --list\n  flisk stack shop --resources orders-api web\n  flisk stack shop --move --resources orders-api --yes\n  flisk stack --remove --resources orders-api --yes")
     .action(async (stackName, options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
@@ -50,24 +52,44 @@ export const stackCommand = addYesOption(new Command("stack"))
             json: options.json,
         });
         showCommandHeader("Stack Management");
+        if (options.move && options.remove) {
+            throw new FliskError("--move and --remove cannot be used together.");
+        }
+        if (options.list && (options.move || options.remove)) {
+            throw new FliskError("--list cannot be combined with --move or --remove.");
+        }
+        if (options.remove && stackName) {
+            throw new FliskError("--remove does not take a stack name.", [
+                "Use: flisk stack --remove --resources <name...> --yes",
+            ]);
+        }
+        if ((options.move || options.remove) && options.resources === undefined) {
+            throw new FliskError("--move and --remove require --resources <name...>.");
+        }
         const discovery = createDiscoveryContext();
-        // The stacks and unassigned resources after this run: an assignment moves resources out of `unassigned`.
-        const report = (assigned = [], stack = options.list ? null : (stackName ?? null)) => {
-            const counts = new Map(discovery.stackNames.map((name) => [
-                name,
-                discovery.resourcesByStack.get(name)?.length ?? 0,
-            ]));
-            if (stack && assigned.length > 0)
-                counts.set(stack, (counts.get(stack) ?? 0) + assigned.length);
-            const moved = new Set(assigned.map((resource) => resource.configPath));
+        const report = (updated = [], stack = options.list || options.remove ? null : (stackName ?? null)) => {
+            const changedPaths = new Set(updated.map((resource) => resource.configPath));
+            const counts = new Map();
+            const unassigned = [];
+            for (const resource of discovery.resources) {
+                const currentStack = changedPaths.has(resource.configPath) ? stack : resource.stack;
+                if (currentStack) {
+                    counts.set(currentStack, (counts.get(currentStack) ?? 0) + 1);
+                }
+                else {
+                    unassigned.push({ name: resource.name, configPath: resource.configPath });
+                }
+            }
             return {
                 data: {
-                    stacks: [...counts].map(([name, resourceCount]) => ({ name, resourceCount })),
-                    unassigned: discovery.unassignedResources
-                        .filter((resource) => !moved.has(resource.configPath))
-                        .map(({ name, configPath }) => ({ name, configPath })),
+                    stacks: [...counts.keys()].sort().map((name) => ({
+                        name,
+                        resourceCount: counts.get(name) ?? 0,
+                    })),
+                    unassigned,
                     stack,
-                    assigned,
+                    assigned: options.remove ? [] : updated,
+                    ...(options.remove ? { removed: updated } : {}),
                 },
             };
         };
@@ -104,21 +126,21 @@ export const stackCommand = addYesOption(new Command("stack"))
                     "Use --list to inspect unassigned resources without changing them.",
                 ]);
             }
-            if (!stackName) {
+            if (!stackName && !options.remove) {
                 throw new FliskError("A stack name is required when stdin is not a TTY.", [
                     "Use: flisk stack <stack-name> --resources <name...> [--yes]",
                 ]);
             }
             if (!options.yes && !options.json) {
                 throw new FliskError("Confirmation requires a TTY.", [
-                    "Pass --yes to skip confirmation when assigning resources without a TTY.",
+                    "Pass --yes to skip confirmation when updating resources without a TTY.",
                 ]);
             }
         }
         if (stackName)
             assertValid(validateStackName(stackName));
-        let targetStack = stackName;
-        if (!targetStack) {
+        let targetStack = options.remove ? null : stackName;
+        if (!targetStack && !options.remove) {
             const name = await promptText({
                 message: "Stack name (kebab-case recommended):",
                 validate: (input) => {
@@ -145,7 +167,7 @@ export const stackCommand = addYesOption(new Command("stack"))
             }
             const duplicates = [...configPathsByName].filter(([, configPaths]) => configPaths.length > 1);
             if (duplicates.length > 0) {
-                throw new FliskError("Cannot assign resources while duplicate names are present.", duplicates.map(([name, configPaths]) => `Duplicate "${name}" found in ${configPaths.join(" and ")}`));
+                throw new FliskError("Cannot update resources while duplicate names are present.", duplicates.map(([name, configPaths]) => `Duplicate "${name}" found in ${configPaths.join(" and ")}`));
             }
             const validNames = [...configPathsByName.keys()].sort();
             const resourceByName = new Map(discovery.resources.map((resource) => [resource.name, resource]));
@@ -156,8 +178,8 @@ export const stackCommand = addYesOption(new Command("stack"))
                     error.suggestions.unshift(`Valid resources: ${validNames.join(", ")}`);
                     throw error;
                 }
-                if (resource.stack) {
-                    throw new FliskError(`Resource "${name}" is already assigned to stack "${resource.stack}".`, ["Run `flisk resources` to review current assignments."]);
+                if (resource.stack && !options.move && !options.remove) {
+                    throw new FliskError(`Resource "${name}" is already assigned to stack "${resource.stack}".`, ["Pass --move to move it, or --remove to clear its stack assignment."]);
                 }
                 selectedResources.push(resource.configPath);
             }
@@ -185,7 +207,9 @@ export const stackCommand = addYesOption(new Command("stack"))
             }
             selectedResources.push(...promptedResources);
         }
-        showDetail(`\nWill add "stack": "${targetStack}" to ${formatCount(selectedResources.length, "resource")}.`, 0);
+        showDetail(options.remove
+            ? `\nWill remove the stack field from ${formatCount(selectedResources.length, "resource")}.`
+            : `\nWill set "stack": "${targetStack}" on ${formatCount(selectedResources.length, "resource")}.`, 0);
         const confirmed = options.yes || options.json || (await confirmOrCancel("Proceed?"));
         if (!confirmed)
             return report([], targetStack);
@@ -196,7 +220,10 @@ export const stackCommand = addYesOption(new Command("stack"))
         for (const configPath of selectedResources) {
             const content = readFileSync(configPath, "utf-8");
             const config = parseStackResourceConfig(content, configPath);
-            config.stack = targetStack;
+            if (options.remove)
+                delete config.stack;
+            else
+                config.stack = targetStack;
             writeJsonFile(configPath, config);
             assigned.push({
                 name: nameByConfigPath.get(configPath) ?? config.appName ?? configPath,
@@ -206,7 +233,8 @@ export const stackCommand = addYesOption(new Command("stack"))
         }
         console.log();
         showSuccess(`Updated ${formatCount(assigned.length, "resource")}.`);
-        showDetail(`\nYou can now run: flisk up ${targetStack}`, 0);
+        if (!options.remove)
+            showDetail(`\nYou can now run: flisk up ${targetStack}`, 0);
         return report(assigned, targetStack);
     };
     if (options.json) {

@@ -8,7 +8,7 @@ export declare function parseStackResourceConfig(content: string, configPath: st
 export declare function normalizeResourceNames(names: string[]): string[];
 /**
  * What `flisk stack --json` reports: the stacks with their resource counts and the resources without a stack, both as
- * they are after the run, plus the stack this run assigned to (null for --list) and the resources it assigned.
+ * they are after the run, plus the target stack (null for --list/--remove) and the resources assigned or removed.
  */
 export interface StackReport {
     stacks: {
@@ -21,6 +21,10 @@ export interface StackReport {
     }[];
     stack: string | null;
     assigned: {
+        name: string;
+        configPath: string;
+    }[];
+    removed?: {
         name: string;
         configPath: string;
     }[];
