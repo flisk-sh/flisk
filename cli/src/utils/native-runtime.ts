@@ -33,8 +33,8 @@ import {
   removeNativeContainers,
 } from "./native-container.js";
 import { commandProgram } from "./native-service.js";
-import { createEnvRedactor } from "./secret-redaction.js";
 import { findProjectRoot } from "./paths.js";
+import { createEnvRedactor } from "./secret-redaction.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -1002,7 +1002,10 @@ export class NativeSupervisor {
       } catch {
         // An unreadable env file must not turn a secret-scrubbing failure into a leak.
         if (!redactionWarningShown) {
-          this.events.onNote?.(name, "output withheld: env secrets could not be read for redaction");
+          this.events.onNote?.(
+            name,
+            "output withheld: env secrets could not be read for redaction",
+          );
           redactionWarningShown = true;
         }
         return;
