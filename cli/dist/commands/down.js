@@ -118,7 +118,8 @@ function pruneNetworksOrWarn(json) {
 /** What `--prune-networks` would remove and keep, for `--dry-run`; undefined when the networks cannot be checked. */
 function planNetworkPruneOrWarn(projectRoot, json) {
     try {
-        return planProjectNetworkPrune(readProjectConfig(projectRoot).project.name);
+        // `down` stops this project's stacks before it prunes, so their containers do not keep a network.
+        return planProjectNetworkPrune(readProjectConfig(projectRoot).project.name, undefined, projectComposeProjects(projectRoot));
     }
     catch (err) {
         if (!json) {

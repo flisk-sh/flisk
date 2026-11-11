@@ -150,7 +150,12 @@ function planNetworkPruneOrWarn(
   json: boolean,
 ): ReturnType<typeof planProjectNetworkPrune> | undefined {
   try {
-    return planProjectNetworkPrune(readProjectConfig(projectRoot).project.name);
+    // `down` stops this project's stacks before it prunes, so their containers do not keep a network.
+    return planProjectNetworkPrune(
+      readProjectConfig(projectRoot).project.name,
+      undefined,
+      projectComposeProjects(projectRoot),
+    );
   } catch (err) {
     if (!json) {
       console.log(chalk.yellow(`Could not check networks: ${(err as Error).message}`));

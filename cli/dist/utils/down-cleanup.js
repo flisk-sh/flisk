@@ -73,36 +73,45 @@ export function pruneProjectNetworks(projectName, commandRunner = run) {
 }
 /**
  * What {@link pruneProjectNetworks} would do, without removing anything: the same exact project network names, each
- * checked with `docker network inspect` for attached containers (the reason `docker network rm` refuses one).
+ * checked with `docker ps --filter network=<name>` for running attached containers (the reason `docker network rm`
+ * refuses one). `down` stops before it prunes, so containers of the compose projects in `stoppedByDown` (this project's
+ * stacks, from {@link projectComposeProjects}) do not count: they will be gone by the time the network is removed.
  */
-export function planProjectNetworkPrune(projectName, commandRunner = run) {
+export function planProjectNetworkPrune(projectName, commandRunner = run, stoppedByDown = []) {
     const existing = new Set(commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"])
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean));
+    const stopped = new Set(stoppedByDown);
     const plan = { remove: [], keep: [] };
     for (const name of projectNetworkNames(projectName)) {
         if (!existing.has(name))
             continue;
-        let attached;
+        let composeProjects;
         try {
-            attached = Number.parseInt(commandRunner("docker", [
-                "network",
-                "inspect",
+            composeProjects = commandRunner("docker", [
+                "ps",
+                "--filter",
+                `network=${name}`,
                 "--format",
-                "{{len .Containers}}",
-                name,
-            ]).trim(), 10);
+                // The `c:` prefix keeps a line for a container without a compose label (an empty label is not "no container").
+                'c:{{.Label "com.docker.compose.project"}}',
+            ])
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter((line) => line.startsWith("c:"))
+                .map((line) => line.slice(2));
         }
         catch (err) {
             const stderr = String(err.stderr ?? err).trim();
             plan.keep.push({ name, reason: stderr.split(/\r?\n/)[0] ?? "" });
             continue;
         }
-        if (attached > 0) {
+        const remaining = composeProjects.filter((project) => !project || !stopped.has(project)).length;
+        if (remaining > 0) {
             plan.keep.push({
                 name,
-                reason: `${attached} container${attached === 1 ? " is" : "s are"} attached`,
+                reason: `${remaining} container${remaining === 1 ? " is" : "s are"} attached`,
             });
         }
         else {

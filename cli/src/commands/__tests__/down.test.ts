@@ -699,7 +699,10 @@ describe("flisk down", () => {
           from: "node",
         });
 
-        expect(planProjectNetworkPruneMock).toHaveBeenCalledWith("test-project");
+        // The stacks down stops first are passed, so their containers do not keep a network (#3875).
+        expect(planProjectNetworkPruneMock).toHaveBeenCalledWith("test-project", undefined, [
+          "demo-traefik",
+        ]);
         expect(pruneProjectNetworksMock).not.toHaveBeenCalled();
         expect(runTiltMock).not.toHaveBeenCalled();
         const output = log.mock.calls.map((call) => call.join(" ")).join("\n");

@@ -362,11 +362,12 @@ describe("planProjectNetworkPrune", () => {
       calls.push(args);
       if (args[1] === "ls")
         return "bridge\r\nshop_backend\r\nshop_database\r\nother_backend\r\nshop_proxy\n";
-      if (args[1] === "inspect") {
-        const name = args[args.length - 1];
-        if (name === "shop_database") return "2\n";
-        if (name === "shop_proxy") return "1\n";
-        return "0\n";
+      if (args[0] === "ps") {
+        const network = args[args.indexOf("--filter") + 1];
+        // An unlabelled container prints just the prefix.
+        if (network === "network=shop_database") return "c:pgadmin\r\nc:\n";
+        if (network === "network=shop_proxy") return "c:other\n";
+        return "";
       }
       throw new Error(`unexpected docker ${args.join(" ")}`);
     });
@@ -377,9 +378,30 @@ describe("planProjectNetworkPrune", () => {
       { name: "shop_proxy", reason: "1 container is attached" },
     ]);
     expect(calls.some((a) => a[1] === "rm")).toBe(false);
-    const inspected = calls.filter((a) => a[1] === "inspect").map((a) => a[a.length - 1]);
-    expect(inspected).not.toContain("other_backend");
-    expect(inspected).not.toContain("bridge");
+    const checked = calls.filter((a) => a[0] === "ps").map((a) => a[a.indexOf("--filter") + 1]);
+    expect(checked).not.toContain("network=other_backend");
+    expect(checked).not.toContain("network=bridge");
+  });
+
+  it("does not count containers of the stacks down stops first (#3875)", () => {
+    const runner = vi.fn((_cmd: string, args: string[]) => {
+      if (args[1] === "ls") return "shop_backend\nshop_database\nshop_proxy\n";
+      const network = args[args.indexOf("--filter") + 1];
+      // Only this project's stacks are attached: down removes them, so the network goes too.
+      if (network === "network=shop_backend") return "c:shop_api\nc:shop_web\n";
+      // A container of another compose project stays attached after down.
+      if (network === "network=shop_database") return "c:shop_api\nc:pgadmin\n";
+      // So does a container that is not part of any compose project.
+      if (network === "network=shop_proxy") return "c:\n";
+      return "";
+    });
+    expect(planProjectNetworkPrune("shop", runner, ["shop_api", "shop_web"])).toEqual({
+      remove: ["shop_backend"],
+      keep: [
+        { name: "shop_database", reason: "1 container is attached" },
+        { name: "shop_proxy", reason: "1 container is attached" },
+      ],
+    });
   });
 
   it("keeps a network Docker cannot inspect, with the first stderr line as the reason", () => {

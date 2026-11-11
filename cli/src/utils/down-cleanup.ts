@@ -89,19 +89,22 @@ export function pruneProjectNetworks(
 }
 
 export interface PruneNetworksPlan {
-  /** Networks `--prune-networks` would remove: they exist and no container is attached. */
+  /** Networks `--prune-networks` would remove: they exist and no container outside the stopped stacks is attached. */
   remove: string[];
-  /** Networks it would leave in place, with the reason (a container is attached, or Docker could not inspect it). */
+  /** Networks it would leave in place, with the reason (another container is attached, or Docker could not list them). */
   keep: { name: string; reason: string }[];
 }
 
 /**
  * What {@link pruneProjectNetworks} would do, without removing anything: the same exact project network names, each
- * checked with `docker network inspect` for attached containers (the reason `docker network rm` refuses one).
+ * checked with `docker ps --filter network=<name>` for running attached containers (the reason `docker network rm`
+ * refuses one). `down` stops before it prunes, so containers of the compose projects in `stoppedByDown` (this project's
+ * stacks, from {@link projectComposeProjects}) do not count: they will be gone by the time the network is removed.
  */
 export function planProjectNetworkPrune(
   projectName: string,
   commandRunner: CommandRunner = run,
+  stoppedByDown: readonly string[] = [],
 ): PruneNetworksPlan {
   const existing = new Set(
     commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"])
@@ -109,30 +112,34 @@ export function planProjectNetworkPrune(
       .map((line) => line.trim())
       .filter(Boolean),
   );
+  const stopped = new Set(stoppedByDown);
   const plan: PruneNetworksPlan = { remove: [], keep: [] };
   for (const name of projectNetworkNames(projectName)) {
     if (!existing.has(name)) continue;
-    let attached: number;
+    let composeProjects: string[];
     try {
-      attached = Number.parseInt(
-        commandRunner("docker", [
-          "network",
-          "inspect",
-          "--format",
-          "{{len .Containers}}",
-          name,
-        ]).trim(),
-        10,
-      );
+      composeProjects = commandRunner("docker", [
+        "ps",
+        "--filter",
+        `network=${name}`,
+        "--format",
+        // The `c:` prefix keeps a line for a container without a compose label (an empty label is not "no container").
+        'c:{{.Label "com.docker.compose.project"}}',
+      ])
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("c:"))
+        .map((line) => line.slice(2));
     } catch (err) {
       const stderr = String((err as { stderr?: Buffer | string }).stderr ?? err).trim();
       plan.keep.push({ name, reason: stderr.split(/\r?\n/)[0] ?? "" });
       continue;
     }
-    if (attached > 0) {
+    const remaining = composeProjects.filter((project) => !project || !stopped.has(project)).length;
+    if (remaining > 0) {
       plan.keep.push({
         name,
-        reason: `${attached} container${attached === 1 ? " is" : "s are"} attached`,
+        reason: `${remaining} container${remaining === 1 ? " is" : "s are"} attached`,
       });
     } else {
       plan.remove.push(name);
