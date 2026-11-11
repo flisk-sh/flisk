@@ -39,6 +39,33 @@ export function envSecretValues(
   return [...new Set(values)].sort((a, b) => b.length - a.length);
 }
 
+/** Smallest line of a multiline secret that is masked on its own; ordinary 1-3 letter words stay readable. */
+const MIN_REDACTED_LINE_LENGTH = 4;
+
+/**
+ * Process output is split into lines before redaction, so the lines of a multiline value (a PEM key written with \\n in
+ * double quotes, or spread over several physical lines) must be masked line by line, not only as a whole. Lines of a value
+ * that is already long enough to be a secret may be shorter than the minimum.
+ */
+function lineParts(value: string): string[] {
+  return value
+    .split(/\r\n|\r|\n/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= MIN_REDACTED_LINE_LENGTH);
+}
+
+/** Quoted values that span physical lines; parseEnv reads the file line by line and misses them. */
+function physicalMultilineValues(content: string): string[] {
+  const pattern =
+    /^[ \t]*(?:export[ \t]+)?[A-Za-z_][A-Za-z0-9_]*[ \t]*=[ \t]*("(?:[^"\\]|\\.)*"|'[^']*')/gm;
+  const found: string[] = [];
+  for (const match of content.matchAll(pattern)) {
+    const body = match[1].slice(1, -1);
+    if (/[\r\n]/.test(body)) found.push(body);
+  }
+  return found;
+}
+
 /** The values of one env file, long enough to be worth masking. Throws when the file cannot be read. */
 function secretValuesOf(envPath: string): string[] {
   if (!existsSync(envPath)) return [];
@@ -50,9 +77,12 @@ function secretValuesOf(envPath: string): string[] {
       `Check that ${envPath} is a readable file`,
     ]);
   }
-  return [...parseEnv(content).values()].filter(
-    (value) => value.length >= MIN_REDACTED_VALUE_LENGTH,
-  );
+  const values = [...parseEnv(content).values(), ...physicalMultilineValues(content)];
+  return values.flatMap((value) => {
+    if (value.length < MIN_REDACTED_VALUE_LENGTH) return [];
+    const parts = lineParts(value);
+    return parts.length > 1 ? [value, ...parts] : [value];
+  });
 }
 
 export function redactSecrets(text: string, secrets: readonly string[]): string {

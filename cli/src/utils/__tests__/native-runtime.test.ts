@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -312,6 +312,49 @@ writeFileSync("out.txt", process.env.GREETING + "|" + process.env.OTHER);`,
 });
 
 describe("native supervisor", () => {
+  it("redacts default and selected env secrets before terminal output and private log writes", async () => {
+    const root = createTempDir();
+    const jwt = "NATIVE_JWT_SECRET_DO_NOT_LOG_12345";
+    const password = "NATIVE_DB_PASSWORD_DO_NOT_LOG_67890";
+    const extraEnvPath = join(root, ".env.integration");
+    writeFileSync(join(root, ".env"), `JWT_SECRET=${jwt}\n`);
+    writeFileSync(extraEnvPath, `DB_PASSWORD=${password}\n`);
+    writeFileSync(
+      join(root, "leaker.mjs"),
+      "console.log(`jwt=${process.env.JWT_SECRET} db=${process.env.DB_PASSWORD}`);\n",
+    );
+    const logPath = nativeLogPath(root, "leaker");
+    mkdirSync(join(root, ".flisk", "native", "logs"), { recursive: true, mode: 0o755 });
+    writeFileSync(logPath, "previous benign log\n", { mode: 0o644 });
+
+    const vars = { JWT_SECRET: jwt, DB_PASSWORD: password };
+    const plan = planNativeRun(
+      [nativeService(root, "leaker", { appType: "migrator", command: `${NODE} leaker.mjs` })],
+      vars,
+      root,
+    );
+    const lines: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onLine: (_name, line) => lines.push(line) },
+      { baseEnv: vars, extraEnvPaths: [extraEnvPath] },
+    );
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+    await waitFor(() => lines.length > 0);
+
+    const stored = readFileSync(logPath, "utf-8");
+    expect(lines).toContain("jwt=[REDACTED] db=[REDACTED]");
+    expect(stored).toContain("jwt=[REDACTED] db=[REDACTED]");
+    expect(stored).not.toContain(jwt);
+    expect(stored).not.toContain(password);
+    if (process.platform !== "win32") {
+      expect(statSync(logPath).mode & 0o777).toBe(0o600);
+      expect(statSync(join(root, ".flisk", "native", "logs")).mode & 0o777).toBe(0o700);
+    }
+  });
+
   it("starts a service only after its dependency answers, and serves both", async () => {
     const root = createTempDir();
     const apiDir = join(root, "api");

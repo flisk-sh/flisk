@@ -168,6 +168,42 @@ describe("createEnvRedactor", () => {
   });
 });
 
+describe("multiline secret values", () => {
+  it("redacts each line of a multiline value, since output is split by line before redaction", () => {
+    const first = "-----BEGIN EXAMPLE BLOCK-----";
+    const second = "MIIEvQIBADANBgkqhkiG9w0BAQEF";
+    const root = projectWithEnv(`KEY="${first}\\n${second}\\n-----END EXAMPLE BLOCK-----"\n`);
+    const redact = createEnvRedactor(root);
+    expect(redact(first)).toBe(REDACTED);
+    expect(redact(`key: ${second}`)).toBe(`key: ${REDACTED}`);
+    expect(redact("-----END EXAMPLE BLOCK-----")).toBe(REDACTED);
+  });
+});
+
+describe("multiline secret edge cases", () => {
+  it("masks a quoted value that spans physical lines of the file", () => {
+    const root = projectWithEnv('KEY="firstsecretline\nsecondsecretline"\nPORT=4000\n');
+    const redact = createEnvRedactor(root);
+    expect(redact("firstsecretline")).toBe(REDACTED);
+    expect(redact("secondsecretline")).toBe(REDACTED);
+  });
+
+  it("masks components separated by a bare carriage return", () => {
+    const root = projectWithEnv('KEY="sensitiveA\\rsensitiveB"\n');
+    const redact = createEnvRedactor(root);
+    expect(redact("sensitiveA")).toBe(REDACTED);
+    expect(redact("sensitiveB")).toBe(REDACTED);
+  });
+
+  it("masks short lines of an eligible multiline value but not ordinary short words", () => {
+    const root = projectWithEnv('KEY="abcd123\\nefgh456"\n');
+    const redact = createEnvRedactor(root);
+    expect(redact("abcd123")).toBe(REDACTED);
+    expect(redact("efgh456")).toBe(REDACTED);
+    expect(redact("GET /ok 200 done")).toBe("GET /ok 200 done");
+  });
+});
+
 describe("redactValue", () => {
   it("preserves non-string primitive values untouched", () => {
     expect(redactValue(42, ["secret123"])).toBe(42);
