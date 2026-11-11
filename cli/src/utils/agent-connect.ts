@@ -112,10 +112,13 @@ export function jsonServerEntry(
   return { command: "flisk", args: ["mcp"] };
 }
 
-/** The `[mcp_servers.flisk]` table for Codex. A project entry pins `cwd` to the project root. */
-export function tomlServerBlock(projectRoot: string | null): string {
+/**
+ * The `[mcp_servers.flisk]` table for Codex. It has no `cwd`: a project `.codex/config.toml` is meant to be committed,
+ * and an absolute path would only exist on this machine. Codex loads a project file only when it runs in that trusted
+ * project, the server inherits Codex's directory, and the flisk commands find `.flisk/project.json` from there.
+ */
+export function tomlServerBlock(): string {
   const lines = [`[mcp_servers.${MCP_SERVER_NAME}]`, 'command = "flisk"', 'args = ["mcp"]'];
-  if (projectRoot) lines.push(`cwd = ${JSON.stringify(projectRoot)}`);
   return `${lines.join("\n")}\n`;
 }
 
@@ -247,6 +250,18 @@ function planTomlConfig(file: string, block: string, force: boolean): PlannedWri
   };
 }
 
+/** True when `~/.codex/config.toml` already sets a `cwd` on the flisk server; Codex merges it into the project entry. */
+function globalCodexSetsCwd(homeDir: string): boolean {
+  const file = path.join(homeDir, ".codex/config.toml");
+  if (!existsSync(file)) return false;
+  const lines = readFileSync(file, "utf-8").split("\n");
+  const start = lines.findIndex((line) => TOML_HEADER.test(line));
+  if (start === -1) return false;
+  let end = lines.findIndex((line, index) => index > start && TOML_ANY_HEADER.test(line));
+  if (end === -1) end = lines.length;
+  return lines.slice(start + 1, end).some((line) => /^\s*cwd\s*=/.test(line));
+}
+
 function planSkills(projectRoot: string, dirs: readonly string[], force: boolean): PlannedWrite[] {
   return agentSkillFiles(dirs).map(({ rel, contents }) => {
     const file = path.join(projectRoot, rel);
@@ -290,7 +305,7 @@ export function connectAgentHost(options: ConnectOptions): ConnectResult {
   planned.push(
     spec.format === "json"
       ? planJsonConfig(configFile, jsonServerEntry(host, options.platform), force)
-      : planTomlConfig(configFile, tomlServerBlock(scope === "global" ? null : projectRoot), force),
+      : planTomlConfig(configFile, tomlServerBlock(), force),
   );
   if (scope === "project") planned.push(...planSkills(projectRoot, spec.skillDirs, force));
 
@@ -303,6 +318,11 @@ export function connectAgentHost(options: ConnectOptions): ConnectResult {
   }
 
   const next = [...spec.next];
+  if (host === "codex" && scope === "project" && globalCodexSetsCwd(homeDir)) {
+    next.push(
+      "Warning: ~/.codex/config.toml sets `cwd` on the flisk server, and Codex applies it to this project entry too, so tools may act on the wrong project. Remove that `cwd` from the global entry",
+    );
+  }
   if (scope === "global")
     next.push(`Skills are per project: run \`flisk connect ${host}\` in a project to add them`);
   return {

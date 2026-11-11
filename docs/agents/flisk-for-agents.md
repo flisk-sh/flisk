@@ -12,7 +12,7 @@ Run it in your project folder (any folder works; a Flisk project is not required
 | --- | --- | --- | --- |
 | Claude Code | `flisk connect claude` | `.mcp.json` | `.claude/skills/` |
 | Cursor | `flisk connect cursor` | `.cursor/mcp.json` | `.agents/skills/` |
-| Codex | `flisk connect codex` | `.codex/config.toml` (with `cwd` set to the project) | `.agents/skills/` |
+| Codex | `flisk connect codex` | `.codex/config.toml` (the new `flisk` entry has no machine path; an existing entry is kept without `--force`, so check the whole file before you commit it) | `.agents/skills/` |
 
 - `--dry-run` prints what it would write and writes nothing.
 - It merges: other MCP servers and other settings in those files stay as they are. Running it again changes nothing.
