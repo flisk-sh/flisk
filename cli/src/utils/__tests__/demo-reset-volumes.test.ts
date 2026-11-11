@@ -5,7 +5,21 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
-import { readProjectName, removeStaleProjectVolumes } from "../demo-reset.js";
+import type { VolumeRunner } from "../demo-reset.js";
+import {
+  foldersSharingProjectName,
+  isDemoFolder,
+  listStaleProjectVolumes,
+  markDemoFolder,
+  readProjectName,
+  removeProjectVolumes,
+  removeStaleProjectVolumes,
+  sharedNameRefusal,
+  sharedNameUnreadableRefusal,
+  shouldMarkDemoFolder,
+  tryListStaleProjectVolumes,
+} from "../demo-reset.js";
+import type { ProjectRecord } from "../project-registry.js";
 
 describe("removeStaleProjectVolumes", () => {
   it("removes only the volumes of this project's Compose projects", () => {
@@ -87,5 +101,199 @@ describe("readProjectName", () => {
 
   it("returns undefined without a project file", () => {
     expect(readProjectName(createTempDir("demo-none-"))).toBeUndefined();
+  });
+});
+
+describe("listStaleProjectVolumes", () => {
+  it("names only the volumes of this project's Compose projects and removes nothing", () => {
+    const remove = vi.fn();
+    const names = listStaleProjectVolumes("demo", {
+      list: () => [
+        { name: "mine", composeProject: "demo-database-management" },
+        { name: "theirs", composeProject: "other-database-management" },
+        { name: "anonymous", composeProject: "" },
+      ],
+      remove,
+    });
+    expect(names).toEqual(["mine"]);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("returns nothing when Docker cannot be listed", () => {
+    expect(
+      listStaleProjectVolumes("demo", {
+        list: () => {
+          throw new Error("Cannot connect to the Docker daemon");
+        },
+        remove: vi.fn(),
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("foldersSharingProjectName (#3963)", () => {
+  const record = (roots: string[]): ProjectRecord => ({
+    name: "flisk-restaurant-example",
+    roots,
+    stacks: [],
+    updatedAt: "",
+  });
+  const NAME = "flisk-restaurant-example";
+
+  /** A folder that holds a Flisk project called `name`. */
+  function holder(prefix: string, name: string): string {
+    const dir = createTempDir(prefix);
+    mkdirSync(join(dir, ".flisk"));
+    writeFileSync(join(dir, ".flisk", "project.json"), JSON.stringify({ project: { name } }));
+    return dir;
+  }
+
+  it("finds a copy of the restaurant starter next to the demo folder", () => {
+    const demo = holder("demo-", NAME);
+    const mine = holder("my-restaurant-", NAME);
+
+    expect(foldersSharingProjectName(NAME, demo, () => [record([demo, mine])])).toEqual([mine]);
+  });
+
+  it("does not count the demo folder itself, however the path is written", () => {
+    const demo = holder("demo-", NAME);
+
+    expect(
+      foldersSharingProjectName(NAME, demo, () => [
+        record([join(demo, ".", "..", demo.split("/").pop() ?? "")]),
+      ]),
+    ).toEqual([]);
+    expect(foldersSharingProjectName(NAME, demo, () => [record([demo])])).toEqual([]);
+  });
+
+  it("does not count a folder that is gone or now holds another project", () => {
+    const demo = holder("demo-", NAME);
+    const renamed = holder("renamed-", "something-else");
+    const gone = join(createTempDir("gone-"), "deleted");
+
+    expect(foldersSharingProjectName(NAME, demo, () => [record([renamed, gone, demo])])).toEqual(
+      [],
+    );
+  });
+
+  it("does not count an earlier demo folder: the second demo run replaces its volume", () => {
+    const first = holder("demo-one-", NAME);
+    const second = holder("demo-two-", NAME);
+    markDemoFolder(first);
+
+    expect(isDemoFolder(first)).toBe(true);
+    expect(isDemoFolder(second)).toBe(false);
+    expect(foldersSharingProjectName(NAME, second, () => [record([first, second])])).toEqual([]);
+  });
+
+  it("still counts an unmarked copy next to an earlier demo folder", () => {
+    const first = holder("demo-one-", NAME);
+    const copy = holder("my-restaurant-", NAME);
+    const second = holder("demo-two-", NAME);
+    markDemoFolder(first);
+
+    expect(foldersSharingProjectName(NAME, second, () => [record([first, copy, second])])).toEqual([
+      copy,
+    ]);
+  });
+
+  it("finds nothing without a record for the name", () => {
+    const demo = holder("demo-", NAME);
+
+    expect(foldersSharingProjectName(NAME, demo, () => [])).toEqual([]);
+  });
+});
+
+describe("sharedNameRefusal", () => {
+  const refusal = sharedNameRefusal("flisk-restaurant-example", ["/home/me/restaurant"], ["vol-1"]);
+
+  it("keeps the on-screen lines short and says nothing was deleted", () => {
+    expect(refusal.message).toContain("Nothing deleted");
+    expect(refusal.message).toContain("/home/me/restaurant");
+    expect(refusal.message.length).toBeLessThan(80);
+    expect(refusal.hint).toContain("project.name");
+    expect(refusal.hint).toContain("flisk down --purge");
+    expect(refusal.hint.length).toBeLessThan(90);
+  });
+
+  it("puts the folders, the volumes and the exact commands in the log detail", () => {
+    expect(refusal.detail).toContain("/home/me/restaurant");
+    expect(refusal.detail).toContain("vol-1");
+    expect(refusal.detail).toContain("Nothing was deleted.");
+    expect(refusal.detail).toContain("cd /home/me/restaurant && flisk down --purge");
+  });
+});
+
+describe("one listing for the check and the cleanup (#3963)", () => {
+  const owned = { name: "mine", composeProject: "demo-database-management" };
+
+  it("tryListStaleProjectVolumes tells a failed listing from an empty one", () => {
+    const failing: VolumeRunner = {
+      list: () => {
+        throw new Error("Cannot connect to the Docker daemon");
+      },
+      remove: vi.fn(),
+    };
+    const empty: VolumeRunner = { list: () => [], remove: vi.fn() };
+
+    expect(tryListStaleProjectVolumes("demo", failing)).toBeUndefined();
+    expect(tryListStaleProjectVolumes("demo", empty)).toEqual([]);
+    expect(tryListStaleProjectVolumes("demo", { list: () => [owned], remove: vi.fn() })).toEqual([
+      "mine",
+    ]);
+  });
+
+  it("removeProjectVolumes removes exactly the names it is given and never lists again", () => {
+    const list = vi.fn(() => [
+      owned,
+      { name: "appeared-later", composeProject: owned.composeProject },
+    ]);
+    const remove = vi.fn();
+
+    const removed = removeProjectVolumes(["mine"], { list, remove });
+
+    expect(removed).toEqual(["mine"]);
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith("mine");
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("removeProjectVolumes skips a volume that is in use and keeps going", () => {
+    const removed = removeProjectVolumes(["a", "b"], {
+      list: () => [],
+      remove: (name) => {
+        if (name === "a") throw new Error("volume is in use");
+      },
+    });
+
+    expect(removed).toEqual(["b"]);
+  });
+});
+
+describe("shouldMarkDemoFolder (#3963)", () => {
+  it("marks a folder the demo created, with or without --project", () => {
+    expect(shouldMarkDemoFolder("demo", false)).toBe(true);
+  });
+
+  it("does not mark the user's own copy of the same repository", () => {
+    expect(shouldMarkDemoFolder("restaurant", false)).toBe(false);
+    expect(shouldMarkDemoFolder("saas", false)).toBe(false);
+  });
+
+  it("does not mark a reused demo folder again", () => {
+    expect(shouldMarkDemoFolder("demo", true)).toBe(false);
+  });
+});
+
+describe("sharedNameUnreadableRefusal", () => {
+  it("says nothing was deleted and how to go on when Docker cannot be read", () => {
+    const refusal = sharedNameUnreadableRefusal("flisk-restaurant-example", [
+      "/home/me/restaurant",
+    ]);
+
+    expect(refusal.message).toContain("Nothing deleted");
+    expect(refusal.message).toContain("could not be read");
+    expect(refusal.hint).toContain("Start Docker");
+    expect(refusal.detail).toContain("/home/me/restaurant");
   });
 });

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { cliInvocation } from "./cli-invocation.js";
+import { projectNameAt, readProjectRecords } from "./project-registry.js";
 
 /** Stops the `tilt up` processes that run this project's Tiltfile, and waits for them to exit. */
 export type StopTilt = (tiltfile: string) => Promise<void>;
@@ -96,34 +97,154 @@ export function ownedComposeProjects(projectName: string, stacks: string[]): Set
 }
 
 /**
+ * The volumes of this checkout's own Compose projects, by name, or undefined when Docker cannot be listed. An empty list
+ * (no volume of this project) and a failed listing are different answers: the demo's protection check must not read a
+ * failure as "nothing to protect" and then clean up with a second listing (#3963).
+ */
+export function tryListStaleProjectVolumes(
+  projectName: string,
+  docker: VolumeRunner = dockerVolumes,
+  stacks: string[] = [],
+): string[] | undefined {
+  const owned = ownedComposeProjects(projectName, stacks);
+  try {
+    return docker
+      .list()
+      .filter((volume) => owned.has(volume.composeProject))
+      .map((volume) => volume.name);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Like {@link tryListStaleProjectVolumes}, but a failed listing is an empty list. */
+export function listStaleProjectVolumes(
+  projectName: string,
+  docker: VolumeRunner = dockerVolumes,
+  stacks: string[] = [],
+): string[] {
+  return tryListStaleProjectVolumes(projectName, docker, stacks) ?? [];
+}
+
+/** Removes exactly these volumes and nothing else; one still in use by a container is skipped. Returns the names removed. */
+export function removeProjectVolumes(
+  names: readonly string[],
+  docker: VolumeRunner = dockerVolumes,
+): string[] {
+  const removed: string[] = [];
+  for (const name of names) {
+    try {
+      docker.remove(name);
+      removed.push(name);
+    } catch {
+      // In use by a container that is still up: leave it, the stack itself reports the problem.
+    }
+  }
+  return removed;
+}
+
+/**
  * Remove the Docker volumes an earlier run of this project left behind. A fresh demo clone generates a new random
  * DB_PASSWORD, but Postgres keeps the password of the data directory it was first started with and ignores
  * POSTGRES_PASSWORD afterwards, so the second `flisk demo` failed at the migrator with Prisma P1000.
  * A volume still mounted by a running container cannot be removed and is skipped. Returns the names removed.
+ *
+ * A volume carries no folder, so this cannot tell the demo's leftovers from another project of the same name: check
+ * {@link foldersSharingProjectName} against the same listing first, and remove that listing with {@link removeProjectVolumes}.
  */
 export function removeStaleProjectVolumes(
   projectName: string,
   docker: VolumeRunner = dockerVolumes,
   stacks: string[] = [],
 ): string[] {
-  const owned = ownedComposeProjects(projectName, stacks);
-  const removed: string[] = [];
-  let volumes: Array<{ name: string; composeProject: string }>;
+  return removeProjectVolumes(listStaleProjectVolumes(projectName, docker, stacks), docker);
+}
+
+function canonicalFolder(path: string): string {
+  const absolute = resolve(path);
   try {
-    volumes = docker.list();
+    return realpathSync(absolute);
   } catch {
-    return removed;
+    return absolute;
   }
-  for (const volume of volumes) {
-    if (!owned.has(volume.composeProject)) continue;
-    try {
-      docker.remove(volume.name);
-      removed.push(volume.name);
-    } catch {
-      // In use by a container that is still up: leave it, the stack itself reports the problem.
-    }
+}
+
+/**
+ * The other folders that still hold a project of this name, from the record in ~/.flisk/projects. The starters `demo` and
+ * `restaurant` are one repository, so a copy made with `flisk project restaurant` has the demo's project name and its
+ * database volume (#3963). A folder that is gone, or now holds another project, is not a sharer.
+ */
+export function foldersSharingProjectName(
+  projectName: string,
+  demoDir: string,
+  readRecords: typeof readProjectRecords = readProjectRecords,
+  nameAt: typeof projectNameAt = projectNameAt,
+  isDemo: (dir: string) => boolean = isDemoFolder,
+): string[] {
+  const record = readRecords().find((candidate) => candidate.name === projectName);
+  if (!record) return [];
+  const own = canonicalFolder(demoDir);
+  // An earlier demo folder is not a sharer: the demo is disposable and replaces its own leftovers on every run, which is
+  // the first-run -> second-run path the demo suite checks. Only a folder the demo did not create can hold data worth keeping.
+  return record.roots.filter(
+    (root) => canonicalFolder(root) !== own && nameAt(root) === projectName && !isDemo(root),
+  );
+}
+
+const DEMO_MARKER = join(".flisk", "demo-docker.json");
+
+/**
+ * Whether a one-command run creates a folder the demo may later replace. Only the demo starter qualifies: `flisk restaurant`
+ * clones the same repository, with the same project name and database volume, but it is the user's own copy (#3963).
+ * It has to depend on the starter and not on `--project`, because the demo journey runs `flisk demo --project <dir>`.
+ */
+export function shouldMarkDemoFolder(starter: string, reused: boolean): boolean {
+  return starter === "demo" && !reused;
+}
+
+/** True when the Docker demo created the folder (see {@link markDemoFolder}). */
+export function isDemoFolder(dir: string): boolean {
+  return existsSync(join(dir, DEMO_MARKER));
+}
+
+/** Records that `flisk demo` created this folder, so a later demo may replace its database volume. Never throws. */
+export function markDemoFolder(dir: string): void {
+  try {
+    mkdirSync(join(dir, ".flisk"), { recursive: true });
+    writeFileSync(join(dir, DEMO_MARKER), `${JSON.stringify({ demo: "docker" }, null, 2)}\n`);
+  } catch {
+    // A read-only folder only loses the marker: the next demo then asks the user instead of deleting.
   }
-  return removed;
+}
+
+/**
+ * What the demo says when it would delete the database of another folder's project of the same name. `message` and
+ * `hint` are short because the demo's frame cuts a line at the terminal width; `detail` goes to the log file.
+ */
+export function sharedNameRefusal(
+  projectName: string,
+  folders: readonly string[],
+  volumes: readonly string[],
+): { message: string; hint: string; detail: string } {
+  const first = folders[0] ?? "";
+  return {
+    message: `Nothing deleted: ${first} has the demo's project name and database.`,
+    hint: "Rename that project (project.name), or run flisk down --purge there. Details: log.",
+    detail: `The demo's project name "${projectName}" is also used by ${folders.join(", ")}. Docker keeps one database volume per project name (${volumes.join(", ")}), and the demo has to delete it to start clean. Nothing was deleted. Rename that project (project.name in its .flisk/project.json), or remove its data with: cd ${first} && flisk down --purge. Then run flisk demo again.`,
+  };
+}
+
+/** What the demo says when another folder holds the name and Docker cannot be read, so a deletion cannot be ruled out. */
+export function sharedNameUnreadableRefusal(
+  projectName: string,
+  folders: readonly string[],
+): { message: string; hint: string; detail: string } {
+  const first = folders[0] ?? "";
+  return {
+    message: `Nothing deleted: ${first} has the demo's project name, and Docker volumes could not be read.`,
+    hint: "Start Docker and run the demo again, or rename that project (project.name). Details: log.",
+    detail: `The demo's project name "${projectName}" is also used by ${folders.join(", ")}, and "docker volume ls" failed, so the demo cannot tell whether a database would be deleted. Nothing was deleted.`,
+  };
 }
 
 /** The `project.name` of a Flisk project folder, or undefined when it has none. */

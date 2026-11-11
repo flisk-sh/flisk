@@ -15,7 +15,17 @@ import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { cliInvocation } from "./utils/cli-invocation.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
-import { readProjectName, removeStaleProjectVolumes, stopDemoStack } from "./utils/demo-reset.js";
+import {
+  foldersSharingProjectName,
+  markDemoFolder,
+  readProjectName,
+  removeProjectVolumes,
+  sharedNameRefusal,
+  sharedNameUnreadableRefusal,
+  shouldMarkDemoFolder,
+  stopDemoStack,
+  tryListStaleProjectVolumes,
+} from "./utils/demo-reset.js";
 import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
@@ -277,6 +287,9 @@ if (templateArg) {
   }
   setPhase("config", "done", Date.now() - configStarted);
 
+  // Mark the folder as the demo's own, so a later demo knows its leftover volume is disposable (#3963).
+  if (shouldMarkDemoFolder(templateArg, reused)) markDemoFolder(destination);
+
   // The setup above wrote a new database password. Data a previous run left in Docker was initialised with
   // the old one, and Postgres would keep it, so the migrator could not log in. A kept demo keeps its password.
   if (!reused) {
@@ -284,8 +297,28 @@ if (templateArg) {
     if (projectName) {
       // Only the Compose projects of this checkout's own stacks: another checkout may share the name prefix.
       const stacks = getAllStacks(discoverResourcesWithProblems(destination).resources);
-      const removed = removeStaleProjectVolumes(projectName, undefined, stacks);
-      if (removed.length > 0) logLines.push(`removed stale volumes: ${removed.join(", ")}`);
+      // The demo and `flisk project restaurant` are one repository, so another folder can hold this project name and
+      // its database volume. Deleting that volume would delete its data: stop instead (#3963). One listing decides the
+      // check and is the exact set removed, so a second listing cannot reach a volume the check did not see.
+      const staleVolumes = tryListStaleProjectVolumes(projectName, undefined, stacks);
+      const sharing = foldersSharingProjectName(projectName, destination);
+      // With another folder on record, unknown is not the same as none: refuse when the volumes cannot be read either.
+      if (sharing.length > 0 && (staleVolumes === undefined || staleVolumes.length > 0)) {
+        const refusal = staleVolumes
+          ? sharedNameRefusal(projectName, sharing, staleVolumes)
+          : sharedNameUnreadableRefusal(projectName, sharing);
+        logLines.push(`refused: ${refusal.detail}`);
+        const logPath = writeLog(logLines);
+        stage.fail(refusal.message, refusal.hint, logPath);
+        stage.stop();
+        process.exit(1);
+      }
+      if (staleVolumes === undefined) {
+        logLines.push("could not list Docker volumes: stale volumes were not cleared");
+      } else {
+        const removed = removeProjectVolumes(staleVolumes);
+        if (removed.length > 0) logLines.push(`removed stale volumes: ${removed.join(", ")}`);
+      }
     }
   }
 
