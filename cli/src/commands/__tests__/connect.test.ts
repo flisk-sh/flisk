@@ -277,6 +277,20 @@ describe("flisk connect: Codex", () => {
     );
   });
 
+  it("warns when the global Codex entry sets a cwd that the project entry would inherit", () => {
+    const home = tempDir("flisk-connect-home-");
+    fs.mkdirSync(path.join(home, ".codex"), { recursive: true });
+    fs.writeFileSync(
+      path.join(home, ".codex/config.toml"),
+      '[mcp_servers.flisk]\ncommand = "flisk"\nargs = ["mcp"]\ncwd = "/elsewhere"\n',
+    );
+    const result = connect("codex", tempDir("flisk-connect-codex-"), home);
+    expect(result.next.some((line) => line.includes("sets `cwd`"))).toBe(true);
+
+    const clean = connect("codex", tempDir("flisk-connect-codex-"), tempDir("flisk-connect-home-"));
+    expect(clean.next.some((line) => line.includes("sets `cwd`"))).toBe(false);
+  });
+
   it("--global writes ~/.codex/config.toml without a cwd", () => {
     const home = tempDir("flisk-connect-home-");
     connect("codex", tempDir("flisk-connect-codex-"), home, { scope: "global" });

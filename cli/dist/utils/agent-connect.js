@@ -175,6 +175,20 @@ function planTomlConfig(file, block, force) {
         contents: replaced.join("\n"),
     };
 }
+/** True when `~/.codex/config.toml` already sets a `cwd` on the flisk server; Codex merges it into the project entry. */
+function globalCodexSetsCwd(homeDir) {
+    const file = path.join(homeDir, ".codex/config.toml");
+    if (!existsSync(file))
+        return false;
+    const lines = readFileSync(file, "utf-8").split("\n");
+    const start = lines.findIndex((line) => TOML_HEADER.test(line));
+    if (start === -1)
+        return false;
+    let end = lines.findIndex((line, index) => index > start && TOML_ANY_HEADER.test(line));
+    if (end === -1)
+        end = lines.length;
+    return lines.slice(start + 1, end).some((line) => /^\s*cwd\s*=/.test(line));
+}
 function planSkills(projectRoot, dirs, force) {
     return agentSkillFiles(dirs).map(({ rel, contents }) => {
         const file = path.join(projectRoot, rel);
@@ -222,6 +236,9 @@ export function connectAgentHost(options) {
         }
     }
     const next = [...spec.next];
+    if (host === "codex" && scope === "project" && globalCodexSetsCwd(homeDir)) {
+        next.push("Warning: ~/.codex/config.toml sets `cwd` on the flisk server, and Codex applies it to this project entry too, so tools may act on the wrong project. Remove that `cwd` from the global entry");
+    }
     if (scope === "global")
         next.push(`Skills are per project: run \`flisk connect ${host}\` in a project to add them`);
     return {
