@@ -578,7 +578,8 @@ test("the CLI image pre-flight and the push build share one Actions layer cache 
 test("the CLI image stores the flisk binary in one layer (#3947)", () => {
   const dockerfile = readFileSync(join(ROOT_DIR, "scripts/release/flisk-image.Dockerfile"), "utf8");
   assert.match(dockerfile, /^COPY --chmod=0755 flisk-linux-\$\{TARGETARCH\} \/opt\/flisk\/flisk$/m);
-  assert.doesNotMatch(dockerfile, /^RUN\b.*\b(chmod|chown)\b.*\/opt\/flisk\/flisk\b/m, "a RUN that changes the binary's mode or owner copies it into a new layer");
+  const instructions = dockerfile.replace(/\\\r?\n/g, " ");
+  assert.doesNotMatch(instructions, /^RUN\b.*\b(chmod|chown)\b.*\/opt\/flisk\/flisk\b/m, "a RUN that changes the binary's mode or owner copies it into a new layer");
 });
 
 test("the release candidate runs at least 15 legs at once", () => {
