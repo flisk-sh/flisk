@@ -204,7 +204,11 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
         ? undefined
         : (name, message) => console.log(`${prefix(name)}${chalk.gray(`[flisk] ${message}`)}`),
     },
-    { readyTimeoutMs: input.readyTimeoutMs, baseEnv: vars },
+    {
+      readyTimeoutMs: input.readyTimeoutMs,
+      baseEnv: vars,
+      extraEnvPaths: input.envFilePath ? [input.envFilePath] : [],
+    },
   );
 
   let stopping: Promise<void> | undefined;
