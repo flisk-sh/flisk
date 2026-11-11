@@ -11,6 +11,7 @@ load("../constants.star", "PlatformDockerConstants")
 load("../config/healthcheck.star", "compose_healthcheck_timing")
 load("../networking/traefik_static_routes.star", "normalize_abs_path")
 load("../networking/traefik_constants.star", "TRAEFIK_PROJECT_CONSTRAINT")
+load("./wake_gateway_image.star", "wake_gateway_image")
 
 
 def generate_standalone_traefik_compose(sablier_enabled = False, http_host_port = "8080", https_host_port = "8443", bind_address = "127.0.0.1"):
@@ -20,6 +21,9 @@ def generate_standalone_traefik_compose(sablier_enabled = False, http_host_port 
     emitted when sablier_enabled is True (a license grants "sablier"). Without
     it they would run for nothing: a container holding a read-write Docker
     socket, an image build, and a plugin download from GitHub on every start.
+
+    The wake gateway image is one shared `flisk-wake-gateway:<tag>` for all projects (flisk#3837).
+    Its sources are read from the vendored engine copy under the project root.
 
     Pass None for https_host_port to emit an HTTP-only Traefik configuration.
     """
@@ -103,6 +107,7 @@ volumes:
             tilt_dev_dir=os.environ.get("HOME", "") + "/.tilt-dev",
             project_root_mount=_project_root_mount(),
             docker_socket_gid=_docker_socket_gid(),
+            gateway_image=wake_gateway_image(),
         ) if sablier_enabled else "",
         dynamic_dir_name=PlatformDockerConstants.TRAEFIK_DYNAMIC_DIR_REL.split("/")[-1],
         vendored_gateway_dir="flisk-cli-ext/engine/assets/docker/wake-gateway",
@@ -192,6 +197,9 @@ _SABLIER_SERVICES = """  sablier:
   # `tilt trigger` from inside a container is otherwise rejected with
   # "(403): invalid session token" even when the Tilt HTTP port is reachable.
   wake-gateway:
+    # One image for every project on the machine, named by its content (flisk#3837): the
+    # build only runs when this tag is not yet in the local image store.
+    image: {gateway_image}
     build: ./{vendored_gateway_dir}
     container_name: {gateway_container}
     restart: unless-stopped
