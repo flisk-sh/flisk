@@ -1,6 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CheckResult } from "../types/index.js";
 import { FliskError } from "./errors.js";
@@ -254,6 +257,50 @@ export interface BuildCacheCeilingResult {
   pruned: boolean;
   ceilingGib: number;
   sizeGib?: number;
+  /** True when a recent check said the cache is far below the ceiling, so `docker system df` was not run. */
+  skipped?: boolean;
+}
+
+/** `docker system df` takes 0.8-1.3 s; the ceiling is checked at most this often while the cache is well below it. */
+export const BUILD_CACHE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+/** A last-seen size above this share of the ceiling is re-checked on every `flisk up`. */
+export const BUILD_CACHE_NEAR_CEILING_RATIO = 0.8;
+const BUILD_CACHE_STAMP = "build-cache-check.json";
+
+export interface BuildCacheCeilingOptions {
+  /** Home directory holding `.flisk/`; tests pass a temp dir. */
+  home?: string;
+  now?: () => number;
+}
+
+interface BuildCacheStamp {
+  checkedAt: number;
+  sizeGib: number;
+}
+
+function stampPath(home: string): string {
+  return join(home, ".flisk", BUILD_CACHE_STAMP);
+}
+
+function readStamp(home: string): BuildCacheStamp | undefined {
+  try {
+    const raw = JSON.parse(readFileSync(stampPath(home), "utf-8")) as Partial<BuildCacheStamp>;
+    if (typeof raw.checkedAt === "number" && typeof raw.sizeGib === "number") {
+      return { checkedAt: raw.checkedAt, sizeGib: raw.sizeGib };
+    }
+  } catch {
+    // No stamp, or an unreadable one: check the cache.
+  }
+  return undefined;
+}
+
+function writeStamp(home: string, stamp: BuildCacheStamp): void {
+  try {
+    mkdirSync(join(home, ".flisk"), { recursive: true });
+    writeFileSync(stampPath(home), JSON.stringify(stamp));
+  } catch {
+    // Best effort: without a stamp the next `flisk up` simply checks again.
+  }
 }
 
 /**
@@ -263,9 +310,24 @@ export interface BuildCacheCeilingResult {
 export async function enforceBuildCacheCeiling(
   run: DockerRunner = defaultDockerRunner,
   env: Record<string, string | undefined> = process.env,
+  options: BuildCacheCeilingOptions = {},
 ): Promise<BuildCacheCeilingResult> {
   const ceilingGib = resolveBuildCacheCeilingGib(env);
   if (ceilingGib === 0) return { pruned: false, ceilingGib };
+  const home = options.home ?? homedir();
+  const now = options.now ?? Date.now;
+  // The check costs about a second and almost always finds nothing to do: skip it while the last check was recent and
+  // the cache was far below the ceiling. Near or above the ceiling it runs every time, so the disk guard still sees a trim.
+  const last = readStamp(home);
+  const age = last ? now() - last.checkedAt : -1;
+  if (
+    last &&
+    age >= 0 &&
+    age < BUILD_CACHE_CHECK_INTERVAL_MS &&
+    last.sizeGib < ceilingGib * BUILD_CACHE_NEAR_CEILING_RATIO
+  ) {
+    return { pruned: false, ceilingGib, sizeGib: last.sizeGib, skipped: true };
+  }
   try {
     const df = await run([
       "system",
@@ -274,6 +336,7 @@ export async function enforceBuildCacheCeiling(
       "{{.Type}}\t{{.TotalCount}}\t{{.Size}}\t{{.Reclaimable}}",
     ]);
     const sizeGib = parseDockerBuildCache(df)?.sizeGib;
+    if (sizeGib !== undefined) writeStamp(home, { checkedAt: now(), sizeGib });
     if (sizeGib === undefined || sizeGib <= ceilingGib)
       return { pruned: false, ceilingGib, sizeGib };
     await run([
@@ -283,6 +346,7 @@ export async function enforceBuildCacheCeiling(
       "--keep-storage",
       String(Math.round(ceilingGib * 1024 ** 3)),
     ]);
+    writeStamp(home, { checkedAt: now(), sizeGib: ceilingGib });
     return { pruned: true, ceilingGib, sizeGib };
   } catch {
     return { pruned: false, ceilingGib };

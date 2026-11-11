@@ -659,6 +659,7 @@ export const upCommand = new Command("up")
         showErrorAndExit(hostRefusal);
     }
     // The shared build cache has a size ceiling (20 GiB; FLISK_BUILD_CACHE_MAX_GIB): trim it first, so the disk check sees the space.
+    // The `docker system df` behind it is throttled: at most every 6 h while the cache is far below the ceiling (#3860).
     if (!options.dryRun) {
         const cache = await enforceBuildCacheCeiling();
         if (cache.pruned && !options.quiet) {
