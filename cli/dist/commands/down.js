@@ -6,7 +6,7 @@ import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
-import { findRunningFliskProjects, lookupProjectTiltUpPids, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
+import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
 import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
@@ -111,6 +111,18 @@ function pruneNetworksOrWarn(json) {
     catch (err) {
         if (!json) {
             console.log(chalk.yellow(`Could not remove networks: ${err.message}`));
+        }
+        return undefined;
+    }
+}
+/** What `--prune-networks` would remove and keep, for `--dry-run`; undefined when the networks cannot be checked. */
+function planNetworkPruneOrWarn(projectRoot, json) {
+    try {
+        return planProjectNetworkPrune(readProjectConfig(projectRoot).project.name);
+    }
+    catch (err) {
+        if (!json) {
+            console.log(chalk.yellow(`Could not check networks: ${err.message}`));
         }
         return undefined;
     }
@@ -253,16 +265,26 @@ export const downCommand = addYesOption(new Command("down"))
     }
     await withTiltCheck(async () => {
         const wouldPurge = options.purge && options.dryRun ? projectArtifacts(projectRoot) : undefined;
+        // --purge removes the networks too, so --prune-networks only previews on its own (as in the real run).
+        const wouldPruneNetworks = options.pruneNetworks && !options.purge && options.dryRun
+            ? planNetworkPruneOrWarn(projectRoot, Boolean(options.json))
+            : undefined;
         if (emit && options.dryRun) {
             emit({
                 ok: true,
                 dryRun: true,
                 ...(shouldPruneCache ? { wouldPruneCache: { until: cacheUntil } } : {}),
                 ...(wouldPurge ? { wouldPurge: wouldPurge.artifacts } : {}),
+                ...(wouldPruneNetworks ? { wouldPruneNetworks } : {}),
             });
             return;
         }
         if (handleDryRun(options, "not stopping resources", "tilt down")) {
+            if (wouldPruneNetworks) {
+                const keep = wouldPruneNetworks.keep.map((kept) => `${kept.name} (${kept.reason})`);
+                console.log(chalk.gray(`Dry run - --prune-networks would remove: ${wouldPruneNetworks.remove.join(", ") || "<none>"}\n` +
+                    `          would keep: ${keep.join(", ") || "<none>"}`));
+            }
             if (wouldPurge) {
                 const listed = describeArtifacts(wouldPurge.artifacts);
                 console.log(chalk.gray(listed.length > 0

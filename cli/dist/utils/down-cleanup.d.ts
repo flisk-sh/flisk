@@ -23,6 +23,20 @@ export interface PruneNetworksResult {
  * are never removed.
  */
 export declare function pruneProjectNetworks(projectName: string, commandRunner?: CommandRunner): PruneNetworksResult;
+export interface PruneNetworksPlan {
+    /** Networks `--prune-networks` would remove: they exist and no container is attached. */
+    remove: string[];
+    /** Networks it would leave in place, with the reason (a container is attached, or Docker could not inspect it). */
+    keep: {
+        name: string;
+        reason: string;
+    }[];
+}
+/**
+ * What {@link pruneProjectNetworks} would do, without removing anything: the same exact project network names, each
+ * checked with `docker network inspect` for attached containers (the reason `docker network rm` refuses one).
+ */
+export declare function planProjectNetworkPrune(projectName: string, commandRunner?: CommandRunner): PruneNetworksPlan;
 /**
  * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
  * so a caller can tell "no tilt up" from "could not look".
