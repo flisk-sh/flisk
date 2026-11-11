@@ -47,8 +47,11 @@ function globMatchesDir(patternSegments, dirSegments) {
     return (patternSegments.length === dirSegments.length &&
         patternSegments.every((segment, index) => segmentMatches(segment, dirSegments[index])));
 }
-/** `discovery.paths` from .flisk/project.json, or the generic default when unset/unreadable. */
-export function readDiscoveryPaths(projectRoot) {
+/**
+ * `discovery.paths` from .flisk/project.json, or the generic default when unset/unreadable.
+ * `quiet` drops the warning about an invalid configuration, for callers that run on every command.
+ */
+export function readDiscoveryPaths(projectRoot, { quiet = false } = {}) {
     const configPath = join(projectRoot, ".flisk", PROJECT_JSON);
     if (!existsSync(configPath))
         return DEFAULT_DISCOVERY_PATHS;
@@ -63,8 +66,30 @@ export function readDiscoveryPaths(projectRoot) {
     catch (error) {
         reason = String(error);
     }
-    console.warn(`Ignoring discovery configuration in ${configPath}: ${reason}; using default paths: ${DEFAULT_DISCOVERY_PATHS.join(", ")}`);
+    if (!quiet) {
+        console.warn(`Ignoring discovery configuration in ${configPath}: ${reason}; using default paths: ${DEFAULT_DISCOVERY_PATHS.join(", ")}`);
+    }
     return DEFAULT_DISCOVERY_PATHS;
+}
+/**
+ * Whether a `discovery.paths` pattern names the directory at `dirSegments` (relative to the
+ * project root, last segment included) with a literal segment, on the pattern itself or on the
+ * way to it. The service walk uses this to enter a folder it would otherwise skip (such as
+ * `vendor`) when the project points discovery at it, e.g. `vendor/*`. A wildcard segment does
+ * not count, so a pattern such as `services/*` does not open every skipped folder at that level.
+ */
+export function namesDirectoryLiterally(projectRoot, dirSegments, patterns) {
+    const last = dirSegments.length - 1;
+    if (last < 0)
+        return false;
+    return patterns.some((pattern) => {
+        const patternSegments = segments(relative(projectRoot, resolve(projectRoot, pattern)));
+        return (patternSegments.length > last &&
+            patternSegments[last] === dirSegments[last] &&
+            dirSegments
+                .slice(0, last)
+                .every((segment, index) => segmentMatches(patternSegments[index], segment)));
+    });
 }
 /** Whether Tilt's discovery would find a service.json in `resourceDir` given `patterns`. */
 export function isPathDiscovered(projectRoot, resourceDir, patterns) {
