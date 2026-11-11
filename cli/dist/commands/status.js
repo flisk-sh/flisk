@@ -24,6 +24,31 @@ import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
 import { findTiltPortOwner } from "../utils/tilt-port-owner.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { evaluateTiltReadiness, tiltGetUiResources } from "../utils/up-readiness.js";
+/**
+ * The services `--strict` fails on: the failing or still starting ones. Null when nothing of the project is running (no state
+ * at all, or every service with a process of its own is unknown), which `--strict` fails on too. A project with no services
+ * has nothing to wait for.
+ */
+export function strictNotReady(resources, states) {
+    const counted = healthCountedResources(resources, states);
+    if (counted.length === 0)
+        return [];
+    if (!counted.some((resource) => (states?.[resource.name]?.status ?? "unknown") !== "unknown")) {
+        return null;
+    }
+    return unhealthyServiceNames(resources, states);
+}
+/** `--strict` turns the answer into the exit code (#3826): output is unchanged, one line on stderr says why it is 1. */
+function failStrictStatus(notReady) {
+    if (notReady === null) {
+        console.error("flisk status --strict: nothing is running. Start it with: flisk up");
+        process.exitCode = 1;
+    }
+    else if (notReady.length > 0) {
+        console.error(`flisk status --strict: ${formatCount(notReady.length, "service")} not ready: ${notReady.join(", ")}`);
+        process.exitCode = 1;
+    }
+}
 export const statusCommand = new Command("status")
     .description("Show status of resources and stacks")
     .option("--json", "Output a versioned JSON status report", false)
@@ -33,7 +58,8 @@ export const statusCommand = new Command("status")
     .option("--tilt", "Show Tilt resource status (Docker/Tilt stacks only)", false)
     .option("--no-gateway", "Disable gateway status reporting")
     .option("--unhealthy", "Show only services that are failing or still starting", false)
-    .addHelpText("after", "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json")
+    .option("--strict", "Exit 1 when any service is not ready or nothing is running", false)
+    .addHelpText("after", "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict")
     .action(async (options) => {
     const action = async () => {
         // Check for inferred Node project first
@@ -69,6 +95,9 @@ export const statusCommand = new Command("status")
                         },
                     ],
                 })));
+            }
+            if (options.strict) {
+                failStrictStatus(runState ? [] : null);
             }
             return;
         }
@@ -269,6 +298,9 @@ export const statusCommand = new Command("status")
                 console.error(queryError);
                 process.exit(1);
             }
+            if (options.strict) {
+                failStrictStatus(strictNotReady(discovery.resources, serviceStates));
+            }
             return;
         }
         console.log(chalk.bold("Resources:"), `${discovery.resources.length} discovered`);
@@ -399,6 +431,9 @@ export const statusCommand = new Command("status")
         console.log();
         showDetail('Run "flisk stacks" to see all stacks.');
         showDetail('Run "flisk up <stack-name>" to start a stack.');
+        if (options.strict) {
+            failStrictStatus(strictNotReady(discovery.resources, serviceStates));
+        }
     };
     if (options.json) {
         try {

@@ -27,8 +27,12 @@ export declare function resolveConnectHost(input: string): ConnectHost;
 /** Cursor's variable for the folder that holds .cursor/mcp.json, written literally into the config. */
 export declare const CURSOR_WORKSPACE_FOLDER: string;
 export declare function jsonServerEntry(host: ConnectHost, platform?: NodeJS.Platform): Record<string, unknown>;
-/** The `[mcp_servers.flisk]` table for Codex. A project entry pins `cwd` to the project root. */
-export declare function tomlServerBlock(projectRoot: string | null): string;
+/**
+ * The `[mcp_servers.flisk]` table for Codex. It has no `cwd`: a project `.codex/config.toml` is meant to be committed,
+ * and an absolute path would only exist on this machine. Codex loads a project file only when it runs in that trusted
+ * project, the server inherits Codex's directory, and the flisk commands find `.flisk/project.json` from there.
+ */
+export declare function tomlServerBlock(): string;
 export type ChangeAction = "create" | "update" | "unchanged" | "kept";
 export interface ConnectChange {
     /** Absolute path of the file. */
