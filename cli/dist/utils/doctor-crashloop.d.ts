@@ -3,6 +3,7 @@ import type { CheckResult } from "../types/index.js";
 export declare const CRASH_LOOP_RESTARTS = 5;
 /** Runs `docker` with args; resolves with stdout and stderr joined (logs write to both). */
 export type DockerRun = (args: string[]) => Promise<string>;
+export declare const runDocker: DockerRun;
 export interface ContainerState {
     name: string;
     restartCount: number;
