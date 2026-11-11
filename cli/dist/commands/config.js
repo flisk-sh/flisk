@@ -223,6 +223,7 @@ export const configCommand = new Command("config")
     .description("Migrate service.json files to the current schema version")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
+    .addHelpText("after", `\nExamples:\n  flisk config migrate\n  flisk config migrate --json`)
     .action(async (options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
@@ -313,6 +314,7 @@ export const configCommand = new Command("config")
     .description("Verify that generated files match .flisk/project.json")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Emit a machine-readable verification report")
+    .addHelpText("after", `\nExamples:\n  flisk config verify\n  flisk config verify --json`)
     .action(async (options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
@@ -429,6 +431,7 @@ export const configCommand = new Command("config")
     .description("Explain whether a project file is Flisk-generated and what editing it does on flisk up")
     .argument("<file>", "Project file to explain, relative to the current directory or absolute")
     .option("--json", "Emit a machine-readable explanation")
+    .addHelpText("after", `\nExamples:\n  flisk config explain Tiltfile\n  flisk config explain services/orders-api/service.json\n  flisk config explain Tiltfile --json`)
     .action(async (file, options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
