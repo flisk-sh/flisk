@@ -131,7 +131,7 @@ def test_golden_dockerfile_is_lean_and_uses_shared_healthcheck(tmp_path):
     for line in checks:
         assert "bunx" not in line and "npx" not in line, line
         if line != "HEALTHCHECK NONE":
-            assert "--interval=30s --start-interval=2s" in line, line
+            assert "--interval=30s --start-interval=0.5s" in line, line
 
 
 def test_compose_entries_use_init_and_shared_healthcheck(tmp_path):
@@ -149,7 +149,7 @@ def test_compose_entries_use_init_and_shared_healthcheck(tmp_path):
         entry = r[kind]
         assert "init: true" in entry, kind
         assert "interval: 30s" in entry, kind
-        assert "start_interval: 2s" in entry, kind
+        assert "start_interval: 0.5s" in entry, kind
         assert "interval: 10s" not in entry, kind
 
 
@@ -162,3 +162,36 @@ def test_healthcheck_interval_is_configurable(tmp_path):
     )
     assert "--interval=15s" in r["flags"]
     assert "interval: 15s" in r["timing"]
+
+
+def _timing(tmp_path, value):
+    env = {} if value is None else {"FLISK_HEALTHCHECK_START_INTERVAL_SECONDS": value}
+    return run_starlark(
+        tmp_path,
+        "load('@DOCKER/config/healthcheck.star', 'dockerfile_healthcheck_flags', 'compose_healthcheck_timing')\n"
+        "r = {'flags': dockerfile_healthcheck_flags(), 'timing': compose_healthcheck_timing()}\n",
+        env=env,
+    )
+
+
+def test_start_interval_defaults_to_half_a_second(tmp_path):
+    r = _timing(tmp_path, None)
+    assert "--start-interval=0.5s" in r["flags"]
+    assert "start_interval: 0.5s" in r["timing"]
+
+
+def test_start_interval_override_accepts_decimals_and_integers(tmp_path):
+    r = _timing(tmp_path, "0.25")
+    assert "--start-interval=0.25s" in r["flags"]
+    assert "start_interval: 0.25s" in r["timing"]
+    r = _timing(tmp_path, "3")
+    assert "--start-interval=3s " in r["flags"]
+    assert "start_interval: 3s\n" in r["timing"]
+    r = _timing(tmp_path, "1.0")
+    assert "--start-interval=1s " in r["flags"]
+
+
+def test_start_interval_invalid_override_falls_back_to_default(tmp_path):
+    for bad in ("0", "-1", "abc", "1e3", "1.2.3", ".", "0.0"):
+        r = _timing(tmp_path, bad)
+        assert "--start-interval=0.5s" in r["flags"], bad

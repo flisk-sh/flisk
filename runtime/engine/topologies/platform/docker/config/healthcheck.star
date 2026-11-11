@@ -6,7 +6,9 @@
 # =============================================================================
 # Steady-state probes are infrequent (each probe is a `docker exec`, which adds
 # up across 100+ containers), while `start_interval` keeps first-healthy time
-# fast during the start period. `start_interval` needs Docker Engine 25+ and
+# fast during the start period (default 0.5s, so a container is healthy well under
+# a second after its app is ready; the FLISK_HEALTHCHECK_START_INTERVAL_SECONDS
+# override accepts decimals). `start_interval` needs Docker Engine 25+ and
 # Compose 2.20.2+ (checked by `flisk doctor`).
 #
 # Override per run with environment variables, e.g.:
@@ -21,10 +23,29 @@ def _env_int(name, default):
     return default
 
 
+def _env_seconds(name, default):
+    """Positive seconds, decimals allowed ("0.5"). Anything else (empty, 0, negative, "1e3", "abc") gives the default."""
+    raw = os.environ.get(name, '')
+    parts = raw.split('.')
+    if not raw or len(parts) > 2 or [p for p in parts if p and not p.isdigit()] or not parts[0] and (len(parts) < 2 or not parts[1]):
+        return default
+    value = float(raw)
+    if value <= 0:
+        return default
+    return int(value) if value == int(value) else value
+
+
+def _seconds(value):
+    """A duration for a Dockerfile flag or a compose key: "2s", "0.5s". Both accept Go durations."""
+    if type(value) == "float" and value == int(value):
+        value = int(value)
+    return "{}s".format(value)
+
+
 DOCKER_HEALTHCHECK = {
     "path": "/health",
     "interval_seconds": _env_int("FLISK_HEALTHCHECK_INTERVAL_SECONDS", 30),
-    "start_interval_seconds": _env_int("FLISK_HEALTHCHECK_START_INTERVAL_SECONDS", 2),
+    "start_interval_seconds": _env_seconds("FLISK_HEALTHCHECK_START_INTERVAL_SECONDS", 0.5),
     "timeout_seconds": _env_int("FLISK_HEALTHCHECK_TIMEOUT_SECONDS", 5),
     "start_period_seconds": _env_int("FLISK_HEALTHCHECK_START_PERIOD_SECONDS", 30),
     "frontend_start_period_seconds": _env_int("FLISK_HEALTHCHECK_START_PERIOD_SECONDS", 30),
@@ -36,9 +57,9 @@ def dockerfile_healthcheck_flags(start_period_seconds = None):
     """Flags for a Dockerfile `HEALTHCHECK` instruction."""
     h = DOCKER_HEALTHCHECK
     start_period = start_period_seconds if start_period_seconds != None else h["start_period_seconds"]
-    return "--interval={}s --start-interval={}s --timeout={}s --start-period={}s --retries={}".format(
+    return "--interval={}s --start-interval={} --timeout={}s --start-period={}s --retries={}".format(
         h["interval_seconds"],
-        h["start_interval_seconds"],
+        _seconds(h["start_interval_seconds"]),
         h["timeout_seconds"],
         start_period,
         h["retries"],
@@ -60,7 +81,7 @@ def compose_healthcheck_timing(start_period_seconds = None, indent = "      ", o
         + indent + "timeout: {}s\n".format(o.get("timeout", h["timeout_seconds"]))
         + indent + "retries: {}\n".format(o.get("retries", h["retries"]))
         + indent + "start_period: {}s\n".format(start_period)
-        + indent + "start_interval: {}s\n".format(h["start_interval_seconds"])
+        + indent + "start_interval: {}\n".format(_seconds(h["start_interval_seconds"]))
     )
 
 

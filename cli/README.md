@@ -423,7 +423,7 @@ Generated runtimes are sized so large landscapes fit on a 16 GB machine:
   FLISK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
   ```
 
-  The other overrides are `FLISK_HEALTHCHECK_START_INTERVAL_SECONDS`, `FLISK_HEALTHCHECK_TIMEOUT_SECONDS`, `FLISK_HEALTHCHECK_START_PERIOD_SECONDS` and `FLISK_HEALTHCHECK_RETRIES`.
+  The other overrides are `FLISK_HEALTHCHECK_START_INTERVAL_SECONDS` (default `0.5`, decimals allowed), `FLISK_HEALTHCHECK_TIMEOUT_SECONDS`, `FLISK_HEALTHCHECK_START_PERIOD_SECONDS` and `FLISK_HEALTHCHECK_RETRIES`.
 - **Optional tooling is per service.** The golden backend image no longer ships `hugo`. A service that needs it declares it in `service.json`:
 
   ```json
