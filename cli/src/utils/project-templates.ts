@@ -116,14 +116,18 @@ export function listProjectTemplates(): ProjectTemplateEntry[] {
 }
 
 /**
- * The git invocations that fetch a repository template into `destination`: a clone and, for a pinned template, a
- * detached checkout of its exact commit.
+ * Fetches a repository template into `destination` and keeps its source as `upstream`.
+ * Unpinned templates need only the latest commit; pinned templates retain the history needed to
+ * check out their exact commit.
  */
 export function templateGitCommands(template: ProjectTemplate, destination: string): string[][] {
-  const commands = [["clone", template.repo, destination]];
+  const commands = [
+    ["clone", ...(template.ref ? [] : ["--depth", "1"]), template.repo, destination],
+  ];
   if (template.ref) {
     commands.push(["-C", destination, "checkout", "--quiet", "--detach", template.ref]);
   }
+  commands.push(["-C", destination, "remote", "rename", "origin", "upstream"]);
   return commands;
 }
 

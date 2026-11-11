@@ -140,12 +140,14 @@ describe("templateGitCommands", () => {
     expect(templateGitCommands({ repo: "r.git", description: "", ref: "abc" }, "/tmp/x")).toEqual([
       ["clone", "r.git", "/tmp/x"],
       ["-C", "/tmp/x", "checkout", "--quiet", "--detach", "abc"],
+      ["-C", "/tmp/x", "remote", "rename", "origin", "upstream"],
     ]);
   });
 
-  it("only clones an unpinned template", () => {
+  it("shallow-clones an unpinned template and keeps its source as upstream", () => {
     expect(templateGitCommands({ repo: "r.git", description: "" }, "/tmp/x")).toEqual([
-      ["clone", "r.git", "/tmp/x"],
+      ["clone", "--depth", "1", "r.git", "/tmp/x"],
+      ["-C", "/tmp/x", "remote", "rename", "origin", "upstream"],
     ]);
   });
 });
