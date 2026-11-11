@@ -1,5 +1,5 @@
 import { findProjectRoot } from "./paths.js";
-import { discoverResources, discoverResourcesWithProblems, discoverStacks, getAllStacks, warnAboutSkippedFiles, } from "./services.js";
+import { clearDiscoveryResultCache, discoverResources, discoverResourcesWithProblems, discoverStacks, getAllStacks, warnAboutSkippedFiles, } from "./services.js";
 const cachedContexts = new Map();
 /**
  * Invalidate cached discovery contexts.
@@ -12,11 +12,13 @@ const cachedContexts = new Map();
  * Any command that creates, mutates, or removes service manifests (`service.json`) or project
  * templates (e.g. `flisk resource`, `flisk project example`, `flisk config migrate`) MUST call
  * `clearDiscoveryCache()` so that subsequent discovery operations within the same process
- * observe the updated filesystem state.
+ * observe the updated filesystem state. Clearing also drops the cached
+ * `discoverResourcesWithProblems` results that the contexts are built from.
  *
  * @param projectRoot Optional project root to invalidate. If omitted, all cached contexts are cleared.
  */
 export function clearDiscoveryCache(projectRoot) {
+    clearDiscoveryResultCache(projectRoot);
     if (projectRoot !== undefined) {
         cachedContexts.delete(projectRoot);
     }
@@ -42,6 +44,10 @@ export function createDiscoveryContext(forceRefresh = false) {
         if (cached) {
             return cached;
         }
+    }
+    else if (projectRoot) {
+        // forceRefresh promises a fresh filesystem scan, so the cached discovery results go too.
+        clearDiscoveryResultCache(projectRoot);
     }
     const { resources, problems } = projectRoot
         ? discoverResourcesWithProblems(projectRoot)

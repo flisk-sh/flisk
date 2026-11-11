@@ -122,6 +122,12 @@ describe("discovery-context", () => {
 
       expect(() => createDiscoveryContext()).toThrow("Could not find project root");
     });
+
+    it("throws notInProject error on forceRefresh outside of a project root", () => {
+      vi.mocked(findProjectRoot).mockReturnValue(null);
+
+      expect(() => createDiscoveryContext(true)).toThrow("Could not find project root");
+    });
   });
 
   describe("clearDiscoveryCache", () => {

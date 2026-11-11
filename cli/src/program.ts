@@ -25,7 +25,7 @@ export function createProgram(): Command {
     .option("--verbose", "Enable verbose output", false)
     .option(
       "--template <name>",
-      "Create a project from a starter template in one command (restaurant, saas, erp, ecommerce, example)",
+      "Create a project from a starter template in one command (see the names with: flisk project --list)",
     )
     .option("--project <dir>", "Directory to create the project in (default: the template name)")
     .configureOutput({

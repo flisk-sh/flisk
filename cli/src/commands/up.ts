@@ -95,7 +95,8 @@ import {
   describeSkipped,
   type ProfileSelection,
 } from "../utils/profiles.js";
-import { recordProjectRoot } from "../utils/project-registry.js";
+import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-owner.js";
+import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import {
@@ -972,6 +973,27 @@ export const upCommand = new Command("up")
     const action = async (): Promise<void> => {
       const foundRoot = options.dryRun ? requireProjectRoot() : findProjectRoot();
       const projectRoot = foundRoot ?? process.cwd();
+      // Another folder with this project's name that already has containers: starting here would replace them and share
+      // their database volume (#3961). Read-only, so it also stops before anything below writes to the project.
+      if (foundRoot && !options.dryRun) {
+        const ownName = projectNameAt(foundRoot);
+        const refusal = ownName
+          ? upOwnerRefusal(
+              ownName,
+              findForeignContainerOwners(ownName, recordableStacks(foundRoot), foundRoot),
+            )
+          : undefined;
+        if (refusal) {
+          emit?.({ ok: false }, [
+            {
+              code: "PROJECT_NAME_IN_USE",
+              message: refusal.message,
+              suggestions: refusal.suggestions,
+            },
+          ]);
+          showErrorAndExit(refusal.message, 1, refusal.suggestions);
+        }
+      }
       if (options.gateway === false) assertGatewayOptOutIsConfigured(foundRoot);
       // With the gateway off nothing publishes the routed URLs, so none is printed or smoke-checked.
       const gatewayEnabled = isGatewayEnabled(projectRoot, options);

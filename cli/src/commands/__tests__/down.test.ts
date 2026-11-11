@@ -21,7 +21,9 @@ const {
   projectComposeProjectsMock,
   listProjectArtifactsMock,
   removeProjectArtifactsMock,
+  foreignOwnersMock,
 } = vi.hoisted(() => ({
+  foreignOwnersMock: vi.fn(() => [] as { root: string; containers: string[] }[]),
   listProjectArtifactsMock: vi.fn(),
   removeProjectArtifactsMock: vi.fn(),
   runTiltMock: vi.fn(),
@@ -74,6 +76,12 @@ const collectLeftoversMock = vi.hoisted(() => vi.fn());
 vi.mock("../../utils/down-leftovers.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/down-leftovers.js")>()),
   collectLeftovers: collectLeftoversMock,
+}));
+
+// `--purge` asks Docker which other folders own containers of this project name (#3961); the tests give the answer.
+vi.mock("../../utils/project-owner.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/project-owner.js")>()),
+  findForeignContainerOwners: foreignOwnersMock,
 }));
 
 vi.mock("../../utils/project-registry.js", async (importOriginal) => ({
@@ -144,6 +152,7 @@ describe("flisk down", () => {
     projectComposeProjectsMock.mockReset().mockReturnValue(["demo-traefik"]);
     listProjectArtifactsMock.mockReset();
     removeProjectArtifactsMock.mockReset();
+    foreignOwnersMock.mockReset().mockReturnValue([]);
     collectLeftoversMock.mockReset().mockResolvedValue(null);
   });
 
@@ -605,6 +614,61 @@ describe("flisk down", () => {
         const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
         expect(output).toContain("--purge would delete");
         expect(output).toContain("images: test-project-l1:latest, test_project_main_api:dev");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("refuses when another folder with this project name has containers, and removes nothing (#3961)", async () => {
+      const tempDir = setupTestProject();
+      foreignOwnersMock.mockReturnValue([
+        { root: "/other/test-project", containers: ["test-project_postgres"] },
+      ]);
+      listProjectArtifactsMock.mockReturnValue(ARTIFACTS);
+
+      try {
+        const output = await downFails(tempDir, ["--purge"]);
+
+        expect(removeProjectArtifactsMock).not.toHaveBeenCalled();
+        expect(runTiltMock).not.toHaveBeenCalled();
+        expect(output).toContain("/other/test-project");
+        expect(output).toContain("Nothing was removed.");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("also refuses with --dry-run, so the preview never lists another folder's data (#3961)", async () => {
+      const tempDir = setupTestProject();
+      foreignOwnersMock.mockReturnValue([
+        { root: "/other/test-project", containers: ["test-project_postgres"] },
+      ]);
+      listProjectArtifactsMock.mockReturnValue(ARTIFACTS);
+
+      try {
+        await downFails(tempDir, ["--purge", "--dry-run"]);
+
+        expect(listProjectArtifactsMock).not.toHaveBeenCalled();
+        expect(removeProjectArtifactsMock).not.toHaveBeenCalled();
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("a plain down never asks which folders share the name", async () => {
+      const tempDir = setupTestProject();
+      foreignOwnersMock.mockReturnValue([{ root: "/other/test-project", containers: ["x"] }]);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+        expect(foreignOwnersMock).not.toHaveBeenCalled();
+        expect(runTiltMock).toHaveBeenCalled();
       } finally {
         process.chdir(originalCwd);
         rmSync(tempDir, { recursive: true, force: true });
