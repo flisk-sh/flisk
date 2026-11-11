@@ -8,8 +8,8 @@ import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { pruneDockerBuildCache, validateCacheUntil } from "../utils/docker-build-cache.js";
 import {
   type ComposeFallbackResult,
-  findProjectTiltUpPids,
   findRunningFliskProjects,
+  lookupProjectTiltUpPids,
   projectComposeProjects,
   pruneProjectNetworks,
   stopProjectComposeProjects,
@@ -109,8 +109,8 @@ function resolveDownProject(options: { project?: string; json?: boolean }): stri
  */
 function isProjectIdle(projectRoot: string): boolean {
   try {
-    if (findProjectTiltUpPids(getTiltfilePath(), process.platform, undefined, true).length > 0)
-      return false;
+    const tiltUp = lookupProjectTiltUpPids(getTiltfilePath());
+    if (tiltUp === null || tiltUp.length > 0) return false;
     return projectComposeProjects(projectRoot).length === 0;
   } catch {
     return false;

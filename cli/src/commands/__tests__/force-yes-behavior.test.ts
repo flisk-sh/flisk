@@ -38,7 +38,7 @@ vi.mock("../../utils/docker.js", () => ({
 // A stack that runs, so `down` reaches `tilt down` (an idle project returns early, #3768) and never asks the real Docker.
 vi.mock("../../utils/down-cleanup.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/down-cleanup.js")>()),
-  findProjectTiltUpPids: vi.fn(() => [] as number[]),
+  lookupProjectTiltUpPids: vi.fn(() => [] as number[]),
   projectComposeProjects: vi.fn(() => ["demo-traefik"]),
 }));
 

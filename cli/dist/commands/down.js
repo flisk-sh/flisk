@@ -6,7 +6,7 @@ import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { pruneDockerBuildCache, validateCacheUntil } from "../utils/docker-build-cache.js";
-import { findProjectTiltUpPids, findRunningFliskProjects, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
+import { findRunningFliskProjects, lookupProjectTiltUpPids, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
 import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
@@ -83,7 +83,8 @@ function resolveDownProject(options) {
  */
 function isProjectIdle(projectRoot) {
     try {
-        if (findProjectTiltUpPids(getTiltfilePath(), process.platform, undefined, true).length > 0)
+        const tiltUp = lookupProjectTiltUpPids(getTiltfilePath());
+        if (tiltUp === null || tiltUp.length > 0)
             return false;
         return projectComposeProjects(projectRoot).length === 0;
     }

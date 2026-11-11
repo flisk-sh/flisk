@@ -17,7 +17,7 @@ const {
   findRunningFliskProjectsMock,
   pruneDockerBuildCacheMock,
   stopProjectComposeProjectsMock,
-  findProjectTiltUpPidsMock,
+  lookupProjectTiltUpPidsMock,
   projectComposeProjectsMock,
   listProjectArtifactsMock,
   removeProjectArtifactsMock,
@@ -35,7 +35,7 @@ const {
   findRunningFliskProjectsMock: vi.fn((): string[] => []),
   pruneDockerBuildCacheMock: vi.fn(),
   stopProjectComposeProjectsMock: vi.fn(),
-  findProjectTiltUpPidsMock: vi.fn((): number[] => []),
+  lookupProjectTiltUpPidsMock: vi.fn((): number[] => []),
   // Something runs by default, so `down` reaches `tilt down`; the idle cases say otherwise.
   projectComposeProjectsMock: vi.fn((): string[] => ["demo-traefik"]),
 }));
@@ -53,7 +53,7 @@ vi.mock("../../utils/docker-build-cache.js", async (importOriginal) => ({
 // The real lookup reads `ps`, and a stack running on the test machine must never be picked (or stopped) by a test.
 vi.mock("../../utils/down-cleanup.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/down-cleanup.js")>()),
-  findProjectTiltUpPids: findProjectTiltUpPidsMock,
+  lookupProjectTiltUpPids: lookupProjectTiltUpPidsMock,
   findRunningFliskProjects: findRunningFliskProjectsMock,
   projectComposeProjects: projectComposeProjectsMock,
   pruneProjectNetworks: pruneProjectNetworksMock,
@@ -140,7 +140,7 @@ describe("flisk down", () => {
     findRunningFliskProjectsMock.mockReset().mockReturnValue([]);
     pruneDockerBuildCacheMock.mockReset();
     stopProjectComposeProjectsMock.mockReset();
-    findProjectTiltUpPidsMock.mockReset().mockReturnValue([]);
+    lookupProjectTiltUpPidsMock.mockReset().mockReturnValue([]);
     projectComposeProjectsMock.mockReset().mockReturnValue(["demo-traefik"]);
     listProjectArtifactsMock.mockReset();
     removeProjectArtifactsMock.mockReset();

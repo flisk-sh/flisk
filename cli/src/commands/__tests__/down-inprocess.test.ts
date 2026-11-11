@@ -21,7 +21,7 @@ const tilt = vi.hoisted(() => ({
   runTilt: vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" })),
 }));
 const cleanup = vi.hoisted(() => ({
-  findProjectTiltUpPids: vi.fn((): number[] => []),
+  lookupProjectTiltUpPids: vi.fn((): number[] | null => []),
   projectComposeProjects: vi.fn((): string[] => []),
   findRunningFliskProjects: vi.fn((): string[] => []),
   pruneProjectNetworks: vi.fn(),
@@ -124,7 +124,7 @@ describe("flisk down (in-process)", () => {
     tilt.isTiltAvailable.mockResolvedValue(true);
     tilt.runTilt.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
     cleanup.findRunningFliskProjects.mockReturnValue([]);
-    cleanup.findProjectTiltUpPids.mockReturnValue([]);
+    cleanup.lookupProjectTiltUpPids.mockReturnValue([]);
     // Something runs by default, so `down` reaches `tilt down`; the idle cases say otherwise.
     cleanup.projectComposeProjects.mockReturnValue(["demo-traefik"]);
     cleanup.stopProjectTiltUp.mockReturnValue([]);
@@ -174,7 +174,7 @@ describe("flisk down (in-process)", () => {
     });
 
     it("still runs tilt down when a tilt up of the project is alive", async () => {
-      cleanup.findProjectTiltUpPids.mockReturnValue([777]);
+      cleanup.lookupProjectTiltUpPids.mockReturnValue([777]);
 
       await runDown([]);
 
@@ -182,19 +182,11 @@ describe("flisk down (in-process)", () => {
     });
 
     it("runs tilt down when the process list cannot be read, as a tilt up may be alive", async () => {
-      cleanup.findProjectTiltUpPids.mockImplementation(() => {
-        throw new Error("ps failed");
-      });
+      cleanup.lookupProjectTiltUpPids.mockReturnValue(null);
 
       await runDown([]);
 
       expect(tilt.runTilt).toHaveBeenCalledTimes(1);
-    });
-
-    it("asks for the strict process lookup, so a failed ps is not read as no tilt up", async () => {
-      await runDown([]);
-
-      expect((cleanup.findProjectTiltUpPids.mock.calls[0] as unknown[])[3]).toBe(true);
     });
 
     it("runs tilt down when Docker cannot be asked", async () => {
