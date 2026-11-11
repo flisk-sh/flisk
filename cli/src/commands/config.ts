@@ -331,6 +331,7 @@ export const configCommand = new Command("config")
         false,
       )
       .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
+      .addHelpText("after", `\nExamples:\n  flisk config migrate\n  flisk config migrate --json`)
       .action(async (options) => {
         const action = async (): Promise<JsonCommandResult> => {
           const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
@@ -444,6 +445,7 @@ export const configCommand = new Command("config")
         false,
       )
       .option("--json", "Emit a machine-readable verification report")
+      .addHelpText("after", `\nExamples:\n  flisk config verify\n  flisk config verify --json`)
       .action(async (options) => {
         const action = async (): Promise<void> => {
           const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
@@ -604,6 +606,10 @@ export const configCommand = new Command("config")
       )
       .argument("<file>", "Project file to explain, relative to the current directory or absolute")
       .option("--json", "Emit a machine-readable explanation")
+      .addHelpText(
+        "after",
+        `\nExamples:\n  flisk config explain Tiltfile\n  flisk config explain services/orders-api/service.json\n  flisk config explain Tiltfile --json`,
+      )
       .action(async (file: string, options) => {
         const action = async (): Promise<void> => {
           const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
