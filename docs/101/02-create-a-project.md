@@ -35,7 +35,7 @@ Flisk prints each step. The lines that matter:
 ```text
 ✓ Created: .flisk/project.json
 ✓ Created: .env (the defaults work as-is)
-✓ Added to .gitignore: .env, .flisk/.flisk-out/, .flisk/.project-id, .flisk/smoke/, node_modules/
+✓ Added to .gitignore: .env, .env.*, !.env.example, .flisk/.flisk-out/, .flisk/.project-id, .flisk/smoke/, node_modules/
 
 ✅ Project configuration complete!
 

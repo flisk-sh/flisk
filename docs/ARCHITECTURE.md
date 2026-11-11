@@ -37,7 +37,7 @@ A typical Flisk session progresses through three distinct stages: project initia
 
 ### Step 1: `flisk project` (Project Initialization)
 1. **Manifest Creation**: Writes the root `.flisk/project.json` file defining project identity, release phases (`pre_alpha`, `alpha`, `beta`, `out_of_scope`), enabled stacks, optional infrastructure, and discovery paths.
-2. **Git Hygiene**: Calls `ensureGitignore()` (in [cli/src/utils/file-helpers.ts](../cli/src/utils/file-helpers.ts)) to append required gitignore patterns (`.env`, `.flisk/.flisk-out/`, `.flisk/.project-id`, `.flisk/smoke/`, `node_modules/`) so secrets and generated assets are never committed.
+2. **Git Hygiene**: Calls `ensureGitignore()` (in [cli/src/utils/file-helpers.ts](../cli/src/utils/file-helpers.ts)) to append required gitignore patterns (`.env`, `.env.*`, `!.env.example`, `.flisk/.flisk-out/`, `.flisk/.project-id`, `.flisk/smoke/`, `node_modules/`) so secrets and generated assets are never committed.
 3. **Master Config Generation**: Compiles Handlebars templates from [cli/templates/](../cli/templates/) through `generateMasterConfigs()` in [cli/src/generator/template-engine.ts](../cli/src/generator/template-engine.ts) and emits them into the gitignored `.flisk/.flisk-out/` directory:
    - `Tiltfile`: The main entry point loaded by Tilt.
    - `TILT_TECH_STACK.star`: Technology standards, port ranges, and healthcheck routes.

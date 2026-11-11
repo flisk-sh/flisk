@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -269,6 +270,8 @@ describe("file helpers", () => {
 
       expect(added).toEqual([
         ".env",
+        ".env.*",
+        "!.env.example",
         ".flisk/.flisk-out/",
         ".flisk/.project-id",
         ".flisk/smoke/",
@@ -278,6 +281,7 @@ describe("file helpers", () => {
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
       expect(content).toContain("# Flisk (generated files and secrets)\n");
       expect(content).toContain(".env\n");
+      expect(content).toContain(".env.*\n!.env.example\n");
       expect(content).toContain(".flisk/.flisk-out/\n");
       expect(content).toContain(".flisk/.project-id\n");
       expect(content).toContain(".flisk/smoke/\n");
@@ -289,6 +293,8 @@ describe("file helpers", () => {
       const added = ensureGitignore(root);
 
       expect(added).toEqual([
+        ".env.*",
+        "!.env.example",
         ".flisk/.flisk-out/",
         ".flisk/.project-id",
         ".flisk/smoke/",
@@ -313,7 +319,7 @@ describe("file helpers", () => {
     it("recognizes entries regardless of trailing slash presence", () => {
       writeFileSync(
         join(root, ".gitignore"),
-        ".env\n.flisk/.flisk-out\n.flisk/.project-id\n.flisk/smoke\nnode_modules\n",
+        ".env\n.env.*\n!.env.example\n.flisk/.flisk-out\n.flisk/.project-id\n.flisk/smoke\nnode_modules\n",
       );
 
       const added = ensureGitignore(root);
@@ -324,7 +330,13 @@ describe("file helpers", () => {
       writeFileSync(join(root, ".gitignore"), "dist\r\n.env\r\nnode_modules/\r\n");
 
       const added = ensureGitignore(root);
-      expect(added).toEqual([".flisk/.flisk-out/", ".flisk/.project-id", ".flisk/smoke/"]);
+      expect(added).toEqual([
+        ".env.*",
+        "!.env.example",
+        ".flisk/.flisk-out/",
+        ".flisk/.project-id",
+        ".flisk/smoke/",
+      ]);
     });
 
     it("handles whitespace around entries and duplicate lines in existing .gitignore", () => {
@@ -334,7 +346,13 @@ describe("file helpers", () => {
       );
 
       const added = ensureGitignore(root);
-      expect(added).toEqual([".flisk/.flisk-out/", ".flisk/smoke/", "node_modules/"]);
+      expect(added).toEqual([
+        ".env.*",
+        "!.env.example",
+        ".flisk/.flisk-out/",
+        ".flisk/smoke/",
+        "node_modules/",
+      ]);
     });
 
     it("does not treat .env.local as .env", () => {
@@ -342,6 +360,21 @@ describe("file helpers", () => {
 
       const added = ensureGitignore(root);
       expect(added).toContain(".env");
+    });
+  });
+
+  describe("ensureGitignore with git", () => {
+    it("ignores copies of .env but not .env.example", () => {
+      execFileSync("git", ["init", "-q"], { cwd: root });
+      ensureGitignore(root);
+
+      const ignored = (file: string) =>
+        spawnSync("git", ["check-ignore", "-q", file], { cwd: root }).status === 0;
+
+      expect(ignored(".env")).toBe(true);
+      expect(ignored(".env.integration")).toBe(true);
+      expect(ignored(".env.staging")).toBe(true);
+      expect(ignored(".env.example")).toBe(false);
     });
   });
 

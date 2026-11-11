@@ -86,6 +86,8 @@ export function ensureDirectory(dirPath: string): void {
 /** Generated files that must never be committed: .env holds a generated DB password. */
 const GITIGNORE_ENTRIES = [
   ".env",
+  ".env.*",
+  "!.env.example",
   ".flisk/.flisk-out/",
   ".flisk/.project-id",
   ".flisk/smoke/",
