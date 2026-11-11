@@ -537,16 +537,24 @@ function jobBlock(workflow, job) {
   return next === -1 ? rest : rest.slice(0, next + 1);
 }
 
-test("the MCP Registry publish runs in its own job after publish, not on the release's path", () => {
-  const workflow = readFileSync(join(ROOT_DIR, ".github/workflows/release-binaries.yml"), "utf8");
-  const publish = jobBlock(workflow, "publish");
+test("the MCP Registry publish is its own workflow, started when the release run completes, not on the release's path", () => {
+  const release = readFileSync(join(ROOT_DIR, ".github/workflows/release-binaries.yml"), "utf8");
+  const publish = jobBlock(release, "publish");
   assert.doesNotMatch(publish, /mcp-publisher|Publish to the MCP Registry/, "publish must not wait on the MCP Registry");
   assert.match(publish, /name: Commit the version bump/);
-  const mcp = jobBlock(workflow, "publish-mcp-registry");
-  assert.match(mcp, /needs: \[build, publish\]/);
+  assert.doesNotMatch(release, /mcp-publisher/, "the release run must end without waiting for the MCP Registry (#3938)");
+  const mcp = readFileSync(join(ROOT_DIR, ".github/workflows/publish-mcp-registry.yml"), "utf8");
+  const releaseName = release.match(/^name: (.+)$/m)[1];
+  assert.ok(mcp.includes(`workflows: ["${releaseName}"]`), "it must be triggered by the release workflow's name");
+  assert.match(mcp, /types: \[completed\]/);
+  assert.match(mcp, /workflow_run\.conclusion == 'success'/, "a failed release has nothing to list");
+  assert.match(mcp, /workflow_dispatch:/, "a missing listing is repaired by hand with -f version=<version>");
   assert.match(mcp, /id-token: write/, "mcp-publisher logs in with the run's GitHub OIDC token");
+  assert.match(mcp, /release-dist-/, "the version comes from the release run's artifact name");
   assert.match(mcp, /mcp-publisher" publish server\.json/);
   // npm can take more than 3 minutes to serve a new version; publishing before it does fails registry validation (1.4.34-1.4.39).
+  assert.match(mcp, /seq 1 90/, "the 15 minute npm wait stays");
+  assert.match(mcp, /for attempt in 1 2 3 4 5/, "the 5 retries stay");
   const waitAt = mcp.search(/registry\.npmjs\.org\/@flisk-sh%2fflisk\/\$\{VERSION\}/);
   assert.ok(waitAt !== -1, "the job must wait until npm serves this exact version");
   assert.ok(waitAt < mcp.indexOf('mcp-publisher" publish'), "the npm wait must come before the first publish attempt");
