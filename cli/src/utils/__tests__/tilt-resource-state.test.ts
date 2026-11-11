@@ -16,6 +16,8 @@ describe("isTiltResourcePending", () => {
     ["ok", "none"],
     ["error", "pending"],
     ["in_progress", "ok"],
+    // Just registered by Tilt: no status reported yet (the next-postgres journey read this as ready and ran NP2 too early).
+    ["", ""],
   ])("treats update=%s runtime=%s as not ready yet", (update, runtime) => {
     expect(isTiltResourcePending(update, runtime)).toBe(true);
   });
