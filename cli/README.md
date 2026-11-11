@@ -417,13 +417,13 @@ The general Tilt-resource fix points to the URL printed by `flisk up`; the defau
 Generated runtimes are sized so large landscapes fit on a 16 GB machine:
 
 - **One process per container.** A service whose `start` script is just `bun run <file>` runs `bun <file>` directly under Docker's init (`init: true`). Any other `start` script keeps `bun run start`.
-- **Healthchecks:** every 2 s during startup, then every 30 s. You can override the timing for a run:
+- **Healthchecks:** every 0.5 s during startup, then every 30 s. You can override the timing for a run:
 
   ```bash
   FLISK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
   ```
 
-  The other overrides are `FLISK_HEALTHCHECK_START_INTERVAL_SECONDS`, `FLISK_HEALTHCHECK_TIMEOUT_SECONDS`, `FLISK_HEALTHCHECK_START_PERIOD_SECONDS` and `FLISK_HEALTHCHECK_RETRIES`.
+  `FLISK_HEALTHCHECK_START_INTERVAL_SECONDS` takes decimals (`0.5`). The other overrides are `FLISK_HEALTHCHECK_TIMEOUT_SECONDS`, `FLISK_HEALTHCHECK_START_PERIOD_SECONDS` and `FLISK_HEALTHCHECK_RETRIES`.
 - **Optional tooling is per service.** The golden backend image no longer ships `hugo`. A service that needs it declares it in `service.json`:
 
   ```json
