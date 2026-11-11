@@ -48,7 +48,8 @@ function findServiceJsonFiles(
     return results;
   }
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);

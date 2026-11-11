@@ -972,4 +972,21 @@ describe("discoverServiceManifestPaths", () => {
 
     expect(discoverServiceManifestPaths(root)).toEqual([validManifest]);
   });
+
+  it("returns manifests in deterministic sorted order regardless of filesystem order", () => {
+    const root = makeTempDir("flisk-sorted-manifests-");
+    // create in reverse alphabetical order
+    for (const name of ["zeta", "mike", "bravo", "alpha"]) {
+      const dir = join(root, name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "service.json"), JSON.stringify({ appName: name, appType: "backend" }));
+    }
+    const actual = discoverServiceManifestPaths(root);
+    expect(actual.map((p) => p.split(/[\\/]/).slice(-2, -1)[0])).toEqual([
+      "alpha",
+      "bravo",
+      "mike",
+      "zeta",
+    ]);
+  });
 });
