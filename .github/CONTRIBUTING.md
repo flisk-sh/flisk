@@ -14,6 +14,7 @@ Welcome! **Your first step: [say hello on Discord](https://discord.gg/qMu5Xn8Kaq
 - [Code review](#code-review)
 - [Changing the CLI source](#changing-the-cli-source)
 - [Tests](#tests)
+- [Adding a workflow job](#adding-a-workflow-job)
 - [Find bugs](#find-bugs)
 - [Review pull requests](#review-pull-requests)
 - [Find something to work on](#find-something-to-work-on)
@@ -244,6 +245,14 @@ Run focused checks from the repository root while you work, then use `make test`
 The TypeScript target requires Bun and Node.js 22.12+. The Python target requires the packages in `tests/requirements.txt`; it includes the known clean-checkout failures tracked in [#700](https://github.com/flisk-sh/flisk/issues/700) rather than hiding or skipping them. The shell target runs Bash syntax validation on `scripts/verify-*.sh` and the e2e suites, validates every `tests/e2e/<group>/<suite>/suite.json`, and runs the e2e helper unit tests. It does not start a stack. Run an affected verification script separately when you need its real integration coverage; those scripts document their own arguments and may require Docker, Tilt, a built CLI or network access.
 
 CI also installs the published `@flisk-sh/flisk` package from npm in the `npm-package-smoke` job (`.github/workflows/ci.yml`). The job installs the exact version pinned in `.github/npm-package-smoke/package.json` through its `package-lock.json` (`npm ci`), and fails if `flisk --version` does not report exactly that version. The `npm-registry-audit` job runs the package-contents check on the same published tarball. To bump the pin, run `npm view @flisk-sh/flisk version`, confirm the release is live, then run `npm install --save-exact --package-lock-only --ignore-scripts @flisk-sh/flisk@1.4.1` (with that version) inside `.github/npm-package-smoke/` and push. If it fails with a registry error, re-run the job first; a persistent failure usually means the pinned version is not published yet or the registry is unreachable.
+
+## Adding a workflow job
+
+Every job costs a runner slot, and on a busy day a job waits for one much longer than it works. For one pull request commit (2026-11-11, #3894) 34 jobs waited 78 minutes for runners to do 25 minutes of work, and four jobs (the resource-types gate, DCO, Security Scans, PR area labels) did 7 to 9 seconds each. Before you add a job:
+
+- Add a step to an existing job when the check is short (under about 30 s) and needs the same checkout. `ci.yml` already groups these: `typecheck` (typecheck, fuzz, schema) and `quick-checks` (spell check, docs, secret scan).
+- Keep a required check's name stable: a skipped job still reports its name, a job that is never created does not.
+- Measure the wait with `started_at - created_at` from `gh api repos/flisk-sh/flisk/actions/runs/<id>/jobs`, and paste the before and after in the pull request.
 
 ## Find bugs
 

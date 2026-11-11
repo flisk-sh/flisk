@@ -6,7 +6,7 @@
 // (a project of only bring-your-own containers needs no PostgreSQL and no DB_PASSWORD).
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { drawPlan, rng } from "../../e2e/scale/enigma36/plan.mjs";
+import { drawPlan, reportedType, rng } from "../../e2e/scale/enigma36/plan.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(here, "../../..");
@@ -29,7 +29,8 @@ export function drawScenario(seed, { shape, count = 8 } = {}) {
     const plan = drawPlan(seed, { count });
     return {
       seed, shape: chosen,
-      resources: plan.entries.map((e) => ({ name: e.name, kind: e.kind, stack: e.stack, args: e.args })),
+      // `type` is what status reports: a queue or a MySQL-style database is a bring-your-own container (docs/byo.md)
+      resources: plan.entries.map((e) => ({ name: e.name, kind: e.kind, type: reportedType(e), stack: e.stack, args: e.args })),
       expect: { database: true, gateway: true, cycle: false, dangling: false },
     };
   }

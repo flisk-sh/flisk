@@ -31,7 +31,7 @@ describe("ci.yml job timeouts", () => {
   });
 
   it("keeps a timeout on every job, so a hang cannot run for six hours", () => {
-    for (const job of ["lint", "typecheck", "test", "package-smoke", "published-schema"]) {
+    for (const job of ["lint", "typecheck", "test", "package-smoke", "quick-checks"]) {
       expect(jobTimeoutMinutes(job), `job ${job} has no timeout-minutes`).toBeDefined();
     }
   });

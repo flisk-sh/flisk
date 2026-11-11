@@ -500,3 +500,76 @@ def test_postgres_and_nats_wait_for_the_golden_step_too():
     assert "resource_deps=_proxy_deps([], golden_image_resource)" in database
     assert "golden_image_resource=golden_image_resource" in database
     assert "_load_database_management(should_enable, root_prefix, env_file, write_fn, golden_image_resource)" in source
+
+
+def _gateway_image_ref(tmp_path: Path, run: str, project: str, source_dir: Path) -> str:
+    """The `image:` line of the wake-gateway service as project `project` generates it."""
+    tmp_path = tmp_path / run
+    tmp_path.mkdir()
+    root = tmp_path / "project"
+    (root / ".flisk").mkdir(parents=True)
+    # Tilt resolves the gateway sources relative to the Tiltfile directory, as it does in a project.
+    vendored = tmp_path / ".flisk" / ".flisk-out" / "flisk-cli-ext" / "engine" / "assets" / "docker" / "wake-gateway"
+    shutil.copytree(source_dir, vendored)
+    (root / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": project}}))
+    r = _run_starlark(
+        tmp_path,
+        f"os.environ['FLISK_PROJECT_ROOT'] = '{root}'\n"
+        "load('@COMPOSE/traefik_standalone.star', 'generate_standalone_traefik_compose')\n"
+        f"r = {{'yaml': generate_standalone_traefik_compose(True, '8080', '8443', '127.0.0.1')}}\n",
+    )
+    block = r["yaml"].split("  wake-gateway:\n", 1)[1].split("    networks:", 1)[0]
+    # The container stays per project; only the image is shared.
+    assert f"container_name: {project}-wake-gateway" in block, block
+    lines = [line.strip() for line in block.splitlines() if line.strip().startswith("image:")]
+    assert len(lines) == 1, block
+    return lines[0][len("image:"):].strip()
+
+
+def _copy_gateway_sources(dest: Path) -> Path:
+    src = REPO_ROOT / "runtime" / "engine" / "assets" / "docker" / "wake-gateway"
+    dest.mkdir(parents=True)
+    for name in ("Dockerfile", "decide.ts", "server.ts"):
+        shutil.copy(src / name, dest / name)
+    return dest
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_wake_gateway_image_is_shared_by_projects_and_follows_its_content(tmp_path):
+    """flisk#3837: one `flisk-wake-gateway:<tilt version>-<hash>` per machine, not one image per project."""
+    sources = _copy_gateway_sources(tmp_path / "gw")
+    first = _gateway_image_ref(tmp_path, "a", "alpha", sources)
+    second = _gateway_image_ref(tmp_path, "b", "beta", sources)
+    assert first == second
+    assert first.startswith("flisk-wake-gateway:0.37.7-")
+    assert "alpha" not in first and "beta" not in first
+
+    # A different Tilt version in the Dockerfile: another tag, and the version is visible in it.
+    dockerfile = sources / "Dockerfile"
+    dockerfile.write_text(dockerfile.read_text().replace("ARG TILT_VERSION=0.37.7", "ARG TILT_VERSION=0.99.0"))
+    bumped = _gateway_image_ref(tmp_path, "c", "alpha", sources)
+    assert bumped != first
+    assert bumped.startswith("flisk-wake-gateway:0.99.0-")
+
+    # Any other Dockerfile change, or a change to a source file it copies, changes the tag too.
+    dockerfile.write_text(dockerfile.read_text() + "\n# touched\n")
+    assert _gateway_image_ref(tmp_path, "d", "alpha", sources) != bumped
+    after_dockerfile = _gateway_image_ref(tmp_path, "e", "alpha", sources)
+    (sources / "server.ts").write_text((sources / "server.ts").read_text() + "\n// touched\n")
+    assert _gateway_image_ref(tmp_path, "f", "alpha", sources) != after_dockerfile
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_wake_gateway_compose_builds_the_shared_image_name(tmp_path):
+    sources = _copy_gateway_sources(tmp_path / "gw")
+    run = tmp_path / "run"
+    (run / ".flisk" / ".flisk-out" / "flisk-cli-ext" / "engine" / "assets" / "docker").mkdir(parents=True)
+    shutil.copytree(sources, run / ".flisk" / ".flisk-out" / "flisk-cli-ext" / "engine" / "assets" / "docker" / "wake-gateway")
+    r = _run_starlark(
+        run,
+        "load('@COMPOSE/traefik_standalone.star', 'generate_standalone_traefik_compose')\n"
+        f"r = {{'yaml': generate_standalone_traefik_compose(True, '8080', '8443', '127.0.0.1')}}\n",
+    )
+    block = r["yaml"].split("  wake-gateway:\n", 1)[1].split("    networks:", 1)[0]
+    assert "    build: ./flisk-cli-ext/engine/assets/docker/wake-gateway\n" in block
+    assert "image: flisk-wake-gateway:" in block

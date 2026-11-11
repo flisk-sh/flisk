@@ -16,6 +16,11 @@ on:
       - "🔀 PR | Security | CodeQL"
       - "♻️ REUSE | E2E | BYO template"
     types: [completed]
+    # Only pull request runs are reported (shouldReport), so runs of main and of the merge queue
+    # would start a job that does nothing. A skipped job still counts as a run (#3910).
+    branches-ignore:
+      - main
+      - "gh-readonly-queue/**"
 
 permissions: {}
 

@@ -4,6 +4,10 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.55 (2026-11-11)
+
+- The wake-gateway image (built when a resource uses `sablier.deferStart`) is now one `flisk-wake-gateway:<tilt version>-<hash>` per machine instead of one copy per project, so two projects no longer hold 2 x 257 MB. The tag changes when its Dockerfile, Tilt version or sources change. `flisk down --purge` keeps it while a container of another project still runs from it, and still removes the old `<project>-traefik-wake-gateway` copies (#3837).
+
 ## 1.4.53 (2026-11-11)
 
 - `flisk projects --stale` reuses its Docker artifact listings across recorded stale projects instead of rerunning the same four listings for each one (#3786).

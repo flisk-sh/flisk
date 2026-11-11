@@ -26,7 +26,21 @@ vi.mock("../../utils/errors.js", async (importOriginal) => {
 import { uiCommand } from "../ui.js";
 
 it("renders the UI in Ink's alternate screen", async () => {
-  await uiCommand.parseAsync(["node", "flisk"], { from: "node" });
+  const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+  Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+  try {
+    await uiCommand.parseAsync(["node", "flisk"], { from: "node" });
+  } finally {
+    for (const [stream, desc] of [
+      [process.stdin, stdinTTY],
+      [process.stdout, stdoutTTY],
+    ] as const) {
+      if (desc) Object.defineProperty(stream, "isTTY", desc);
+      else delete (stream as { isTTY?: boolean }).isTTY;
+    }
+  }
 
   expect(renderMock).toHaveBeenCalledOnce();
   expect(renderMock).toHaveBeenCalledWith(expect.anything(), { alternateScreen: true });

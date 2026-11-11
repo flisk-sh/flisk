@@ -12,7 +12,10 @@ function waitingOn(item) {
         .map((ref) => ref.name);
 }
 // Docker has no free subnet left for a new network (every project creates several and `flisk down` keeps them).
-const NETWORK_POOL_EXHAUSTED = /all predefined address pools have been fully subnetted/i;
+// Docker words it "fully subnetted" on one version and "non-overlapping IPv4 address pool" on another; the last is our own text.
+const NETWORK_POOL_EXHAUSTED = /all predefined address pools have been fully subnetted|non-overlapping IPv4 address pool|out of network address pools/i;
+/** What a failed `init-networks` says when its log gives no reason: the usual cause, in plain words, not the shell command. */
+const INIT_NETWORKS_FALLBACK = "Docker could not create this project's networks; it is most likely out of network address pools";
 /**
  * Tilt's error for a failed local command is only "exit status 1"; the reason (for example Docker's "all predefined
  * address pools have been fully subnetted") is in the resource's log. Returns the fix for each failed resource whose
@@ -64,6 +67,8 @@ export async function withLoggedReasons(failures, fetchLogs) {
         const reason = errorLine ? capStart(errorLine.trim()) : isCommand ? logTail(log) : null;
         if (reason)
             out.push({ ...failure, message: reason });
+        else if (isCommand && failure.name === "init-networks")
+            out.push({ ...failure, message: INIT_NETWORKS_FALLBACK });
         else if (isCommand)
             out.push({ ...failure, message: capStart(message) });
         else
@@ -136,7 +141,7 @@ export function loggedErrorLine(log) {
 /** A plain fix for a failure message that names a known machine problem, or null. */
 export function machineProblemFix(message) {
     if (NETWORK_POOL_EXHAUSTED.test(message)) {
-        return "Fix: Docker has no free network ranges left. Run `flisk doctor --fix --scope=machine` to remove the unused networks of every Flisk project (networks in use are kept), then run flisk up again";
+        return "Fix: Docker has no free network ranges left. Run `flisk doctor --fix --scope=machine` to remove the unused networks of every Flisk project (networks in use are kept), or `flisk down --prune-networks` in a stopped project, or `docker network prune` for all unused networks, then run flisk up again";
     }
     return null;
 }

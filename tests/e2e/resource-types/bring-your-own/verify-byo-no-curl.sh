@@ -55,9 +55,13 @@ fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
 flisk config regenerate >/dev/null
 
 echo "Starting flisk up app --wait (expecting failure due to missing curl)..."
+# A cold runner pulls the base images first; the failing health check
+# still ends the wait as soon as Tilt reports it.
 set +e
-flisk_out="$(flisk up app --wait --wait-timeout 25 2>&1)"
+started=$SECONDS
+flisk_out="$(flisk up app --wait --wait-timeout 120 2>&1)"
 flisk_exit=$?
+elapsed=$((SECONDS - started))
 set -e
 
 if [ "$flisk_exit" -eq 0 ]; then
@@ -65,7 +69,7 @@ if [ "$flisk_exit" -eq 0 ]; then
   exit 1
 fi
 
-echo "flisk up exit code: $flisk_exit"
+echo "flisk up exit code: $flisk_exit (after ${elapsed}s of a 120s budget)"
 echo "Output:"
 echo "$flisk_out"
 

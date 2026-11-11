@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
+import { diskThresholds, readHostFreeGib } from "./disk-guard.js";
 import { FliskError } from "./errors.js";
 import { findOnPath } from "./which.js";
 const execFilePromise = promisify(execFile);
@@ -211,14 +215,79 @@ export function resolveBuildCacheCeilingGib(env = process.env) {
     const value = Number(raw);
     return Number.isFinite(value) && value >= 0 ? value : DEFAULT_BUILD_CACHE_CEILING_GIB;
 }
+/** `docker system df` takes 0.8-1.3 s; the ceiling is checked at most this often while the cache is well below it. */
+export const BUILD_CACHE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+/** A last-seen size above this share of the ceiling is re-checked on every `flisk up`; the rest is room to grow in one window. */
+export const BUILD_CACHE_NEAR_CEILING_RATIO = 0.5;
+const BUILD_CACHE_STAMP = "build-cache-check.json";
+/** Which Docker daemon `docker` talks to, so a size measured on one is never trusted for another. */
+export function dockerDaemonIdentity(env = process.env, home = homedir()) {
+    let context = env.DOCKER_CONTEXT ?? "";
+    if (!context) {
+        try {
+            const configDir = env.DOCKER_CONFIG ?? join(home, ".docker");
+            const config = JSON.parse(readFileSync(join(configDir, "config.json"), "utf-8"));
+            context = config.currentContext ?? "";
+        }
+        catch {
+            // No docker config: the default context.
+        }
+    }
+    return `${env.DOCKER_HOST ?? ""}|${context || "default"}`;
+}
+function stampPath(home) {
+    return join(home, ".flisk", BUILD_CACHE_STAMP);
+}
+function readStamp(home) {
+    try {
+        const raw = JSON.parse(readFileSync(stampPath(home), "utf-8"));
+        if (typeof raw.checkedAt === "number" &&
+            typeof raw.sizeGib === "number" &&
+            typeof raw.daemon === "string") {
+            return { checkedAt: raw.checkedAt, sizeGib: raw.sizeGib, daemon: raw.daemon };
+        }
+    }
+    catch {
+        // No stamp, or an unreadable one: check the cache.
+    }
+    return undefined;
+}
+function writeStamp(home, stamp) {
+    try {
+        mkdirSync(join(home, ".flisk"), { recursive: true });
+        writeFileSync(stampPath(home), JSON.stringify(stamp));
+    }
+    catch {
+        // Best effort: without a stamp the next `flisk up` simply checks again.
+    }
+}
 /**
  * Keeps the shared BuildKit cache from growing without a limit: when it is above the ceiling, the least recently used
  * entries are removed until it fits. Best effort; a Docker that cannot be asked leaves the cache as it is.
  */
-export async function enforceBuildCacheCeiling(run = defaultDockerRunner, env = process.env) {
+export async function enforceBuildCacheCeiling(run = defaultDockerRunner, env = process.env, options = {}) {
     const ceilingGib = resolveBuildCacheCeilingGib(env);
     if (ceilingGib === 0)
         return { pruned: false, ceilingGib };
+    const home = options.home ?? homedir();
+    const now = options.now ?? Date.now;
+    // The check costs about a second and almost always finds nothing to do: skip it while the last check was recent and
+    // the cache was far below the ceiling. Near or above the ceiling it runs every time, so the disk guard still sees a trim.
+    // It is also run whenever free host disk is below the disk guard's warning level (or unreadable), so a trim that the
+    // guard depends on is never skipped, and a stamp from another Docker daemon is never trusted.
+    const daemon = options.daemon ?? dockerDaemonIdentity(env, home);
+    const last = readStamp(home);
+    const age = last ? now() - last.checkedAt : -1;
+    const hostFreeGib = options.hostFreeGib === undefined ? readHostFreeGib(undefined, home) : options.hostFreeGib;
+    const isDiskComfortable = hostFreeGib !== null && hostFreeGib >= diskThresholds(env).warnBelowGib;
+    if (last &&
+        isDiskComfortable &&
+        last.daemon === daemon &&
+        age >= 0 &&
+        age < BUILD_CACHE_CHECK_INTERVAL_MS &&
+        last.sizeGib < ceilingGib * BUILD_CACHE_NEAR_CEILING_RATIO) {
+        return { pruned: false, ceilingGib, sizeGib: last.sizeGib, skipped: true };
+    }
     try {
         const df = await run([
             "system",
@@ -227,6 +296,8 @@ export async function enforceBuildCacheCeiling(run = defaultDockerRunner, env = 
             "{{.Type}}\t{{.TotalCount}}\t{{.Size}}\t{{.Reclaimable}}",
         ]);
         const sizeGib = parseDockerBuildCache(df)?.sizeGib;
+        if (sizeGib !== undefined)
+            writeStamp(home, { checkedAt: now(), sizeGib, daemon });
         if (sizeGib === undefined || sizeGib <= ceilingGib)
             return { pruned: false, ceilingGib, sizeGib };
         await run([
@@ -236,6 +307,7 @@ export async function enforceBuildCacheCeiling(run = defaultDockerRunner, env = 
             "--keep-storage",
             String(Math.round(ceilingGib * 1024 ** 3)),
         ]);
+        writeStamp(home, { checkedAt: now(), sizeGib: ceilingGib, daemon });
         return { pruned: true, ceilingGib, sizeGib };
     }
     catch {

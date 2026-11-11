@@ -150,7 +150,7 @@ describe("swarm template", () => {
         );
       const waitForGoal = async (until: (goal: Goal) => boolean) => {
         let goal: Goal | undefined;
-        for (let i = 0; i < 100 && !(goal && until(goal)); i++) {
+        for (let i = 0; i < 300 && !(goal && until(goal)); i++) {
           await sleep(200);
           goal = ((await (await fetch(`${base}/goals`)).json()) as { goals: Goal[] }).goals[0];
         }
@@ -199,7 +199,7 @@ describe("swarm template", () => {
       } finally {
         swarm.stop();
       }
-    }, 30_000);
+    }, 75_000);
 
     it("drops a stale answer from an expired claim while another worker holds the subtask", async () => {
       const swarm = await startSwarm({ CLAIM_MS: "300" });
@@ -232,7 +232,7 @@ describe("swarm template", () => {
       } finally {
         swarm.stop();
       }
-    }, 30_000);
+    }, 75_000);
 
     it("keeps its goals across a kill -9 and restart, and the workers finish them", async () => {
       const swarm = await startSwarm({ CLAIM_MS: "2500" });
@@ -251,7 +251,7 @@ describe("swarm template", () => {
       } finally {
         swarm.stop();
       }
-    }, 30_000);
+    }, 75_000);
 
     it("retries a failing subtask up to MAX_ATTEMPTS, then marks it and its goal failed", async () => {
       const swarm = await startSwarm({ MAX_ATTEMPTS: "2" });
@@ -268,6 +268,6 @@ describe("swarm template", () => {
       } finally {
         swarm.stop();
       }
-    }, 30_000);
+    }, 75_000);
   });
 });

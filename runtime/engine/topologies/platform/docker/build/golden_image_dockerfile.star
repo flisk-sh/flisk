@@ -250,6 +250,10 @@ ENV NODE_ENV=production
 # Ensure Bun cache path is writable for non-root runtime healthcheck commands.
 RUN mkdir -p /cache/bun && chown -R bun:bun /cache/bun
 
+# The tools migrate.sh runs: nc waits for the database, jq reads the Infisical response. bash and curl are
+# already in l1_golden. They sit here, once per machine, instead of a package layer in every migrator image.
+USER root
+RUN apk add --no-cache jq netcat-openbsd
 USER bun
 
 # Migrators are one-shot jobs (migrate.sh runs to completion), so no healthcheck.

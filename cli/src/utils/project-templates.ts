@@ -6,6 +6,8 @@ export interface ProjectTemplate {
   bundledPath?: string;
   /** Written by the CLI itself from `cli/templates`, with no clone: `swarm` or `security`. */
   generated?: "swarm" | "security" | "super-agent" | "langgraph" | "tool-loop";
+  /** Written by running `flisk project` and `flisk resource` in the new folder, then adding files; needs Docker. */
+  composed?: "next-postgres";
   fixedDir?: string;
   /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
   ref?: string;
@@ -83,6 +85,12 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
     generated: "tool-loop",
     description:
       "Simple AI helper: an assistant that uses tools, with a practice model so it works offline",
+  },
+  "next-postgres": {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    composed: "next-postgres",
+    description:
+      "Next.js + Postgres app: a website with a working add, tick and delete list, an API and a migrator (needs Docker)",
   },
   launch: {
     repo: "https://github.com/flisk-sh/flisk-template-launch.git",

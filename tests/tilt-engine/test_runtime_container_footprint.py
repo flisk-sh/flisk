@@ -131,7 +131,7 @@ def test_golden_dockerfile_is_lean_and_uses_shared_healthcheck(tmp_path):
     for line in checks:
         assert "bunx" not in line and "npx" not in line, line
         if line != "HEALTHCHECK NONE":
-            assert "--interval=30s --start-interval=2s" in line, line
+            assert "--interval=30s --start-interval=0.5s" in line, line
 
 
 def test_compose_entries_use_init_and_shared_healthcheck(tmp_path):
@@ -149,7 +149,7 @@ def test_compose_entries_use_init_and_shared_healthcheck(tmp_path):
         entry = r[kind]
         assert "init: true" in entry, kind
         assert "interval: 30s" in entry, kind
-        assert "start_interval: 2s" in entry, kind
+        assert "start_interval: 0.5s" in entry, kind
         assert "interval: 10s" not in entry, kind
 
 
@@ -162,3 +162,31 @@ def test_healthcheck_interval_is_configurable(tmp_path):
     )
     assert "--interval=15s" in r["flags"]
     assert "interval: 15s" in r["timing"]
+
+
+def _start_interval_flags(tmp_path, value):
+    r = run_starlark(
+        tmp_path,
+        "load('@DOCKER/config/healthcheck.star', 'dockerfile_healthcheck_flags', 'compose_healthcheck_timing')\n"
+        "r = {'flags': dockerfile_healthcheck_flags(), 'timing': compose_healthcheck_timing()}\n",
+        env={"FLISK_HEALTHCHECK_START_INTERVAL_SECONDS": value},
+    )
+    return r["flags"], r["timing"]
+
+
+def test_healthcheck_start_interval_takes_decimals(tmp_path):
+    flags, timing = _start_interval_flags(tmp_path, "0.25")
+    assert "--start-interval=0.25s" in flags
+    assert "start_interval: 0.25s" in timing
+
+
+def test_healthcheck_start_interval_whole_seconds_still_work(tmp_path):
+    flags, timing = _start_interval_flags(tmp_path, "3")
+    assert "--start-interval=3s" in flags
+    assert "start_interval: 3s" in timing
+
+
+def test_healthcheck_start_interval_ignores_bad_values(tmp_path):
+    for bad in ("0", "-1", "abc", "1.2.3", ".5", "2."):
+        flags, _ = _start_interval_flags(tmp_path, bad)
+        assert "--start-interval=0.5s" in flags, bad
