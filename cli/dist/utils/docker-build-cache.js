@@ -7,7 +7,7 @@ import { findOnPath } from "./which.js";
 const execFilePromise = promisify(execFile);
 const DOCKER_TIMEOUT_MS = 15_000;
 export const DOCKER_BUILD_CACHE_CHECK = "Docker Build Cache";
-/** Warning threshold in GiB (matching DISK_WARN_GIB from #2362). */
+/** Keep this threshold in GiB (1 GiB = 1024 ** 3 bytes), matching DISK_WARN_GIB from #2362. */
 export const DOCKER_BUILD_CACHE_WARN_GIB = 10;
 export const defaultDockerRunner = async (args) => {
     const { stdout } = await execFilePromise("docker", args, {
@@ -17,7 +17,7 @@ export const defaultDockerRunner = async (args) => {
     });
     return stdout;
 };
-/** Parses human size string like "11.82GB", "9.19 GB", "500MB", "0B" into bytes. */
+/** Parses human size strings, using SI for kB/MB/GB/TB and IEC for KiB/MiB/GiB/TiB. */
 export function parseSizeToBytes(raw) {
     const match = raw.trim().match(/^([\d.]+)\s*([a-zA-Z]+)?$/);
     if (!match)
@@ -26,17 +26,32 @@ export function parseSizeToBytes(raw) {
     if (!Number.isFinite(num))
         return 0;
     const unit = (match[2] ?? "B").toUpperCase();
-    if (unit === "B")
-        return num;
-    if (unit === "KB" || unit === "KIB" || unit === "K")
-        return num * 1024;
-    if (unit === "MB" || unit === "MIB" || unit === "M")
-        return num * 1024 ** 2;
-    if (unit === "GB" || unit === "GIB" || unit === "G")
-        return num * 1024 ** 3;
-    if (unit === "TB" || unit === "TIB" || unit === "T")
-        return num * 1024 ** 4;
-    return num;
+    switch (unit) {
+        case "B":
+            return num;
+        case "KB":
+            return num * 1000;
+        case "MB":
+            return num * 1000 ** 2;
+        case "GB":
+            return num * 1000 ** 3;
+        case "TB":
+            return num * 1000 ** 4;
+        case "K":
+        case "KIB":
+            return num * 1024;
+        case "M":
+        case "MIB":
+            return num * 1024 ** 2;
+        case "G":
+        case "GIB":
+            return num * 1024 ** 3;
+        case "T":
+        case "TIB":
+            return num * 1024 ** 4;
+        default:
+            return num;
+    }
 }
 /**
  * Parses `docker system df --format "{{.Type}}\t{{.TotalCount}}\t{{.Size}}\t{{.Reclaimable}}"` output.
@@ -113,7 +128,7 @@ export async function checkDockerBuildCache(runner = defaultDockerRunner, hasDoc
             name: DOCKER_BUILD_CACHE_CHECK,
             didPass: false,
             isWarning: true,
-            message: `${info.size} across ${info.entries} ${entryLabel}: Docker build cache exceeds ${DOCKER_BUILD_CACHE_WARN_GIB} GB threshold. Cache is shared across all projects on this machine`,
+            message: `${info.size} across ${info.entries} ${entryLabel}: Docker build cache exceeds ${DOCKER_BUILD_CACHE_WARN_GIB} GiB threshold. Cache is shared across all projects on this machine`,
             fix: "Prune old build cache: flisk down --prune-cache (or docker builder prune --filter until=24h). Note: this affects other projects on this machine.",
             buildCache,
         };
