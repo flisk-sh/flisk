@@ -183,7 +183,7 @@ _HEALTHY_POSTGRES_SCRIPT = (
 )
 
 
-def _register_platform_postgres(should_enable, root_prefix="", env_file=None, write_fn=None, required=False):
+def _register_platform_postgres(should_enable, root_prefix="", env_file=None, write_fn=None, required=False, golden_image_resource=None):
     """Materialize the platform compose and register the shared `postgres` Tilt resource.
 
     Does NOT load messaging, kafka, redis, nats, provision-db, or Prisma.
@@ -196,7 +196,7 @@ def _register_platform_postgres(should_enable, root_prefix="", env_file=None, wr
     if _file_exists(postgres_compose):
         debug_log("INFRA: Loading postgres compose from {}".format(postgres_compose))
         _docker_compose(postgres_compose, env_file, 'database-management')
-        dc_resource('postgres', labels=['infra.tools'], resource_deps=['init-networks'], auto_init=True)
+        dc_resource('postgres', labels=['infra.tools'], resource_deps=_proxy_deps(['init-networks'], golden_image_resource), auto_init=True)
         local_resource(
             name='postgres-healthy',
             cmd=['sh', '-c', _HEALTHY_POSTGRES_SCRIPT, 'sh', PlatformDockerConstants.PROJECT_NAME],
@@ -250,7 +250,7 @@ def project_imports_own_postgres(app_resources=None):
     return False
 
 
-def _load_database_management(should_enable, root_prefix="", env_file=None, write_fn=None):
+def _load_database_management(should_enable, root_prefix="", env_file=None, write_fn=None, golden_image_resource=None):
     """Load database and messaging infrastructure."""
     if not should_enable('database-management'):
         debug_log("INFRA: database-management not enabled")
@@ -262,7 +262,7 @@ def _load_database_management(should_enable, root_prefix="", env_file=None, writ
     if project_imports_own_postgres():
         print("🗃️  Project defines its own postgres service; not registering the shared platform Postgres")
     else:
-        _register_platform_postgres(should_enable, root_prefix, env_file, write_fn)
+        _register_platform_postgres(should_enable, root_prefix, env_file, write_fn, golden_image_resource=golden_image_resource)
 
     # Load messaging if compose file exists
     messaging_compose = root_prefix + 'services/platform/messaging/docker-compose.yml'
@@ -274,7 +274,7 @@ def _load_database_management(should_enable, root_prefix="", env_file=None, writ
         if _compose_has_service(messaging_compose, 'redis'):
             dc_resource('redis', labels=['infra.messaging'], auto_init=False)
         if _compose_has_service(messaging_compose, 'nats'):
-            dc_resource('nats', labels=['infra.messaging'], auto_init=True)
+            dc_resource('nats', labels=['infra.messaging'], resource_deps=_proxy_deps([], golden_image_resource), auto_init=True)
     else:
         debug_log("INFRA: Skipping messaging (compose file not found)")
 
@@ -337,9 +337,9 @@ def project_uses_sablier(app_resources=None):
 
 
 def _proxy_deps(base_deps, golden_image_resource):
-    """Traefik's resource_deps, plus the golden step when there is one.
+    """An infra resource's resource_deps, plus the golden step when there is one.
 
-    Traefik pulls its image while the golden step may build eight images and prune old ones; on the containerd image store the
+    Traefik, Postgres and NATS pull their images while the golden step may build eight images and prune old ones; on the containerd image store the
     two collide ("failed to extract layer ... Lchown ... no such file or directory"). The step is an instant no-op when nothing
     needs building.
     """
@@ -608,7 +608,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
         env_file = candidate_env_file if _file_exists(candidate_env_file) else None
 
     # Load infrastructure in order
-    _load_database_management(should_enable, root_prefix, env_file, write_fn)
+    _load_database_management(should_enable, root_prefix, env_file, write_fn, golden_image_resource)
     _load_verdaccio(should_enable, root_prefix, env_file)
     _load_infisical(should_enable, root_prefix, env_file)
     _load_proxy(should_enable, root_prefix, env_file, write_fn, golden_image_resource)
