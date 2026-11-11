@@ -786,6 +786,9 @@ export const uiCommand = new Command("ui")
     .option("--high-contrast", "Enable high contrast mode")
     .addHelpText("after", "\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations")
     .action(async (options) => {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+        errorFactories.interactiveTerminalRequired("flisk ui").exit();
+    }
     const tiltAvailable = await isTiltAvailable();
     if (!tiltAvailable) {
         errorFactories.tiltNotInstalled().exit();

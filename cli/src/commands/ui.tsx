@@ -1344,6 +1344,10 @@ export const uiCommand = new Command("ui")
     "\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations",
   )
   .action(async (options: { animations: boolean; highContrast: boolean }) => {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      errorFactories.interactiveTerminalRequired("flisk ui").exit();
+    }
+
     const tiltAvailable = await isTiltAvailable();
     if (!tiltAvailable) {
       errorFactories.tiltNotInstalled().exit();

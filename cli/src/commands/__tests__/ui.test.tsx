@@ -14,12 +14,14 @@ const {
   isTiltAvailableMock,
   requireProjectRootMock,
   tiltNotInstalledExitMock,
+  interactiveTerminalRequiredExitMock,
 } = vi.hoisted(() => ({
   discoverResourcesMock: vi.fn(),
   discoverStacksMock: vi.fn(),
   isTiltAvailableMock: vi.fn(async () => true),
   requireProjectRootMock: vi.fn(),
   tiltNotInstalledExitMock: vi.fn(),
+  interactiveTerminalRequiredExitMock: vi.fn(),
 }));
 
 vi.mock("../../utils/services.js", () => ({
@@ -77,6 +79,9 @@ vi.mock("../../utils/errors.js", async (importOriginal) => {
       tiltNotInstalled: () => ({
         exit: tiltNotInstalledExitMock,
       }),
+      interactiveTerminalRequired: (commandName?: string) => ({
+        exit: interactiveTerminalRequiredExitMock,
+      }),
     },
   };
 });
@@ -111,6 +116,11 @@ function createTestStreams(): TestStreams {
 }
 
 describe("ui command definition", () => {
+  beforeEach(() => {
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+  });
+
   it("registers command name, alias, and description", () => {
     expect(uiCommand.name()).toBe("ui");
     expect(uiCommand.alias()).toBe("interactive");
@@ -124,6 +134,36 @@ describe("ui command definition", () => {
     expect(optionFlags).toContain("-v, --verbose");
     expect(optionFlags).toContain("--no-animations");
     expect(optionFlags).toContain("--high-contrast");
+  });
+
+  it("exits with interactiveTerminalRequired when stdin is not a TTY", async () => {
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+    interactiveTerminalRequiredExitMock.mockImplementationOnce(() => {
+      throw new Error("interactive terminal required exit");
+    });
+
+    await expect(uiCommand.parseAsync(["node", "flisk"], { from: "node" })).rejects.toThrow(
+      "interactive terminal required exit",
+    );
+
+    expect(interactiveTerminalRequiredExitMock).toHaveBeenCalledOnce();
+    expect(isTiltAvailableMock).not.toHaveBeenCalled();
+  });
+
+  it("exits with interactiveTerminalRequired when stdout is not a TTY", async () => {
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true });
+    interactiveTerminalRequiredExitMock.mockImplementationOnce(() => {
+      throw new Error("interactive terminal required exit");
+    });
+
+    await expect(uiCommand.parseAsync(["node", "flisk"], { from: "node" })).rejects.toThrow(
+      "interactive terminal required exit",
+    );
+
+    expect(interactiveTerminalRequiredExitMock).toHaveBeenCalledOnce();
+    expect(isTiltAvailableMock).not.toHaveBeenCalled();
   });
 
   it("exits with tiltNotInstalled when Tilt is not available", async () => {
