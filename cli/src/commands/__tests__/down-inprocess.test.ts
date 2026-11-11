@@ -203,6 +203,7 @@ describe("flisk down (in-process)", () => {
       const run = await runDown(["--purge"]);
 
       expect(tilt.runTilt).not.toHaveBeenCalled();
+      expect(cleanup.stopProjectTiltUp).not.toHaveBeenCalled();
       expect(run.stdout).not.toContain("Nothing is running for this project.");
       expect(run.stdout).toMatch(
         /No volumes, networks or images|Removed|Could not read the project name/,

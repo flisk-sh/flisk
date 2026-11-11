@@ -370,13 +370,14 @@ export const downCommand = addYesOption(new Command("down"))
 
       // Stop `tilt up` first: `tilt down` does not end it, and a live Tilt re-creates the containers `tilt down` just removed.
       let stoppedTilt: number[] = [];
-      try {
-        if (idle) throw new Error("nothing to stop");
-        const tiltfile = getTiltfilePath();
-        stoppedTilt = stopProjectTiltUp(tiltfile);
-        if (stoppedTilt.length > 0) await waitForTiltUpExit(tiltfile);
-      } catch {
-        // Not fatal: the containers are already down.
+      if (!idle) {
+        try {
+          const tiltfile = getTiltfilePath();
+          stoppedTilt = stopProjectTiltUp(tiltfile);
+          if (stoppedTilt.length > 0) await waitForTiltUpExit(tiltfile);
+        } catch {
+          // Not fatal: the containers are already down.
+        }
       }
       if (stoppedTilt.length > 0 && !options.json) {
         console.log(chalk.gray(`Stopped tilt up (pid ${stoppedTilt.join(", ")}).`));
