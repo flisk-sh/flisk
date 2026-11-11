@@ -80,6 +80,10 @@ flisk stack api --resources orders-api users-api --yes
 flisk stack api --resources orders-api,users-api --yes
 flisk stack --list
 
+# Move resources to another stack, or leave them unassigned
+flisk stack backend --move --resources orders-api --yes
+flisk stack --remove --resources orders-api --yes
+
 # ▶️ Start/stop a stack
 flisk up api                     # 🚀 Start api stack
 flisk up                         # 🚀 Start all stacks
@@ -102,6 +106,10 @@ flisk down --project ~/code/shop # 📁 Stop the project in that folder, from an
 Outside a project folder, `flisk down` stops the one Flisk project that is running; with several running it lists them and asks for `--project`.
 
 For non-interactive assignment of unassigned resources, pass the stack name and `--resources`; names may be space- or comma-separated. Add `--yes` to skip confirmation. Use `flisk stack --list` to inspect unassigned resources without changing them.
+
+Add `--move` to assign resources that already belong to another stack. Use `--remove --resources <names...>` without a stack name to delete their `stack` field; the resources and their other settings are preserved. Removing an already unassigned resource is safe to repeat. Both flags require explicit resource names and cannot be combined with each other or `--list`.
+
+`--json` implies `--yes` and reports the stacks and unassigned resources after the change. Moves appear in `data.assigned`; removals appear in `data.removed`, with `data.stack` set to `null` and `data.assigned` empty.
 
 ---
 
