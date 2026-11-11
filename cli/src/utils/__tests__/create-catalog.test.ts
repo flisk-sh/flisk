@@ -89,6 +89,13 @@ describe("the catalog is read from the registries, not kept here", () => {
     expect(ids).not.toContain("backend");
   });
 
+  it("offers the shared Postgres as database:postgres", () => {
+    expect(extraCatalog().find((e) => e.id === "database:postgres")).toMatchObject({
+      type: "database",
+      framework: "postgres",
+    });
+  });
+
   it("reads what a local project needs from the generators", () => {
     expect(localRequirements({ frontend: true })).toEqual(["node", "npm"]);
     expect(localRequirements({ frontend: false, language: DEFAULT_BACKEND_LANGUAGE })).toEqual([

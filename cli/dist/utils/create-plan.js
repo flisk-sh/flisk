@@ -10,6 +10,7 @@
  *  - **docker**: containers behind one gateway, for databases, queues and the rest of Flisk's infrastructure.
  */
 import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
+import { DATABASE_FRAMEWORK, DATABASE_RESOURCE_TYPE } from "../types/index.js";
 import { extraCatalog, localRequirements, starterCatalog } from "./create-catalog.js";
 export const CREATE_RUNTIMES = ["local", "docker"];
 /** The stack the Docker route assigns its resources to. */
@@ -17,6 +18,8 @@ export const CREATE_STACK = "app";
 /** The folders a local project's website and API live in. */
 export const LOCAL_FRONTEND_DIR = "web";
 export const LOCAL_BACKEND_DIR = "api";
+/** The extras id that adds the shared Postgres. */
+const POSTGRES_EXTRA = `${DATABASE_RESOURCE_TYPE}:${DATABASE_FRAMEWORK}`;
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 /** Names Windows keeps for devices: a folder called con or com1 cannot be created there. */
 const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
@@ -82,6 +85,13 @@ export function buildCreatePlan(answers) {
                 "--type",
                 "backend",
                 ...flavour,
+                // Postgres with an API: Prisma adds the `<api>-migrator` resource and makes the API wait for it.
+                // Only the default (Node) language has it; the other languages' scaffolds ignore the feature.
+                ...(!local &&
+                    language === DEFAULT_BACKEND_LANGUAGE &&
+                    answers.extras.includes(POSTGRES_EXTRA)
+                    ? ["--feature", "prisma"]
+                    : []),
                 ...where(LOCAL_BACKEND_DIR),
                 "--stack",
                 CREATE_STACK,

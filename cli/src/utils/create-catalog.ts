@@ -22,6 +22,7 @@ import {
 } from "../frontend-frameworks/registry.js";
 import {
   CREATABLE_RESOURCE_TYPES,
+  DATABASE_FRAMEWORKS,
   DATABASE_RESOURCE_TYPE,
   QUEUE_RESOURCE_TYPE,
 } from "../types/index.js";
@@ -110,16 +111,19 @@ export interface ExtraOption {
  */
 export function extraCatalog(): ExtraOption[] {
   const infra = [QUEUE_RESOURCE_TYPE, DATABASE_RESOURCE_TYPE].flatMap((type) =>
-    frameworksOfType(type).map((framework) => {
-      const preset = INFRA_PRESETS[framework as keyof typeof INFRA_PRESETS];
-      return {
-        id: `${type}:${framework}`,
-        type,
-        framework,
-        title: framework,
-        hint: preset?.description ?? type,
-      };
-    }),
+    // `--type database` also takes the shared Postgres, which is not an infrastructure preset.
+    (type === DATABASE_RESOURCE_TYPE ? DATABASE_FRAMEWORKS : frameworksOfType(type)).map(
+      (framework) => {
+        const preset = INFRA_PRESETS[framework as keyof typeof INFRA_PRESETS];
+        return {
+          id: `${type}:${framework}`,
+          type,
+          framework,
+          title: framework,
+          hint: preset?.description ?? `shared ${framework} database`,
+        };
+      },
+    ),
   );
   const own = CREATABLE_RESOURCE_TYPES.filter(
     (type) => !isAppPart(type) && type !== BRING_YOUR_OWN_TYPE,
