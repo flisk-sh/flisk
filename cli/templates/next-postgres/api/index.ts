@@ -29,7 +29,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
 // Health check: Flisk uses this endpoint to check service health
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "api" });
