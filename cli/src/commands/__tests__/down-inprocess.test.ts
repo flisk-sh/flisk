@@ -181,6 +181,22 @@ describe("flisk down (in-process)", () => {
       expect(tilt.runTilt).toHaveBeenCalledTimes(1);
     });
 
+    it("runs tilt down when the process list cannot be read, as a tilt up may be alive", async () => {
+      cleanup.findProjectTiltUpPids.mockImplementation(() => {
+        throw new Error("ps failed");
+      });
+
+      await runDown([]);
+
+      expect(tilt.runTilt).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks for the strict process lookup, so a failed ps is not read as no tilt up", async () => {
+      await runDown([]);
+
+      expect(cleanup.findProjectTiltUpPids.mock.calls[0]?.[3]).toBe(true);
+    });
+
     it("runs tilt down when Docker cannot be asked", async () => {
       cleanup.projectComposeProjects.mockImplementation(() => {
         throw new Error("Cannot connect to the Docker daemon");

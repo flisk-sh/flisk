@@ -75,14 +75,21 @@ export function pruneProjectNetworks(projectName, commandRunner = run) {
  * PIDs of `tilt up` processes started for this project's Tiltfile. Matching on the Tiltfile path keeps another
  * project's Tilt (or a Tilt the user started by hand) untouched.
  */
-export function findProjectTiltUpPids(tiltfilePath, platform = process.platform, commandRunner = run) {
-    if (platform === "win32")
+export function findProjectTiltUpPids(tiltfilePath, platform = process.platform, commandRunner = run, 
+/** Throw when the process list cannot be read (or the platform has none), instead of answering "none". */
+strict = false) {
+    if (platform === "win32") {
+        if (strict)
+            throw new Error("process list unavailable on Windows");
         return [];
+    }
     let output;
     try {
         output = commandRunner("ps", ["-axo", "pid=,command="]);
     }
-    catch {
+    catch (err) {
+        if (strict)
+            throw err;
         return [];
     }
     const pids = [];

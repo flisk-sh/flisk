@@ -27,7 +27,9 @@ export declare function pruneProjectNetworks(projectName: string, commandRunner?
  * PIDs of `tilt up` processes started for this project's Tiltfile. Matching on the Tiltfile path keeps another
  * project's Tilt (or a Tilt the user started by hand) untouched.
  */
-export declare function findProjectTiltUpPids(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
+export declare function findProjectTiltUpPids(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner, 
+/** Throw when the process list cannot be read (or the platform has none), instead of answering "none". */
+strict?: boolean): number[];
 /**
  * Roots of the Flisk projects that have a `tilt up` running, read from each process's `-f <root>/.flisk/.flisk-out/Tiltfile`
  * (the Tiltfile `flisk up` passes). Lets `flisk down` find the project when it runs outside one. A root counts only while

@@ -96,12 +96,18 @@ export function findProjectTiltUpPids(
   tiltfilePath: string,
   platform = process.platform,
   commandRunner: CommandRunner = run,
+  /** Throw when the process list cannot be read (or the platform has none), instead of answering "none". */
+  strict = false,
 ): number[] {
-  if (platform === "win32") return [];
+  if (platform === "win32") {
+    if (strict) throw new Error("process list unavailable on Windows");
+    return [];
+  }
   let output: string;
   try {
     output = commandRunner("ps", ["-axo", "pid=,command="]);
-  } catch {
+  } catch (err) {
+    if (strict) throw err;
     return [];
   }
   const pids: number[] = [];

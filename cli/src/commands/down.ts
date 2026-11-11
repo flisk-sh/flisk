@@ -104,12 +104,13 @@ function resolveDownProject(options: { project?: string; json?: boolean }): stri
 
 /**
  * True only when it is certain nothing of this project runs: no `tilt up` for its Tiltfile and no container of its
- * generated Compose projects (`docker ps -a`, about 0.03 s). Any doubt (Docker cannot be asked) is "not idle", so
+ * generated Compose projects (`docker ps -a`, about 0.03 s). Any doubt (`ps` or Docker cannot be asked) is "not idle", so
  * `tilt down` still runs. Loading the whole Tiltfile just to find nothing took 1.5 s (#3768).
  */
 function isProjectIdle(projectRoot: string): boolean {
   try {
-    if (findProjectTiltUpPids(getTiltfilePath()).length > 0) return false;
+    if (findProjectTiltUpPids(getTiltfilePath(), process.platform, undefined, true).length > 0)
+      return false;
     return projectComposeProjects(projectRoot).length === 0;
   } catch {
     return false;
