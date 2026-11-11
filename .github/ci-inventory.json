@@ -958,6 +958,14 @@
 			"required": false,
 			"reason": "Posts or updates the shop benchmark pull request comment",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "wolf-review.yml",
+			"job": "review",
+			"tier": "bot",
+			"required": false,
+			"reason": "Wolf (inference.flisk.si) comments a suggested service.json on PRs that change one; never blocks a merge",
+			"owner": "maintainers"
 		}
 	]
 }
