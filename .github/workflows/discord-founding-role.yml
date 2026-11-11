@@ -10,7 +10,7 @@ on:
   schedule:
     - cron: "*/5 * * * *"
     - cron: "17 * * * *"
-  # A Cloudflare Worker starts this every minute (workers/discord-bot-trigger), because
+  # A Cloudflare Worker starts this every 3 minutes (workers/discord-bot-trigger), because
   # GitHub's schedule above can go hours without firing.
   workflow_dispatch:
     inputs:
