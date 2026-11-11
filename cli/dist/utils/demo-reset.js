@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { cliInvocation } from "./cli-invocation.js";
 import { projectNameAt, readProjectRecords } from "./project-registry.js";
@@ -122,12 +122,29 @@ function canonicalFolder(path) {
  * `restaurant` are one repository, so a copy made with `flisk project restaurant` has the demo's project name and its
  * database volume (#3963). A folder that is gone, or now holds another project, is not a sharer.
  */
-export function foldersSharingProjectName(projectName, demoDir, readRecords = readProjectRecords, nameAt = projectNameAt) {
+export function foldersSharingProjectName(projectName, demoDir, readRecords = readProjectRecords, nameAt = projectNameAt, isDemo = isDemoFolder) {
     const record = readRecords().find((candidate) => candidate.name === projectName);
     if (!record)
         return [];
     const own = canonicalFolder(demoDir);
-    return record.roots.filter((root) => canonicalFolder(root) !== own && nameAt(root) === projectName);
+    // An earlier demo folder is not a sharer: the demo is disposable and replaces its own leftovers on every run, which is
+    // the first-run -> second-run path the demo suite checks. Only a folder the demo did not create can hold data worth keeping.
+    return record.roots.filter((root) => canonicalFolder(root) !== own && nameAt(root) === projectName && !isDemo(root));
+}
+const DEMO_MARKER = join(".flisk", "demo-docker.json");
+/** True when the Docker demo created the folder (see {@link markDemoFolder}). */
+export function isDemoFolder(dir) {
+    return existsSync(join(dir, DEMO_MARKER));
+}
+/** Records that `flisk demo` created this folder, so a later demo may replace its database volume. Never throws. */
+export function markDemoFolder(dir) {
+    try {
+        mkdirSync(join(dir, ".flisk"), { recursive: true });
+        writeFileSync(join(dir, DEMO_MARKER), `${JSON.stringify({ demo: "docker" }, null, 2)}\n`);
+    }
+    catch {
+        // A read-only folder only loses the marker: the next demo then asks the user instead of deleting.
+    }
 }
 /**
  * What the demo says when it would delete the database of another folder's project of the same name. `message` and

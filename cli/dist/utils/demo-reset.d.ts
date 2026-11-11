@@ -44,7 +44,11 @@ export declare function removeStaleProjectVolumes(projectName: string, docker?: 
  * `restaurant` are one repository, so a copy made with `flisk project restaurant` has the demo's project name and its
  * database volume (#3963). A folder that is gone, or now holds another project, is not a sharer.
  */
-export declare function foldersSharingProjectName(projectName: string, demoDir: string, readRecords?: typeof readProjectRecords, nameAt?: typeof projectNameAt): string[];
+export declare function foldersSharingProjectName(projectName: string, demoDir: string, readRecords?: typeof readProjectRecords, nameAt?: typeof projectNameAt, isDemo?: (dir: string) => boolean): string[];
+/** True when the Docker demo created the folder (see {@link markDemoFolder}). */
+export declare function isDemoFolder(dir: string): boolean;
+/** Records that `flisk demo` created this folder, so a later demo may replace its database volume. Never throws. */
+export declare function markDemoFolder(dir: string): void;
 /**
  * What the demo says when it would delete the database of another folder's project of the same name. `message` and
  * `hint` are short because the demo's frame cuts a line at the terminal width; `detail` goes to the log file.

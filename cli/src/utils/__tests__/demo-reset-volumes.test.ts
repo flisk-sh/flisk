@@ -7,7 +7,9 @@ import { describe, expect, it, vi } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
 import {
   foldersSharingProjectName,
+  isDemoFolder,
   listStaleProjectVolumes,
+  markDemoFolder,
   readProjectName,
   removeStaleProjectVolumes,
   sharedNameRefusal,
@@ -167,6 +169,27 @@ describe("foldersSharingProjectName (#3963)", () => {
     expect(foldersSharingProjectName(NAME, demo, () => [record([renamed, gone, demo])])).toEqual(
       [],
     );
+  });
+
+  it("does not count an earlier demo folder: the second demo run replaces its volume", () => {
+    const first = holder("demo-one-", NAME);
+    const second = holder("demo-two-", NAME);
+    markDemoFolder(first);
+
+    expect(isDemoFolder(first)).toBe(true);
+    expect(isDemoFolder(second)).toBe(false);
+    expect(foldersSharingProjectName(NAME, second, () => [record([first, second])])).toEqual([]);
+  });
+
+  it("still counts an unmarked copy next to an earlier demo folder", () => {
+    const first = holder("demo-one-", NAME);
+    const copy = holder("my-restaurant-", NAME);
+    const second = holder("demo-two-", NAME);
+    markDemoFolder(first);
+
+    expect(foldersSharingProjectName(NAME, second, () => [record([first, copy, second])])).toEqual([
+      copy,
+    ]);
   });
 
   it("finds nothing without a record for the name", () => {

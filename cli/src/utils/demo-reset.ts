@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { cliInvocation } from "./cli-invocation.js";
 import { projectNameAt, readProjectRecords } from "./project-registry.js";
@@ -161,13 +161,33 @@ export function foldersSharingProjectName(
   demoDir: string,
   readRecords: typeof readProjectRecords = readProjectRecords,
   nameAt: typeof projectNameAt = projectNameAt,
+  isDemo: (dir: string) => boolean = isDemoFolder,
 ): string[] {
   const record = readRecords().find((candidate) => candidate.name === projectName);
   if (!record) return [];
   const own = canonicalFolder(demoDir);
+  // An earlier demo folder is not a sharer: the demo is disposable and replaces its own leftovers on every run, which is
+  // the first-run -> second-run path the demo suite checks. Only a folder the demo did not create can hold data worth keeping.
   return record.roots.filter(
-    (root) => canonicalFolder(root) !== own && nameAt(root) === projectName,
+    (root) => canonicalFolder(root) !== own && nameAt(root) === projectName && !isDemo(root),
   );
+}
+
+const DEMO_MARKER = join(".flisk", "demo-docker.json");
+
+/** True when the Docker demo created the folder (see {@link markDemoFolder}). */
+export function isDemoFolder(dir: string): boolean {
+  return existsSync(join(dir, DEMO_MARKER));
+}
+
+/** Records that `flisk demo` created this folder, so a later demo may replace its database volume. Never throws. */
+export function markDemoFolder(dir: string): void {
+  try {
+    mkdirSync(join(dir, ".flisk"), { recursive: true });
+    writeFileSync(join(dir, DEMO_MARKER), `${JSON.stringify({ demo: "docker" }, null, 2)}\n`);
+  } catch {
+    // A read-only folder only loses the marker: the next demo then asks the user instead of deleting.
+  }
 }
 
 /**

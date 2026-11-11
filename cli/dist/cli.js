@@ -14,7 +14,7 @@ import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { cliInvocation } from "./utils/cli-invocation.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
-import { foldersSharingProjectName, listStaleProjectVolumes, readProjectName, removeStaleProjectVolumes, sharedNameRefusal, stopDemoStack, } from "./utils/demo-reset.js";
+import { foldersSharingProjectName, listStaleProjectVolumes, markDemoFolder, readProjectName, removeStaleProjectVolumes, sharedNameRefusal, stopDemoStack, } from "./utils/demo-reset.js";
 import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
 import { getAllStacks } from "./utils/services.js";
@@ -218,6 +218,9 @@ if (templateArg) {
         process.exit(1);
     }
     setPhase("config", "done", Date.now() - configStarted);
+    // Mark the folder as the demo's own, so a later demo knows its leftover volume is disposable (#3963).
+    if (!reused)
+        markDemoFolder(destination);
     // The setup above wrote a new database password. Data a previous run left in Docker was initialised with
     // the old one, and Postgres would keep it, so the migrator could not log in. A kept demo keeps its password.
     if (!reused) {
