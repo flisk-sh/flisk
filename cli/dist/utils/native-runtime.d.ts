@@ -178,6 +178,8 @@ export declare class NativeSupervisor {
     constructor(projectRoot: string, plans: readonly NativeServicePlan[], events?: SupervisorEvents, options?: {
         readyTimeoutMs?: number;
         restartDelayMs?: number;
+        /** How long `stop()` waits after SIGTERM before it sends SIGKILL. Defaults to STOP_TIMEOUT_MS. */
+        stopTimeoutMs?: number;
         /** The environment every service starts with, before its own `env`. Defaults to the shell's. */
         baseEnv?: Readonly<Record<string, string | undefined>>;
         /** Extra env files selected by --env-file; their values must be redacted too. */
@@ -193,7 +195,10 @@ export declare class NativeSupervisor {
         name: string;
         reason: string;
     }>>;
-    /** Stops every service, dependents before what they depend on, and removes the run state. */
+    /**
+     * Stops every service, dependents before what they depend on, and removes the run state. Services of one wave do not depend
+     * on each other, so they get their SIGTERM grace period at the same time (#3811).
+     */
     stop(): Promise<void>;
     /** The current process id of a service, for tests and diagnostics. */
     pidOf(name: string): number | undefined;
