@@ -142,5 +142,7 @@ def test_migrator_tools_live_once_in_the_golden_migrator_layer(golden):
     for tool in ("jq", "netcat-openbsd"):
         assert tool in apk[0]
     assert "postgresql" not in apk[0]
-    assert stage.index("apk add") < stage.rindex("USER bun"), "the image must end as the bun user"
+    users = [line.strip() for line in stage.splitlines() if line.strip().startswith("USER ")]
+    assert users and users[-1] == "USER bun", users
+    assert stage.index("apk add") < stage.rindex("USER bun"), "tools install before the final USER bun"
     assert "curl" in golden["df"].split("AS l2_golden", 1)[0], "curl must stay in l1 for the Infisical fetch"

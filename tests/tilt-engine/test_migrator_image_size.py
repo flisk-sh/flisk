@@ -67,3 +67,16 @@ def test_migrator_image_runs_no_apk_add_of_its_own(tmp_path):
         "r = {'runtime': L4_generate_migrator_runtime('services/main/mig', 'mig', False)}\n",
     )
     assert "apk add" not in result["runtime"]
+
+
+@TILT_REQUIRED
+@pytest.mark.parametrize("use_golden", ["True", "False"])
+def test_migrator_always_builds_on_the_golden_migrator_image(tmp_path, use_golden):
+    # L4_generate_migrator_runtime ignores use_golden (the golden image is mandatory for a migrator), so jq and nc from the
+    # golden layer are present whichever way the golden-image option is passed (flisk#3709).
+    result = run_starlark(
+        tmp_path,
+        "load('@PRISMA/prisma_runtime.star', 'L4_generate_migrator_runtime')\n"
+        "r = {'runtime': L4_generate_migrator_runtime('services/main/mig', 'mig', " + use_golden + ")}\n",
+    )
+    assert "-l4-migrator" in result["runtime"].split("AS l4_migrator_runtime", 1)[0].splitlines()[-1]
