@@ -21,9 +21,7 @@ import {
   type CompletionPositional,
   type TypeDependentValues,
 } from "./completion-candidates.js";
-
-const SUPPORTED_SHELLS = ["bash", "zsh", "fish", "powershell"] as const;
-type SupportedShell = (typeof SUPPORTED_SHELLS)[number];
+import { SUPPORTED_SHELLS, type SupportedShell } from "./completion-shells.js";
 
 /** A command with the path the user types it under (`config verify`). */
 interface CommandEntry {

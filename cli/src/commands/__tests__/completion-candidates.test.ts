@@ -7,8 +7,10 @@ import { FRONTEND_FRAMEWORKS } from "../../frontend-frameworks/registry.js";
 import { createProgram } from "../../program.js";
 import { RESOURCE_CREATE_TYPE_VALUES } from "../../types/index.js";
 import { VALID_RESOURCE_TYPES } from "../../utils/constants.js";
+import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
 import { renderCompletionScript } from "../completion.js";
 import { buildCompletionCandidates } from "../completion-candidates.js";
+import { SUPPORTED_SHELLS } from "../completion-shells.js";
 
 const SHELLS = ["bash", "zsh", "fish", "powershell"] as const;
 type Shell = (typeof SHELLS)[number];
@@ -402,6 +404,13 @@ describe("shell completion candidates", () => {
     expect(resourceTypes).toContain("inference");
     expect(resourceTypes).toEqual([...RESOURCE_CREATE_TYPE_VALUES, "sdk"]);
     expect(valuesOf(shell, "resources", "--type"), shell).toEqual([...VALID_RESOURCE_TYPES]);
+  });
+
+  it.each(SHELLS)("offers the fixed command flag values in %s", (shell) => {
+    expect(valuesOf(shell, "completion", "--shell")).toEqual([...SUPPORTED_SHELLS]);
+    expect(valuesOf(shell, "doctor", "--scope")).toEqual(["project", "machine"]);
+    expect(valuesOf(shell, "create", "--runtime")).toEqual(["local", "docker"]);
+    expect(valuesOf(shell, "create", "--starter")).toEqual(Object.keys(PROJECT_TEMPLATES));
   });
 
   it("offers the frameworks of the type of the command line", () => {
