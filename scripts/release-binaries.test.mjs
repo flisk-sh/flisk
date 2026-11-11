@@ -552,6 +552,18 @@ test("the MCP Registry publish runs in its own job after publish, not on the rel
   assert.ok(waitAt < mcp.indexOf('mcp-publisher" publish'), "the npm wait must come before the first publish attempt");
 });
 
+test("the CLI image pre-flight and the push build share one Actions layer cache (#3939)", () => {
+  const script = readFileSync(join(ROOT_DIR, "scripts/release/push-flisk-image.sh"), "utf8");
+  assert.match(script, /--cache-from "type=gha,scope=\$FLISK_IMAGE_CACHE_SCOPE"/);
+  assert.match(script, /--cache-to "type=gha,scope=\$FLISK_IMAGE_CACHE_SCOPE,mode=max"/);
+  const preflight = jobBlock(readFileSync(join(ROOT_DIR, ".github/workflows/release-binaries.yml"), "utf8"), "cli-image");
+  const publish = readFileSync(join(ROOT_DIR, ".github/workflows/publish-cli-image.yml"), "utf8");
+  for (const [name, text] of [["cli-image", preflight], ["publish-cli-image.yml", publish]]) {
+    assert.match(text, /crazy-max\/ghaction-github-runtime@[0-9a-f]{40}/, `${name} must export the Actions cache variables`);
+    assert.match(text, /FLISK_IMAGE_CACHE_SCOPE: cli-image/, `${name} must use the shared scope`);
+  }
+});
+
 test("the release candidate runs at least 15 legs at once", () => {
   const workflow = readFileSync(join(ROOT_DIR, ".github/workflows/release-candidate.yml"), "utf8");
   const cap = Number(workflow.match(/max-parallel: (\d+)/)?.[1]);

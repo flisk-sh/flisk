@@ -217,9 +217,13 @@ jobs:
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      # Exports the Actions cache URL and token so buildx can use type=gha (#3939).
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
       - name: Build the image into the local Docker (the publish job's build, without the push)
         env:
           VERSION: ${{ needs.build.outputs.version }}
+          FLISK_IMAGE_CACHE_SCOPE: cli-image
         run: bash scripts/release/push-flisk-image.sh release-dist "$VERSION" --load
 
       - name: Run tests/e2e/platforms/container-image CI1 CI2 CI3 on it
