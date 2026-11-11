@@ -245,7 +245,7 @@ const CHECKS = [
 		area: "guardrails",
 		weight: 2,
 		title: "DCO sign-off enforced in CI",
-		run: (r) => ({ pass: has(r, ".github/workflows/dco.yml") }),
+		run: (r) => ({ pass: read(r, ".github/workflows/ci.yml").includes("Signed-off-by") }),
 	},
 	// workspace: the surface that runs and reviews the agents themselves
 	{

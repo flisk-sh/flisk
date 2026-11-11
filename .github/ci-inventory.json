@@ -83,18 +83,10 @@
 		},
 		{
 			"workflow": "ci.yml",
-			"job": "spellcheck",
+			"job": "quick-checks",
 			"tier": "gate",
 			"required": false,
-			"reason": "Spell check on every PR",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "ci.yml",
-			"job": "docs",
-			"tier": "gate",
-			"required": false,
-			"reason": "Docs links, anchors and generated tab bars on every PR, docs-only ones included",
+			"reason": "Spell check, docs checks (docs-only PRs included), the DCO sign-off check and the secret scan on pull requests, in one job (#3892)",
 			"owner": "maintainers"
 		},
 		{
@@ -110,23 +102,7 @@
 			"job": "typecheck",
 			"tier": "gate",
 			"required": false,
-			"reason": "Typecheck on every PR",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "ci.yml",
-			"job": "fuzz",
-			"tier": "test",
-			"required": false,
-			"reason": "Fuzz tests on every PR",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "ci.yml",
-			"job": "published-schema",
-			"tier": "gate",
-			"required": false,
-			"reason": "Offline check of the published service schema",
+			"reason": "Typecheck, fuzz tests and the offline published service schema check on every PR, in one job (#3892)",
 			"owner": "maintainers"
 		},
 		{
@@ -183,14 +159,6 @@
 			"tier": "test",
 			"required": false,
 			"reason": "Audits the pinned published tarball's contents; not gated, since no PR can change a published version",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "ci.yml",
-			"job": "secret-scan",
-			"tier": "gate",
-			"required": false,
-			"reason": "Secret scan on every PR",
 			"owner": "maintainers"
 		},
 		{
@@ -343,14 +311,6 @@
 			"tier": "bot",
 			"required": false,
 			"reason": "Note on issues that are not fixed",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "dco.yml",
-			"job": "dco",
-			"tier": "gate",
-			"required": false,
-			"reason": "DCO sign-off on every PR; concurrency tracked in #1286",
 			"owner": "maintainers"
 		},
 		{

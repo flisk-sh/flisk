@@ -14,6 +14,8 @@ function fakeDocker(output: {
   volumes?: string[];
   networks?: string[];
   images?: string[];
+  /** Names of the containers (any project) that run from an image reference, answered to `ps --filter ancestor=<ref>`. */
+  usersOfImage?: Record<string, string[]>;
   fail?: (args: string[]) => string | undefined;
 }): { docker: DockerRun; calls: string[][] } {
   const calls: string[][] = [];
@@ -21,6 +23,10 @@ function fakeDocker(output: {
     calls.push(args);
     const failure = output.fail?.(args);
     if (failure) throw Object.assign(new Error("docker failed"), { stderr: `${failure}\nmore` });
+    const ancestor = args.find((arg) => arg.startsWith("ancestor="));
+    if (args[0] === "ps" && ancestor) {
+      return (output.usersOfImage?.[ancestor.slice("ancestor=".length)] ?? []).join("\n");
+    }
     if (args[0] === "ps") return (output.containers ?? []).join("\n");
     if (args[0] === "volume" && args[1] === "ls") return (output.volumes ?? []).join("\n");
     if (args[0] === "network" && args[1] === "ls") return (output.networks ?? []).join("\n");
@@ -113,6 +119,26 @@ describe("listProjectArtifacts", () => {
     });
     expect(listProjectArtifacts("foo", { stacks: ["main"] }, gatewayDocker).images).toEqual([
       "foo-traefik-wake-gateway:latest",
+    ]);
+  });
+
+  it("claims the shared wake-gateway image only while no container of another project runs from it", () => {
+    const shared = "flisk-wake-gateway:0.37.7-0123456789abcdef";
+    const base = { images: [shared, "flisk-other:latest"] };
+    expect(
+      listProjectArtifacts("foo", { stacks: ["main"] }, fakeDocker(base).docker).images,
+    ).toEqual([shared]);
+
+    const stillUsed = fakeDocker({ ...base, usersOfImage: { [shared]: ["bar-wake-gateway"] } });
+    expect(listProjectArtifacts("foo", { stacks: ["main"] }, stillUsed.docker).images).toEqual([]);
+
+    const onlyOwn = fakeDocker({
+      ...base,
+      containers: ["foo-wake-gateway\tfoo-traefik"],
+      usersOfImage: { [shared]: ["foo-wake-gateway"] },
+    });
+    expect(listProjectArtifacts("foo", { stacks: ["main"] }, onlyOwn.docker).images).toEqual([
+      shared,
     ]);
   });
 

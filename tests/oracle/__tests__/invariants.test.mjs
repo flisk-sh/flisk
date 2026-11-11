@@ -300,3 +300,37 @@ test("known gap #3243 belongs to the resource the error names, never to a neighb
 	strict.render = { code: 1, stdout: "", stderr: err("odd") };
 	assert.deepEqual(checkScenario(strict, py, { strict: true }).map((f) => f.invariant), ["render-exports-http-resources"], "strict (the vault replay) never excuses #3243");
 });
+
+test("a queue scaffold is expected as the bring-your-own container status reports (#3862)", () => {
+	const sc = { ...scenario, resources: [{ name: "bus", kind: "queue", type: "bring-your-own", stack: "main", args: ["--framework", "rabbitmq"] }] };
+	const s = agreeing();
+	s.status.json.data.resources = [{ name: "bus", type: "bring-your-own" }];
+	s.status.json.data.stacks = [{ name: "main", resourceCount: 1, resources: ["bus"] }];
+	s.resources.json.data.resources = [{ name: "bus" }];
+	s.up.json.data.services = ["bus"];
+	s.stacks.json.data.stacks = [{ name: "main", resourceCount: 1 }];
+	s.render = { code: 0, stdout: "services:\n" };
+	assert.deepEqual(ids(s, sc), []);
+	s.status.json.data.resources = [{ name: "bus", type: "queue" }];
+	assert.deepEqual(ids(s, sc), ["status-lists-scaffolded-resources"]);
+});
+
+test("known gap #3862: export render refuses an image-only queue, only the one it names, never in strict", () => {
+	const sc = { ...scenario, resources: [
+		{ name: "bus", kind: "queue", type: "bring-your-own", stack: "main", args: ["--framework", "nats"] },
+		{ name: "plain", kind: "backend", type: "backend", stack: "main", args: [] },
+	] };
+	const s = agreeing();
+	s.status.json.data.resources = [{ name: "bus", type: "bring-your-own" }, { name: "plain", type: "backend" }];
+	s.status.json.data.stacks = [{ name: "main", resourceCount: 2, resources: ["bus", "plain"] }];
+	s.resources.json.data.resources = [{ name: "bus" }, { name: "plain" }];
+	s.up.json.data.services = ["bus", "plain"];
+	s.stacks.json.data.stacks = [{ name: "main", resourceCount: 2 }];
+	s.compose = { code: 1, text: "" };
+	const err = (name) => `Error: Resource "${name}" has neither a Dockerfile nor a package.json, so Render has nothing to build`;
+	s.render = { code: 1, stdout: "", stderr: err("bus") };
+	assert.deepEqual(ids(s, sc), []);
+	assert.deepEqual(checkScenario(s, sc, { strict: true }).map((f) => f.invariant), ["render-exports-http-resources"]);
+	s.render = { code: 1, stdout: "", stderr: err("plain") };
+	assert.deepEqual(ids(s, sc), ["render-exports-http-resources"]);
+});
