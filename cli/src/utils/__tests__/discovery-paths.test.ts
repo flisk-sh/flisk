@@ -4,7 +4,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chooseResourcePath, isPathDiscovered, readDiscoveryPaths } from "../discovery-paths.js";
+import {
+  chooseResourcePath,
+  isPathDiscovered,
+  namesDirectoryLiterally,
+  readDiscoveryPaths,
+} from "../discovery-paths.js";
 
 describe("discovery paths", () => {
   let root: string;
@@ -50,6 +55,13 @@ describe("discovery paths", () => {
       expect(warn).toHaveBeenCalledOnce();
       expect(warn.mock.calls[0]?.[0]).toContain("array of strings");
       expect(warn.mock.calls[0]?.[0]).toContain("services/*/*");
+    });
+
+    it("does not warn about an invalid configuration when quiet", () => {
+      writeRawProjectJson("{ invalid-json syntax");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      expect(readDiscoveryPaths(root, { quiet: true })).toEqual(["services/*/*"]);
+      expect(warn).not.toHaveBeenCalled();
     });
 
     it("does not warn for a missing file or a valid discovery configuration", () => {
@@ -236,6 +248,29 @@ describe("discovery paths", () => {
       expect(chooseResourcePath(root, "workers/mailer", "core", "mailer")).toEqual({
         path: "workers/mailer",
       });
+    });
+  });
+
+  describe("namesDirectoryLiterally", () => {
+    it("matches a folder named by a literal segment on or above the pattern", () => {
+      expect(namesDirectoryLiterally(root, ["vendor"], ["vendor/*"])).toBe(true);
+      expect(namesDirectoryLiterally(root, ["vendor"], ["vendor"])).toBe(true);
+      expect(namesDirectoryLiterally(root, ["services", "vendor"], ["services/vendor/*"])).toBe(
+        true,
+      );
+      expect(namesDirectoryLiterally(root, ["apps", "target"], ["*/target/*"])).toBe(true);
+      expect(namesDirectoryLiterally(root, ["vendor"], ["./vendor/*"])).toBe(true);
+    });
+
+    it("does not match through a wildcard segment or a different path", () => {
+      expect(namesDirectoryLiterally(root, ["services", "x", "target"], ["services/*/*"])).toBe(
+        false,
+      );
+      expect(namesDirectoryLiterally(root, ["node_modules"], ["*/*"])).toBe(false);
+      expect(namesDirectoryLiterally(root, ["apps", "vendor"], ["vendor/*"])).toBe(false);
+      expect(namesDirectoryLiterally(root, ["other", "vendor"], ["services/vendor/*"])).toBe(false);
+      expect(namesDirectoryLiterally(root, ["vendor", "pkg", "target"], ["vendor/*"])).toBe(false);
+      expect(namesDirectoryLiterally(root, [], ["vendor/*"])).toBe(false);
     });
   });
 });

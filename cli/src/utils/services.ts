@@ -23,6 +23,7 @@ import {
   SKIP_DIRECTORIES,
 } from "./constants.js";
 import { declaredDependsOn, dependsOnOf } from "./dependency-graph.js";
+import { namesDirectoryLiterally, readDiscoveryPaths } from "./discovery-paths.js";
 import { errorFactories, FliskError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
@@ -37,14 +38,21 @@ import { includes } from "./validation.js";
 
 const RESOURCE_JSON_FILENAME = SERVICE_JSON;
 
-function findServiceJsonFiles(
+function findServiceJsonFiles(projectRoot: string): string[] {
+  const discoveryPaths = readDiscoveryPaths(projectRoot, { quiet: true });
+  return walkServiceJsonFiles(projectRoot, projectRoot, [], discoveryPaths);
+}
+
+function walkServiceJsonFiles(
+  projectRoot: string,
   dir: string,
+  dirSegments: string[],
+  discoveryPaths: string[],
   maxDepth: number = 5,
-  currentDepth: number = 0,
 ): string[] {
   const results: string[] = [];
 
-  if (currentDepth > maxDepth) {
+  if (dirSegments.length > maxDepth) {
     return results;
   }
 
@@ -54,8 +62,17 @@ function findServiceJsonFiles(
     const fullPath = join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      if (shouldSkipDirectory(entry.name)) continue;
-      results.push(...findServiceJsonFiles(fullPath, maxDepth, currentDepth + 1));
+      const childSegments = [...dirSegments, entry.name];
+      // A skipped folder is still walked when discovery.paths names it, e.g. `vendor/*`.
+      if (
+        shouldSkipDirectory(entry.name) &&
+        !namesDirectoryLiterally(projectRoot, childSegments, discoveryPaths)
+      ) {
+        continue;
+      }
+      results.push(
+        ...walkServiceJsonFiles(projectRoot, fullPath, childSegments, discoveryPaths, maxDepth),
+      );
     } else if (entry.isFile() && entry.name === RESOURCE_JSON_FILENAME) {
       results.push(fullPath);
     }

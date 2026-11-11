@@ -162,14 +162,15 @@ export const SKIP_DIRECTORIES = [
   "docs",
   // Build output and dependency folders of other toolchains: Rust, Maven,
   // Gradle and sbt (target), Go, PHP and Ruby (vendor), Python (__pycache__,
-  // venv, env) and .NET (out, obj). They can hold tens of thousands of files
-  // and Flisk's scaffolds never put a service.json in them. As with dist and
-  // build, this walk does not look inside them.
+  // venv, env) and .NET (bin, out, obj). They can hold tens of thousands of
+  // files and Flisk's scaffolds never put a service.json in them. A project
+  // that keeps a service in one of them names the folder in discovery.paths.
   "target",
   "vendor",
   "__pycache__",
   "venv",
   "env",
+  "bin",
   "out",
   "obj",
 ] as const;
