@@ -29,13 +29,18 @@ import { readNativeRunState, stopNativeRun } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import {
+  findForeignContainerOwners,
+  findOtherRecordedFolders,
+  purgeOwnerRefusal,
+} from "../utils/project-owner.js";
+import {
   countArtifacts,
   listProjectArtifacts,
   type ProjectArtifacts,
   type PurgeResult,
   removeProjectArtifacts,
 } from "../utils/project-purge.js";
-import { readProjectRecords } from "../utils/project-registry.js";
+import { projectNameAt, readProjectRecords } from "../utils/project-registry.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { discoverResources, discoverResourcesFromRoot, discoverStacks } from "../utils/services.js";
 import { buildTiltDownArgs, getTiltfilePath, runTilt } from "../utils/tilt.js";
@@ -335,6 +340,30 @@ export const downCommand = addYesOption(new Command("down"))
       }
       emit?.({ ok: true, runtime: "native", stopped: stopped.services });
       return;
+    }
+    // `--purge` deletes the volume, networks and images of the project NAME. Another folder with the same name uses them too
+    // (#3961), so stop before anything is removed, in a dry run as well.
+    if (options.purge) {
+      const name = projectNameAt(projectRoot);
+      if (name) {
+        const records = readProjectRecords();
+        const stacks = [
+          ...new Set([
+            ...(records.find((record) => record.name === name)?.stacks ?? []),
+            ...(allStackNames() ?? []),
+          ]),
+        ];
+        const refusal = purgeOwnerRefusal(
+          name,
+          findForeignContainerOwners(name, stacks, projectRoot),
+          findOtherRecordedFolders(name, projectRoot),
+        );
+        if (refusal) {
+          const error = new FliskError(refusal.message, refusal.suggestions);
+          if (options.json) writeMachineError(error);
+          return error.exit();
+        }
+      }
     }
     await withTiltCheck(async () => {
       const wouldPurge =

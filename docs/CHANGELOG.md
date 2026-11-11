@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- Two projects with the same name in different folders (two clones of a starter, git worktrees, `flisk demo` next to your own copy) share one set of Docker containers and one Postgres volume. `flisk up` now stops, before it replaces anything, when another existing folder already has containers of this project name, and says which folder and how to rename the project. `flisk down --purge` (and its `--dry-run`) refuses when another folder holds the project's containers or is recorded in `~/.flisk/projects`, so it can no longer delete a database that another folder uses (#3961).
+
 ## 1.4.55 (2026-11-11)
 
 - The wake-gateway image (built when a resource uses `sablier.deferStart`) is now one `flisk-wake-gateway:<tilt version>-<hash>` per machine instead of one copy per project, so two projects no longer hold 2 x 257 MB. The tag changes when its Dockerfile, Tilt version or sources change. `flisk down --purge` keeps it while a container of another project still runs from it, and still removes the old `<project>-traefik-wake-gateway` copies (#3837).
