@@ -521,6 +521,25 @@ describe("failed commands and compose steps", () => {
     expect(failure?.message.length).toBe(MAX_FAILURE_MESSAGE);
   });
 
+  it("says in plain words that Docker is out of address pools when init-networks has no log (#3650)", async () => {
+    const [failure] = await explainFailures(
+      [{ name: "init-networks", message: initNetworksCommand }],
+      async () => null,
+    );
+    expect(failure?.message).toContain("out of network address pools");
+    expect(failure?.message).not.toContain("docker network inspect");
+    expect(failure?.fix).toContain("flisk down --prune-networks");
+    expect(failure?.fix).toContain("docker network prune");
+  });
+
+  it("recognises the other wording Docker uses when it has no subnet left", () => {
+    expect(
+      machineProblemFix(
+        "could not find an available, non-overlapping IPv4 address pool among the defaults to assign to the network",
+      ),
+    ).toContain("docker network prune");
+  });
+
   it("explainFailures gives each failure its logged reason and, for the address pool, the fix", async () => {
     const failures = await explainFailures(
       [

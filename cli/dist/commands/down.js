@@ -92,7 +92,12 @@ function isProjectIdle(projectRoot) {
         return false;
     }
 }
-function pruneNetworksOrWarn(json) {
+/**
+ * Remove this project's networks that no container uses. `isExplicit` is true when the user passed `--prune-networks`;
+ * the run that happens after every `flisk down` stays quiet about networks Docker keeps and about a Docker that cannot
+ * be asked.
+ */
+function pruneNetworksOrWarn(json, isExplicit) {
     const root = findProjectRoot();
     if (!root)
         return undefined;
@@ -102,14 +107,16 @@ function pruneNetworksOrWarn(json) {
             if (result.removed.length > 0) {
                 console.log(chalk.gray(`Removed networks: ${result.removed.join(", ")}`));
             }
-            for (const kept of result.kept) {
-                console.log(chalk.yellow(`Kept network ${kept.name}: ${kept.reason}`));
+            if (isExplicit) {
+                for (const kept of result.kept) {
+                    console.log(chalk.yellow(`Kept network ${kept.name}: ${kept.reason}`));
+                }
             }
         }
         return result;
     }
     catch (err) {
-        if (!json) {
+        if (!json && isExplicit) {
             console.log(chalk.yellow(`Could not remove networks: ${err.message}`));
         }
         return undefined;
@@ -166,7 +173,8 @@ export const downCommand = addYesOption(new Command("down"))
     .description("Stop every running service of this project (local processes or Docker/Tilt)")
     .option("-v, --verbose", "Enable verbose output", false)
     .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)
-    .option("--prune-networks", "Also remove this project's Docker networks (only those no container is attached to)", false)
+    .option("--prune-networks", "Remove this project's Docker networks that no container is attached to (the default; kept for scripts)")
+    .option("--no-prune-networks", "Keep this project's Docker networks (by default the unused ones are removed, so Docker does not run out of address pools)")
     .option("--prune-cache [age]", "Also prune Docker build cache (shared across all projects on this machine; default age: 24h)", false)
     .option("--cache-until <age>", "With --prune-cache: age filter for prune (e.g. 24h, 168h, 7d; default: 24h)")
     .option("--purge", "Also delete this project's Docker volumes (database data), networks and images, so nothing of it is left in Docker", false)
@@ -274,12 +282,23 @@ export const downCommand = addYesOption(new Command("down"))
             }
             return;
         }
-        const hasCleanup = Boolean(options.purge || options.pruneNetworks || shouldPruneCache);
+        // Unused networks go by default: stopped projects that kept theirs used up Docker's address pools (#3650).
+        const shouldPruneNetworks = options.pruneNetworks !== false;
+        const hasCleanup = Boolean(options.purge || shouldPruneCache);
         const idle = isProjectIdle(projectRoot);
         if (idle && !hasCleanup) {
             if (!options.json)
                 console.log(chalk.gray("Nothing is running for this project."));
-            emit?.({ ok: true, stoppedTilt: [], idle: true });
+            // Networks an earlier `down` kept are still taken off the machine.
+            const leftover = shouldPruneNetworks
+                ? pruneNetworksOrWarn(options.json, options.pruneNetworks === true)
+                : undefined;
+            emit?.({
+                ok: true,
+                stoppedTilt: [],
+                idle: true,
+                ...(leftover ? { removedNetworks: leftover.removed, keptNetworks: leftover.kept } : {}),
+            });
             return;
         }
         const tiltArgs = buildTiltDownArgs({
@@ -287,16 +306,16 @@ export const downCommand = addYesOption(new Command("down"))
         });
         // Stop `tilt up` first: `tilt down` does not end it, and a live Tilt re-creates the containers `tilt down` just removed.
         let stoppedTilt = [];
-        try {
-            if (idle)
-                throw new Error("nothing to stop");
-            const tiltfile = getTiltfilePath();
-            stoppedTilt = stopProjectTiltUp(tiltfile);
-            if (stoppedTilt.length > 0)
-                await waitForTiltUpExit(tiltfile);
-        }
-        catch {
-            // Not fatal: the containers are already down.
+        if (!idle) {
+            try {
+                const tiltfile = getTiltfilePath();
+                stoppedTilt = stopProjectTiltUp(tiltfile);
+                if (stoppedTilt.length > 0)
+                    await waitForTiltUpExit(tiltfile);
+            }
+            catch {
+                // Not fatal: the containers are already down.
+            }
         }
         if (stoppedTilt.length > 0 && !options.json) {
             console.log(chalk.gray(`Stopped tilt up (pid ${stoppedTilt.join(", ")}).`));
@@ -338,8 +357,8 @@ export const downCommand = addYesOption(new Command("down"))
             }
         }
         let networks;
-        if (options.pruneNetworks && !options.purge) {
-            networks = pruneNetworksOrWarn(options.json);
+        if (shouldPruneNetworks && !options.purge) {
+            networks = pruneNetworksOrWarn(options.json, options.pruneNetworks === true);
         }
         // After the stack is down: containers no longer hold the volumes and networks.
         const purged = options.purge ? purgeOrWarn(projectRoot, options.json) : undefined;

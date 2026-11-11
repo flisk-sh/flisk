@@ -363,7 +363,7 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | Flag | Effect |
 | --- | --- |
 | `-f`, `--force` | Deprecated; implies `--yes` |
-| `--prune-networks` | Also remove this project's Docker networks that no container uses |
+| `--prune-networks` | Remove this project's Docker networks that no container uses (the default since #3650; `--no-prune-networks` keeps them) |
 | `--prune-cache [age]` | Also prune Docker build cache (shared across all projects on this machine; default age: 24h). In JSON or non-TTY mode, pass `--yes` to confirm; native shutdown skips pruning |
 | `--cache-until <age>` | With --prune-cache: age filter for prune (e.g. 24h, 168h, 7d; default: 24h) |
 | `--purge` | Also delete this project's Docker volumes (database data), networks and images |

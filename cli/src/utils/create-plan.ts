@@ -12,6 +12,7 @@
  */
 
 import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
+import { DATABASE_FRAMEWORK, DATABASE_RESOURCE_TYPE } from "../types/index.js";
 import { extraCatalog, localRequirements, starterCatalog } from "./create-catalog.js";
 
 export type CreateRuntime = "local" | "docker";
@@ -52,6 +53,9 @@ export const CREATE_STACK = "app";
 /** The folders a local project's website and API live in. */
 export const LOCAL_FRONTEND_DIR = "web";
 export const LOCAL_BACKEND_DIR = "api";
+
+/** The extras id that adds the shared Postgres. */
+const POSTGRES_EXTRA = `${DATABASE_RESOURCE_TYPE}:${DATABASE_FRAMEWORK}`;
 
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
@@ -128,6 +132,13 @@ export function buildCreatePlan(answers: CreateAnswers): CreateStep[] {
         "--type",
         "backend",
         ...flavour,
+        // Postgres with an API: Prisma adds the `<api>-migrator` resource and makes the API wait for it.
+        // Only the default (Node) language has it; the other languages' scaffolds ignore the feature.
+        ...(!local &&
+        language === DEFAULT_BACKEND_LANGUAGE &&
+        answers.extras.includes(POSTGRES_EXTRA)
+          ? ["--feature", "prisma"]
+          : []),
         ...where(LOCAL_BACKEND_DIR),
         "--stack",
         CREATE_STACK,

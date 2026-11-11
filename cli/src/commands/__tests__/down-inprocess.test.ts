@@ -5,7 +5,7 @@
 // path's focus targets, `tilt up` stop and verbose line, the Compose fallback that cannot run, and the Docker build
 // cache prune prompt. Discovery, Docker, Tilt and the native runtime are doubles, so each case states what it sees.
 
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Command } from "commander";
@@ -165,6 +165,48 @@ describe("flisk down (in-process)", () => {
       expect(tilt.runTilt).not.toHaveBeenCalled();
     });
 
+    it("removes the networks an earlier down left, and keeps them with --no-prune-networks (#3650)", async () => {
+      mkdirSync(join(root, ".flisk"), { recursive: true });
+      writeFileSync(
+        join(root, ".flisk", "project.json"),
+        JSON.stringify({
+          version: "1.0.0",
+          project: { name: "demo", version: "1.0.0" },
+          phases: Object.fromEntries(
+            ["pre_alpha", "alpha", "beta", "out_of_scope"].map((name) => [
+              name,
+              { name, description: "", enabledStacks: [] },
+            ]),
+          ),
+          optional_infra: {
+            monitoring: false,
+            elk: false,
+            debezium: false,
+            golden_image: false,
+            verdaccio: false,
+          },
+          discovery: { paths: ["services/**"] },
+        }),
+      );
+      cleanup.pruneProjectNetworks.mockReturnValue({ removed: ["demo_backend"], kept: [] });
+
+      await runDown(["--json"]);
+      expect(cleanup.pruneProjectNetworks).toHaveBeenCalledTimes(1);
+      expect(json.emitted).toEqual([
+        {
+          ok: true,
+          stoppedTilt: [],
+          idle: true,
+          removedNetworks: ["demo_backend"],
+          keptNetworks: [],
+        },
+      ]);
+
+      cleanup.pruneProjectNetworks.mockClear();
+      await runDown(["--json", "--no-prune-networks"]);
+      expect(cleanup.pruneProjectNetworks).not.toHaveBeenCalled();
+    });
+
     it("still runs tilt down when a container of the project exists", async () => {
       cleanup.projectComposeProjects.mockReturnValue(["demo-traefik"]);
 
@@ -203,6 +245,7 @@ describe("flisk down (in-process)", () => {
       const run = await runDown(["--purge"]);
 
       expect(tilt.runTilt).not.toHaveBeenCalled();
+      expect(cleanup.stopProjectTiltUp).not.toHaveBeenCalled();
       expect(run.stdout).not.toContain("Nothing is running for this project.");
       expect(run.stdout).toMatch(
         /No volumes, networks or images|Removed|Could not read the project name/,

@@ -186,3 +186,35 @@ describe("isValidProjectName", () => {
     },
   );
 });
+
+describe("database:postgres on the Docker route", () => {
+  const docker = (patch: Partial<CreateAnswers> = {}) => argsOf({ runtime: "docker", ...patch });
+
+  it("adds the Postgres resource step", () => {
+    expect(docker({ extras: ["database:postgres"] })).toContainEqual([
+      "resource",
+      "shop-database-postgres",
+      "--type",
+      "database",
+      "--framework",
+      "postgres",
+      "--stack",
+      CREATE_STACK,
+      "--yes",
+    ]);
+  });
+
+  it("passes --feature prisma on the API so the migrator exists, and only with postgres", () => {
+    const api = (extras: string[]) =>
+      docker({ extras }).find((args) => args[1] === "shop-api") ?? [];
+    expect(api(["database:postgres"])).toEqual(expect.arrayContaining(["--feature", "prisma"]));
+    expect(api([])).not.toContain("--feature");
+    expect(api(["queue:nats"])).not.toContain("--feature");
+  });
+
+  it("does not ask for the migrator when there is no API", () => {
+    expect(docker({ backend: undefined, extras: ["database:postgres"] }).flat()).not.toContain(
+      "prisma",
+    );
+  });
+});
