@@ -170,7 +170,7 @@ def L4_generate_migrator_runtime(res_path, resource_name = 'migrator', use_golde
     The stage:
       1. Copies Prisma artifacts from l3_migration_build
       2. Writes prisma.config.ts, fixes permissions, symlinks engines (filesystem_setup)
-      3. Installs Alpine utilities (curl, jq, nc) needed at runtime
+      3. Relies on the golden l4-migrator image for curl, jq and nc (no apk add here)
       4. Copies and chmod's /app/migrate.sh from shared docker templates
       5. Sets ENTRYPOINT to migrate.sh
 
