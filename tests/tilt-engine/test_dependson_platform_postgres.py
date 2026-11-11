@@ -653,3 +653,44 @@ def test_sablier_runs_only_when_a_resource_opts_in(tmp_path):
         "r = {'plain': project_uses_sablier(plain), 'off': project_uses_sablier(off), 'on': project_uses_sablier(on), 'none': project_uses_sablier([])}\n",
     )
     assert result == {"plain": False, "off": False, "on": True, "none": False}
+
+
+@TILT_REQUIRED
+def test_project_of_only_rust_python_go_node_backends_uses_no_golden_image(tmp_path):
+    """Provider-owned backends build from their own base images, so golden-layers-build must not pull Bun images for them (#3764)."""
+    infra_dir = INFRA_LOADER.parent
+    result = run_starlark(
+        tmp_path,
+        f"load('{infra_dir}/infra-loader.star', 'project_uses_golden_image')\n"
+        "def svc(*manifests):\n"
+        "    return [{'resources': [{'name': 'r%d' % i, '_manifest': m} for i, m in enumerate(manifests)]}]\n"
+        "own = svc({'language': 'rust'}, {'language': 'python'}, {'language': 'go'}, {'language': 'node'})\n"
+        "r = {\n"
+        "    'own': project_uses_golden_image(own),\n"
+        "    'bun_default': project_uses_golden_image(svc({'language': 'rust'}, {'appType': 'backend'})),\n"
+        "    'bun_explicit': project_uses_golden_image(svc({'language': 'rust'}, {'language': 'bun'})),\n"
+        "    'frontend': project_uses_golden_image(svc({'language': 'rust'}, {'appType': 'frontend'})),\n"
+        "    'migrator': project_uses_golden_image(svc({'language': 'rust'}, {'appType': 'migrator'})),\n"
+        "}\n",
+    )
+    assert result == {"own": False, "bun_default": True, "bun_explicit": True, "frontend": True, "migrator": True}
+
+
+@TILT_REQUIRED
+def test_rust_backend_stack_does_not_depend_on_golden_build(tmp_path):
+    """A Rust backend must not wait for golden-layers-build, while a Bun backend still does (#3764)."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_infra_dependencies', 'stack_uses_golden_image')\n"
+        + _make_should_enable({"golden-image"})
+        + "should_enable = make_should_enable(set(['golden-image']))\n"
+        "ctx = {'golden_image_resource': 'golden-layers-build'}\n"
+        "config = {'resources': [{'name': 'api'}]}\n"
+        "rust = stack_uses_golden_image(config, {'api': {'appType': 'backend', 'language': 'rust'}})\n"
+        "bun = stack_uses_golden_image(config, {'api': {'appType': 'backend'}})\n"
+        "r = {'rust': rust, 'bun': bun, 'rust_deps': build_infra_dependencies('svc', should_enable, ctx, False, rust), 'bun_deps': build_infra_dependencies('svc', should_enable, ctx, False, bun)}\n",
+    )
+    assert result["rust"] is False
+    assert result["rust_deps"] == []
+    assert result["bun"] is True
+    assert result["bun_deps"] == ["golden-layers-build"]

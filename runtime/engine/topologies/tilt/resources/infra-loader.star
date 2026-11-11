@@ -29,6 +29,7 @@ load("./build_concurrency.star", "configure_build_concurrency")
 load("./tilt_image_tags.star", "register_tilt_image_tags")
 load("../../../../discovery/registry.star", "APP_RESOURCES")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
+load("../../platform/docker/dockerfile/language_dockerfile.star", "is_provider_owned_language")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
 load("../../platform/docker/networking/sablier_container_cycle.star", "sablier_middleware_suffix")
 load("../../platform/registries/verdaccio_loader.star", "load_verdaccio")
@@ -487,8 +488,20 @@ def _init_networks(fix_docker_networks_fn):
 # 🏗️ GOLDEN IMAGE (Base Docker Image)
 # =============================================================================
 
+def manifest_uses_golden_image(manifest):
+    """True when the resource's image can be built from the golden layers (Bun/Node-on-Bun images).
+
+    Bring-your-own, library, SDK, infra and database resources build no golden-based image, and a backend
+    whose language provider owns its Dockerfile (Python, Go, Rust, Node) starts from its own base image.
+    """
+    manifest = manifest or {}
+    if manifest.get('appType', 'backend') in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+        return False
+    return not is_provider_owned_language(manifest)
+
+
 def project_uses_golden_image(app_resources=None):
-    """False when every discovered resource is a bring-your-own container or builds no image, so nothing reads the golden images.
+    """False when no discovered resource reads the golden images (bring-your-own, no-image types, Python/Go/Rust/Node backends).
 
     Unknown (nothing discovered yet) counts as used.
     """
@@ -501,8 +514,7 @@ def project_uses_golden_image(app_resources=None):
             if type(res) != 'dict':
                 continue
             found = True
-            manifest = res.get('_manifest', {}) or {}
-            if manifest.get('appType', 'backend') not in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
+            if manifest_uses_golden_image(res.get('_manifest', {})):
                 return True
     return not found
 
