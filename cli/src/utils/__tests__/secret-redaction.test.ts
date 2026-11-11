@@ -170,13 +170,13 @@ describe("createEnvRedactor", () => {
 
 describe("multiline secret values", () => {
   it("redacts each line of a multiline value, since output is split by line before redaction", () => {
-    const first = "-----BEGIN PRIVATE KEY-----";
+    const first = "-----BEGIN EXAMPLE BLOCK-----";
     const second = "MIIEvQIBADANBgkqhkiG9w0BAQEF";
-    const root = projectWithEnv(`KEY="${first}\\n${second}\\n-----END PRIVATE KEY-----"\n`);
+    const root = projectWithEnv(`KEY="${first}\\n${second}\\n-----END EXAMPLE BLOCK-----"\n`);
     const redact = createEnvRedactor(root);
     expect(redact(first)).toBe(REDACTED);
     expect(redact(`key: ${second}`)).toBe(`key: ${REDACTED}`);
-    expect(redact("-----END PRIVATE KEY-----")).toBe(REDACTED);
+    expect(redact("-----END EXAMPLE BLOCK-----")).toBe(REDACTED);
   });
 });
 
