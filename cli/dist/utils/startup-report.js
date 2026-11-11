@@ -103,9 +103,19 @@ export function logTail(log, lines = LOG_TAIL_LINES) {
  */
 export function formatWaitFailures(failures) {
     return failures.map((f) => {
-        const line = `${f.name}: ${f.reason ?? f.message ?? "failed"}`;
-        return f.fix ? `${line}\n    → ${f.fix.replace(/^Fix:\s*/, "")}` : line;
+        const lines = [`${f.name}: ${f.reason ?? f.message ?? "failed"}`];
+        if (f.fix)
+            lines.push(`    → ${f.fix.replace(/^Fix:\s*/, "")}`);
+        if (f.logs && f.logs.length > 0) {
+            lines.push(...f.logs.map((line) => `    ${line}`));
+            lines.push(`    (${lastLines(f.logs.length)} of: flisk logs --service ${f.name})`);
+        }
+        return lines.join("\n");
     });
+}
+/** "last line" or "last 3 lines". */
+export function lastLines(count) {
+    return count === 1 ? "last line" : `last ${count} lines`;
 }
 function capStart(text) {
     return text.length > MAX_FAILURE_MESSAGE ? `${text.slice(0, MAX_FAILURE_MESSAGE - 1)}…` : text;

@@ -1,13 +1,93 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { lastLines } from "./startup-report.js";
 /** Seconds `flisk up --wait` waits for a healthy stack when `--wait-timeout` is not given. */
 export const DEFAULT_WAIT_TIMEOUT_SECONDS = 1800;
 const LOG_TAIL_CHARS = 2000;
 const POLL_MS = 250;
+/** Lines of each unhealthy service's log a failed `flisk up --wait` prints, and the most it prints in all. */
+export const UNHEALTHY_LINES_PER_SERVICE = 5;
+export const UNHEALTHY_LINES_TOTAL = 20;
+/**
+ * The lines `flisk logs --unhealthy --json` returned, grouped by service in the order they first appear: the last
+ * `perService` lines of each, and no more than `total` lines over all of them (a service past that keeps its name with
+ * no lines, so it is still named).
+ */
+export function unhealthyLogTails(lines, perService = UNHEALTHY_LINES_PER_SERVICE, total = UNHEALTHY_LINES_TOTAL) {
+    const byService = new Map();
+    for (const line of lines) {
+        const text = line.text.trimEnd();
+        if (!line.resource || !text.trim())
+            continue;
+        const kept = byService.get(line.resource) ?? [];
+        kept.push(text);
+        byService.set(line.resource, kept);
+    }
+    let left = total;
+    return [...byService].map(([name, kept]) => {
+        const tail = kept.slice(-perService).slice(0, Math.max(0, left));
+        left -= tail.length;
+        return { name, lines: tail };
+    });
+}
+/** The human lines for those tails, under the failure message: each service, its lines, and how to see more. */
+export function formatUnhealthyLogTails(tails) {
+    return tails.flatMap(({ name, lines }) => [
+        `  ${name}: not healthy`,
+        ...lines.map((line) => `    ${line}`),
+        `    (${lines.length > 0 ? `${lastLines(lines.length)} of: ` : "see: "}flisk logs --service ${name})`,
+    ]);
+}
+/**
+ * Runs `flisk logs --unhealthy --json` the same way `flisk up --wait` runs `flisk up`, so the lookup (Tilt or local
+ * processes, and secret redaction) is the one `flisk logs` does. Resolves to null when it cannot run or says nothing.
+ */
+export function fetchUnhealthyLogLines(invocation, cwd, timeoutMs = 20_000) {
+    const [command, ...prefix] = invocation();
+    return new Promise((resolve) => {
+        execFile(command, [...prefix, "logs", "--unhealthy", "--json"], {
+            cwd,
+            timeout: timeoutMs,
+            maxBuffer: 4 * 1024 * 1024,
+            env: { ...process.env, NO_COLOR: "1" },
+        }, (_error, stdout) => {
+            const line = resultLine(String(stdout ?? ""));
+            if (!line)
+                return resolve(null);
+            try {
+                const parsed = JSON.parse(line);
+                const found = parsed.data?.lines;
+                resolve(Array.isArray(found)
+                    ? found.map((entry) => ({
+                        resource: entry.resource ?? null,
+                        text: String(entry.text ?? ""),
+                    }))
+                    : null);
+            }
+            catch {
+                resolve(null);
+            }
+        });
+    });
+}
+/**
+ * The `flisk up --json` result with each failure that names an unhealthy service given its log lines as `logs`, and
+ * any other unhealthy service added as a failure of its own.
+ */
+export function withUnhealthyLogs(failures, tails) {
+    const byName = new Map(tails.map((tail) => [tail.name, tail.lines]));
+    const out = failures.map((failure) => byName.has(failure.name) ? { ...failure, logs: byName.get(failure.name) } : failure);
+    const named = new Set(failures.map((failure) => failure.name));
+    for (const tail of tails) {
+        if (!named.has(tail.name))
+            out.push({ name: tail.name, message: "not healthy", logs: tail.lines });
+    }
+    return out;
+}
 /** The arguments of the detached child: the caller's own, without the wait options, asking for one JSON result. */
 export function detachedUpArgs(argv) {
     const out = [];

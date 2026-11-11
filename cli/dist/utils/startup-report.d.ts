@@ -65,7 +65,10 @@ export declare function formatWaitFailures(failures: Array<{
     reason?: string;
     message?: string;
     fix?: string;
+    logs?: string[];
 }>): string[];
+/** "last line" or "last 3 lines". */
+export declare function lastLines(count: number): string;
 /**
  * The last `ERROR: ...` line of a resource log, without that prefix, or null. Tilt may put the resource name and a
  * separator before each line, so the marker can come after other text.

@@ -59,7 +59,7 @@ import { attachedUpInCiWarning, upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
 import { evaluateTiltReadiness, getDisabledHealthResourceNames, healthProbeCannotRun, tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
-import { defaultUpWaitDeps, parseWaitTimeout, upAndWait } from "../utils/up-wait.js";
+import { defaultUpWaitDeps, fetchUnhealthyLogLines, formatUnhealthyLogTails, parseWaitTimeout, unhealthyLogTails, upAndWait, withUnhealthyLogs, } from "../utils/up-wait.js";
 import { buildPrintedUrlTargets, checkPrintedUrls, formatUrlFailures, healthUrlOf, printedHealthUrl, tiltResourceHasExited, urlFailureSuggestions, } from "../utils/url-check.js";
 import { enableDiscoveredStacks, writeDefaultProjectConfig } from "./project.js";
 export function formatUpSuccess(port, options = {}) {
@@ -331,9 +331,14 @@ async function runUpWait(options) {
         showErrorAndExit(timeout.message, 1, []);
     }
     const outcome = await upAndWait(process.argv.slice(2), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
+    // A failed or timed-out wait names what was unhealthy with the last lines of its log, the reason (a traceback, a
+    // missing variable) a person would otherwise look up with `flisk logs --unhealthy` (#3823).
+    const unhealthy = outcome.kind === "failed" || outcome.kind === "timeout"
+        ? unhealthyLogTails((await fetchUnhealthyLogLines(cliInvocation, process.cwd())) ?? [])
+        : [];
     if (outcome.kind === "ready" || outcome.kind === "failed") {
         if (options.json) {
-            console.log(outcome.json);
+            console.log(outcome.kind === "failed" ? withLogsInResult(outcome.json, unhealthy) : outcome.json);
         }
         else {
             const parsed = JSON.parse(outcome.json);
@@ -344,7 +349,8 @@ async function runUpWait(options) {
                 console.log(chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."));
             }
             else {
-                const failures = formatWaitFailures(parsed.data?.failures ?? []);
+                // Each unhealthy service's lines go under its own failure, or under a "not healthy" line of their own.
+                const failures = formatWaitFailures(withUnhealthyLogs(parsed.data?.failures ?? [], unhealthy));
                 const messages = failures.length > 0 ? failures : (parsed.errors ?? []).map((e) => e.message ?? "");
                 showError(`flisk up failed:\n  ${messages.filter(Boolean).join("\n  ")}`);
             }
@@ -360,12 +366,32 @@ async function runUpWait(options) {
     const suggestions = outcome.kind === "timeout"
         ? ["`flisk status` shows which services are not healthy", "`flisk down` stops the stack"]
         : [];
-    emit?.({ ok: false }, [{ code, message: reason, suggestions }]);
+    const failures = withUnhealthyLogs([], unhealthy);
+    emit?.(failures.length > 0 ? { ok: false, failures } : { ok: false }, [
+        { code, message: reason, suggestions },
+    ]);
     if (!options.json) {
-        const tail = "logTail" in outcome ? outcome.logTail.trim() : "";
+        const logs = formatUnhealthyLogTails(unhealthy);
+        // The services' own lines say more than the tail of `flisk up`'s output, so they replace it when there are any.
+        const tail = logs.length > 0 ? logs.join("\n") : "logTail" in outcome ? outcome.logTail.trim() : "";
         showError(`${reason}${tail ? `\n${tail}` : ""}`, undefined, suggestions);
     }
     process.exit(1);
+}
+/** The `flisk up --json` result line with the unhealthy services' log lines added to its failures. */
+function withLogsInResult(json, unhealthy) {
+    if (unhealthy.length === 0)
+        return json;
+    try {
+        const parsed = JSON.parse(json);
+        if (!parsed.data)
+            return json;
+        parsed.data.failures = withUnhealthyLogs(parsed.data.failures ?? [], unhealthy);
+        return JSON.stringify(parsed);
+    }
+    catch {
+        return json;
+    }
 }
 /** The first-start notice for this run, or null. A project.json that cannot be read only skips the notice. */
 async function upColdStartNotice(projectRoot, services) {

@@ -7,9 +7,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WAIT_TIMEOUT_SECONDS,
   detachedUpArgs,
+  fetchUnhealthyLogLines,
+  formatUnhealthyLogTails,
   parseWaitTimeout,
+  UNHEALTHY_LINES_TOTAL,
   type UpWaitDeps,
+  unhealthyLogTails,
   upAndWait,
+  withUnhealthyLogs,
 } from "../up-wait.js";
 
 const READY = JSON.stringify({
@@ -111,5 +116,93 @@ describe("upAndWait", () => {
     const { deps } = harness([{ at: 250, error: new Error("spawn ENOENT") }]);
     const outcome = await upAndWait(["up"], 60, deps);
     expect(outcome).toEqual({ kind: "spawn-error", message: "spawn ENOENT" });
+  });
+});
+
+// #3823: a failed or timed-out wait shows the last lines of each unhealthy service's log, not only "not healthy".
+describe("unhealthy services' log tails", () => {
+  const line = (resource: string, text: string) => ({ resource, text });
+  const pyLog = [
+    line("py", "INFO:     Will watch for changes"),
+    line("py", 'File "/app/services/app/py/src/main.py", line 1'),
+    line("py", "boom: cannot connect to database at startup"),
+  ];
+
+  it("keeps the last five lines of each unhealthy service, in the order they appear", () => {
+    const web = Array.from({ length: 8 }, (_, i) => line("web", `web line ${i + 1}`));
+    expect(unhealthyLogTails([...pyLog, ...web])).toEqual([
+      { name: "py", lines: pyLog.map((l) => l.text) },
+      {
+        name: "web",
+        lines: ["web line 4", "web line 5", "web line 6", "web line 7", "web line 8"],
+      },
+    ]);
+  });
+
+  it("prints at most twenty lines in all and still names every service", () => {
+    const many = Array.from({ length: 6 }, (_, s) =>
+      Array.from({ length: 5 }, (_, i) => line(`svc${s}`, `svc${s} line ${i}`)),
+    ).flat();
+    const tails = unhealthyLogTails(many);
+    expect(tails.map((t) => t.name)).toEqual(["svc0", "svc1", "svc2", "svc3", "svc4", "svc5"]);
+    expect(tails.reduce((n, t) => n + t.lines.length, 0)).toBe(UNHEALTHY_LINES_TOTAL);
+    expect(tails[4]?.lines).toEqual([]);
+  });
+
+  it("skips blank lines and lines with no service", () => {
+    expect(
+      unhealthyLogTails([line("py", "   "), { resource: null, text: "tilt says hi" }]),
+    ).toEqual([]);
+  });
+
+  it("formats each service with its lines and how to see more", () => {
+    expect(formatUnhealthyLogTails(unhealthyLogTails(pyLog))).toEqual([
+      "  py: not healthy",
+      "    INFO:     Will watch for changes",
+      '    File "/app/services/app/py/src/main.py", line 1',
+      "    boom: cannot connect to database at startup",
+      "    (last 3 lines of: flisk logs --service py)",
+    ]);
+    expect(formatUnhealthyLogTails([{ name: "web", lines: [] }])).toEqual([
+      "  web: not healthy",
+      "    (see: flisk logs --service web)",
+    ]);
+    expect(formatUnhealthyLogTails([])).toEqual([]);
+  });
+
+  it("adds the lines to the matching failure and the other unhealthy services as failures of their own", () => {
+    const tails = unhealthyLogTails([...pyLog, line("web", "listening")]);
+    expect(withUnhealthyLogs([{ name: "py", message: "health check is failing" }], tails)).toEqual([
+      { name: "py", message: "health check is failing", logs: pyLog.map((l) => l.text) },
+      { name: "web", message: "not healthy", logs: ["listening"] },
+    ]);
+    expect(withUnhealthyLogs([{ name: "api", message: "exit status 1" }], [])).toEqual([
+      { name: "api", message: "exit status 1" },
+    ]);
+  });
+
+  it("reads the lines from `flisk logs --unhealthy --json`", async () => {
+    const envelope = JSON.stringify({ schemaVersion: 1, data: { lines: pyLog }, errors: [] });
+    const script = `process.stdout.write(${JSON.stringify(`noise\n${envelope}\n`)})`;
+    const lines = await fetchUnhealthyLogLines(() => [process.execPath, "-e", script]);
+    expect(lines).toEqual(pyLog);
+  });
+
+  it("gives null when that command prints no result or fails", async () => {
+    expect(
+      await fetchUnhealthyLogLines(() => [process.execPath, "-e", "process.exit(3)"]),
+    ).toBeNull();
+    const noData = JSON.stringify({
+      schemaVersion: 1,
+      data: null,
+      errors: [{ code: "X", message: "x" }],
+    });
+    expect(
+      await fetchUnhealthyLogLines(() => [
+        process.execPath,
+        "-e",
+        `console.log(${JSON.stringify(noData)})`,
+      ]),
+    ).toBeNull();
   });
 });
