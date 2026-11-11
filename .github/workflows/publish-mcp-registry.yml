@@ -28,7 +28,8 @@ concurrency:
 jobs:
   publish-mcp-registry:
     # A skipped or failed release has nothing to list. A run with no release-dist artifact (the version-bump push) is skipped below.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only releases from main: a successful run on another branch must not reach the id-token: write steps below.
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     permissions:
