@@ -18,6 +18,7 @@ import {
   verifyMasterConfigs,
 } from "../../generator/template-engine.js";
 import { captureExit, makeResource } from "../../test-support/index.js";
+import { runCommandInProcess } from "../../test-support/run-in-process.js";
 import { PROJECT_ENV_FILE_VAR } from "../../utils/env-selection.js";
 import { requireProjectRoot } from "../../utils/errors.js";
 import { getHostPortPlan } from "../../utils/host-port-config.js";
@@ -33,6 +34,8 @@ import {
   secondUpAction,
   stopTiltForUp,
 } from "../../utils/tilt-startup.js";
+import type * as UpWaitModule from "../../utils/up-wait.js";
+import { upAndWait } from "../../utils/up-wait.js";
 import {
   DRIFT_EXIT_CODE,
   driftReport,
@@ -85,6 +88,10 @@ vi.mock("../../utils/host-port-config.js", async (importOriginal) => ({
 vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/tilt-port-owner.js")>()),
   classifyTiltPorts: vi.fn(async () => ({ running: [] as number[], foreign: [] as unknown[] })),
+}));
+vi.mock("../../utils/up-wait.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof UpWaitModule>()),
+  upAndWait: vi.fn(),
 }));
 
 /**
@@ -205,6 +212,43 @@ describe("flisk up success output", () => {
     const health = lines.slice(lines.indexOf("Health checks:") + 1);
     expect(health.filter((l) => l.includes("/health"))).toHaveLength(10);
     expect(health).toContain("  … and 2 more");
+  });
+});
+
+describe("flisk up --wait failure output", () => {
+  it("prints failure reasons instead of undefined", async () => {
+    vi.mocked(upAndWait).mockResolvedValueOnce({
+      kind: "failed",
+      json: JSON.stringify({
+        schemaVersion: 1,
+        data: {
+          ok: false,
+          failures: [
+            { name: "lp1-api", reason: "kept exiting; see its output above" },
+            { name: "lp1-web", reason: "not started: lp1-api did not start" },
+            { name: "lp1-db", message: "Docker could not start" },
+            { name: "lp1-worker" },
+          ],
+        },
+        errors: [],
+      }),
+    });
+    upCommand.setOptionValue("json", false);
+
+    try {
+      const result = await runCommandInProcess(upCommand, ["--wait"], process.cwd());
+      const output = stripVTControlCharacters(result.stderr);
+      expect(result.status).toBe(1);
+      expect(output).toContain("lp1-api: kept exiting; see its output above");
+      expect(output).toContain("lp1-web: not started: lp1-api did not start");
+      expect(output).toContain("lp1-db: Docker could not start");
+      expect(output).toContain("lp1-worker: failed");
+      expect(output).not.toContain("undefined");
+    } finally {
+      vi.mocked(upAndWait).mockReset();
+      upCommand.setOptionValue("wait", false);
+      upCommand.setOptionValue("json", false);
+    }
   });
 });
 

@@ -534,7 +534,10 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
       console.log(outcome.json);
     } else {
       const parsed = JSON.parse(outcome.json) as {
-        data?: { tiltUrl?: string; failures?: Array<{ name: string; message: string }> };
+        data?: {
+          tiltUrl?: string;
+          failures?: Array<{ name: string; reason?: string; message?: string }>;
+        };
         errors?: Array<{ message?: string }>;
       };
       if (outcome.kind === "ready") {
@@ -544,7 +547,9 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
           chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."),
         );
       } else {
-        const failures = parsed.data?.failures?.map((f) => `${f.name}: ${f.message}`) ?? [];
+        const failures =
+          parsed.data?.failures?.map((f) => `${f.name}: ${f.reason ?? f.message ?? "failed"}`) ??
+          [];
         const messages =
           failures.length > 0 ? failures : (parsed.errors ?? []).map((e) => e.message ?? "");
         showError(`flisk up failed:\n  ${messages.filter(Boolean).join("\n  ")}`);

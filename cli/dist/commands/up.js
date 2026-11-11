@@ -344,7 +344,8 @@ async function runUpWait(options) {
                 console.log(chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."));
             }
             else {
-                const failures = parsed.data?.failures?.map((f) => `${f.name}: ${f.message}`) ?? [];
+                const failures = parsed.data?.failures?.map((f) => `${f.name}: ${f.reason ?? f.message ?? "failed"}`) ??
+                    [];
                 const messages = failures.length > 0 ? failures : (parsed.errors ?? []).map((e) => e.message ?? "");
                 showError(`flisk up failed:\n  ${messages.filter(Boolean).join("\n  ")}`);
             }
