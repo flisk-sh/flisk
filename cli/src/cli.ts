@@ -15,7 +15,14 @@ import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { cliInvocation } from "./utils/cli-invocation.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
-import { readProjectName, removeStaleProjectVolumes, stopDemoStack } from "./utils/demo-reset.js";
+import {
+  foldersSharingProjectName,
+  listStaleProjectVolumes,
+  readProjectName,
+  removeStaleProjectVolumes,
+  sharedNameRefusal,
+  stopDemoStack,
+} from "./utils/demo-reset.js";
 import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
@@ -284,6 +291,19 @@ if (templateArg) {
     if (projectName) {
       // Only the Compose projects of this checkout's own stacks: another checkout may share the name prefix.
       const stacks = getAllStacks(discoverResourcesWithProblems(destination).resources);
+      // The demo and `flisk project restaurant` are one repository, so another folder can hold this project name and
+      // its database volume. Deleting that volume would delete its data: stop instead (#3963).
+      const sharing = foldersSharingProjectName(projectName, destination);
+      const staleVolumes =
+        sharing.length > 0 ? listStaleProjectVolumes(projectName, undefined, stacks) : [];
+      if (staleVolumes.length > 0) {
+        const refusal = sharedNameRefusal(projectName, sharing, staleVolumes);
+        logLines.push(`refused: ${refusal.detail}`);
+        const logPath = writeLog(logLines);
+        stage.fail(refusal.message, refusal.hint, logPath);
+        stage.stop();
+        process.exit(1);
+      }
       const removed = removeStaleProjectVolumes(projectName, undefined, stacks);
       if (removed.length > 0) logLines.push(`removed stale volumes: ${removed.join(", ")}`);
     }

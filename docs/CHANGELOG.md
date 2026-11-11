@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk demo` no longer deletes the database volume of your own project that has the demo's name. The starters `demo` and `restaurant` are one repository, so a copy made with `flisk project restaurant` shares the project name `flisk-restaurant-example` and its Docker volume with the demo, and a fresh demo run removed that volume to avoid a Postgres password mismatch. The demo now stops, before it deletes anything, when another existing folder recorded in `~/.flisk/projects` holds that name and a volume of the name exists, and says which folder and how to go on (#3963).
+
 ## 1.4.55 (2026-11-11)
 
 - The wake-gateway image (built when a resource uses `sablier.deferStart`) is now one `flisk-wake-gateway:<tilt version>-<hash>` per machine instead of one copy per project, so two projects no longer hold 2 x 257 MB. The tag changes when its Dockerfile, Tilt version or sources change. `flisk down --purge` keeps it while a container of another project still runs from it, and still removes the old `<project>-traefik-wake-gateway` copies (#3837).

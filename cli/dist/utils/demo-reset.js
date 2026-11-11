@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { cliInvocation } from "./cli-invocation.js";
+import { projectNameAt, readProjectRecords } from "./project-registry.js";
 /**
  * Stop the stack of an existing demo folder before the folder is deleted. Deleting the folder alone leaves its
  * containers running, and a standalone Traefik that stays up keeps port 80 for the next run.
@@ -70,33 +71,75 @@ export function ownedComposeProjects(projectName, stacks) {
     ]);
 }
 /**
+ * The volumes of this checkout's own Compose projects, by name. They are what {@link removeStaleProjectVolumes} removes,
+ * and what the demo checks before it does (#3963).
+ */
+export function listStaleProjectVolumes(projectName, docker = dockerVolumes, stacks = []) {
+    const owned = ownedComposeProjects(projectName, stacks);
+    try {
+        return docker
+            .list()
+            .filter((volume) => owned.has(volume.composeProject))
+            .map((volume) => volume.name);
+    }
+    catch {
+        return [];
+    }
+}
+/**
  * Remove the Docker volumes an earlier run of this project left behind. A fresh demo clone generates a new random
  * DB_PASSWORD, but Postgres keeps the password of the data directory it was first started with and ignores
  * POSTGRES_PASSWORD afterwards, so the second `flisk demo` failed at the migrator with Prisma P1000.
  * A volume still mounted by a running container cannot be removed and is skipped. Returns the names removed.
+ *
+ * A volume carries no folder, so this cannot tell the demo's leftovers from another project of the same name: call
+ * {@link foldersSharingProjectName} first.
  */
 export function removeStaleProjectVolumes(projectName, docker = dockerVolumes, stacks = []) {
-    const owned = ownedComposeProjects(projectName, stacks);
     const removed = [];
-    let volumes;
-    try {
-        volumes = docker.list();
-    }
-    catch {
-        return removed;
-    }
-    for (const volume of volumes) {
-        if (!owned.has(volume.composeProject))
-            continue;
+    for (const name of listStaleProjectVolumes(projectName, docker, stacks)) {
         try {
-            docker.remove(volume.name);
-            removed.push(volume.name);
+            docker.remove(name);
+            removed.push(name);
         }
         catch {
             // In use by a container that is still up: leave it, the stack itself reports the problem.
         }
     }
     return removed;
+}
+function canonicalFolder(path) {
+    const absolute = resolve(path);
+    try {
+        return realpathSync(absolute);
+    }
+    catch {
+        return absolute;
+    }
+}
+/**
+ * The other folders that still hold a project of this name, from the record in ~/.flisk/projects. The starters `demo` and
+ * `restaurant` are one repository, so a copy made with `flisk project restaurant` has the demo's project name and its
+ * database volume (#3963). A folder that is gone, or now holds another project, is not a sharer.
+ */
+export function foldersSharingProjectName(projectName, demoDir, readRecords = readProjectRecords, nameAt = projectNameAt) {
+    const record = readRecords().find((candidate) => candidate.name === projectName);
+    if (!record)
+        return [];
+    const own = canonicalFolder(demoDir);
+    return record.roots.filter((root) => canonicalFolder(root) !== own && nameAt(root) === projectName);
+}
+/**
+ * What the demo says when it would delete the database of another folder's project of the same name. `message` and
+ * `hint` are short because the demo's frame cuts a line at the terminal width; `detail` goes to the log file.
+ */
+export function sharedNameRefusal(projectName, folders, volumes) {
+    const first = folders[0] ?? "";
+    return {
+        message: `Nothing deleted: ${first} has the demo's project name and database.`,
+        hint: "Rename that project (project.name), or run flisk down --purge there. Details: log.",
+        detail: `The demo's project name "${projectName}" is also used by ${folders.join(", ")}. Docker keeps one database volume per project name (${volumes.join(", ")}), and the demo has to delete it to start clean. Nothing was deleted. Rename that project (project.name in its .flisk/project.json), or remove its data with: cd ${first} && flisk down --purge. Then run flisk demo again.`,
+    };
 }
 /** The `project.name` of a Flisk project folder, or undefined when it has none. */
 export function readProjectName(projectDir) {
