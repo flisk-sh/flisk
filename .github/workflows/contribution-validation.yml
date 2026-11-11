@@ -11,6 +11,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   validate:
+    permissions:
+      contents: write
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     env:
@@ -21,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
@@ -49,16 +51,24 @@ jobs:
           else
             env -u NO_COLOR bun run test -- src/utils/__tests__/project-templates.test.ts src/commands/__tests__/project-templates-catalog.test.ts
           fi
-      - name: Report generated changes
-        run: |
-          git add -N -f dist
-          echo 'GENERATED_PATCH_BEGIN'
-          git diff --binary HEAD -- src dist
-          echo 'GENERATED_PATCH_END'
       - name: Full CLI test suite
+        run: env -u NO_COLOR bun run test
+      - name: Commit generated output and remove temporary workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set +e
-          env -u NO_COLOR bun run test > "$RUNNER_TEMP/cli-tests.log" 2>&1
-          result=$?
-          tail -n 60 "$RUNNER_TEMP/cli-tests.log"
-          exit "$result"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ "$GITHUB_REF_NAME" = "fix/completion-flag-values-3701" ]; then
+            git add -A -- src/commands/completion-candidates.ts src/commands/completion.ts src/commands/completion-shells.ts src/commands/__tests__/completion-candidates.test.ts
+            git add -f -- dist/commands/completion-candidates.js dist/commands/completion.js dist/commands/completion.d.ts dist/commands/completion-shells.js dist/commands/completion-shells.d.ts
+          else
+            git add -A -- src/utils/project-templates.ts src/commands/project.ts src/utils/__tests__/project-templates.test.ts src/commands/__tests__/project-templates-catalog.test.ts
+            git add -f -- dist/utils/project-templates.js dist/utils/project-templates.d.ts dist/commands/project.js
+          fi
+          git rm ../.github/workflows/contribution-validation.yml
+          git diff --cached --check
+          git commit -s -m 'Build CLI output and complete contribution validation'
+          bun run check:dist
+          git -c 'credential.helper=!gh auth git-credential' push origin HEAD:"$GITHUB_REF_NAME"
+
