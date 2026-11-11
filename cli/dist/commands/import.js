@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
 import { getPackageVersion } from "../utils/paths.js";
@@ -340,6 +341,9 @@ export async function executeImport(args, options = {}, commandName = "flisk imp
                 throw importFailure(run, commandName);
             const report = importReport(forwardedArgs, run);
             syncImportedManifestCommands(report.written);
+            // The importer wrote service.json files from a subprocess, so any discovery this
+            // process already cached no longer matches the filesystem.
+            clearDiscoveryCache();
             return { data: report };
         });
         return;
@@ -352,6 +356,9 @@ export async function executeImport(args, options = {}, commandName = "flisk imp
         return;
     }
     process.exitCode = await runImport(forwardedArgs);
+    if (process.exitCode === 0) {
+        clearDiscoveryCache();
+    }
 }
 /**
  * Without a terminal the importer cannot ask its (Y/n) question: it wrote nothing and exited 0, which a coding agent or CI

@@ -1,15 +1,21 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { EventEmitter } from "node:events";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn(),
+  clearDiscoveryCache: vi.fn(),
 }));
 
 vi.mock("node:child_process", async (importOriginal) => ({
   ...(await importOriginal<typeof import("node:child_process")>()),
   spawn: (...args: unknown[]) => mocks.spawn(...args),
+}));
+
+vi.mock("../../utils/discovery-context.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/discovery-context.js")>()),
+  clearDiscoveryCache: (...args: unknown[]) => mocks.clearDiscoveryCache(...args),
 }));
 
 import fs from "node:fs";
@@ -21,6 +27,7 @@ import {
   checkCoreVersion,
   compareSemver,
   composeCommand,
+  executeImport,
   IMPORT_PACKAGE,
   importCommand,
   importFailure,
@@ -1008,4 +1015,49 @@ describe("flisk import on native Windows", () => {
       }
     },
   );
+});
+
+describe("import discovery cache invalidation", () => {
+  beforeEach(() => mocks.clearDiscoveryCache.mockClear());
+
+  it("clears cached discovery after a successful --json import", async () => {
+    const { spawnFn } = fakeCapturedSpawn({ code: 0, stdout: IMPORTER_OUTPUT });
+    mocks.spawn.mockImplementation(spawnFn);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await executeImport(["./legacy"], { json: true, yes: true });
+      expect(mocks.clearDiscoveryCache).toHaveBeenCalledTimes(1);
+    } finally {
+      mocks.spawn.mockReset();
+      logSpy.mockRestore();
+    }
+  });
+
+  it("clears cached discovery after a successful terminal import", async () => {
+    const { spawnFn } = fakeSpawn({ code: 0 });
+    mocks.spawn.mockImplementation(spawnFn);
+    const previousExitCode = process.exitCode;
+    try {
+      await executeImport(["./legacy"], { yes: true });
+      expect(process.exitCode ?? 0).toBe(0);
+      expect(mocks.clearDiscoveryCache).toHaveBeenCalledTimes(1);
+    } finally {
+      mocks.spawn.mockReset();
+      process.exitCode = previousExitCode;
+    }
+  });
+
+  it("keeps cached discovery when the import fails", async () => {
+    const { spawnFn } = fakeSpawn({ code: 3 });
+    mocks.spawn.mockImplementation(spawnFn);
+    const previousExitCode = process.exitCode;
+    try {
+      await executeImport(["./legacy"], { yes: true });
+      expect(process.exitCode).toBe(3);
+      expect(mocks.clearDiscoveryCache).not.toHaveBeenCalled();
+    } finally {
+      mocks.spawn.mockReset();
+      process.exitCode = previousExitCode;
+    }
+  });
 });
