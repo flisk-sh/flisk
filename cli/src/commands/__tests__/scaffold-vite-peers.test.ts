@@ -79,6 +79,15 @@ describe("scaffolded vite and vitest versions", () => {
     expect(pkg.devDependencies.vitest).toBe(cliManifest.devDependencies.vitest);
   });
 
+  it("includes the DOM environment selected by the Solid Vite plugin", () => {
+    const pkg = createPackageJson("web", "frontend", "solid");
+    expect(pkg.devDependencies).toHaveProperty("jsdom");
+    expect(pkg.dependencies).not.toHaveProperty("jsdom");
+    expect(createPackageJson("web", "frontend", "react").devDependencies).not.toHaveProperty(
+      "jsdom",
+    );
+  });
+
   it("scaffolds a vite that satisfies vitest's peer range", () => {
     const vitePeer = installedVitestVitePeer();
     const pkg = createPackageJson("web", "frontend", "react");

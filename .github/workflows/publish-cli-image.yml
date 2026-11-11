@@ -102,9 +102,14 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
+      # Exports the Actions cache URL and token so buildx can use type=gha (#3939).
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
       - name: Build and push the image
         id: push
         env:
+          FLISK_IMAGE_CACHE_SCOPE: cli-image
+          FLISK_IMAGE_CACHE_IMPORT: cli-image-preflight
           ASSETS: ${{ steps.release.outputs.dir }}
           LATEST: ${{ steps.release.outputs.latest }}
           REGISTRIES: ${{ steps.registries.outputs.list }}

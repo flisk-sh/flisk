@@ -15,6 +15,7 @@ flisk project saas             # account dashboard and checkout
 flisk project user-management  # sign-up, log-in and permissions
 flisk project ecommerce        # Vue storefront and a catalog API
 flisk project erp              # 100-service scale fixture
+flisk project next-postgres --path myapp   # Next.js website, Express API, Postgres and a migrator (needs Docker)
 ```
 
 `flisk project` with an unknown name prints every template it knows. The list, with each template's repository, is `PROJECT_TEMPLATES` in [`cli/src/utils/project-templates.ts`](../../cli/src/utils/project-templates.ts). The AI templates (`agent-stack`, `swarm`, `security`, `super-agent`, `langgraph`, `tool-loop`) are covered in [AI agents in Flisk](../agents/ai-agents.md).
@@ -30,7 +31,10 @@ The service counts below are the `service.json` files in each repository's `serv
 | `saas` | [flisk-saas-starter](https://github.com/flisk-sh/flisk-saas-starter) | `app`, `billing` | 6 | An account dashboard and a checkout page, each API with its own migrator |
 | `user-management` | [flisk-user-management](https://github.com/flisk-sh/flisk-user-management) | `admin`, `portal`, `compliance` | 6 | Identity governance: an admin API, a self-service portal and an audit worker |
 | `ecommerce` | [flisk-ecommerce-example](https://github.com/flisk-sh/flisk-ecommerce-example) | `store` | 3 | A Vue 3 storefront and a Hono catalog API with a Prisma migrator |
+| `next-postgres` | written by the CLI (`cli/templates/next-postgres/`), no repository | `app` | 4 | A Next.js page with a working add, tick and delete list, an Express API and Postgres, with an `api-migrator` that creates and seeds the `items` table |
 | `erp` | [flisk-erp-system](https://github.com/flisk-sh/flisk-erp-system) | 7 domains | 107 | A scale fixture: 100 small backends that answer `/health`, plus one app per domain |
+
+`flisk create myapp --starter next-postgres` writes the same project (and `flisk project next-postgres --path myapp` does too); then `cd myapp && flisk up`. It needs Docker, because of Postgres.
 
 `flisk project example` copies the example bundled with the CLI. The [flisk-example](https://github.com/flisk-sh/flisk-example) repository on GitHub is a different, older layout (`identity` and `appointment` stacks, 4 services).
 

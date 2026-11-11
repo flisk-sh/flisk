@@ -36,6 +36,11 @@ describe("next-postgres template", () => {
     const stub = join(dir, "services/app/web/src/app/health-card.tsx");
     mkdirSync(join(dir, "services/app/web/src/app"), { recursive: true });
     writeFileSync(stub, "stub");
+    mkdirSync(join(dir, "services/app/api"), { recursive: true });
+    writeFileSync(
+      join(dir, "services/app/api/package.json"),
+      JSON.stringify({ name: "api", dependencies: { express: "^5.0.0" } }),
+    );
 
     writeNextPostgresFiles(dir);
 
@@ -56,6 +61,12 @@ describe("next-postgres template", () => {
     ]) {
       expect(api).toContain(`app.${route}`);
     }
+    // The API imports express-rate-limit, so the project must declare it.
+    expect(api).toContain("express-rate-limit");
+    expect(JSON.parse(read("services/app/api/package.json")).dependencies).toMatchObject({
+      express: "^5.0.0",
+      "express-rate-limit": expect.any(String),
+    });
     expect(read("services/app/web/src/app/page.tsx")).toContain("shop");
     expect(read("services/app/web/src/app/page.tsx")).not.toContain("__APP_NAME__");
     expect(read("README.md")).toMatch(/^# shop/);

@@ -537,19 +537,42 @@ function jobBlock(workflow, job) {
   return next === -1 ? rest : rest.slice(0, next + 1);
 }
 
-test("the MCP Registry publish runs in its own job after publish, not on the release's path", () => {
-  const workflow = readFileSync(join(ROOT_DIR, ".github/workflows/release-binaries.yml"), "utf8");
-  const publish = jobBlock(workflow, "publish");
+test("the MCP Registry publish is its own workflow, started when the release run completes, not on the release's path", () => {
+  const release = readFileSync(join(ROOT_DIR, ".github/workflows/release-binaries.yml"), "utf8");
+  const publish = jobBlock(release, "publish");
   assert.doesNotMatch(publish, /mcp-publisher|Publish to the MCP Registry/, "publish must not wait on the MCP Registry");
   assert.match(publish, /name: Commit the version bump/);
-  const mcp = jobBlock(workflow, "publish-mcp-registry");
-  assert.match(mcp, /needs: \[build, publish\]/);
+  assert.doesNotMatch(release, /mcp-publisher/, "the release run must end without waiting for the MCP Registry (#3938)");
+  const mcp = readFileSync(join(ROOT_DIR, ".github/workflows/publish-mcp-registry.yml"), "utf8");
+  const releaseName = release.match(/^name: (.+)$/m)[1];
+  assert.ok(mcp.includes(`workflows: ["${releaseName}"]`), "it must be triggered by the release workflow's name");
+  assert.match(mcp, /types: \[completed\]/);
+  assert.match(mcp, /workflow_run\.conclusion == 'success'/, "a failed release has nothing to list");
+  assert.match(mcp, /workflow_dispatch:/, "a missing listing is repaired by hand with -f version=<version>");
   assert.match(mcp, /id-token: write/, "mcp-publisher logs in with the run's GitHub OIDC token");
+  assert.match(mcp, /release-dist-/, "the version comes from the release run's artifact name");
   assert.match(mcp, /mcp-publisher" publish server\.json/);
   // npm can take more than 3 minutes to serve a new version; publishing before it does fails registry validation (1.4.34-1.4.39).
+  assert.match(mcp, /seq 1 90/, "the 15 minute npm wait stays");
+  assert.match(mcp, /for attempt in 1 2 3 4 5/, "the 5 retries stay");
   const waitAt = mcp.search(/registry\.npmjs\.org\/@flisk-sh%2fflisk\/\$\{VERSION\}/);
   assert.ok(waitAt !== -1, "the job must wait until npm serves this exact version");
   assert.ok(waitAt < mcp.indexOf('mcp-publisher" publish'), "the npm wait must come before the first publish attempt");
+});
+
+test("the CLI image pre-flight and the push build share one Actions layer cache (#3939)", () => {
+  const script = readFileSync(join(ROOT_DIR, "scripts/release/push-flisk-image.sh"), "utf8");
+  assert.match(script, /--cache-from "type=gha,scope=\$FLISK_IMAGE_CACHE_SCOPE"/);
+  assert.match(script, /--cache-to "type=gha,scope=\$FLISK_IMAGE_CACHE_SCOPE,mode=max,ignore-error=true"/, "a cache outage must not fail a pushed build");
+  const dockerfile = readFileSync(join(ROOT_DIR, "scripts/release/flisk-image.Dockerfile"), "utf8");
+  assert.ok(dockerfile.indexOf("ARG VERSION") > dockerfile.lastIndexOf("tilt version"), "ARG VERSION must come after the apt and Tilt layers");
+  const preflight = jobBlock(readFileSync(join(ROOT_DIR, ".github/workflows/release-binaries.yml"), "utf8"), "cli-image");
+  const publish = readFileSync(join(ROOT_DIR, ".github/workflows/publish-cli-image.yml"), "utf8");
+  for (const [name, text] of [["cli-image", preflight], ["publish-cli-image.yml", publish]]) {
+    assert.match(text, /crazy-max\/ghaction-github-runtime@[0-9a-f]{40}/, `${name} must export the Actions cache variables`);
+    assert.match(text, /FLISK_IMAGE_CACHE_SCOPE: cli-image/, `${name} must write its own scope`);
+    assert.match(text, /FLISK_IMAGE_CACHE_IMPORT: cli-image/, `${name} must also read the other build's scope`);
+  }
 });
 
 test("the release candidate runs at least 15 legs at once", () => {

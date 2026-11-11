@@ -2,7 +2,7 @@
 name: flisk-doctor
 description: Check or repair the local Flisk development environment and project configuration using `flisk doctor` (including `--all`, `--json` and `--fix`). Use when setting up a Flisk project, before running `flisk up`, or when Docker, Tilt, Bun, ports, Docker networks, generated files or service manifests may be misconfigured. For a stack that started and then failed, use flisk-troubleshoot instead.
 license: MIT
-compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.
+compatibility: Requires the flisk CLI. Docker and Tilt are checked only for projects with container services. Does not deploy.
 metadata:
   author: flisk-sh
   version: "1.0"

@@ -1,8 +1,8 @@
 # Discord bot trigger
 
-A Cloudflare Worker that starts the [Discord badge bot](../../.github/workflows/discord-founding-role.yml) once a minute. GitHub's own schedule can go hours without firing, and contributors are told the bot answers within a few minutes.
+A Cloudflare Worker that starts the [Discord badge bot](../../.github/workflows/discord-founding-role.yml) every 3 minutes. GitHub's own schedule can go hours without firing, and contributors are told the bot answers within a few minutes.
 
-Every run handles new claims. Minute 17 of each hour also runs the level sync.
+Every run handles new claims. The first run from minute 17 of each hour also runs the level sync. The Worker only dispatches; the Discord work stays in GitHub Actions, so the Worker stays far from its daily limits.
 
 ## Set up
 
