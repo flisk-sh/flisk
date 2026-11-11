@@ -342,7 +342,7 @@ async function proxyThrough(req: Request, container: string, port: string): Prom
   return new Response(upstream.body, { status: upstream.status, headers: upstream.headers });
 }
 
-Bun.serve({
+const server = Bun.serve({
   port: Number(process.env.PORT) || 9999,
   // Bun's default idleTimeout (10s) is shorter than a real wake can take
   // (tilt trigger + healthcheck polling) -- confirmed empirically: a request
@@ -361,3 +361,12 @@ Bun.serve({
 });
 
 console.log(`wake gateway listening on :${Number(process.env.PORT) || 9999}`);
+
+// Exit promptly on `docker stop` / Ctrl-C. Without a handler a PID 1 process
+// ignores SIGTERM and Docker waits its full 10 s timeout before SIGKILL (#3760).
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, () => {
+    server.stop(true);
+    process.exit(0);
+  });
+}
