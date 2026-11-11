@@ -1,6 +1,17 @@
 import type { DiscoveredResource, DiscoveredStack, DiscoveryProblem, ResourceMetadata, StackMetadata } from "../types/index.js";
 export declare function discoverServiceManifestPaths(projectRoot: string): string[];
 export declare function resetPrintedServiceWarnings(): void;
+/**
+ * Invalidate cached `discoverResourcesWithProblems` results.
+ *
+ * Shares the lifetime and mutation contract of the discovery context cache:
+ * `clearDiscoveryCache()` in discovery-context.ts calls this, so any command that
+ * creates, mutates, or removes service manifests (`service.json`) keeps later
+ * discovery in the same process observing the updated filesystem state.
+ *
+ * @param projectRoot Optional project root to invalidate. If omitted, all cached results are cleared.
+ */
+export declare function clearDiscoveryResultCache(projectRoot?: string): void;
 export declare function discoverResourcesWithProblems(projectRoot: string): {
     resources: DiscoveredResource[];
     problems: DiscoveryProblem[];

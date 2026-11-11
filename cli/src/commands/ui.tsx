@@ -31,6 +31,7 @@ import type {
   TabId,
 } from "../types/index.js";
 import { type AgentOverview, fetchAgentOverview } from "../utils/agent-sessions.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { errorFactories, requireProjectRoot } from "../utils/errors.js";
 import { readSavedHostPortPlan } from "../utils/host-port-config.js";
 import { isNativeProject } from "../utils/native-service.js";
@@ -310,6 +311,8 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
   // it renders EmptyState. Only a failed discovery shows ErrorScreen.
   const refresh = useCallback((): boolean => {
     clearMetadataCache();
+    // A manual refresh promises fresh disk state, so the per-process discovery cache goes too.
+    clearDiscoveryCache();
     try {
       setDiscovered({ stacks: discoverStacks(), services: discoverResources() });
       setError(null);

@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearDiscoveryCache } from "../discovery-context.js";
 import {
   checkCircularDependencies,
   checkCustomDockerfiles,
@@ -293,6 +294,8 @@ describe("schemaVersion", () => {
     expect(warn).not.toHaveBeenCalled();
 
     service("worker", { port: 4001 });
+    // A service.json added inside the process is picked up after the discovery cache is cleared (#3809).
+    clearDiscoveryCache(root);
     warnSchemaVersions(root);
     const printed = warn.mock.calls.map((call) => String(call[0])).join("\n");
     expect(printed).toContain("worker");

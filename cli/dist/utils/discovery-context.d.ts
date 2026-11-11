@@ -10,7 +10,8 @@ import type { DiscoveryContext } from "../types/index.js";
  * Any command that creates, mutates, or removes service manifests (`service.json`) or project
  * templates (e.g. `flisk resource`, `flisk project example`, `flisk config migrate`) MUST call
  * `clearDiscoveryCache()` so that subsequent discovery operations within the same process
- * observe the updated filesystem state.
+ * observe the updated filesystem state. Clearing also drops the cached
+ * `discoverResourcesWithProblems` results that the contexts are built from.
  *
  * @param projectRoot Optional project root to invalidate. If omitted, all cached contexts are cleared.
  */

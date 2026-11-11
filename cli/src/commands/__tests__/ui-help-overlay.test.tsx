@@ -17,6 +17,7 @@ const { discoverResourcesMock, discoverStacksMock, isTiltAvailableMock, requireP
   }));
 
 vi.mock("../../utils/services.js", () => ({
+  clearDiscoveryResultCache: vi.fn(),
   clearMetadataCache: vi.fn(),
   discoverStacks: discoverStacksMock,
   discoverResources: discoverResourcesMock,
