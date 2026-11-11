@@ -321,7 +321,7 @@ describe("native supervisor", () => {
     writeFileSync(extraEnvPath, `DB_PASSWORD=${password}\n`);
     writeFileSync(
       join(root, "leaker.mjs"),
-      'console.log(`jwt=${process.env.JWT_SECRET} db=${process.env.DB_PASSWORD}`);\n',
+      "console.log(`jwt=${process.env.JWT_SECRET} db=${process.env.DB_PASSWORD}`);\n",
     );
     const logPath = nativeLogPath(root, "leaker");
     mkdirSync(join(root, ".flisk", "native", "logs"), { recursive: true, mode: 0o755 });
