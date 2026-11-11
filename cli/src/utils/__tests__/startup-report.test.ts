@@ -557,4 +557,17 @@ describe("formatWaitFailures", () => {
   it("says failed when a failure has no text", () => {
     expect(formatWaitFailures([{ name: "web" }])).toEqual(["web: failed"]);
   });
+
+  // #3823: an unhealthy service's log lines go under its own failure, not as a second entry for it.
+  it("prints a failure's log lines under it and how to see more", () => {
+    expect(
+      formatWaitFailures([
+        { name: "py", message: "health check is failing", logs: ["boom: cannot connect"] },
+        { name: "web", message: "not healthy", logs: [] },
+      ]),
+    ).toEqual([
+      "py: health check is failing\n    boom: cannot connect\n    (last line of: flisk logs --service py)",
+      "web: not healthy",
+    ]);
+  });
 });

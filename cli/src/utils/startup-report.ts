@@ -151,12 +151,28 @@ export function logTail(log: string, lines = LOG_TAIL_LINES): string | null {
  * and under it the fix when the reason names a known machine problem.
  */
 export function formatWaitFailures(
-  failures: Array<{ name: string; reason?: string; message?: string; fix?: string }>,
+  failures: Array<{
+    name: string;
+    reason?: string;
+    message?: string;
+    fix?: string;
+    logs?: string[];
+  }>,
 ): string[] {
   return failures.map((f) => {
-    const line = `${f.name}: ${f.reason ?? f.message ?? "failed"}`;
-    return f.fix ? `${line}\n    → ${f.fix.replace(/^Fix:\s*/, "")}` : line;
+    const lines = [`${f.name}: ${f.reason ?? f.message ?? "failed"}`];
+    if (f.fix) lines.push(`    → ${f.fix.replace(/^Fix:\s*/, "")}`);
+    if (f.logs && f.logs.length > 0) {
+      lines.push(...f.logs.map((line) => `    ${line}`));
+      lines.push(`    (${lastLines(f.logs.length)} of: flisk logs --service ${f.name})`);
+    }
+    return lines.join("\n");
   });
+}
+
+/** "last line" or "last 3 lines". */
+export function lastLines(count: number): string {
+  return count === 1 ? "last line" : `last ${count} lines`;
 }
 
 function capStart(text: string): string {
