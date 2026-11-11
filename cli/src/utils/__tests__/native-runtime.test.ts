@@ -654,6 +654,41 @@ describe("native supervisor", () => {
     await supervisor.stop();
     await waitFor(() => !isProcessAlive(sleepPid));
   });
+
+  it("gives independent services that ignore SIGTERM their grace period together, not one after another (#3811)", async () => {
+    const root = createTempDir();
+    const stubborn = `trap "" TERM INT; while true; do sleep 0.1; done`;
+    const plan = planNativeRun(
+      ["a", "b", "c"].map((name) => nativeService(root, name, { command: stubborn })),
+    );
+    const supervisor = new NativeSupervisor(root, plan.services, {}, { stopTimeoutMs: 1_000 });
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+    const pids = ["a", "b", "c"].map((name) => supervisor.pidOf(name) as number);
+
+    const started = Date.now();
+    await supervisor.stop();
+    // One after another this takes 3 x 1 s.
+    expect(Date.now() - started).toBeLessThan(2_500);
+    await waitFor(() => pids.every((pid) => !isProcessAlive(pid)));
+  });
+
+  it("still stops dependents before what they depend on", async () => {
+    const root = createTempDir();
+    const log = join(root, "stops.log");
+    const service = (name: string, dependsOn: string[]) =>
+      nativeService(root, name, {
+        command: `trap 'echo ${name} >> ${JSON.stringify(log)}; exit 0' TERM; while true; do sleep 0.1; done`,
+        dependsOn,
+      });
+    const plan = planNativeRun([service("a", []), service("b", ["a"]), service("c", ["b"])]);
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+
+    await supervisor.stop();
+    expect(readFileSync(log, "utf8").trim().split("\n")).toEqual(["c", "b", "a"]);
+  });
 });
 
 describe("stopping a native run from another process", () => {

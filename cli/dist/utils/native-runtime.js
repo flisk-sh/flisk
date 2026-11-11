@@ -409,10 +409,11 @@ export async function stopNativeRun(projectRoot, options = {}) {
         }
         await waitForExit(state.pid, timeoutMs);
     }
-    for (const service of Object.values(state.services)) {
+    // The supervisor already stopped dependents first when it could; what is left has no order on record, so stop it together.
+    await Promise.all(Object.values(state.services).map(async (service) => {
         if (service.pid && isProcessAlive(service.pid))
             await stopProcessGroup(service.pid);
-    }
+    }));
     // A `docker run` killed before it passed the stop on leaves its container running.
     if (Object.values(state.services).some((service) => service.container)) {
         removeNativeContainers(projectRoot);
@@ -587,22 +588,25 @@ export class NativeSupervisor {
         await Promise.all(ready.values());
         return failures;
     }
-    /** Stops every service, dependents before what they depend on, and removes the run state. */
+    /**
+     * Stops every service, dependents before what they depend on, and removes the run state. Services of one wave do not depend
+     * on each other, so they get their SIGTERM grace period at the same time (#3811).
+     */
     async stop() {
         if (this.stopping)
             return;
         this.stopping = true;
-        const order = dependencyWaves([...this.services.values()].map((s) => s.plan))
-            .flat()
-            .reverse();
-        for (const name of order) {
-            const service = this.services.get(name);
-            if (service.restartTimer)
-                clearTimeout(service.restartTimer);
-            const pid = service.child?.pid;
-            if (pid && service.child?.exitCode === null && service.child.signalCode === null) {
-                await stopProcessGroup(pid);
-            }
+        const waves = dependencyWaves([...this.services.values()].map((s) => s.plan)).reverse();
+        for (const wave of waves) {
+            await Promise.all(wave.map(async (name) => {
+                const service = this.services.get(name);
+                if (service.restartTimer)
+                    clearTimeout(service.restartTimer);
+                const pid = service.child?.pid;
+                if (pid && service.child?.exitCode === null && service.child.signalCode === null) {
+                    await stopProcessGroup(pid, this.options.stopTimeoutMs);
+                }
+            }));
         }
         if ([...this.services.values()].some((service) => service.plan.container)) {
             removeNativeContainers(this.projectRoot);
