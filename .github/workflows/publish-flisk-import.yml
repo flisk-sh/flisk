@@ -63,7 +63,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.22.3
           package-manager-cache: false
 
       - name: Tag matches package.json
@@ -109,7 +109,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.22.3
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 

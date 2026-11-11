@@ -130,15 +130,21 @@ export const EXPECTED = [
 	{
 		file: ".github/workflows/ci.yml",
 		kind: "node-version",
-		value: "22.12",
+		value: "22.12.0",
 		reason: "the published-package smoke and audit run on the oldest Node that cli/package.json engines.node allows (>=22.12.0)",
 	},
 	...["release-binaries.yml", "publish-flisk-import.yml", "publish-existing-npm-to-github-packages.yml"].map((name) => ({
 		file: `.github/workflows/${name}`,
 		kind: "node-version",
-		value: "24.15.0",
+		value: "24.22.3",
 		reason: "publish jobs run npm publish with the npm 11 that Node 24 bundles (npm trusted publishing needs npm >= 11.5.1)",
 	})),
+	{
+		file: ".github/workflows/release-candidate.yml",
+		kind: "node-version",
+		value: "24.22.3",
+		reason: "the release candidate tests the binaries on the Node that release-binaries.yml publishes them with (#3946)",
+	},
 	{
 		file: ".github/workflows/e2e-platforms-wsl2.yml",
 		kind: "runs-on",

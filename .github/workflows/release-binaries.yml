@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.22.3
           package-manager-cache: false
 
       - run: bun install --frozen-lockfile
@@ -212,7 +212,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.22.3
           package-manager-cache: false
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -281,7 +281,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.22.3
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
@@ -607,7 +607,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.22.3
           registry-url: "https://npm.pkg.github.com"
           scope: "@flisk-sh"
           package-manager-cache: false
@@ -750,7 +750,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24.15.0
+          node-version: 24.22.3
           package-manager-cache: false
 
       - name: Post the release on Toolradar
