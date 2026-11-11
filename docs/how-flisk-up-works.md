@@ -229,7 +229,7 @@ flisk down --prune-networks
 3. **Deregister Resources**: Calls `buildTiltDownArgs()` with `--focus` set to all stack names, ensuring that Tilt tears down all stack containers rather than only default pre-alpha services.
 4. **Execute `tilt down`**: Spawns `tilt down -f .flisk/.flisk-out/Tiltfile`.
    > **Note on `--force`**: The Tilt CLI's `tilt down` command does **not** accept a `--force` flag. Flisk accepts `flisk down --force` for script compatibility, but it has no effect. `flisk down` does not prompt for confirmation.
-5. **Network Cleanup (`--prune-networks`)**: By default, Docker networks remain for quick restarts. Passing `--prune-networks` inspects and removes this project's isolated Docker networks (only if no active container is connected).
+5. **Network Cleanup**: `flisk down` removes this project's isolated Docker networks that no container uses, so stopped projects do not use up Docker's network address pools (#3650). A network another project or a running container still uses is kept. `--no-prune-networks` keeps them all; `--prune-networks` is the default and also prints the networks Docker kept.
 
 ### `flisk down` Cheat Sheet
 
@@ -237,7 +237,8 @@ flisk down --prune-networks
 | :--- | :--- |
 | `-v, --verbose` | Prints verbose shutdown diagnostics and Tilt commands. |
 | `-f, --force` | Accepted for script compatibility; has no effect. |
-| `--prune-networks` | Removes project Docker networks that have no attached containers. |
+| `--prune-networks` | Removes project Docker networks that have no attached containers (the default). |
+| `--no-prune-networks` | Keeps the project's Docker networks. |
 | `--purge` | Also deletes the project's Docker volumes (Postgres data), networks and images: `<project>-*` Compose volumes, `<project>_*` networks and service images, `<project>-l*` golden tags. |
 | `--dry-run` | Displays what would be stopped without killing processes or containers. |
 | `--json` | Emits a single JSON result object on stdout. |
