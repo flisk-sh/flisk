@@ -504,8 +504,21 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         network_traefik_public=PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
         network_database=PlatformDockerConstants.NETWORK_DATABASE,
-        network_infisical=PlatformDockerConstants.NETWORK_INFISICAL,
     )
+
+
+def _infisical_network_decl():
+    """The `networks:` entry for the infisical network, empty unless Infisical is on."""
+    if not PlatformDockerConstants.infisical_network_enabled():
+        return ""
+    return "  {}:\n    external: true\n".format(PlatformDockerConstants.NETWORK_INFISICAL)
+
+
+def _infisical_network_member():
+    """A service's `networks:` list entry for the infisical network, empty unless Infisical is on."""
+    if not PlatformDockerConstants.infisical_network_enabled():
+        return ""
+    return "      - {}\n".format(PlatformDockerConstants.NETWORK_INFISICAL)
 
 
 def _networks_section(aliases):
@@ -515,8 +528,9 @@ def _networks_section(aliases):
         PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
         PlatformDockerConstants.NETWORK_BACKEND,
         PlatformDockerConstants.NETWORK_DATABASE,
-        PlatformDockerConstants.NETWORK_INFISICAL,
     ]
+    if PlatformDockerConstants.infisical_network_enabled():
+        networks.append(PlatformDockerConstants.NETWORK_INFISICAL)
     if not aliases:
         return "    networks:\n" + "".join(["      - {}\n".format(n) for n in networks])
     lines = ["    networks:"]
@@ -767,13 +781,11 @@ networks:
     external: true
   {network_database}:
     external: true
-  {network_infisical}:
-    external: true
-{volumes_section}{models_section}{secrets_section}{configs_section}""".format(
+{network_infisical_decl}{volumes_section}{models_section}{secrets_section}{configs_section}""".format(
         network_traefik_public=PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
         network_database=PlatformDockerConstants.NETWORK_DATABASE,
-        network_infisical=PlatformDockerConstants.NETWORK_INFISICAL,
+        network_infisical_decl=_infisical_network_decl(),
         volumes_section=volumes_section,
         models_section=models_section,
         secrets_section=secrets_section,
@@ -836,17 +848,14 @@ services:
     networks:
       - {network_database}
       - {network_backend}
-      - {network_infisical}
-    restart: "no"
+{network_infisical_member}    restart: "no"
 
 networks:
   {network_database}:
     external: true
   {network_backend}:
     external: true
-  {network_infisical}:
-    external: true
-""".format(
+{network_infisical_decl}""".format(
         migrator_name=migrator_name, 
         image_name=image_name, 
         resource_path=resource_path,
@@ -857,7 +866,8 @@ networks:
         infisical_env=infisical_env,
         network_database=PlatformDockerConstants.NETWORK_DATABASE,
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
-        network_infisical=PlatformDockerConstants.NETWORK_INFISICAL,
+        network_infisical_decl=_infisical_network_decl(),
+        network_infisical_member=_infisical_network_member(),
     )
 
     if write_fn:

@@ -81,7 +81,7 @@ def test_posix_commands_of_converted_resources_are_unchanged():
     assert "cmd_bat=POWERSHELL + [provision_database_script()]" in dbs
     infra = (TILT / "resources" / "infra-loader.star").read_text()
     assert "cmd=['sh', '-c', _HEALTHY_POSTGRES_SCRIPT, 'sh', PlatformDockerConstants.PROJECT_NAME]," in infra
-    assert "cmd=fix_docker_networks_fn()," in infra
+    assert "cmd=fix_docker_networks_fn(networks)," in infra
     assert "cmd_bat=POWERSHELL + [healthy_postgres_script()]" in infra
     assert "cmd_bat=POWERSHELL + [init_networks_script()]" in infra
     manifest = (TILT / "resources" / "orchestrator" / "generators" / "manifest_resource.star").read_text()

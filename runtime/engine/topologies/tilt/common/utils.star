@@ -62,17 +62,24 @@ MIGRATED_PACKAGES = {
 # Import from canonical location to avoid duplication
 load("../manifest/constants.star", "MANIFEST_FILENAME")
 
-# List of all shared platform networks
-# All networks use PROJECT_NAME format (e.g., flisk_project_*)
-PLATFORM_NETWORKS = [
-  PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
-  PlatformDockerConstants.PROJECT_NAME + "_traefik-private",
-  PlatformDockerConstants.NETWORK_BACKEND,
-  PlatformDockerConstants.NETWORK_DATABASE,
-  PlatformDockerConstants.NETWORK_INFISICAL,
-  PlatformDockerConstants.VERDACCIO_NETWORK,
-  PlatformDockerConstants.NETWORK_PROXY,
-]
+# Shared platform networks. All use the PROJECT_NAME prefix (e.g. flisk_project_*).
+# Every network takes a /16 from Docker's default address pools (about 32 in total), so only the
+# networks the project attaches containers to are created: the three every app service joins,
+# plus the infisical and verdaccio networks when those features are on.
+def platform_networks(infisical=False, verdaccio=False):
+  networks = [
+    PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
+    PlatformDockerConstants.NETWORK_BACKEND,
+    PlatformDockerConstants.NETWORK_DATABASE,
+  ]
+  if infisical:
+    networks.append(PlatformDockerConstants.NETWORK_INFISICAL)
+  if verdaccio:
+    networks.append(PlatformDockerConstants.VERDACCIO_NETWORK)
+  return networks
+
+# Base set (no optional features), kept for callers that need the always-present networks.
+PLATFORM_NETWORKS = platform_networks()
 
 # =============================================================================
 # 🔍 CENTRALIZED DEPENDENCY EXTRACTION (Single Source of Truth)
@@ -346,12 +353,13 @@ def write_file_if_changed(file_path, content):
 # 🐳 DOCKER NETWORK MANAGEMENT
 # =============================================================================
 
-def fix_docker_networks():
-    return _fix_docker_networks(PLATFORM_NETWORKS)
+def fix_docker_networks(networks=None):
+    return _fix_docker_networks(PLATFORM_NETWORKS if networks == None else networks)
 
 
-def cleanup_docker_networks():
-    return _cleanup_docker_networks(PLATFORM_NETWORKS)
+def cleanup_docker_networks(networks=None):
+    # Cleanup covers every network the engine can create, so one left by an earlier run is removed too.
+    return _cleanup_docker_networks(networks if networks != None else platform_networks(True, True))
 
 
 # =============================================================================
@@ -400,6 +408,7 @@ Utils = struct(
     DDD_LAYERS = DDD_LAYERS,
     MANIFEST_FILENAME = MANIFEST_FILENAME,
     PLATFORM_NETWORKS = PLATFORM_NETWORKS,
+    platform_networks = platform_networks,
     MIGRATED_PACKAGES = MIGRATED_PACKAGES,
 )
 

@@ -22,7 +22,7 @@
 
 load('../../../../discovery/native_windows.star', 'file_exists', 'POWERSHELL')
 load('../common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script')
-load('../common/utils.star', 'PLATFORM_NETWORKS')
+load('../common/utils.star', 'platform_networks')
 load("../common/utils_debug.star", "debug_log")
 load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
@@ -482,12 +482,16 @@ def _load_elk(should_enable, root_prefix="", env_file=None):
 # 🌐 NETWORK INITIALIZATION
 # =============================================================================
 
-def _init_networks(fix_docker_networks_fn):
-    """Initialize Docker networks."""
+def _init_networks(fix_docker_networks_fn, should_enable=None):
+    """Initialize the Docker networks the project uses (infisical and verdaccio only when enabled)."""
+    networks = platform_networks(
+        infisical=PlatformDockerConstants.infisical_network_enabled() or (should_enable != None and should_enable('infisical')),
+        verdaccio=should_enable != None and should_enable('verdaccio'),
+    )
     local_resource('init-networks',
-        cmd=fix_docker_networks_fn(),
+        cmd=fix_docker_networks_fn(networks),
         cmd_bat=POWERSHELL + [init_networks_script()],
-        env={'FLISK_NETWORKS': ','.join(PLATFORM_NETWORKS)},
+        env={'FLISK_NETWORKS': ','.join(networks)},
         labels=['infra.setup'],
         auto_init=True,
         resource_deps=[]
@@ -581,7 +585,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
     # Initialize networks first
     if fix_docker_networks_fn:
         debug_log("INFRA: Initializing networks...")
-        _init_networks(fix_docker_networks_fn)
+        _init_networks(fix_docker_networks_fn, should_enable)
         debug_log("INFRA: Networks initialized")
     else:
         debug_log("INFRA: SKIPPING network initialization (no fix_docker_networks_fn)")
