@@ -8,7 +8,7 @@ name: 🏷️ RELEASE | Package | MCP Registry listing
 # It starts by itself when "Release | Binaries" completes successfully. To repair a missing listing:
 #   gh workflow run publish-mcp-registry.yml -f version=<version>
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] read-only token; only runs after our own release workflow succeeds on main
     workflows: ["🏷️ RELEASE | Package | Binaries and npm package"]
     types: [completed]
   workflow_dispatch:
