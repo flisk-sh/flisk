@@ -53,10 +53,14 @@ export const stackCommand = addYesOption(new Command("stack"))
         });
         showCommandHeader("Stack Management");
         if (options.move && options.remove) {
-            throw new FliskError("--move and --remove cannot be used together.");
+            throw new FliskError("--move and --remove cannot be used together.", [
+                "Use --move to assign resources to another stack, or --remove to leave them unassigned.",
+            ]);
         }
         if (options.list && (options.move || options.remove)) {
-            throw new FliskError("--list cannot be combined with --move or --remove.");
+            throw new FliskError("--list cannot be combined with --move or --remove.", [
+                "Run flisk stack --list separately to inspect assignments without changing them.",
+            ]);
         }
         if (options.remove && stackName) {
             throw new FliskError("--remove does not take a stack name.", [
@@ -64,7 +68,10 @@ export const stackCommand = addYesOption(new Command("stack"))
             ]);
         }
         if ((options.move || options.remove) && options.resources === undefined) {
-            throw new FliskError("--move and --remove require --resources <name...>.");
+            throw new FliskError("--move and --remove require --resources <name...>.", [
+                "Pass --resources <name...> to name the resources you want to update.",
+                "Run flisk resources to see the available resource names.",
+            ]);
         }
         const discovery = createDiscoveryContext();
         const report = (updated = [], stack = options.list || options.remove ? null : (stackName ?? null)) => {
