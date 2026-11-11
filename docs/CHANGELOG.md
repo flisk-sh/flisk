@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.53 (2026-11-11)
+
 - `flisk projects --stale` reuses its Docker artifact listings across recorded stale projects instead of rerunning the same four listings for each one (#3786).
 
 ## 1.4.46 (2026-11-09)
