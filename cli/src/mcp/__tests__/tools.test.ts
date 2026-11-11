@@ -626,6 +626,15 @@ describe("startUp", () => {
       `projectPath does not exist or is not a directory: ${notADirectory}`,
     );
   });
+  it("rejects a projectPath under a file, without starting the child", async () => {
+    const { deps } = fakeUp({ logs: [""] });
+    // The parent is a file, so the path cannot be a directory. The error says
+    // what went wrong - the platform's own, or the missing-directory message -
+    // but the child is never started either way.
+    const underFile = join(projectDir, "not-a-directory.txt", "child");
+    await expect(startUp({ projectPath: underFile }, deps)).rejects.toThrow();
+    expect(deps.spawnUp).not.toHaveBeenCalled();
+  });
   it("accepts a projectPath that is a directory", async () => {
     const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });
     const r = await startUp({ projectPath: projectDir }, deps);
