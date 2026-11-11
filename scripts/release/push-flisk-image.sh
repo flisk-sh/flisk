@@ -5,6 +5,9 @@
 # linux/arm64 as <registry>/flisk:<version>, plus :latest with --latest. The image is built once and tagged in every registry
 # given, so all registries hold the same digest, which it prints on its last line (and writes to $GITHUB_OUTPUT as `digest`).
 # --load builds only this machine's platform into the local Docker as flisk:<version> and pushes nothing (the dry run).
+# With FLISK_IMAGE_CACHE_SCOPE set (and the Actions cache variables exported, see crazy-max/ghaction-github-runtime) the layers are
+# read from and written to the GitHub Actions cache under that scope, so the pre-flight build and the push build in one release,
+# and the next release, reuse the apt, Tilt and Docker CLI layers instead of rebuilding them (arm64 runs under QEMU, #3939).
 # Needs buildx and jq, and docker login to each registry unless --load.
 #
 #   push-flisk-image.sh <dir with flisk-linux-amd64, flisk-linux-arm64, flisk-cli-engine.tar.gz> <version> [--latest] [--load] <registry>...
@@ -48,10 +51,19 @@ output=(--push --platform linux/amd64,linux/arm64
   --annotation "index:org.opencontainers.image.description=$description"
   --annotation "index:org.opencontainers.image.licenses=MIT")
 [ "$load" = false ] || output=(--load)
+cache=()
+if [ -n "${FLISK_IMAGE_CACHE_SCOPE:-}" ]; then
+  # FLISK_IMAGE_CACHE_IMPORT lists more scopes to read from (never written), so the amd64-only pre-flight and the two-platform push
+  # each write their own scope: a pre-flight export into the push's scope would replace its arm64 records.
+  cache=(--cache-from "type=gha,scope=$FLISK_IMAGE_CACHE_SCOPE")
+  for scope in ${FLISK_IMAGE_CACHE_IMPORT:-}; do cache+=(--cache-from "type=gha,scope=$scope"); done
+  # ignore-error: a cache outage must not fail a build whose image is already pushed (it would skip signing and the smoke test).
+  cache+=(--cache-to "type=gha,scope=$FLISK_IMAGE_CACHE_SCOPE,mode=max,ignore-error=true")
+fi
 metadata="$context/metadata.json"
 echo "building flisk $version -> ${tags[*]}"
 # GHCR links a package to its repository by the source label (the index annotation for a multi-platform image).
-docker buildx build "${output[@]}" --metadata-file "$metadata" \
+docker buildx build "${output[@]}" "${cache[@]}" --metadata-file "$metadata" \
   --build-arg "VERSION=$version" \
   --label "org.opencontainers.image.source=$source_url" \
   --label "org.opencontainers.image.description=$description" \

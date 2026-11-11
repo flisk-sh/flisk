@@ -551,11 +551,11 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "release-binaries.yml",
+			"workflow": "publish-mcp-registry.yml",
 			"job": "publish-mcp-registry",
 			"tier": "release",
 			"required": false,
-			"reason": "Lists the published npm version in the MCP Registry, off the release's critical path",
+			"reason": "Lists the published npm version in the MCP Registry after the release run completes (#3938); rerun by hand with -f version=<version>",
 			"owner": "maintainers"
 		},
 		{
