@@ -42,7 +42,11 @@ function secretValuesOf(envPath) {
             `Check that ${envPath} is a readable file`,
         ]);
     }
-    return [...parseEnv(content).values()].filter((value) => value.length >= MIN_REDACTED_VALUE_LENGTH);
+    // Process output is split into lines before it is redacted, so a multiline value (a PEM key written with \n in
+    // double quotes) must also be masked line by line, not only as a whole.
+    return [...parseEnv(content).values()]
+        .flatMap((value) => (/[\r\n]/.test(value) ? [value, ...value.split(/\r?\n/)] : [value]))
+        .filter((value) => value.length >= MIN_REDACTED_VALUE_LENGTH);
 }
 export function redactSecrets(text, secrets) {
     let result = text;
