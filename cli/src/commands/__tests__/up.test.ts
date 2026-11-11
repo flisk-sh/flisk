@@ -89,6 +89,17 @@ vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/tilt-port-owner.js")>()),
   classifyTiltPorts: vi.fn(async () => ({ running: [] as number[], foreign: [] as unknown[] })),
 }));
+// Which other folders hold containers of this project name is a Docker question (#3961); the tests answer it.
+const foreignOwners = vi.hoisted(() => vi.fn(() => [] as { root: string; containers: string[] }[]));
+vi.mock("../../utils/project-owner.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/project-owner.js")>()),
+  findForeignContainerOwners: foreignOwners,
+}));
+vi.mock("../../utils/project-registry.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/project-registry.js")>()),
+  projectNameAt: () => "shop",
+  recordProjectRoot: vi.fn(),
+}));
 vi.mock("../../utils/up-wait.js", async (importOriginal) => ({
   ...(await importOriginal<typeof UpWaitModule>()),
   upAndWait: vi.fn(),
@@ -415,6 +426,23 @@ describe("flisk up drift gate", () => {
       diffs: [],
       handEdited,
     });
+
+  it("flisk up refuses a project name that another folder's containers already hold, before it touches Tilt (#3961)", async () => {
+    verdict(true);
+    foreignOwners.mockReturnValueOnce([
+      { root: "/other/shop", containers: ["shop_postgres", "shop_traefik"] },
+    ]);
+    vi.mocked(runTilt).mockClear();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+    await expect(upCommand.parseAsync([], { from: "user" })).rejects.toThrow("process.exit");
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(runTilt).not.toHaveBeenCalled();
+    const output = error.mock.calls.flat().join("\n");
+    expect(output).toContain("/other/shop");
+    expect(output).toContain("shop_postgres");
+    exit.mockRestore();
+  });
 
   it("flisk up --dry-run exits 2 on a hand-edited generated file and never reaches Tilt", async () => {
     verdict(
