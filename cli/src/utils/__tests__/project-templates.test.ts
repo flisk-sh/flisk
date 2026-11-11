@@ -28,6 +28,7 @@ describe("PROJECT_TEMPLATES", () => {
       "fullstack",
       "langgraph",
       "launch",
+      "next-postgres",
       "portal",
       "restaurant",
       "saas",

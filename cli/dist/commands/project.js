@@ -18,6 +18,7 @@ import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-h
 import { showCancelled, showCommandHeader, showDetail, showStep, showSuccess, } from "../utils/formatting.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { writeLanggraphProject } from "../utils/langgraph-template.js";
+import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
 import { listProjectTemplates, PROJECT_TEMPLATES, templateGitCommands, } from "../utils/project-templates.js";
@@ -130,7 +131,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
     if (!options.quiet) {
         showCommandHeader(`Cloning template: ${templateName}`);
         showDetail(`${template.description}\n`, 0);
-        showDetail(`Source: ${template.bundledPath || template.generated ? "bundled Flisk example" : template.repo}`, 0);
+        showDetail(`Source: ${template.bundledPath || template.generated || template.composed ? "bundled Flisk example" : template.repo}`, 0);
         if (template.ref)
             showDetail(`Commit: ${template.ref}`, 0);
         showDetail(`Destination: ${destination}\n`, 0);
@@ -151,6 +152,9 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         }
         else if (template.generated === "tool-loop") {
             writeToolLoopProject(destination);
+        }
+        else if (template.composed === "next-postgres") {
+            writeNextPostgresProject(destination);
         }
         else if (template.bundledPath) {
             const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
@@ -208,6 +212,14 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         showDetail(`1. cd ${dirName}`);
         showDetail("2. flisk up       # start it as local processes (no Docker needed)");
         showDetail("3. cat README.md  # what to send it");
+        return destination;
+    }
+    if (template.composed) {
+        console.log(chalk.green(`\n✅ Created "${templateName}" in ${dirName}/`));
+        showDetail("\nNext steps:", 0);
+        showDetail(`1. cd ${dirName}`);
+        showDetail("2. flisk up       # Postgres, the migrator, the API and the website (needs Docker)");
+        showDetail("3. cat README.md  # what each part does");
         return destination;
     }
     console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${dirName}/`));
