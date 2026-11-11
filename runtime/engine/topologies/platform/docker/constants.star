@@ -66,6 +66,11 @@ NETWORK_DATABASE = PROJECT_NAME + "_database"
 NETWORK_INFISICAL = PROJECT_NAME + "_infisical-network"
 NETWORK_PROXY = PROJECT_NAME + "_proxy"
 
+
+def infisical_network_enabled():
+    """True when the project turned Infisical on (INFISICAL_ENABLED=true): only then do app services join the infisical network."""
+    return os.environ.get("INFISICAL_ENABLED", "false").lower() == "true"
+
 # Traefik file-provider dynamic config: one generated YAML per `sablier.deferStart`
 # resource's static route (see openspec/changes/prioritized-cold-start), mounted
 # read-only into the standalone Traefik container at /etc/traefik/dynamic.
@@ -178,6 +183,7 @@ PlatformDockerConstants = struct(
     NETWORK_DATABASE = NETWORK_DATABASE,
     NETWORK_INFISICAL = NETWORK_INFISICAL,
     NETWORK_PROXY = NETWORK_PROXY,
+    infisical_network_enabled = infisical_network_enabled,
     TRAEFIK_DYNAMIC_DIR_REL = TRAEFIK_DYNAMIC_DIR_REL,
     TRAEFIK_WAKE_GATEWAY_CONTAINER = TRAEFIK_WAKE_GATEWAY_CONTAINER,
     TRAEFIK_WAKE_GATEWAY_PORT = TRAEFIK_WAKE_GATEWAY_PORT,
