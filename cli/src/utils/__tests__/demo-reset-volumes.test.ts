@@ -15,6 +15,7 @@ import {
   removeProjectVolumes,
   removeStaleProjectVolumes,
   sharedNameRefusal,
+  sharedNameUnreadableRefusal,
   shouldMarkDemoFolder,
   tryListStaleProjectVolumes,
 } from "../demo-reset.js";
@@ -281,5 +282,18 @@ describe("shouldMarkDemoFolder (#3963)", () => {
 
   it("does not mark a reused demo folder again", () => {
     expect(shouldMarkDemoFolder("demo", true)).toBe(false);
+  });
+});
+
+describe("sharedNameUnreadableRefusal", () => {
+  it("says nothing was deleted and how to go on when Docker cannot be read", () => {
+    const refusal = sharedNameUnreadableRefusal("flisk-restaurant-example", [
+      "/home/me/restaurant",
+    ]);
+
+    expect(refusal.message).toContain("Nothing deleted");
+    expect(refusal.message).toContain("could not be read");
+    expect(refusal.hint).toContain("Start Docker");
+    expect(refusal.detail).toContain("/home/me/restaurant");
   });
 });

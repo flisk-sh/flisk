@@ -69,5 +69,11 @@ export declare function sharedNameRefusal(projectName: string, folders: readonly
     hint: string;
     detail: string;
 };
+/** What the demo says when another folder holds the name and Docker cannot be read, so a deletion cannot be ruled out. */
+export declare function sharedNameUnreadableRefusal(projectName: string, folders: readonly string[]): {
+    message: string;
+    hint: string;
+    detail: string;
+};
 /** The `project.name` of a Flisk project folder, or undefined when it has none. */
 export declare function readProjectName(projectDir: string): string | undefined;

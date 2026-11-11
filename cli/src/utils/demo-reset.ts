@@ -234,6 +234,19 @@ export function sharedNameRefusal(
   };
 }
 
+/** What the demo says when another folder holds the name and Docker cannot be read, so a deletion cannot be ruled out. */
+export function sharedNameUnreadableRefusal(
+  projectName: string,
+  folders: readonly string[],
+): { message: string; hint: string; detail: string } {
+  const first = folders[0] ?? "";
+  return {
+    message: `Nothing deleted: ${first} has the demo's project name, and Docker volumes could not be read.`,
+    hint: "Start Docker and run the demo again, or rename that project (project.name). Details: log.",
+    detail: `The demo's project name "${projectName}" is also used by ${folders.join(", ")}, and "docker volume ls" failed, so the demo cannot tell whether a database would be deleted. Nothing was deleted.`,
+  };
+}
+
 /** The `project.name` of a Flisk project folder, or undefined when it has none. */
 export function readProjectName(projectDir: string): string | undefined {
   try {

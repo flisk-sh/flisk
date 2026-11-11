@@ -14,7 +14,7 @@ import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { cliInvocation } from "./utils/cli-invocation.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
-import { foldersSharingProjectName, markDemoFolder, readProjectName, removeProjectVolumes, sharedNameRefusal, shouldMarkDemoFolder, stopDemoStack, tryListStaleProjectVolumes, } from "./utils/demo-reset.js";
+import { foldersSharingProjectName, markDemoFolder, readProjectName, removeProjectVolumes, sharedNameRefusal, sharedNameUnreadableRefusal, shouldMarkDemoFolder, stopDemoStack, tryListStaleProjectVolumes, } from "./utils/demo-reset.js";
 import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
 import { getAllStacks } from "./utils/services.js";
@@ -232,19 +232,22 @@ if (templateArg) {
             // its database volume. Deleting that volume would delete its data: stop instead (#3963). One listing decides the
             // check and is the exact set removed, so a second listing cannot reach a volume the check did not see.
             const staleVolumes = tryListStaleProjectVolumes(projectName, undefined, stacks);
+            const sharing = foldersSharingProjectName(projectName, destination);
+            // With another folder on record, unknown is not the same as none: refuse when the volumes cannot be read either.
+            if (sharing.length > 0 && (staleVolumes === undefined || staleVolumes.length > 0)) {
+                const refusal = staleVolumes
+                    ? sharedNameRefusal(projectName, sharing, staleVolumes)
+                    : sharedNameUnreadableRefusal(projectName, sharing);
+                logLines.push(`refused: ${refusal.detail}`);
+                const logPath = writeLog(logLines);
+                stage.fail(refusal.message, refusal.hint, logPath);
+                stage.stop();
+                process.exit(1);
+            }
             if (staleVolumes === undefined) {
                 logLines.push("could not list Docker volumes: stale volumes were not cleared");
             }
             else {
-                const sharing = foldersSharingProjectName(projectName, destination);
-                if (sharing.length > 0 && staleVolumes.length > 0) {
-                    const refusal = sharedNameRefusal(projectName, sharing, staleVolumes);
-                    logLines.push(`refused: ${refusal.detail}`);
-                    const logPath = writeLog(logLines);
-                    stage.fail(refusal.message, refusal.hint, logPath);
-                    stage.stop();
-                    process.exit(1);
-                }
                 const removed = removeProjectVolumes(staleVolumes);
                 if (removed.length > 0)
                     logLines.push(`removed stale volumes: ${removed.join(", ")}`);
