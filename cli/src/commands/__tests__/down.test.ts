@@ -823,12 +823,58 @@ describe("flisk down", () => {
       }
     });
 
-    it("does not invoke network pruning when --prune-networks is omitted", async () => {
+    it("removes the project's unused networks by default, quietly about the ones Docker keeps (#3650)", async () => {
       const tempDir = setupTestProject();
+      downCommand.setOptionValue("pruneNetworks", undefined);
+      pruneProjectNetworksMock.mockReturnValue({
+        removed: ["test_project_backend"],
+        kept: [{ name: "test_project_proxy", reason: "network has active endpoints" }],
+      });
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
       try {
         await downCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+        expect(pruneProjectNetworksMock).toHaveBeenCalledTimes(1);
+        expect(pruneProjectNetworksMock).toHaveBeenCalledWith("test-project");
+        const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
+        expect(output).toContain("Removed networks: test_project_backend");
+        expect(output).not.toContain("Kept network");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("does not warn by default when Docker cannot be asked", async () => {
+      const tempDir = setupTestProject();
+      downCommand.setOptionValue("pruneNetworks", undefined);
+      pruneProjectNetworksMock.mockImplementation(() => {
+        throw new Error("docker daemon is unreachable");
+      });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+        expect(pruneProjectNetworksMock).toHaveBeenCalledTimes(1);
+        const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
+        expect(output).not.toContain("Could not remove networks");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("keeps the networks with --no-prune-networks", async () => {
+      const tempDir = setupTestProject();
+      downCommand.setOptionValue("pruneNetworks", undefined);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--no-prune-networks"], { from: "node" });
 
         expect(pruneProjectNetworksMock).not.toHaveBeenCalled();
       } finally {
