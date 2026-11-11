@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.57 (2026-11-11)
+
 - Two projects with the same name in different folders (two clones of a starter, git worktrees, `flisk demo` next to your own copy) share one set of Docker containers and one Postgres volume. `flisk up` now stops, before it replaces anything, when another existing folder already has containers of this project name, and says which folder and how to rename the project. `flisk down --purge` (and its `--dry-run`) refuses when another folder holds the project's containers or is recorded in `~/.flisk/projects`, so it can no longer delete a database that another folder uses (#3961).
 
 ## 1.4.55 (2026-11-11)
