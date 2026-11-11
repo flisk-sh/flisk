@@ -167,6 +167,7 @@ Two repositories carry a release per version, and both are linked from each othe
 
 - [`flisk-sh/releases`](https://github.com/flisk-sh/releases/releases): the binaries, `checksums.txt`, signature and provenance. This is what `install.sh` downloads.
 - [`flisk-sh/flisk` releases](https://github.com/flisk-sh/flisk/releases): the signed checksums only, which is what Scorecard reads. Its notes link back to the binaries on `flisk-sh/releases`.
+- The MCP Registry listing: `publish-mcp-registry.yml` starts by itself when the release run completes (it waits up to 15 minutes for npm to serve the version), so it shows as its own run. If `curl "https://registry.modelcontextprotocol.io/v0/servers?search=flisk"` lacks the new version, look at that run, or list it by hand: `gh workflow run publish-mcp-registry.yml -f version=<version>`.
 
 ## Verify a release
 

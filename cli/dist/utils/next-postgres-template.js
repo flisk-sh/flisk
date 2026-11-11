@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { loadTemplate } from "../generator/template-engine.js";
 import { cliInvocation } from "./cli-invocation.js";
@@ -115,6 +115,16 @@ export function writeNextPostgresFiles(dir, readTemplate = loadTemplate) {
     }
     for (const path of REMOVED_FILES)
         rmSync(join(dir, path), { force: true });
+    addApiDependencies(dir);
+}
+/** The API template imports packages the express stub does not declare. */
+function addApiDependencies(dir) {
+    const file = join(dir, APP, "api", "package.json");
+    if (!existsSync(file))
+        return;
+    const pkg = JSON.parse(readFileSync(file, "utf-8"));
+    pkg.dependencies = { ...pkg.dependencies, "express-rate-limit": "^8.0.0" };
+    writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 /** Writes the whole next-postgres project into the empty folder `dir`. */
 export function writeNextPostgresProject(dir) {

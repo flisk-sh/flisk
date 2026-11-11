@@ -551,11 +551,11 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "release-binaries.yml",
+			"workflow": "publish-mcp-registry.yml",
 			"job": "publish-mcp-registry",
 			"tier": "release",
 			"required": false,
-			"reason": "Lists the published npm version in the MCP Registry, off the release's critical path",
+			"reason": "Lists the published npm version in the MCP Registry after the release run completes (#3938); rerun by hand with -f version=<version>",
 			"owner": "maintainers"
 		},
 		{
@@ -957,6 +957,14 @@
 			"tier": "report",
 			"required": false,
 			"reason": "Posts or updates the shop benchmark pull request comment",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "wolf-review.yml",
+			"job": "review",
+			"tier": "bot",
+			"required": false,
+			"reason": "Wolf (inference.flisk.si) comments a suggested service.json on PRs that change one; never blocks a merge",
 			"owner": "maintainers"
 		}
 	]

@@ -8,7 +8,7 @@ import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../u
 import { formatCount, showAllSatisfyCondition, showDetail, showEmptyState, showStep, } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { stackExists } from "../utils/services.js";
+import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
 export const resourcesCommand = new Command("resources")
     .description("List all resources (services) in the project")
@@ -70,7 +70,7 @@ export const resourcesCommand = new Command("resources")
                 port: resource.port ?? null,
                 path: resource.configPath,
             }));
-            console.log(JSON.stringify(createMachineEnvelope({ resources: data })));
+            console.log(JSON.stringify(createMachineEnvelope({ resources: data, ...skippedServiceFiles(discovery.problems) })));
             return;
         }
         if (resources.length === 0) {

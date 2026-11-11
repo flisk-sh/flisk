@@ -12,7 +12,6 @@ FROM docker:29.9.2-cli@sha256:5e6baf67325a79f64ed3bed6863954d5e05d0f3d4e57cbdb14
 FROM oven/bun:1.4.4-slim@sha256:1846adf22496bd711036aae8be147e57bdebbaea2e5264e3e0b5af1db187d9a4
 
 ARG TARGETARCH
-ARG VERSION=dev
 # The same Tilt release .github/actions/setup-tilt installs, checked against its SHA-256.
 ARG TILT_VERSION=0.37.8
 ARG TILT_SHA256_AMD64=e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f
@@ -53,6 +52,8 @@ ENV PATH="/opt/flisk:${PATH}" \
   HOME=/home/flisk \
   TILT_HOST=0.0.0.0
 
+# Declared after the apt and Tilt layers: a new ARG value invalidates the RUN layers below it, and the version changes every release.
+ARG VERSION=dev
 LABEL org.opencontainers.image.title="flisk" \
   org.opencontainers.image.version="${VERSION}"
 

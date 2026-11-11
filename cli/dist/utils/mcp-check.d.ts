@@ -34,5 +34,10 @@ export declare function buildSampleArguments(schemaInput: unknown, depth?: numbe
 export declare function buildPromptArguments(argumentsList: unknown): Record<string, string>;
 /** icon-512.png beside the endpoint: https://host/mcp has its icon at https://host/icon-512.png. */
 export declare function iconUrlFor(url: string): string;
+/**
+ * Whether a failed fetch is a refused connection to a loopback host: the operating system has said that nothing listens
+ * there, so a retry would get the same answer (#3887). Bun puts the code on the error, Node on its cause.
+ */
+export declare function isFinalNetworkError(target: string, error: unknown): boolean;
 export declare function runMcpCheck(url: string, options?: McpCheckOptions): Promise<McpCheckReport>;
 export {};

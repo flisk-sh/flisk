@@ -7,6 +7,7 @@ import { errorFactories, runCommand } from "../utils/errors.js";
 import { formatCount, showDetail, showEmptyState, showStep } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { skippedServiceFiles } from "../utils/services.js";
 
 export const stacksCommand = new Command("stacks")
   .description("List all stacks and their resources")
@@ -34,7 +35,11 @@ export const stacksCommand = new Command("stacks")
           ...(verbose ? { description: stack.description } : {}),
           ...(options.services ? { services: stack.resources.map((service) => service.name) } : {}),
         }));
-        console.log(JSON.stringify(createMachineEnvelope({ stacks })));
+        console.log(
+          JSON.stringify(
+            createMachineEnvelope({ stacks, ...skippedServiceFiles(discovery.problems) }),
+          ),
+        );
         return;
       }
 

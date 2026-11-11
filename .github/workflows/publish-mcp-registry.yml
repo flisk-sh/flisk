@@ -1,0 +1,112 @@
+name: 🏷️ RELEASE | Package | MCP Registry listing
+
+# Lists a released npm version in the official MCP Registry (registry.modelcontextprotocol.io) as io.github.flisk-sh/flisk, so MCP
+# clients that search the registry find `flisk mcp`. It cannot change what users install, so it runs after the release instead
+# of inside it (#3938): the release run ends when npm, the binaries and the image are out, and this workflow waits for the npm
+# CDN (up to 15 minutes; 1.4.39 took 3). A failure here never touches the release.
+#
+# It starts by itself when "Release | Binaries" completes successfully. To repair a missing listing:
+#   gh workflow run publish-mcp-registry.yml -f version=<version>
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] read-only token; only runs after our own release workflow succeeds on main
+    workflows: ["🏷️ RELEASE | Package | Binaries and npm package"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Released npm version to list (for example 1.4.40)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-mcp-registry-${{ github.event.workflow_run.id || inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish-mcp-registry:
+    # A skipped or failed release has nothing to list. A run with no release-dist artifact (the version-bump push) is skipped below.
+    # Only releases from main: a successful run on another branch must not reach the id-token: write steps below.
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Check out main, never the triggering run's commit: this job holds id-token: write (same as e2e-journeys.yml).
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
+          persist-credentials: false
+
+      - name: Find the released version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_VERSION:-}" ]; then
+            version="$INPUT_VERSION"
+          else
+            # The release run uploads release-dist-<version>; the artifact name is the version it released.
+            version=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --paginate \
+              --jq '.artifacts[].name | select(startswith("release-dist-")) | sub("^release-dist-"; "")' | head -n 1)
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::notice::No released version found for this run (got '${version}'); nothing to list."
+            echo "version=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Listing ${version}."
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        if: steps.version.outputs.version != ''
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Install cosign
+        if: steps.version.outputs.version != ''
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Publish to the MCP Registry
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MCP_PUBLISHER_VERSION: v1.8.6
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$RUNNER_TEMP/$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$RUNNER_TEMP/$archive"
+          tar xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" mcp-publisher
+          node scripts/agent-plugin.mjs --mcp-registry server.json --version "$VERSION"
+          # The registry validates the version against registry.npmjs.org, which can take more than 3 minutes to serve a new
+          # version (1.4.39: published 19:04:31, served from 19:07:40). Fixed retries gave up first, so 1.4.34-1.4.39 never
+          # reached the registry. Wait for npm to serve this exact version, up to 15 minutes, then publish.
+          for _ in $(seq 1 90); do
+            if curl --fail --silent --output /dev/null "https://registry.npmjs.org/@flisk-sh%2fflisk/${VERSION}"; then break; fi
+            sleep 10
+          done
+          "$RUNNER_TEMP/mcp-publisher" login github-oidc
+          # The registry's own npm lookup can still trail the one above by a moment.
+          for attempt in 1 2 3 4 5; do
+            if "$RUNNER_TEMP/mcp-publisher" publish server.json; then exit 0; fi
+            echo "Attempt ${attempt} failed; retrying in 30 seconds."
+            sleep 30
+          done
+          echo "::warning::Could not publish io.github.flisk-sh/flisk@${VERSION} to the MCP Registry"
+          exit 1

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type FakeMcpServer,
   type FakeMcpServerOptions,
@@ -12,6 +12,7 @@ import {
   buildPromptArguments,
   buildSampleArguments,
   iconUrlFor,
+  isFinalNetworkError,
   type McpCheckReport,
   parseRpcBody,
   runMcpCheck,
@@ -144,6 +145,70 @@ describe("runMcpCheck", () => {
     expect(report.checks).toHaveLength(1);
     expect(report.checks[0]).toMatchObject({ check: "initialize", didPass: false });
     expect(report.checks[0]?.detail).toContain("no answer");
+  });
+
+  it("does not retry a refused connection on this machine, or wait for one (#3887)", async () => {
+    const closed = createServer();
+    await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", () => resolve()));
+    const { port } = closed.address() as AddressInfo;
+    await new Promise<void>((resolve) => closed.close(() => resolve()));
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      const started = Date.now();
+      // The default retry delay is 1 s, so a retry would show in the time taken.
+      const report = await runMcpCheck(`http://127.0.0.1:${port}/mcp`, { timeoutMs: 2_000 });
+      expect(Date.now() - started).toBeLessThan(900);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(report.checks).toHaveLength(1);
+      expect(report.checks[0]).toMatchObject({ check: "initialize", didPass: false });
+      expect(report.checks[0]?.detail).toContain("no answer");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("still retries a refused connection to another host", async () => {
+    const refused = Object.assign(new TypeError("fetch failed"), {
+      cause: { code: "ECONNREFUSED" },
+    });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(refused);
+    try {
+      const report = await runMcpCheck("https://mcp.example.com/mcp", { retryDelayMs: 0 });
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(report.checks[0]?.detail).toContain("ECONNREFUSED");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
+
+describe("isFinalNetworkError", () => {
+  const node = { cause: { code: "ECONNREFUSED" } };
+  const bun = { code: "ECONNREFUSED" };
+
+  it("is true for a refused connection on a loopback host, from Node or Bun", () => {
+    for (const url of [
+      "http://localhost:9/mcp",
+      "http://api.test.localhost:8080/mcp",
+      "http://127.0.0.1:9/mcp",
+      "http://127.1.2.3/mcp",
+      "http://[::1]:9/mcp",
+    ]) {
+      expect(isFinalNetworkError(url, node)).toBe(true);
+      expect(isFinalNetworkError(url, bun)).toBe(true);
+    }
+    expect(isFinalNetworkError("http://localhost:9/", { code: "ConnectionRefused" })).toBe(true);
+  });
+
+  it("is false for other hosts, other errors and an unreadable URL", () => {
+    expect(isFinalNetworkError("https://mcp.example.com/mcp", node)).toBe(false);
+    expect(isFinalNetworkError("http://127.0.0.1.example.com/mcp", node)).toBe(false);
+    expect(isFinalNetworkError("http://localhost:9/mcp", { cause: { code: "ECONNRESET" } })).toBe(
+      false,
+    );
+    expect(isFinalNetworkError("http://localhost:9/mcp", new Error("timeout"))).toBe(false);
+    expect(isFinalNetworkError("http://localhost:9/mcp", null)).toBe(false);
+    expect(isFinalNetworkError("not a url", node)).toBe(false);
   });
 });
 
