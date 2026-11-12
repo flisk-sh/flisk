@@ -11,7 +11,7 @@ flisk tool add rag --dry-run   # show what would be created, write nothing
 flisk up                  # start everything
 ```
 
-Names are forgiving: `Next.js`, `nextjs` and `next` are the same tool, and names of several words work with or without quotes (`flisk tool add spring boot`, `flisk tool add google cloud platform`). A word after the tool is the resource name: `flisk tool add spring boot orders`.
+Names are forgiving: `Next.js`, `nextjs` and `next` are the same tool, and names of several words work with or without quotes (`flisk tool add spring boot`, `flisk tool add google cloud platform`). A word after the tool is the resource name: `flisk tool add spring boot orders`. Tools that print steps use that name in them (`flisk tool add spring boot orders` writes `orders/` and `flisk resource orders …`); Docker and GitHub Actions are not services, so giving them a name is an error.
 
 ## What happens for each tool
 
@@ -23,6 +23,8 @@ Names are forgiving: `Next.js`, `nextjs` and `next` are the same tool, and names
 | **built in** | Tells you Flisk already does it. Nothing changes. | 0 |
 | **manual steps** | Flisk cannot generate it (a licensed product, or a framework with no generator yet). Prints the steps to run it under Flisk as your own container. Nothing changes. | 0 |
 | **rejected** | Refuses, says why, and lists local tools that cover the same need. Nothing changes. | 1 |
+
+Tools that add a resource need a Flisk project: outside one, `flisk tool add react` fails once with `Could not find project root` and the commands to fix it (`flisk project --yes`, then the same `flisk tool add`). Listing the tools, manual steps and the built-in note work anywhere.
 
 ## The tools
 

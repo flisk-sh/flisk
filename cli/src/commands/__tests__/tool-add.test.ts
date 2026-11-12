@@ -4,15 +4,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FRONTEND_FRAMEWORKS } from "../../frontend-frameworks/registry.js";
 import { DATABASE_FRAMEWORKS } from "../../types/index.js";
 import { FliskError } from "../../utils/errors.js";
-import { findTool, resourceArgs, TOOL_CATALOG, toolKey } from "../../utils/tool-catalog.js";
+import {
+  findTool,
+  manualSteps,
+  resourceArgs,
+  TOOL_CATALOG,
+  toolKey,
+} from "../../utils/tool-catalog.js";
 import { getRegisteredCommands } from "../registry.js";
 import { addTool, checkResource, formatToolList, resolveWords, runResource } from "../tool.js";
 
 type Run = (args: string[], json: boolean) => unknown;
 
-/** addTool outside any project, so the checks that read the project's resources see none. */
+/** addTool in a project with no resources yet, so the checks that read the project's resources see none. */
 function add(words: string[], options: Parameters<typeof addTool>[1], run: Run = () => undefined) {
-  return addTool(words, options, run, () => undefined);
+  return addTool(words, options, run, () => ({ resources: [] }));
 }
 
 afterEach(() => {
@@ -308,5 +314,66 @@ describe("flisk tool add: dogfood fixes", () => {
     expect((error as FliskError).suggestions[0]).toBe(
       "Run it yourself to see why: flisk resource 'a b'",
     );
+  });
+});
+
+describe("flisk tool add: dogfood pass 2 fixes", () => {
+  it("fails once outside a project, before running flisk resource, with the command that fixes it", () => {
+    const run = vi.fn();
+    let error: unknown;
+    try {
+      addTool(["react"], {}, run, () => undefined);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(run).not.toHaveBeenCalled();
+    expect((error as FliskError).message).toMatch(/Could not find project root/);
+    expect((error as FliskError).suggestions).toEqual([
+      "Run this from within a Flisk project",
+      "Run `flisk project --yes` to initialize a new project",
+      "Then run: flisk tool add react",
+    ]);
+  });
+
+  it("still prints manual steps and built-in notes outside a project", () => {
+    quiet();
+    expect(addTool(["spring", "boot"], {}, vi.fn(), () => undefined)).toMatchObject({
+      status: "manual",
+    });
+    expect(addTool(["docker"], {}, vi.fn(), () => undefined)).toMatchObject({ status: "built-in" });
+  });
+
+  it("puts the given name into a manual tool's steps, or the default", () => {
+    const spring = findTool("spring-boot");
+    if (spring?.status !== "manual") throw new Error("spring-boot should be manual");
+    expect(manualSteps(spring, "orders").join("\n")).toContain("flisk resource orders --type");
+    expect(manualSteps(spring, "orders").join("\n")).not.toContain("{name}");
+    expect(manualSteps(spring).join("\n")).toContain("-d name=server");
+    const lines = quiet();
+    const result = add(["spring", "boot", "orders"], {});
+    expect(lines.join("\n")).toContain("--path orders");
+    expect((result as { steps: string[] }).steps.join("\n")).toContain(
+      "unzip orders.zip -d orders",
+    );
+  });
+
+  it("leaves no {name} placeholder in any manual tool, with or without a name", () => {
+    for (const tool of TOOL_CATALOG) {
+      if (tool.status !== "manual") continue;
+      expect(manualSteps(tool, "x-1").join("\n"), tool.id).not.toContain("{name}");
+      expect(manualSteps(tool).join("\n"), tool.id).not.toContain("{name}");
+    }
+  });
+
+  it("says so when a tool that is not a service is given a name", () => {
+    expect(() => add(["docker", "mydocker"], {})).toThrow(
+      'Docker takes no resource name, so "mydocker" was not used.',
+    );
+    expect(() => add(["github", "actions", "ci"], {})).toThrow(/takes no resource name/);
+    expect(() => add(["github", "actions"], {})).not.toThrow();
+  });
+
+  it("validates the name given to a manual tool", () => {
+    expect(() => add(["angular", "My App"], {})).toThrow(/Resource name "My App" is not valid/);
   });
 });
