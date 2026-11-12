@@ -28,9 +28,9 @@ const AXES = [
 		axis: "appType",
 		id: "types",
 		title: "Resource types",
-		// backend, frontend and bring-your-own are covered by the groups around it.
+		// backend, frontend and bring-your-own are covered by the groups around it. A database is the shared Postgres: the migrator suite times it.
 		skip: new Set(["backend", "frontend", "bring-your-own"]),
-		leg: (v) => (v === "database" ? null : v),
+		leg: (v) => v,
 	},
 	{ axis: "orm", id: "orm", title: "ORMs", leg: (v) => v },
 	// The axis values (byo, byo-jobs, byo-pair) are measured by the bring-your-own legs that run them through `flisk up`.

@@ -23,7 +23,7 @@ const rec = (leg, metric, ms, at = "2026-11-12T01:00:00Z") => ({ leg, metric, ms
 
 test("each axis value maps to the leg label the matrix gives it", () => {
 	const ids = catalog(axes).stacks.map((s) => s.id);
-	assert.deepEqual(ids, ["bun", "python", "bun", "bun-express", "frontend-react", "frontend-next", "worker", "appType:database", "prisma", "bring-your-own-flisk", "infraService:elk"]);
+	assert.deepEqual(ids, ["bun", "python", "bun", "bun-express", "frontend-react", "frontend-next", "worker", "database", "prisma", "bring-your-own-flisk", "infraService:elk"]);
 });
 
 test("scaffold is the median of its readings, every other metric is the first reading", () => {

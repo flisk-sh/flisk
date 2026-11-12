@@ -52,20 +52,20 @@ now_ms() { node -p 'Date.now()'; }
 #   listed      `flisk up` started -> `flisk status` lists the resource with a Traefik url (wait_status_url)
 #   cold_start  `flisk up` started on a fresh runner -> the route answers 200 through Traefik (timing_serving)
 #   warm_start  `flisk down`, then `flisk up` with the images cached -> the route answers 200 again (common_warm_start)
-timing() { # <metric> <ms>
-  local leg="${E2E_LEG:-$SUITE_NAME}"
+timing() { # <metric> <ms> [<leg>]: the leg defaults to this suite's; a case that measures another stack names it
+  local leg="${3:-${E2E_LEG:-$SUITE_NAME}}"
   mkdir -p "$SUITE_ROOT"
   jq -nc --arg suite "$SUITE_NAME" --arg leg "$leg" --arg group "${E2E_GROUP:-}" --arg metric "$1" --argjson ms "$2" --arg at "$(date -u +%FT%TZ)" \
     '{suite:$suite,leg:$leg,group:$group,metric:$metric,ms:$ms,at:$at}' >>"$SUITE_ROOT/timings.jsonl" 2>/dev/null || return 0
   printf 'TIMING %s %s=%sms\n' "$leg" "$1" "$2"
 }
-timing_since_up() { # <metric>: ms since the last start_stack, recorded at most once per start_stack for that metric
+timing_since_up() { # <metric> [<leg>]: ms since the last start_stack, recorded at most once per start_stack for that metric and leg
   [ -n "${UP_T0:-}" ] || return 0
-  case " ${UP_DONE:-} " in *" $1 "*) return 0 ;; esac
-  UP_DONE="${UP_DONE:-} $1"
-  timing "$1" $(( $(now_ms) - UP_T0 )) || true
+  case " ${UP_DONE:-} " in *" $1@${2:-} "*) return 0 ;; esac
+  UP_DONE="${UP_DONE:-} $1@${2:-}"
+  timing "$1" $(( $(now_ms) - UP_T0 )) ${2:+"$2"} || true
 }
-timing_serving() { timing_since_up "$1" || true; } # <metric>: call right after the route first answers 200
+timing_serving() { timing_since_up "$@" || true; } # <metric> [<leg>]: call right after the route first answers 200
 # scaled_ready_timeout <resources> <seconds each>: READY_TIMEOUT for a stack that builds that many images, a few at a time.
 # Never less than READY_TIMEOUT, and E2E_READY_TIMEOUT, when set, wins unchanged.
 scaled_ready_timeout() {
