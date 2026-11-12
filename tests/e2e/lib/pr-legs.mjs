@@ -5,8 +5,14 @@
 // merge_group, nightly, release and manual runs keep the full matrix.
 //
 //   git diff --name-only "$BASE_SHA" HEAD | node tests/e2e/lib/pr-legs.mjs '<matrix json>' [--templates-before <file>]
+//       [--base <rev>] [--explain <file>]
+//
+// --base <rev> lets the rules read a file's old content (git show <rev>:<file>), so an edit that changes only a comment, a
+// description or one case selects only what it changes, the way a build graph hashes inputs instead of looking at paths.
+// --explain <file> appends a table of file -> rule -> legs to <file> (the workflow passes $GITHUB_STEP_SUMMARY).
 //
 // Each changed file selects legs by the first rule that applies:
+//   0. a file listed in a bring-your-own variant's `inputs` (suite.json globs) selects exactly the variants that list it;
 //   1. a unit test in cli/src (*.test.ts, __tests__/) selects nothing: it does not change the CLI a leg runs;
 //   2. cli/src/frontend-frameworks/<name>.ts selects frontend-<name>; its registry.ts or types.ts every frontend leg and the canary;
 //   3. cli/src/backend-languages/<lang>.ts selects the <lang> language legs; its registry.ts or types.ts every language and the canary;
@@ -15,7 +21,9 @@
 //      <folder>; an entry of examples/byo/templates.json counts as its folder (pass the base version with --templates-before);
 //   6. a verify script of the bring-your-own suite, or a tests/e2e/fixtures/<dir>/ that one reads, selects the variants whose
 //      case runs that script;
-//   7. a file inside one suite's folder (tests/e2e/<group>/<suite>/) selects that suite's legs;
+//   7. a file inside one suite's folder (tests/e2e/<group>/<suite>/) selects that suite's legs; with --base, the bring-your-own
+//      run.sh selects the variants of the cases whose function changed (comments and blank lines are not changes), and its
+//      suite.json the variants whose entry changed (the description is not a change); any other change there is suite-wide;
 //   8. an engine file that belongs to one area selects that area's legs (ENGINE_AREAS): a vite framework file its frontend leg,
 //      the vite and frontend generators every frontend leg, byo_*.star the bring-your-own variants that use its key, the prisma layer prisma and
 //      migrator; engine docs and Starlark unit tests select nothing;
@@ -23,7 +31,8 @@
 //  10. any other file that matches SHARED_PATHS (shared CLI code, the rest of the engine, tests/e2e/lib, common.sh) selects the
 //      CANARY legs, one per kind of suite; the merge queue and nightly still run every leg;
 //  11. anything else (docs, unrelated code) selects nothing.
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -118,93 +127,214 @@ export function changedTemplateFolders(before, after) {
   return [...folders].sort();
 }
 
+// A glob of suite.json `inputs` as a RegExp: `*` stays inside one path segment, `**` crosses them, `**/` may match nothing.
+export function globToRegExp(glob) {
+  let re = "";
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === "*" && glob[i + 1] === "*") {
+      if (glob[i + 2] === "/") {
+        re += "(?:.*/)?";
+        i += 2;
+      } else {
+        re += ".*";
+        i += 1;
+      }
+    } else if (c === "*") re += "[^/]*";
+    else re += c.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${re}$`);
+}
+
+// A shell script without its comments, blank lines and trailing spaces: what a change must alter to count as one.
+const normalizeShell = (lines) =>
+  lines
+    .map((l) => l.replace(/\s+$/, ""))
+    .filter((l) => l.trim() !== "" && !/^\s*#/.test(l))
+    .join("\n");
+
+// run.sh split into its case functions (BY1() { ... }) and everything else.
+export function runShBlocks(text) {
+  const blocks = new Map();
+  const rest = [];
+  let current = null;
+  let body = [];
+  for (const line of text.split("\n")) {
+    const start = current ? null : line.match(/^([A-Z]+[0-9]+)\(\)/);
+    if (start) {
+      current = start[1];
+      body = [line];
+      if (/\}\s*$/.test(line)) {
+        blocks.set(current, normalizeShell(body));
+        current = null;
+      }
+    } else if (current) {
+      body.push(line);
+      if (/^\}/.test(line)) {
+        blocks.set(current, normalizeShell(body));
+        current = null;
+      }
+    } else rest.push(line);
+  }
+  if (current) blocks.set(current, normalizeShell(body));
+  return { blocks, rest: normalizeShell(rest) };
+}
+
+// What a run.sh edit changes: the cases whose function differs, or the whole suite when the code outside the functions does.
+export function changedByoCases(base, head) {
+  const before = runShBlocks(base);
+  const after = runShBlocks(head);
+  const cases = new Set();
+  for (const name of new Set([...before.blocks.keys(), ...after.blocks.keys()])) {
+    if (before.blocks.get(name) !== after.blocks.get(name)) cases.add(name);
+  }
+  return { cases, suiteWide: before.rest !== after.rest };
+}
+
+// What a suite.json edit changes: the variants whose entry differs, or the whole suite when any key but the description and the
+// variants does (cases, paths, triggers, timeouts).
+export function changedByoVariants(base, head) {
+  const before = JSON.parse(base);
+  const after = JSON.parse(head);
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  keys.delete("description");
+  keys.delete("variants");
+  const suiteWide = [...keys].some((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+  const byId = (doc) => new Map((doc.variants ?? []).map((v) => [v.id, JSON.stringify(v)]));
+  const a = byId(before);
+  const b = byId(after);
+  const ids = new Set();
+  for (const id of new Set([...a.keys(), ...b.keys()])) if (a.get(id) !== b.get(id)) ids.add(id);
+  return { ids, suiteWide };
+}
+
 // The narrowed matrix: the legs of `matrix.include` that `files` select, in matrix order.
-export function prLegs(matrix, files, { e2eDir, templatesBefore, templatesAfter } = {}) {
+export function prLegs(matrix, files, { e2eDir, templatesBefore, templatesAfter, baseText, headText } = {}) {
   const legs = matrix.include ?? [];
   const byo = byoSuite(e2eDir);
   const selected = new Set();
-  const pick = (predicate) => legs.forEach((leg, i) => predicate(leg) && selected.add(i));
+  let current = new Set();
+  const pick = (predicate) =>
+    legs.forEach((leg, i) => {
+      if (!predicate(leg)) return;
+      selected.add(i);
+      current.add(i);
+    });
   const variantArgs = (leg) => (byo.variants.find((v) => v.id === leg.variant)?.args ?? "").split(/\s+/);
   const variantCase = (leg) => byo.variants.find((v) => v.id === leg.variant)?.case;
   const pickByoFolder = (folder) => pick((leg) => leg.dir === BYO_DIR && variantArgs(leg).includes(folder));
   const pickByoScripts = (scripts) =>
     pick((leg) => leg.dir === BYO_DIR && [...(byo.scriptsByCase.get(variantCase(leg)) ?? [])].some((s) => scripts.includes(s)));
+  // Rule 0: the variants whose declared inputs name the file.
+  const inputMatchers = byo.variants
+    .filter((v) => Array.isArray(v.inputs))
+    .map((v) => ({ id: v.id, patterns: v.inputs.map(globToRegExp) }));
+  // Rule 7 for the bring-your-own run.sh and suite.json: read the old and new content, when the caller can.
+  const byoPrefix = `tests/e2e/${BYO_DIR}/`;
+  const texts = (file) => {
+    if (!baseText || !headText) return undefined;
+    const head = headText(file);
+    const base = baseText(file);
+    return head == null || base == null ? undefined : { base, head };
+  };
+  const explain = [];
 
   for (const file of files.map((f) => f.trim()).filter(Boolean)) {
+    current = new Set();
+    let rule = "11 none";
+    const done = (name) => {
+      rule = name;
+    };
     let m;
-    if (/^cli\/src\/.*(\.test\.ts$|\/__tests__\/)/.test(file)) continue; // rule 1
-    if ((m = file.match(/^cli\/src\/frontend-frameworks\/([a-z0-9-]+)\.ts$/)) && !SHARED_MODULES.has(m[1])) {
+    const claimed = inputMatchers.filter((v) => v.patterns.some((re) => re.test(file))).map((v) => v.id);
+    if (claimed.length > 0) {
+      done("0 inputs"); // rule 0
+      pick((leg) => leg.dir === BYO_DIR && claimed.includes(leg.variant));
+    } else if (/^cli\/src\/.*(\.test\.ts$|\/__tests__\/)/.test(file)) {
+      done("1 unit test"); // rule 1
+    } else if ((m = file.match(/^cli\/src\/frontend-frameworks\/([a-z0-9-]+)\.ts$/)) && !SHARED_MODULES.has(m[1])) {
+      done("2 frontend framework");
       const name = m[1];
-      pick((leg) => leg.dir === FRONTEND_DIR && leg.framework === name); // rule 2
-      continue;
-    }
-    if ((m = file.match(/^cli\/src\/backend-languages\/([a-z0-9-]+)\.ts$/)) && !SHARED_MODULES.has(m[1])) {
+      pick((leg) => leg.dir === FRONTEND_DIR && leg.framework === name);
+    } else if ((m = file.match(/^cli\/src\/backend-languages\/([a-z0-9-]+)\.ts$/)) && !SHARED_MODULES.has(m[1])) {
+      done("3 backend language");
       const language = m[1];
-      pick((leg) => leg.group === LANGUAGE_GROUP && leg.language === language); // rule 3
-      continue;
-    }
-    if (/^cli\/src\/frontend-frameworks\/(registry|types)\.ts$/.test(file)) {
-      pick((leg) => leg.dir === FRONTEND_DIR || CANARY.includes(leg.label)); // rule 2: every framework, plus the canary
-      continue;
-    }
-    if (/^cli\/src\/backend-languages\/(registry|types)\.ts$/.test(file)) {
-      pick((leg) => leg.group === LANGUAGE_GROUP || CANARY.includes(leg.label)); // rule 3: every language, plus the canary
-      continue;
-    }
-    if (file.startsWith("cli/src/agent-runtimes/")) {
-      pick((leg) => leg.dir === AGENT_DIR); // rule 4
-      continue;
-    }
-    if (file === "examples/byo/templates.json") {
+      pick((leg) => leg.group === LANGUAGE_GROUP && leg.language === language);
+    } else if (/^cli\/src\/frontend-frameworks\/(registry|types)\.ts$/.test(file)) {
+      done("2 frontend registry");
+      pick((leg) => leg.dir === FRONTEND_DIR || CANARY.includes(leg.label));
+    } else if (/^cli\/src\/backend-languages\/(registry|types)\.ts$/.test(file)) {
+      done("3 language registry");
+      pick((leg) => leg.group === LANGUAGE_GROUP || CANARY.includes(leg.label));
+    } else if (file.startsWith("cli/src/agent-runtimes/")) {
+      done("4 agent runtime");
+      pick((leg) => leg.dir === AGENT_DIR);
+    } else if (file === "examples/byo/templates.json") {
+      done("5 templates.json");
       if (templatesBefore !== undefined && templatesAfter !== undefined) {
-        for (const folder of changedTemplateFolders(templatesBefore, templatesAfter)) pickByoFolder(folder); // rule 5
+        for (const folder of changedTemplateFolders(templatesBefore, templatesAfter)) pickByoFolder(folder);
       } else {
         pick((leg) => leg.dir === BYO_DIR);
       }
-      continue;
-    }
-    if ((m = file.match(/^examples\/byo(?:-jobs)?\/([^/]+)\//))) {
-      pickByoFolder(m[1]); // rule 5
-      continue;
-    }
-    if ((m = file.match(/^tests\/e2e\/resource-types\/bring-your-own\/(verify-[a-z0-9-]+\.sh)$/))) {
-      pickByoScripts([m[1]]); // rule 6
-      continue;
-    }
-    if ((m = file.match(/^(tests\/e2e\/fixtures\/[^/]+)\//))) {
+    } else if ((m = file.match(/^examples\/byo(?:-jobs)?\/([^/]+)\//))) {
+      done("5 byo template");
+      pickByoFolder(m[1]);
+    } else if (file === `${byoPrefix}run.sh` && texts(file)) {
+      done("7 run.sh by case");
+      const { base, head } = texts(file);
+      const change = changedByoCases(base, head);
+      pick((leg) => leg.dir === BYO_DIR && (change.suiteWide || change.cases.has(variantCase(leg))));
+    } else if (file === `${byoPrefix}suite.json` && texts(file)) {
+      done("7 suite.json by variant");
+      const { base, head } = texts(file);
+      const change = changedByoVariants(base, head);
+      pick((leg) => leg.dir === BYO_DIR && (change.suiteWide || change.ids.has(leg.variant)));
+    } else if ((m = file.match(/^tests\/e2e\/resource-types\/bring-your-own\/(verify-[a-z0-9-]+\.sh)$/))) {
+      done("6 verify script");
+      pickByoScripts([m[1]]);
+    } else if ((m = file.match(/^(tests\/e2e\/fixtures\/[^/]+)\//))) {
+      done("6 fixture");
       const fixture = m[1];
       const readers = [...new Set([...byo.scriptsByCase.values()].flatMap((s) => [...s]))].filter((script) => {
         const p = path.join(byo.dir, script);
         return existsSync(p) && readFileSync(p, "utf8").includes(fixture);
       });
-      pickByoScripts(readers); // rule 6
-      continue;
-    }
-    if ((m = file.match(/^tests\/e2e\/((resource-types|orm)\/[^/]+)\//))) {
+      pickByoScripts(readers);
+    } else if ((m = file.match(/^tests\/e2e\/((resource-types|orm)\/[^/]+)\//))) {
+      done("7 suite folder");
       const dir = m[1];
-      pick((leg) => leg.dir === dir); // rule 7
-      continue;
-    }
-    const area = ENGINE_AREAS.find(([re]) => re.test(file));
-    if (area) {
+      pick((leg) => leg.dir === dir);
+    } else if (ENGINE_AREAS.find(([re]) => re.test(file))) {
+      done("8 engine area");
+      const area = ENGINE_AREAS.find(([re]) => re.test(file));
       const inArea = area[1](file.match(area[0]));
-      pick((leg) => inArea(leg, byo)); // rule 8
-      continue;
+      pick((leg) => inArea(leg, byo));
+    } else if (FULL_PATHS.test(file)) {
+      done("9 matrix files");
+      pick(() => true);
+    } else if (SHARED_PATHS.test(file)) {
+      done("10 shared code, canary");
+      pick((leg) => CANARY.includes(leg.label));
     }
-    if (FULL_PATHS.test(file)) {
-      pick(() => true); // rule 9
-      continue;
-    }
-    if (SHARED_PATHS.test(file)) pick((leg) => CANARY.includes(leg.label)); // rule 10
-    // rule 11: nothing
+    explain.push({ file, rule, labels: [...current].sort((a, b) => a - b).map((i) => legs[i].label) });
   }
-  return { include: legs.filter((_, i) => selected.has(i)) };
+  return { include: legs.filter((_, i) => selected.has(i)), explain };
+}
+
+// The markdown table --explain appends: what each changed file selected, and why.
+export function explainMarkdown(explain, total) {
+  const rows = explain.map((e) => {
+    const names = e.labels.length === 0 ? "none" : e.labels.length > 6 ? `${e.labels.length} legs` : e.labels.join(", ");
+    return `| \`${e.file}\` | ${e.rule} | ${names} |`;
+  });
+  const picked = new Set(explain.flatMap((e) => e.labels)).size;
+  return ["### E2E legs for this change", "", `${picked} of ${total} legs selected.`, "", "| File | Rule | Legs |", "| --- | --- | --- |", ...rows, ""].join("\n");
 }
 
 function main(argv) {
   const [matrixJson, ...rest] = argv;
   if (!matrixJson) {
-    console.error("usage: git diff --name-only BASE HEAD | node tests/e2e/lib/pr-legs.mjs '<matrix json>' [--templates-before <file>] [--e2e-dir <dir>]");
+    console.error("usage: git diff --name-only BASE HEAD | node tests/e2e/lib/pr-legs.mjs '<matrix json>' [--templates-before <file>] [--base <rev>] [--explain <file>] [--e2e-dir <dir>]");
     return 2;
   }
   const opt = (name) => {
@@ -217,12 +347,28 @@ function main(argv) {
   const readJson = (file) => (file && existsSync(file) && readFileSync(file, "utf8").trim() ? JSON.parse(readFileSync(file, "utf8")) : {});
   const beforeFile = opt("--templates-before");
   const options = { e2eDir };
+  const baseRev = opt("--base");
+  if (baseRev !== undefined) {
+    // null: the file does not exist at that revision (a new file), so a rule cannot diff it and treats the change as suite-wide.
+    options.baseText = (file) => {
+      try {
+        return execFileSync("git", ["show", `${baseRev}:${file}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], cwd: repoRoot });
+      } catch {
+        return null;
+      }
+    };
+    options.headText = (file) => (existsSync(path.join(repoRoot, file)) ? readFileSync(path.join(repoRoot, file), "utf8") : null);
+  }
   if (beforeFile !== undefined) {
     options.templatesBefore = readJson(beforeFile);
     options.templatesAfter = readJson(path.join(repoRoot, "examples/byo/templates.json"));
   }
   const files = readFileSync(0, "utf8").split("\n");
-  console.log(JSON.stringify(prLegs(JSON.parse(matrixJson), files, options)));
+  const matrix = JSON.parse(matrixJson);
+  const result = prLegs(matrix, files, options);
+  console.log(JSON.stringify({ include: result.include }));
+  const explainFile = opt("--explain");
+  if (explainFile) appendFileSync(explainFile, explainMarkdown(result.explain, (matrix.include ?? []).length));
   return 0;
 }
 

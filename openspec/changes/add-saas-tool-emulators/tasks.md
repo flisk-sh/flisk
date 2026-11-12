@@ -17,7 +17,7 @@
 
 ## 2. CI
 - [ ] 2.1 `tests/e2e/tools/<tool>/{suite.json,run.sh}` with the functional cases
-- [ ] 2.2 `tests/e2e/lib/tool-legs.mjs` + unit tests for the four graph scenarios
+- [x] 2.2 Graph in `tests/e2e/lib/pr-legs.mjs` (no second graph): per-variant `inputs` globs, content-aware `run.sh` / `suite.json`, `--explain` table in the job summary; unit tests for each rule
 - [ ] 2.3 `tool` axis in `axes.json`; `suite-matrix.mjs` expands tool x appType x framework
 - [ ] 2.4 `.github/workflows/e2e-tools.yml` (plan -> legs -> gate), modeled on `e2e-resource-types.yml`
 - [ ] 2.5 Add the gate to required checks (`required-checks-drift.yml`)
