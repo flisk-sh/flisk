@@ -25,7 +25,8 @@ export const KINDS = ["backend", "frontend", "worker", "mcp", "agent", "database
 // same framework only collides on its UI host port and adds boot time, not combinations. Every one of them is always drawn
 // when the count leaves room, so a plan never holds just the Postgres.
 const MAX_PER_VARIANT = 1;
-const INFRA_KINDS = ["database", "queue", "storage", "mail", "payments"];
+// The `flisk resource --type` values whose frameworks are infrastructure presets (cli/src/utils/infra-presets.ts).
+export const INFRA_KINDS = ["database", "queue", "storage", "mail", "payments"];
 // The type `flisk status` and the scaffold envelope report. Every infrastructure framework except the shared Postgres is a
 // bring-your-own container (docs/byo.md, "Infrastructure frameworks").
 export const reportedType = (e) => (INFRA_KINDS.includes(e.kind) && e.variant !== "postgres" ? "bring-your-own" : e.kind);
