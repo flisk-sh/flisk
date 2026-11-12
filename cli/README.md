@@ -156,11 +156,23 @@ flisk resource --type backend --frameworks                      # list backend f
 
 # Non-interactive resource creation
 flisk resource my-api --type backend --stack api --yes
+
+# Preview the configuration and planned files without changing the project
+flisk resource my-api --type backend --stack api --dry-run --yes
+flisk resource my-api --type backend --stack api --dry-run --json
 ```
 
 `--yes` skips resource creation prompts and requires an explicit resource name. A new project uses the
 `main` stack, an existing single-stack project reuses that stack, and a project with multiple stacks
 must pass `--stack`. Without `--yes`, prompt answers can still be supplied on stdin for scripted use.
+
+`--dry-run` resolves the same type, stack, framework/language and port as creation, then lists the
+files it would create or update, including a Prisma migrator when requested. Interactive choices
+still work; the final creation confirmation is skipped. No files, generated configs or port
+reservations are changed. Run again without `--dry-run` to apply; the plan is resolved again at
+that time. `--json` returns the plan in the [machine-readable envelope](../docs/reference/machine-readable-cli.md).
+For `--ddd`, previews require a fresh cached license result so checking entitlement cannot write
+license state or register a project remotely.
 
 **Creates:**
 - 📄 `service.json` — Auto-assigned port from master config

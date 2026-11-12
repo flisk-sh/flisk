@@ -319,6 +319,10 @@ function projectValuesOf(shell: Shell, flag: string): boolean {
 }
 
 describe("shell completion candidates", () => {
+  it.each(SHELLS)("offers resource --dry-run in %s", (shell) => {
+    expect(shapeOf(shell).options.resource).toContain("--dry-run");
+  });
+
   it("offers every registered command in all four shells", () => {
     for (const shell of SHELLS) {
       const { names } = shapeOf(shell);

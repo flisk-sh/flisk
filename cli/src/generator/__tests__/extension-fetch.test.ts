@@ -379,6 +379,38 @@ describe("applyPremiumOverlay", () => {
 });
 
 describe("license key transport", () => {
+  it("refuses an uncached preview without creating a project id, cache, or network request", async () => {
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { hasDddLicense } = await import("../extension-fetch.js");
+    await expect(hasDddLicense(projectRoot, { cachedOnly: true })).rejects.toThrow(
+      "fresh local cache",
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(existsSync(join(projectRoot, ".flisk"))).toBe(false);
+    expect(existsSync(join(fakeHome, ".flisk"))).toBe(false);
+  });
+
+  it.each([true, false])(
+    "uses a cached DDD grant of %s without updating it during a preview",
+    async (granted) => {
+      process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+      const cacheDir = join(fakeHome, ".flisk", "cache", `premium-${LICENSE_KEY_GRANTED}`);
+      mkdirSync(cacheDir, { recursive: true });
+      const cachePath = join(cacheDir, "ddd-access.json");
+      const content = JSON.stringify({ granted, checked: "unchanged" });
+      writeFileSync(cachePath, content);
+      const fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+      const { hasDddLicense } = await import("../extension-fetch.js");
+      expect(await hasDddLicense(projectRoot, { cachedOnly: true })).toBe(granted);
+      expect(readFileSync(cachePath, "utf8")).toBe(content);
+      expect(existsSync(join(projectRoot, ".flisk"))).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    },
+  );
+
   it("retries once with ?key= when a worker that predates the header answers 401", async () => {
     process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     fixtureTarball ??= buildFixtureTarball();

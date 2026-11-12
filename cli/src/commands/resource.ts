@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -65,7 +65,6 @@ import {
   readDiscoveryPaths,
 } from "../utils/discovery-paths.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
-import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import {
   createInfraServiceJson,
@@ -83,6 +82,7 @@ import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
 import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.js";
+import { ResourceFilePlan } from "../utils/resource-plan.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -914,6 +914,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)",
     false,
   )
+  .option("--dry-run", "Preview the resource and files without writing or reserving a port", false)
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .addHelpText(
     "after",
@@ -1098,7 +1099,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
             ),
           );
         } else {
-          const granted = await hasDddLicense(projectRoot);
+          const granted = options.dryRun
+            ? await hasDddLicense(projectRoot, { cachedOnly: true })
+            : await hasDddLicense(projectRoot);
           if (!granted) {
             throw new FliskError(
               "DDD scaffolding is a Premium feature and requires a license key that grants it. " +
@@ -1332,6 +1335,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       const confirmed =
+        options.dryRun ||
         assumeYes ||
         (await confirmOrCancel(
           shouldRegisterExisting && hasServiceJson
@@ -1339,7 +1343,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
             : "\nCreate resource?",
         ));
       if (!confirmed) return { data: null };
-      const report = (action: ResourceReport["action"]): JsonCommandResult => ({
+      const report = (action: ResourceReport["action"]): { data: ResourceReport } => ({
         data: {
           action,
           name: resourceName,
@@ -1364,6 +1368,23 @@ export const resourceCommand = addYesOption(new Command("resource"))
         } satisfies ResourceReport,
       });
 
+      const plan = new ResourceFilePlan();
+      const preview = (): JsonCommandResult => {
+        const { files, directories } = plan.preview(projectRoot);
+        const resource = report(
+          shouldRegisterExisting && hasServiceJson ? "registered" : "created",
+        ).data;
+        console.log(chalk.cyan("\nDry run - planned changes:"));
+        console.log(chalk.gray(`  Framework: ${resource.framework ?? "N/A"}`));
+        console.log(chalk.gray(`  Language: ${resource.language ?? "N/A"}`));
+        for (const directory of directories) console.log(`  create directory  ${directory}/`);
+        for (const file of files) console.log(`  ${file.action}  ${file.path}`);
+        console.log(
+          "\nNo files were written or ports reserved. Run again without --dry-run to apply.",
+        );
+        return { data: { dryRun: true, resource, files, directories } };
+      };
+
       // Handle existing resource registration
       if (shouldRegisterExisting && hasServiceJson) {
         // Read existing service.json
@@ -1386,8 +1407,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
         };
 
         // Write updated service.json
-        const { writeFileSync } = await import("node:fs");
-        writeFileSync(existingServiceJsonPath, JSON.stringify(updatedServiceJson, null, 2));
+        plan.text(existingServiceJsonPath, JSON.stringify(updatedServiceJson, null, 2));
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
 
         console.log(chalk.green("\n✅ Existing resource registered successfully!"));
@@ -1398,13 +1420,14 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       if (isDatabase) {
-        console.log(chalk.blue("\n📁 Creating database resource..."));
-        mkdirSync(fullPath, { recursive: true });
-        const { writeFileSync } = await import("node:fs");
-        writeFileSync(
+        if (!options.dryRun) console.log(chalk.blue("\n📁 Creating database resource..."));
+        plan.directory(fullPath);
+        plan.text(
           resolve(fullPath, SERVICE_JSON),
           `${JSON.stringify(createDatabaseServiceJson(resourceName, stackName), null, 2)}\n`,
         );
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
 
         console.log(chalk.green("\n✅ Database resource created successfully!"));
@@ -1420,22 +1443,24 @@ export const resourceCommand = addYesOption(new Command("resource"))
       // An infrastructure framework is a pinned image with a probe, a data volume and the connection settings it provides.
       if (infraPreset) {
         const preset: InfraPreset = INFRA_PRESETS[infraPreset];
-        console.log(chalk.blue(`\n📁 Creating ${preset.description}...`));
-        mkdirSync(fullPath, { recursive: true });
+        if (!options.dryRun) console.log(chalk.blue(`\n📁 Creating ${preset.description}...`));
+        plan.directory(fullPath);
         const serviceJson = createInfraServiceJson(
           resourceName,
           stackName,
           infraPreset,
           options.image,
         );
-        writeFileSync(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
+        plan.text(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
         const agentsPath = resolve(fullPath, "AGENTS.md");
         if (!existsSync(agentsPath)) {
-          writeFileSync(
+          plan.text(
             agentsPath,
             `# AGENTS.md\n\nDO NOT DELETE service.json\n\n${preset.description} for Flisk. Services that list "${resourceName}" in dependsOn get its \`provides\` settings in their environment.\n`,
           );
         }
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
         console.log(chalk.green(`\n✅ ${preset.description} created.`));
         console.log(chalk.gray(`\nLocation: ${fullPath}`));
@@ -1457,7 +1482,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
 
       // Handle bring-your-own type
       if (resourceType === BRING_YOUR_OWN_TYPE) {
-        console.log(chalk.blue("\n📁 Creating bring-your-own resource..."));
+        if (!options.dryRun) console.log(chalk.blue("\n📁 Creating bring-your-own resource..."));
 
         // Parse port option
         const port = assignedPort;
@@ -1480,7 +1505,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
           throw errorFactories.invalidPath(dockerfile);
         }
 
-        mkdirSync(fullPath, { recursive: true });
+        plan.directory(fullPath);
 
         // Create service.json
         const byoServiceJson = createByoServiceJson(resourceName, stackName, port, {
@@ -1491,12 +1516,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
           ...(options.restart ? { restart: options.restart } : {}),
         });
 
-        const { writeFileSync } = await import("node:fs");
-        writeFileSync(resolve(fullPath, SERVICE_JSON), JSON.stringify(byoServiceJson, null, 2));
+        plan.text(resolve(fullPath, SERVICE_JSON), JSON.stringify(byoServiceJson, null, 2));
 
         // Create Dockerfile stub if no image provided and dockerfile doesn't exist
         if (!image && !existsSync(dockerfilePath)) {
-          mkdirSync(resolve(dockerfilePath, ".."), { recursive: true });
+          plan.directory(resolve(dockerfilePath, ".."));
           const healthConfigPath = resolve(dockerfilePath, "..", "health.conf");
           const healthConfigRelativePath = relative(fullPath, healthConfigPath).replace(/\\/g, "/");
           const dockerfileContent = `FROM nginx:1.27-alpine
@@ -1504,7 +1528,7 @@ RUN apk add --no-cache curl
 COPY ${healthConfigRelativePath} /etc/nginx/conf.d/default.conf
 EXPOSE ${port}
 `;
-          writeFileSync(dockerfilePath, dockerfileContent);
+          plan.text(dockerfilePath, dockerfileContent);
 
           const healthConfContent = `server {
   listen ${port};
@@ -1518,7 +1542,7 @@ EXPOSE ${port}
   }
 }
 `;
-          writeFileSync(healthConfigPath, healthConfContent);
+          plan.text(healthConfigPath, healthConfContent);
         }
 
         // Create AGENTS.md
@@ -1529,8 +1553,10 @@ DO NOT DELETE service.json
 This file contains the resource configuration for Flisk.
 `;
         const agentsPath = resolve(fullPath, "AGENTS.md");
-        if (!existsSync(agentsPath)) writeFileSync(agentsPath, agentsMdContent);
+        if (!existsSync(agentsPath)) plan.text(agentsPath, agentsMdContent);
 
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
 
         console.log(chalk.green("\n✅ Bring-your-own resource created successfully!"));
@@ -1541,8 +1567,8 @@ This file contains the resource configuration for Flisk.
       }
 
       // Create directory structure for new resources
-      console.log(chalk.blue("\n📁 Creating directory structure..."));
-      mkdirSync(fullPath, { recursive: true });
+      if (!options.dryRun) console.log(chalk.blue("\n📁 Creating directory structure..."));
+      plan.directory(fullPath);
       // A provider that owns its runtime files only gets the folders it writes into (Go keeps its files at the root).
       const ownedTopLevel = new Set(
         (backendLanguage?.createFiles?.(resourceName) ?? []).map(
@@ -1551,19 +1577,19 @@ This file contains the resource configuration for Flisk.
       );
       for (const folder of ["src", "tests"]) {
         if (!backendLanguage?.createFiles || ownedTopLevel.has(folder)) {
-          mkdirSync(resolve(fullPath, folder), { recursive: true });
+          plan.directory(resolve(fullPath, folder));
         }
       }
       if (resourceType === "frontend") {
-        mkdirSync(resolve(fullPath, "public"), { recursive: true });
+        plan.directory(resolve(fullPath, "public"));
         // A framework can keep its files in folders of its own (Next.js: src/app).
         for (const file of frontendFramework?.createFiles(resourceName) ?? []) {
-          mkdirSync(dirname(resolve(fullPath, file.filename)), { recursive: true });
+          plan.directory(dirname(resolve(fullPath, file.filename)));
         }
       }
       if (dddEnabled) {
         for (const layer of ["domain", "application", "infrastructure", "presentation"]) {
-          mkdirSync(resolve(fullPath, "src", layer), { recursive: true });
+          plan.directory(resolve(fullPath, "src", layer));
         }
       }
 
@@ -1783,15 +1809,15 @@ This file contains the resource configuration for Flisk.
       }
 
       // Execute all file writes with progress
-      console.log(chalk.blue("💻 Generating source files..."));
+      if (!options.dryRun) console.log(chalk.blue("💻 Generating source files..."));
       // A new resource's folder did not exist when it was checked, so nothing in it may be overwritten.
-      writeFilesWithProgress(fullPath, tasks, undefined, { exclusive: !isExistingResource });
+      plan.files(fullPath, tasks, { exclusive: !isExistingResource });
 
       if (prismaEnabled && resourceType === "backend") {
-        mkdirSync(resolve(fullPath, "prisma"), { recursive: true });
+        plan.directory(resolve(fullPath, "prisma"));
         const migratorName = `${resourceName}-migrator`;
         const migratorPath = resolve(projectRoot, `services/${stackName}/${migratorName}`);
-        mkdirSync(resolve(migratorPath, "prisma"), { recursive: true });
+        plan.directory(resolve(migratorPath, "prisma"));
         const migratorConfig = {
           ...JSON.parse(JSON.stringify(BASE_TEMPLATE)),
           $schema: SERVICE_MANIFEST_SCHEMA_URL,
@@ -1811,7 +1837,7 @@ This file contains the resource configuration for Flisk.
           ...migratorPackage.scripts,
           start: "prisma migrate deploy",
         };
-        writeFilesWithProgress(migratorPath, [
+        plan.files(migratorPath, [
           {
             type: "json",
             filename: SERVICE_JSON,
@@ -1841,7 +1867,7 @@ This file contains the resource configuration for Flisk.
             emoji: "⚙️",
           },
         ]);
-        writeFilesWithProgress(fullPath, [
+        plan.files(fullPath, [
           {
             type: "text",
             filename: "prisma/schema.prisma",
@@ -1859,6 +1885,8 @@ This file contains the resource configuration for Flisk.
         ]);
       }
 
+      if (options.dryRun) return preview();
+      plan.write();
       clearDiscoveryCache();
       console.log(chalk.green("\n✅ Resource created successfully!"));
       console.log(chalk.gray(`\nLocation: ${fullPath}`));
@@ -1901,6 +1929,7 @@ This file contains the resource configuration for Flisk.
     // Which platform services a project starts follows its resources (#2963), so a new resource can change the generated
     // spec.master and Tiltfile. Refresh them here, or `flisk config verify` reports them out of sync right after `flisk resource`.
     const refreshGenerated = async (): Promise<void> => {
+      if (options.dryRun) return;
       try {
         const root = findProjectRoot();
         if (
