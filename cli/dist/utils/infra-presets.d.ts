@@ -1,8 +1,8 @@
 import { type InfraFramework, type InfraResourceType, type PresetResourceType } from "../types/index.js";
 /**
  * Infrastructure frameworks: `flisk resource <name> --type database --framework redis|qdrant|mlflow|...`,
- * `--type queue --framework nats|rabbitmq` and `--type storage --framework minio` (the shared Postgres is `--type database`
- * on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
+ * `--type queue --framework nats|rabbitmq`, `--type storage --framework minio`, `--type mail --framework mailpit` and
+ * `--type payment --framework stripe-mock` (the shared Postgres is `--type database` on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
  * with a readiness probe, a named data volume that `flisk down` keeps, and `provides`: the connection settings every
  * service that lists it in `dependsOn` gets in its environment. Services in the stack reach it on the Docker network by
  * name. A framework with a web UI also publishes it on 127.0.0.1 only (`extraPorts`); two resources of one framework
@@ -23,8 +23,8 @@ export interface InfraPreset {
     } | {
         command: string[];
     };
-    /** Where the image keeps its data; mounted from the named volume `<name>-data`. */
-    dataPath: string;
+    /** Where the image keeps its data; mounted from the named volume `<name>-data`. Left out for a stateless emulator. */
+    dataPath?: string;
     /** Non-secret settings for the image itself (service.json `params`). */
     params?: Record<string, string>;
     /** service.json `container.command` (`{name}` replaced), for an image whose default command does not start the server the way Flisk needs. */
@@ -186,6 +186,39 @@ export declare const INFRA_PRESETS: {
         };
         readonly provides: {
             readonly AMQP_URL: "amqp://guest:guest@{name}:5672";
+        };
+    };
+    readonly mailpit: {
+        readonly type: "mail";
+        readonly description: "Mailpit SMTP server and inbox (stands in for Resend, SendGrid, Postmark, SES)";
+        readonly image: "axllent/mailpit:v1.33.1";
+        readonly port: 1025;
+        readonly healthCheck: {
+            readonly port: 1025;
+        };
+        readonly dataPath: "/data";
+        readonly params: {
+            readonly MP_DATABASE: "/data/mailpit.db";
+        };
+        readonly uiPorts: [8025];
+        readonly provides: {
+            readonly SMTP_URL: "smtp://{name}:1025";
+            readonly SMTP_HOST: "{name}";
+            readonly SMTP_PORT: "1025";
+            readonly MAILPIT_API_URL: "http://{name}:8025";
+        };
+    };
+    readonly "stripe-mock": {
+        readonly type: "payment";
+        readonly description: "stripe-mock Stripe API emulator (stateless: answers every call from the OpenAPI spec)";
+        readonly image: "stripe/stripe-mock:v0.206.0";
+        readonly port: 12111;
+        readonly healthCheck: {
+            readonly port: 12111;
+        };
+        readonly provides: {
+            readonly STRIPE_API_BASE: "http://{name}:12111";
+            readonly STRIPE_SECRET_KEY: "sk_test_flisklocal";
         };
     };
 };

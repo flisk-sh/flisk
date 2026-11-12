@@ -435,10 +435,11 @@ Checked by `tests/tilt-engine/test_byo_gpu_resources.py` (the generator) and
 `/dev/shm` settings, and `docker compose config` accepts the generated GPU reservation; the live GPU check runs only on a host
 with the NVIDIA runtime).
 
-## Infrastructure frameworks (Redis, Qdrant, MinIO, MLflow, MySQL, MongoDB, ClickHouse, NATS, RabbitMQ)
+## Infrastructure frameworks (Redis, Qdrant, MinIO, MLflow, MySQL, MongoDB, ClickHouse, NATS, RabbitMQ, Mailpit, stripe-mock)
 
 Postgres and NATS come with every project. For a cache, a vector store, S3-compatible object storage, experiment tracking or
-a second queue, create a resource of type `database`, `storage` or `queue` and name its framework:
+a second queue, or local stand-ins for a mail API and Stripe, create a resource of type `database`, `storage`, `queue`, `mail`
+or `payment` and name its framework:
 
 ```bash
 flisk resource cache --type database --framework redis --stack hqc
@@ -450,12 +451,14 @@ flisk resource docs --type database --framework mongodb --stack hqc
 flisk resource events --type database --framework clickhouse --stack hqc
 flisk resource bus --type queue --stack hqc                        # nats is the default queue
 flisk resource broker --type queue --framework rabbitmq --stack hqc
+flisk resource mail --type mail --stack hqc                        # mailpit is the default
+flisk resource pay --type payment --stack hqc                     # stripe-mock is the default
 ```
 
 `--type database` on its own, or with `--framework postgres`, is still the shared Flisk Postgres (no container of its own).
 Every other framework writes a bring-your-own `service.json` (`appType: "bring-your-own"`, the engine does not know the
 frameworks) with `"framework": "<id>"` recorded, a pinned image, a readiness probe, a named volume `<name>-data` that
-`flisk down` keeps, and `provides`. The containers in the stack reach each server on the Docker network by name; it is not
+`flisk down` keeps (stripe-mock is stateless and gets none), and `provides`. The containers in the stack reach each server on the Docker network by name; it is not
 routed through Traefik.
 
 | Type | Framework | Image | Port | Data | Provides |
@@ -469,6 +472,8 @@ routed through Traefik.
 | `database` | `clickhouse` | `clickhouse/clickhouse-server:25.8-alpine` | 8123 | `/var/lib/clickhouse` | `CLICKHOUSE_URL=http://<name>:8123`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DB` |
 | `queue` | `nats` (default) | `nats:2.11.8-alpine` | 4222 | `/data` | `NATS_URL=nats://<name>:4222` |
 | `queue` | `rabbitmq` | `rabbitmq:4.1-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
+| `mail` | `mailpit` (default) | `axllent/mailpit:v1.33.1` | 1025 (SMTP), 8025 (inbox UI and API) | `/data` | `SMTP_URL=smtp://<name>:1025`, `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_API_URL=http://<name>:8025` |
+| `payment` | `stripe-mock` (default) | `stripe/stripe-mock:v0.206.0` | 12111 | none (stateless) | `STRIPE_API_BASE=http://<name>:12111`, `STRIPE_SECRET_KEY=sk_test_flisklocal` (a stripe-mock test key, not a secret) |
 
 `--image` replaces the pinned image (`--image redis:8-alpine`); `--port` is refused, because the image listens on its own port.
 The NATS here is its own container with JetStream on its volume, not the platform NATS.

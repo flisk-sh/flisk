@@ -5,6 +5,8 @@
 // doctor owns environment/service checks and config verify owns generated-project consistency; ORACLE only compares the
 // doctor checks that describe the project (named below), never the Docker/Tilt/host ones.
 
+import { INFRA_KINDS } from "../../e2e/scale/enigma36/plan.mjs";
+
 const dbService = (s) => s.status?.json?.data?.platformServices?.find((p) => p.capability === "database");
 const gwService = (s) => s.status?.json?.data?.platformServices?.find((p) => p.capability === "gateway");
 const doctorCheck = (s, name) => s.doctor?.json?.data?.checks?.find((c) => c.name === name);
@@ -243,9 +245,9 @@ export const INVARIANTS = [
 			const refused = /Resource "([^"]+)" has neither a Dockerfile nor a package\.json/.exec(s.render.stderr ?? "")?.[1];
 			const culprit = sc.resources.find((r) => r.name === refused);
 			let gap = culprit?.kind === "backend" && culprit.args.some((a) => ["python", "go", "rust"].includes(a)) ? "#3243" : undefined;
-			// Known gap #3862: a queue or database framework (rabbitmq, nats, mysql...) is an image-only bring-your-own container with
-			// no Dockerfile, and export render refuses it. It serves no HTTP, so it is not in the expected list either.
-			if (culprit && ["queue", "database"].includes(culprit.kind) && culprit.type === "bring-your-own") gap = "#3862";
+			// Known gap #3862: an infrastructure framework (rabbitmq, nats, mysql, minio, mailpit...) is an image-only bring-your-own
+			// container with no Dockerfile, and export render refuses it. It serves no HTTP, so it is not in the expected list either.
+			if (culprit && INFRA_KINDS.includes(culprit.kind) && culprit.type === "bring-your-own") gap = "#3862";
 			if (s.render.code !== 0) return want ? fail("render-exports-http-resources", `render.yaml lists ${want}`, `export render exited ${s.render.code}`, ["render"], gap) : null;
 			const got = [...s.render.stdout.matchAll(/^ {2}- type: \w+\n {4}name: "([^"]+)"/gm)].map((m) => m[1]).sort().join(" ");
 			return want === got ? null : fail("render-exports-http-resources", `render.yaml lists ${want}`, `render.yaml lists ${got}`, ["render"]);

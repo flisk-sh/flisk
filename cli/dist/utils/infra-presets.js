@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { DATABASE_INFRA_FRAMEWORKS, DATABASE_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, QUEUE_RESOURCE_TYPE, STORAGE_RESOURCE_TYPE, } from "../types/index.js";
+import { DATABASE_INFRA_FRAMEWORKS, DATABASE_RESOURCE_TYPE, MAIL_RESOURCE_TYPE, PAYMENT_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, QUEUE_RESOURCE_TYPE, STORAGE_RESOURCE_TYPE, } from "../types/index.js";
 import { SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "./service-manifest.js";
 const MINIO_USER = "minioadmin";
 const MINIO_PASSWORD = "minioadmin";
@@ -146,6 +146,37 @@ export const INFRA_PRESETS = {
         },
         provides: { AMQP_URL: "amqp://guest:guest@{name}:5672" },
     },
+    mailpit: {
+        type: MAIL_RESOURCE_TYPE,
+        description: "Mailpit SMTP server and inbox (stands in for Resend, SendGrid, Postmark, SES)",
+        image: "axllent/mailpit:v1.33.1",
+        port: 1025,
+        healthCheck: { port: 1025 },
+        dataPath: "/data",
+        // Keep the inbox in the data volume, so a restart does not empty it.
+        params: { MP_DATABASE: "/data/mailpit.db" },
+        // The inbox UI and its REST API (/api/v1/messages) share port 8025.
+        uiPorts: [8025],
+        provides: {
+            SMTP_URL: "smtp://{name}:1025",
+            SMTP_HOST: "{name}",
+            SMTP_PORT: "1025",
+            MAILPIT_API_URL: "http://{name}:8025",
+        },
+    },
+    "stripe-mock": {
+        type: PAYMENT_RESOURCE_TYPE,
+        description: "stripe-mock Stripe API emulator (stateless: answers every call from the OpenAPI spec)",
+        image: "stripe/stripe-mock:v0.206.0",
+        port: 12111,
+        healthCheck: { port: 12111 },
+        // stripe-mock accepts a key of sk_test_ and letters or digits (an underscore after the prefix is a 401); this one is not
+        // a secret and reaches no real account.
+        provides: {
+            STRIPE_API_BASE: "http://{name}:12111",
+            STRIPE_SECRET_KEY: "sk_test_flisklocal",
+        },
+    },
 };
 /** Types that used to be presets (1.4.24) and now are a framework of `database`, `queue` or `storage`. */
 const REMOVED_PRESET_TYPES = {
@@ -217,7 +248,7 @@ export function createInfraServiceJson(name, stack, framework, image) {
             }
             : {}),
         ...(preset.uiPorts ? { extraPorts: preset.uiPorts.map((port) => ({ port })) } : {}),
-        volumes: [{ source: `${name}-data`, target: preset.dataPath }],
+        ...(preset.dataPath ? { volumes: [{ source: `${name}-data`, target: preset.dataPath }] } : {}),
         ...(preset.params ? { params: { ...preset.params } } : {}),
         provides: Object.fromEntries(Object.entries(preset.provides).map(([key, value]) => [key, value.replace("{name}", name)])),
     };
