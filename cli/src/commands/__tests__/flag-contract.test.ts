@@ -105,6 +105,11 @@ const JSON_SPAWN_MATRIX: Array<{
   },
   { site: "config migrate --json", command: ["config", "migrate"], project: CONFIGURED_PROJECT },
   {
+    site: "tool add --json",
+    command: ["tool", "add", "react", "web"],
+    project: CONFIGURED_PROJECT,
+  },
+  {
     site: "config enable-infra --json",
     command: ["config", "enable-infra", "monitoring"],
     project: CONFIGURED_PROJECT,
@@ -178,6 +183,7 @@ const YES_MATRIX: Array<{
     project: CONFIGURED_PROJECT,
   },
   { site: "project --yes", command: ["project"], project: CONFIGURED_PROJECT },
+  { site: "tool add --yes", command: ["tool", "add", "react", "web"], project: CONFIGURED_PROJECT },
 ];
 
 /**
@@ -208,6 +214,8 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
+  "tool add --dry-run":
+    "forwards --dry-run to a spawned flisk resource, which the in-process dry-run rows cannot start; add.test.ts checks the forwarding and resource --dry-run has its own row",
   "projects --yes":
     "only confirms --stale --prune, which deletes Docker objects, so a matrix row cannot run it; projects-prune.test.ts covers every prompt path",
   "create --yes":

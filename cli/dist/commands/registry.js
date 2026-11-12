@@ -26,6 +26,7 @@ import { runtimeCommand } from "./runtime.js";
 import { stackCommand } from "./stack.js";
 import { stacksCommand } from "./stacks.js";
 import { statusCommand } from "./status.js";
+import { toolCommand } from "./tool.js";
 import { uiCommand } from "./ui.js";
 import { upCommand } from "./up.js";
 import { upgradeCommand } from "./upgrade.js";
@@ -51,6 +52,7 @@ export function getRegisteredCommands() {
         runtimeCommand,
         projectCommand,
         createCommand,
+        toolCommand,
         configCommand,
         uiCommand,
         osCommand,

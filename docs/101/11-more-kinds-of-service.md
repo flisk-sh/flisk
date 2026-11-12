@@ -88,3 +88,4 @@ Use Flisk to add a worker called jobs-worker, an MCP tools server called orders-
 - **Two services share a port:** open each `service.json` and give them different ports, then run `flisk config verify`.
 - **Other languages for a backend:** `--language python`, `go`, `rust`, or `node`.
 - **To start the new services:** run `flisk up shop` again. Flisk picks them up automatically.
+- **Know the tool, not the flag?** `flisk tool add react`, `flisk tool add postgresql` or `flisk tool add rag` picks the resource type for you. See [Add a tool by name](../add-a-tool.md).
