@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: "Also start release-binaries.yml on this same branch now; it builds alongside the suites and publishes this exact commit only if they all pass"
+        description: "Also start release-binaries.yml on this same branch once every candidate job has passed; it publishes this exact commit"
         type: boolean
         default: false
   push:
@@ -277,15 +277,15 @@ jobs:
           done
           echo "Release candidate passed."
 
-  # Opt-in (`-f release=true`): start the release on this same ref right after the plan, so release-binaries.yml builds the
-  # binaries while the suites run. Its `publish` job waits for this candidate (check-release-candidate.mjs --wait) and publishes
-  # only if every job here passed; if one fails, nothing is published. It publishes exactly the commit tested here, so merges
+  # Opt-in (`-f release=true`): start the release on this same ref once `gate` has passed. Started earlier, its `publish` job
+  # held a runner for minutes waiting for the suites (#3979); now that wait (check-release-candidate.mjs --wait) is only the
+  # seconds this job takes, and a candidate that fails starts no release. It publishes exactly the commit tested here, so merges
   # into main meanwhile cannot void the candidate (1.4.24). A workflow_dispatch made with github.token does start the
   # workflow (GitHub's exception for workflow_dispatch).
   release:
     name: release-candidate / dispatch release
-    needs: [plan]
-    if: github.event_name == 'workflow_dispatch' && inputs.release && needs.plan.result == 'success' && startsWith(github.ref, 'refs/heads/release/')
+    needs: [plan, gate]
+    if: github.event_name == 'workflow_dispatch' && inputs.release && needs.gate.result == 'success' && startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:

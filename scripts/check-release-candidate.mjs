@@ -5,8 +5,9 @@
 // candidate, a passing candidate on an ancestor still counts if no commit between them changed a release input: the shipped
 // package is then the one the candidate checked. Any change to a release input needs a new candidate on that commit.
 //   node scripts/check-release-candidate.mjs --sha <commit> [--repo owner/name] [--wait <minutes>]   (GH_TOKEN must be set)
-// With --wait, a candidate that is still running on this exact commit is waited for instead of refused, so the release can build
-// while its candidate runs and only `publish` waits. A candidate that failed, or none on this commit, still refuses at once.
+// With --wait, a candidate that is still running on this exact commit is waited for instead of refused, so a release dispatched
+// by hand can build while its candidate runs and only `publish` waits (the candidate's own `-f release=true` dispatch starts after
+// its gate, #3979). A candidate that failed, or none on this commit, still refuses at once.
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
