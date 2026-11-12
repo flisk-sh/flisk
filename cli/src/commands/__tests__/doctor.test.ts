@@ -752,6 +752,36 @@ describe("doctor ingress + tilt runtime checks", () => {
     }
   });
 
+  it("calls docker ps once when the ingress-ports and host-ports checks run together", async () => {
+    const originalProcess = process;
+    vi.stubGlobal(
+      "process",
+      new Proxy(originalProcess, {
+        get(target, property) {
+          if (property === "platform") return "linux";
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+    );
+
+    const dockerPsCommand = "docker ps --format '{{.Names}}\\t{{.Image}}\\t{{.Ports}}'";
+    const calls: string[] = [];
+    const countingExec = ((command: string) => {
+      calls.push(command);
+      return "";
+    }) as never;
+
+    try {
+      checkIngressPorts(countingExec, "flisk-project");
+      await checkHostPorts(countingExec, "flisk-project", async () => "in-use", undefined, noOwner);
+
+      expect(calls.filter((command) => command === dockerPsCommand)).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("separates sablier.deferStart resources from genuinely pending ones", () => {
     const payload = {
       items: [
