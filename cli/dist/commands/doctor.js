@@ -28,6 +28,7 @@ import { validateEnvFile } from "../utils/env-validator.js";
 import { execAsync, isExecTimeout } from "../utils/exec-async.js";
 import { evaluateFliskVersion } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
+import { cacheExecAsync, createAsyncCommandCache, createHostCommandCache, } from "../utils/host-command-cache.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
@@ -56,6 +57,8 @@ const EXEC_TIMEOUT_MS = 10_000;
 // The first `docker compose` call loads the compose plugin. On a busy machine (a CI runner running several jobs) that
 // can pass 10s, and a timeout here blocks `flisk up` on a cold start even though Compose is installed.
 const COMPOSE_TIMEOUT_MS = 30_000;
+// Both the Compose and the Versions check run this exact command and timeout, so a per-run cache runs it once.
+const DOCKER_COMPOSE_VERSION_COMMAND = "docker compose version --short";
 export const DOCTOR_FIXES = {
     dockerMissing: "See https://docs.docker.com/get-docker/",
     dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
@@ -405,7 +408,7 @@ export async function checkDockerRuntime() {
         fix: "Install Docker: https://docs.docker.com/get-docker/\n  Verify: docker --version\n  After install, start Docker and retry: flisk doctor",
     };
 }
-export const checkDockerCompose = createExecCheck("Docker Compose", "docker compose version", "Docker Compose plugin available", "Docker Compose plugin not found", "Install Docker Compose: https://docs.docker.com/compose/install/", COMPOSE_TIMEOUT_MS);
+export const checkDockerCompose = createExecCheck("Docker Compose", DOCKER_COMPOSE_VERSION_COMMAND, "Docker Compose plugin available", "Docker Compose plugin not found", "Install Docker Compose: https://docs.docker.com/compose/install/", COMPOSE_TIMEOUT_MS);
 checkDockerCompose.requiresContainerRuntime = true;
 checkDockerCompose.checkName = "Docker Compose";
 // Generated healthchecks use `start_interval`, which older engines/compose reject.
@@ -428,13 +431,13 @@ function isAtLeast(version, minimum) {
     return true;
 }
 export async function checkDockerVersions(exec = execAsync) {
-    const run = async (command) => String(await exec(command, EXEC_TIMEOUT_MS)).trim();
+    const run = async (command, timeoutMs = EXEC_TIMEOUT_MS) => String(await exec(command, timeoutMs)).trim();
     let engineRaw;
     let composeRaw;
     try {
         [engineRaw, composeRaw] = await Promise.all([
             run("docker version --format '{{.Server.Version}}'"),
-            run("docker compose version --short"),
+            run(DOCKER_COMPOSE_VERSION_COMMAND, COMPOSE_TIMEOUT_MS),
         ]);
     }
     catch {
@@ -1493,6 +1496,10 @@ export const doctorCommand = new Command("doctor")
     const gatewayEnabled = isGatewayEnabled(projectRoot, options);
     const enabledCapabilities = getEnabledCapabilities(projectRoot, options);
     const portCaps = { gateway: gatewayEnabled, database: dbEnabled };
+    // One cache per doctor run, so checks that ask Docker the same question share one answer.
+    const hostCommandCache = createHostCommandCache();
+    // The Compose and Versions checks both read the compose version; this runs it once for the run.
+    const cachedExec = cacheExecAsync(execAsync, createAsyncCommandCache());
     // The host port plan places the gateway and Postgres containers; a project of local processes has neither.
     let hostPortPlan;
     let portPlanError;
@@ -1501,6 +1508,7 @@ export const doctorCommand = new Command("doctor")
             hostPortPlan = await getHostPortPlan(projectRoot ?? process.cwd(), {
                 database: dbEnabled,
                 gateway: gatewayEnabled,
+                commandCache: hostCommandCache,
             });
         }
         catch (error) {
@@ -1540,10 +1548,7 @@ export const doctorCommand = new Command("doctor")
         ...(gatewayEnabled
             ? [
                 () => hostPortPlan
-                    ? checkIngressPorts(execSync, undefined, [
-                        hostPortPlan.ingressHttp,
-                        hostPortPlan.ingressHttps,
-                    ])
+                    ? checkIngressPorts(execSync, undefined, [hostPortPlan.ingressHttp, hostPortPlan.ingressHttps], { commandCache: hostCommandCache })
                     : {
                         name: "Ingress Ports",
                         didPass: false,
@@ -1557,8 +1562,8 @@ export const doctorCommand = new Command("doctor")
         requiresContainerRuntime("Docker Build Cache", () => checkDockerBuildCache()),
         requiresContainerRuntime("Docker OS", checkDockerOperatingSystem),
         checkTilt,
-        requiresContainerRuntime("Docker Compose", checkDockerCompose),
-        requiresContainerRuntime("Docker Versions", checkDockerVersions),
+        requiresContainerRuntime("Docker Compose", () => checkDockerCompose(cachedExec)),
+        requiresContainerRuntime("Docker Versions", () => checkDockerVersions(cachedExec)),
         checkBun,
         () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
         () => checkPublishedBindAddress(process.env, options.strict),
