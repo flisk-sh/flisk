@@ -11,7 +11,7 @@ import {
 describe("the replacement for a removed preset type", () => {
   it("points at the framework that replaced the type", () => {
     expect(replacementForRemovedType("redis")).toBe("--type database --framework redis");
-    expect(replacementForRemovedType("minio")).toBe("--type database --framework minio");
+    expect(replacementForRemovedType("minio")).toBe("--type storage --framework minio");
   });
 
   it("is undefined for a type that was never a preset", () => {

@@ -28,11 +28,12 @@ export const DATABASE_RESOURCE_TYPE = "database";
 export const DATABASE_FRAMEWORK = "postgres";
 /** `--type queue`: a message queue or broker, run as its own container (utils/infra-presets.ts). */
 export const QUEUE_RESOURCE_TYPE = "queue";
+/** `--type storage`: object storage, run as its own container (utils/infra-presets.ts). */
+export const STORAGE_RESOURCE_TYPE = "storage";
 /** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
 export const DATABASE_INFRA_FRAMEWORKS = [
     "redis",
     "qdrant",
-    "minio",
     "mlflow",
     "mysql",
     "mongodb",
@@ -42,6 +43,20 @@ export const DATABASE_INFRA_FRAMEWORKS = [
 export const QUEUE_FRAMEWORKS = ["nats", "rabbitmq"];
 /** The queue `--type queue` runs when no `--framework` is given. */
 export const DEFAULT_QUEUE_FRAMEWORK = "nats";
+/** `--type storage --framework <id>`. */
+export const STORAGE_FRAMEWORKS = ["minio"];
+/**
+ * The infrastructure types other than `database`: every framework of one is a preset container, and `--framework` may be
+ * left out for the default. A new kind of infrastructure (mail, payments) is one more entry here plus its presets.
+ */
+export const PRESET_RESOURCE_TYPES = {
+    [QUEUE_RESOURCE_TYPE]: {
+        label: "Queue",
+        frameworks: QUEUE_FRAMEWORKS,
+        default: DEFAULT_QUEUE_FRAMEWORK,
+    },
+    [STORAGE_RESOURCE_TYPE]: { label: "Storage", frameworks: STORAGE_FRAMEWORKS, default: "minio" },
+};
 /** The frameworks `--type database` accepts: the shared Postgres first, then the infrastructure presets. */
 export const DATABASE_FRAMEWORKS = [DATABASE_FRAMEWORK, ...DATABASE_INFRA_FRAMEWORKS];
 /**
@@ -52,13 +67,14 @@ export const RESOURCE_TYPE_VALUES = [
     ...CREATABLE_RESOURCE_TYPES,
     DATABASE_RESOURCE_TYPE,
     QUEUE_RESOURCE_TYPE,
+    STORAGE_RESOURCE_TYPE,
     "sdk",
 ];
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export const INFERENCE_RESOURCE_TYPE = "inference";
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
- * the `inference` preset, `database` and `queue`. `sdk` is left out because it only registers a package that
+ * the `inference` preset, `database`, `queue` and `storage`. `sdk` is left out because it only registers a package that
  * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
  * `resource_create` tool builds its type enum from this list.
  */
@@ -67,6 +83,7 @@ export const RESOURCE_CREATE_TYPE_VALUES = [
     INFERENCE_RESOURCE_TYPE,
     DATABASE_RESOURCE_TYPE,
     QUEUE_RESOURCE_TYPE,
+    STORAGE_RESOURCE_TYPE,
 ];
 export function isCreatableResourceType(value) {
     return (typeof value === "string" && CREATABLE_RESOURCE_TYPES.includes(value));

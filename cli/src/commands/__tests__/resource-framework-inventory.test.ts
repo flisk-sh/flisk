@@ -157,11 +157,11 @@ describe("flisk resource --frameworks", () => {
     expect(result.status, result.stderr).toBe(0);
     const help = result.stdout.replace(/\s+/g, " ");
     expect(help).toContain(
-      "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue)",
+      "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage)",
     );
   });
 
-  it("lists the database frameworks: the shared Postgres first, then Redis, Qdrant, MinIO and MLflow", () => {
+  it("lists the database frameworks: the shared Postgres first, then Redis, Qdrant and MLflow", () => {
     const result = flisk(["resource", "--type", "database", "--frameworks"]);
 
     expect(result.status, result.stderr).toBe(0);
@@ -170,7 +170,6 @@ describe("flisk resource --frameworks", () => {
       "postgres",
       "redis",
       "qdrant",
-      "minio",
       "mlflow",
       "mysql",
       "mongodb",
@@ -202,13 +201,26 @@ describe("flisk resource --frameworks", () => {
     ]);
   });
 
-  it("reports the database and queue frameworks in --json", () => {
-    for (const [type, ids] of [
+  it("lists the storage frameworks with MinIO as the default", () => {
+    const result = flisk(["resource", "--type", "storage", "--frameworks"]);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(rows(result.stdout)).toEqual([
       [
-        "database",
-        ["postgres", "redis", "qdrant", "minio", "mlflow", "mysql", "mongodb", "clickhouse"],
+        "minio",
+        "MinIO S3-compatible object storage",
+        "pgsty/minio:RELEASE.2026-08-04T00-00-00Z",
+        "default",
+        "flisk resource <name> --type storage --framework minio",
       ],
+    ]);
+  });
+
+  it("reports the database, queue and storage frameworks in --json", () => {
+    for (const [type, ids] of [
+      ["database", ["postgres", "redis", "qdrant", "mlflow", "mysql", "mongodb", "clickhouse"]],
       ["queue", ["nats", "rabbitmq"]],
+      ["storage", ["minio"]],
     ] as const) {
       const result = flisk(["resource", "--type", type, "--frameworks", "--json"]);
 

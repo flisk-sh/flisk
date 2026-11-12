@@ -38,6 +38,7 @@ import type {
   CreatableResourceType,
   FileGenerationTask,
   InfraFramework,
+  InfraResourceType,
   JsonCommandResult,
   PortAssignableResourceType,
   ResourceType,
@@ -45,9 +46,9 @@ import type {
 import {
   DATABASE_FRAMEWORK,
   DATABASE_RESOURCE_TYPE,
-  DEFAULT_QUEUE_FRAMEWORK,
   INFERENCE_RESOURCE_TYPE,
-  QUEUE_RESOURCE_TYPE,
+  PRESET_RESOURCE_TYPES,
+  type PresetResourceType,
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../types/index.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
@@ -68,11 +69,14 @@ import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../u
 import { showCommandHeader } from "../utils/formatting.js";
 import {
   createInfraServiceJson,
+  defaultFrameworkOfType,
   frameworksOfType,
   INFRA_PRESETS,
   type InfraPreset,
   infraFrameworkFor,
   isInfraFramework,
+  isInfraResourceType,
+  isPresetResourceType,
   replacementForRemovedType,
 } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
@@ -196,15 +200,14 @@ export function assertInfraPresetOptions(
 }
 
 /**
- * `--framework` for `--type database` (postgres, or an infrastructure framework) and `--type queue`: a wrong id gets the
- * type that offers it, because the ids of the two types are disjoint.
+ * `--framework` for `--type database` (postgres, or an infrastructure framework) and the preset types (`queue`, `storage`):
+ * a wrong id gets the type that offers it, because the ids of the types are disjoint.
  */
 export function assertInfraFramework(type: string, framework: string | undefined): void {
   if (framework === undefined) return;
-  const offered =
-    type === QUEUE_RESOURCE_TYPE
-      ? frameworksOfType(type)
-      : [DATABASE_FRAMEWORK, ...frameworksOfType(type)];
+  const offered = isPresetResourceType(type)
+    ? frameworksOfType(type)
+    : [DATABASE_FRAMEWORK, ...frameworksOfType(type)];
   if (offered.includes(framework)) return;
   const otherType = isInfraFramework(framework) ? INFRA_PRESETS[framework].type : undefined;
   throw new FliskError(
@@ -598,12 +601,10 @@ export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 
 /**
  * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` is a preset of it.
- * `database` and `queue` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
+ * `database`, `queue` and `storage` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
  * container is created. The preset types of 1.4.24 (redis, qdrant, rabbitmq, minio, mlflow) are frameworks now.
  */
-export function parseResourceType(
-  type: string,
-): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE | "sdk" {
+export function parseResourceType(type: string): CreatableResourceType | InfraResourceType | "sdk" {
   const replacement = replacementForRemovedType(type);
   if (replacement) {
     throw new FliskError(`${type} is a framework: use ${replacement}.`, [
@@ -618,11 +619,7 @@ export function parseResourceType(
       [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"],
     );
   }
-  return normalized as
-    | CreatableResourceType
-    | typeof DATABASE_RESOURCE_TYPE
-    | typeof QUEUE_RESOURCE_TYPE
-    | "sdk";
+  return normalized as CreatableResourceType | InfraResourceType | "sdk";
 }
 
 /** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */
@@ -720,7 +717,7 @@ function printFrameworkInventory(
     printFrontendFrameworks();
     return;
   }
-  if (listing.type === DATABASE_RESOURCE_TYPE || listing.type === QUEUE_RESOURCE_TYPE) {
+  if (isInfraResourceType(listing.type)) {
     for (const f of infraFrameworkListing(listing.type)) {
       console.log(
         `${f.id}\t${f.label}\t${f.image ?? "-"}\t${f.default ? "default" : "-"}\t${f.command}`,
@@ -741,13 +738,11 @@ function printFrameworkInventory(
 }
 
 /**
- * The frameworks `--type database` and `--type queue` accept, in the order the help lists them. The database default is
- * the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image, and a queue
- * without `--framework` is NATS.
+ * The frameworks `--type database` and the preset types (`queue`, `storage`) accept, in the order the help lists them. The
+ * database default is the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image,
+ * and a preset type without `--framework` runs its default (NATS, MinIO).
  */
-export function infraFrameworkListing(
-  type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE,
-): {
+export function infraFrameworkListing(type: InfraResourceType): {
   id: string;
   label: string;
   image: string | null;
@@ -760,11 +755,11 @@ export function infraFrameworkListing(
       id,
       label: preset.description,
       image: preset.image,
-      default: type === QUEUE_RESOURCE_TYPE && id === DEFAULT_QUEUE_FRAMEWORK,
+      default: id === defaultFrameworkOfType(type),
       command: `flisk resource <name> --type ${type} --framework ${id}`,
     };
   });
-  if (type === QUEUE_RESOURCE_TYPE) return rows;
+  if (isPresetResourceType(type)) return rows;
   return [
     {
       id: DATABASE_FRAMEWORK,
@@ -784,18 +779,18 @@ function frameworkListing(
 ):
   | { type: "frontend" }
   | { type: "backend"; language: string | undefined }
-  | { type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE } {
+  | { type: InfraResourceType } {
   // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
   // it is a backend option, and the frontend listing has never carried one.
   if (!isTypeExplicit) return { type: "frontend" };
 
   const resourceType = parseResourceType(options.type ?? "backend");
-  if (resourceType === DATABASE_RESOURCE_TYPE || resourceType === QUEUE_RESOURCE_TYPE) {
+  if (isInfraResourceType(resourceType)) {
     return { type: resourceType };
   }
   if (resourceType !== "frontend" && resourceType !== "backend") {
     throw new FliskError(`No frameworks are registered for --type ${resourceType}.`, [
-      "Use --type frontend, backend, database or queue to list frameworks",
+      `Use --type frontend, backend, database, ${Object.keys(PRESET_RESOURCE_TYPES).join(" or ")} to list frameworks`,
       "Omit --type to list the frontend frameworks",
     ]);
   }
@@ -813,7 +808,7 @@ export function frameworkInventoryReport(
   isTypeExplicit: boolean,
 ): Record<string, unknown> {
   const listing = frameworkListing(options, isTypeExplicit);
-  if (listing.type === DATABASE_RESOURCE_TYPE || listing.type === QUEUE_RESOURCE_TYPE) {
+  if (isInfraResourceType(listing.type)) {
     return { type: listing.type, frameworks: infraFrameworkListing(listing.type) };
   }
   return listing.type !== "backend"
@@ -884,7 +879,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .argument("[name]", "Resource name (kebab-case)")
   .option(
     "-t, --type <type>",
-    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, sdk",
+    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, storage, sdk",
     "backend",
   )
   .option(
@@ -893,7 +888,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   )
   .option(
     "--frameworks",
-    "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue)",
+    "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage)",
   )
   .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
   .option("-s, --stack <stack>", "Stack to assign resource to", "default")
@@ -1002,8 +997,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
 
       const requestedType = parseResourceType(options.type);
       const isInference = options.type === INFERENCE_TYPE;
-      if (requestedType === DATABASE_RESOURCE_TYPE || requestedType === QUEUE_RESOURCE_TYPE) {
-        // Asked on a terminal only; --yes and --json take the default (the shared Postgres, NATS).
+      if (isInfraResourceType(requestedType)) {
+        // Asked on a terminal only; --yes and --json take the default (the shared Postgres, NATS, MinIO).
         if (
           options.framework === undefined &&
           !assumeYes &&
@@ -1011,7 +1006,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
           process.stdout.isTTY
         ) {
           options.framework = await promptSelect({
-            message: `${requestedType === QUEUE_RESOURCE_TYPE ? "Queue" : "Database"} framework:`,
+            message: `${isPresetResourceType(requestedType) ? PRESET_RESOURCE_TYPES[requestedType].label : "Database"} framework:`,
             choices: infraFrameworkListing(requestedType).map((f) => ({
               title: `${f.id}: ${f.label}`,
               value: f.id,
@@ -1025,10 +1020,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
         requestedType,
         options.framework,
       );
-      // A queue is always an infrastructure framework (NATS without --framework), so it never reaches the scaffolding below.
+      // A preset type is always an infrastructure framework (its default without --framework), so it never reaches the
+      // scaffolding below.
       const resourceType = infraPreset
         ? BRING_YOUR_OWN_TYPE
-        : (requestedType as Exclude<typeof requestedType, typeof QUEUE_RESOURCE_TYPE>);
+        : (requestedType as Exclude<typeof requestedType, PresetResourceType>);
       const isDatabase = resourceType === DATABASE_RESOURCE_TYPE;
       // Before any early return below (databases, queues, bring-your-own), or --local would be accepted and ignored.
       if (options.local && resourceType !== "frontend" && resourceType !== "backend") {

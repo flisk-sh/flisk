@@ -19,7 +19,7 @@ import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 
 const originalCwd = process.cwd();
 
-describe("infrastructure frameworks (--type database|queue --framework ...)", () => {
+describe("infrastructure frameworks (--type database|queue|storage --framework ...)", () => {
   let tempDir: string;
 
   beforeEach(() => {
@@ -82,15 +82,22 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
     return JSON.parse(readFileSync(join(dir, "service.json"), "utf-8")) as Record<string, unknown>;
   }
 
-  it("keeps database and queue as types of their own", () => {
+  it("keeps database, queue and storage as types of their own", () => {
     expect(parseResourceType("database")).toBe("database");
     expect(parseResourceType("queue")).toBe("queue");
+    expect(parseResourceType("storage")).toBe("storage");
+  });
+
+  it("writes MinIO for --type storage without --framework, the same as --framework minio", async () => {
+    const store = await create("store", "storage");
+    expect(store).toMatchObject({ appType: "bring-your-own", framework: "minio", port: 9000 });
+    expect(await create("store2", "storage", "minio")).toMatchObject({ framework: "minio" });
   });
 
   it.each([
     ["redis", "--type database --framework redis"],
     ["qdrant", "--type database --framework qdrant"],
-    ["minio", "--type database --framework minio"],
+    ["minio", "--type storage --framework minio"],
     ["mlflow", "--type database --framework mlflow"],
     ["rabbitmq", "--type queue --framework rabbitmq"],
   ])("--type %s was a preset and is a framework now: %s", (type, replacement) => {
@@ -154,7 +161,7 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
   it("publishes the UI of Qdrant, RabbitMQ and MinIO on 127.0.0.1 only through extraPorts", async () => {
     const vectors = await create("vectors", "database", "qdrant");
     const broker = await create("broker", "queue", "rabbitmq");
-    const store = await create("store", "database", "minio");
+    const store = await create("store", "storage", "minio");
     expect(vectors).toMatchObject({
       framework: "qdrant",
       port: 6333,
@@ -180,7 +187,7 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
   });
 
   it("writes MinIO with a start command, the community image and the S3 settings it provides", async () => {
-    const store = await create("store", "database", "minio");
+    const store = await create("store", "storage", "minio");
     expect(store).toMatchObject({
       framework: "minio",
       port: 9000,
@@ -249,7 +256,7 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
     const all: Array<[string, string, string]> = [
       ["cache", "database", "redis"],
       ["vectors", "database", "qdrant"],
-      ["store", "database", "minio"],
+      ["store", "storage", "minio"],
       ["tracking", "database", "mlflow"],
       ["bus", "queue", "nats"],
       ["broker", "queue", "rabbitmq"],
@@ -269,7 +276,7 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
 
   it("refuses a framework of the other type, naming the one that offers it", () => {
     expect(() => assertInfraFramework("database", "rabbitmq")).toThrow(
-      "--framework rabbitmq is not a database Flisk can run. Use one of: postgres, redis, qdrant, minio, mlflow, mysql, mongodb, clickhouse.",
+      "--framework rabbitmq is not a database Flisk can run. Use one of: postgres, redis, qdrant, mlflow, mysql, mongodb, clickhouse.",
     );
     expect(() => assertInfraFramework("queue", "redis")).toThrow(
       "--framework redis is not a queue Flisk can run. Use one of: nats, rabbitmq.",
@@ -277,6 +284,13 @@ describe("infrastructure frameworks (--type database|queue --framework ...)", ()
     expect(() => assertInfraFramework("queue", "kafka")).toThrow("Use one of: nats, rabbitmq");
     expect(() => assertInfraFramework("database", "postgres")).not.toThrow();
     expect(() => assertInfraFramework("queue", undefined)).not.toThrow();
+    // MinIO moved from database to storage: the old spelling names the type that offers it now.
+    expect(() => assertInfraFramework("database", "minio")).toThrow(
+      expect.objectContaining({
+        suggestions: ["minio is a storage: use --type storage --framework minio"],
+      }),
+    );
+    expect(() => assertInfraFramework("storage", undefined)).not.toThrow();
   });
 
   it("refuses --framework redis on a backend, as before: it names app frameworks", async () => {

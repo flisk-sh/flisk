@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { DATABASE_INFRA_FRAMEWORKS, DATABASE_RESOURCE_TYPE, DEFAULT_QUEUE_FRAMEWORK, QUEUE_FRAMEWORKS, QUEUE_RESOURCE_TYPE, } from "../types/index.js";
+import { DATABASE_INFRA_FRAMEWORKS, DATABASE_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, QUEUE_RESOURCE_TYPE, STORAGE_RESOURCE_TYPE, } from "../types/index.js";
 import { SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "./service-manifest.js";
 const MINIO_USER = "minioadmin";
 const MINIO_PASSWORD = "minioadmin";
@@ -44,7 +44,7 @@ export const INFRA_PRESETS = {
         provides: { QDRANT_URL: "http://{name}:6333" },
     },
     minio: {
-        type: DATABASE_RESOURCE_TYPE,
+        type: STORAGE_RESOURCE_TYPE,
         description: "MinIO S3-compatible object storage",
         // MinIO stopped publishing images (minio/minio and quay.io/minio/minio). pgsty/minio is a community fork of the last
         // open-source release with the same CLI and S3 API, pinned here; pass --image to use another build.
@@ -147,7 +147,7 @@ export const INFRA_PRESETS = {
         provides: { AMQP_URL: "amqp://guest:guest@{name}:5672" },
     },
 };
-/** Types that used to be presets (1.4.24) and now are a framework of `database` or `queue`. */
+/** Types that used to be presets (1.4.24) and now are a framework of `database`, `queue` or `storage`. */
 const REMOVED_PRESET_TYPES = {
     redis: "redis",
     qdrant: "qdrant",
@@ -164,19 +164,33 @@ export function isInfraFramework(value) {
     return typeof value === "string" && Object.hasOwn(INFRA_PRESETS, value);
 }
 /**
- * The preset `--type database|queue` with `--framework` selects, or undefined for the shared Postgres (`--type database`
- * with no framework or `postgres`). A queue without `--framework` is NATS. Throws nothing: assertInfraFramework reports a
- * wrong combination.
+ * The preset `--type database|queue|storage` with `--framework` selects, or undefined for the shared Postgres (`--type
+ * database` with no framework or `postgres`). A preset type without `--framework` runs its default (a queue is NATS, storage
+ * is MinIO). Throws nothing: assertInfraFramework reports a wrong combination.
  */
 export function infraFrameworkFor(type, framework) {
-    if (type === QUEUE_RESOURCE_TYPE) {
-        return (framework ?? DEFAULT_QUEUE_FRAMEWORK);
+    if (isPresetResourceType(type)) {
+        return (framework ?? PRESET_RESOURCE_TYPES[type].default);
     }
     return type === DATABASE_RESOURCE_TYPE && isInfraFramework(framework) ? framework : undefined;
 }
+/** True for a `--type` whose every framework is a preset container (`queue`, `storage`). */
+export function isPresetResourceType(type) {
+    return Object.hasOwn(PRESET_RESOURCE_TYPES, type);
+}
+/** True for a `--type` that offers infrastructure frameworks: `database` and the preset types. */
+export function isInfraResourceType(type) {
+    return type === DATABASE_RESOURCE_TYPE || isPresetResourceType(type);
+}
 /** The frameworks `type` accepts, in the order the help lists them. */
 export function frameworksOfType(type) {
-    return type === QUEUE_RESOURCE_TYPE ? QUEUE_FRAMEWORKS : DATABASE_INFRA_FRAMEWORKS;
+    return isPresetResourceType(type)
+        ? PRESET_RESOURCE_TYPES[type].frameworks
+        : DATABASE_INFRA_FRAMEWORKS;
+}
+/** The framework a preset type runs when `--framework` is left out; undefined for `database` (the shared Postgres). */
+export function defaultFrameworkOfType(type) {
+    return isPresetResourceType(type) ? PRESET_RESOURCE_TYPES[type].default : undefined;
 }
 /** The service.json of an infrastructure preset. `image` replaces the pinned image (for example redis:8-alpine). */
 export function createInfraServiceJson(name, stack, framework, image) {

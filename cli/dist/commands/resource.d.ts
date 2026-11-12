@@ -1,8 +1,7 @@
 import { Command } from "commander";
 import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate } from "../backend-languages/bun.js";
 import type { FrontendFrameworkFile } from "../frontend-frameworks/types.js";
-import type { AgentConfig, CreatableResourceType, InfraFramework, PortAssignableResourceType } from "../types/index.js";
-import { DATABASE_RESOURCE_TYPE, QUEUE_RESOURCE_TYPE } from "../types/index.js";
+import type { AgentConfig, CreatableResourceType, InfraFramework, InfraResourceType, PortAssignableResourceType } from "../types/index.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 export declare const BASE_TEMPLATE: {
     readonly port: 0;
@@ -31,8 +30,8 @@ export declare function assertInfraPresetOptions(framework: InfraFramework, opti
     image?: string;
 }): void;
 /**
- * `--framework` for `--type database` (postgres, or an infrastructure framework) and `--type queue`: a wrong id gets the
- * type that offers it, because the ids of the two types are disjoint.
+ * `--framework` for `--type database` (postgres, or an infrastructure framework) and the preset types (`queue`, `storage`):
+ * a wrong id gets the type that offers it, because the ids of the types are disjoint.
  */
 export declare function assertInfraFramework(type: string, framework: string | undefined): void;
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
@@ -159,10 +158,10 @@ export declare const TSCONFIG_TEMPLATE: {
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 /**
  * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` is a preset of it.
- * `database` and `queue` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
+ * `database`, `queue` and `storage` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
  * container is created. The preset types of 1.4.24 (redis, qdrant, rabbitmq, minio, mlflow) are frameworks now.
  */
-export declare function parseResourceType(type: string): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE | "sdk";
+export declare function parseResourceType(type: string): CreatableResourceType | InfraResourceType | "sdk";
 /** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */
 export declare function createDatabaseServiceJson(name: string, stack: string): Record<string, unknown>;
 type ExistingServiceConfig = {
@@ -189,11 +188,11 @@ type ExistingServiceConfig = {
  */
 export declare function parseExistingServiceJson(content: string, configPath: string): ExistingServiceConfig;
 /**
- * The frameworks `--type database` and `--type queue` accept, in the order the help lists them. The database default is
- * the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image, and a queue
- * without `--framework` is NATS.
+ * The frameworks `--type database` and the preset types (`queue`, `storage`) accept, in the order the help lists them. The
+ * database default is the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image,
+ * and a preset type without `--framework` runs its default (NATS, MinIO).
  */
-export declare function infraFrameworkListing(type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE): {
+export declare function infraFrameworkListing(type: InfraResourceType): {
     id: string;
     label: string;
     image: string | null;

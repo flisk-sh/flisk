@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# The infrastructure frameworks (`flisk resource --type database --framework redis|qdrant|minio|mlflow`, `--type queue
+# The infrastructure frameworks (`flisk resource --type database --framework redis|qdrant|mlflow`, `--type storage --framework minio`, `--type queue
 # --framework nats|rabbitmq`), through a real `flisk up`.
 # Needs Docker, Tilt, and a built CLI (cli/dist). Uses an isolated throwaway project with unique names and alternate ports,
 # and removes only the containers, networks, volumes and images carrying its own unique project name.
@@ -52,7 +52,7 @@ printf '\nFLISK_HTTP_PORT=%s\nFLISK_HTTPS_PORT=%s\nFLISK_POSTGRES_PORT=%s\n' \
 
 flisk resource cache --type database --framework redis --stack app --yes >/dev/null
 flisk resource vectors --type database --framework qdrant --stack app --yes >/dev/null
-flisk resource store --type database --framework minio --stack app --yes >/dev/null
+flisk resource store --type storage --framework minio --stack app --yes >/dev/null
 flisk resource tracking --type database --framework mlflow --stack app --yes >/dev/null
 flisk resource bus --type queue --stack app --yes >/dev/null
 flisk resource queue --type queue --framework rabbitmq --stack app --yes >/dev/null

@@ -133,7 +133,6 @@ describe("printFrameworkInventory for database and queue", () => {
       "postgres",
       "redis",
       "qdrant",
-      "minio",
       "mlflow",
       "mysql",
       "mongodb",
@@ -193,11 +192,11 @@ describe("printFrameworkInventory for database and queue", () => {
     expect(envelope.data.frameworks.map((f: { id: string }) => f.id)).toEqual(["nats", "rabbitmq"]);
   });
 
-  it("still refuses a type with no framework inventory, naming the four that have one", async () => {
+  it("still refuses a type with no framework inventory, naming the five that have one", async () => {
     const result = await runFrameworkListing(["--type", "worker", "--frameworks"]);
 
     expect(result.stderr + result.stdout).toContain(
-      "Use --type frontend, backend, database or queue to list frameworks",
+      "Use --type frontend, backend, database, queue or storage to list frameworks",
     );
   });
 });
