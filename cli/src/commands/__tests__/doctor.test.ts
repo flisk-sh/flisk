@@ -10,7 +10,6 @@ import { CONTAINER_RUNTIME_CHECK, STANDARD_PORTS } from "../../utils/constants.j
 import {
   checkHostPorts,
   checkIngressPorts,
-  createHostCommandCache,
   checkPrivateNpmRegistry,
   checkTiltResourceHealth,
   findForeignIngressHolders,
@@ -22,6 +21,7 @@ import {
   summarizeTiltBuildError,
 } from "../../utils/doctor-runtime.js";
 import { checkSharedStackRoutes } from "../../utils/doctor-wiring.js";
+import { createHostCommandCache } from "../../utils/host-command-cache.js";
 import {
   checkWindowsDockerMode,
   checkWindowsHostConfiguration,

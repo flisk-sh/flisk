@@ -66,7 +66,6 @@ import {
   checkIngressPorts,
   checkPrivateNpmRegistry,
   checkTiltResourceHealth,
-  createHostCommandCache,
   projectConfigEnablesVerdaccio,
   summarizeAdvertisedProbes,
   summarizeServiceProbes,
@@ -93,6 +92,7 @@ import { validateEnvFile } from "../utils/env-validator.js";
 import { type ExecAsync, execAsync, isExecTimeout } from "../utils/exec-async.js";
 import { evaluateFliskVersion } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
+import { createHostCommandCache } from "../utils/host-command-cache.js";
 import {
   describeHostPortPlan,
   getHostPortPlan,
@@ -1852,6 +1852,7 @@ export const doctorCommand = new Command("doctor")
         hostPortPlan = await getHostPortPlan(projectRoot ?? process.cwd(), {
           database: dbEnabled,
           gateway: gatewayEnabled,
+          commandCache: hostCommandCache,
         });
       } catch (error) {
         hostPortPlan = null;
