@@ -51,8 +51,7 @@ jobs:
           persist-credentials: false
 
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
-        with:
-          bun-version: latest
+        # bun-version inherited from composite default (1.4.4)
 
       - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
