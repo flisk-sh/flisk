@@ -78,7 +78,7 @@ export declare function projectExpectsVerdaccio(projectRoot?: string): boolean;
  * When the project uses a local Verdaccio registry, fail early with a clear
  * fix instead of only showing truncated ImageBuild exit codes later.
  */
-export declare function checkPrivateNpmRegistry(exec?: typeof execSync, projectRoot?: string, registryUrl?: string, verdaccioLicensed?: boolean): CheckResult;
+export declare function checkPrivateNpmRegistry(exec?: typeof execSync, projectRoot?: string, registryUrl?: string, verdaccioLicensed?: boolean, commandCache?: HostCommandCache): CheckResult;
 /**
  * Fail when another container already owns Traefik's host ports (80/443).
  * This is the exact failure mode that leaves apps never scheduled while doctor

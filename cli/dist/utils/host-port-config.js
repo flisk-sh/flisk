@@ -14,7 +14,7 @@ import { extraPortsOf } from "./status-ports.js";
 import { findTiltPortOwner, isForeignTilt } from "./tilt-port-owner.js";
 const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
 /** Run the `docker ps` that the ingress check shares, once per cache. */
-function readSharedDockerPs(cache) {
+export function readSharedDockerPs(cache) {
     const { args, shellCommand, timeoutMs } = SHARED_DOCKER_PS;
     const options = { encoding: "utf-8", timeout: timeoutMs };
     return runCachedHostCommand(cache, shellCommand, options, () => execFileSync("docker", [...args], options));

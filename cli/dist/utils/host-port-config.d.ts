@@ -1,6 +1,8 @@
 import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
 import { type HostCommandCache } from "./host-command-cache.js";
 import { type TiltPortOwner } from "./tilt-port-owner.js";
+/** Run the `docker ps` that the ingress check shares, once per cache. */
+export declare function readSharedDockerPs(cache: HostCommandCache): string;
 /** Convert `name<TAB>image<TAB>ports` lines to the `name|ports` lines isDockerPortOwnedByProject reads. */
 export declare function toNamePortsLines(tabbed: string): string;
 export declare function isDockerPortOwnedByProject(dockerPs: string, projectPrefix: string, port: number): boolean;
