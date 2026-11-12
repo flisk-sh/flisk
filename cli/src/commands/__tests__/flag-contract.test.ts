@@ -21,6 +21,7 @@ import { downCommand } from "../down.js";
 import { ejectCommand } from "../eject.js";
 import { networksCommand } from "../networks.js";
 import { projectsCommand } from "../projects.js";
+import { resourceCommand } from "../resource.js";
 import { resourcesCommand } from "../resources.js";
 import { stacksCommand } from "../stacks.js";
 import { statusCommand } from "../status.js";
@@ -125,6 +126,12 @@ const DRY_RUN_MATRIX: Array<{
   project: Parameters<typeof createTempProject>[0];
   expect: string;
 }> = [
+  {
+    site: "resource --dry-run",
+    command: ["resource"],
+    project: CONFIGURED_PROJECT,
+    expect: "Dry run",
+  },
   {
     site: "config regenerate --dry-run",
     command: ["config", "regenerate"],
@@ -486,6 +493,7 @@ describe("flag contract: completeness", () => {
 
 /** The command object and arguments that each dry-run row runs in-process, without `--dry-run` (added below). */
 const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
+  resource: { command: resourceCommand, args: ["preview-api", "--stack", "api", "--yes"] },
   "config regenerate": { command: configCommand, args: ["regenerate"] },
   connect: { command: connectCommand, args: ["claude"] },
   down: { command: downCommand, args: [] },
