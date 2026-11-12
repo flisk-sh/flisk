@@ -17,5 +17,8 @@
 	"skills-parity": 100,
 	"steps-to-first-healthy": 7,
 	"tool-consistency": 0,
-	"translation-drift": 0
+	"translation-drift": 0,
+	"agents-md-size": 706,
+	"memory-size": 50.2,
+	"openspec-unarchived": 17
 }
