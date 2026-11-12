@@ -28,7 +28,7 @@ import { validateEnvFile } from "../utils/env-validator.js";
 import { execAsync, isExecTimeout } from "../utils/exec-async.js";
 import { evaluateFliskVersion } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
-import { cacheExecAsync, createAsyncCommandCache, createHostCommandCache, } from "../utils/host-command-cache.js";
+import { cacheExecAsync, createAsyncCommandCache, createHostCommandCache, hasSharedDockerPsOutput, } from "../utils/host-command-cache.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
@@ -328,10 +328,13 @@ export async function checkColima() {
             "Start Colima: colima start\n  Verify: colima status\n  Docs: https://github.com/abiosoft/colima",
     };
 }
-export async function checkDockerRuntime() {
+export async function checkDockerRuntime(commandCache) {
+    // The port plan already listed containers with `docker ps`; a success there means the daemon is up.
+    const daemonAlreadyListed = hasSharedDockerPsOutput(commandCache);
     if (process.platform === "win32") {
         try {
-            await execAsync("docker ps", EXEC_TIMEOUT_MS);
+            if (!daemonAlreadyListed)
+                await execAsync("docker ps", EXEC_TIMEOUT_MS);
             return {
                 name: CONTAINER_RUNTIME_CHECK,
                 didPass: true,
@@ -349,7 +352,8 @@ export async function checkDockerRuntime() {
     }
     const hasDockerCli = Boolean(findOnPath("docker"));
     try {
-        await execAsync("docker ps", EXEC_TIMEOUT_MS);
+        if (!daemonAlreadyListed)
+            await execAsync("docker ps", EXEC_TIMEOUT_MS);
         return {
             name: CONTAINER_RUNTIME_CHECK,
             didPass: true,
@@ -1557,7 +1561,7 @@ export const doctorCommand = new Command("doctor")
             ]
             : []),
         checkColima,
-        checkDockerRuntime,
+        () => checkDockerRuntime(hostCommandCache),
         () => checkDiskSpace(),
         requiresContainerRuntime("Docker Build Cache", () => checkDockerBuildCache()),
         requiresContainerRuntime("Docker OS", checkDockerOperatingSystem),

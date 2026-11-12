@@ -33,6 +33,14 @@ export const SHARED_DOCKER_PS = {
     shellCommand: "docker ps --format '{{.Names}}\\t{{.Image}}\\t{{.Ports}}'",
     timeoutMs: 10_000,
 };
+/** True when the shared docker ps already ran in this cache and succeeded, so the daemon is up. */
+export function hasSharedDockerPsOutput(cache) {
+    if (!cache)
+        return false;
+    const key = JSON.stringify([SHARED_DOCKER_PS.shellCommand, "utf-8", SHARED_DOCKER_PS.timeoutMs]);
+    const cached = cache.get(key);
+    return cached !== undefined && "output" in cached;
+}
 /**
  * Run `run` once per key. Later callers get the stored output, or the stored error rethrown.
  * Without a cache it just runs.

@@ -96,6 +96,8 @@ import {
   cacheExecAsync,
   createAsyncCommandCache,
   createHostCommandCache,
+  type HostCommandCache,
+  hasSharedDockerPsOutput,
 } from "../utils/host-command-cache.js";
 import {
   describeHostPortPlan,
@@ -481,10 +483,12 @@ export async function checkColima(): Promise<CheckResult> {
   };
 }
 
-export async function checkDockerRuntime(): Promise<CheckResult> {
+export async function checkDockerRuntime(commandCache?: HostCommandCache): Promise<CheckResult> {
+  // The port plan already listed containers with `docker ps`; a success there means the daemon is up.
+  const daemonAlreadyListed = hasSharedDockerPsOutput(commandCache);
   if (process.platform === "win32") {
     try {
-      await execAsync("docker ps", EXEC_TIMEOUT_MS);
+      if (!daemonAlreadyListed) await execAsync("docker ps", EXEC_TIMEOUT_MS);
       return {
         name: CONTAINER_RUNTIME_CHECK,
         didPass: true,
@@ -502,7 +506,7 @@ export async function checkDockerRuntime(): Promise<CheckResult> {
   const hasDockerCli = Boolean(findOnPath("docker"));
 
   try {
-    await execAsync("docker ps", EXEC_TIMEOUT_MS);
+    if (!daemonAlreadyListed) await execAsync("docker ps", EXEC_TIMEOUT_MS);
     return {
       name: CONTAINER_RUNTIME_CHECK,
       didPass: true,
@@ -1915,7 +1919,7 @@ export const doctorCommand = new Command("doctor")
           ]
         : []),
       checkColima,
-      checkDockerRuntime,
+      () => checkDockerRuntime(hostCommandCache),
       () => checkDiskSpace(),
       requiresContainerRuntime("Docker Build Cache", () => checkDockerBuildCache()),
       requiresContainerRuntime("Docker OS", checkDockerOperatingSystem),
