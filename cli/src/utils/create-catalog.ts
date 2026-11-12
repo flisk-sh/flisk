@@ -24,7 +24,7 @@ import {
   CREATABLE_RESOURCE_TYPES,
   DATABASE_FRAMEWORKS,
   DATABASE_RESOURCE_TYPE,
-  QUEUE_RESOURCE_TYPE,
+  PRESET_RESOURCE_TYPES,
 } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { frameworksOfType, INFRA_PRESETS } from "./infra-presets.js";
@@ -107,10 +107,11 @@ export interface ExtraOption {
 
 /**
  * Extra parts a project can add on the Docker route: the creatable resource types that are not the website or the API, and
- * every framework of the infrastructure types (queues, databases).
+ * every framework of the infrastructure types (queues, storage, databases).
  */
 export function extraCatalog(): ExtraOption[] {
-  const infra = [QUEUE_RESOURCE_TYPE, DATABASE_RESOURCE_TYPE].flatMap((type) =>
+  const presetTypes = Object.keys(PRESET_RESOURCE_TYPES);
+  const infra = [...presetTypes, DATABASE_RESOURCE_TYPE].flatMap((type) =>
     // `--type database` also takes the shared Postgres, which is not an infrastructure preset.
     (type === DATABASE_RESOURCE_TYPE ? DATABASE_FRAMEWORKS : frameworksOfType(type)).map(
       (framework) => {

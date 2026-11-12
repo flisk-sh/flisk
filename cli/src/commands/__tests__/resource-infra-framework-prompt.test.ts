@@ -78,7 +78,6 @@ describe("interactive database and queue framework choice", () => {
       "postgres",
       "redis",
       "qdrant",
-      "minio",
       "mlflow",
       "mysql",
       "mongodb",
@@ -131,7 +130,7 @@ describe("interactive database and queue framework choice", () => {
     const result = await runResource([
       "store",
       "--type",
-      "database",
+      "storage",
       "--framework",
       "minio",
       "--stack",

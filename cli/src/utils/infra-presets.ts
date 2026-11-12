@@ -3,10 +3,12 @@
 import {
   DATABASE_INFRA_FRAMEWORKS,
   DATABASE_RESOURCE_TYPE,
-  DEFAULT_QUEUE_FRAMEWORK,
   type InfraFramework,
-  QUEUE_FRAMEWORKS,
+  type InfraResourceType,
+  PRESET_RESOURCE_TYPES,
+  type PresetResourceType,
   QUEUE_RESOURCE_TYPE,
+  STORAGE_RESOURCE_TYPE,
 } from "../types/index.js";
 import {
   SERVICE_MANIFEST_SCHEMA_URL,
@@ -14,8 +16,9 @@ import {
 } from "./service-manifest.js";
 
 /**
- * Infrastructure frameworks: `flisk resource <name> --type database --framework redis|qdrant|minio|mlflow` and
- * `--type queue --framework nats|rabbitmq` (the shared Postgres is `--type database` on its own). Each is a pinned image
+ * Infrastructure frameworks: `flisk resource <name> --type database --framework redis|qdrant|mlflow|...`,
+ * `--type queue --framework nats|rabbitmq` and `--type storage --framework minio` (the shared Postgres is `--type database`
+ * on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
  * with a readiness probe, a named data volume that `flisk down` keeps, and `provides`: the connection settings every
  * service that lists it in `dependsOn` gets in its environment. Services in the stack reach it on the Docker network by
  * name. A framework with a web UI also publishes it on 127.0.0.1 only (`extraPorts`); two resources of one framework
@@ -24,7 +27,7 @@ import {
  */
 export interface InfraPreset {
   /** The resource type that offers it. */
-  type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE;
+  type: InfraResourceType;
   /** What it is, for `flisk resource --help` and the created message. */
   description: string;
   image: string;
@@ -90,7 +93,7 @@ export const INFRA_PRESETS = {
     provides: { QDRANT_URL: "http://{name}:6333" },
   },
   minio: {
-    type: DATABASE_RESOURCE_TYPE,
+    type: STORAGE_RESOURCE_TYPE,
     description: "MinIO S3-compatible object storage",
     // MinIO stopped publishing images (minio/minio and quay.io/minio/minio). pgsty/minio is a community fork of the last
     // open-source release with the same CLI and S3 API, pinned here; pass --image to use another build.
@@ -194,7 +197,7 @@ export const INFRA_PRESETS = {
   },
 } as const satisfies Record<InfraFramework, InfraPreset>;
 
-/** Types that used to be presets (1.4.24) and now are a framework of `database` or `queue`. */
+/** Types that used to be presets (1.4.24) and now are a framework of `database`, `queue` or `storage`. */
 const REMOVED_PRESET_TYPES: Record<string, InfraFramework> = {
   redis: "redis",
   qdrant: "qdrant",
@@ -214,23 +217,40 @@ export function isInfraFramework(value: unknown): value is InfraFramework {
 }
 
 /**
- * The preset `--type database|queue` with `--framework` selects, or undefined for the shared Postgres (`--type database`
- * with no framework or `postgres`). A queue without `--framework` is NATS. Throws nothing: assertInfraFramework reports a
- * wrong combination.
+ * The preset `--type database|queue|storage` with `--framework` selects, or undefined for the shared Postgres (`--type
+ * database` with no framework or `postgres`). A preset type without `--framework` runs its default (a queue is NATS, storage
+ * is MinIO). Throws nothing: assertInfraFramework reports a wrong combination.
  */
 export function infraFrameworkFor(
   type: string,
   framework: string | undefined,
 ): InfraFramework | undefined {
-  if (type === QUEUE_RESOURCE_TYPE) {
-    return (framework ?? DEFAULT_QUEUE_FRAMEWORK) as InfraFramework;
+  if (isPresetResourceType(type)) {
+    return (framework ?? PRESET_RESOURCE_TYPES[type].default) as InfraFramework;
   }
   return type === DATABASE_RESOURCE_TYPE && isInfraFramework(framework) ? framework : undefined;
 }
 
+/** True for a `--type` whose every framework is a preset container (`queue`, `storage`). */
+export function isPresetResourceType(type: string): type is PresetResourceType {
+  return Object.hasOwn(PRESET_RESOURCE_TYPES, type);
+}
+
+/** True for a `--type` that offers infrastructure frameworks: `database` and the preset types. */
+export function isInfraResourceType(type: string): type is InfraResourceType {
+  return type === DATABASE_RESOURCE_TYPE || isPresetResourceType(type);
+}
+
 /** The frameworks `type` accepts, in the order the help lists them. */
 export function frameworksOfType(type: string): readonly string[] {
-  return type === QUEUE_RESOURCE_TYPE ? QUEUE_FRAMEWORKS : DATABASE_INFRA_FRAMEWORKS;
+  return isPresetResourceType(type)
+    ? PRESET_RESOURCE_TYPES[type].frameworks
+    : DATABASE_INFRA_FRAMEWORKS;
+}
+
+/** The framework a preset type runs when `--framework` is left out; undefined for `database` (the shared Postgres). */
+export function defaultFrameworkOfType(type: string): string | undefined {
+  return isPresetResourceType(type) ? PRESET_RESOURCE_TYPES[type].default : undefined;
 }
 
 /** The service.json of an infrastructure preset. `image` replaces the pinned image (for example redis:8-alpine). */

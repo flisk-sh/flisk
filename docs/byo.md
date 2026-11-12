@@ -438,12 +438,12 @@ with the NVIDIA runtime).
 ## Infrastructure frameworks (Redis, Qdrant, MinIO, MLflow, MySQL, MongoDB, ClickHouse, NATS, RabbitMQ)
 
 Postgres and NATS come with every project. For a cache, a vector store, S3-compatible object storage, experiment tracking or
-a second queue, create a resource of type `database` or `queue` and name its framework:
+a second queue, create a resource of type `database`, `storage` or `queue` and name its framework:
 
 ```bash
 flisk resource cache --type database --framework redis --stack hqc
 flisk resource vectors --type database --framework qdrant --stack hqc
-flisk resource store --type database --framework minio --stack hqc
+flisk resource store --type storage --framework minio --stack hqc
 flisk resource tracking --type database --framework mlflow --stack hqc
 flisk resource sql --type database --framework mysql --stack hqc
 flisk resource docs --type database --framework mongodb --stack hqc
@@ -462,7 +462,7 @@ routed through Traefik.
 | --- | --- | --- | --- | --- | --- |
 | `database` | `redis` | `redis:7.4-alpine` | 6379 | `/data` | `REDIS_URL=redis://<name>:6379` |
 | `database` | `qdrant` | `qdrant/qdrant:v1.12.5` | 6333 | `/qdrant/storage` | `QDRANT_URL=http://<name>:6333` |
-| `database` | `minio` | `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` | 9000 | `/data` | `MINIO_ENDPOINT`, `AWS_ENDPOINT_URL_S3` (`http://<name>:9000`), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
+| `storage` | `minio` | `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` | 9000 | `/data` | `MINIO_ENDPOINT`, `AWS_ENDPOINT_URL_S3` (`http://<name>:9000`), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
 | `database` | `mlflow` | `ghcr.io/mlflow/mlflow:v3.17.2` | 5000 | `/data` | `MLFLOW_TRACKING_URI=http://<name>:5000` |
 | `database` | `mysql` | `mysql:8.4` | 3306 | `/var/lib/mysql` | `MYSQL_URL=mysql://root:flisk@<name>:3306/app` |
 | `database` | `mongodb` | `mongo:8.0` | 27017 | `/data/db` | `MONGODB_URL=mongodb://<name>:27017` |

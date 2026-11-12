@@ -429,13 +429,13 @@ describe("shell completion candidates", () => {
         "postgres",
         "redis",
         "qdrant",
-        "minio",
         "mlflow",
         "mysql",
         "mongodb",
         "clickhouse",
       ]);
       expect(typeValuesOf(shell, "--framework", "queue"), shell).toEqual(["nats", "rabbitmq"]);
+      expect(typeValuesOf(shell, "--framework", "storage"), shell).toEqual(["minio"]);
     }
   });
 
