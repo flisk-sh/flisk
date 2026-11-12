@@ -1,12 +1,39 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import type { ExecAsync } from "./exec-async.js";
+
 /** Results of host commands for one `flisk doctor` run, keyed by command string and options. */
 export type HostCommandCache = Map<string, { output: string } | { error: unknown }>;
 
 /** Create the cache once per doctor run and pass it to the checks; never keep it at module level. */
 export function createHostCommandCache(): HostCommandCache {
   return new Map();
+}
+
+/** Promises of async host commands for one `flisk doctor` run, keyed by command and timeout. */
+export type AsyncCommandCache = Map<string, Promise<string>>;
+
+/** Create the cache once per doctor run and pass it to `cacheExecAsync`; never keep it at module level. */
+export function createAsyncCommandCache(): AsyncCommandCache {
+  return new Map();
+}
+
+/**
+ * Wrap an ExecAsync so each command and timeout runs once. The promise is stored, so a caller that
+ * arrives while the command is still running joins it, and a rejected promise reaches every caller.
+ */
+export function cacheExecAsync(exec: ExecAsync, cache: AsyncCommandCache): ExecAsync {
+  return (command, timeoutMs) => {
+    const key = JSON.stringify([command, timeoutMs]);
+    let pending = cache.get(key);
+    if (!pending) {
+      // `.then` turns a synchronous throw from exec into a rejection that is cached like any other.
+      pending = Promise.resolve().then(() => exec(command, timeoutMs));
+      cache.set(key, pending);
+    }
+    return pending;
+  };
 }
 
 /**
