@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import chalk from "chalk";
 import { Command } from "commander";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
@@ -171,6 +172,12 @@ export const logsCommand = new Command("logs")
             });
             if (options.json) {
                 console.log(JSON.stringify(redactValue(createMachineEnvelope({ services, tail, since: options.since ?? null, lines }), secrets)));
+                return;
+            }
+            if (lines.length === 0) {
+                const names = selected.join(", ");
+                const window = options.since === undefined ? "" : ` in the last ${options.since}`;
+                console.log(chalk.gray(`No log lines yet for ${names}. It may not have started, or it printed nothing${window}.`));
                 return;
             }
             const width = Math.max(0, ...lines.map((line) => line.resource.length));
