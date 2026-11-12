@@ -58,7 +58,9 @@ export const TYPE_SPECIFIC = {
     },
     worker: {
         dev: {
-            command: "bun run worker",
+            // The scaffolded package.json has no "worker" script; "dev" matches its
+            // `bun run --watch src/index.ts` script (#3740).
+            command: "bun run dev",
             watch: ["src/**/*"],
         },
     },
