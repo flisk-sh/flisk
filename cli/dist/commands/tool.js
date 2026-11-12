@@ -14,7 +14,10 @@ import { cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { findProjectRoot } from "../utils/paths.js";
+import { discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, resourceArgs, TOOL_CATALOG, toolIds, } from "../utils/tool-catalog.js";
+import { validateResourceName } from "../utils/validation.js";
 const GROUP_TITLES = {
     frontend: "Frontend",
     backend: "Backend",
@@ -71,6 +74,64 @@ function rejectedError(tool) {
         ...tool.instead.map((line) => `  ${line}`),
     ]);
 }
+/** One argument as a shell would need it, so a suggested command can be pasted as printed. */
+function shellArg(arg) {
+    return /^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replace(/'/g, "'\\''")}'`;
+}
+function commandLine(args) {
+    return ["flisk", ...args].map(shellArg).join(" ");
+}
+/**
+ * The words after `flisk tool add`: the longest leading run that names a tool, then at most one resource name. So
+ * `google cloud platform`, `spring boot api` and `react web` all read the way people mean them.
+ */
+export function resolveWords(words) {
+    for (let count = words.length; count > 0; count--) {
+        const tool = findTool(words.slice(0, count).join(" "));
+        if (!tool)
+            continue;
+        const rest = words.slice(count);
+        if (rest.length > 1) {
+            throw new FliskError(`"${rest.join(" ")}" is more than one resource name; ${tool.title} takes at most one.`, [`flisk tool add ${tool.id} ${rest.join("-").toLowerCase()}`]);
+        }
+        return { tool, name: rest[0] };
+    }
+    throw unknownTool(words[0] ?? "");
+}
+function readProject() {
+    const root = findProjectRoot();
+    if (!root)
+        return undefined;
+    return { resources: discoverResourcesWithProblems(root).resources };
+}
+/**
+ * Checks that `flisk resource` would otherwise get wrong for a tool: an invalid name, a name already taken (which
+ * `flisk resource` would silently register as it is, so the tool would never be added), and a project with several
+ * stacks and no --stack.
+ */
+export function checkResource(tool, name, stack, project) {
+    const validation = validateResourceName(name);
+    if (!validation.valid) {
+        throw new FliskError(validation.error ?? `Resource name "${name}" is not valid.`, [
+            `flisk tool add ${tool.id} ${tool.defaultName}-2`,
+        ]);
+    }
+    if (!project)
+        return;
+    const taken = project.resources.find((resource) => resource.name === name);
+    if (taken) {
+        throw new FliskError(`A resource named "${name}" already exists${taken.type ? ` (${taken.type})` : ""}, so ${tool.title} was not added.`, [
+            `Add it under another name: flisk tool add ${tool.id} ${tool.id}-${name}`,
+            "See the names in use with: flisk resources",
+        ]);
+    }
+    if (stack)
+        return;
+    const stacks = [...new Set(project.resources.flatMap((resource) => resource.stack ?? []))].sort();
+    if (stacks.length > 1) {
+        throw new FliskError(`This project has ${stacks.length} stacks (${stacks.join(", ")}); say which one gets ${tool.title}.`, stacks.map((each) => `flisk tool add ${tool.id} ${name} --stack ${each}`));
+    }
+}
 /** Runs `flisk resource` for a tool. Text mode streams its output; --json returns its envelope's data. */
 export function runResource(args, json, invocation = cliInvocation(), spawn = spawnSync) {
     const [command, ...prefix] = invocation;
@@ -81,7 +142,7 @@ export function runResource(args, json, invocation = cliInvocation(), spawn = sp
     if (!json) {
         if (result.status !== 0) {
             throw new FliskError(`flisk ${args.slice(0, 2).join(" ")} failed.`, [
-                `Run it yourself to see why: flisk ${args.join(" ")}`,
+                `Run it yourself to see why: ${commandLine(args)}`,
             ]);
         }
         return undefined;
@@ -96,26 +157,20 @@ export function runResource(args, json, invocation = cliInvocation(), spawn = sp
     }
     if (result.status !== 0 || envelope.data === undefined || envelope.data === null) {
         const message = envelope.errors?.[0]?.message ?? `flisk ${args.slice(0, 2).join(" ")} failed`;
-        throw new FliskError(message, [`Run it yourself to see why: flisk ${args.join(" ")}`]);
+        throw new FliskError(message, [`Run it yourself to see why: ${commandLine(args)}`]);
     }
     return envelope.data;
 }
 /** The whole action, without the JSON wrapper, so tests can call it. */
-export function addTool(input, name, options, run = (args, json) => runResource(args, json)) {
-    if (!input) {
+export function addTool(words, options, run = (args, json) => runResource(args, json), project = readProject) {
+    if (words.length === 0 || words.every((word) => !word.trim())) {
         if (options.json)
             return { tools: TOOL_CATALOG.map((tool) => describeTool(tool)) };
         for (const line of formatToolList())
             console.log(line);
         return undefined;
     }
-    // `flisk tool add google cloud` and `flisk tool add spring boot` name one tool in two words, not a tool and a resource name.
-    const joined = name ? findTool(`${input} ${name}`) : undefined;
-    if (joined)
-        name = undefined;
-    const tool = joined ?? findTool(input);
-    if (!tool)
-        throw unknownTool(input);
+    const { tool, name } = resolveWords(words);
     const described = describeTool(tool, { name, stack: options.stack });
     switch (tool.status) {
         case "rejected":
@@ -134,6 +189,7 @@ export function addTool(input, name, options, run = (args, json) => runResource(
             }
             return described;
         case "resource": {
+            checkResource(tool, name ?? tool.defaultName, options.stack, project());
             const args = resourceArgs(tool, {
                 name,
                 stack: options.stack,
@@ -151,21 +207,20 @@ export function addTool(input, name, options, run = (args, json) => runResource(
 }
 const toolAddCommand = addYesOption(new Command("add"))
     .description("Add a tool by name (react, postgresql, fastapi, rag…); cloud providers are rejected")
-    .argument("[tool]", "The tool to add; leave it out to list every tool")
-    .argument("[name]", "Resource name (default: one per tool, for example web, api, db)")
+    .argument("[tool-and-name...]", "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); leave it out to list every tool")
     .option("-s, --stack <stack>", "Stack to assign the resource to (default: as flisk resource picks it)")
     .option("--dry-run", "Preview the resource without writing files or reserving a port", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
-    .addHelpText("after", "\nExamples:\n  flisk tool add\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add rag --dry-run")
-    .action(async (tool, name, options) => {
+    .addHelpText("after", "\nExamples:\n  flisk tool add\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add spring boot\n  flisk tool add rag --dry-run")
+    .action(async (words, options) => {
     if (options.json) {
         await runJsonCommand("TOOL_ADD_FAILED", "flisk tool add", async () => ({
-            data: addTool(tool, name, options),
+            data: addTool(words, options),
         }));
         return;
     }
     await runCommand(async () => {
-        addTool(tool, name, options);
+        addTool(words, options);
     });
 });
 /** `flisk tool`: tools by their everyday name. `add` is its only subcommand. */

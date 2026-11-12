@@ -11,7 +11,7 @@ flisk tool add rag --dry-run   # show what would be created, write nothing
 flisk up                  # start everything
 ```
 
-Names are forgiving: `Next.js`, `nextjs` and `next` are the same tool, and two-word names work with or without quotes (`flisk tool add spring boot`, `flisk tool add "LLM APIs"`).
+Names are forgiving: `Next.js`, `nextjs` and `next` are the same tool, and names of several words work with or without quotes (`flisk tool add spring boot`, `flisk tool add google cloud platform`). A word after the tool is the resource name: `flisk tool add spring boot orders`.
 
 ## What happens for each tool
 
@@ -32,8 +32,8 @@ Names are forgiving: `Next.js`, `nextjs` and `next` are the same tool, and two-w
 | Frontend | `nextjs` | adds a resource | `flisk resource web --type frontend --framework next` |
 | Frontend | `angular` | manual steps | An Angular app in your own Dockerfile, run as a `bring-your-own` resource on port 4200 |
 | Frontend | `tailwind` | manual steps | Tailwind CSS added to a frontend you have, through `postcss.config.mjs` |
-| Backend | `nodejs` | adds a resource | `flisk resource api --type backend --language node` |
-| Backend | `fastapi` | adds a resource | `flisk resource api --type backend --language python` (Python 3.12 + FastAPI) |
+| Backend | `nodejs` | adds a resource | `flisk resource server --type backend --language node` |
+| Backend | `fastapi` | adds a resource | `flisk resource server --type backend --language python` (Python 3.12 + FastAPI) |
 | Backend | `spring-boot` (also `java`) | manual steps | A Spring Initializr app in your own Dockerfile, run as a `bring-your-own` resource with `/actuator/health` |
 | Data | `postgresql` | adds a resource | The project's shared Postgres: `flisk resource db --type database` |
 | Data | `mysql` | adds a resource | `flisk resource mysql --type database --framework mysql` |
@@ -69,8 +69,8 @@ Flisk is a local development loop: `flisk up` starts every service on your lapto
 
 | Option | Meaning |
 | --- | --- |
-| `[name]` | The resource name. Each tool has a default (`web`, `api`, `db`, `vectors`…). Pass one when that name is taken: `flisk tool add nextjs site`. |
-| `-s, --stack <stack>` | The stack to put the resource in. Left out, `flisk resource` picks it (it asks for one when the project has several stacks). |
+| `[name]` | The resource name. Each tool has a default (`web`, `server`, `db`, `vectors`…). If a resource already has that name, `flisk tool add` stops with exit 1 and adds nothing; pass another name: `flisk tool add nextjs site`. |
+| `-s, --stack <stack>` | The stack to put the resource in. Left out, the project's only stack is used; with several stacks `flisk tool add` stops and prints one `--stack` command per stack. |
 | `--dry-run` | Forwarded to `flisk resource`: shows the resource and files without writing anything. |
 | `--json` | Prints one JSON envelope: the tool, its outcome, the command, and the `flisk resource` result. With no tool it lists the catalog. |
 | `-y, --yes` | Accepted for scripts; `flisk tool add` already runs `flisk resource` with `--yes`. |

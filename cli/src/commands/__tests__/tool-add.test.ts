@@ -6,7 +6,14 @@ import { DATABASE_FRAMEWORKS } from "../../types/index.js";
 import { FliskError } from "../../utils/errors.js";
 import { findTool, resourceArgs, TOOL_CATALOG, toolKey } from "../../utils/tool-catalog.js";
 import { getRegisteredCommands } from "../registry.js";
-import { addTool, formatToolList, runResource } from "../tool.js";
+import { addTool, checkResource, formatToolList, resolveWords, runResource } from "../tool.js";
+
+type Run = (args: string[], json: boolean) => unknown;
+
+/** addTool outside any project, so the checks that read the project's resources see none. */
+function add(words: string[], options: Parameters<typeof addTool>[1], run: Run = () => undefined) {
+  return addTool(words, options, run, () => undefined);
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -105,7 +112,7 @@ describe("flisk tool add", () => {
 
   it("lists every tool when no tool is given", () => {
     const lines = quiet();
-    addTool(undefined, undefined, {});
+    add([], {});
     expect(lines.join("\n")).toBe(formatToolList().join("\n"));
     for (const tool of TOOL_CATALOG) expect(lines.join("\n")).toContain(tool.id);
   });
@@ -113,7 +120,7 @@ describe("flisk tool add", () => {
   it("runs flisk resource for a tool Flisk generates", () => {
     quiet();
     const run = vi.fn(() => undefined);
-    addTool("FastAPI", "orders", { stack: "shop" }, run);
+    add(["FastAPI", "orders"], { stack: "shop" }, run);
     expect(run).toHaveBeenCalledWith(
       [
         "resource",
@@ -132,7 +139,7 @@ describe("flisk tool add", () => {
 
   it("returns the resource envelope with --json", () => {
     const run = vi.fn(() => ({ name: "db" }));
-    const result = addTool("postgres", undefined, { json: true }, run);
+    const result = add(["postgres"], { json: true }, run);
     expect(result).toMatchObject({
       id: "postgresql",
       status: "resource",
@@ -146,7 +153,7 @@ describe("flisk tool add", () => {
     for (const input of ["google cloud", "AWS"]) {
       let error: unknown;
       try {
-        addTool(input, undefined, {}, run);
+        add(input.split(" "), {}, run);
       } catch (caught) {
         error = caught;
       }
@@ -160,16 +167,16 @@ describe("flisk tool add", () => {
 
   it("reads a two-word tool typed without quotes as one tool", () => {
     quiet();
-    expect(() => addTool("google", "cloud", {})).toThrow(/never creates cloud resources/);
+    expect(() => add(["google", "cloud"], {})).toThrow(/never creates cloud resources/);
     const run = vi.fn(() => undefined);
-    addTool("llm", "apis", {}, run);
+    add(["llm", "apis"], {}, run);
     expect(run).toHaveBeenCalledWith(expect.arrayContaining(["resource", "llm"]), false);
   });
 
   it("prints the steps for a tool Flisk cannot generate, and runs nothing", () => {
     const lines = quiet();
     const run = vi.fn();
-    const result = addTool("Spring Boot", undefined, {}, run);
+    const result = add(["Spring", "Boot"], {}, run);
     expect(run).not.toHaveBeenCalled();
     expect(result).toMatchObject({ status: "manual" });
     expect(lines.join("\n")).toContain("--type bring-your-own");
@@ -177,12 +184,12 @@ describe("flisk tool add", () => {
 
   it("says Docker is built in", () => {
     const lines = quiet();
-    expect(addTool("docker", undefined, {})).toMatchObject({ status: "built-in" });
+    expect(add(["docker"], {})).toMatchObject({ status: "built-in" });
     expect(lines.join("\n")).toContain("already runs container stacks");
   });
 
   it("names the known tools for an unknown one", () => {
-    expect(() => addTool("cobol", undefined, {})).toThrow(/does not know the tool "cobol"/);
+    expect(() => add(["cobol"], {})).toThrow(/does not know the tool "cobol"/);
   });
 });
 
@@ -205,5 +212,101 @@ describe("runResource", () => {
   it("throws when the child fails in text mode", () => {
     const spawn = spawnResult(1, "");
     expect(() => runResource(["resource", "web"], false, ["flisk"], spawn)).toThrow(/failed/);
+  });
+});
+
+describe("flisk tool add: dogfood fixes", () => {
+  const react = findTool("react");
+  const nextjs = findTool("nextjs");
+  if (react?.status !== "resource" || nextjs?.status !== "resource") {
+    throw new Error("react and nextjs should add resources");
+  }
+
+  it("refuses a name that is taken instead of reporting a tool it never added", () => {
+    const run = vi.fn();
+    const project = () => ({ resources: [{ name: "web", stack: "main", type: "frontend" }] });
+    let error: unknown;
+    try {
+      addTool(["nextjs"], {}, run, project);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(run).not.toHaveBeenCalled();
+    expect((error as FliskError).message).toBe(
+      'A resource named "web" already exists (frontend), so Next.js was not added.',
+    );
+    expect((error as FliskError).suggestions[0]).toBe(
+      "Add it under another name: flisk tool add nextjs nextjs-web",
+    );
+    // Under a free name it runs.
+    addTool(["nextjs", "site"], {}, run, project);
+    expect(run).toHaveBeenCalledWith(expect.arrayContaining(["resource", "site"]), false);
+  });
+
+  it("names the stacks and suggests flisk tool add --stack when there are several", () => {
+    const project = {
+      resources: [
+        { name: "web", stack: "shop" },
+        { name: "db", stack: "main" },
+      ],
+    };
+    let error: unknown;
+    try {
+      checkResource(nextjs, "site", undefined, project);
+    } catch (caught) {
+      error = caught;
+    }
+    expect((error as FliskError).message).toBe(
+      "This project has 2 stacks (main, shop); say which one gets Next.js.",
+    );
+    expect((error as FliskError).suggestions).toEqual([
+      "flisk tool add nextjs site --stack main",
+      "flisk tool add nextjs site --stack shop",
+    ]);
+    expect(() => checkResource(nextjs, "site", "shop", project)).not.toThrow();
+  });
+
+  it("rejects an invalid name once, before running flisk resource", () => {
+    const run = vi.fn();
+    expect(() => add(["react", "My Web"], {}, run)).toThrow(/Resource name "My Web" is not valid/);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("reads tools of three words and a trailing name", () => {
+    expect(resolveWords(["google", "cloud", "platform"]).tool.id).toBe("google-cloud");
+    expect(resolveWords(["spring", "boot", "orders"])).toMatchObject({
+      tool: { id: "spring-boot" },
+      name: "orders",
+    });
+    expect(resolveWords(["react", "web"])).toMatchObject({ tool: { id: "react" }, name: "web" });
+    expect(() => resolveWords(["react", "my", "web"])).toThrow(/more than one resource name/);
+    expect(() => add(["google", "cloud", "platform"], {})).toThrow(/never creates cloud resources/);
+  });
+
+  it("names backends server by default, so the route is not /api/api", () => {
+    for (const id of ["nodejs", "fastapi"]) {
+      const tool = findTool(id);
+      expect(tool?.status === "resource" && tool.defaultName).toBe("server");
+    }
+  });
+
+  it("quotes arguments in the suggested command when flisk resource fails", () => {
+    const spawn = vi.fn(() => ({
+      status: 1,
+      stdout: "",
+      stderr: "",
+      pid: 1,
+      output: [],
+      signal: null,
+    }));
+    let error: unknown;
+    try {
+      runResource(["resource", "a b"], false, ["flisk"], spawn as never);
+    } catch (caught) {
+      error = caught;
+    }
+    expect((error as FliskError).suggestions[0]).toBe(
+      "Run it yourself to see why: flisk resource 'a b'",
+    );
   });
 });

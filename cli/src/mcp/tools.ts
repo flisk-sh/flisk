@@ -9,7 +9,7 @@ import { cliInvocation } from "../utils/cli-invocation.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
-import { toolIds } from "../utils/tool-catalog.js";
+import { findTool, toolIds } from "../utils/tool-catalog.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
@@ -340,9 +340,16 @@ export function buildLogsArgs(args: Record<string, unknown>): string[] {
 /** `flisk resource <name> ... --yes`: options as `--flag=value`, after the name, so a variadic `--feature` never takes it. */
 /** `flisk tool add <tool> [name] --json` for the tool_add tool; the tool must be one the catalog knows. */
 export function buildToolAddArgs(args: Record<string, unknown>): string[] {
-  const tool = optionalChoice(args.tool, "tool", toolIds());
-  if (!tool) {
+  if (typeof args.tool !== "string" || !args.tool.trim()) {
     throw new FliskError("tool is required", [`Pass one of: ${toolIds().join(", ")}`]);
+  }
+  // The CLI's own spelling rules: "Next.js", "google cloud" and "Spring Boot" resolve, so a rejected tool reaches the
+  // CLI and returns why it is rejected instead of a bare enum error.
+  const tool = findTool(args.tool)?.id;
+  if (!tool) {
+    throw new FliskError(`Flisk does not know the tool "${args.tool}"`, [
+      `Pass one of: ${toolIds().join(", ")}`,
+    ]);
   }
   const name = optionalName(args.name, "name");
   const stack = optionalName(args.stack, "stack");
@@ -897,10 +904,14 @@ export function createFliskTools(
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
-          tool: { type: "string", enum: toolIds(), description: "The tool to add" },
+          tool: {
+            type: "string",
+            description: `The tool to add, by id or everyday name ("Next.js", "google cloud"): ${toolIds().join(", ")}`,
+          },
           name: {
             type: "string",
-            description: "Resource name (default per tool, for example web, api, db)",
+            description:
+              "Resource name (default per tool, for example web, server, db); a name already in use is refused",
           },
           stack: { type: "string", description: "Stack to assign the resource to" },
           dryRun: {
