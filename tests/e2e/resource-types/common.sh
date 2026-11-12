@@ -8,6 +8,7 @@
 #   common_wait_status <resource> <type>    bounded wait until `flisk status --json` lists the resource with that type (A2 pattern)
 #   common_restart <resource> <id before> [<ready command...>]  flisk restart, wait for a different running container, then for the
 #                                                             ready command when one is given (A6 pattern)
+#   common_warm_start <stack> <description> <ready command...>  flisk down, flisk up again, time it to ready (stacklytics warm start)
 #   common_error_envelope <code> <cmd...>   the command exits 1 and prints one error envelope with that code
 #
 # The agent suite still has its own copies of these cases; it moves onto this file in a later change (3b.4). Nothing here runs
@@ -24,6 +25,18 @@ common_scaffold() { # <appType> <resource> [<extra flisk resource args>...]
   [ "$RC" -eq 0 ] || die "flisk project --yes exited $RC"
   run "scaffold-$name" resource "$name" --type "$type" "$@"
   [ "$RC" -eq 0 ] || die "flisk resource $name --type $type exited $RC"
+  timing scaffold "$ELAPSED_MS" || true
+}
+
+# common_warm_start <stack> <ready description> <ready command...>: `flisk down`, then `flisk up` again with the images cached, and
+# time it until the ready command succeeds (the route answers 200). The cold start is the first `flisk up` of the leg.
+common_warm_start() {
+  local stack="$1" desc="$2"; shift 2
+  run "warm-down" down
+  [ "$RC" -eq 0 ] || die "flisk down exited $RC"
+  start_stack "$stack"
+  poll_until "$desc (warm start)" "$READY_TIMEOUT" "$@"
+  timing_serving warm_start || true
 }
 
 common_listed() { status_json | jq -e --arg n "$1" --arg t "$2" '.data.resources[] | select(.name==$n and .type==$t)' >/dev/null; } # <resource> <type>
