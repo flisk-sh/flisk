@@ -46,7 +46,40 @@ export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+/** Results of host commands for one `flisk doctor` run, keyed by command string and options. */
+export type HostCommandCache = Map<string, { output: string } | { error: unknown }>;
+
+/** Create the cache once per doctor run and pass it to the checks; never keep it at module level. */
+export function createHostCommandCache(): HostCommandCache {
+  return new Map();
+}
+
 function runHostCommand(
+  exec: typeof execSync,
+  command: string,
+  args: string[],
+  shellCommand: string,
+  options: { stdio?: "pipe"; encoding: "utf-8"; timeout: number },
+  cache?: HostCommandCache,
+): string {
+  if (!cache) return execHostCommand(exec, command, args, shellCommand, options);
+  const key = JSON.stringify([shellCommand, options.encoding, options.timeout]);
+  const cached = cache.get(key);
+  if (cached) {
+    if ("error" in cached) throw cached.error;
+    return cached.output;
+  }
+  try {
+    const output = execHostCommand(exec, command, args, shellCommand, options);
+    cache.set(key, { output });
+    return output;
+  } catch (error) {
+    cache.set(key, { error });
+    throw error;
+  }
+}
+
+function execHostCommand(
   exec: typeof execSync,
   command: string,
   args: string[],
@@ -629,7 +662,11 @@ export function checkIngressPorts(
   exec: typeof execSync = execSync,
   projectName: string = getProjectName(),
   ports: readonly number[] = INGRESS_PORTS,
-  options?: { gateway?: boolean; capabilities?: ProjectCapabilities },
+  options?: {
+    gateway?: boolean;
+    capabilities?: ProjectCapabilities;
+    commandCache?: HostCommandCache;
+  },
 ): CheckResult {
   if (options?.gateway === false || options?.capabilities?.gateway === false) {
     return {
@@ -653,6 +690,7 @@ export function checkIngressPorts(
         encoding: "utf-8",
         timeout: EXEC_TIMEOUT_MS,
       },
+      options?.commandCache,
     );
   } catch {
     return {
@@ -896,6 +934,7 @@ export async function checkHostPorts(
   probe: (port: number) => Promise<PortState> = probeHostPort,
   options?: Record<string, unknown>,
   findOwner: (port: number) => PortOwnerDetails | null = (port) => findPortOwner(port),
+  commandCache?: HostCommandCache,
 ): Promise<CheckResult> {
   const root = findProjectRoot();
   const dbEnabled = isDatabaseCapabilityEnabled(root ?? process.cwd(), options);
@@ -925,6 +964,7 @@ export async function checkHostPorts(
         encoding: "utf-8",
         timeout: EXEC_TIMEOUT_MS,
       },
+      commandCache,
     );
   } catch {
     // Can't attribute ports without Docker; treat them as held by the host.

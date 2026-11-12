@@ -66,6 +66,7 @@ import {
   checkIngressPorts,
   checkPrivateNpmRegistry,
   checkTiltResourceHealth,
+  createHostCommandCache,
   projectConfigEnablesVerdaccio,
   summarizeAdvertisedProbes,
   summarizeServiceProbes,
@@ -1840,6 +1841,8 @@ export const doctorCommand = new Command("doctor")
     const gatewayEnabled = isGatewayEnabled(projectRoot, options);
     const enabledCapabilities = getEnabledCapabilities(projectRoot, options);
     const portCaps = { gateway: gatewayEnabled, database: dbEnabled };
+    // One cache per doctor run, so checks that ask Docker the same question share one answer.
+    const hostCommandCache = createHostCommandCache();
 
     // The host port plan places the gateway and Postgres containers; a project of local processes has neither.
     let hostPortPlan: HostPortPlan | null | undefined;
@@ -1889,10 +1892,12 @@ export const doctorCommand = new Command("doctor")
         ? [
             () =>
               hostPortPlan
-                ? checkIngressPorts(execSync, undefined, [
-                    hostPortPlan.ingressHttp,
-                    hostPortPlan.ingressHttps,
-                  ])
+                ? checkIngressPorts(
+                    execSync,
+                    undefined,
+                    [hostPortPlan.ingressHttp, hostPortPlan.ingressHttps],
+                    { commandCache: hostCommandCache },
+                  )
                 : {
                     name: "Ingress Ports",
                     didPass: false,

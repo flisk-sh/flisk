@@ -10,6 +10,7 @@ import { CONTAINER_RUNTIME_CHECK, STANDARD_PORTS } from "../../utils/constants.j
 import {
   checkHostPorts,
   checkIngressPorts,
+  createHostCommandCache,
   checkPrivateNpmRegistry,
   checkTiltResourceHealth,
   findForeignIngressHolders,
@@ -772,11 +773,58 @@ describe("doctor ingress + tilt runtime checks", () => {
       return "";
     }) as never;
 
+    const commandCache = createHostCommandCache();
+
     try {
-      checkIngressPorts(countingExec, "flisk-project");
-      await checkHostPorts(countingExec, "flisk-project", async () => "in-use", undefined, noOwner);
+      checkIngressPorts(countingExec, "flisk-project", undefined, { commandCache });
+      await checkHostPorts(
+        countingExec,
+        "flisk-project",
+        async () => "in-use",
+        undefined,
+        noOwner,
+        commandCache,
+      );
 
       expect(calls.filter((command) => command === dockerPsCommand)).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rethrows the cached docker ps error to the next caller", async () => {
+    const originalProcess = process;
+    vi.stubGlobal(
+      "process",
+      new Proxy(originalProcess, {
+        get(target, property) {
+          if (property === "platform") return "linux";
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+    );
+
+    let callCount = 0;
+    const failingExec = (() => {
+      callCount += 1;
+      throw new Error("docker unavailable");
+    }) as never;
+    const commandCache = createHostCommandCache();
+
+    try {
+      const ingress = checkIngressPorts(failingExec, "flisk-project", undefined, { commandCache });
+      expect(ingress.isSkipped).toBe(true);
+      const host = await checkHostPorts(
+        failingExec,
+        "flisk-project",
+        async () => "in-use",
+        undefined,
+        noOwner,
+        commandCache,
+      );
+      expect(host.didPass).toBe(false);
+      expect(callCount).toBe(1);
     } finally {
       vi.unstubAllGlobals();
     }
