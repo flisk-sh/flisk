@@ -17,7 +17,8 @@ jq -e '.schema == 1 and (.stacks | length > 0)' "$file" >/dev/null || { echo "::
 
 if ! gh api "repos/$repo/branches/$branch" >/dev/null 2>&1; then
   echo "creating the empty $branch branch"
-  tree="$(echo '{"tree":[]}' | gh api "repos/$repo/git/trees" --input - --jq .sha)"
+  # GitHub rejects an empty tree ("Invalid tree info", 422), so the first commit holds a README.
+  tree="$(jq -n '{tree: [{path: "README.md", mode: "100644", type: "blob", content: "Timings published by the Flisk CI for flisk.sh/benchmarks. Do not edit by hand.\n"}]}' | gh api "repos/$repo/git/trees" --input - --jq .sha)"
   commit="$(jq -n --arg tree "$tree" '{message: "Start the benchmarks-data branch", tree: $tree, parents: []}' | gh api "repos/$repo/git/commits" --input - --jq .sha)"
   gh api "repos/$repo/git/refs" -f "ref=refs/heads/$branch" -f "sha=$commit" >/dev/null
 fi
