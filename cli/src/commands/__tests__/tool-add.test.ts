@@ -377,3 +377,26 @@ describe("flisk tool add: dogfood pass 2 fixes", () => {
     expect(() => add(["angular", "My App"], {})).toThrow(/Resource name "My App" is not valid/);
   });
 });
+
+describe("flisk tool add: dogfood pass 3 fix", () => {
+  it("rejects an invalid --stack once, before running flisk resource", () => {
+    const run = vi.fn();
+    let error: unknown;
+    try {
+      add(["react", "site"], { stack: "Bad Stack" }, run);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(run).not.toHaveBeenCalled();
+    expect((error as FliskError).message).toMatch(/Stack name "Bad Stack" is not valid/);
+    expect((error as FliskError).suggestions).toEqual([
+      "flisk tool add react site --stack bad-stack",
+    ]);
+  });
+
+  it("accepts a valid new --stack name", () => {
+    const run = vi.fn();
+    add(["react", "site"], { stack: "shop" }, run);
+    expect(run).toHaveBeenCalledWith(expect.arrayContaining(["--stack", "shop"]), false);
+  });
+});

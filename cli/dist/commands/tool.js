@@ -17,7 +17,7 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, manualSteps, resourceArgs, TOOL_CATALOG, toolIds, } from "../utils/tool-catalog.js";
-import { validateResourceName } from "../utils/validation.js";
+import { validateResourceName, validateStackName } from "../utils/validation.js";
 const GROUP_TITLES = {
     frontend: "Frontend",
     backend: "Backend",
@@ -115,6 +115,18 @@ export function checkResource(tool, name, stack, project) {
         throw new FliskError(validation.error ?? `Resource name "${name}" is not valid.`, [
             `flisk tool add ${tool.id} ${tool.defaultName}-2`,
         ]);
+    }
+    if (stack !== undefined) {
+        const stackValidation = validateStackName(stack);
+        if (!stackValidation.valid) {
+            throw new FliskError(stackValidation.error ?? `Stack name "${stack}" is not valid.`, [
+                `flisk tool add ${tool.id} ${name} --stack ${stack
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-+|-+$/g, "") || "main"}`,
+            ]);
+        }
     }
     if (!project)
         return;
