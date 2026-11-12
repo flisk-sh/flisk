@@ -174,6 +174,11 @@ that time. `--json` returns the plan in the [machine-readable envelope](../docs/
 For `--ddd`, previews require a fresh cached license result so checking entitlement cannot write
 license state or register a project remotely.
 
+Both preview and creation reject colliding generated file paths and file/directory conflicts
+before writing. Custom Dockerfile paths cannot replace `service.json` or `AGENTS.md`.
+When registering an existing resource, the report reflects the type, language and framework
+preserved in its manifest, including the defaults for omitted runtime fields.
+
 **Creates:**
 - 📄 `service.json` — Auto-assigned port from master config
 - 📦 `package.json` — Scripts, dependencies (Hono/Vite/Biome)
