@@ -21,6 +21,7 @@ import { projectNameAt, readProjectRecords } from "../utils/project-registry.js"
 import { promptConfirm } from "../utils/prompt.js";
 import { discoverResources, discoverResourcesFromRoot, discoverStacks } from "../utils/services.js";
 import { buildTiltDownArgs, getTiltfilePath, runTilt } from "../utils/tilt.js";
+import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 function allStackNames() {
     try {
         const names = discoverStacks(discoverResources()).map((stack) => stack.name);
@@ -455,6 +456,15 @@ export const downCommand = addYesOption(new Command("down"))
                 }
             }
         }
+        // Tilt tags every build tilt-<hash> and only a running Tilt cleans them up, so superseded builds pile up
+        // (a day of rebuilds held 34 GB of images). Untag all but the newest per repo; running images are refused.
+        let tiltImages;
+        if (!options.dryRun) {
+            tiltImages = await pruneSupersededTiltImages(1);
+            if (tiltImages.removed.length > 0 && !options.json) {
+                console.log(chalk.gray(`Removed ${tiltImages.removed.length} superseded tilt-* image(s) (up to ${(tiltImages.removedBytes / 1e9).toFixed(1)} GB).`));
+            }
+        }
         // The stack is down but its images, volumes and the shared build cache still fill the disk (#3708).
         let retained;
         try {
@@ -475,6 +485,9 @@ export const downCommand = addYesOption(new Command("down"))
             ok: true,
             stoppedTilt,
             ...(retained ? { retained } : {}),
+            ...(tiltImages && tiltImages.removed.length > 0
+                ? { prunedTiltImages: tiltImages.removed }
+                : {}),
             ...(composeFallback
                 ? {
                     composeFallback: {
