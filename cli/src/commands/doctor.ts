@@ -93,6 +93,13 @@ import { type ExecAsync, execAsync, isExecTimeout } from "../utils/exec-async.js
 import { evaluateFliskVersion } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
 import {
+  cacheExecAsync,
+  createAsyncCommandCache,
+  createHostCommandCache,
+  type HostCommandCache,
+  hasSharedDockerPsOutput,
+} from "../utils/host-command-cache.js";
+import {
   describeHostPortPlan,
   getHostPortPlan,
   hostPortPlanFix,
@@ -168,6 +175,8 @@ const EXEC_TIMEOUT_MS = 10_000;
 // The first `docker compose` call loads the compose plugin. On a busy machine (a CI runner running several jobs) that
 // can pass 10s, and a timeout here blocks `flisk up` on a cold start even though Compose is installed.
 const COMPOSE_TIMEOUT_MS = 30_000;
+// Both the Compose and the Versions check run this exact command and timeout, so a per-run cache runs it once.
+const DOCKER_COMPOSE_VERSION_COMMAND = "docker compose version --short";
 
 export const DOCTOR_FIXES = {
   dockerMissing: "See https://docs.docker.com/get-docker/",
@@ -474,10 +483,12 @@ export async function checkColima(): Promise<CheckResult> {
   };
 }
 
-export async function checkDockerRuntime(): Promise<CheckResult> {
+export async function checkDockerRuntime(commandCache?: HostCommandCache): Promise<CheckResult> {
+  // The port plan already listed containers with `docker ps`; a success there means the daemon is up.
+  const daemonAlreadyListed = hasSharedDockerPsOutput(commandCache);
   if (process.platform === "win32") {
     try {
-      await execAsync("docker ps", EXEC_TIMEOUT_MS);
+      if (!daemonAlreadyListed) await execAsync("docker ps", EXEC_TIMEOUT_MS);
       return {
         name: CONTAINER_RUNTIME_CHECK,
         didPass: true,
@@ -495,7 +506,7 @@ export async function checkDockerRuntime(): Promise<CheckResult> {
   const hasDockerCli = Boolean(findOnPath("docker"));
 
   try {
-    await execAsync("docker ps", EXEC_TIMEOUT_MS);
+    if (!daemonAlreadyListed) await execAsync("docker ps", EXEC_TIMEOUT_MS);
     return {
       name: CONTAINER_RUNTIME_CHECK,
       didPass: true,
@@ -559,7 +570,7 @@ export async function checkDockerRuntime(): Promise<CheckResult> {
 
 export const checkDockerCompose = createExecCheck(
   "Docker Compose",
-  "docker compose version",
+  DOCKER_COMPOSE_VERSION_COMMAND,
   "Docker Compose plugin available",
   "Docker Compose plugin not found",
   "Install Docker Compose: https://docs.docker.com/compose/install/",
@@ -591,15 +602,15 @@ function isAtLeast(version: number[], minimum: readonly number[]): boolean {
 }
 
 export async function checkDockerVersions(exec: ExecAsync = execAsync): Promise<CheckResult> {
-  const run = async (command: string): Promise<string> =>
-    String(await exec(command, EXEC_TIMEOUT_MS)).trim();
+  const run = async (command: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> =>
+    String(await exec(command, timeoutMs)).trim();
 
   let engineRaw: string;
   let composeRaw: string;
   try {
     [engineRaw, composeRaw] = await Promise.all([
       run("docker version --format '{{.Server.Version}}'"),
-      run("docker compose version --short"),
+      run(DOCKER_COMPOSE_VERSION_COMMAND, COMPOSE_TIMEOUT_MS),
     ]);
   } catch {
     return {
@@ -1840,6 +1851,10 @@ export const doctorCommand = new Command("doctor")
     const gatewayEnabled = isGatewayEnabled(projectRoot, options);
     const enabledCapabilities = getEnabledCapabilities(projectRoot, options);
     const portCaps = { gateway: gatewayEnabled, database: dbEnabled };
+    // One cache per doctor run, so checks that ask Docker the same question share one answer.
+    const hostCommandCache = createHostCommandCache();
+    // The Compose and Versions checks both read the compose version; this runs it once for the run.
+    const cachedExec = cacheExecAsync(execAsync, createAsyncCommandCache());
 
     // The host port plan places the gateway and Postgres containers; a project of local processes has neither.
     let hostPortPlan: HostPortPlan | null | undefined;
@@ -1849,6 +1864,7 @@ export const doctorCommand = new Command("doctor")
         hostPortPlan = await getHostPortPlan(projectRoot ?? process.cwd(), {
           database: dbEnabled,
           gateway: gatewayEnabled,
+          commandCache: hostCommandCache,
         });
       } catch (error) {
         hostPortPlan = null;
@@ -1889,10 +1905,12 @@ export const doctorCommand = new Command("doctor")
         ? [
             () =>
               hostPortPlan
-                ? checkIngressPorts(execSync, undefined, [
-                    hostPortPlan.ingressHttp,
-                    hostPortPlan.ingressHttps,
-                  ])
+                ? checkIngressPorts(
+                    execSync,
+                    undefined,
+                    [hostPortPlan.ingressHttp, hostPortPlan.ingressHttps],
+                    { commandCache: hostCommandCache },
+                  )
                 : {
                     name: "Ingress Ports",
                     didPass: false,
@@ -1901,13 +1919,13 @@ export const doctorCommand = new Command("doctor")
           ]
         : []),
       checkColima,
-      checkDockerRuntime,
+      () => checkDockerRuntime(hostCommandCache),
       () => checkDiskSpace(),
       requiresContainerRuntime("Docker Build Cache", () => checkDockerBuildCache()),
       requiresContainerRuntime("Docker OS", checkDockerOperatingSystem),
       checkTilt,
-      requiresContainerRuntime("Docker Compose", checkDockerCompose),
-      requiresContainerRuntime("Docker Versions", checkDockerVersions),
+      requiresContainerRuntime("Docker Compose", () => checkDockerCompose(cachedExec)),
+      requiresContainerRuntime("Docker Versions", () => checkDockerVersions(cachedExec)),
       checkBun,
       () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
       () => checkPublishedBindAddress(process.env, options.strict),
@@ -1984,7 +2002,7 @@ export const doctorCommand = new Command("doctor")
         const licensed = projectConfigEnablesVerdaccio(root)
           ? await hasVerdaccioLicense(root)
           : true;
-        return checkPrivateNpmRegistry(execSync, root, undefined, licensed);
+        return checkPrivateNpmRegistry(execSync, root, undefined, licensed, hostCommandCache);
       },
       // Runtime checks: skip gracefully if the stack isn't started yet.
       requiresContainerRuntime("Container Resource Health", checkContainerResourceHealth),

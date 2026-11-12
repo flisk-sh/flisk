@@ -10,6 +10,11 @@ import { toComposeProjectName } from "./compose-project-name.js";
 import { PROJECT_JSON } from "./constants.js";
 import { projectEnvLookup } from "./extra-port-publish.js";
 import {
+  type HostCommandCache,
+  runCachedHostCommand,
+  SHARED_DOCKER_PS,
+} from "./host-command-cache.js";
+import {
   createHostPortPlan,
   GATEWAY_DISABLED_REASON,
   isHostPortAvailable,
@@ -21,6 +26,26 @@ import { extraPortsOf } from "./status-ports.js";
 import { findTiltPortOwner, isForeignTilt, type TiltPortOwner } from "./tilt-port-owner.js";
 
 const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
+
+/** Run the `docker ps` that the ingress check shares, once per cache. */
+export function readSharedDockerPs(cache: HostCommandCache): string {
+  const { args, shellCommand, timeoutMs } = SHARED_DOCKER_PS;
+  const options = { encoding: "utf-8", timeout: timeoutMs } as const;
+  return runCachedHostCommand(cache, shellCommand, options, () =>
+    execFileSync("docker", [...args], options),
+  );
+}
+
+/** Convert `name<TAB>image<TAB>ports` lines to the `name|ports` lines isDockerPortOwnedByProject reads. */
+export function toNamePortsLines(tabbed: string): string {
+  return tabbed
+    .split("\n")
+    .map((line) => {
+      const [name = "", , ports = ""] = line.split("\t");
+      return `${name}|${ports}`;
+    })
+    .join("\n");
+}
 
 export function isDockerPortOwnedByProject(
   dockerPs: string,
@@ -207,6 +232,7 @@ export async function getHostPortPlan(
     database?: boolean;
     gateway?: boolean;
     capabilities?: ProjectCapabilities;
+    commandCache?: HostCommandCache;
   } = {},
 ): Promise<HostPortPlan> {
   const dbEnabled = isDatabaseCapabilityEnabled(projectRoot, options);
@@ -221,6 +247,7 @@ async function planHostPorts(
     inspectDocker?: boolean;
     isPortFree?: (port: number) => Promise<boolean>;
     capabilities?: ProjectCapabilities;
+    commandCache?: HostCommandCache;
     dbEnabled: boolean;
     gatewayEnabled: boolean;
   },
@@ -255,10 +282,12 @@ async function planHostPorts(
   let dockerPs = "";
   if (options.inspectDocker !== false) {
     try {
-      dockerPs = execFileSync("docker", ["ps", "--format", "{{.Names}}|{{.Ports}}"], {
-        encoding: "utf-8",
-        timeout: 5000,
-      });
+      dockerPs = options.commandCache
+        ? toNamePortsLines(readSharedDockerPs(options.commandCache))
+        : execFileSync("docker", ["ps", "--format", "{{.Names}}|{{.Ports}}"], {
+            encoding: "utf-8",
+            timeout: 5000,
+          });
     } catch {
       // If Docker is down, reuse only when host binds are still available.
     }

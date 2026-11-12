@@ -22,6 +22,11 @@ import {
 } from "../../utils/doctor-runtime.js";
 import { checkSharedStackRoutes } from "../../utils/doctor-wiring.js";
 import {
+  cacheExecAsync,
+  createAsyncCommandCache,
+  createHostCommandCache,
+} from "../../utils/host-command-cache.js";
+import {
   checkWindowsDockerMode,
   checkWindowsHostConfiguration,
   checkWindowsRuntimeTools,
@@ -752,6 +757,83 @@ describe("doctor ingress + tilt runtime checks", () => {
     }
   });
 
+  it("calls docker ps once when the ingress-ports and host-ports checks run together", async () => {
+    const originalProcess = process;
+    vi.stubGlobal(
+      "process",
+      new Proxy(originalProcess, {
+        get(target, property) {
+          if (property === "platform") return "linux";
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+    );
+
+    const dockerPsCommand = "docker ps --format '{{.Names}}\\t{{.Image}}\\t{{.Ports}}'";
+    const calls: string[] = [];
+    const countingExec = ((command: string) => {
+      calls.push(command);
+      return "";
+    }) as never;
+
+    const commandCache = createHostCommandCache();
+
+    try {
+      checkIngressPorts(countingExec, "flisk-project", undefined, { commandCache });
+      await checkHostPorts(
+        countingExec,
+        "flisk-project",
+        async () => "in-use",
+        undefined,
+        noOwner,
+        commandCache,
+      );
+
+      expect(calls.filter((command) => command === dockerPsCommand)).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rethrows the cached docker ps error to the next caller", async () => {
+    const originalProcess = process;
+    vi.stubGlobal(
+      "process",
+      new Proxy(originalProcess, {
+        get(target, property) {
+          if (property === "platform") return "linux";
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+    );
+
+    let callCount = 0;
+    const failingExec = (() => {
+      callCount += 1;
+      throw new Error("docker unavailable");
+    }) as never;
+    const commandCache = createHostCommandCache();
+
+    try {
+      const ingress = checkIngressPorts(failingExec, "flisk-project", undefined, { commandCache });
+      expect(ingress.isSkipped).toBe(true);
+      const host = await checkHostPorts(
+        failingExec,
+        "flisk-project",
+        async () => "in-use",
+        undefined,
+        noOwner,
+        commandCache,
+      );
+      expect(host.didPass).toBe(false);
+      expect(callCount).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("separates sablier.deferStart resources from genuinely pending ones", () => {
     const payload = {
       items: [
@@ -1400,7 +1482,7 @@ describe("doctor Docker Compose check", () => {
   it("gives the compose plugin a longer probe than other tools", async () => {
     const exec = vi.fn(async () => "v2.38.2\n");
     await checkDockerCompose(exec);
-    expect(exec).toHaveBeenCalledWith("docker compose version", 30_000);
+    expect(exec).toHaveBeenCalledWith("docker compose version --short", 30_000);
   });
 
   it("reports a timeout as not responding rather than missing", async () => {
@@ -1422,6 +1504,63 @@ describe("doctor Docker Compose check", () => {
 
     expect(result.didPass).toBe(false);
     expect(result.message).toBe("Docker Compose plugin not found");
+  });
+});
+
+describe("doctor shared compose version probe", () => {
+  const composeCommand = "docker compose version --short";
+
+  it("asks for the compose version with the same command and timeout in both checks", async () => {
+    const seen: Array<[string, number]> = [];
+    const recordingExec = (async (command: string, timeoutMs: number) => {
+      if (command.startsWith("docker compose")) seen.push([command, timeoutMs]);
+      return "2.39.1\n";
+    }) as never;
+
+    await checkDockerCompose(recordingExec);
+    await checkDockerVersions(recordingExec);
+
+    expect(seen).toEqual([
+      [composeCommand, 30_000],
+      [composeCommand, 30_000],
+    ]);
+  });
+
+  it("runs docker compose version once when both checks share a per-run cache", async () => {
+    const calls: string[] = [];
+    const countingExec = (async (command: string) => {
+      calls.push(command);
+      return command.startsWith("docker compose") ? "2.39.1\n" : "29.8.0\n";
+    }) as never;
+    const cachedExec = cacheExecAsync(countingExec, createAsyncCommandCache());
+
+    const [compose, versions] = await Promise.all([
+      checkDockerCompose(cachedExec),
+      checkDockerVersions(cachedExec),
+    ]);
+
+    expect(calls.filter((command) => command === composeCommand)).toHaveLength(1);
+    expect(compose.didPass).toBe(true);
+    expect(versions.didPass).toBe(true);
+  });
+
+  it("gives both checks the same cached error when docker compose version fails", async () => {
+    let composeCalls = 0;
+    const failingExec = (async (command: string) => {
+      if (command.startsWith("docker compose")) {
+        composeCalls += 1;
+        throw new Error("compose is not a docker command");
+      }
+      return "29.8.0\n";
+    }) as never;
+    const cachedExec = cacheExecAsync(failingExec, createAsyncCommandCache());
+
+    const compose = await checkDockerCompose(cachedExec);
+    const versions = await checkDockerVersions(cachedExec);
+
+    expect(composeCalls).toBe(1);
+    expect(compose.message).toBe("Docker Compose plugin not found");
+    expect(versions.isSkipped).toBe(true);
   });
 });
 
