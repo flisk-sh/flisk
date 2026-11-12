@@ -16,6 +16,11 @@ const COMMAND_GROUPS = [
                 alias: "[name] --kind web --extras queue",
             },
             {
+                name: "tool",
+                desc: "Add a tool by name: react, postgresql, fastapi, rag (cloud is rejected)",
+                alias: "add <tool> [name]",
+            },
+            {
                 name: "project",
                 desc: "Initialize or validate project-level configuration",
                 alias: "",

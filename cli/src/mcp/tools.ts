@@ -9,6 +9,7 @@ import { cliInvocation } from "../utils/cli-invocation.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import { toolIds } from "../utils/tool-catalog.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
@@ -337,6 +338,26 @@ export function buildLogsArgs(args: Record<string, unknown>): string[] {
 }
 
 /** `flisk resource <name> ... --yes`: options as `--flag=value`, after the name, so a variadic `--feature` never takes it. */
+/** `flisk tool add <tool> [name] --json` for the tool_add tool; the tool must be one the catalog knows. */
+export function buildToolAddArgs(args: Record<string, unknown>): string[] {
+  const tool = optionalChoice(args.tool, "tool", toolIds());
+  if (!tool) {
+    throw new FliskError("tool is required", [`Pass one of: ${toolIds().join(", ")}`]);
+  }
+  const name = optionalName(args.name, "name");
+  const stack = optionalName(args.stack, "stack");
+  const dryRun = flag(args.dryRun, "dryRun");
+  return [
+    "tool",
+    "add",
+    tool,
+    ...(name ? [name] : []),
+    "--json",
+    ...(stack ? [`--stack=${stack}`] : []),
+    ...(dryRun ? ["--dry-run"] : []),
+  ];
+}
+
 export function buildResourceCreateArgs(args: Record<string, unknown>): string[] {
   const name = optionalName(args.name, "name");
   if (!name) {
@@ -513,6 +534,8 @@ const TOOL_ANNOTATIONS: Record<string, McpToolAnnotations> = {
   config_regenerate: { ...WRITES_LOCALLY, destructiveHint: true, idempotentHint: true },
   // Running it again on an existing resource rewrites its service.json.
   resource_create: { ...WRITES_LOCALLY, destructiveHint: true },
+  // Runs resource_create's command, so adding a tool whose resource exists rewrites its service.json too.
+  tool_add: { ...WRITES_LOCALLY, destructiveHint: true },
   stack_assign: { ...WRITES_LOCALLY, idempotentHint: true },
   project_init: { ...WRITES_LOCALLY, openWorldHint: true },
   project_eject: { ...WRITES_LOCALLY, idempotentHint: true },
@@ -866,6 +889,28 @@ export function createFliskTools(
         required: ["name"],
       },
       handler: viaCliText(buildResourceCreateArgs),
+    },
+    {
+      name: "tool_add",
+      description:
+        "Add a tool by its everyday name (react, nextjs, fastapi, nodejs, postgresql, mysql, mongodb, rag, embeddings, llm-api) with `flisk tool add <tool> --json`, which runs the matching `flisk resource` command. data.status says what happened: resource (created; data.resource is the resource_create result), built-in (docker: nothing to do), manual (angular, tailwind, spring-boot, github-actions, jutro, policycenter: data.steps are steps to show the user; nothing was changed), or an error for a rejected tool (aws, google-cloud, azure, kubernetes): Flisk runs everything locally and never creates cloud resources, so do not work around it. Call `up` afterwards to start a new resource. Set projectPath when the MCP server is not running from the project root.",
+      inputSchema: {
+        ...OBJECT({
+          projectPath: PROJECT_PATH,
+          tool: { type: "string", enum: toolIds(), description: "The tool to add" },
+          name: {
+            type: "string",
+            description: "Resource name (default per tool, for example web, api, db)",
+          },
+          stack: { type: "string", description: "Stack to assign the resource to" },
+          dryRun: {
+            type: "boolean",
+            description: "Preview the resource without writing files or reserving a port",
+          },
+        }),
+        required: ["tool"],
+      },
+      handler: viaCli(buildToolAddArgs),
     },
     {
       name: "stack_assign",
