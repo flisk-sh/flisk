@@ -1998,7 +1998,7 @@ export const doctorCommand = new Command("doctor")
         const licensed = projectConfigEnablesVerdaccio(root)
           ? await hasVerdaccioLicense(root)
           : true;
-        return checkPrivateNpmRegistry(execSync, root, undefined, licensed);
+        return checkPrivateNpmRegistry(execSync, root, undefined, licensed, hostCommandCache);
       },
       // Runtime checks: skip gracefully if the stack isn't started yet.
       requiresContainerRuntime("Container Resource Health", checkContainerResourceHealth),

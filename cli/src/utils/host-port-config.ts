@@ -28,7 +28,7 @@ import { findTiltPortOwner, isForeignTilt, type TiltPortOwner } from "./tilt-por
 const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
 
 /** Run the `docker ps` that the ingress check shares, once per cache. */
-function readSharedDockerPs(cache: HostCommandCache): string {
+export function readSharedDockerPs(cache: HostCommandCache): string {
   const { args, shellCommand, timeoutMs } = SHARED_DOCKER_PS;
   const options = { encoding: "utf-8", timeout: timeoutMs } as const;
   return runCachedHostCommand(cache, shellCommand, options, () =>
