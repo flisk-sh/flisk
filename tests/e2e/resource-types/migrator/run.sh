@@ -123,6 +123,8 @@ M4() { # a database resource (#2863): the migrator waits for it by name, and fli
   : >"$DIR/up.log"
   start_stack "$STACK"
   poll_until "$MIGRATOR logs a completed migration" "$READY_TIMEOUT" migrator_completed
+  # A database resource is the shared Postgres: its start is flisk up until the migrator that depends on it has run (stacklytics).
+  timing_serving cold_start database || true
   poll_until "$MIGRATOR exited" "$READY_TIMEOUT" migrator_exited
   poll_until "a running $API container" "$READY_TIMEOUT" api_running
   # Verify after flisk up: the dependsOn edit leaves the service outputs stale until up rewrites them.
