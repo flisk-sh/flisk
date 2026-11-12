@@ -42,7 +42,11 @@ describe("rankDoctorFixes", () => {
   it("uses a command valid for the platform", () => {
     expect(rankDoctorFixes([runtime], "linux")[0]?.command).toBe("sudo systemctl start docker");
     expect(rankDoctorFixes([ports], "linux")[0]?.command).toBe("ss -ltnp 'sport = :5432'");
-    expect(rankDoctorFixes([runtime, ports], "win32")).toEqual([]);
+    expect(rankDoctorFixes([runtime], "win32")).toEqual([]);
+  });
+
+  it("points Windows port conflicts at netstat", () => {
+    expect(rankDoctorFixes([ports], "win32")[0]?.command).toBe('netstat -ano | findstr /c:":5432 "');
   });
 
   it("skips passing, skipped and command-less checks", () => {
