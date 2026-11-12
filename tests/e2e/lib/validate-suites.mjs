@@ -57,6 +57,10 @@ export function checkSuiteJson(suite, group, name) {
       for (const v of suite.variants) {
         if (!v || typeof v.id !== "string" || typeof v.case !== "string" || typeof v.args !== "string") problems.push("each variant needs string id, case and args");
         else if (!suite.cases.includes(v.case)) problems.push(`variant ${v.id} names case ${v.case}, which is not in cases`);
+        // `inputs` (optional): globs of the files this leg alone checks; pr-legs.mjs selects the leg for them and nothing else.
+        if (v && v.inputs !== undefined && (!Array.isArray(v.inputs) || v.inputs.length === 0 || !v.inputs.every((g) => typeof g === "string" && g !== ""))) {
+          problems.push(`variant ${v.id}: inputs must be a non-empty array of glob strings`);
+        }
       }
     }
   }

@@ -33,8 +33,8 @@ Per-dialect env names (`NEXT_PUBLIC_*`, Python spellings) are added by `flisk to
 
 ## CI graph
 
-`tool-legs.mjs` reads `git diff --name-only`, like `pr-legs.mjs`:
-- the `INFRA_PRESETS` entry of `<id>` (diffed by key, the way `pr-legs.mjs` diffs `templates.json`) or `tests/e2e/tools/<id>/**` selects every leg of tool `<id>`;
+`pr-legs.mjs` (extended, not duplicated) reads `git diff --name-only`; a variant lists the files only it checks in `suite.json` `inputs`, the way a turbo task lists inputs, and `--base` lets it read old and new content so a comment or description selects nothing:
+- a tool's variant `inputs` (its `INFRA_PRESETS` file, fixtures, `tests/e2e/tools/<id>/**`) select every leg of tool `<id>` and nothing else;
 - `cli/src/tools/dialects/<appType>.ts` selects that appType across all tools;
 - shared files (`cli/src/commands/tool.ts`, `cli/src/tools/registry.ts`, `tests/e2e/lib/**`, the workflow) select all legs;
 - docs and unrelated code select nothing.
