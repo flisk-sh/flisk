@@ -15,6 +15,7 @@ New to contributing? Start with the [step-by-step contributor guide](../docs/con
 Run in a project with Bun, Docker, and Tilt, or, when every service's `service.json` declares a `command`, with only your app's runtime: `flisk up` then runs the services as local processes ([guide](../docs/run-without-docker.md)). On Windows, run the CLI in WSL2.
 
 `flisk project` writes the project configuration and clones starter templates without a running Docker daemon or an installed Tilt; the runtime is only needed by `flisk up`.
+Cloned starters keep their source remote as `upstream`, leaving `origin` available for your own repository (`git remote add origin <url>`). Unpinned starters use a shallow clone; pinned starters retain the history needed to check out their exact commit.
 
 | Command | When to use it |
 | --- | --- |
