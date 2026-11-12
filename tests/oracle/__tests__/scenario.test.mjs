@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { drawPlan } from "../../e2e/scale/enigma36/plan.mjs";
+import { INFRA_KINDS, drawPlan } from "../../e2e/scale/enigma36/plan.mjs";
 import { SHAPES, drawScenario } from "../lib/scenario.mjs";
 
 test("the same seed draws the same scenario", () => {
@@ -51,15 +51,18 @@ test("multi-stack spreads resources over at least two stacks; infra-toggle names
 	}
 });
 
-test("enigma-mix records the type status reports for a queue or MySQL-style database (#3862)", () => {
-	let queues = 0;
+test("enigma-mix records the type status reports for an infrastructure framework (#3862)", () => {
+	// Every infrastructure kind but database is a preset container, reported as bring-your-own; a database is bring-your-own
+	// unless it is the shared Postgres, and every other kind is reported as itself.
+	const presets = new Set();
 	for (let seed = 1; seed < 400; seed++) {
 		for (const r of drawScenario(seed, { shape: "enigma-mix", count: 8 }).resources) {
-			if (r.kind === "queue") {
-				queues++;
-				assert.equal(r.type, "bring-your-own");
+			if (INFRA_KINDS.includes(r.kind) && r.kind !== "database") {
+				presets.add(r.kind);
+				assert.equal(r.type, "bring-your-own", `${r.kind} ${r.name}`);
 			} else if (r.kind !== "database") assert.equal(r.type, r.kind);
 		}
 	}
-	assert.ok(queues > 0, "the draw includes queues");
+	// An 8-resource draw holds fewer kinds than there are, so it is enough that preset containers are drawn at all.
+	assert.ok(presets.size > 0, "the draw includes preset containers");
 });

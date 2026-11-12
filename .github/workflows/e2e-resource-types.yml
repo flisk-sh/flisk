@@ -15,6 +15,10 @@ on:
         description: "Runner label for every job (default ubuntu-latest); try ubuntu-26.04 before ubuntu-latest moves to it (#1277)"
         type: string
         default: "ubuntu-latest"
+      publish:
+        description: "Publish the stack timings (stacklytics, flisk.sh/benchmarks) from this run, as nightly and release runs do"
+        type: boolean
+        default: false
   # Pull requests run only the legs their changed files touch (the plan job below, tests/e2e/lib/pr-legs.mjs): a change to
   # one frontend framework runs that framework's leg, a change to shared code runs one canary leg per kind of suite, a change to
   # how the matrix is built runs every leg. A PR that touches none of them
@@ -177,7 +181,20 @@ jobs:
           LANGUAGE: ${{ matrix.language }}
           FRAMEWORK: ${{ matrix.framework }}
           BYO_VARIANT: ${{ matrix.variant }}
+          # Names this leg in its timings (tests/e2e/lib/lib.sh `timing`), the stacklytics data.
+          E2E_LEG: ${{ matrix.label }}
+          E2E_GROUP: ${{ matrix.group }}
         run: tests/e2e/"$DIR"/run.sh all
+
+      # Scaffold, start and warm-start times of this leg: one JSON line each, merged by the stack-timings job below.
+      - name: Upload stack timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: stack-timings-${{ matrix.label }}
+          path: ${{ runner.temp }}/flisk-e2e/${{ matrix.suite }}/timings.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
 
       # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
       - name: Collect failure evidence
@@ -204,6 +221,74 @@ jobs:
         env:
           DIR: ${{ matrix.dir }}
         run: tests/e2e/"$DIR"/run.sh cleanup
+
+  # Stacklytics (flisk.sh/benchmarks): how fast every framework scaffolds and starts under Flisk. Each leg above wrote its timings; this
+  # job merges them with the catalog in tests/e2e/axes.json into stack-timings.json and a table in the job summary (so a pull request
+  # shows the numbers of the legs it ran). Nothing is published from here.
+  stack-timings:
+    name: Stack timings
+    needs: [plan, resource-types]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.resource-types.result != 'skipped' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.23.5
+      - name: Download every leg's timings
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: stack-timings-*
+          path: timings
+      - name: Merge into stack-timings.json
+        env:
+          MATRIX: ${{ needs.plan.outputs.matrix }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUNNER_LABEL: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
+        run: |
+          printf '%s' "$MATRIX" >matrix.json
+          # The last published file carries the history the new night is added to; a first run has none.
+          curl -fsSL "https://raw.githubusercontent.com/$REPOSITORY/benchmarks-data/stack-timings/latest.json" -o previous.json || rm -f previous.json
+          node scripts/benchmark/collect-stack-timings.mjs --timings timings --out stack-timings.json --matrix matrix.json \
+            --previous previous.json --commit "$(git rev-parse HEAD)" --trigger "$EVENT" --runner "$RUNNER_LABEL" --run-url "$RUN_URL" \
+            --summary "$GITHUB_STEP_SUMMARY"
+      - name: Keep the merged file
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: stacklytics-data
+          path: stack-timings.json
+          retention-days: 14
+
+  # Publishes the merged file to the benchmarks-data branch, where flisk.sh/benchmarks reads it. Only nightly, after a release, or when
+  # a manual run asks for it; the only job here that can write.
+  publish-stack-timings:
+    name: Publish stack timings
+    needs: [stack-timings]
+    if: ${{ !cancelled() && needs.stack-timings.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || github.event.inputs.publish == 'true') }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: stacklytics-data
+      - name: Publish to benchmarks-data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/benchmark/publish-stack-timings.sh stack-timings.json
 
   # Always runs, so the gate reports a result even when no suite is selected. A selected suite that failed or was cancelled
   # fails the gate; a suite that was not selected does not.

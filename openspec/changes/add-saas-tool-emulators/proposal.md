@@ -15,12 +15,12 @@ Zachman interview answers (2026-11-12):
 
 ## Findings before the work
 
-MinIO already ships (`--type database --framework minio`, `INFRA_PRESETS` with `provides` env injection through `dependsOn`), as do Redis, Qdrant, MLflow, MySQL, MongoDB, ClickHouse, NATS and RabbitMQ. A second catalog (`tool.json`) would duplicate it. So the work is: pre-refactor the type table, add mail and payments as types in it, then put `flisk tool add` on top.
+MinIO already ships (`--type database --framework minio`, `INFRA_PRESETS` with `provides` env injection through `dependsOn`), as do Redis, Qdrant, MLflow, MySQL, MongoDB, ClickHouse, NATS and RabbitMQ. A second catalog (`tool.json`) would duplicate it. So the work is: pre-refactor the type table, add mail and payment as types in it, then put `flisk tool add` on top.
 
 ## Sequence
 
 1. **Pre-refactor (PR 1, this change's first PR).** One table of preset types (`PRESET_RESOURCE_TYPES` in `cli/src/types/index.ts`) replaces the hard-coded `database`/`queue` checks in `resource.ts`, completions, the create catalog and the MCP description. MinIO moves from `--type database` to a new `--type storage`; `--type database --framework minio` and `--type minio` now point at `--type storage --framework minio`. Existing service.json files are unchanged (they record `appType: bring-your-own`, `framework: minio`).
-2. **Mail and payments (PR 2).** `--type mail` (`mailpit`, default) and `--type payments` (`stripe-mock`, default): one entry each in `PRESET_RESOURCE_TYPES` and `INFRA_PRESETS`, nothing else.
+2. **Mail and payment (PR 2).** `--type mail` (`mailpit`, default) and `--type payment` (`stripe-mock`, default): one entry each in `PRESET_RESOURCE_TYPES` and `INFRA_PRESETS`, nothing else.
 3. **`flisk tool add` (PR 3).** The guided command below, built on the same presets.
 4. **Tool CI graph (PR 4).**
 
@@ -28,7 +28,7 @@ MinIO already ships (`--type database --framework minio`, `INFRA_PRESETS` with `
 
 - Add `flisk tool add <tool>` and `flisk tool list [--json]` (MCP: `tool_add`, `tool_list`). A tool is an `INFRA_PRESETS` entry; `flisk tool add` creates it through the `flisk resource` path and adds it to the consumer's `dependsOn`, so the consumer gets its `provides` env.
 - Prompts, in this order, each with a flag and a default so `--yes` never asks: `--name`, `--stack`, `--for <resource>` (consumer: gets the env block and `dependsOn`), `--persist/--no-persist`, `--port`. `--app-type` and `--framework` describe the consumer and choose the env dialect (see design.md).
-- First wave: `mailpit` (`--type mail`), `minio` (`--type storage`, exists), `stripe-mock` (`--type payments`).
+- First wave: `mailpit` (`--type mail`), `minio` (`--type storage`, exists), `stripe-mock` (`--type payment`).
 - CI: a `tools` e2e group. A tool graph (`tests/e2e/lib/tool-legs.mjs`, built like `pr-legs.mjs`) maps changed files to the tool x appType x framework legs they affect. Shared files select every leg; nightly, merge queue and release run the full matrix.
 
 Out of scope: real-provider wiring (`--live`), Auth/Search/Analytics tools (scored below, next wave), any Kubernetes output.
@@ -39,7 +39,7 @@ Out of scope: real-provider wiring (`--live`), Auth/Search/Analytics tools (scor
 |---|---|---|---|---|---|---|
 | Mail (Resend/SendGrid/Postmark/SES) | Mailpit | 9 | 9 | 9 | 729 | 1 |
 | Storage (S3/R2/GCS/Supabase) | MinIO | 8 | 9 | 8 | 576 | 1 |
-| Payments (Stripe) | stripe-mock | 9 | 7 | 8 | 504 | 1 |
+| Payment (Stripe) | stripe-mock | 9 | 7 | 8 | 504 | 1 |
 | Search | Meilisearch / Typesense | 6 | 8 | 8 | 384 | 2 |
 | Analytics | PostHog / Plausible | 5 | 5 | 4 | 100 | 3 |
 | Auth (Clerk/Auth0) | Keycloak / Authentik | 9 | 5 | 3 | 135 | 2 (needs per-framework SDK wiring) |

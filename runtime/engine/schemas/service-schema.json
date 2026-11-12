@@ -624,7 +624,7 @@
       }
     },
     "provides": {
-      "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type database --framework redis|qdrant|mlflow, --type storage --framework minio and --type queue --framework nats|rabbitmq write it.",
+      "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type database --framework redis|qdrant|mlflow, --type storage --framework minio, --type queue --framework nats|rabbitmq, --type mail --framework mailpit and --type payment --framework stripe-mock write it.",
       "type": "object",
       "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
       "additionalProperties": { "type": "string", "pattern": "^[A-Za-z0-9_\\-./:@%+=,]+$" }
@@ -735,7 +735,7 @@
       "uniqueItems": true
     },
     "framework": {
-      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). For a database resource it names the database: postgres (the shared Flisk Postgres). For a bring-your-own resource written by flisk resource --type database, queue or storage it records the infrastructure framework (redis, qdrant, minio, mlflow, nats, rabbitmq); the engine ignores it. Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
+      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). For a database resource it names the database: postgres (the shared Flisk Postgres). For a bring-your-own resource written by flisk resource --type database, queue, storage, mail or payment it records the infrastructure framework (redis, qdrant, minio, mlflow, nats, rabbitmq, mailpit, stripe-mock); the engine ignores it. Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
       "examples": [
         "react",
         "vue",

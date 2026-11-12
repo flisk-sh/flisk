@@ -55,11 +55,17 @@ F2() { # flisk up, the route answers 200 through Traefik, and the module script 
   start_stack "$STACK"
   wait_status_url "$RES"
   poll_until "$RES route answers 200 through Traefik" "$READY_TIMEOUT" route_ok
+  timing_serving cold_start || true
   local html="$OUT/f2-index.html"
   traefik_request "$RES" "/" >"$html"
   local result
   result="$(asset_ok "$html")" || die "the $FRAMEWORK module script is missing or not served as JavaScript: $result"
   echo "PASS $FRAMEWORK: module script $result"
+}
+
+F2b() { # flisk down, then flisk up again with the images cached: the route answers 200 (the warm start, stacklytics)
+  log "F2b warm start: flisk down, flisk up, GET /$RES/ -> 200"
+  common_warm_start "$STACK" "$RES route answers 200 through Traefik" route_ok
 }
 
 F3() { # flisk config verify passes for the scaffolded frontend (generated-project consistency, see docs/frontend-framework-providers.md)

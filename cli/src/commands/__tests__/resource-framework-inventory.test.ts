@@ -157,7 +157,7 @@ describe("flisk resource --frameworks", () => {
     expect(result.status, result.stderr).toBe(0);
     const help = result.stdout.replace(/\s+/g, " ");
     expect(help).toContain(
-      "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage)",
+      "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage, --type mail, --type payment)",
     );
   });
 
@@ -216,11 +216,13 @@ describe("flisk resource --frameworks", () => {
     ]);
   });
 
-  it("reports the database, queue and storage frameworks in --json", () => {
+  it("reports the frameworks of every infrastructure type in --json", () => {
     for (const [type, ids] of [
       ["database", ["postgres", "redis", "qdrant", "mlflow", "mysql", "mongodb", "clickhouse"]],
       ["queue", ["nats", "rabbitmq"]],
       ["storage", ["minio"]],
+      ["mail", ["mailpit"]],
+      ["payment", ["stripe-mock"]],
     ] as const) {
       const result = flisk(["resource", "--type", type, "--frameworks", "--json"]);
 
