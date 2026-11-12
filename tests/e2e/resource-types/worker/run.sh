@@ -38,6 +38,12 @@ worker_logged_start() { local c; c="$(worker_container)"; [ -n "$c" ] && docker 
 W3() { # the worker's container logged its start line
   log "W3 the $RES container logged its start line"
   poll_until "$RES logged 'worker started'" 180 worker_logged_start
+  timing_serving cold_start || true # a worker serves no route: its start is the start line in its log
+}
+
+W3b() { # flisk down, then flisk up again with the images cached: the worker logs its start line again (the warm start)
+  log "W3b warm start: flisk down, flisk up, $RES logs its start line"
+  common_warm_start "$STACK" "$RES logged 'worker started' (warm)" worker_logged_start
 }
 
 worker_replaced() { # <container id from before the restart>: the newest container for the worker is a different one

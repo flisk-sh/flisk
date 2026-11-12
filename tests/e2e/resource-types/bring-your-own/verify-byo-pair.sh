@@ -70,6 +70,7 @@ sed -i.bak -E "s#^(ENV ${envvar}=http://)[^:]+(:[0-9]+)#\1${dep_name}\2#" "servi
 grep -q "^ENV ${envvar}=http://${dep_name}:" "services/app/$app_name/Dockerfile" \
   || { echo "the app Dockerfile has no 'ENV ${envvar}=http://<host>:<port>' line to rewrite" >&2; exit 2; }
 
+up_t0="$(node -p 'Date.now()')"
 nohup "${FLISK_BIN:-flisk}" up app >"$work/up.log" 2>&1 &
 
 url="http://127.0.0.1:$http_port/api/$app_name$app_health"
@@ -81,6 +82,8 @@ for _ in $(seq 1 "${VERIFY_WAIT_SECONDS:-600}"); do
 done
 
 if [ "$status" = "200" ]; then
+  # The cold start for stacklytics: `flisk up` started -> first 200 through Traefik (run.sh reads the file, #4025).
+  [ -z "${BYO_COLD_START_FILE:-}" ] || echo $(( $(node -p 'Date.now()') - up_t0 )) >"$BYO_COLD_START_FILE"
   echo "PASS $app + $dep: through flisk up and Traefik, GET /api/$app_name$app_health -> 200 ($(curl -s -m 3 -H "Host: api.$proj.localhost" "$url" | head -c 120))"
 else
   echo "FAIL $app + $dep: GET /api/$app_name$app_health -> $status" >&2

@@ -33,7 +33,8 @@ const AXES = [
 		leg: (v) => (v === "database" ? null : v),
 	},
 	{ axis: "orm", id: "orm", title: "ORMs", leg: (v) => v },
-	{ axis: "byoVariant", id: "byo", title: "Bring your own container", leg: (v) => `bring-your-own-${v}` },
+	// The axis values (byo, byo-jobs, byo-pair) are measured by the bring-your-own legs that run them through `flisk up`.
+	{ axis: "byoVariant", id: "byo", title: "Bring your own container", leg: (v) => `bring-your-own-${{ byo: "flisk", "byo-jobs": "job", "byo-pair": "pair" }[v] ?? v}` },
 	{ axis: "infraService", id: "infra", title: "Infrastructure services", leg: () => null },
 ];
 

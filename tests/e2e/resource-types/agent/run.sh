@@ -92,6 +92,12 @@ A3() { # /health and /ready through Traefik; the agent publishes no host port
   # The agent container publishes no host port: Traefik is the only way in, and `flisk agent sessions` uses the same route.
   code="$(direct "http://127.0.0.1:$port/health" -o /dev/null -w '%{http_code}' || true)"; echo "direct GET :$port/health -> ${code:-000} (expected: not published)"
   [ "${code:-000}" != 200 ] || die "agent port $port answers on the host; the docs say agents are reached through Traefik"
+  timing_serving cold_start || true
+}
+
+A3b() { # flisk down, then flisk up again with the images cached: /ready answers 200 (the warm start, stacklytics)
+  log "A3b warm start: flisk down, flisk up, $AGENT answers /ready"
+  common_warm_start "$STACK" "agent $AGENT answers /ready 200 through Traefik" agent_ready
 }
 
 A4() { # a checkpoint through Traefik, read back with flisk agent sessions

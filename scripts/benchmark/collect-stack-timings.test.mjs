@@ -23,7 +23,7 @@ const rec = (leg, metric, ms, at = "2026-11-12T01:00:00Z") => ({ leg, metric, ms
 
 test("each axis value maps to the leg label the matrix gives it", () => {
 	const ids = catalog(axes).stacks.map((s) => s.id);
-	assert.deepEqual(ids, ["bun", "python", "bun", "bun-express", "frontend-react", "frontend-next", "worker", "appType:database", "prisma", "bring-your-own-byo", "infraService:elk"]);
+	assert.deepEqual(ids, ["bun", "python", "bun", "bun-express", "frontend-react", "frontend-next", "worker", "appType:database", "prisma", "bring-your-own-flisk", "infraService:elk"]);
 });
 
 test("scaffold is the median of its readings, every other metric is the first reading", () => {
@@ -77,7 +77,7 @@ test("reads every timings.jsonl under a directory and skips bad lines", () => {
 test("the real axes.json lists the stacks the page needs", () => {
 	const real = JSON.parse(readFileSync(new URL("../../tests/e2e/axes.json", import.meta.url), "utf8"));
 	const ids = catalog(real).stacks.map((s) => s.id);
-	for (const id of ["bun", "python", "go", "rust", "node", "frontend-react", "frontend-next", "bun-express", "prisma", "bring-your-own-byo", "mcp"]) assert.ok(ids.includes(id), id);
+	for (const id of ["bun", "python", "go", "rust", "node", "frontend-react", "frontend-next", "bun-express", "prisma", "bring-your-own-flisk", "mcp"]) assert.ok(ids.includes(id), id);
 });
 
 test("the job summary lists the stacks that ran and counts the rest", () => {
@@ -87,4 +87,9 @@ test("the job summary lists the stacks that ran and counts the rest", () => {
 	assert.match(md, /Commit `abcdef1`/);
 	assert.match(md, /\d+ more stacks are listed as coming soon/);
 	assert.ok(!md.includes("infraService"));
+});
+
+test("bring-your-own axis values map to the legs that run them through flisk up", () => {
+	const byo = { axes: { byoVariant: { values: { byo: {}, "byo-jobs": {}, "byo-pair": {} } } } };
+	assert.deepEqual(catalog(byo).stacks.map((s) => s.id), ["bring-your-own-flisk", "bring-your-own-job", "bring-your-own-pair"]);
 });

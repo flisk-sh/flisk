@@ -55,6 +55,7 @@ D3() { # DATABASE_URL is set in the running container's environment
 D4() { # /health/db answers 200 through Traefik: the route queried Postgres through Drizzle
   log "D4 $API answers /health/db through Traefik"
   poll_until "$API answers /health/db 200 through Traefik" "$READY_TIMEOUT" api_db_healthy
+  timing_serving cold_start || true
   local body; body="$(traefik_request_ok "$API" /health/db)"; echo "GET /health/db -> $body"
   echo "$body" >"$OUT/d4-health-db.out"
   assert check "$OUT/d4-health-db.out" "j.ok === true || j.status === 'ok'" "/health/db reports the Postgres query succeeded"

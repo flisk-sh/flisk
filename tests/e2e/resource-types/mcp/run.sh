@@ -36,6 +36,12 @@ P2() { # flisk up, listed as an mcp resource, healthy through Traefik
   wait_status_url "$RES"
   common_wait_status "$RES" mcp
   poll_until "$RES answers /health 200 through Traefik" "$READY_TIMEOUT" mcp_healthy
+  timing_serving cold_start || true
+}
+
+P2b() { # flisk down, then flisk up again with the images cached: /health answers 200 (the warm start, stacklytics)
+  log "P2b warm start: flisk down, flisk up, $RES answers /health"
+  common_warm_start "$STACK" "$RES answers /health 200 through Traefik" mcp_healthy
 }
 
 P3() { # the MCP SDK client connects, lists the tools and calls echo

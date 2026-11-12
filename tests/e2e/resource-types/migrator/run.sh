@@ -76,6 +76,7 @@ M3() { # flisk up starts Postgres, runs the migrator to completion, then starts 
   : >"$DIR/up.log"
   start_stack "$STACK"
   poll_until "$MIGRATOR logs a completed migration" "$READY_TIMEOUT" migrator_completed
+  timing_serving cold_start || true # a migrator serves no route: its start ends when the migration completes
   poll_until "a running $API container" "$READY_TIMEOUT" api_running
   # The migrator is a one-shot job: it exits 0 and stays exited. It used to get the backend service (restart:
   # unless-stopped, an HTTP health check), so Docker restarted it forever, its health stayed unhealthy and flisk up never
