@@ -785,6 +785,22 @@
 		},
 		{
 			"workflow": "e2e-resource-types.yml",
+			"job": "stack-timings",
+			"tier": "report",
+			"required": false,
+			"reason": "Merges every leg's scaffold and start times into stack-timings.json (stacklytics)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-resource-types.yml",
+			"job": "publish-stack-timings",
+			"tier": "report",
+			"required": false,
+			"reason": "Publishes the merged stack timings to benchmarks-data (nightly, after a release, or on request)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-resource-types.yml",
 			"job": "gate",
 			"tier": "gate",
 			"reason": "Fails when the plan or any selected suite fails (#1290)",
