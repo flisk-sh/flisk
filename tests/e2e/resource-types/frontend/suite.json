@@ -11,7 +11,7 @@
     "tests/e2e/resource-types/frontend/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["F1", "F2", "F3"],
+  "cases": ["F1", "F2", "F2b", "F3"],
   "triggers": ["pr", "nightly", "release", "manual"],
   "timeoutMinutes": 30,
   "needsSecrets": []

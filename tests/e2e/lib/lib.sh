@@ -42,6 +42,30 @@ e2e_init() { # <suite> <default project name>
 log() { printf '\n== %s\n' "$*"; }
 die() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 now_ms() { node -p 'Date.now()'; }
+
+# ------------------------------------------------------------------------------------------------------------- timings
+# Every leg reports how fast its stack scaffolds and starts, so one nightly run answers "how fast is each framework under Flisk"
+# (the stacklytics page, scripts/benchmark/collect-stack-timings.mjs). timing appends one JSON line to $SUITE_ROOT/timings.jsonl;
+# the workflow uploads that file per leg. E2E_LEG (the matrix label, e.g. frontend-react) names the leg, E2E_GROUP its group.
+# A timing never fails a suite: every helper here swallows its own errors.
+#   scaffold    `flisk resource ...` (common_scaffold)
+#   listed      `flisk up` started -> `flisk status` lists the resource with a Traefik url (wait_status_url)
+#   cold_start  `flisk up` started on a fresh runner -> the route answers 200 through Traefik (timing_serving)
+#   warm_start  `flisk down`, then `flisk up` with the images cached -> the route answers 200 again (common_warm_start)
+timing() { # <metric> <ms>
+  local leg="${E2E_LEG:-$SUITE_NAME}"
+  mkdir -p "$SUITE_ROOT"
+  jq -nc --arg suite "$SUITE_NAME" --arg leg "$leg" --arg group "${E2E_GROUP:-}" --arg metric "$1" --argjson ms "$2" --arg at "$(date -u +%FT%TZ)" \
+    '{suite:$suite,leg:$leg,group:$group,metric:$metric,ms:$ms,at:$at}' >>"$SUITE_ROOT/timings.jsonl" 2>/dev/null || return 0
+  printf 'TIMING %s %s=%sms\n' "$leg" "$1" "$2"
+}
+timing_since_up() { # <metric>: ms since the last start_stack, recorded at most once per start_stack for that metric
+  [ -n "${UP_T0:-}" ] || return 0
+  case " ${UP_DONE:-} " in *" $1 "*) return 0 ;; esac
+  UP_DONE="${UP_DONE:-} $1"
+  timing "$1" $(( $(now_ms) - UP_T0 )) || true
+}
+timing_serving() { timing_since_up "$1" || true; } # <metric>: call right after the route first answers 200
 # scaled_ready_timeout <resources> <seconds each>: READY_TIMEOUT for a stack that builds that many images, a few at a time.
 # Never less than READY_TIMEOUT, and E2E_READY_TIMEOUT, when set, wins unchanged.
 scaled_ready_timeout() {
@@ -100,12 +124,14 @@ resource_port() { resource_field "$1" port; }
 resource_url() { resource_field "$1" url; }
 
 start_stack() { # <stack>: `flisk up` in the background, appending to $DIR/up.log
+  UP_T0="$(now_ms)"; UP_DONE=""
   (cd "$DIR" && nohup flisk up "$1" >>"$DIR/up.log" 2>&1 &)
 }
 # wait_status_url <resource>: bounded wait until `flisk status --json` lists the resource with a Traefik url.
 wait_status_url() {
   poll_until "flisk status lists $1 with a Traefik url" "$READY_TIMEOUT" \
     bash -c "cd '$DIR' && flisk status --json | jq -e --arg n '$1' '.data.resources[] | select(.name==\$n) | .url'"
+  timing_since_up listed || true
 }
 
 # Containers are named <project>-<stack>-<resource>-<n>.
