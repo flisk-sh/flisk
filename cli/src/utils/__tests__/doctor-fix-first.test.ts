@@ -46,7 +46,9 @@ describe("rankDoctorFixes", () => {
   });
 
   it("points Windows port conflicts at netstat", () => {
-    expect(rankDoctorFixes([ports], "win32")[0]?.command).toBe('netstat -ano | findstr /c:":5432 "');
+    expect(rankDoctorFixes([ports], "win32")[0]?.command).toBe(
+      'netstat -ano | findstr /c:":5432 "',
+    );
   });
 
   it("skips passing, skipped and command-less checks", () => {

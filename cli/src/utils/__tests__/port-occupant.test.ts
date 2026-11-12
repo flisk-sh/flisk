@@ -60,7 +60,9 @@ describe("findPortOccupant", () => {
   });
 
   it("returns null on Windows when the output is not a pid and a name", () => {
-    const runner = vi.fn((command: string) => (command === "powershell.exe" ? "not-a-pid\r\n" : ""));
+    const runner = vi.fn((command: string) =>
+      command === "powershell.exe" ? "not-a-pid\r\n" : "",
+    );
     expect(findPortOccupant(9000, "win32", runner)).toBeNull();
   });
 });
