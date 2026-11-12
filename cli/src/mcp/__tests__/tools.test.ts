@@ -138,7 +138,9 @@ function checkDocCliInvocations(docText: string, commands: Map<string, Command>)
       idx += 1;
     }
 
-    if (positionalCount > targetCmd.registeredArguments.length) {
+    // A variadic last argument (`flisk tool add <tool...>`) takes any number of words, as in undeclaredArguments.
+    const takesAny = targetCmd.registeredArguments.at(-1)?.variadic === true;
+    if (!takesAny && positionalCount > targetCmd.registeredArguments.length) {
       problems.push(
         `flisk ${targetCmd.name()} takes ${targetCmd.registeredArguments.length} positional argument(s), but doc has ${positionalCount} in "${match[0]}"`,
       );
@@ -244,7 +246,15 @@ describe("argument building", () => {
       buildToolAddArgs({ tool: "postgresql", name: "db", stack: "shop", dryRun: true }),
     ).toEqual(["tool", "add", "postgresql", "db", "--json", "--stack=shop", "--dry-run"]);
     expect(() => buildToolAddArgs({})).toThrow(/tool is required/);
-    expect(() => buildToolAddArgs({ tool: "cobol" })).toThrow(/tool must be one of/);
+    expect(() => buildToolAddArgs({ tool: "cobol" })).toThrow(/does not know the tool "cobol"/);
+    // Everyday spellings resolve to the id, so a rejected cloud provider reaches the CLI and its reason.
+    expect(buildToolAddArgs({ tool: "google cloud" })).toEqual([
+      "tool",
+      "add",
+      "google-cloud",
+      "--json",
+    ]);
+    expect(buildToolAddArgs({ tool: "Next.js" })).toEqual(["tool", "add", "nextjs", "--json"]);
     expect(() => buildToolAddArgs({ tool: "react", name: "--evil" })).toThrow(
       /name must be a name/,
     );

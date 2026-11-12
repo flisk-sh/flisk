@@ -127,7 +127,7 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     group: "backend",
     aliases: ["node"],
     status: "resource",
-    defaultName: "api",
+    defaultName: "server",
     args: ["--type", "backend", "--language", "node"],
   },
   {
@@ -136,7 +136,7 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     group: "backend",
     aliases: ["python"],
     status: "resource",
-    defaultName: "api",
+    defaultName: "server",
     args: ["--type", "backend", "--language", "python"],
   },
   {
