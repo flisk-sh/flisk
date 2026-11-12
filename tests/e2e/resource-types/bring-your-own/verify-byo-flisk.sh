@@ -50,6 +50,7 @@ rm -f "services/app/$proj/README.md"
   --register-existing --dockerfile ./Dockerfile --health-path "$health" --yes >/dev/null)
 # Ask for Flisk's Postgres: a bring-your-own service gets DATABASE_URL only when it depends on it (#3010).
 node -e 'const f=process.argv[1]; const fs=require("fs"); const s=JSON.parse(fs.readFileSync(f,"utf8")); s.dependsOn=[...new Set([...(s.dependsOn||[]),"postgres"])]; fs.writeFileSync(f, JSON.stringify(s,null,2)+"\n")' "services/app/$proj/service.json"
+up_t0="$(node -p 'Date.now()')"
 nohup "${FLISK_BIN:-flisk}" up app >"$work/up.log" 2>&1 &
 
 url="http://127.0.0.1:$http_port/api/$proj$health"
@@ -61,6 +62,8 @@ for _ in $(seq 1 "${VERIFY_WAIT_SECONDS:-600}"); do
 done
 
 if [ "$status" = "200" ]; then
+  # The cold start for stacklytics: `flisk up` started -> first 200 through Traefik (run.sh reads the file, #4025).
+  [ -z "${BYO_COLD_START_FILE:-}" ] || echo $(( $(node -p 'Date.now()') - up_t0 )) >"$BYO_COLD_START_FILE"
   echo "PASS $name: through flisk up and Traefik, GET /api/$proj$health -> 200 ($(curl -s -m 3 -H "Host: api.$proj.localhost" "$url" | head -c 80))"
 else
   echo "FAIL $name: GET /api/$proj$health -> $status" >&2

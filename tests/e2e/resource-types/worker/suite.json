@@ -11,7 +11,7 @@
     "tests/e2e/resource-types/worker/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["W1", "W2", "W3", "W4", "W5", "W6"],
+  "cases": ["W1", "W2", "W3", "W3b", "W4", "W5", "W6"],
   "triggers": [
     "nightly",
     "release",

@@ -87,6 +87,7 @@ P3() { # DATABASE_URL is in the API container's environment
 P4() { # the routed /health/db queries Postgres through DATABASE_URL
   log "P4 $API queries Postgres through /health/db"
   poll_until "$API answers /health/db with ok 1 from Postgres" "$READY_TIMEOUT" db_healthy
+  timing_serving cold_start || true
   echo "$(cat "$OUT/health-db.json")"
 }
 
