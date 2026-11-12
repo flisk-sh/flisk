@@ -20,18 +20,18 @@ export const COUNT = 36;
 export const STACKS = ["rotor-i", "rotor-ii", "rotor-iii", "rotor-iv", "rotor-v", "rotor-vi"];
 // The kinds every plan holds at least once. library and migrator are not creatable with `flisk resource --type`; inference
 // pulls a multi-gigabyte model image, so it stays in its own suite.
-export const KINDS = ["backend", "frontend", "worker", "mcp", "agent", "database", "queue", "storage", "mail", "payments", "bring-your-own", "sdk"];
+export const KINDS = ["backend", "frontend", "worker", "mcp", "agent", "database", "queue", "storage", "mail", "payment", "bring-your-own", "sdk"];
 // Each infrastructure server (Postgres, Redis, Qdrant, MinIO, MLflow, NATS, RabbitMQ) appears at most once: a second one of the
 // same framework only collides on its UI host port and adds boot time, not combinations. Every one of them is always drawn
 // when the count leaves room, so a plan never holds just the Postgres.
 const MAX_PER_VARIANT = 1;
 // The `flisk resource --type` values whose frameworks are infrastructure presets (cli/src/utils/infra-presets.ts).
-export const INFRA_KINDS = ["database", "queue", "storage", "mail", "payments"];
+export const INFRA_KINDS = ["database", "queue", "storage", "mail", "payment"];
 // The type `flisk status` and the scaffold envelope report. Every infrastructure framework except the shared Postgres is a
 // bring-your-own container (docs/byo.md, "Infrastructure frameworks").
 export const reportedType = (e) => (INFRA_KINDS.includes(e.kind) && e.variant !== "postgres" ? "bring-your-own" : e.kind);
 
-// The infrastructure frameworks `flisk resource --type <database|queue|storage|mail|payments> --framework <id>` creates, read from the CLI's INFRA_PRESETS
+// The infrastructure frameworks `flisk resource --type <database|queue|storage|mail|payment> --framework <id>` creates, read from the CLI's INFRA_PRESETS
 // (the top-level keys, two-space indent) so a new framework joins the draw without editing this file.
 export function infraFrameworks(root = path.resolve(here, "../../../..")) {
   const text = readFileSync(path.join(root, "cli/src/utils/infra-presets.ts"), "utf8");

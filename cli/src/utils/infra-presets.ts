@@ -6,7 +6,7 @@ import {
   type InfraFramework,
   type InfraResourceType,
   MAIL_RESOURCE_TYPE,
-  PAYMENTS_RESOURCE_TYPE,
+  PAYMENT_RESOURCE_TYPE,
   PRESET_RESOURCE_TYPES,
   type PresetResourceType,
   QUEUE_RESOURCE_TYPE,
@@ -20,7 +20,7 @@ import {
 /**
  * Infrastructure frameworks: `flisk resource <name> --type database --framework redis|qdrant|mlflow|...`,
  * `--type queue --framework nats|rabbitmq`, `--type storage --framework minio`, `--type mail --framework mailpit` and
- * `--type payments --framework stripe-mock` (the shared Postgres is `--type database` on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
+ * `--type payment --framework stripe-mock` (the shared Postgres is `--type database` on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
  * with a readiness probe, a named data volume that `flisk down` keeps, and `provides`: the connection settings every
  * service that lists it in `dependsOn` gets in its environment. Services in the stack reach it on the Docker network by
  * name. A framework with a web UI also publishes it on 127.0.0.1 only (`extraPorts`); two resources of one framework
@@ -216,7 +216,7 @@ export const INFRA_PRESETS = {
     },
   },
   "stripe-mock": {
-    type: PAYMENTS_RESOURCE_TYPE,
+    type: PAYMENT_RESOURCE_TYPE,
     description:
       "stripe-mock Stripe API emulator (stateless: answers every call from the OpenAPI spec)",
     image: "stripe/stripe-mock:v0.206.0",

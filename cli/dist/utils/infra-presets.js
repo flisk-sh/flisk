@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { DATABASE_INFRA_FRAMEWORKS, DATABASE_RESOURCE_TYPE, MAIL_RESOURCE_TYPE, PAYMENTS_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, QUEUE_RESOURCE_TYPE, STORAGE_RESOURCE_TYPE, } from "../types/index.js";
+import { DATABASE_INFRA_FRAMEWORKS, DATABASE_RESOURCE_TYPE, MAIL_RESOURCE_TYPE, PAYMENT_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, QUEUE_RESOURCE_TYPE, STORAGE_RESOURCE_TYPE, } from "../types/index.js";
 import { SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "./service-manifest.js";
 const MINIO_USER = "minioadmin";
 const MINIO_PASSWORD = "minioadmin";
@@ -165,7 +165,7 @@ export const INFRA_PRESETS = {
         },
     },
     "stripe-mock": {
-        type: PAYMENTS_RESOURCE_TYPE,
+        type: PAYMENT_RESOURCE_TYPE,
         description: "stripe-mock Stripe API emulator (stateless: answers every call from the OpenAPI spec)",
         image: "stripe/stripe-mock:v0.206.0",
         port: 12111,

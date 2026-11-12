@@ -196,7 +196,7 @@ describe("printFrameworkInventory for database and queue", () => {
     const result = await runFrameworkListing(["--type", "worker", "--frameworks"]);
 
     expect(result.stderr + result.stdout).toContain(
-      "Use --type frontend, backend, database, queue, storage, mail or payments to list frameworks",
+      "Use --type frontend, backend, database, queue, storage, mail or payment to list frameworks",
     );
   });
 });

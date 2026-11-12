@@ -32,8 +32,8 @@ export const QUEUE_RESOURCE_TYPE = "queue";
 export const STORAGE_RESOURCE_TYPE = "storage";
 /** `--type mail`: a local SMTP server and inbox standing in for a mail API, run as its own container. */
 export const MAIL_RESOURCE_TYPE = "mail";
-/** `--type payments`: a local payments API emulator, run as its own container. */
-export const PAYMENTS_RESOURCE_TYPE = "payments";
+/** `--type payment`: a local payment API emulator, run as its own container. */
+export const PAYMENT_RESOURCE_TYPE = "payment";
 /** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
 export const DATABASE_INFRA_FRAMEWORKS = [
     "redis",
@@ -51,11 +51,11 @@ export const DEFAULT_QUEUE_FRAMEWORK = "nats";
 export const STORAGE_FRAMEWORKS = ["minio"];
 /** `--type mail --framework <id>`. */
 export const MAIL_FRAMEWORKS = ["mailpit"];
-/** `--type payments --framework <id>`. */
-export const PAYMENTS_FRAMEWORKS = ["stripe-mock"];
+/** `--type payment --framework <id>`. */
+export const PAYMENT_FRAMEWORKS = ["stripe-mock"];
 /**
  * The infrastructure types other than `database`: every framework of one is a preset container, and `--framework` may be
- * left out for the default. A new kind of infrastructure (mail, payments) is one more entry here plus its presets.
+ * left out for the default. A new kind of infrastructure (mail, payment) is one more entry here plus its presets.
  */
 export const PRESET_RESOURCE_TYPES = {
     [QUEUE_RESOURCE_TYPE]: {
@@ -65,9 +65,9 @@ export const PRESET_RESOURCE_TYPES = {
     },
     [STORAGE_RESOURCE_TYPE]: { label: "Storage", frameworks: STORAGE_FRAMEWORKS, default: "minio" },
     [MAIL_RESOURCE_TYPE]: { label: "Mail", frameworks: MAIL_FRAMEWORKS, default: "mailpit" },
-    [PAYMENTS_RESOURCE_TYPE]: {
-        label: "Payments",
-        frameworks: PAYMENTS_FRAMEWORKS,
+    [PAYMENT_RESOURCE_TYPE]: {
+        label: "Payment",
+        frameworks: PAYMENT_FRAMEWORKS,
         default: "stripe-mock",
     },
 };
@@ -83,14 +83,14 @@ export const RESOURCE_TYPE_VALUES = [
     QUEUE_RESOURCE_TYPE,
     STORAGE_RESOURCE_TYPE,
     MAIL_RESOURCE_TYPE,
-    PAYMENTS_RESOURCE_TYPE,
+    PAYMENT_RESOURCE_TYPE,
     "sdk",
 ];
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export const INFERENCE_RESOURCE_TYPE = "inference";
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
- * the `inference` preset, `database` and the preset types (`queue`, `storage`, `mail`, `payments`). `sdk` is left out because it only registers a package that
+ * the `inference` preset, `database` and the preset types (`queue`, `storage`, `mail`, `payment`). `sdk` is left out because it only registers a package that
  * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
  * `resource_create` tool builds its type enum from this list.
  */
@@ -101,7 +101,7 @@ export const RESOURCE_CREATE_TYPE_VALUES = [
     QUEUE_RESOURCE_TYPE,
     STORAGE_RESOURCE_TYPE,
     MAIL_RESOURCE_TYPE,
-    PAYMENTS_RESOURCE_TYPE,
+    PAYMENT_RESOURCE_TYPE,
 ];
 export function isCreatableResourceType(value) {
     return (typeof value === "string" && CREATABLE_RESOURCE_TYPES.includes(value));

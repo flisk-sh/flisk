@@ -87,7 +87,7 @@ describe("infrastructure frameworks (--type database|queue|storage --framework .
     expect(parseResourceType("queue")).toBe("queue");
     expect(parseResourceType("storage")).toBe("storage");
     expect(parseResourceType("mail")).toBe("mail");
-    expect(parseResourceType("payments")).toBe("payments");
+    expect(parseResourceType("payment")).toBe("payment");
   });
 
   it("writes Mailpit for --type mail: SMTP with the inbox kept in its data volume, the UI on 127.0.0.1", async () => {
@@ -110,8 +110,8 @@ describe("infrastructure frameworks (--type database|queue|storage --framework .
     });
   });
 
-  it("writes stripe-mock for --type payments: stateless, so no data volume, and a test key stripe-mock accepts", async () => {
-    const pay = await create("pay", "payments");
+  it("writes stripe-mock for --type payment: stateless, so no data volume, and a test key stripe-mock accepts", async () => {
+    const pay = await create("pay", "payment");
     expect(pay).toMatchObject({
       appType: "bring-your-own",
       framework: "stripe-mock",

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # The infrastructure frameworks (`flisk resource --type database --framework redis|qdrant|mlflow`, `--type storage --framework minio`, `--type queue
-# --framework nats|rabbitmq`, `--type mail` (Mailpit), `--type payments` (stripe-mock)), through a real `flisk up`.
+# --framework nats|rabbitmq`, `--type mail` (Mailpit), `--type payment` (stripe-mock)), through a real `flisk up`.
 # Needs Docker, Tilt, and a built CLI (cli/dist). Uses an isolated throwaway project with unique names and alternate ports,
 # and removes only the containers, networks, volumes and images carrying its own unique project name.
 #
@@ -58,7 +58,7 @@ flisk resource tracking --type database --framework mlflow --stack app --yes >/d
 flisk resource bus --type queue --stack app --yes >/dev/null
 flisk resource queue --type queue --framework rabbitmq --stack app --yes >/dev/null
 flisk resource mail --type mail --stack app --yes >/dev/null
-flisk resource pay --type payments --stack app --yes >/dev/null
+flisk resource pay --type payment --stack app --yes >/dev/null
 mkdir -p "services/app/$res"
 cp -R "$fixture/." "services/app/$res/"
 (cd "services/app/$res" && flisk resource "$res" --type bring-your-own --stack app \

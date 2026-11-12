@@ -100,9 +100,9 @@ test("each infrastructure framework is drawn under the --type its preset names, 
   assert.equal(kinds.nats, "queue");
   assert.equal(kinds.minio, "storage");
   assert.equal(kinds.mailpit, "mail");
-  assert.equal(kinds["stripe-mock"], "payments");
+  assert.equal(kinds["stripe-mock"], "payment");
   assert.deepEqual(Object.keys(kinds).sort(), [...infraFrameworks()].sort());
   const byVariant = Object.fromEntries(drawPlan(3).entries.map((e) => [e.variant, e.kind]));
-  assert.equal(byVariant["stripe-mock"], "payments");
+  assert.equal(byVariant["stripe-mock"], "payment");
   assert.equal(byVariant.mailpit, "mail");
 });
