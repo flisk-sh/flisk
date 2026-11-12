@@ -14,5 +14,7 @@ export declare class ResourceFilePlan {
         }[];
         directories: string[];
     };
+    /** Check the entire plan before either reporting success or performing its first write. */
+    private validate;
     write(): void;
 }

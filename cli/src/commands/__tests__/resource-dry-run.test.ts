@@ -140,6 +140,138 @@ describe("resource scaffolding preview", () => {
     expect(snapshot(root)).toEqual(before);
   });
 
+  it.each([
+    "service.json",
+    "./service.json",
+    "nested/../service.json",
+    "SERVICE.JSON",
+    "AGENTS.md",
+    "health.conf",
+    "docker/health.conf",
+    "service.json/Dockerfile",
+    "AGENTS.md/Dockerfile",
+  ])("rejects colliding Dockerfile path %s before previewing or writing", (dockerfile) => {
+    for (const flags of [["--dry-run"], []]) {
+      const root = createTempProject();
+      const before = snapshot(root);
+      const result = runFlisk(
+        [
+          "resource",
+          "sample",
+          "--type",
+          "bring-your-own",
+          "--stack",
+          "shop",
+          "--dockerfile",
+          dockerfile,
+          "--json",
+          ...flags,
+        ],
+        { cwd: root, input: "" },
+      );
+      expect(result.status, `${dockerfile}: ${result.stdout}`).toBe(1);
+      expect(parseEnvelope(result.stdout).errors[0].message).toMatch(
+        /reserved|multiple writes|both a file and a directory/i,
+      );
+      expect(snapshot(root)).toEqual(before);
+    }
+  });
+
+  it.each(["backend", "bring-your-own"])(
+    "rejects a file ancestor for %s without partial writes",
+    (type) => {
+      for (const flags of [["--dry-run"], []]) {
+        const root = createTempProject({ files: { "README.md": "keep this file\n" } });
+        const before = snapshot(root);
+        const result = runFlisk(
+          [
+            "resource",
+            "sample",
+            "--type",
+            type,
+            "--path",
+            "README.md/nested/api",
+            "--stack",
+            "shop",
+            "--json",
+            ...flags,
+          ],
+          { cwd: root, input: "" },
+        );
+        expect(result.status, result.stdout).toBe(1);
+        expect(parseEnvelope(result.stdout).errors[0].message).toContain("not a directory");
+        expect(snapshot(root)).toEqual(before);
+      }
+    },
+  );
+
+  it.each([
+    {
+      manifest: { appType: "backend", language: "python" },
+      args: [],
+      expected: { type: "backend", language: "python", framework: null },
+    },
+    {
+      manifest: { appType: "backend", language: "python" },
+      args: ["--language", "bun", "--framework", "express"],
+      expected: { type: "backend", language: "python", framework: null },
+    },
+    {
+      manifest: { appType: "backend", framework: "express" },
+      args: [],
+      expected: { type: "backend", language: "bun", framework: "express" },
+    },
+    {
+      manifest: { appType: "backend" },
+      args: [],
+      expected: { type: "backend", language: "bun", framework: "hono" },
+    },
+    {
+      manifest: { appType: "frontend", framework: "vue" },
+      args: [],
+      expected: { type: "frontend", language: null, framework: "vue" },
+    },
+    {
+      manifest: { appType: "worker" },
+      args: [],
+      expected: { type: "worker", language: null, framework: null },
+    },
+  ])("reports the preserved runtime when registering $manifest", ({ manifest, args, expected }) => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({ appName: "sample", stack: "old", ...manifest }),
+      },
+    });
+    const before = snapshot(root);
+    const preview = runResourceCommand(root, ["--path", "existing", ...args]);
+    expect(preview.resource).toMatchObject(expected);
+    expect(snapshot(root)).toEqual(before);
+    const applied = runResourceCommand(root, ["--path", "existing", ...args], false);
+    expect(applied).toEqual(preview.resource);
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject(
+      manifest,
+    );
+  });
+
+  it("prints the existing runtime in the human registration preview", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          language: "python",
+        }),
+      },
+    });
+    const result = runFlisk(
+      ["resource", "sample", "--path", "existing", "--stack", "shop", "--dry-run", "--yes"],
+      { cwd: root, input: "" },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("Language: python");
+    expect(result.stdout).toContain("Framework: N/A");
+  });
+
   it("does not refresh stale generated configs", () => {
     const root = createTempProject({
       projectJson: {

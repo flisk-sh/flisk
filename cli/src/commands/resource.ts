@@ -19,7 +19,7 @@ import {
   getBackendIndexTemplate,
   getDrizzleBackendIndexTemplate,
 } from "../backend-languages/bun.js";
-import { resolveBackendLanguage } from "../backend-languages/registry.js";
+import { DEFAULT_BACKEND_LANGUAGE, resolveBackendLanguage } from "../backend-languages/registry.js";
 import {
   DEFAULT_FRONTEND_FRAMEWORK,
   listFrontendFrameworks,
@@ -841,6 +841,35 @@ export interface ResourceReport {
   discovered: boolean;
 }
 
+/** Registration keeps runtime fields, even when the creation flags would select another scaffold. */
+function registrationReport(
+  report: ResourceReport,
+  manifest: ExistingServiceConfig,
+): ResourceReport {
+  const type = manifest.appType ?? report.type;
+  const language =
+    typeof manifest.language === "string"
+      ? manifest.language
+      : type === "backend"
+        ? DEFAULT_BACKEND_LANGUAGE
+        : null;
+  const framework =
+    typeof manifest.framework === "string"
+      ? manifest.framework
+      : type === "backend" && language === DEFAULT_BACKEND_LANGUAGE
+        ? DEFAULT_BACKEND_FRAMEWORK
+        : type === "frontend"
+          ? DEFAULT_FRONTEND_FRAMEWORK
+          : null;
+  return {
+    ...report,
+    type,
+    language,
+    framework,
+    port: typeof manifest.port === "number" && manifest.port > 0 ? manifest.port : null,
+  };
+}
+
 /** The historical frontend listing: id, display name, kind, verification, command. */
 function printFrontendFrameworks(): void {
   for (const f of listFrontendFrameworks()) {
@@ -1319,32 +1348,30 @@ export const resourceCommand = addYesOption(new Command("resource"))
         );
       }
 
-      console.log(chalk.gray("\nResource details:"));
-      console.log(chalk.gray(`  Name:  ${resourceName}`));
-      console.log(chalk.gray(`  Type:  ${resourceType}`));
-      console.log(chalk.gray(`  Stack: ${stackName}`));
-      console.log(
-        chalk.gray(`  Port: ${assignedPort || (isDatabase ? "N/A (database)" : "N/A (SDK)")}`),
-      );
-      console.log(chalk.gray(`  Path:  ${finalResourcePath}`));
-
+      const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
+      let updatedServiceJson: ExistingServiceConfig | undefined;
       if (shouldRegisterExisting && hasServiceJson) {
-        console.log(
-          chalk.yellow("\n⚠️  Existing resource detected - will update service.json only"),
+        // Read existing service.json
+        const existingContent = readFileSync(existingServiceJsonPath, "utf-8");
+        const existingServiceJson = parseExistingServiceJson(
+          existingContent,
+          existingServiceJsonPath,
         );
+
+        // Update with new values while preserving existing fields
+        updatedServiceJson = {
+          ...existingServiceJson,
+          $schema: existingServiceJson.$schema ?? SERVICE_MANIFEST_SCHEMA_URL,
+          schemaVersion: existingServiceJson.schemaVersion ?? SERVICE_MANIFEST_SCHEMA_VERSION,
+          appName: resourceName,
+          appType: resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType,
+          stack: stackName,
+          ...(assignedPort > 0 && { port: assignedPort }),
+        };
       }
 
-      const confirmed =
-        options.dryRun ||
-        assumeYes ||
-        (await confirmOrCancel(
-          shouldRegisterExisting && hasServiceJson
-            ? "\nRegister existing resource?"
-            : "\nCreate resource?",
-        ));
-      if (!confirmed) return { data: null };
-      const report = (action: ResourceReport["action"]): { data: ResourceReport } => ({
-        data: {
+      const report = (action: ResourceReport["action"]): { data: ResourceReport } => {
+        const data: ResourceReport = {
           action,
           name: resourceName,
           type: resourceType,
@@ -1365,15 +1392,41 @@ export const resourceCommand = addYesOption(new Command("resource"))
             finalResourcePath,
             readDiscoveryPaths(projectRoot),
           ),
-        } satisfies ResourceReport,
-      });
+        };
+        return { data: updatedServiceJson ? registrationReport(data, updatedServiceJson) : data };
+      };
+      const resource = report(updatedServiceJson ? "registered" : "created").data;
+
+      console.log(chalk.gray("\nResource details:"));
+      console.log(chalk.gray(`  Name:  ${resourceName}`));
+      console.log(chalk.gray(`  Type:  ${resource.type}`));
+      console.log(chalk.gray(`  Stack: ${stackName}`));
+      console.log(
+        chalk.gray(
+          `  Port: ${resource.port || (resource.type === DATABASE_RESOURCE_TYPE ? "N/A (database)" : "N/A (SDK)")}`,
+        ),
+      );
+      console.log(chalk.gray(`  Path:  ${finalResourcePath}`));
+
+      if (shouldRegisterExisting && hasServiceJson) {
+        console.log(
+          chalk.yellow("\n⚠️  Existing resource detected - will update service.json only"),
+        );
+      }
+
+      const confirmed =
+        options.dryRun ||
+        assumeYes ||
+        (await confirmOrCancel(
+          shouldRegisterExisting && hasServiceJson
+            ? "\nRegister existing resource?"
+            : "\nCreate resource?",
+        ));
+      if (!confirmed) return { data: null };
 
       const plan = new ResourceFilePlan();
       const preview = (): JsonCommandResult => {
         const { files, directories } = plan.preview(projectRoot);
-        const resource = report(
-          shouldRegisterExisting && hasServiceJson ? "registered" : "created",
-        ).data;
         console.log(chalk.cyan("\nDry run - planned changes:"));
         console.log(chalk.gray(`  Framework: ${resource.framework ?? "N/A"}`));
         console.log(chalk.gray(`  Language: ${resource.language ?? "N/A"}`));
@@ -1386,26 +1439,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       };
 
       // Handle existing resource registration
-      if (shouldRegisterExisting && hasServiceJson) {
-        // Read existing service.json
-        const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
-        const existingContent = readFileSync(existingServiceJsonPath, "utf-8");
-        const existingServiceJson = parseExistingServiceJson(
-          existingContent,
-          existingServiceJsonPath,
-        );
-
-        // Update with new values while preserving existing fields
-        const updatedServiceJson = {
-          ...existingServiceJson,
-          $schema: existingServiceJson.$schema ?? SERVICE_MANIFEST_SCHEMA_URL,
-          schemaVersion: existingServiceJson.schemaVersion ?? SERVICE_MANIFEST_SCHEMA_VERSION,
-          appName: resourceName,
-          appType: resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType,
-          stack: stackName,
-          ...(assignedPort > 0 && { port: assignedPort }),
-        };
-
+      if (updatedServiceJson) {
         // Write updated service.json
         plan.text(existingServiceJsonPath, JSON.stringify(updatedServiceJson, null, 2));
         if (options.dryRun) return preview();
@@ -1503,6 +1537,17 @@ export const resourceCommand = addYesOption(new Command("resource"))
           dockerfileRelativePath.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
         ) {
           throw errorFactories.invalidPath(dockerfile);
+        }
+
+        if (
+          [SERVICE_JSON, "AGENTS.md"].some(
+            (path) => path.toLowerCase() === dockerfileRelativePath.toLowerCase(),
+          )
+        ) {
+          throw new FliskError(
+            `Dockerfile path "${dockerfile}" is reserved for a resource manifest or instructions.`,
+            ["Use Dockerfile or another path that does not replace service.json or AGENTS.md."],
+          );
         }
 
         plan.directory(fullPath);
