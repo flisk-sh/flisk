@@ -254,6 +254,7 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk --help` | ❓ Show help |
 
 Shell completion for `flisk resource --type` includes the `inference` preset and `sdk` registration.
+It also suggests supported values for `completion --shell`, `doctor --scope`, and `create --runtime` and `--starter`.
 
 `-v` is context-specific: `flisk -v` prints the version, while `flisk up -v` and `flisk down -v`
 enable verbose output. Use `--version` and `--verbose` when clarity matters.

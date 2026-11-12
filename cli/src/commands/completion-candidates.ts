@@ -18,6 +18,8 @@ import {
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../types/index.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
+import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import { SUPPORTED_SHELLS } from "./completion-shells.js";
 
 /** What a command's positional argument completes. */
 export type CompletionPositional =
@@ -96,7 +98,7 @@ const POSITIONALS: Record<string, CompletionPositional> = {
 };
 
 /**
- * The values of a flag, for the commands that accept another set than the default.
+ * Command-specific flag values, including overrides of the default value lists.
  *
  * `flisk resource` creates a resource and accepts `RESOURCE_CREATE_TYPE_VALUES` plus `sdk`,
  * while `flisk resources` filters the resources of the project and accepts
@@ -106,6 +108,12 @@ const POSITIONALS: Record<string, CompletionPositional> = {
  */
 const COMMAND_VALUES: Record<string, Record<string, string[]>> = {
   resources: { "--type": [...VALID_RESOURCE_TYPES] },
+  completion: { "--shell": [...SUPPORTED_SHELLS] },
+  doctor: { "--scope": ["project", "machine"] },
+  create: {
+    "--runtime": ["local", "docker"],
+    "--starter": Object.keys(PROJECT_TEMPLATES),
+  },
 };
 
 /**
