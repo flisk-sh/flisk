@@ -436,6 +436,8 @@ describe("shell completion candidates", () => {
       ]);
       expect(typeValuesOf(shell, "--framework", "queue"), shell).toEqual(["nats", "rabbitmq"]);
       expect(typeValuesOf(shell, "--framework", "storage"), shell).toEqual(["minio"]);
+      expect(typeValuesOf(shell, "--framework", "mail"), shell).toEqual(["mailpit"]);
+      expect(typeValuesOf(shell, "--framework", "payments"), shell).toEqual(["stripe-mock"]);
     }
   });
 

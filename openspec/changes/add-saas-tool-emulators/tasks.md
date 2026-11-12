@@ -6,8 +6,10 @@
 - [x] 0.5 Unit tests updated and added (`--type storage` default, old spelling hint, listing)
 
 ## 0b. Mail and payments presets (PR 2)
-- [ ] 0b.1 `--type mail --framework mailpit`, `--type payments --framework stripe-mock` (table entry + preset)
-- [ ] 0b.2 BYO infra e2e cases: SMTP send read back over Mailpit API; PaymentIntent on stripe-mock
+- [x] 0b.1 `--type mail --framework mailpit`, `--type payments --framework stripe-mock` (table entry + preset)
+- [x] 0b.2 BYO infra e2e cases: SMTP send read back over Mailpit API; PaymentIntent on stripe-mock
+- [x] 0b.3 `dataPath` optional for stateless presets (stripe-mock gets no volume)
+- [x] 0b.4 enigma36 scale plan reads each preset's `--type` from INFRA_PRESETS (quoted keys included)
 
 ## 1. Catalog and command
 - [ ] 1.2 `cli/src/tools/dialects/` env names per appType/framework

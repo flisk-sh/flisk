@@ -5,6 +5,8 @@ import {
   DATABASE_RESOURCE_TYPE,
   type InfraFramework,
   type InfraResourceType,
+  MAIL_RESOURCE_TYPE,
+  PAYMENTS_RESOURCE_TYPE,
   PRESET_RESOURCE_TYPES,
   type PresetResourceType,
   QUEUE_RESOURCE_TYPE,
@@ -17,8 +19,8 @@ import {
 
 /**
  * Infrastructure frameworks: `flisk resource <name> --type database --framework redis|qdrant|mlflow|...`,
- * `--type queue --framework nats|rabbitmq` and `--type storage --framework minio` (the shared Postgres is `--type database`
- * on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
+ * `--type queue --framework nats|rabbitmq`, `--type storage --framework minio`, `--type mail --framework mailpit` and
+ * `--type payments --framework stripe-mock` (the shared Postgres is `--type database` on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
  * with a readiness probe, a named data volume that `flisk down` keeps, and `provides`: the connection settings every
  * service that lists it in `dependsOn` gets in its environment. Services in the stack reach it on the Docker network by
  * name. A framework with a web UI also publishes it on 127.0.0.1 only (`extraPorts`); two resources of one framework
@@ -35,8 +37,8 @@ export interface InfraPreset {
   port: number;
   /** service.json `healthCheck`: a TCP port or a command, since none of these serves the Flisk health route. */
   healthCheck: { port: number } | { command: string[] };
-  /** Where the image keeps its data; mounted from the named volume `<name>-data`. */
-  dataPath: string;
+  /** Where the image keeps its data; mounted from the named volume `<name>-data`. Left out for a stateless emulator. */
+  dataPath?: string;
   /** Non-secret settings for the image itself (service.json `params`). */
   params?: Record<string, string>;
   /** service.json `container.command` (`{name}` replaced), for an image whose default command does not start the server the way Flisk needs. */
@@ -195,6 +197,38 @@ export const INFRA_PRESETS = {
     },
     provides: { AMQP_URL: "amqp://guest:guest@{name}:5672" },
   },
+  mailpit: {
+    type: MAIL_RESOURCE_TYPE,
+    description: "Mailpit SMTP server and inbox (stands in for Resend, SendGrid, Postmark, SES)",
+    image: "axllent/mailpit:v1.33.1",
+    port: 1025,
+    healthCheck: { port: 1025 },
+    dataPath: "/data",
+    // Keep the inbox in the data volume, so a restart does not empty it.
+    params: { MP_DATABASE: "/data/mailpit.db" },
+    // The inbox UI and its REST API (/api/v1/messages) share port 8025.
+    uiPorts: [8025],
+    provides: {
+      SMTP_URL: "smtp://{name}:1025",
+      SMTP_HOST: "{name}",
+      SMTP_PORT: "1025",
+      MAILPIT_API_URL: "http://{name}:8025",
+    },
+  },
+  "stripe-mock": {
+    type: PAYMENTS_RESOURCE_TYPE,
+    description:
+      "stripe-mock Stripe API emulator (stateless: answers every call from the OpenAPI spec)",
+    image: "stripe/stripe-mock:v0.206.0",
+    port: 12111,
+    healthCheck: { port: 12111 },
+    // stripe-mock accepts a key of sk_test_ and letters or digits (an underscore after the prefix is a 401); this one is not
+    // a secret and reaches no real account.
+    provides: {
+      STRIPE_API_BASE: "http://{name}:12111",
+      STRIPE_SECRET_KEY: "sk_test_flisklocal",
+    },
+  },
 } as const satisfies Record<InfraFramework, InfraPreset>;
 
 /** Types that used to be presets (1.4.24) and now are a framework of `database`, `queue` or `storage`. */
@@ -283,7 +317,7 @@ export function createInfraServiceJson(
         }
       : {}),
     ...(preset.uiPorts ? { extraPorts: preset.uiPorts.map((port) => ({ port })) } : {}),
-    volumes: [{ source: `${name}-data`, target: preset.dataPath }],
+    ...(preset.dataPath ? { volumes: [{ source: `${name}-data`, target: preset.dataPath }] } : {}),
     ...(preset.params ? { params: { ...preset.params } } : {}),
     provides: Object.fromEntries(
       Object.entries(preset.provides).map(([key, value]) => [key, value.replace("{name}", name)]),

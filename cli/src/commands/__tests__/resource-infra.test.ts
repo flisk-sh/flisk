@@ -86,6 +86,45 @@ describe("infrastructure frameworks (--type database|queue|storage --framework .
     expect(parseResourceType("database")).toBe("database");
     expect(parseResourceType("queue")).toBe("queue");
     expect(parseResourceType("storage")).toBe("storage");
+    expect(parseResourceType("mail")).toBe("mail");
+    expect(parseResourceType("payments")).toBe("payments");
+  });
+
+  it("writes Mailpit for --type mail: SMTP with the inbox kept in its data volume, the UI on 127.0.0.1", async () => {
+    const mail = await create("mail", "mail");
+    expect(mail).toMatchObject({
+      appType: "bring-your-own",
+      framework: "mailpit",
+      image: "axllent/mailpit:v1.33.1",
+      port: 1025,
+      healthCheck: { port: 1025 },
+      extraPorts: [{ port: 8025 }],
+      volumes: [{ source: "mail-data", target: "/data" }],
+      params: { MP_DATABASE: "/data/mailpit.db" },
+      provides: {
+        SMTP_URL: "smtp://mail:1025",
+        SMTP_HOST: "mail",
+        SMTP_PORT: "1025",
+        MAILPIT_API_URL: "http://mail:8025",
+      },
+    });
+  });
+
+  it("writes stripe-mock for --type payments: stateless, so no data volume, and a test key stripe-mock accepts", async () => {
+    const pay = await create("pay", "payments");
+    expect(pay).toMatchObject({
+      appType: "bring-your-own",
+      framework: "stripe-mock",
+      image: "stripe/stripe-mock:v0.206.0",
+      port: 12111,
+      healthCheck: { port: 12111 },
+      provides: { STRIPE_API_BASE: "http://pay:12111", STRIPE_SECRET_KEY: "sk_test_flisklocal" },
+    });
+    expect(pay).not.toHaveProperty("volumes");
+    // stripe-mock answers 401 to a key with an underscore after the sk_test_ prefix.
+    expect(String((pay.provides as Record<string, string>).STRIPE_SECRET_KEY)).toMatch(
+      /^sk_test_[A-Za-z0-9]+$/,
+    );
   });
 
   it("writes MinIO for --type storage without --framework, the same as --framework minio", async () => {

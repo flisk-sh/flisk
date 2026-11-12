@@ -58,7 +58,7 @@ contract() { # <entry json>
     frontend) http_ok "$name" / ;;
     worker) worker_started "$name" ;;
     database) if [ "$(field "$1" variant)" = postgres ]; then database_ready "$name"; else container_running "$name"; fi ;;
-    queue | storage) container_running "$name" ;;
+    queue | storage | mail | payments) container_running "$name" ;;
     sdk) common_listed "$name" sdk ;;
   esac
 }
@@ -89,10 +89,10 @@ K1() { # draw the plan, print the seed and the board
   load_plan
   plan_names
   echo "seed $(jq -r .seed "$PLAN")   replay: E2E_SEED=$(jq -r .seed "$PLAN") tests/e2e/scale/enigma36/run.sh all"
-  jq -r '.entries[] | [.name, .kind, (if .kind == "database" or .kind == "queue" or .kind == "storage" then .variant else "-" end), .stack] | @tsv' "$PLAN" | column -t
+  jq -r '.entries[] | [.name, .kind, (if (.kind | IN("database", "queue", "storage", "mail", "payments")) then .variant else "-" end), .stack] | @tsv' "$PLAN" | column -t
   jq -r '.entries | group_by(.kind) | map("\(.[0].kind) \(length)") | join(", ")' "$PLAN"
-  # The database, queue and storage kinds by framework, so a draw that holds only the Postgres shows at a glance.
-  jq -r '[.entries[] | select(.kind == "database" or .kind == "queue" or .kind == "storage") | "\(.kind)=\(.variant)"] | join(", ")' "$PLAN"
+  # The infrastructure kinds (database, queue, storage, mail, payments) by framework, so a draw that holds only the Postgres shows at a glance.
+  jq -r '[.entries[] | select(.kind | IN("database", "queue", "storage", "mail", "payments")) | "\(.kind)=\(.variant)"] | join(", ")' "$PLAN"
 }
 
 K2() { # one project, every drawn resource scaffolded into it with flisk resource

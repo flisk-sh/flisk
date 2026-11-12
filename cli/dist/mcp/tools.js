@@ -760,12 +760,12 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                     type: {
                         type: "string",
                         enum: [...RESOURCE_CREATE_TYPE_VALUES],
-                        description: "Resource type (default backend). Redis, Qdrant, MinIO, MLflow, MySQL, MongoDB, ClickHouse, NATS and RabbitMQ are frameworks: type database, queue or storage plus framework",
+                        description: "Resource type (default backend). Redis, Qdrant, MinIO, MLflow, MySQL, MongoDB, ClickHouse, NATS, RabbitMQ, Mailpit and stripe-mock are frameworks: type database, queue, storage, mail or payments plus framework",
                     },
                     stack: { type: "string", description: "Stack to assign the resource to" },
                     framework: {
                         type: "string",
-                        description: "Frontend: react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next. Backend: hono (default), express, elysia, fastify, nestjs, koa, h3. Database: postgres (default, the shared Flisk Postgres), redis, qdrant, mlflow, mysql, mongodb, clickhouse (each its own container; the services that list it in dependsOn get its connection settings). Queue: nats (default), rabbitmq. Storage: minio (default)",
+                        description: "Frontend: react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next. Backend: hono (default), express, elysia, fastify, nestjs, koa, h3. Database: postgres (default, the shared Flisk Postgres), redis, qdrant, mlflow, mysql, mongodb, clickhouse (each its own container; the services that list it in dependsOn get its connection settings). Queue: nats (default), rabbitmq. Storage: minio (default). Mail: mailpit (default, local SMTP and inbox). Payments: stripe-mock (default, Stripe API emulator)",
                     },
                     language: {
                         type: "string",

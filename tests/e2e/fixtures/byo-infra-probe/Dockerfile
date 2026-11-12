@@ -1,4 +1,5 @@
-# Probe for the infrastructure frameworks e2e (verify-byo-infra.sh): it reaches Redis, Qdrant, RabbitMQ, NATS, MinIO and MLflow
+# Probe for the infrastructure frameworks e2e (verify-byo-infra.sh): it reaches Redis, Qdrant, RabbitMQ, NATS, MinIO, MLflow,
+# Mailpit and stripe-mock
 # only through the settings their `provides` put in its environment.
 FROM python:3.12-alpine@sha256:e6dae589c1c05976188fd3bd019afd091445fc533ed2ea29001beddc7368a9c8
 WORKDIR /app

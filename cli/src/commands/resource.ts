@@ -790,7 +790,7 @@ function frameworkListing(
   }
   if (resourceType !== "frontend" && resourceType !== "backend") {
     throw new FliskError(`No frameworks are registered for --type ${resourceType}.`, [
-      `Use --type frontend, backend, database, ${Object.keys(PRESET_RESOURCE_TYPES).join(" or ")} to list frameworks`,
+      `Use --type ${["frontend", "backend", "database", ...Object.keys(PRESET_RESOURCE_TYPES)].join(", ").replace(/, ([^,]+)$/, " or $1")} to list frameworks`,
       "Omit --type to list the frontend frameworks",
     ]);
   }
@@ -879,7 +879,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .argument("[name]", "Resource name (kebab-case)")
   .option(
     "-t, --type <type>",
-    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, storage, sdk",
+    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, storage, mail, payments, sdk",
     "backend",
   )
   .option(
@@ -888,7 +888,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   )
   .option(
     "--frameworks",
-    "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage)",
+    "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage, --type mail, --type payments)",
   )
   .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
   .option("-s, --stack <stack>", "Stack to assign resource to", "default")

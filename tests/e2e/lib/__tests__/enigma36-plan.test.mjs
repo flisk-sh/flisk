@@ -3,7 +3,7 @@
 // Unit tests for tests/e2e/scale/enigma36/plan.mjs: the seeded draw and its diagonal board. Run by `make test-shell`.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { COUNT, KINDS, STACKS, checkPlan, drawPlan, infraFrameworks } from "../../scale/enigma36/plan.mjs";
+import { COUNT, KINDS, STACKS, checkPlan, drawPlan, infraFrameworks, infraKindOf } from "../../scale/enigma36/plan.mjs";
 
 test("the same seed draws the same plan", () => {
   assert.deepEqual(drawPlan(1936), drawPlan(1936));
@@ -92,4 +92,17 @@ test("include forces the asked variants into the plan and rejects unknown ones",
   for (const v of ["go", "rust", "redis"]) assert.ok(variants.includes(v), v);
   assert.throws(() => drawPlan(11, { include: ["mongo"] }), /unknown variant "mongo"/);
   assert.throws(() => drawPlan(11, { count: 9, include: ["redis"] }), /too small/);
+});
+
+test("each infrastructure framework is drawn under the --type its preset names, quoted keys included", () => {
+  const kinds = infraKindOf();
+  assert.equal(kinds.redis, "database");
+  assert.equal(kinds.nats, "queue");
+  assert.equal(kinds.minio, "storage");
+  assert.equal(kinds.mailpit, "mail");
+  assert.equal(kinds["stripe-mock"], "payments");
+  assert.deepEqual(Object.keys(kinds).sort(), [...infraFrameworks()].sort());
+  const byVariant = Object.fromEntries(drawPlan(3).entries.map((e) => [e.variant, e.kind]));
+  assert.equal(byVariant["stripe-mock"], "payments");
+  assert.equal(byVariant.mailpit, "mail");
 });
