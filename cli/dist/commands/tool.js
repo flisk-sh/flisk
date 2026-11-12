@@ -12,11 +12,11 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
-import { FliskError, runCommand } from "../utils/errors.js";
+import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
-import { findTool, resourceArgs, TOOL_CATALOG, toolIds, } from "../utils/tool-catalog.js";
+import { findTool, manualSteps, resourceArgs, TOOL_CATALOG, toolIds, } from "../utils/tool-catalog.js";
 import { validateResourceName } from "../utils/validation.js";
 const GROUP_TITLES = {
     frontend: "Frontend",
@@ -57,7 +57,7 @@ export function describeTool(tool, options = {}) {
         case "built-in":
             return { ...base, note: tool.note };
         case "manual":
-            return { ...base, reason: tool.reason, steps: tool.steps };
+            return { ...base, reason: tool.reason, steps: manualSteps(tool, options.name) };
         case "rejected":
             return { ...base, reason: tool.reason, instead: tool.instead };
     }
@@ -171,6 +171,20 @@ export function addTool(words, options, run = (args, json) => runResource(args, 
         return undefined;
     }
     const { tool, name } = resolveWords(words);
+    // Docker and a CI workflow are not services, so they have no name to give; say so instead of ignoring it.
+    if (name && (tool.status === "built-in" || (tool.status === "manual" && !tool.defaultName))) {
+        throw new FliskError(`${tool.title} takes no resource name, so "${name}" was not used.`, [
+            `flisk tool add ${tool.id}`,
+        ]);
+    }
+    if (name && tool.status === "manual") {
+        const validation = validateResourceName(name);
+        if (!validation.valid) {
+            throw new FliskError(validation.error ?? `Resource name "${name}" is not valid.`, [
+                `flisk tool add ${tool.id} ${tool.defaultName}`,
+            ]);
+        }
+    }
     const described = describeTool(tool, { name, stack: options.stack });
     switch (tool.status) {
         case "rejected":
@@ -183,13 +197,20 @@ export function addTool(words, options, run = (args, json) => runResource(args, 
             if (!options.json) {
                 console.log(`${chalk.yellow("!")} ${tool.title}: ${tool.reason}`);
                 console.log("");
-                tool.steps.forEach((step, index) => {
+                manualSteps(tool, name).forEach((step, index) => {
                     console.log(`  ${index + 1}. ${step}`);
                 });
             }
             return described;
         case "resource": {
-            checkResource(tool, name ?? tool.defaultName, options.stack, project());
+            const view = project();
+            // Without a project `flisk resource` fails with two errors; say it once, with the command that fixes it.
+            if (!view) {
+                const error = errorFactories.notInProject();
+                error.suggestions.push(`Then run: flisk tool add ${tool.id}${name ? ` ${name}` : ""}`);
+                throw error;
+            }
+            checkResource(tool, name ?? tool.defaultName, options.stack, view);
             const args = resourceArgs(tool, {
                 name,
                 stack: options.stack,

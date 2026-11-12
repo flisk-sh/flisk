@@ -47,6 +47,8 @@ export interface BuiltInTool extends ToolBase {
 /** A tool Flisk cannot generate: the steps to run it under Flisk yourself. */
 export interface ManualTool extends ToolBase {
   status: "manual";
+  /** The service name the steps use for `{name}`; a tool with none (a CI workflow) takes no name. */
+  defaultName?: string;
   reason: string;
   steps: string[];
 }
@@ -96,11 +98,12 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     group: "frontend",
     aliases: ["angularjs"],
     status: "manual",
+    defaultName: "web",
     reason: "Flisk has no Angular generator yet, so it runs Angular as your own container.",
     steps: [
-      "npx -y @angular/cli new web --defaults",
-      'Add web/Dockerfile: FROM node:22, COPY . ., RUN npm ci, CMD ["npx", "ng", "serve", "--host", "0.0.0.0", "--port", "4200"]',
-      "flisk resource web --type bring-your-own --path web --port 4200 --health-path /",
+      "npx -y @angular/cli new {name} --defaults",
+      'Add {name}/Dockerfile: FROM node:22, COPY . ., RUN npm ci, CMD ["npx", "ng", "serve", "--host", "0.0.0.0", "--port", "4200"]',
+      "flisk resource {name} --type bring-your-own --path {name} --port 4200 --health-path /",
       "flisk up",
     ],
   },
@@ -110,12 +113,13 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     group: "frontend",
     aliases: ["tailwindcss"],
     status: "manual",
+    defaultName: "web",
     reason:
       "Tailwind is a styling library inside a frontend, not a service, so you add it to a frontend you have.",
     steps: [
       "flisk tool add react   (or flisk tool add nextjs), if you have no frontend yet",
-      "cd web && npm install -D tailwindcss @tailwindcss/postcss postcss",
-      'Add web/postcss.config.mjs: export default { plugins: { "@tailwindcss/postcss": {} } };',
+      "cd {name} && npm install -D tailwindcss @tailwindcss/postcss postcss",
+      'Add {name}/postcss.config.mjs: export default { plugins: { "@tailwindcss/postcss": {} } };',
       'Put @import "tailwindcss"; at the top of the frontend\'s main CSS file',
       "flisk up   (Vite and Next.js read postcss.config.mjs on their own)",
     ],
@@ -145,11 +149,12 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     group: "backend",
     aliases: ["spring", "java"],
     status: "manual",
+    defaultName: "server",
     reason: "Flisk has no Java generator yet, so it runs a Spring Boot app as your own container.",
     steps: [
-      "curl https://start.spring.io/starter.zip -d dependencies=web,actuator -d name=api -o api.zip && unzip api.zip -d api",
-      'Add api/Dockerfile: FROM eclipse-temurin:21-jdk, WORKDIR /app, COPY . ., CMD ["./mvnw", "spring-boot:run", "-Dspring-boot.run.arguments=--server.port=4080"]',
-      "flisk resource api --type bring-your-own --path api --port 4080 --health-path /actuator/health",
+      "curl https://start.spring.io/starter.zip -d dependencies=web,actuator -d name={name} -o {name}.zip && unzip {name}.zip -d {name}",
+      'Add {name}/Dockerfile: FROM eclipse-temurin:21-jdk, WORKDIR /app, COPY . ., CMD ["./mvnw", "spring-boot:run", "-Dspring-boot.run.arguments=--server.port=4080"]',
+      "flisk resource {name} --type bring-your-own --path {name} --port 4080 --health-path /actuator/health",
       "flisk up",
     ],
   },
@@ -243,12 +248,13 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     group: "guidewire",
     aliases: ["guidewire-jutro", "jutro-digital"],
     status: "manual",
+    defaultName: "portal",
     reason:
       "Jutro is licensed and installs from Guidewire's private registry, so Flisk cannot download it; it runs your Jutro app as your own container.",
     steps: [
       "Create the Jutro app with your Guidewire access (it needs your registry login in .npmrc)",
-      "Add a Dockerfile in its folder that runs the Jutro dev server on 0.0.0.0, port 4300",
-      "flisk resource portal --type bring-your-own --path portal --port 4300 --health-path /",
+      "Add {name}/Dockerfile that runs the Jutro dev server on 0.0.0.0, port 4300",
+      "flisk resource {name} --type bring-your-own --path {name} --port 4300 --health-path /",
       "flisk up",
     ],
   },
@@ -258,10 +264,11 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     group: "guidewire",
     aliases: ["guidewire-policycenter", "guidewire"],
     status: "manual",
+    defaultName: "policycenter",
     reason:
       "PolicyCenter is licensed and ships only to Guidewire customers, so Flisk cannot download it; it runs the image you are licensed for.",
     steps: [
-      "flisk resource policycenter --type bring-your-own --image <your-registry>/policycenter:<tag> --port 4180 --health-path /pc/",
+      "flisk resource {name} --type bring-your-own --image <your-registry>/policycenter:<tag> --port 4180 --health-path /pc/",
       "Set the PolicyCenter server port to 4180 in its configuration (Flisk gives bring-your-own resources ports 4000-5999)",
       "flisk up",
     ],
@@ -339,4 +346,10 @@ export function resourceArgs(
     ...(options.dryRun ? ["--dry-run"] : []),
     ...(options.json ? ["--json"] : []),
   ];
+}
+
+/** A manual tool's steps with `{name}` filled in: the given name, or the tool's default. */
+export function manualSteps(tool: ManualTool, name?: string): string[] {
+  const used = name ?? tool.defaultName ?? "";
+  return tool.steps.map((step) => step.split("{name}").join(used));
 }

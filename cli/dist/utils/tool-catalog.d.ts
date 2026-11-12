@@ -25,6 +25,8 @@ export interface BuiltInTool extends ToolBase {
 /** A tool Flisk cannot generate: the steps to run it under Flisk yourself. */
 export interface ManualTool extends ToolBase {
     status: "manual";
+    /** The service name the steps use for `{name}`; a tool with none (a CI workflow) takes no name. */
+    defaultName?: string;
     reason: string;
     steps: string[];
 }
@@ -50,4 +52,6 @@ export declare function resourceArgs(tool: ResourceTool, options: {
     dryRun?: boolean;
     json?: boolean;
 }): string[];
+/** A manual tool's steps with `{name}` filled in: the given name, or the tool's default. */
+export declare function manualSteps(tool: ManualTool, name?: string): string[];
 export {};
