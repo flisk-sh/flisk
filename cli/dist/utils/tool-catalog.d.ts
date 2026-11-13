@@ -1,4 +1,4 @@
-export type ToolGroup = "frontend" | "backend" | "data" | "ai" | "devops" | "guidewire" | "cloud";
+export type ToolGroup = "frontend" | "backend" | "data" | "ai" | "devops" | "widgets" | "guidewire" | "cloud";
 interface ToolBase {
     /** The id people type: `flisk tool add <id>`. */
     id: string;

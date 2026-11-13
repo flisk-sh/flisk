@@ -45,10 +45,15 @@ Tools that add a resource need a Flisk project: outside one, `flisk tool add rea
 | AI | `llm-api` | adds a resource | A local OpenAI-compatible API at `/v1` (Ollama): `flisk resource llm --type inference`; no API key |
 | DevOps | `docker` | built in | Flisk already runs container stacks on Docker; check it with `flisk doctor` |
 | DevOps | `github-actions` | manual steps | A workflow that runs `flisk config verify` on every push |
+| Widgets | `weather` | manual steps | A weather backend (`flisk tool add nodejs weather`) plus the one route that calls the free Open-Meteo forecast |
+| Widgets | `chart` | manual steps | The JSON a service returns for Flisk Chat to draw as a line or bar chart |
+| Widgets | `services` | built in | `flisk status --json` already lists the running services; Flisk Chat draws it as a card |
 | Guidewire | `jutro` | manual steps | Your Jutro app (licensed, from Guidewire's private registry) as a `bring-your-own` resource |
 | Guidewire | `policycenter` | manual steps | Your licensed PolicyCenter image as a `bring-your-own` resource |
 | Cloud | `aws`, `google-cloud`, `azure` | **rejected** | Flisk runs your stack on your own computer and never creates cloud resources |
 | Cloud | `kubernetes` | **rejected** | Flisk does not write Kubernetes manifests; keep that in your cluster workflow |
+
+Widgets are cards that Flisk Chat draws from data. To add a new widget (or a tool the chat's computer can use), see [Add a widget or a tool to Flisk Chat](https://github.com/flisk-sh/chat/blob/main/docs/add-a-widget.md).
 
 A RAG app is the three AI tools together: `flisk tool add rag`, `flisk tool add embeddings` and `flisk tool add llm-api`.
 
