@@ -25,12 +25,24 @@ const main = () => {
   const tempDir = mkdtempSync(join(tmpdir(), "npm-verify-"));
   try {
     // Fetch the npm package tarball URL
-    const npmView = JSON.parse(
-      execFileSync("npm", ["view", `${pkg}@${version}`, "--json"], { encoding: "utf8" }),
-    );
-    const tarballUrl = npmView.dist?.tarball;
+    // The registry can lag a few seconds behind a publish, so retry before giving up.
+    let tarballUrl;
+    for (let attempt = 1; attempt <= 12 && !tarballUrl; attempt++) {
+      try {
+        const npmView = JSON.parse(
+          execFileSync("npm", ["view", `${pkg}@${version}`, "--json"], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+          }),
+        );
+        tarballUrl = npmView.dist?.tarball;
+      } catch {
+        // not visible yet
+      }
+      if (!tarballUrl) execFileSync("sleep", ["10"]);
+    }
     if (!tarballUrl) {
-      console.error(`::error::npm view ${pkg}@${version} has no tarball.dist.url`);
+      console.error(`::error::npm view ${pkg}@${version} is not visible on the registry after 2 minutes`);
       process.exit(1);
     }
 
