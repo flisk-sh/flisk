@@ -5,7 +5,7 @@
 # Flisk: local development for multi-service apps, started with one command
 
 [![Discord](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Fv10%2Finvites%2FqMu5Xn8Kaq%3Fwith_counts%3Dtrue&query=%24%5B%27approximate_presence_count%27%2C%27approximate_member_count%27%5D&label=Discord&suffix=%20(online%2C%20total)&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/qMu5Xn8Kaq)
-[![npm version](https://img.shields.io/npm/v/@flisk-sh/flisk.svg?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![npm weekly downloads](https://img.shields.io/npm/dw/@flisk-sh/flisk?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![GitHub stars](https://img.shields.io/github/stars/flisk-sh/flisk?style=flat&logo=github)](https://github.com/flisk-sh/flisk/stargazers)
+[![npm version](https://img.shields.io/npm/v/@flisk-sh/flisk.svg?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![npm weekly downloads](https://img.shields.io/npm/dw/@flisk-sh/flisk?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![GitHub stars](https://img.shields.io/github/stars/flisk-sh/flisk?style=flat&logo=github)](https://github.com/flisk-sh/flisk/stargazers) [![README score](https://readme.flisk.si/badge/flisk-sh/flisk.svg)](https://readme.flisk.si/flisk-sh/flisk) [![AI search score](https://citable.flisk.si/badge/flisk.sh.svg)](https://citable.flisk.si/flisk.sh)
 
 **[What is Flisk?](#what-is-flisk) · [Key features](#key-features) · [Quick start](#quick-start) · [Commands](#commands) · [Configuration](#configuration) · [With your AI agent](#use-flisk-with-your-ai-agent) · [FAQ](#faq) · [Docs](#docs)**
 
