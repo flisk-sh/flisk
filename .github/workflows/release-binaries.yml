@@ -387,13 +387,6 @@ jobs:
           GH_TOKEN: ${{ secrets.BINARY_RELEASE_TOKEN }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
 
-      - name: Verify npm package source commit
-        env:
-          NPM_PACKAGE: "@flisk-sh/flisk"
-          NPM_VERSION: ${{ needs.build.outputs.version }}
-          EXPECTED_COMMIT: ${{ steps.verify-commit.outputs.publish-commit }}
-        run: node scripts/verify-npm-source.mjs --package "$NPM_PACKAGE" --version "$NPM_VERSION" --commit "$EXPECTED_COMMIT"
-
       # Tell each fixed issue which release carries it. Best effort: a failure here must
       # never fail the release, so it is allowed to error.
       - name: Credit fixed issues with this release
@@ -459,6 +452,13 @@ jobs:
           else
             npm publish "$TARBALL" --access public --provenance
           fi
+
+      - name: Verify npm package source commit
+        env:
+          NPM_PACKAGE: "@flisk-sh/flisk"
+          NPM_VERSION: ${{ needs.build.outputs.version }}
+          EXPECTED_COMMIT: ${{ steps.verify-commit.outputs.publish-commit }}
+        run: node scripts/verify-npm-source.mjs --package "$NPM_PACKAGE" --version "$NPM_VERSION" --commit "$EXPECTED_COMMIT"
 
       # OpenSSF Scorecard's Signed-Releases check looks at the GitHub releases of THIS repository, while the binaries live in
       # flisk-sh/releases. So this repository gets a release per version that carries the binaries' checksums and a keyless
