@@ -124,6 +124,23 @@ def prisma_migrator_slim_step():
     )
 
 
+def prisma_lock_pin_script():
+    """
+    Shell snippet that pins `@prisma/client` and `prisma` in the image's package.json to the version the project's bun.lock resolved (#4122).
+
+    The migrator deletes bun.lock before it installs (a frozen install was 6x slower cold, #4131), so `^7.5.0` floated to the newest
+    7.x and the migrator ran a different Prisma than the API images and the developer's machine. The text lockfile is only read
+    here with sed, so it works even when the image's bun cannot parse that lockfile version. It is a no-op when there is no
+    bun.lock or no entry, and it adds no network step: the install resolves one exact version instead of a range.
+    """
+    return (
+        "for pkg in @prisma/client prisma; do "
+        + "v=$(sed -n \"s|^[[:space:]]*\\\"$pkg\\\": \\[\\\"$pkg@\\([0-9][^\\\"]*\\)\\\".*|\\1|p\" bun.lock 2>/dev/null | head -n 1); "
+        + "if [ -n \"$v\" ]; then sed \"s|\\(\\\"$pkg\\\"[[:space:]]*:[[:space:]]*\\)\\\"[^\\\"]*\\\"|\\1\\\"$v\\\"|\" package.json > package.json.pin && mv package.json.pin package.json; fi; "
+        + "done; "
+    )
+
+
 def L3_generate_migration_engine(res_path, use_golden = True):
     """
     Generate the migration engine layer for Prisma database migrations.
@@ -158,7 +175,7 @@ def L3_generate_migration_engine(res_path, use_golden = True):
         + "# back to the public npm registry and fail with ConnectionRefused/404.\n"
         + "# A Prisma engine download in a postinstall can stall with no timeout of its own and hold the build for\n"
         + "# many minutes, so each attempt is time-boxed and retried (the cache mount makes a retry fast).\n"
-        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared rm -f bun.lock bun.lockb && n=0 && until env -u CI BUN_CONFIG_FROZEN_LOCKFILE=false BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun install --production --no-frozen-lockfile --concurrent-scripts --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
+        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared " + prisma_lock_pin_script() + "rm -f bun.lock bun.lockb && n=0 && until env -u CI BUN_CONFIG_FROZEN_LOCKFILE=false BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun install --production --no-frozen-lockfile --concurrent-scripts --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
         + prisma_cli_pin_step()
         + "# Generate Prisma client and normalize output location for runtime compatibility\n"
         + PRISMA_GENERATE_RUN
