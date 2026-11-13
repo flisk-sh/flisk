@@ -87,7 +87,7 @@ describe("contributor merged comments", () => {
     assert.match(issue, /🥋 You cleared a \*\*7 kyu\*\* issue\. That sets your starting rank: \*\*7 kyu\*\*/);
     assert.match(issue, /### 🏅 Your Hall of Fame badge/);
     assert.match(issue, /### 🎁 Your Founding Contributor badge in 3 steps/);
-    assert.match(issue, /2\. ✅ Get a PR merged\. Done!/);
+    assert.match(issue, /2\. ✅ Get a PR merged\. Done! Now 📣 \[post it on X\]\(https:\/\/x\.com\/intent\/post\?text=My%20PR%20to%20flisk[^)]*%2Fpull%2F50\)/);
     assert.match(issue, /First 100 only\. 100 left\./);
     assert.match(issue, /### 🎯 Ready for another one\?\n\n- #99/);
     assert.match(issue, /Was anything unclear/);
