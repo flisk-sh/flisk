@@ -12,7 +12,7 @@ Flisk este o unealtă din linia de comandă pentru dezvoltarea locală. Rulează
 Pornire rapidă:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Vrei să îți alegi singur stack-ul? Răspunde la câteva întrebări cu săgețile și Enter:

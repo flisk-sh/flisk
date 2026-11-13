@@ -69,6 +69,8 @@ export declare function checkBun(exec?: ExecAsync): Promise<CheckResult>;
  * Shared with `flisk up` so both commands report the same message and fix.
  */
 export declare function checkFliskVersion(currentVersion?: string): CheckResult;
+/** A CLI older than the latest release is a warning, never a failure; an unreachable registry is skipped (#4119). */
+export declare function checkLatestFliskVersion(currentVersion?: string, lookup?: () => Promise<string | null>): Promise<CheckResult>;
 /**
  * Tilt only builds resources under `discovery.paths`, but the CLI finds every service.json,
  * so a resource outside them is listed and given a URL by `flisk up` yet never started.

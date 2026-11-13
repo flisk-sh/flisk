@@ -45,6 +45,11 @@ if (templateArg && rootOptions.projectError) {
     process.exit(1);
 }
 if (templateArg === "demo") {
+    // npx runs a locally installed copy before it downloads one, so tell the user when it is old (#4119).
+    const { staleVersionNotice } = await import("./utils/latest-version.js");
+    const staleNotice = await staleVersionNotice(pkg.version);
+    if (staleNotice)
+        console.log(chalk.yellow(staleNotice));
     // No Docker or Tilt (or native Windows, or --no-docker): run the small demo as local processes. It needs only Node, so it is
     // decided before the Windows refusal and the Bun preflight below.
     const { NATIVE_DEMO_DIR, nativeDemoReason, runNativeDemo } = await import("./utils/native-demo.js");

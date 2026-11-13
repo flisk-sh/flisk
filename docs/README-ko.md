@@ -12,7 +12,7 @@ Flisk는 로컬 개발용 명령줄 도구입니다. 앱의 모든 부분(API, �
 빠른 시작:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 스택을 직접 고르고 싶다면 화살표 키와 Enter로 몇 가지 질문에 답하세요:

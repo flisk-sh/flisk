@@ -12,7 +12,7 @@ Flisk ist ein Kommandozeilen-Tool für die lokale Entwicklung. Es startet jeden 
 Schnellstart:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Möchten Sie Ihren Stack selbst wählen? Beantworten Sie ein paar Fragen mit Pfeiltasten und Enter:

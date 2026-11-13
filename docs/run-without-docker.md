@@ -192,4 +192,4 @@ Its output is prefixed with the service name like any other, `flisk logs --servi
 
 Native Windows runs local processes too: each `command` runs through `cmd.exe`, and `flisk down` ends each service's whole process tree. Only the Docker path needs WSL2.
 
-To see this path without writing anything, run `npx @flisk-sh/flisk demo` on a machine without Docker (or add `--no-docker`): it starts a two-service menu app as local processes and opens it.
+To see this path without writing anything, run `npx @flisk-sh/flisk@latest demo` on a machine without Docker (or add `--no-docker`): it starts a two-service menu app as local processes and opens it.

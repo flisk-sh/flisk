@@ -12,7 +12,7 @@ Flisk là công cụ dòng lệnh cho phát triển cục bộ. Nó chạy mọi
 Bắt đầu nhanh:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Muốn tự chọn stack? Trả lời vài câu hỏi bằng phím mũi tên và Enter:

@@ -12,7 +12,7 @@ Flisk è uno strumento da riga di comando per lo sviluppo locale. Esegue ogni pa
 Avvio rapido:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Vuoi scegliere il tuo stack? Rispondi a qualche domanda con le frecce e Invio:
