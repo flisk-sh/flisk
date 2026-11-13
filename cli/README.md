@@ -284,6 +284,8 @@ and no dimmed secondary text. `flisk ui --no-animations` keeps the loading scree
 static. If `NO_COLOR` is set (including an empty value), or `TERM` begins with
 `dumb`, the environment takes precedence over `--high-contrast`: color styling
 is disabled and ASCII markers, separators, and file-tree symbols are used.
+ASCII markers are also used, with colors kept, when `TERM` is `linux` or the first
+set of `LC_ALL`, `LC_CTYPE` and `LANG` does not name UTF-8 (for example `LANG=C`).
 
 If `flisk ui` finds no services, its empty state points to `flisk project` to create a
 project and `flisk resource api --type backend` to add a service. Press `q` to leave
