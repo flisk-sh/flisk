@@ -630,9 +630,27 @@ describe("template-engine", () => {
         /if _AUTO_DISCOVER_ENABLED:\s*\n\s*_ALWAYS_ENABLED_INFRA_RESOURCES\.append\('service-discovery-daemon'\)/,
       );
       // Only when the daemon is registered: enabling a name Tilt never registered fails Tiltfile evaluation.
-      expect(tiltfile).toMatch(
-        /if _AUTO_DISCOVER_ENABLED:\s*\n\s*watch_file\('snapshots\/resource-snapshot.json'\)/,
+      const daemonBlock = tiltfile.slice(tiltfile.indexOf("# 👁️ AUTO-DISCOVERY DAEMON"));
+      expect(daemonBlock).toMatch(/^if _AUTO_DISCOVER_ENABLED:\s*\n/m);
+      expect(daemonBlock).toContain("watch_file('snapshots/resource-snapshot.json')");
+    });
+
+    it("writes the first resource snapshot during the load, so a clean start does not reload the Tiltfile (#4128)", () => {
+      // The daemon wrote the first snapshot after Tilt watched it, and every clean start (each `flisk demo`) evaluated the
+      // whole Tiltfile twice: 46.8 s on a cold demo start. The first snapshot must exist before watch_file, and writing it must
+      // never fail the load, because a missing Python only stops the daemon.
+      const tiltfile = loadTemplate("Tiltfile.hbs");
+      const daemonBlock = tiltfile.slice(tiltfile.indexOf("# 👁️ AUTO-DISCOVERY DAEMON"));
+      const save = daemonBlock.indexOf('python3 "$2" save');
+      const watch = daemonBlock.indexOf("watch_file('snapshots/resource-snapshot.json')");
+
+      expect(save).toBeGreaterThan(-1);
+      expect(save).toBeLessThan(watch);
+      expect(daemonBlock).toContain(
+        "if not os.path.exists(config.main_dir + '/snapshots/resource-snapshot.json'):",
       );
+      expect(daemonBlock).toContain("save >/dev/null 2>&1 || true");
+      expect(daemonBlock).toMatch(/save \*> \$null \}; exit 0/);
     });
 
     it("focus mode always enables nats and every messaging-compose service, not just the hardcoded infra names", () => {
