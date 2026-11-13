@@ -43,6 +43,7 @@ const GROUP_TITLES: Record<ToolGroup, string> = {
   data: "Data",
   ai: "AI",
   devops: "DevOps",
+  widgets: "Widgets (cards in Flisk Chat)",
   guidewire: "Guidewire",
   cloud: "Not added (cloud and clusters)",
 };

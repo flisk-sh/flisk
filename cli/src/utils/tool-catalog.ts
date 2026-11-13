@@ -16,7 +16,15 @@ import {
   INFERENCE_RESOURCE_TYPE,
 } from "../types/index.js";
 
-export type ToolGroup = "frontend" | "backend" | "data" | "ai" | "devops" | "guidewire" | "cloud";
+export type ToolGroup =
+  | "frontend"
+  | "backend"
+  | "data"
+  | "ai"
+  | "devops"
+  | "widgets"
+  | "guidewire"
+  | "cloud";
 
 interface ToolBase {
   /** The id people type: `flisk tool add <id>`. */
@@ -240,6 +248,45 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
       "  - run: npx -y @flisk-sh/flisk config verify --json",
       "Commit it; every push then checks that the generated Flisk files match service.json.",
     ],
+  },
+  // Widgets: cards Flisk Chat draws from data (https://github.com/flisk-sh/chat/blob/main/docs/add-a-widget.md)
+  {
+    id: "weather",
+    title: "Weather widget (a weather service)",
+    group: "widgets",
+    aliases: ["weather-widget", "forecast"],
+    status: "manual",
+    defaultName: "weather",
+    reason:
+      "A weather service is a small backend around a free forecast API, so Flisk adds the backend and you write the one route.",
+    steps: [
+      "flisk tool add nodejs {name}",
+      "In {name}, add GET /weather?place=<city>: look the city up at https://geocoding-api.open-meteo.com/v1/search?count=1&name=<city>, then call https://api.open-meteo.com/v1/forecast with its latitude and longitude (current, hourly temperature_2m, daily weather_code, temperature_2m_max, temperature_2m_min and precipitation_probability_max). Open-Meteo is free and needs no key.",
+      "flisk up, then: curl 'http://localhost:<port>/weather?place=London'",
+      "To draw it as a card in Flisk Chat, add a widget there: https://github.com/flisk-sh/chat/blob/main/docs/add-a-widget.md",
+    ],
+  },
+  {
+    id: "chart",
+    title: "Chart widget",
+    group: "widgets",
+    aliases: ["charts", "chart-widget", "graph"],
+    status: "manual",
+    reason:
+      "A chart is a card the chat draws from numbers, not a service, so you give a service the data and Flisk Chat draws it.",
+    steps: [
+      'Have a service return JSON like { "labels": ["Mon", "Tue"], "series": [{ "name": "Web", "values": [12, 19] }] } (up to 60 points and 4 series)',
+      'In Flisk Chat the model sends it as {"widget": {"kind": "chart", "type": "line", "labels": [...], "series": [...]}}',
+      "Add or change widgets: https://github.com/flisk-sh/chat/blob/main/docs/add-a-widget.md",
+    ],
+  },
+  {
+    id: "services",
+    title: "Services widget",
+    group: "widgets",
+    aliases: ["services-widget", "running-services"],
+    status: "built-in",
+    note: "Flisk already lists the running services: flisk status --json. Flisk Chat draws that list as a card with each service and its state.",
   },
   // Guidewire
   {

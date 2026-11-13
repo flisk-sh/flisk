@@ -75,6 +75,23 @@ describe("tool catalog", () => {
     }
   });
 
+  it("has the Flisk Chat widget tools, each pointing at the how-to", () => {
+    expect(findTool("Weather widget")?.id).toBe("weather");
+    expect(findTool("charts")?.id).toBe("chart");
+    expect(findTool("running services")?.id).toBe("services");
+    const weather = findTool("weather");
+    if (weather?.status !== "manual") throw new Error("weather should be manual");
+    expect(manualSteps(weather, "forecast").join("\n")).toContain("flisk tool add nodejs forecast");
+    expect(manualSteps(weather).join("\n")).toContain("open-meteo.com");
+    expect(findTool("chart")?.status).toBe("manual");
+    expect(findTool("services")?.status).toBe("built-in");
+    for (const id of ["weather", "chart"]) {
+      const tool = findTool(id);
+      if (tool?.status !== "manual") throw new Error(`${id} should be manual`);
+      expect(tool.steps.join("\n")).toContain("flisk-sh/chat/blob/main/docs/add-a-widget.md");
+    }
+  });
+
   it("rejects every cloud provider", () => {
     for (const id of ["aws", "google-cloud", "gcp", "azure", "kubernetes"]) {
       expect(findTool(id)?.status).toBe("rejected");
