@@ -114,6 +114,27 @@ Then start Codex in that folder and give it the same message, with your own ques
 
 Codex answers in your account, just like the other buttons. Do not paste anything from the PR's private context, such as a security report or a private URL, into the chat.
 
+## Review with Flisk Chat
+
+[Flisk Chat](https://chat.flisk.si) can post a first-pass review on the PR itself. It is optional and it does not replace your review: it reads the diff and writes a summary, comments on exact lines, suggested fixes and a verdict, all labelled with the model that wrote them. Check each point against the diff the same way as with the AI buttons.
+
+1. A maintainer installs the [flisk-chat GitHub App](https://github.com/apps/flisk-chat/installations/new) on the repository (once).
+2. Write one of these as a comment on the PR:
+
+| Comment | What happens |
+|---|---|
+| `@flisk-chat review` | Reads the diff and posts one review in about 20 seconds. |
+| `@flisk-chat review run` | The same, and also checks the PR out on one of your own computers, runs install, lint, typecheck and tests, and posts the output. |
+| `@flisk-chat auto on` | Reviews every new non-draft PR in the repository by itself. `@flisk-chat auto off` stops it. |
+
+Things to know:
+
+- **Who can ask:** only people who can push to the repository. Nothing runs on a PR unless someone asks, or `auto on` was written in that repository.
+- **Spelling:** write `@flisk-chat`. Plain `@chat` pings a real GitHub user.
+- **Which AI:** the free Flisk Wolf model (10 reviews a day per person, the first 14 KB of the diff), or your own OpenRouter, Claude or OpenAI key. Save it once at [chat.flisk.si/reviews](https://chat.flisk.si/reviews). The key is stored encrypted and you can delete it there.
+- **Your AI, your cost:** with your own key, each review you ask for uses your tokens. `auto on` uses the AI and limit of the person who wrote it, so turn it on only if you accept that.
+- **Still your review:** the bot can approve or request changes on the PR. Treat that as a suggestion. Submit your own review under your name.
+
 ## What to look at
 
 You do not have to check everything. Pick what you can, and say what you covered.
