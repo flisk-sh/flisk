@@ -6,8 +6,6 @@ Filesystem Setup Dockerfile Fragment
 Generates the RUN/COPY instructions that:
   - (The Alpine tools migrate.sh needs - jq, nc - are in the golden l4-migrator image, not installed here)
   - Create required directories and fix ownership so Prisma can write generated files
-  - Ensure @prisma/engines is resolvable for the CLI (engines may land under
-    prisma/node_modules in Bun hoisting layouts)
 
 All functions return Dockerfile instruction strings.
 """
@@ -18,18 +16,12 @@ load(
 )
 load(
     './constants.star',
-    'APP_BUN_STORE_DIR',
     'APP_DIR',
     'APP_GENERATED_CLIENT_DIR',
-    'APP_NODE_MODULES_BIN_DIR',
     'APP_NODE_MODULES_DIR',
     'APP_PRISMA_DIR',
-    'APP_PRISMA_PACKAGE_DIR',
-    'APP_PRISMA_SCOPE_DIR',
     'APP_SRC_DIR',
     'BUN_USER',
-    'PRISMA_BIN_ABS_PATH',
-    'PRISMA_BIN_SYMLINK_TARGET',
     'PRISMA_CONFIG_ABS_PATH',
     'PRISMA_SCHEMA_PATH',
 )
@@ -59,43 +51,6 @@ def prisma_dir_and_permissions():
     )
 
 
-def prisma_engines_symlink():
-    """
-    Rebuild @prisma links from Bun's isolated store after cross-stage COPY.
-    Service-level node_modules symlinks are relative and can break when copied to
-    `/app/node_modules`. We relink from `/app/node_modules/.bun`.
-    
-    Handles two types of packages:
-    1. Nested packages: @prisma/client, @prisma/adapter-pg (under node_modules/@prisma/)
-    2. Top-level package: @prisma/engines (copied as real files, not symlinked)
-    """
-    return (
-        "# Re-link @prisma packages from Bun store so Prisma CLI can resolve engines\n"
-        # Written inline: the template this used to COPY is not shipped anywhere.
-        + "RUN cat > /usr/local/bin/prisma-runtime-relink.sh << 'EOF'\n"
-        + "#!/bin/sh\n"
-        + "set -e\n"
-        + "# Nested @prisma packages: replace the symlink into node_modules/.bun with a real copy.\n"
-        + "for name in client adapter-pg; do\n"
-        + "  src=$(ls -d /app/node_modules/.bun/@prisma+${name}@*/node_modules/@prisma/${name} 2>/dev/null | head -n 1 || true)\n"
-        + "  if [ -n \"$src\" ]; then\n"
-        + "    rm -rf /app/node_modules/@prisma/${name}\n"
-        + "    mkdir -p /app/node_modules/@prisma\n"
-        + "    cp -R \"$src\" /app/node_modules/@prisma/${name}\n"
-        + "  fi\n"
-        + "done\n"
-        + "# Top-level @prisma/engines: copy as real files, not a symlink.\n"
-        + "src=$(ls -d /app/node_modules/.bun/@prisma+engines@*/node_modules/@prisma/engines 2>/dev/null | head -n 1 || true)\n"
-        + "if [ -n \"$src\" ]; then\n"
-        + "  rm -rf /app/node_modules/@prisma/engines\n"
-        + "  mkdir -p /app/node_modules/@prisma\n"
-        + "  cp -R \"$src\" /app/node_modules/@prisma/engines\n"
-        + "fi\n"
-        + "EOF\n"
-        + "RUN chmod +x /usr/local/bin/prisma-runtime-relink.sh && /usr/local/bin/prisma-runtime-relink.sh\n"
-    )
-
-
 def prisma_config_inline():
     """
     Inline-generate /app/prisma.config.ts so Prisma v7 migration commands pick up
@@ -119,14 +74,16 @@ def migrator_filesystem_setup():
     Convenience wrapper – returns all filesystem setup instructions in order:
       1. Inline prisma.config.ts
       2. Permission fixes
-      3. @prisma/engines symlink
-      4. General Bun hoisted packages symlink fix
+      3. General Bun hoisted packages symlink fix
+
+    The @prisma links are not rebuilt here: the old relink step replaced the symlinks into node_modules/.bun with real copies
+    of @prisma/client, adapter-pg and engines, which stored those 98 MB a second time in their own layer (#4070). The relative
+    symlinks that arrive with the node_modules COPY resolve as they are.
 
     The caller is responsible for wrapping these in `USER root` / `USER bun` guards.
     """
     return (
         prisma_config_inline()
         + prisma_dir_and_permissions()
-        + prisma_engines_symlink()
         + bun_hoisted_packages_symlink_fix()
     )

@@ -105,6 +105,25 @@ def prisma_cli_pin_step():
     )
 
 
+def prisma_migrator_slim_step():
+    """
+    Dockerfile step that removes what the migrator never runs from its node_modules before the runtime stage copies them.
+
+    `prisma migrate deploy` and `prisma generate` do not load the TypeScript native compiler, pglite, elkjs, react-dom or the
+    query-plan executor, which Bun's install pulls in through Prisma's optional and peer dependencies (about 70 MB). The
+    packages are moved aside, `prisma validate` runs against what is left, and they are moved back when it fails, so a
+    Prisma release that starts to need one of them still builds a working migrator instead of a broken one.
+    """
+    return (
+        "# Move aside what migrate deploy never loads; restore it if prisma validate then fails (a future Prisma may need it).\n"
+        + "RUN set -e; mkdir -p /tmp/pruned; cd node_modules/.bun; "
+        + "for p in @electric-sql+pglite@* @typescript+typescript-* typescript@* elkjs@* react-dom@* @prisma+query-plan-executor@*; do "
+        + "[ -e \"$p\" ] && mv \"$p\" /tmp/pruned/ || true; done; cd ../..; "
+        + "if ! DATABASE_URL=postgresql://u:p@localhost:5432/d node_modules/.bin/prisma validate >/dev/null 2>&1; then "
+        + "echo 'prune broke prisma validate, restoring'; mv /tmp/pruned/* node_modules/.bun/ 2>/dev/null || true; fi; rm -rf /tmp/pruned\n"
+    )
+
+
 def L3_generate_migration_engine(res_path, use_golden = True):
     """
     Generate the migration engine layer for Prisma database migrations.
@@ -146,6 +165,7 @@ def L3_generate_migration_engine(res_path, use_golden = True):
         + prisma_normalize_output_block(include_generated_client_export = False)
         + "RUN mkdir -p " + PRISMA_PACKAGE_NODE_MODULES_REL_PATH + "\n"
         + "RUN test -f " + PRISMA_SCHEMA_PATH + "\n"
+        + prisma_migrator_slim_step()
     )
 
 GLOBAL_CONFIG = {}
