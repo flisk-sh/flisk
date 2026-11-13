@@ -202,6 +202,8 @@ jobs:
               repoUrl: base,
               orgUrl: `https://github.com/${owner}`,
               discordInvite,
+              // The contributor's own post, so the link to their PR is welcome here.
+              xPostUrl: `https://x.com/intent/post?text=${encodeURIComponent(`My PR to flisk just got merged. flisk runs your microservices and agent stacks locally with one command. Claiming my ${badgeName} badge, first ${SEATS} only: ${base}/pull/${pr.number}`)}`,
               seatsLine: founding && seatsLeft !== null ? `First ${SEATS} only. ${seatsLeft} left.` : '',
               claimButton: discordButton('Claim your badge'),
             };
@@ -215,7 +217,7 @@ jobs:
             claimTemplate ??= [
               '### 🎁 Your {{badgeName}} badge in 3 steps', '', '{{lockedBadge}}', '',
               '1. ⭐ [Star the repo]({{repoUrl}}) and 👤 [follow us]({{orgUrl}})',
-              '2. ✅ Get a PR merged. Done!',
+              '2. ✅ Get a PR merged. Done! Now 📣 [post it on X]({{xPostUrl}}), the text is ready',
               '3. 💬 Post this PR\'s link in `#start-here` on [our Discord]({{discordInvite}}) and the bot gives you your number.',
               '', '{{seatsLine}}', '', '{{claimButton}}',
             ].join('\n');
