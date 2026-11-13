@@ -101,9 +101,9 @@ const main = async () => {
   const deadline = Date.now() + waitMinutes * 60_000;
   for (;;) {
     const runs = JSON.parse(
-      gh(`repos/${repo}/actions/workflows/release-candidate.yml/runs?per_page=100&status=success`),
+      gh(`repos/${repo}/actions/workflows/release-candidate.yml/runs?per_page=100`),
     ).workflow_runs;
-    // Newest first, one entry per commit.
+    // Newest first, one entry per commit. No status filter: GitHub's status index can lag and hide a run that already passed (1.4.63-rc1 was missing for over an hour), so the conclusion is checked here.
     const candidates = [...new Set(runs.filter((r) => r.conclusion === "success").map((r) => r.head_sha))];
     const compare = (base, head) => {
       const data = JSON.parse(gh(`repos/${repo}/compare/${base}...${head}?per_page=${COMPARE_FILE_CAP}`));
