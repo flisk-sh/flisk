@@ -4,6 +4,12 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.61 (2026-11-13)
+
+- New `flisk tool add weather`, `flisk tool add chart` and `flisk tool add services` add the Flisk Chat widgets by name, in the same way as the other tools (#4106).
+- The CLI's status markers are plain ASCII on terminals that cannot show UTF-8 and on `TERM=linux` consoles, so they no longer print as broken characters (#4105).
+- `flisk doctor` and `flisk up` now name the process that holds a conflicting port on Windows too; they used to name it only on macOS and Linux (#4029).
+
 ## 1.4.60 (2026-11-13)
 
 - New `flisk tool add <tool> [name]` adds a tool by the name people know it by (`react`, `nextjs`, `nodejs`, `fastapi`, `postgresql`, `mysql`, `mongodb`, `rag`, `embeddings`, `llm-api`) by running the matching `flisk resource` command. It refuses a name already in use, validates `--stack` before anything runs, reports one error outside a project, and rejects cloud providers (#4038, #4040, #4065, #4066).
