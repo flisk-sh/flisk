@@ -120,7 +120,7 @@ jobs:
           BASE_SHA="$BASE_SHA" scripts/e2e/select-journeys.sh
 
   journeys:
-    name: ${{ matrix.check || matrix.suite }}
+    name: ${{ matrix.check || matrix.suite || 'skipped (no journey selected)' }}
     needs: plan
     # always(): on a pull request the license job is skipped, and a job whose needs chain includes a skipped job is skipped too,
     # so the matrix never expanded there. The plan result and its run list decide instead.

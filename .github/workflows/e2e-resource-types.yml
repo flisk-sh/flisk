@@ -120,7 +120,7 @@ jobs:
           echo "$matrix"
 
   resource-types:
-    name: ${{ matrix.group }} / ${{ matrix.label }}
+    name: ${{ matrix.group || 'resource-types' }} / ${{ matrix.label || 'skipped (no matching suite)' }}
     needs: plan
     if: needs.plan.outputs.matrix != '{"include":[]}'
     runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}

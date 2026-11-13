@@ -36,11 +36,11 @@ const nightly = (id, agent = "success", mcp = "success") => [
 	job(id, 5, "resource-types / mcp", mcp),
 	job(id, 6, "e2e-resource-types"),
 ];
-// A release run whose release failed: the plan is skipped and the matrix job keeps its unexpanded name.
+// A release run whose release failed: the plan and empty matrix job are skipped.
 const noLegs = (id) => [
 	job(id, 1, "e2e-resource-types"),
 	job(id, 2, "Plan the resource-type suites", "skipped"),
-	job(id, 3, "${{ matrix.group }} / ${{ matrix.label }}", "skipped"),
+	job(id, 3, "resource-types / skipped (no matching suite)", "skipped"),
 ];
 
 // A fake gh: the runs endpoint filtered by event, and the jobs endpoint as `--paginate --slurp` prints it.
