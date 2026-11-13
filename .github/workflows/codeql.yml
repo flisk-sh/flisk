@@ -20,8 +20,40 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
+  changes:
+    name: 📄 Detect code changes
+    runs-on: ubuntu-26.04
+    timeout-minutes: 2 # the step is a paths-filter checkout + filter, well under 20s
+    # Only pull requests run the detector; push, merge_group and schedule have no
+    # "base" to compare against, so they go straight to the analyzers below.
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists the files of a pull request
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: filter
+        with:
+          # Same doc patterns as ci.yml's docs-only check and security.yml's
+          # code filter: a change here never touches a file CodeQL can analyze.
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!openspec/**'
+              - '!LICENSE'
+
   analyze:
     name: 🔬 Analyze (${{ matrix.language }})
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.code != 'false') }}
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
@@ -49,6 +81,8 @@ jobs:
   # same Code scanning view. Pinned to a full commit like every other action here.
   starlark:
     name: 🔬 Analyze (starlark)
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.code != 'false') }}
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
