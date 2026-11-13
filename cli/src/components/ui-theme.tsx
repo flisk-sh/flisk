@@ -33,6 +33,9 @@ type TUIEnvironment = {
   NO_COLOR?: string;
   TERM?: string;
   COLORFGBG?: string;
+  LC_ALL?: string;
+  LC_CTYPE?: string;
+  LANG?: string;
 };
 
 const FILE_TYPES: FileType[] = ["docker", "tilt", "config", "prisma", "generated", "unknown"];
@@ -70,15 +73,27 @@ export function isLightTerminal(environment: TUIEnvironment = process.env): bool
   return false;
 }
 
+/**
+ * Detect whether the terminal can draw Unicode box-drawing and spinner characters.
+ * The first set locale variable (LC_ALL, LC_CTYPE, LANG) must name UTF-8; with none set, assume Unicode.
+ */
+export function supportsUnicode(environment: TUIEnvironment = process.env): boolean {
+  const term = environment.TERM?.toLowerCase();
+  if (term === "linux" || term?.startsWith("dumb")) return false;
+  const locale = environment.LC_ALL || environment.LC_CTYPE || environment.LANG;
+  return !locale || /utf-?8/i.test(locale);
+}
+
 /** Build the TUI palette from the requested theme and terminal environment. */
 export function createTUITheme(
   highContrast: boolean,
   environment: TUIEnvironment = process.env,
 ): TUITheme {
-  const ascii =
+  const plain =
     environment.NO_COLOR !== undefined ||
     environment.TERM?.toLowerCase().startsWith("dumb") === true;
-  const light = !highContrast && !ascii && isLightTerminal(environment);
+  const ascii = plain || !supportsUnicode(environment);
+  const light = !highContrast && !plain && isLightTerminal(environment);
   const palette = highContrast
     ? {
         accent: "cyanBright",
@@ -133,7 +148,7 @@ export function createTUITheme(
           fileColors: DEFAULT_FILE_COLORS,
         };
 
-  const colorless = ascii
+  const colorless = plain
     ? {
         accent: undefined,
         border: undefined,
@@ -159,7 +174,7 @@ export function createTUITheme(
   return {
     ...palette,
     ...colorless,
-    highContrast: highContrast && !ascii,
+    highContrast: highContrast && !plain,
     ascii,
     bannerStart: ascii ? ">>>" : "\u2593\u2592\u2591",
     bannerEnd: ascii ? "<<<" : "\u2591\u2592\u2593",

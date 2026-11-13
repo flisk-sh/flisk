@@ -31,6 +31,8 @@
 - `NO_COLOR` is set, even to an empty value, or
 - `TERM` starts with `dumb` (any letter case).
 
+It also uses the ASCII symbols below, but keeps colors, when `TERM` is `linux` or the first set of `LC_ALL`, `LC_CTYPE` and `LANG` does not name UTF-8 (for example `LANG=C`).
+
 In ASCII mode there are no colors, no boxes around panels, and `--high-contrast` has no effect. Everything that was a symbol becomes text:
 
 | Where | Normal | ASCII |
