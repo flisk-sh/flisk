@@ -7,8 +7,10 @@ export interface StackProgress {
     pending: number;
     /** Resources that failed. */
     failed: number;
-    /** Every resource Tilt knows about. */
+    /** The services the user sees: their own services plus the database and the proxy, not Tilt helpers. */
     total: number;
+    /** The infrastructure step still running (base images, databases, networks), when one is. */
+    infraPhase?: string;
     /** The resources that are still working, with their state. */
     working: {
         name: string;

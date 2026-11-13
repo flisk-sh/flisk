@@ -54,6 +54,8 @@ export type DemoState = {
   servicesReady: number;
   servicesTotal: number;
   servicesBuilding: number;
+  /** The setup step running before the services, e.g. "Building base images". */
+  servicesPhase?: string;
   /** What the setup produced, e.g. "240 config files generated". */
   detail?: string;
   elapsedMs: number;
@@ -178,6 +180,7 @@ function servicesLine(state: DemoState): string {
   const ready = Math.min(Math.max(0, state.servicesReady), total);
   const parts = [`${ready} of ${total} services ready`];
   if (state.servicesBuilding > 0) parts.push(`${state.servicesBuilding} building`);
+  if (state.servicesPhase) parts.push(state.servicesPhase);
   return parts.join(" · ");
 }
 

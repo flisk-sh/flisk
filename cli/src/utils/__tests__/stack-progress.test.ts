@@ -178,6 +178,107 @@ describe("readStackProgress", () => {
   });
 });
 
+/** One UIResource row as `tilt get uiresources -o json` returns it. */
+function row(name: string, updateStatus: string, runtimeStatus: string) {
+  return { metadata: { name }, status: { updateStatus, runtimeStatus } };
+}
+
+/** The 32 UIResources of the 7-service demo, shaped like the Tilt snapshot in issue #4120. */
+function demoResources() {
+  const services = [
+    "restaurant-migrator",
+    "menu-api",
+    "orders-api",
+    "kitchen-worker",
+    "floor-app",
+    "host-app",
+    "admin-app",
+  ];
+  const items = [
+    row("(Tiltfile)", "ok", "not_applicable"),
+    row("init-networks", "ok", "not_applicable"),
+    row("golden-layers-build", "ok", "not_applicable"),
+    row("service-discovery-daemon", "none", "none"),
+    row("postgres", "ok", "ok"),
+    row("traefik", "ok", "ok"),
+    row("provision-db-restaurant-migrator", "ok", "not_applicable"),
+    row("provision-db-menu-api", "ok", "not_applicable"),
+    // The only build in progress.
+    row("restaurant-migrator", "in_progress", "pending"),
+    row("menu-api", "pending", "pending"),
+    row("orders-api", "ok", "ok"),
+    row("kitchen-worker", "ok", "ok"),
+    row("floor-app", "ok", "ok"),
+    row("host-app", "ok", "ok"),
+    row("admin-app", "ok", "ok"),
+  ];
+  for (const name of services) items.push(row(`${name}-yaml`, "none", "none"));
+  for (const name of services.slice(0, 5)) items.push(row(`${name}-run-only`, "none", "none"));
+  for (const name of services.slice(0, 5))
+    items.push(row(`${name}-typecheck`, "ok", "not_applicable"));
+  return items;
+}
+
+describe("readStackProgress on the demo's real resource list", () => {
+  it("counts the user's services plus Postgres and Traefik, not the Tilt helpers", async () => {
+    const items = demoResources();
+    expect(items).toHaveLength(32);
+    tiltAnswers(JSON.stringify({ items }));
+    const progress = await readStackProgress(10350);
+    expect(progress?.total).toBe(9);
+    expect(progress?.building).toBe(1);
+    expect(progress?.ready).toBe(7);
+    expect(progress?.pending).toBe(1);
+    expect(progress?.working.map((w) => w.name)).toEqual(["restaurant-migrator", "menu-api"]);
+  });
+
+  it("never counts a resource whose updateStatus is none as building", async () => {
+    tiltAnswers(
+      JSON.stringify({
+        items: [row("orders-api", "none", "none"), row("orders-web", "none", "ok")],
+      }),
+    );
+    const progress = await readStackProgress(10350);
+    expect(progress?.building).toBe(0);
+    expect(progress).toMatchObject({ ready: 1, pending: 1, total: 2 });
+  });
+
+  it("keeps the total the same from the first frame to the last", async () => {
+    const items = demoResources();
+    tiltAnswers(JSON.stringify({ items }));
+    const first = await readStackProgress(10350);
+    const done = items.map((item) =>
+      item.status.updateStatus === "none" ? item : row(item.metadata.name, "ok", "ok"),
+    );
+    tiltAnswers(JSON.stringify({ items: done }));
+    const last = await readStackProgress(10350);
+    expect(last?.total).toBe(first?.total);
+    expect(last).toMatchObject({ ready: 9, building: 0, pending: 0 });
+  });
+
+  it("labels the infrastructure steps as their own phase", async () => {
+    tiltAnswers(
+      JSON.stringify({
+        items: [
+          row("golden-layers-build", "in_progress", "not_applicable"),
+          row("provision-db-menu-api", "pending", "not_applicable"),
+          row("menu-api", "pending", "pending"),
+        ],
+      }),
+    );
+    const progress = await readStackProgress(10350);
+    expect(progress?.infraPhase).toBe("Building base images");
+    expect(progress).toMatchObject({ total: 1, building: 0, pending: 1 });
+  });
+
+  it("still reports a failed infrastructure step", async () => {
+    tiltAnswers(JSON.stringify({ items: [row("golden-layers-build", "error", "not_applicable")] }));
+    const progress = await readStackProgress(10350);
+    expect(progress).toMatchObject({ failed: 1, total: 0 });
+    expect(progress?.broken[0].name).toBe("golden-layers-build");
+  });
+});
+
 describe("formatProgress", () => {
   const base: StackProgress = {
     ready: 3,
