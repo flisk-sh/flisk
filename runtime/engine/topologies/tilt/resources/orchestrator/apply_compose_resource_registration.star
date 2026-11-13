@@ -895,15 +895,24 @@ def _register_deferred_image_prebuild(config, auto_init_apps, deps=None):
     )
 
 
-def image_prebuild_deps(res_deps):
-    """The subset of a resource's deps its image build needs: the generated Dockerfile, the package registry and the golden images.
+def _image_build_input(dep):
+    """True for a dep the image build itself needs: the generated Dockerfile, the package registry or the golden images."""
+    return dep.endswith('-config-gen') or dep == 'golden-layers-build' or dep == PlatformDockerConstants.VERDACCIO_RESOURCE_NAME
 
-    The rest (Postgres, the migrator, other services) only matter once the container starts.
+
+def image_prebuild_deps(res_deps):
+    """The deps of a resource's `<name>-image` build: what the build needs, then Postgres when the service needs it.
+
+    The rest (the migrator, other services) only matter once the container starts. Postgres is kept as an ordering dep, not
+    an input: Tilt starts every docker_compose resource only after the local resources that are ready at the same time, and
+    the image builds are local resources that hold every update slot (max_parallel_updates) for minutes. Postgres, needing
+    no build and starting in about 5 s, waited 3 min 40 s on a cold demo start, and the databases, the migrator and every
+    API waited behind it (#4127). Waiting for it costs each image build those few seconds.
     """
-    return [
-        dep for dep in res_deps
-        if dep.endswith('-config-gen') or dep == 'golden-layers-build' or dep == PlatformDockerConstants.VERDACCIO_RESOURCE_NAME
-    ]
+    deps = [dep for dep in res_deps if _image_build_input(dep)]
+    if 'postgres' in res_deps:
+        deps.append('postgres')
+    return deps
 
 
 def needs_image_prebuild(res_deps):
@@ -912,7 +921,7 @@ def needs_image_prebuild(res_deps):
     Tilt holds a dc_resource's docker_build until every resource_dep is ready, so without a separate build step a service
     that depends on another is built only after that one is healthy, and a chain of dependsOn builds one image at a time.
     """
-    return len(image_prebuild_deps(res_deps)) < len(res_deps)
+    return len([dep for dep in res_deps if _image_build_input(dep)]) < len(res_deps)
 
 
 def _resolve_dockerfile(config):

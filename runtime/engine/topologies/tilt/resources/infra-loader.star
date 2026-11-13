@@ -205,6 +205,9 @@ def _register_platform_postgres(should_enable, root_prefix="", env_file=None, wr
             env={'FLISK_PROJECT': PlatformDockerConstants.PROJECT_NAME},
             labels=['infra.tools', 'health'],
             resource_deps=['postgres'],
+            # A read-only poll. Without allow_parallel Tilt runs a local resource only when no other update runs, so this check
+            # waited for the slowest image build (2.5 min for the demo's migrator image) though Postgres was healthy (#4127).
+            allow_parallel=True,
             auto_init=True,
         )
         return
