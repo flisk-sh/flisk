@@ -121,6 +121,8 @@ function servicesLine(state) {
     const parts = [`${ready} of ${total} services ready`];
     if (state.servicesBuilding > 0)
         parts.push(`${state.servicesBuilding} building`);
+    if (state.servicesPhase)
+        parts.push(state.servicesPhase);
     return parts.join(" · ");
 }
 /**

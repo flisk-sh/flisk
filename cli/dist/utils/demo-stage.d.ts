@@ -37,6 +37,8 @@ export type DemoState = {
     servicesReady: number;
     servicesTotal: number;
     servicesBuilding: number;
+    /** The setup step running before the services, e.g. "Building base images". */
+    servicesPhase?: string;
     /** What the setup produced, e.g. "240 config files generated". */
     detail?: string;
     elapsedMs: number;

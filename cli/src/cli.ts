@@ -368,7 +368,7 @@ if (templateArg) {
   const { readSavedTiltPort } = await import("./utils/host-port-config.js");
   const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
   let watching = true;
-  // Tilt counts every resource it starts, including the database and the proxy. That is the
+  // The progress line counts the user's services plus the database and the proxy, not Tilt helpers. That is the
   // number the progress line shows, so the last frame has to finish on the same one.
   let lastTotal = discovered;
   void (async () => {
@@ -389,6 +389,7 @@ if (templateArg) {
               servicesReady: progress.ready,
               servicesTotal: progress.total,
               servicesBuilding: progress.building,
+              servicesPhase: progress.infraPhase,
             });
             break;
           }
@@ -419,7 +420,12 @@ if (templateArg) {
     process.exit(1);
   }
   setPhase("start", "done", Date.now() - startStarted);
-  stage.update({ servicesReady: lastTotal, servicesTotal: lastTotal });
+  stage.update({
+    servicesReady: lastTotal,
+    servicesTotal: lastTotal,
+    servicesBuilding: 0,
+    servicesPhase: undefined,
+  });
 
   // 5. Open the browser only when a frontend actually answers, the same way `flisk open`
   // does. A failed open is not a failed demo: the URL is already on screen.

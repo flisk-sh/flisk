@@ -189,6 +189,25 @@ describe("renderDemoFrame", () => {
     expect(text).not.toContain("0 of 0");
   });
 
+  it("shows the setup step as its own phase and keeps the total on the last frame", () => {
+    const first = frameToPlain(
+      renderDemoFrame(
+        baseState({
+          servicesReady: 0,
+          servicesTotal: 9,
+          servicesBuilding: 0,
+          servicesPhase: "Building base images",
+        }),
+      ),
+    ).join("\n");
+    const last = frameToPlain(
+      renderDemoFrame(baseState({ servicesReady: 9, servicesTotal: 9, servicesBuilding: 0 })),
+    ).join("\n");
+    expect(first).toContain("0 of 9 services ready · Building base images");
+    expect(last).toContain("9 of 9 services ready");
+    expect(last).not.toContain("building");
+  });
+
   it("fits every row inside the terminal at any common width", () => {
     for (const columns of [40, 60, 80, 120, 200]) {
       const rows = renderDemoFrame(baseState(), columns);
