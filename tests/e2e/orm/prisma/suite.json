@@ -15,7 +15,7 @@
     "tests/e2e/orm/prisma/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["P1", "P2", "P3", "P4"],
+  "cases": ["P1", "P2", "P3", "P4", "P5"],
   "triggers": ["pr", "nightly", "release", "manual"],
   "timeoutMinutes": 25,
   "needsSecrets": []

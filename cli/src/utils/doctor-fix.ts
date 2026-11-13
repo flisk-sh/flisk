@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CheckResult, DoctorAction } from "../types/index.js";
 import { type ColimaStatus, checkColima, nativeLimaPath, planColimaRepair } from "./colima.js";
+import { formatBytes, isColimaDiskBloated, readColimaDisk, runColimaTrim } from "./colima-disk.js";
 import { DISK_WARN_GIB } from "./doctor-host.js";
 import {
   findProjectTiltUpPids,
@@ -54,6 +55,8 @@ export interface DoctorFixDeps {
   colimaStatus(): ColimaStatus;
   /** Whether the Docker daemon answers right now. */
   dockerAnswers(): boolean;
+  /** Colima's disk file on the Mac against Docker's own usage, when the disk file is over 3x what Docker holds. */
+  colimaDiskBloat?(): Promise<{ diskFileBytes: number; dockerBytes: number } | null>;
 }
 
 type DockerRunner = (args: string[]) => Promise<string>;
@@ -142,6 +145,10 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
   return {
     colima: runColima,
     colimaStatus: () => checkColima(),
+    async colimaDiskBloat() {
+      const report = await readColimaDisk();
+      return report && isColimaDiskBloated(report) ? report : null;
+    },
     dockerAnswers,
     async listNetworks() {
       const names = (await run(["network", "ls", "--format", "{{.Name}}"]))
@@ -219,20 +226,7 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         ]);
       }
     },
-    async trimColima() {
-      try {
-        await execFilePromise("colima", ["ssh", "--", "sudo", "fstrim", "-av"], {
-          encoding: "utf-8",
-          timeout: 300_000,
-          windowsHide: true,
-        });
-      } catch (error) {
-        throw new FliskError(firstLine(error), [
-          "Run it by hand: colima ssh -- sudo fstrim -av",
-          "Check the container engine with: flisk doctor",
-        ]);
-      }
-    },
+    trimColima: runColimaTrim,
     async tiltStatus(pid) {
       return tiltProcessStatus(pid);
     },
@@ -409,6 +403,20 @@ export async function planDoctorFixes(
         command: "colima ssh -- sudo fstrim -av",
         status: "planned",
         reason: `${low}; Docker data lives in the Colima VM, whose disk image keeps its size on the Mac until it is trimmed`,
+      });
+    }
+  }
+  // The disk can be fine and the Colima disk file still hold several times what Docker uses (a prune done by hand).
+  if (!actions.some((action) => action.id === "trim:colima")) {
+    const bloat = await deps.colimaDiskBloat?.();
+    if (bloat) {
+      actions.push({
+        id: "trim:colima",
+        check: "Colima Disk",
+        scope: "host",
+        command: "colima ssh -- sudo fstrim -av",
+        status: "planned",
+        reason: `the Colima disk file takes ${formatBytes(bloat.diskFileBytes)} on the Mac while Docker uses ${formatBytes(bloat.dockerBytes)}`,
       });
     }
   }

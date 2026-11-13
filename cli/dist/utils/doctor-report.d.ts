@@ -1,5 +1,6 @@
 import type { CheckResult, DoctorAction, HostPortPlan } from "../types/index.js";
 import type { HostInfo } from "./agent-host.js";
+import type { ColimaDiskReport } from "./colima-disk.js";
 import type { DockerBuildCacheReport } from "./docker-build-cache.js";
 import { type RankedFix } from "./doctor-fix-first.js";
 import { SCHEMA_VERSION } from "./machine-output.js";
@@ -24,6 +25,8 @@ export interface DoctorReport {
             containerRuntimeReachable: boolean | null;
         };
         buildCache?: DockerBuildCacheReport;
+        /** Colima disk file on the Mac against what Docker reports; present only on a running Colima VM. */
+        colimaDisk?: ColimaDiskReport;
         ports?: {
             http: {
                 requested: number;

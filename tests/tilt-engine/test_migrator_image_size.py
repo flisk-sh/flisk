@@ -110,3 +110,34 @@ def test_migration_stage_installs_production_dependencies_then_the_pin_step_and_
     assert any("bun install --production" in line for line in runs), runs
     adds = [line for line in runs if "bun add" in line]
     assert adds and all("--production" not in line for line in adds), adds
+
+
+@TILT_REQUIRED
+def test_migrator_runtime_does_not_copy_prisma_packages_a_second_time(tmp_path):
+    # The relink step replaced the @prisma/client, adapter-pg and engines symlinks with `cp -R` copies in a RUN of their own, so
+    # 98 MB were stored twice in a scaffolded migrator (flisk#4070). The symlinks that arrive with the node_modules COPY resolve
+    # as they are, and a migration still completes.
+    result = run_starlark(
+        tmp_path,
+        "load('@PRISMA/prisma_runtime.star', 'L4_generate_migrator_runtime')\n"
+        "r = {'runtime': L4_generate_migrator_runtime('services/main/mig', 'mig', False)}\n",
+    )
+    assert "prisma-runtime-relink" not in result["runtime"]
+    assert "cp -R" not in result["runtime"]
+
+
+@TILT_REQUIRED
+def test_migration_stage_moves_aside_what_migrate_never_loads_and_restores_it_when_validate_fails(tmp_path):
+    result = run_starlark(
+        tmp_path,
+        "load('@PRISMA/prisma_build.star', 'L3_generate_migration_engine')\n"
+        "r = {'stage': L3_generate_migration_engine('services/main/mig', False)}\n",
+    )
+    runs = [line for line in result["stage"].splitlines() if line.startswith("RUN set -e; mkdir -p /tmp/pruned")]
+    assert len(runs) == 1, runs
+    run = runs[0]
+    # Moved, not deleted, and the move is undone when prisma validate fails afterwards.
+    assert "mv " in run and "rm -rf node_modules" not in run
+    assert "prisma validate" in run and "mv /tmp/pruned/* node_modules/.bun/" in run
+    # It is the last instruction of the build stage, so the runtime stage copies the pruned tree.
+    assert result["stage"].rstrip().splitlines()[-1] == run
