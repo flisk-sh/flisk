@@ -24,7 +24,23 @@ export function findPortOccupant(
   platform = process.platform,
   commandRunner: CommandRunner = run,
 ): PortOccupant | null {
-  if (platform === "win32") return null;
+  if (platform === "win32") {
+    const script =
+      `$port=${port}; $c=Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; ` +
+      `if ($c) { $p=Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue; if ($p) { "$($p.Id)"; $p.ProcessName } }`;
+    try {
+      const [pidRaw, name] = commandRunner("powershell.exe", ["-NoProfile", "-Command", script])
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const pid = Number(pidRaw);
+      if (!Number.isInteger(pid) || pid <= 0 || !name) return null;
+      return { pid, command: name };
+    } catch {
+      // PowerShell may be missing or the query may fail; treat as "unknown".
+      return null;
+    }
+  }
   try {
     const [first] = commandRunner("lsof", ["-nP", "-t", `-iTCP:${port}`, "-sTCP:LISTEN"])
       .split(/\r?\n/)

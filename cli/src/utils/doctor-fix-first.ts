@@ -32,6 +32,7 @@ function inspectPort(platform: NodeJS.Platform, port: number | null): string | n
   if (port === null) return null;
   if (platform === "darwin") return `lsof -nP -iTCP:${port} -sTCP:LISTEN`;
   if (platform === "linux") return `ss -ltnp 'sport = :${port}'`;
+  if (platform === "win32") return `netstat -ano | findstr /c:":${port} "`;
   return null;
 }
 

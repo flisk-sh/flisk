@@ -12,6 +12,8 @@ function inspectPort(platform, port) {
         return `lsof -nP -iTCP:${port} -sTCP:LISTEN`;
     if (platform === "linux")
         return `ss -ltnp 'sport = :${port}'`;
+    if (platform === "win32")
+        return `netstat -ano | findstr /c:":${port} "`;
     return null;
 }
 const RULES = {
