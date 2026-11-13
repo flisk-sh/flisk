@@ -32,6 +32,11 @@ export interface DoctorFixDeps {
     colimaStatus(): ColimaStatus;
     /** Whether the Docker daemon answers right now. */
     dockerAnswers(): boolean;
+    /** Colima's disk file on the Mac against Docker's own usage, when the disk file is over 3x what Docker holds. */
+    colimaDiskBloat?(): Promise<{
+        diskFileBytes: number;
+        dockerBytes: number;
+    } | null>;
 }
 type DockerRunner = (args: string[]) => Promise<string>;
 /** `ps -o etime=` ("[[dd-]hh:]mm:ss") in seconds. */

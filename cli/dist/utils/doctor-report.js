@@ -33,6 +33,7 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
     const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
     const detectedBuildCache = buildCache ??
         checks.find((check) => check.name === "Docker Build Cache")?.buildCache;
+    const colimaDisk = checks.find((check) => check.name === "Colima Disk")?.colimaDisk;
     return {
         schemaVersion: SCHEMA_VERSION,
         data: {
@@ -44,6 +45,7 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
             ...(observedOwner ? { observed: observedOwner } : {}),
             ...(fixFirst.length > 0 ? { fixFirst } : {}),
             ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
+            ...(colimaDisk ? { colimaDisk } : {}),
             ...(commit !== undefined ? { commit, commitSha: commit } : {}),
             ...(host
                 ? {

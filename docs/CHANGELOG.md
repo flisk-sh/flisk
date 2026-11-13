@@ -5,6 +5,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 ## Unreleased
 
 - The Next.js frontend image no longer stores `node_modules` twice. A `chown -R` over the app folder after `npm install` added a second layer of 387 MB for a minimal app and a slower cold build; ownership is now set by `COPY --chown`, and the development stage chowns only the app folder and `.next`. Images already built keep their size until they are rebuilt.
+- On Colima and Lima, `flisk down --prune-cache` now trims the VM after pruning and prints how much space went back to the Mac, and `flisk doctor` has a `Colima Disk` check (also in `--json` as `colimaDisk`) that compares the VM's disk file with what `docker system df` reports and warns when it is more than 3x and 5 GB larger. The disk file only shrinks after `fstrim`, so freed Docker space stayed unavailable on the Mac. `flisk doctor --fix` plans the trim for that case too (#4071).
 
 ## 1.4.57 (2026-11-11)
 

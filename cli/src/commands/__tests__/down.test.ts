@@ -17,6 +17,7 @@ const {
   createJsonEmitterMock,
   findRunningFliskProjectsMock,
   pruneDockerBuildCacheMock,
+  trimColimaAndMeasureMock,
   stopProjectComposeProjectsMock,
   lookupProjectTiltUpPidsMock,
   projectComposeProjectsMock,
@@ -38,6 +39,7 @@ const {
   createJsonEmitterMock: vi.fn(),
   findRunningFliskProjectsMock: vi.fn((): string[] => []),
   pruneDockerBuildCacheMock: vi.fn(),
+  trimColimaAndMeasureMock: vi.fn(async (): Promise<unknown> => null),
   stopProjectComposeProjectsMock: vi.fn(),
   lookupProjectTiltUpPidsMock: vi.fn((): number[] => []),
   // Something runs by default, so `down` reaches `tilt down`; the idle cases say otherwise.
@@ -47,6 +49,12 @@ const originalCwd = process.cwd();
 
 vi.mock("../../utils/docker.js", () => ({
   getContainerRuntimeStatus: getContainerRuntimeStatusMock,
+}));
+
+// The real trim asks the Colima of the machine running the tests and would run fstrim in its VM.
+vi.mock("../../utils/colima-disk.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/colima-disk.js")>()),
+  trimColimaAndMeasure: trimColimaAndMeasureMock,
 }));
 
 vi.mock("../../utils/docker-build-cache.js", async (importOriginal) => ({
@@ -151,6 +159,8 @@ describe("flisk down", () => {
     createJsonEmitterMock.mockReset();
     findRunningFliskProjectsMock.mockReset().mockReturnValue([]);
     pruneDockerBuildCacheMock.mockReset();
+    trimColimaAndMeasureMock.mockReset();
+    trimColimaAndMeasureMock.mockResolvedValue(null);
     stopProjectComposeProjectsMock.mockReset();
     lookupProjectTiltUpPidsMock.mockReset().mockReturnValue([]);
     projectComposeProjectsMock.mockReset().mockReturnValue(["demo-traefik"]);
@@ -1130,6 +1140,55 @@ describe("flisk down", () => {
             prunedCache: { until: "24h", reclaimed: "2.6GB" },
           }),
         );
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("trims the Colima VM after the prune and reports the host space it returned", async () => {
+      const tempDir = setupTestProject();
+      pruneDockerBuildCacheMock.mockResolvedValue({ reclaimed: "2.6GB", until: "24h" });
+      trimColimaAndMeasureMock.mockResolvedValue({
+        returnedBytes: 22 * 1024 ** 3,
+        before: 34 * 1024 ** 3,
+        after: 12 * 1024 ** 3,
+      });
+      const emitMock = vi.fn();
+      createJsonEmitterMock.mockReturnValue(emitMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--prune-cache", "-y", "--json"], {
+          from: "node",
+        });
+
+        expect(trimColimaAndMeasureMock).toHaveBeenCalledTimes(1);
+        expect(emitMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            prunedCache: { until: "24h", reclaimed: "2.6GB", hostReturned: "22.0 GB" },
+          }),
+        );
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("keeps the prune result and says how to trim by hand when the Colima trim fails", async () => {
+      const tempDir = setupTestProject();
+      pruneDockerBuildCacheMock.mockResolvedValue({ reclaimed: "2.6GB", until: "24h" });
+      trimColimaAndMeasureMock.mockRejectedValue(new Error("ssh: connection refused"));
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--prune-cache", "-y"], { from: "node" });
+
+        const printed = log.mock.calls.map((call) => String(call[0])).join("\n");
+        expect(printed).toContain("Could not trim the Colima VM: ssh: connection refused");
+        expect(printed).toContain("colima ssh -- sudo fstrim -av");
       } finally {
         process.chdir(originalCwd);
         rmSync(tempDir, { recursive: true, force: true });

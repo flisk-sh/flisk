@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import type { CheckResult, DoctorAction, HostPortPlan } from "../types/index.js";
 import type { HostInfo } from "./agent-host.js";
+import type { ColimaDiskReport } from "./colima-disk.js";
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
 import type { DockerBuildCacheReport } from "./docker-build-cache.js";
 import { type RankedFix, rankDoctorFixes } from "./doctor-fix-first.js";
@@ -27,6 +28,8 @@ export interface DoctorReport {
     actions?: DoctorAction[];
     host?: HostInfo & { containerRuntimeReachable: boolean | null };
     buildCache?: DockerBuildCacheReport;
+    /** Colima disk file on the Mac against what Docker reports; present only on a running Colima VM. */
+    colimaDisk?: ColimaDiskReport;
     ports?: {
       http: { requested: number; chosen: number | null; explicit: boolean; reason: string };
       https: { requested: number; chosen: number | null; explicit: boolean; reason: string };
@@ -90,6 +93,11 @@ export function createDoctorReport(
         | (CheckResult & { buildCache?: DockerBuildCacheReport })
         | undefined
     )?.buildCache;
+  const colimaDisk = (
+    checks.find((check) => check.name === "Colima Disk") as
+      | (CheckResult & { colimaDisk?: ColimaDiskReport })
+      | undefined
+  )?.colimaDisk;
   return {
     schemaVersion: SCHEMA_VERSION,
     data: {
@@ -102,6 +110,7 @@ export function createDoctorReport(
       ...(observedOwner ? { observed: observedOwner } : {}),
       ...(fixFirst.length > 0 ? { fixFirst } : {}),
       ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
+      ...(colimaDisk ? { colimaDisk } : {}),
       ...(commit !== undefined ? { commit, commitSha: commit } : {}),
       ...(host
         ? {
