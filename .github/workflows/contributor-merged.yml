@@ -213,8 +213,8 @@ jobs:
             lines.push('', `### 🔒 Unlock your numbered ${badgeName} badge`);
             lines.push('', `[![${badgeName} badge, locked](${lockedBadgeUrl})](${discordInvite})`);
             lines.push('', founding
-              ? `The first ${SEATS} people to ship code to Flisk each get a numbered, permanent badge to show on their GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers.`
-              : `All ${SEATS} Founding badges are taken, and yours is a numbered **Flisk Contributor** badge for your GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers.`);
+              ? `The first ${SEATS} people to ship code to Flisk each get a numbered, permanent badge to show on their GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers. If your GitHub avatar is still the default pixel pattern, we also give you an Octocat avatar on flisk.sh and in the README.`
+              : `All ${SEATS} Founding badges are taken, and yours is a numbered **Flisk Contributor** badge for your GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers. If your GitHub avatar is still the default pixel pattern, we also give you an Octocat avatar on flisk.sh and in the README.`);
             lines.push('', discordButton('Claim your badge'));
             if (next.length) {
               lines.push('', '### 🎯 Ready for another one?');
