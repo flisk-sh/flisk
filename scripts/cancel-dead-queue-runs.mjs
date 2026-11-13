@@ -33,6 +33,17 @@ export function deadQueueRuns(runs, exists) {
 
 const gh = (args) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 
+// A run can finish between listing and cancelling it. That is the goal reached, not a failure.
+export function cancelRun(repo, id, run = gh) {
+	try {
+		run(["run", "cancel", String(id), "--repo", repo]);
+		return "cancelled";
+	} catch (err) {
+		if (/Cannot cancel a workflow run that is completed/.test(`${err.stderr ?? ""}${err.message ?? ""}`)) return "already-finished";
+		throw err;
+	}
+}
+
 function listRuns(repo) {
 	const runs = [];
 	for (const status of ["queued", "in_progress"]) {
@@ -59,7 +70,7 @@ function main(argv) {
 	const dead = deadQueueRuns(listRuns(repo), (branch) => branchExists(repo, branch));
 	for (const run of dead) {
 		console.log(`${dryRun ? "would cancel" : "cancelling"} ${run.id} ${run.name} (${run.head_branch})`);
-		if (!dryRun) gh(["run", "cancel", String(run.id), "--repo", repo]);
+		if (!dryRun && cancelRun(repo, run.id) === "already-finished") console.log(`${run.id} had already finished`);
 	}
 	console.log(`${dead.length} dead queue run(s)${dryRun ? " found" : " cancelled"}`);
 	return 0;
