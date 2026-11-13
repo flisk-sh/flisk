@@ -177,6 +177,41 @@ describe.each(["files", "postgres"] as const)("%s durability template", (durabil
     );
   });
 
+  it("sweeps sessions idle past the timeout on an interval, both overridable by env", () => {
+    expect(index).toContain(
+      "const SESSION_IDLE_TIMEOUT_MS = Number(process.env.SESSION_IDLE_TIMEOUT_MS) || 86_400_000;",
+    );
+    expect(index).toContain(
+      "const SESSION_CLEANUP_INTERVAL_MS = Number(process.env.SESSION_CLEANUP_INTERVAL_MS) || 3_600_000;",
+    );
+    expect(index).toContain(
+      "sweepTimer = setInterval(() => sweepIdleSessions(), SESSION_CLEANUP_INTERVAL_MS);",
+    );
+    expect(index).toContain("await store.delete(session.sessionId);");
+  });
+
+  it("keeps the sweep out of the way of shutdown and of a turn in flight", () => {
+    // unref'd and cleared on drain: a pending sweep must not hold the process open or race the drain.
+    expect(index).toContain("sweepTimer.unref();");
+    expect(index).toContain("if (sweepTimer) clearInterval(sweepTimer);");
+    expect(index).toMatch(/async function sweepIdleSessions\(\) \{\s*if \(draining\) return;/);
+    expect(index).toContain("if (activeTurns.has(session.sessionId)) continue;");
+    expect(index).toContain(
+      "if (new Date(session.lastActivity).getTime() >= idleBefore) continue;",
+    );
+  });
+
+  it("drops one session on request through DELETE /session", () => {
+    expect(index).toContain("url.pathname === '/session' && req.method === 'DELETE'");
+    expect(index).toContain("return sendJson(res, 200, { deleted: sessionId });");
+  });
+
+  it("refuses to delete a session while a turn is in flight", () => {
+    expect(index).toContain(
+      "if (activeTurns.has(sessionId)) return sendJson(res, 409, { error: 'turn_in_flight' });",
+    );
+  });
+
   it("answers unknown paths with 404 and failed requests with 500", () => {
     expect(index).toContain("return sendJson(res, 404, { error: 'not_found' });");
     expect(index).toContain("return sendJson(res, 500, { error: 'internal_error' });");
@@ -204,6 +239,14 @@ describe("files durability template", () => {
   it("lists sessions from the checkpoint files, skipping in-progress writes", () => {
     expect(index).toContain(".filter((file) => file.endsWith('.json'))");
     expect(index).toContain("lastActivity: stat.mtime.toISOString(), checkpointBytes: stat.size");
+  });
+
+  it("removes a checkpoint through an imported unlinkSync, tolerating an already-gone file", () => {
+    expect(index).toContain("unlinkSync(join(STATE_DIR, sessionId + '.json'));");
+    expect(index).toContain("unlinkSync, writeFileSync");
+    // The template is ESM: a require() here would throw at runtime instead of deleting the checkpoint.
+    expect(index).not.toContain("require(");
+    expect(index).toContain("if ((err as { code?: string }).code !== 'ENOENT')");
   });
 
   it("has no postgres dependency", () => {
@@ -258,14 +301,14 @@ describe("custom agent runtime: postgres close()", () => {
   const close = closeBody(getCustomAgentIndexTemplate(SERVICE, "postgres"));
 
   it("logs a failed client.end() instead of swallowing it", () => {
-    expect(close).toContain("client.end()");
+    expect(close).toContain("c.end()");
     expect(close).toContain("console.warn");
     expect(close).not.toMatch(/catch\s*\{\s*\}/);
   });
 
-  it("clears the client even when end() fails", () => {
-    const tail = close.slice(close.indexOf("catch"));
-    expect(tail).toContain("client = null;");
+  it("clears the client before end() so a second close() cannot end it twice, even when end() fails", () => {
+    expect(close.indexOf("client = null;")).toBeGreaterThan(-1);
+    expect(close.indexOf("client = null;")).toBeLessThan(close.indexOf("c.end()"));
   });
 });
 
