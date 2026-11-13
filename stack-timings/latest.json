@@ -1,10 +1,10 @@
 {
 	"schema": 1,
-	"generated": "2026-11-13T15:04:30.406Z",
-	"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-	"trigger": "schedule",
+	"generated": "2026-11-13T17:35:38.582Z",
+	"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+	"trigger": "workflow_run",
 	"runner": "ubuntu-latest",
-	"runUrl": "https://github.com/flisk-sh/flisk/actions/runs/43445892895",
+	"runUrl": "https://github.com/flisk-sh/flisk/actions/runs/43471653500",
 	"metrics": [
 		"scaffold",
 		"listed",
@@ -50,10 +50,10 @@
 			"axis": "language",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 192,
-				"listed": 386,
-				"cold_start": 41091,
-				"warm_start": 12749,
+				"scaffold": 199,
+				"listed": 401,
+				"cold_start": 38692,
+				"warm_start": 12746,
 				"hot_reload": null
 			},
 			"history": [
@@ -68,11 +68,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 192,
-					"listed": 386,
-					"cold_start": 41091,
-					"warm_start": 12749,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 199,
+					"listed": 401,
+					"cold_start": 38692,
+					"warm_start": 12746,
 					"hot_reload": null
 				}
 			]
@@ -84,10 +84,10 @@
 			"axis": "language",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 262,
-				"listed": 500,
-				"cold_start": 26071,
-				"warm_start": 13299,
+				"scaffold": 201,
+				"listed": 417,
+				"cold_start": 33638,
+				"warm_start": 12638,
 				"hot_reload": null
 			},
 			"history": [
@@ -102,11 +102,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 262,
-					"listed": 500,
-					"cold_start": 26071,
-					"warm_start": 13299,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 201,
+					"listed": 417,
+					"cold_start": 33638,
+					"warm_start": 12638,
 					"hot_reload": null
 				}
 			]
@@ -118,10 +118,10 @@
 			"axis": "language",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 312,
-				"listed": 522,
-				"cold_start": 41675,
-				"warm_start": 11320,
+				"scaffold": 249,
+				"listed": 501,
+				"cold_start": 41189,
+				"warm_start": 13195,
 				"hot_reload": null
 			},
 			"history": [
@@ -136,11 +136,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 312,
-					"listed": 522,
-					"cold_start": 41675,
-					"warm_start": 11320,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 249,
+					"listed": 501,
+					"cold_start": 41189,
+					"warm_start": 13195,
 					"hot_reload": null
 				}
 			]
@@ -152,10 +152,10 @@
 			"axis": "language",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 257,
-				"listed": 576,
-				"cold_start": 54675,
-				"warm_start": 11259,
+				"scaffold": 172,
+				"listed": 335,
+				"cold_start": 43733,
+				"warm_start": 9802,
 				"hot_reload": null
 			},
 			"history": [
@@ -170,11 +170,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 257,
-					"listed": 576,
-					"cold_start": 54675,
-					"warm_start": 11259,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 172,
+					"listed": 335,
+					"cold_start": 43733,
+					"warm_start": 9802,
 					"hot_reload": null
 				}
 			]
@@ -186,10 +186,10 @@
 			"axis": "language",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 192,
-				"listed": 367,
-				"cold_start": 26006,
-				"warm_start": 12336,
+				"scaffold": 171,
+				"listed": 342,
+				"cold_start": 24995,
+				"warm_start": 9760,
 				"hot_reload": null
 			},
 			"history": [
@@ -204,11 +204,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 192,
-					"listed": 367,
-					"cold_start": 26006,
-					"warm_start": 12336,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 171,
+					"listed": 342,
+					"cold_start": 24995,
+					"warm_start": 9760,
 					"hot_reload": null
 				}
 			]
@@ -220,10 +220,10 @@
 			"axis": "httpFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 192,
-				"listed": 386,
-				"cold_start": 41091,
-				"warm_start": 12749,
+				"scaffold": 199,
+				"listed": 401,
+				"cold_start": 38692,
+				"warm_start": 12746,
 				"hot_reload": null
 			},
 			"history": [
@@ -238,11 +238,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 192,
-					"listed": 386,
-					"cold_start": 41091,
-					"warm_start": 12749,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 199,
+					"listed": 401,
+					"cold_start": 38692,
+					"warm_start": 12746,
 					"hot_reload": null
 				}
 			]
@@ -254,10 +254,10 @@
 			"axis": "httpFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 274,
-				"listed": 552,
-				"cold_start": 36887,
-				"warm_start": 13588,
+				"scaffold": 202,
+				"listed": 397,
+				"cold_start": 46303,
+				"warm_start": 12691,
 				"hot_reload": null
 			},
 			"history": [
@@ -272,11 +272,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 274,
-					"listed": 552,
-					"cold_start": 36887,
-					"warm_start": 13588,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 202,
+					"listed": 397,
+					"cold_start": 46303,
+					"warm_start": 12691,
 					"hot_reload": null
 				}
 			]
@@ -288,10 +288,10 @@
 			"axis": "httpFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 206,
-				"listed": 419,
-				"cold_start": 52846,
-				"warm_start": 12598,
+				"scaffold": 160,
+				"listed": 372,
+				"cold_start": 49578,
+				"warm_start": 10245,
 				"hot_reload": null
 			},
 			"history": [
@@ -306,11 +306,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 206,
-					"listed": 419,
-					"cold_start": 52846,
-					"warm_start": 12598,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 160,
+					"listed": 372,
+					"cold_start": 49578,
+					"warm_start": 10245,
 					"hot_reload": null
 				}
 			]
@@ -322,10 +322,10 @@
 			"axis": "httpFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 264,
-				"listed": 510,
-				"cold_start": 39978,
-				"warm_start": 10968,
+				"scaffold": 220,
+				"listed": 406,
+				"cold_start": 46408,
+				"warm_start": 12808,
 				"hot_reload": null
 			},
 			"history": [
@@ -340,11 +340,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 264,
-					"listed": 510,
-					"cold_start": 39978,
-					"warm_start": 10968,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 220,
+					"listed": 406,
+					"cold_start": 46408,
+					"warm_start": 12808,
 					"hot_reload": null
 				}
 			]
@@ -356,10 +356,10 @@
 			"axis": "httpFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 249,
-				"listed": 556,
-				"cold_start": 44584,
-				"warm_start": 12959,
+				"scaffold": 155,
+				"listed": 326,
+				"cold_start": 46559,
+				"warm_start": 12316,
 				"hot_reload": null
 			},
 			"history": [
@@ -374,11 +374,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 249,
-					"listed": 556,
-					"cold_start": 44584,
-					"warm_start": 12959,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 155,
+					"listed": 326,
+					"cold_start": 46559,
+					"warm_start": 12316,
 					"hot_reload": null
 				}
 			]
@@ -390,10 +390,10 @@
 			"axis": "httpFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 256,
-				"listed": 524,
-				"cold_start": 29869,
-				"warm_start": 13662,
+				"scaffold": 171,
+				"listed": 340,
+				"cold_start": 32126,
+				"warm_start": 9963,
 				"hot_reload": null
 			},
 			"history": [
@@ -408,11 +408,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 256,
-					"listed": 524,
-					"cold_start": 29869,
-					"warm_start": 13662,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 171,
+					"listed": 340,
+					"cold_start": 32126,
+					"warm_start": 9963,
 					"hot_reload": null
 				}
 			]
@@ -424,10 +424,10 @@
 			"axis": "httpFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 274,
-				"listed": 547,
-				"cold_start": 42840,
-				"warm_start": 13461,
+				"scaffold": 158,
+				"listed": 339,
+				"cold_start": 46975,
+				"warm_start": 12535,
 				"hot_reload": null
 			},
 			"history": [
@@ -442,11 +442,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 274,
-					"listed": 547,
-					"cold_start": 42840,
-					"warm_start": 13461,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 158,
+					"listed": 339,
+					"cold_start": 46975,
+					"warm_start": 12535,
 					"hot_reload": null
 				}
 			]
@@ -458,10 +458,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 301,
-				"listed": 544,
-				"cold_start": 30354,
-				"warm_start": 8279,
+				"scaffold": 262,
+				"listed": 537,
+				"cold_start": 35742,
+				"warm_start": 8240,
 				"hot_reload": null
 			},
 			"history": [
@@ -476,11 +476,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 301,
-					"listed": 544,
-					"cold_start": 30354,
-					"warm_start": 8279,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 262,
+					"listed": 537,
+					"cold_start": 35742,
+					"warm_start": 8240,
 					"hot_reload": null
 				}
 			]
@@ -492,10 +492,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 255,
-				"listed": 562,
-				"cold_start": 52698,
-				"warm_start": 8224,
+				"scaffold": 166,
+				"listed": 412,
+				"cold_start": 46100,
+				"warm_start": 14763,
 				"hot_reload": null
 			},
 			"history": [
@@ -510,11 +510,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 255,
-					"listed": 562,
-					"cold_start": 52698,
-					"warm_start": 8224,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 166,
+					"listed": 412,
+					"cold_start": 46100,
+					"warm_start": 14763,
 					"hot_reload": null
 				}
 			]
@@ -526,10 +526,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 197,
-				"listed": 441,
-				"cold_start": 68832,
-				"warm_start": 12664,
+				"scaffold": 181,
+				"listed": 390,
+				"cold_start": 27027,
+				"warm_start": 5324,
 				"hot_reload": null
 			},
 			"history": [
@@ -544,11 +544,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 197,
-					"listed": 441,
-					"cold_start": 68832,
-					"warm_start": 12664,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 181,
+					"listed": 390,
+					"cold_start": 27027,
+					"warm_start": 5324,
 					"hot_reload": null
 				}
 			]
@@ -560,10 +560,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 256,
-				"listed": 548,
-				"cold_start": 30599,
-				"warm_start": 8240,
+				"scaffold": 209,
+				"listed": 433,
+				"cold_start": 48002,
+				"warm_start": 7942,
 				"hot_reload": null
 			},
 			"history": [
@@ -578,11 +578,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 256,
-					"listed": 548,
-					"cold_start": 30599,
-					"warm_start": 8240,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 209,
+					"listed": 433,
+					"cold_start": 48002,
+					"warm_start": 7942,
 					"hot_reload": null
 				}
 			]
@@ -594,10 +594,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 202,
-				"listed": 404,
-				"cold_start": 38147,
-				"warm_start": 5575,
+				"scaffold": 260,
+				"listed": 508,
+				"cold_start": 38479,
+				"warm_start": 8283,
 				"hot_reload": null
 			},
 			"history": [
@@ -612,11 +612,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 202,
-					"listed": 404,
-					"cold_start": 38147,
-					"warm_start": 5575,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 260,
+					"listed": 508,
+					"cold_start": 38479,
+					"warm_start": 8283,
 					"hot_reload": null
 				}
 			]
@@ -628,10 +628,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 198,
-				"listed": 419,
-				"cold_start": 40533,
-				"warm_start": 12773,
+				"scaffold": 155,
+				"listed": 344,
+				"cold_start": 41447,
+				"warm_start": 5283,
 				"hot_reload": null
 			},
 			"history": [
@@ -646,11 +646,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 198,
-					"listed": 419,
-					"cold_start": 40533,
-					"warm_start": 12773,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 155,
+					"listed": 344,
+					"cold_start": 41447,
+					"warm_start": 5283,
 					"hot_reload": null
 				}
 			]
@@ -662,10 +662,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 261,
-				"listed": 562,
-				"cold_start": 32858,
-				"warm_start": 8294,
+				"scaffold": 179,
+				"listed": 357,
+				"cold_start": 33688,
+				"warm_start": 5367,
 				"hot_reload": null
 			},
 			"history": [
@@ -680,11 +680,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 261,
-					"listed": 562,
-					"cold_start": 32858,
-					"warm_start": 8294,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 179,
+					"listed": 357,
+					"cold_start": 33688,
+					"warm_start": 5367,
 					"hot_reload": null
 				}
 			]
@@ -696,10 +696,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 235,
-				"listed": 473,
-				"cold_start": 63100,
-				"warm_start": 8152,
+				"scaffold": 210,
+				"listed": 488,
+				"cold_start": 43094,
+				"warm_start": 14964,
 				"hot_reload": null
 			},
 			"history": [
@@ -714,11 +714,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 235,
-					"listed": 473,
-					"cold_start": 63100,
-					"warm_start": 8152,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 210,
+					"listed": 488,
+					"cold_start": 43094,
+					"warm_start": 14964,
 					"hot_reload": null
 				}
 			]
@@ -730,10 +730,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 197,
-				"listed": 448,
-				"cold_start": 76409,
-				"warm_start": 12630,
+				"scaffold": 202,
+				"listed": 452,
+				"cold_start": 45253,
+				"warm_start": 7868,
 				"hot_reload": null
 			},
 			"history": [
@@ -748,11 +748,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 197,
-					"listed": 448,
-					"cold_start": 76409,
-					"warm_start": 12630,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 202,
+					"listed": 452,
+					"cold_start": 45253,
+					"warm_start": 7868,
 					"hot_reload": null
 				}
 			]
@@ -764,10 +764,10 @@
 			"axis": "frontendFramework",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 199,
-				"listed": 471,
-				"cold_start": 56589,
-				"warm_start": 15632,
+				"scaffold": 207,
+				"listed": 449,
+				"cold_start": 51251,
+				"warm_start": 15525,
 				"hot_reload": null
 			},
 			"history": [
@@ -782,11 +782,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 199,
-					"listed": 471,
-					"cold_start": 56589,
-					"warm_start": 15632,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 207,
+					"listed": 449,
+					"cold_start": 51251,
+					"warm_start": 15525,
 					"hot_reload": null
 				}
 			]
@@ -828,10 +828,10 @@
 			"axis": "appType",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 188,
+				"scaffold": 179,
 				"listed": null,
-				"cold_start": 45258,
-				"warm_start": 4101,
+				"cold_start": 35133,
+				"warm_start": 12145,
 				"hot_reload": null
 			},
 			"history": [
@@ -846,11 +846,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 188,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 179,
 					"listed": null,
-					"cold_start": 45258,
-					"warm_start": 4101,
+					"cold_start": 35133,
+					"warm_start": 12145,
 					"hot_reload": null
 				}
 			]
@@ -862,9 +862,9 @@
 			"axis": "appType",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 260,
+				"scaffold": 261,
 				"listed": null,
-				"cold_start": 79417,
+				"cold_start": 61631,
 				"warm_start": null,
 				"hot_reload": null
 			},
@@ -880,10 +880,10 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 260,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 261,
 					"listed": null,
-					"cold_start": 79417,
+					"cold_start": 61631,
 					"warm_start": null,
 					"hot_reload": null
 				}
@@ -896,10 +896,10 @@
 			"axis": "appType",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 202,
-				"listed": 535,
-				"cold_start": 55778,
-				"warm_start": 15150,
+				"scaffold": 250,
+				"listed": 931,
+				"cold_start": 37832,
+				"warm_start": 15857,
 				"hot_reload": null
 			},
 			"history": [
@@ -914,11 +914,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 202,
-					"listed": 535,
-					"cold_start": 55778,
-					"warm_start": 15150,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 250,
+					"listed": 931,
+					"cold_start": 37832,
+					"warm_start": 15857,
 					"hot_reload": null
 				}
 			]
@@ -930,10 +930,10 @@
 			"axis": "appType",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 272,
-				"listed": 563,
-				"cold_start": 30962,
-				"warm_start": 8226,
+				"scaffold": 259,
+				"listed": 538,
+				"cold_start": 38573,
+				"warm_start": 8233,
 				"hot_reload": null
 			},
 			"history": [
@@ -948,11 +948,11 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 272,
-					"listed": 563,
-					"cold_start": 30962,
-					"warm_start": 8226,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 259,
+					"listed": 538,
+					"cold_start": 38573,
+					"warm_start": 8233,
 					"hot_reload": null
 				}
 			]
@@ -966,7 +966,7 @@
 			"metrics": {
 				"scaffold": null,
 				"listed": null,
-				"cold_start": 16325,
+				"cold_start": 16503,
 				"warm_start": null,
 				"hot_reload": null
 			},
@@ -982,10 +982,10 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
 					"scaffold": null,
 					"listed": null,
-					"cold_start": 16325,
+					"cold_start": 16503,
 					"warm_start": null,
 					"hot_reload": null
 				}
@@ -998,9 +998,9 @@
 			"axis": "orm",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 245,
-				"listed": 515,
-				"cold_start": 57218,
+				"scaffold": 252,
+				"listed": 589,
+				"cold_start": 77065,
 				"warm_start": null,
 				"hot_reload": null
 			},
@@ -1016,10 +1016,10 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 245,
-					"listed": 515,
-					"cold_start": 57218,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 252,
+					"listed": 589,
+					"cold_start": 77065,
 					"warm_start": null,
 					"hot_reload": null
 				}
@@ -1032,9 +1032,9 @@
 			"axis": "orm",
 			"status": "measured",
 			"metrics": {
-				"scaffold": 233,
-				"listed": 434,
-				"cold_start": 46461,
+				"scaffold": 227,
+				"listed": 517,
+				"cold_start": 47156,
 				"warm_start": null,
 				"hot_reload": null
 			},
@@ -1050,10 +1050,10 @@
 				},
 				{
 					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": 233,
-					"listed": 434,
-					"cold_start": 46461,
+					"commit": "32907913fc93b2a3193d36d28bef8d991bcfacce",
+					"scaffold": 227,
+					"listed": 517,
+					"cold_start": 47156,
 					"warm_start": null,
 					"hot_reload": null
 				}
@@ -1081,15 +1081,6 @@
 					"cold_start": 54790,
 					"warm_start": null,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": null,
-					"listed": null,
-					"cold_start": 49553,
-					"warm_start": null,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1115,15 +1106,6 @@
 					"cold_start": 16697,
 					"warm_start": null,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": null,
-					"listed": null,
-					"cold_start": 29706,
-					"warm_start": null,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1147,15 +1129,6 @@
 					"scaffold": null,
 					"listed": null,
 					"cold_start": 21210,
-					"warm_start": null,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-13",
-					"commit": "7149a2fecdd1e03713a58fc29bddfb921d9cc184",
-					"scaffold": null,
-					"listed": null,
-					"cold_start": 18355,
 					"warm_start": null,
 					"hot_reload": null
 				}
