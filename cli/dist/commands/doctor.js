@@ -32,6 +32,7 @@ import { formatCount } from "../utils/formatting.js";
 import { cacheExecAsync, createAsyncCommandCache, createHostCommandCache, hasSharedDockerPsOutput, } from "../utils/host-command-cache.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
+import { fetchLatestVersion, isOlderVersion } from "../utils/latest-version.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { NATIVE_WINDOWS_NEXT_STEP } from "../utils/native-windows.js";
 import { findProjectRoot, getBuildCommit, getPackageVersion } from "../utils/paths.js";
@@ -675,6 +676,32 @@ export function checkFliskVersion(currentVersion = getPackageVersion()) {
         didPass: true,
         isWarning: Boolean(version.deprecationWarning),
         message: `flisk ${currentVersion} ${requirement}${warning}`,
+    };
+}
+/** A CLI older than the latest release is a warning, never a failure; an unreachable registry is skipped (#4119). */
+export async function checkLatestFliskVersion(currentVersion = getPackageVersion(), lookup = () => fetchLatestVersion()) {
+    const latest = await lookup();
+    if (!latest) {
+        return {
+            name: "Latest Flisk version",
+            didPass: true,
+            isSkipped: true,
+            message: "Could not read the latest version (offline, CI, or slow registry) - skipping",
+        };
+    }
+    if (isOlderVersion(currentVersion, latest)) {
+        return {
+            name: "Latest Flisk version",
+            didPass: true,
+            isWarning: true,
+            message: `flisk ${currentVersion} is older than the latest release ${latest}`,
+            fix: "Run: flisk upgrade (or npx @flisk-sh/flisk@latest demo)",
+        };
+    }
+    return {
+        name: "Latest Flisk version",
+        didPass: true,
+        message: `flisk ${currentVersion} is up to date`,
     };
 }
 /**
@@ -1579,6 +1606,7 @@ export const doctorCommand = new Command("doctor")
         requiresContainerRuntime("Docker File Sharing", () => checkDockerFileSharing()),
         () => checkDockerWslIntegration(),
         () => checkDuplicateFliskInstalls(),
+        () => checkLatestFliskVersion(),
     ];
     // Project checks both the container list and the local-process list run, in the same order in each.
     const checkDir = projectRoot ?? process.cwd();

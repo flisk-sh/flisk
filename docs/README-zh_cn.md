@@ -12,7 +12,7 @@ Flisk 是一款用于本地开发的命令行工具。它在你的电脑上把�
 快速开始:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 想自己选择技术栈？用方向键和回车回答几个问题即可：

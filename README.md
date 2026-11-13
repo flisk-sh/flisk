@@ -26,7 +26,7 @@ Flisk is a command-line tool for local development. It runs every part of your a
 Try it first. One command, nothing to install except Node.js 22.12+, and no Docker needed:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 With Docker running and Tilt installed, that starts the full restaurant demo: six services, Postgres, one gateway and live reload. Without them (or on native Windows), it starts a small menu app as two local processes in about a second and opens it in your browser. You should see the menu at `http://localhost:3000`, with its API answering at `http://localhost:4000/api/menu`. `flisk down` in the demo folder stops either one.

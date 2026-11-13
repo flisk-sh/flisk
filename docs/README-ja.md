@@ -12,7 +12,7 @@ Flisk はローカル開発用のコマンドラインツールです。アプ�
 クイックスタート:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 スタックを自分で選びたいですか？矢印キーと Enter でいくつかの質問に答えるだけです：

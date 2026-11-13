@@ -12,7 +12,7 @@ Flisk เป็นเครื่องมือบรรทัดคำสั�
 เริ่มต้นอย่างรวดเร็ว:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 อยากเลือกสแตกเองไหม? ตอบคำถามไม่กี่ข้อด้วยปุ่มลูกศรและ Enter:
