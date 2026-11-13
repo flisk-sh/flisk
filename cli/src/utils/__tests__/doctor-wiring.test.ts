@@ -788,6 +788,19 @@ describe("checkTiltInstances", () => {
     expect(parseTiltProcesses(ps)).toEqual([{ pid: 42, root: "/work/a" }]);
   });
 
+  it("keeps a project that lives under a .flisk folder, like the demo in ~/.flisk/flisk-demo (#4123)", () => {
+    // Cutting at the first `/.flisk/` gave `/Users/me`, so the demo took its own Tilt for another project's and its progress
+    // line never moved. The root is what precedes the last `.flisk` folder.
+    const ps = [
+      tiltLine(9453, "/Users/me/.flisk/flisk-demo"),
+      "9454 tilt up -f C:\\Users\\me\\.flisk\\flisk-demo\\.flisk\\.flisk-out\\Tiltfile",
+    ].join("\n");
+    expect(parseTiltProcesses(ps)).toEqual([
+      { pid: 9453, root: "/Users/me/.flisk/flisk-demo" },
+      { pid: 9454, root: "C:\\Users\\me\\.flisk\\flisk-demo" },
+    ]);
+  });
+
   it("passes when no Tilt is running", () => {
     expect(checkTiltInstances(root, fakeExec("1 launchd\n")).didPass).toBe(true);
   });
