@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
+import { formatBytes, trimColimaAndMeasure } from "../utils/colima-disk.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import {
   normalizeCacheUntil,
@@ -525,7 +526,13 @@ export const downCommand = addYesOption(new Command("down"))
       const purged = options.purge ? purgeOrWarn(projectRoot, options.json) : undefined;
 
       let cachePruneResult:
-        | { until: string; reclaimed?: string; skipped?: boolean; reason?: string }
+        | {
+            until: string;
+            reclaimed?: string;
+            hostReturned?: string;
+            skipped?: boolean;
+            reason?: string;
+          }
         | undefined;
       if (shouldPruneCache) {
         let confirmed = Boolean(options.yes);
@@ -574,6 +581,27 @@ export const downCommand = addYesOption(new Command("down"))
                   `Pruned Docker build cache: ${pruned.reclaimed} reclaimed (filter: until=${cacheUntil}).`,
                 ),
               );
+            }
+            // Pruning frees space inside the Colima VM only; its disk file keeps its size on the Mac until it is trimmed.
+            try {
+              const trimmed = await trimColimaAndMeasure();
+              if (trimmed) {
+                const returned = formatBytes(trimmed.returnedBytes);
+                cachePruneResult = { ...cachePruneResult, hostReturned: returned };
+                if (!options.json) {
+                  console.log(
+                    chalk.gray(`Trimmed the Colima VM: ${returned} returned to the Mac.`),
+                  );
+                }
+              }
+            } catch (err) {
+              if (!options.json) {
+                console.log(
+                  chalk.yellow(
+                    `Could not trim the Colima VM: ${err instanceof Error ? err.message : String(err)}. The Mac keeps the freed space until you run: colima ssh -- sudo fstrim -av`,
+                  ),
+                );
+              }
             }
           } catch (err) {
             const reason = err instanceof Error ? err.message : String(err);
