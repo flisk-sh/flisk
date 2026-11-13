@@ -3,7 +3,7 @@
 // Unit tests for cancel-dead-queue-runs: which runs count as dead, with the branch lookup injected.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deadQueueRuns } from "./cancel-dead-queue-runs.mjs";
+import { cancelRun, deadQueueRuns } from "./cancel-dead-queue-runs.mjs";
 
 const run = (id, head_branch, over = {}) => ({ id, name: "E2E | Resource types", status: "queued", event: "merge_group", head_branch, ...over });
 const LIVE = "gh-readonly-queue/main/pr-1-aaa";
@@ -44,4 +44,11 @@ test("a failed lookup is not read as a missing branch: the error propagates and 
 	assert.throws(() => deadQueueRuns([run(1, DEAD)], () => {
 		throw new Error("HTTP 502");
 	}), /HTTP 502/);
+});
+
+test("cancelRun treats a run that already finished as done and rethrows other errors", () => {
+	assert.equal(cancelRun("o/r", 1, () => {}), "cancelled");
+	const finished = Object.assign(new Error("failed"), { stderr: "Cannot cancel a workflow run that is completed\n" });
+	assert.equal(cancelRun("o/r", 2, () => { throw finished; }), "already-finished");
+	assert.throws(() => cancelRun("o/r", 3, () => { throw new Error("HTTP 500"); }), /HTTP 500/);
 });
