@@ -275,6 +275,15 @@ jobs:
         # alongside it; one that failed, or none, refuses at once.
         run: node scripts/check-release-candidate.mjs --sha "$SHA" --repo "$GITHUB_REPOSITORY" --wait 45
 
+      - name: Verify npm package will be built from this commit
+        id: verify-commit
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          echo "publish-commit=$CURRENT_SHA" >> "$GITHUB_OUTPUT"
+          echo "Publishing flisk@$VERSION from commit $CURRENT_SHA"
+
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           bun-version: "1.4.4" # pinned: the compiled binaries are byte-identical only for one Bun version; bump on purpose
@@ -341,6 +350,7 @@ jobs:
         id: package
         env:
           VERSION: ${{ needs.build.outputs.version }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$PKG_VERSION" != "$VERSION" ]; then
@@ -355,6 +365,13 @@ jobs:
             echo "::error::npm pack did not produce a tarball"
             exit 1
           fi
+          # Extract, add source commit marker, re-pack
+          UNPACK_DIR="$PACK_DIR/unpack"
+          mkdir -p "$UNPACK_DIR"
+          tar -xzf "$TARBALL" -C "$UNPACK_DIR"
+          echo "$SOURCE_COMMIT" > "$UNPACK_DIR/package/.sourceSHA"
+          rm "$TARBALL"
+          tar -czf "$TARBALL" -C "$UNPACK_DIR" package
           echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -369,6 +386,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.BINARY_RELEASE_TOKEN }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+
+      - name: Verify npm package source commit
+        env:
+          NPM_PACKAGE: "@flisk-sh/flisk"
+          NPM_VERSION: ${{ needs.build.outputs.version }}
+          EXPECTED_COMMIT: ${{ steps.verify-commit.outputs.publish-commit }}
+        run: node scripts/verify-npm-source.mjs --package "$NPM_PACKAGE" --version "$NPM_VERSION" --commit "$EXPECTED_COMMIT"
 
       # Tell each fixed issue which release carries it. Best effort: a failure here must
       # never fail the release, so it is allowed to error.
