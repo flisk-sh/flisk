@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { cliInvocation } from "./cli-invocation.js";
+import { FliskError } from "./errors.js";
 import { projectNameAt, readProjectRecords } from "./project-registry.js";
 /**
  * Stop the stack of an existing demo folder before the folder is deleted. Deleting the folder alone leaves its
@@ -24,7 +25,10 @@ export async function stopDemoStack(projectDir, runDown = runFliskDown, stopTilt
     // flisk_demo_traefik) keep their host ports, and the new run then fails with "port is already allocated" (#4124).
     const stuck = await stopFolderContainers(projectDir);
     if (stuck.length > 0) {
-        throw new Error(`could not stop ${stuck.join(", ")} (docker compose down failed)`);
+        throw new FliskError(`could not stop ${stuck.join(", ")} (docker compose down failed)`, [
+            `Stop them by hand: docker stop ${stuck.join(" ")}`,
+            "Then run the demo again",
+        ]);
     }
     return true;
 }

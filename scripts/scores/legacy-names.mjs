@@ -62,6 +62,16 @@ export const INTENTIONAL = [
 		reason: "the test builds fixture folders with the old benchmark folder name that warm-start-time must still find",
 	},
 	{
+		file: "cli/src/utils/down-cleanup.ts",
+		line: /\.tdk/,
+		reason: "flisk down and the demo reset still stop containers a pre-rename (#2039) project left in .tdk/.tdk-out",
+	},
+	{
+		file: "cli/src/utils/__tests__/down-cleanup.test.ts",
+		line: /\.tdk/,
+		reason: "pins the legacy .tdk/.tdk-out folder that down-cleanup must still recognise",
+	},
+	{
 		file: "cli/src/utils/cli-command.ts",
 		line: /tdk-landscape/,
 		reason: "LEGACY_PACKAGE: the old npm package is still installed on machines, and flisk upgrade has to uninstall it",
