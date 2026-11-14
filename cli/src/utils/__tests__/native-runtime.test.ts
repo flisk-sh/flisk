@@ -6,9 +6,9 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
+import { expandEnvValue } from "../env-expand.js";
 import {
   dependencyWaves,
-  expandEnvValue,
   findMissingPrograms,
   isProcessAlive,
   localUrl,

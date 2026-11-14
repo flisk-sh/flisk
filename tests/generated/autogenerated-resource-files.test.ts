@@ -175,14 +175,17 @@ const STACK_FILES: Golden[] = [
 describe("digestFreeSha256", () => {
   const a = "a".repeat(64);
   const b = "b".repeat(64);
-  const file = (tag: string, digest: string) => `FROM nginx:${tag}@sha256:${digest} AS l4\nRUN true\n`;
+  const file = (tag: string, digest: string) =>
+    `FROM nginx:${tag}@sha256:${digest} AS l4\nRUN true\n`;
 
   it("keeps the hash when only a digest is refreshed", () => {
     expect(digestFreeSha256(file("1.30-alpine", a))).toBe(digestFreeSha256(file("1.30-alpine", b)));
   });
 
   it("changes the hash when a tag changes", () => {
-    expect(digestFreeSha256(file("1.30-alpine", a))).not.toBe(digestFreeSha256(file("1.31-alpine", a)));
+    expect(digestFreeSha256(file("1.30-alpine", a))).not.toBe(
+      digestFreeSha256(file("1.31-alpine", a)),
+    );
   });
 });
 

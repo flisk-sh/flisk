@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expandEnvValue } from "./env-expand.js";
 import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
@@ -34,7 +35,11 @@ export function envSecretValues(projectRoot, extraEnvPaths = []) {
         ...secretValuesOf(join(projectRoot, ".env")),
         ...extraEnvPaths.flatMap((path) => secretValuesOf(path)),
         ...(selected ? secretValuesOf(selected) : []),
-        ...serviceSecretValues(projectRoot),
+        ...serviceSecretValues(projectRoot, [
+            join(projectRoot, ".env"),
+            ...extraEnvPaths,
+            ...(selected ? [selected] : []),
+        ]),
     ];
     return [...new Set(values)].sort((a, b) => b.length - a.length);
 }
@@ -64,8 +69,12 @@ function secretNamesOf(secrets) {
 /**
  * Secret values that a service declares itself: the other half of what reaches a container or a local process besides the
  * project .env. A project whose services cannot be discovered contributes nothing here (the .env values still apply).
+ *
+ * An `env`/`params` value is kept both as written and as the process receives it: `${VAR}` expanded the way planNativeRun
+ * expands it (the service directory's .env below the project env files below the shell), so `API_TOKEN: "${RUNTIME}"` masks
+ * the shell's RUNTIME value. A multiline value is also kept line by line, because process output is redacted per line.
  */
-function serviceSecretValues(projectRoot) {
+function serviceSecretValues(projectRoot, projectEnvPaths) {
     let resources;
     try {
         resources = discoverResourcesWithProblems(projectRoot).resources;
@@ -73,10 +82,15 @@ function serviceSecretValues(projectRoot) {
     catch {
         return [];
     }
+    const projectVars = {};
+    for (const path of projectEnvPaths)
+        Object.assign(projectVars, envVarsOf(path));
     const found = [];
     const keep = (value) => {
-        if (typeof value === "string" && value.length >= MIN_REDACTED_VALUE_LENGTH)
-            found.push(value);
+        if (typeof value !== "string" || value.length < MIN_REDACTED_VALUE_LENGTH)
+            return;
+        const parts = lineParts(value);
+        found.push(value, ...(parts.length > 1 ? parts : []));
     };
     for (const resource of resources) {
         const config = resource.config;
@@ -84,13 +98,17 @@ function serviceSecretValues(projectRoot) {
             continue;
         for (const name of secretNamesOf(config.secrets))
             keep(process.env[name]);
+        const vars = { ...envVarsOf(join(resource.path, ".env")), ...projectVars, ...process.env };
         for (const field of ["env", "params"]) {
             const entries = config[field];
             if (!entries || typeof entries !== "object" || Array.isArray(entries))
                 continue;
             for (const [name, value] of Object.entries(entries)) {
-                if (SECRET_NAME.test(name))
-                    keep(value);
+                if (!SECRET_NAME.test(name))
+                    continue;
+                keep(value);
+                if (typeof value === "string")
+                    keep(expandEnvValue(value, vars));
             }
         }
         if (Array.isArray(config.envFile)) {
@@ -101,6 +119,18 @@ function serviceSecretValues(projectRoot) {
         }
     }
     return found;
+}
+/** The variables of an env file, only to expand `${VAR}` in service values; a missing file gives none. */
+function envVarsOf(envPath) {
+    if (!existsSync(envPath))
+        return {};
+    try {
+        return Object.fromEntries(parseEnv(readFileSync(envPath, "utf-8")));
+    }
+    catch {
+        // The same file is read again by secretValuesOf, which reports it as unreadable.
+        return {};
+    }
 }
 /** Smallest line of a multiline secret that is masked on its own; ordinary 1-3 letter words stay readable. */
 const MIN_REDACTED_LINE_LENGTH = 4;
@@ -159,8 +189,9 @@ export const SECRET_PATTERNS = [
         replacement: REDACTED,
     },
     {
-        name: "private key header without its end",
-        pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----[^\r\n]*/g,
+        // A key cut off before its END line (a log window, a truncated snapshot): everything after BEGIN may be key body.
+        name: "private key without its end",
+        pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*/g,
         replacement: REDACTED,
     },
     {

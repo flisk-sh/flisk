@@ -26,7 +26,7 @@ import {
   SECRET_PATTERNS,
 } from "../secret-redaction.js";
 import { tiltResourceLogs } from "../up-readiness.js";
-import { type UpWaitDeps, upAndWait } from "../up-wait.js";
+import { fetchUnhealthyLogLines, logTailOf, type UpWaitDeps, upAndWait } from "../up-wait.js";
 
 const DB_PASSWORD = "p4ssw0rd-from-dotenv-0001";
 const STRIPE = "sk_" + "live_51HabcdEFGHijklMNOPqrstUV";
@@ -167,6 +167,18 @@ describe("private keys printed line by line", () => {
   });
 });
 
+describe("a private key cut off before its END line", () => {
+  it("masks from BEGIN to the end of the text, not only the header line", () => {
+    const text = ["before", ...KEY_BLOCK.slice(0, 3)].join("\n");
+    expect(redactSecretPatterns(text)).toBe(`before\n${REDACTED}`);
+  });
+
+  it("still masks a complete block on its own and keeps what follows it", () => {
+    const text = [...KEY_BLOCK, "after"].join("\n");
+    expect(redactSecretPatterns(text)).toBe(`${REDACTED}\nafter`);
+  });
+});
+
 describe("secret values from the project and its services", () => {
   it("reads .env, the --env-file file, a service's envFile, its declared secrets and secret-named env", () => {
     const root = project({
@@ -199,6 +211,49 @@ describe("secret values from the project and its services", () => {
     expect(createEnvRedactor(root)("pw=service-env-token-999 level=informational-debug")).toBe(
       `pw=${REDACTED} level=informational-debug`,
     );
+  });
+
+  it("keeps each line of a multiline service secret from the shell, so per-line output is masked", () => {
+    // service.json refuses line breaks in env and params, so a multiline value arrives from the shell: a declared secret,
+    // or a ${VAR} the service's env expands.
+    const first = "opaque-first-line-aaaa1111";
+    const second = "opaque-second-line-bbbb2222";
+    const third = "opaque-third-line-cccc3333";
+    const fourth = "opaque-fourth-line-dddd4444";
+    const root = project({
+      "services/api/service.json": JSON.stringify({
+        appName: "api",
+        appType: "backend",
+        command: "node index.js",
+        secrets: { required: ["SIGNING_KEY"] },
+        env: { API_TOKEN: "$" + "{MULTILINE_TOKEN}" },
+      }),
+    });
+    process.env.SIGNING_KEY = `${first}\n${second}`;
+    process.env.MULTILINE_TOKEN = `${third}\n${fourth}`;
+    const values = envSecretValues(root);
+    expect(values).toEqual(expect.arrayContaining([first, second, third, fourth]));
+    expect(redactLogLines([{ resource: "api", text: `token: ${fourth}` }], values)[0]?.text).toBe(
+      `token: ${REDACTED}`,
+    );
+  });
+
+  it("keeps the expanded value of a templated secret-named service value", () => {
+    const fromShell = "opaque-credential-987654321";
+    const fromDotenv = "opaque-dotenv-credential-13579";
+    const root = project({
+      ".env": `UPSTREAM_KEY=${fromDotenv}\n`,
+      "services/api/service.json": JSON.stringify({
+        appName: "api",
+        appType: "backend",
+        command: "node index.js",
+        env: { API_TOKEN: "$" + "{RUNTIME_VALUE}", UPSTREAM_SECRET: "$" + "{UPSTREAM_KEY}" },
+      }),
+    });
+    process.env.RUNTIME_VALUE = fromShell;
+    const values = envSecretValues(root);
+    expect(values).toEqual(expect.arrayContaining([fromShell, fromDotenv]));
+    expect(createEnvRedactor(root)(`API_TOKEN=${fromShell}`)).toBe(`API_TOKEN=${REDACTED}`);
   });
 
   it("projectSecretValues is empty outside a project and null when an env file cannot be read", () => {
@@ -239,6 +294,67 @@ describe("flisk up: a failed or timed-out wait", () => {
     expect(tail).toContain(`postgres://app:${REDACTED}@db/app`);
     expect(tail).toContain(`Bearer ${REDACTED}`);
     expect(tail).not.toContain(DB_PASSWORD);
+  });
+});
+
+describe("flisk up: the log tail is masked before it is cut", () => {
+  it("does not keep the end of a secret whose start fell outside the tail", () => {
+    const secret = "opaque-secret-value-32-chars-abc";
+    const root = project({ ".env": `APP_SECRET=${secret}\n` });
+    const log = `${secret}${"x".repeat(1969)}`;
+    const tail = logTailOf(log, root);
+    expect(tail).not.toContain(secret.slice(1));
+    expect(tail.length).toBeLessThanOrEqual(2000);
+  });
+
+  it("masks the MCP `up` stderr before cutting it", async () => {
+    const secret = "opaque-secret-value-32-chars-abc";
+    const root = project({ ".env": `APP_SECRET=${secret}\n` });
+    const child = new EventEmitter() as unknown as ChildProcess;
+    const tools = createFliskTools(undefined, {
+      spawnUp: () => {
+        queueMicrotask(() => child.emit("exit", 1));
+        return child;
+      },
+      readLog: () => `${secret}${"x".repeat(1969)}`,
+      sleep: async () => {},
+      now: () => 0,
+      logFile: () => "/tmp/mcp-up-cut.log",
+    });
+    const up = tools.find((tool) => tool.name === "up");
+    const result = await up?.handler({ projectPath: root, waitSeconds: 1 });
+    expect(JSON.stringify(result?.data)).not.toContain(secret.slice(1));
+  });
+});
+
+describe("flisk up --wait: unhealthy log lines from a child flisk", () => {
+  it("masks a private key whose lines arrive as separate entries", async () => {
+    const root = project({});
+    const entries = [
+      { resource: "api", text: KEY_BLOCK[0] },
+      { resource: "api", text: KEY_BLOCK[1] },
+      { resource: "api", text: KEY_BLOCK[3] },
+      { resource: "api", text: "after" },
+    ];
+    const script = join(root, "fake-flisk.js");
+    writeFileSync(
+      script,
+      `console.log(${JSON.stringify(JSON.stringify({ schemaVersion: 1, data: { lines: entries }, errors: [] }))});`,
+    );
+    const lines = await fetchUnhealthyLogLines(() => [process.execPath, script], root);
+    expect(lines?.map((line) => line.text)).toEqual([REDACTED, REDACTED, REDACTED, "after"]);
+  });
+
+  it("withholds every line when the project's env cannot be read", async () => {
+    const root = project({});
+    mkdirSync(join(root, ".env"));
+    const script = join(root, "fake-flisk.js");
+    writeFileSync(
+      script,
+      `console.log(${JSON.stringify(JSON.stringify({ schemaVersion: 1, data: { lines: [{ resource: "api", text: DB_PASSWORD }] }, errors: [] }))});`,
+    );
+    const lines = await fetchUnhealthyLogLines(() => [process.execPath, script], root);
+    expect(lines).toEqual([{ resource: "api", text: OUTPUT_WITHHELD }]);
   });
 });
 

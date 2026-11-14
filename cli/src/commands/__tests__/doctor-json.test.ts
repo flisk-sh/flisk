@@ -11,7 +11,12 @@ import {
   getDoctorExitCode,
 } from "../../utils/doctor-report.js";
 import { getHostPortPlan } from "../../utils/host-port-config.js";
-import { EnvUnreadableError, envSecretValues } from "../../utils/secret-redaction.js";
+import {
+  EnvUnreadableError,
+  envSecretValues,
+  OUTPUT_WITHHELD,
+  projectSecretValues,
+} from "../../utils/secret-redaction.js";
 import {
   checkWindowsDockerMode,
   checkWindowsHostConfiguration,
@@ -24,6 +29,7 @@ vi.mock("../../utils/secret-redaction.js", async (importOriginal) => {
   return {
     ...actual,
     envSecretValues: vi.fn(actual.envSecretValues),
+    projectSecretValues: vi.fn(actual.projectSecretValues),
   };
 });
 
@@ -69,6 +75,7 @@ vi.mock("../../utils/windows-doctor.js", () => ({
 afterEach(() => {
   vi.restoreAllMocks();
   vi.mocked(envSecretValues).mockReturnValue([]);
+  vi.mocked(projectSecretValues).mockReturnValue([]);
   doctorCommand.setOptionValue("json", false);
   doctorCommand.setOptionValue("all", false);
   doctorCommand.setOptionValue("ping", true);
@@ -546,6 +553,72 @@ describe("doctor JSON command", () => {
       expect(report.data.checks[0].message).toBe("Connection failed with token [REDACTED]");
       expect(report.data.checks[0].fix).toBe("Verify key [REDACTED] in dashboard");
       expect(report.errors[0].message).toBe("Probe leaked secret: [REDACTED]");
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+
+  it("masks check error messages in the text report", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    const secretKey = "text-mode-secret-in-a-path-4455";
+    vi.mocked(projectSecretValues).mockReturnValue([secretKey]);
+    vi.mocked(getHostPortPlan).mockResolvedValue({
+      ingressHttp: 80,
+      ingressHttps: 443,
+      postgres: 5432,
+      requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "preferred", ingressHttps: "preferred", postgres: "preferred" },
+    });
+    vi.mocked(collectDoctorChecks).mockResolvedValue({
+      checks: [PASSING_CHECK],
+      errors: [{ code: "INTERNAL", message: `ENOENT: no such file, scandir '/x/${secretKey}'` }],
+    });
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      captureExit();
+      await doctorCommand.parseAsync(["--no-ping"], { from: "user" }).catch(() => {});
+      const printed = [...error.mock.calls, ...log.mock.calls].flat().map(String).join("\n");
+      expect(printed).toContain(
+        "Doctor check failed: ENOENT: no such file, scandir '/x/[REDACTED]'",
+      );
+      expect(printed).not.toContain(secretKey);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+
+  it("withholds the text report and exits 1 when the env files cannot be read", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    vi.mocked(projectSecretValues).mockReturnValue(null);
+    vi.mocked(getHostPortPlan).mockResolvedValue({
+      ingressHttp: 80,
+      ingressHttps: 443,
+      postgres: 5432,
+      requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "preferred", ingressHttps: "preferred", postgres: "preferred" },
+    });
+    vi.mocked(collectDoctorChecks).mockResolvedValue({
+      checks: [{ ...FAILING_CHECK, message: "opaque-unmaskable-value-6677" }],
+      errors: [{ code: "INTERNAL", message: "opaque-unmaskable-value-6677" }],
+    });
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { exit } = captureExit();
+      await expect(doctorCommand.parseAsync(["--no-ping"], { from: "user" })).rejects.toThrow(
+        "exit",
+      );
+      expect(exit).toHaveBeenCalledWith(1);
+      const printed = [...error.mock.calls, ...log.mock.calls].flat().map(String).join("\n");
+      expect(printed).toContain(OUTPUT_WITHHELD);
+      expect(printed).not.toContain("opaque-unmaskable-value-6677");
     } finally {
       Object.defineProperty(process, "platform", platform);
     }
