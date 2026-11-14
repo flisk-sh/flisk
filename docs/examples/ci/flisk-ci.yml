@@ -88,14 +88,18 @@ jobs:
           if [ "$(id -u)" -eq 0 ]; then tar -xzf tilt.tgz -C /usr/local/bin tilt; else sudo tar -xzf tilt.tgz -C /usr/local/bin tilt; fi
           rm -f tilt.tgz
 
-      # From e2e-journeys.yml: the runner's preinstalled Postgres can hold
-      # port 5432. Remove it so nothing restarts it later in the job.
+      # From .github/actions/free-postgres-port: exit when nothing listens
+      # on 5432; otherwise stop and mask the units. No apt purge.
       - name: Free port 5432 (runner's preinstalled Postgres)
         run: |
-          sudo systemctl stop postgresql.socket 'postgresql@*.socket' 2>/dev/null || true
-          sudo systemctl stop postgresql.service 'postgresql@*.service' 2>/dev/null || true
-          sudo DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y 'postgresql*' >/dev/null 2>&1 || true
+          if ! sudo ss -ltn 2>/dev/null | grep -q ':5432 '; then
+            echo "port 5432 is free (${SECONDS}s)"
+            exit 0
+          fi
+          sudo systemctl stop postgresql.socket 'postgresql@*.socket' postgresql.service 'postgresql@*.service' 2>/dev/null || true
+          sudo systemctl mask postgresql.service postgresql.socket 2>/dev/null || true
           sudo fuser -k 5432/tcp 2>/dev/null || true
+          echo "stopped and masked postgres (${SECONDS}s)"
 
       - name: Install flisk
         run: |

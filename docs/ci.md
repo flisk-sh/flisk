@@ -98,14 +98,18 @@ jobs:
       - name: Install Tilt
         run: curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash
 
-      # From e2e-journeys.yml: the runner's preinstalled Postgres can hold
-      # port 5432. Remove it so nothing restarts it later in the job.
+      # From .github/actions/free-postgres-port: exit when nothing listens
+      # on 5432; otherwise stop and mask the units. No apt purge.
       - name: Free port 5432 (runner's preinstalled Postgres)
         run: |
-          sudo systemctl stop postgresql.socket 'postgresql@*.socket' 2>/dev/null || true
-          sudo systemctl stop postgresql.service 'postgresql@*.service' 2>/dev/null || true
-          sudo DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y 'postgresql*' >/dev/null 2>&1 || true
+          if ! sudo ss -ltn 2>/dev/null | grep -q ':5432 '; then
+            echo "port 5432 is free (${SECONDS}s)"
+            exit 0
+          fi
+          sudo systemctl stop postgresql.socket 'postgresql@*.socket' postgresql.service 'postgresql@*.service' 2>/dev/null || true
+          sudo systemctl mask postgresql.service postgresql.socket 2>/dev/null || true
           sudo fuser -k 5432/tcp 2>/dev/null || true
+          echo "stopped and masked postgres (${SECONDS}s)"
 
       - name: Install flisk
         run: |
@@ -263,7 +267,7 @@ From [machine-readable CLI](reference/machine-readable-cli.md): for `flisk confi
 
 Mirrors [`e2e-journeys.yml`](../.github/workflows/e2e-journeys.yml), reduced to one stack:
 
-1. Install Tilt and free port 5432. The quickstart workflow explains why: the runner's preinstalled Postgres can take the port and it was restarted after being stopped, so the package is removed. This was needed there at the time; on the machine used for this page `flisk doctor` chose Postgres port 15432 by default, so whether your repository needs the step was not checked.
+1. Install Tilt and free port 5432. The runner's preinstalled Postgres can hold the port. The step exits in under a second when nothing listens on 5432; otherwise it stops and masks the systemd units (no apt purge). This matches `.github/actions/free-postgres-port` since #4087.
 2. Start `flisk up <stack>` in the background, with its output in a log file, and wait for it to print one `/health` URL for every `HEALTH_SERVICES` entry.
 3. Poll the URLs every 10 seconds until all answer with a 2xx status. At most 120 polls, which is the 20 minutes `e2e-journeys.yml` allows; the quickstart suite's 30-minute timeout is the value in `tests/e2e/journeys/quickstart/suite.json`.
 4. Once a minute, ask Tilt (`tilt get uiresources`) for resources whose update status is `error`. Tilt does not retry a failed image build, so after two checks in a row the job stops with the resource names instead of waiting out the timeout. The quickstart workflow also stops early when Tilt has no resource for a service (a service Flisk never discovered); that check is left out here.
