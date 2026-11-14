@@ -212,10 +212,12 @@ number. A full disk damages Docker's image store, and the repair deletes every v
 | 5 to 15 GiB | warns, goes on, and adds a `diskWarning` object to the `--json` result |
 | 15 GiB or more | says nothing |
 
+These are the limits for container projects (image builds). A project that runs as local processes (every service has a `command`, no Docker) uses lower limits sized for logs and installs: it stops under 1 GiB and warns from 1 to 2 GiB, and its messages and cleanup suggestions name no Docker commands.
+
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `FLISK_DISK_MIN_GIB` | `5` | Below this, `flisk up` and `flisk doctor` fail |
-| `FLISK_DISK_WARN_GIB` | `15` | Below this, they warn |
+| `FLISK_DISK_MIN_GIB` | `5` (container projects), `1` (local processes) | Below this, `flisk up` and `flisk doctor` fail; one value overrides the limit of both runtimes |
+| `FLISK_DISK_WARN_GIB` | `15` (container projects), `2` (local processes) | Below this, they warn; one value overrides both runtimes |
 | `FLISK_OFFLINE` | unset | When set (and not `0`), `flisk demo` and `flisk doctor` do not ask the npm registry for the latest version. `CI`, `NO_UPDATE_NOTIFIER` and `--offline` skip it too. The answer is cached for a day in `~/.flisk/latest-version.json` |
 | `FLISK_BUILD_CACHE_MAX_GIB` | `20` | `flisk up` trims the shared Docker build cache to this size (`docker builder prune -f --keep-storage`); `0` turns the ceiling off |
 

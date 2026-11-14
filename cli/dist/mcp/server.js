@@ -18,9 +18,19 @@ function reply(id, result) {
 function fail(id, code, message) {
     return JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 }
-export function createMcpServer(tools, info) {
-    // Aliases first, so a tool's own name always wins over another tool's former name.
+export function createMcpServer(allTools, info, policy) {
+    const tools = policy ? allTools.filter((tool) => policy.isAllowed(tool)) : allTools;
     const byName = new Map();
+    // A refused tool stays resolvable (by name and alias) so tools/call can refuse it clearly instead of "Unknown tool".
+    const refused = new Map();
+    for (const tool of allTools) {
+        if (tools.includes(tool))
+            continue;
+        for (const alias of tool.aliases ?? [])
+            refused.set(alias, tool);
+        refused.set(tool.name, tool);
+    }
+    // Aliases first, so a tool's own name always wins over another tool's former name.
     for (const tool of tools)
         for (const alias of tool.aliases ?? [])
             byName.set(alias, tool);
@@ -57,6 +67,11 @@ export function createMcpServer(tools, info) {
             case "tools/call": {
                 const name = message.params?.name;
                 const tool = typeof name === "string" ? byName.get(name) : undefined;
+                const blocked = typeof name === "string" && !tool ? refused.get(name) : undefined;
+                if (blocked && policy) {
+                    const text = policy.refusal(blocked);
+                    return reply(message.id, { content: [{ type: "text", text }], isError: true });
+                }
                 if (!tool)
                     return fail(message.id, ERROR.invalidParams, `Unknown tool: ${String(name)}`);
                 const args = message.params?.arguments;

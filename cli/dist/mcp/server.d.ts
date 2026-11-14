@@ -35,8 +35,13 @@ export interface McpIcon {
     mimeType?: string;
     sizes?: string[];
 }
-export declare function createMcpServer(tools: McpTool[], info: {
+/** Which tools a server exposes: a tool the policy refuses is neither listed nor run, and tools/call explains why. */
+export interface McpToolPolicy {
+    isAllowed: (tool: McpTool) => boolean;
+    refusal: (tool: McpTool) => string;
+}
+export declare function createMcpServer(allTools: McpTool[], info: {
     name: string;
     version: string;
     icons?: McpIcon[];
-}): McpServer;
+}, policy?: McpToolPolicy | null): McpServer;

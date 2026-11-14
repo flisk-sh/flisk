@@ -3,7 +3,15 @@
 /// <reference types="vite/client" />
 
 import { EventEmitter } from "node:events";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -754,7 +762,7 @@ describe("tool list", () => {
     await tools.find((t) => t.name === "resource_restart")?.handler({ resource: "api" });
     await tools
       .find((t) => t.name === "resource_run")
-      ?.handler({ resource: "api", command: ["printenv", "DATABASE_URL"] });
+      ?.handler({ resource: "api", command: ["printenv", "DATABASE_URL"], confirm: true });
     await tools.find((t) => t.name === "agent_list")?.handler({ stack: "shop" });
     await tools
       .find((t) => t.name === "agent_sessions")
@@ -1105,7 +1113,7 @@ describe("tool list", () => {
       logs: { services: ["api"], tail: 5, since: "5m" },
       resource_list: { stack: "shop" },
       resource_restart: { resource: "api" },
-      resource_run: { resource: "api", command: ["printenv", "DATABASE_URL"] },
+      resource_run: { resource: "api", command: ["printenv", "DATABASE_URL"], confirm: true },
       agent_list: { stack: "shop" },
       agent_sessions: { resource: "bot", sessionId: "s1" },
       stack_list: { services: true, verbose: true },
@@ -1130,7 +1138,7 @@ describe("tool list", () => {
       stack_assign: { stack: "shop", resources: ["api", "web"] },
       project_init: { agentSkills: false },
       project_eject: { confirm: true },
-      project_import: { dir: "legacy", dryRun: true, force: true },
+      project_import: { dir: "legacy", dryRun: true, force: true, confirm: true },
     };
     expect(Object.keys(calls).sort()).toEqual(
       tools
@@ -1240,6 +1248,73 @@ describe("tool annotations", () => {
       "project_import",
     ]) {
       expect(byName.get(name)?.annotations?.destructiveHint, name).toBe(true);
+    }
+  });
+});
+
+describe("confirm safeguards and output masking", () => {
+  it("refuses resource_run without confirm, with a message the agent can act on", async () => {
+    const { seen, tools } = recordingTools("{}");
+    const run = tools.find((t) => t.name === "resource_run");
+    await expect(run?.handler({ resource: "api", command: ["node", "seed.js"] })).rejects.toThrow(
+      "needs confirm: true",
+    );
+    await expect(
+      run?.handler({ resource: "api", command: ["node", "seed.js"], confirm: false }),
+    ).rejects.toThrow("confirm: true");
+    expect(seen).toEqual([]);
+    await run?.handler({ resource: "api", command: ["node", "seed.js"], confirm: true });
+    expect(seen.map((s) => s.args)).toEqual([["run", "api", "--json", "--", "node", "seed.js"]]);
+  });
+
+  it("refuses project_import with force unless confirm or dryRun", async () => {
+    const { seen, tools } = recordingTools("{}");
+    const imp = tools.find((t) => t.name === "project_import");
+    await expect(imp?.handler({ force: true })).rejects.toThrow("needs confirm: true");
+    expect(seen).toEqual([]);
+    await imp?.handler({});
+    await imp?.handler({ force: true, dryRun: true });
+    await imp?.handler({ force: true, confirm: true });
+    expect(seen.map((s) => s.args)).toEqual([
+      ["import", "--json"],
+      ["import", "--dry-run", "--force", "--json"],
+      ["import", "--force", "--json"],
+    ]);
+  });
+
+  it("no longer suggests printenv of a secret in the resource_run description", () => {
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    const run = tools.find((t) => t.name === "resource_run");
+    expect(JSON.stringify(run)).not.toContain("DATABASE_URL");
+  });
+
+  it("masks a .env value in the resource_run result", async () => {
+    const secretDir = mkdtempSync(join(tmpdir(), "flisk-mcp-secret-"));
+    try {
+      mkdirSync(join(secretDir, ".flisk"), { recursive: true });
+      writeFileSync(join(secretDir, ".flisk", "project.json"), JSON.stringify({ name: "s" }));
+      writeFileSync(
+        join(secretDir, ".env"),
+        "DATABASE_URL=postgres://u:hunter2-very-secret@db/app\n",
+      );
+      const stdout = JSON.stringify({
+        schemaVersion: 1,
+        data: { exitCode: 0, stdout: "postgres://u:hunter2-very-secret@db/app\n", stderr: "" },
+        errors: [],
+      });
+      const { tools } = recordingTools(stdout);
+      const result = await tools
+        .find((t) => t.name === "resource_run")
+        ?.handler({
+          projectPath: secretDir,
+          resource: "api",
+          command: ["env"],
+          confirm: true,
+        });
+      expect(JSON.stringify(result)).not.toContain("hunter2-very-secret");
+      expect(JSON.stringify(result)).toContain("[REDACTED]");
+    } finally {
+      rmSync(secretDir, { recursive: true, force: true });
     }
   });
 });

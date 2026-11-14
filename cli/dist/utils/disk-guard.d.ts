@@ -3,11 +3,31 @@ import type { JsonEmitter } from "./json-output.js";
 export declare const DISK_FAIL_GIB = 5;
 /** Below this much free space the run goes on with a warning. Override with FLISK_DISK_WARN_GIB. */
 export declare const DISK_WARN_GIB = 15;
+/** Local-process projects (no Docker) need room for logs and installs only, not for image builds. */
+export declare const NATIVE_DISK_FAIL_GIB = 1;
+export declare const NATIVE_DISK_WARN_GIB = 2;
 export declare const DISK_MIN_ENV = "FLISK_DISK_MIN_GIB";
 export declare const DISK_WARN_ENV = "FLISK_DISK_WARN_GIB";
 /** The first cleanup offered: Docker's build cache only, safe while a stack is running. */
 export declare const DISK_SAFE_CLEANUP = "docker builder prune -f";
 export declare const DISK_CLEANUP_FIX: string;
+/** Free-space guidance for a project that runs as local processes: no Docker words, no prune commands. */
+export declare const NATIVE_DISK_CLEANUP_FIX: string;
+/** Which runtime the project uses: containers (Docker and Tilt) or local processes (every service has a `command`). */
+export type DiskRuntime = "container" | "native";
+export interface DiskRule {
+    failBelowGib: number;
+    warnBelowGib: number;
+    /** The message for a stop; `shown` is "N GiB free on <where>". */
+    failMessage: (shown: string) => string;
+    warnMessage: (shown: string) => string;
+    fix: string;
+}
+/**
+ * The one disk rule for a runtime: limits (FLISK_DISK_MIN_GIB / FLISK_DISK_WARN_GIB override the defaults of both),
+ * wording and cleanup suggestions. `flisk up` and `flisk doctor` share it.
+ */
+export declare function diskRule(runtime?: DiskRuntime, env?: Record<string, string | undefined>): DiskRule;
 export type StatFs = (path: string) => {
     bavail: number | bigint;
     bsize: number | bigint;
@@ -30,6 +50,8 @@ export interface DiskGuardInput {
     env?: Record<string, string | undefined>;
     /** Free GiB of the Docker VM's own data disk, when the caller could read it. */
     vmFreeGib?: number | null;
+    /** Default "container". Local-process projects pass "native" for the lower limits and Docker-free wording. */
+    runtime?: DiskRuntime;
 }
 /** The thresholds in effect: the defaults, or the environment variables when they hold a number. */
 export declare function diskThresholds(env?: Record<string, string | undefined>): {
