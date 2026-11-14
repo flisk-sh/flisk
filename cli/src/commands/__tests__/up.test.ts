@@ -1373,6 +1373,36 @@ describe("flisk up with no resources (#3781)", () => {
     }
   });
 
+  it("--dry-run --only does not refuse as empty when a declared repository is not cloned yet", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-up-pending-"));
+    try {
+      mkdirSync(join(dir, ".flisk"), { recursive: true });
+      writeFileSync(
+        join(dir, ".flisk", "project.json"),
+        `${JSON.stringify({ ...PROJECT_JSON, repos: [{ url: "https://example.com/org/api.git", dir: "api-repo" }] })}\n`,
+      );
+      vi.mocked(findProjectRoot).mockReturnValue(dir);
+      vi.mocked(requireProjectRoot).mockReturnValue(dir);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      try {
+        await upCommand.parseAsync(["--dry-run", "--only", "api"], { from: "user" });
+      } catch {
+        // Later dry-run steps need a real project; the empty-project refusal is what matters here.
+      }
+
+      expect(warn.mock.calls.flat().join("\n")).toContain("Pending clone: api");
+      expect(error.mock.calls.flat().join("\n")).not.toContain("no resources yet");
+      log.mockRestore();
+      warn.mockRestore();
+      error.mockRestore();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("a project with one resource is unchanged", async () => {
     vi.mocked(discoverResourcesStrict).mockReturnValueOnce([
       makeResource("api", "backend", { schemaVersion: 1, port: 8080 }),
