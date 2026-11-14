@@ -93,4 +93,37 @@ describe("generated custom agent: POST /turn body", () => {
     });
     expect(checkpoints()).toHaveLength(1);
   });
+
+  // The generated agent caps /turn bodies at AGENT_MAX_TURN_BODY_BYTES (default
+  // 1 MiB). These bodies are built to an exact byte length: {"input":" is 10
+  // bytes and "} is 2, so the padding makes up the rest.
+  const bodyOfSize = (bytes: number) => `{"input":"${"a".repeat(bytes - 12)}"}`;
+
+  it("answers 413 payload_too_large for a body one byte over the limit and writes no checkpoint", async () => {
+    const before = checkpoints();
+    const body = bodyOfSize(1_048_577);
+    expect(Buffer.byteLength(body)).toBe(1_048_577);
+    const response = await fetch(`${base}/turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-session-id": "over-limit" },
+      body,
+    });
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "payload_too_large" });
+    expect(checkpoints()).toEqual(before);
+  });
+
+  it("still runs a turn for a body exactly at the limit", async () => {
+    const body = bodyOfSize(1_048_576);
+    expect(Buffer.byteLength(body)).toBe(1_048_576);
+    const response = await fetch(`${base}/turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-session-id": "at-limit" },
+      body,
+    });
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as { turns: number };
+    expect(data.turns).toBe(1);
+    expect(checkpoints()).toContain("at-limit.json");
+  });
 });

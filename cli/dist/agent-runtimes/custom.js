@@ -12,6 +12,7 @@ import { Client } from 'pg';
 // Contract with Flisk (see docs/agents/ai-agents.md):
 //   AGENT_DURABILITY  postgres
 //   DATABASE_URL      Postgres connection string injected by Flisk
+//   AGENT_MAX_TURN_BODY_BYTES  max POST /turn body in bytes (default 1048576); over the limit: 413 payload_too_large
 //   PORT              port to listen on
 // /health: the process is alive. /ready: the checkpoint store is reachable. Idle is healthy, so /health never checks the store.
 
@@ -166,9 +167,30 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
+// /turn request bodies are capped (default 1 MiB, see AGENT_MAX_TURN_BODY_BYTES) so one
+// request cannot fill process memory or the checkpoint store. The limit is enforced while
+// streaming: the body is never buffered past the limit.
+const MAX_TURN_BODY_BYTES = Number(process.env.AGENT_MAX_TURN_BODY_BYTES) || 1_048_576;
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super('request body exceeds AGENT_MAX_TURN_BODY_BYTES');
+    this.name = 'PayloadTooLargeError';
+  }
+}
+
 async function readJson(req: IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += (chunk as Buffer).length;
+    if (totalBytes > MAX_TURN_BODY_BYTES) {
+      // Stop the client sending more: pause the stream, answer 413, then close the connection.
+      req.pause();
+      throw new PayloadTooLargeError();
+    }
+    chunks.push(chunk as Buffer);
+  }
   const raw = Buffer.concat(chunks).toString('utf8');
   return raw ? JSON.parse(raw) : {};
 }
@@ -214,6 +236,14 @@ const server = createServer(async (req, res) => {
       try {
         body = await readJson(req);
       } catch (error) {
+        if (error instanceof PayloadTooLargeError) {
+          // The request stream is paused; answer 413, then close the connection so the
+          // client stops sending the rest of the body. Nothing is written to the checkpoint.
+          res.setHeader('connection', 'close');
+          sendJson(res, 413, { error: 'payload_too_large' });
+          res.on('finish', () => req.destroy());
+          return;
+        }
         if (!(error instanceof SyntaxError)) throw error;
         return sendJson(res, 400, { error: 'invalid_json' });
       }
@@ -314,6 +344,7 @@ import { join } from 'node:path';
 // Contract with Flisk (see docs/agents/ai-agents.md):
 //   AGENT_DURABILITY  files   (set by flisk from service.json agent.durability)
 //   AGENT_STATE_DIR   where files-durability checkpoints live (a named volume that survives flisk down)
+//   AGENT_MAX_TURN_BODY_BYTES  max POST /turn body in bytes (default 1048576); over the limit: 413 payload_too_large
 //   PORT              port to listen on
 // /health: the process is alive. /ready: the checkpoint store is reachable. Idle is healthy, so /health never checks the store.
 
@@ -426,9 +457,30 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
+// /turn request bodies are capped (default 1 MiB, see AGENT_MAX_TURN_BODY_BYTES) so one
+// request cannot fill process memory or the checkpoint store. The limit is enforced while
+// streaming: the body is never buffered past the limit.
+const MAX_TURN_BODY_BYTES = Number(process.env.AGENT_MAX_TURN_BODY_BYTES) || 1_048_576;
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super('request body exceeds AGENT_MAX_TURN_BODY_BYTES');
+    this.name = 'PayloadTooLargeError';
+  }
+}
+
 async function readJson(req: IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += (chunk as Buffer).length;
+    if (totalBytes > MAX_TURN_BODY_BYTES) {
+      // Stop the client sending more: pause the stream, answer 413, then close the connection.
+      req.pause();
+      throw new PayloadTooLargeError();
+    }
+    chunks.push(chunk as Buffer);
+  }
   const raw = Buffer.concat(chunks).toString('utf8');
   return raw ? JSON.parse(raw) : {};
 }
@@ -474,6 +526,14 @@ const server = createServer(async (req, res) => {
       try {
         body = await readJson(req);
       } catch (error) {
+        if (error instanceof PayloadTooLargeError) {
+          // The request stream is paused; answer 413, then close the connection so the
+          // client stops sending the rest of the body. Nothing is written to the checkpoint.
+          res.setHeader('connection', 'close');
+          sendJson(res, 413, { error: 'payload_too_large' });
+          res.on('finish', () => req.destroy());
+          return;
+        }
         if (!(error instanceof SyntaxError)) throw error;
         return sendJson(res, 400, { error: 'invalid_json' });
       }
