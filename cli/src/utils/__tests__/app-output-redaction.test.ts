@@ -89,7 +89,7 @@ describe("secret shapes", () => {
     ["an API key with the sk- prefix", "sk-ant-api03-abcdefghijklmnopqrstuvwx", REDACTED],
     [
       "a JSON web token",
-      "jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r",
+      `jwt ${["ey" + "JhbGciOiJIUzI1NiJ9", "ey" + "JzdWIiOiIxMjM0NTY3ODkwIn0", "dBjftJeZ4CVPmB92K27uhbUJU1p1r"].join(".")}`,
       `jwt ${REDACTED}`,
     ],
     ["a private key block", KEY_BLOCK.join("\n"), REDACTED],
