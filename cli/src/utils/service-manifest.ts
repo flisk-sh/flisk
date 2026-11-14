@@ -13,6 +13,12 @@ export const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 
 /**
+ * A frontend's `basePath`, as in the schema (runtime/engine/schemas/service-schema.json). `flisk resource --base-path` checks
+ * the same pattern, so a resource it creates is never reported invalid by `flisk config verify`.
+ */
+export const BASE_PATH_PATTERN = /^\/[a-z0-9/-]*$/;
+
+/**
  * Fields that are still read, or still tolerated, but should not be used. The warning says what replaces each one. `jwtSecret` is
  * ignored outright: a secret must not be committed (see docs/environment.md).
  */
@@ -128,7 +134,7 @@ const GENERATED_STRING_FIELDS: ReadonlyArray<{
     expected:
       "an image reference such as ghcr.io/acme/app:1.0, with variables written as ${NAME}, ${NAME:-default}, ${NAME-default} or ${NAME:?message}",
   },
-  { path: ["basePath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /storefront" },
+  { path: ["basePath"], pattern: BASE_PATH_PATTERN, expected: "a path such as /storefront" },
 ];
 
 /**
