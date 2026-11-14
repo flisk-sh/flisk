@@ -806,12 +806,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
         else if (name &&
             !isInfraResourceType(requestedType) &&
             validateResourceName(name).valid &&
-            validateStackName(options.stack).valid) {
+            validateStackName(options.stack ?? "default").valid) {
             // No --path: the folder is already determined by the type, name and --stack, so an existing manifest there is
             // checked before the framework and stack prompts too. A "default" stack is only known after a prompt, so a folder
             // that depends on it is left to the registration branch.
-            const inferred = inferResourcePath(projectRoot, requestedType, options.stack, name);
-            if (!(options.stack === "default" && inferred.adjustedFrom)) {
+            const inferred = inferResourcePath(projectRoot, requestedType, options.stack ?? "default", name);
+            if (!((options.stack ?? "default") === "default" && inferred.adjustedFrom)) {
                 suppliedExistingManifest = readExistingManifest(projectRoot, inferred.path);
             }
         }
