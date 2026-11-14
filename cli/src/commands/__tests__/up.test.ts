@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  isTiltfileOrchestration,
   ProjectConfigNotFoundError,
   verifyMasterConfigs,
 } from "../../generator/template-engine.js";
@@ -51,6 +52,7 @@ import {
 vi.mock("../../generator/template-engine.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../generator/template-engine.js")>()),
   verifyMasterConfigs: vi.fn(),
+  isTiltfileOrchestration: vi.fn(() => false),
 }));
 vi.mock("../../utils/tilt.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/tilt.js")>()),
@@ -1164,6 +1166,10 @@ describe("flisk up --env-file", () => {
 
   it("refuses the option when a stack is already running, because it keeps its env file", async () => {
     writeFileSync(join(projectDir, ".env.integration"), COMPLETE_ENV);
+    // One resource, so the run reaches the already-running check instead of the empty-project refusal (#3781).
+    vi.mocked(discoverResourcesStrict).mockReturnValueOnce([
+      makeResource("api", "backend", { schemaVersion: 1, port: 8080 }),
+    ]);
     vi.mocked(classifyTiltPorts).mockResolvedValue({
       running: [10350],
       foreign: [],
@@ -1267,5 +1273,138 @@ describe("flisk up startup URL list with bring-your-own services only (#3203)", 
 
     // Unproxied bring-your-own service is omitted from URL lists
     expect(output).not.toContain("redis:");
+  });
+});
+
+describe("flisk up with no resources (#3781)", () => {
+  beforeEach(() => {
+    vi.stubEnv("FLISK_ALLOW_NATIVE_WINDOWS", "1");
+    // The env-file suite leaves its mocks pointed at a deleted temp directory; restore the defaults.
+    vi.mocked(findProjectRoot).mockReturnValue("/project");
+    vi.mocked(requireProjectRoot).mockReturnValue("/project");
+    vi.mocked(verifyMasterConfigs).mockReturnValue({
+      valid: true,
+      errors: [],
+      warnings: [],
+      diffs: [],
+      handEdited: [],
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("flisk up --dry-run refuses an empty project before Tilt and never reaches it", async () => {
+    vi.mocked(runTilt).mockClear();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      await expect(upCommand.parseAsync(["--dry-run"], { from: "user" })).rejects.toThrow(
+        "process.exit",
+      );
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(runTilt).not.toHaveBeenCalled();
+      const output = error.mock.calls.flat().join("\n");
+      expect(output).toContain("This project has no resources yet, so there is nothing to start.");
+      expect(output).toContain("Add one: flisk resource api --type backend --stack app");
+      expect(output).toContain("Or start from a template: flisk create");
+    } finally {
+      exit.mockRestore();
+      error.mockRestore();
+    }
+  });
+
+  it("flisk up (not a dry run) refuses an empty project and never reaches Tilt", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-up-empty-"));
+    try {
+      mkdirSync(join(dir, ".flisk"), { recursive: true });
+      writeFileSync(join(dir, ".flisk", "project.json"), `${JSON.stringify(PROJECT_JSON)}\n`);
+      vi.mocked(findProjectRoot).mockReturnValue(dir);
+      vi.mocked(requireProjectRoot).mockReturnValue(dir);
+      vi.mocked(runTilt).mockClear();
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { exit } = captureExit();
+
+      try {
+        await expect(upCommand.parseAsync([], { from: "user" })).rejects.toThrow("process.exit");
+        expect(exit).toHaveBeenCalledWith(1);
+        expect(runTilt).not.toHaveBeenCalled();
+        expect(error.mock.calls.flat().join("\n")).toContain("no resources yet");
+      } finally {
+        exit.mockRestore();
+        error.mockRestore();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("--json writes the NO_RESOURCES object to stdout before exiting", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(writeSync).mockClear();
+    let written = "";
+    vi.mocked(writeSync).mockImplementation(((fd: number, data: string) => {
+      if (fd === 1) written += data;
+      return data.length;
+    }) as never);
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      expect(written).toContain('"NO_RESOURCES"');
+      throw new Error("process.exit");
+    }) as never);
+
+    try {
+      await expect(upCommand.parseAsync(["--json", "--dry-run"], { from: "user" })).rejects.toThrow(
+        "process.exit",
+      );
+      const payload = JSON.parse(written.trim().split("\n")[0] as string);
+      expect(payload.data.ok).toBe(false);
+      expect(payload.errors[0].code).toBe("NO_RESOURCES");
+      expect(payload.errors[0].message).toContain("no resources yet");
+      expect(payload.errors[0].suggestions).toEqual([
+        "Add one: flisk resource api --type backend --stack app",
+        "Or start from a template: flisk create",
+      ]);
+      expect(runTilt).not.toHaveBeenCalled();
+    } finally {
+      exit.mockRestore();
+    }
+  });
+
+  it("a project with one resource is unchanged", async () => {
+    vi.mocked(discoverResourcesStrict).mockReturnValueOnce([
+      makeResource("api", "backend", { schemaVersion: 1, port: 8080 }),
+    ]);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await upCommand.parseAsync(["--dry-run"], { from: "user" });
+    } catch {
+      // Later dry-run steps need a real project; the empty-project refusal is what matters here.
+    }
+
+    expect(log.mock.calls.flat().join("\n")).toContain("Would start 1 service");
+    expect(error.mock.calls.flat().join("\n")).not.toContain("no resources yet");
+    log.mockRestore();
+    error.mockRestore();
+  });
+
+  it("still runs a project that wraps its own Tiltfile", async () => {
+    vi.mocked(isTiltfileOrchestration).mockReturnValue(true);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await upCommand.parseAsync(["--dry-run"], { from: "user" });
+    } catch {
+      // Later dry-run steps need a real project; the empty-project refusal is what matters here.
+    }
+
+    expect(error.mock.calls.flat().join("\n")).not.toContain("no resources yet");
+    log.mockRestore();
+    error.mockRestore();
   });
 });

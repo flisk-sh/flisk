@@ -128,6 +128,11 @@ export const errorFactories = {
       "Run this from within a Flisk project",
       "Run `flisk project --yes` to initialize a new project",
     ]),
+  noResources: () =>
+    new FliskError("This project has no resources yet, so there is nothing to start.", [
+      "Add one: flisk resource api --type backend --stack app",
+      "Or start from a template: flisk create",
+    ]),
   interactiveTerminalRequired: (commandName = "flisk ui") =>
     new FliskError(
       `\`${commandName}\` needs an interactive terminal (stdin and stdout must be a TTY).`,
