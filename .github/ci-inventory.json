@@ -690,6 +690,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "refresh-image-digests.yml",
+			"job": "refresh",
+			"tier": "bot",
+			"required": false,
+			"reason": "Weekly re-resolve of the pinned base image digests; opens a pull request when one moved",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "sync-llms-demos.yml",
 			"job": "sync-demos",
 			"tier": "bot",
