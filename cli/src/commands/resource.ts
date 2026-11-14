@@ -1142,7 +1142,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         name &&
         !isInfraResourceType(requestedType) &&
         validateResourceName(name).valid &&
-        validateStackName(options.stack).valid
+        validateStackName(options.stack ?? "default").valid
       ) {
         // No --path: the folder is already determined by the type, name and --stack, so an existing manifest there is
         // checked before the framework and stack prompts too. A "default" stack is only known after a prompt, so a folder
@@ -1150,10 +1150,10 @@ export const resourceCommand = addYesOption(new Command("resource"))
         const inferred = inferResourcePath(
           projectRoot,
           requestedType as CreatableResourceType | "sdk",
-          options.stack,
+          options.stack ?? "default",
           name,
         );
-        if (!(options.stack === "default" && inferred.adjustedFrom)) {
+        if (!((options.stack ?? "default") === "default" && inferred.adjustedFrom)) {
           suppliedExistingManifest = readExistingManifest(projectRoot, inferred.path);
         }
       }
