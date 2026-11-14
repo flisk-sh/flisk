@@ -33,4 +33,18 @@ describe("portFromEnv", () => {
         .every((line) => line.startsWith("  const ")),
     ).toBe(true);
   });
+
+  it("falls back to the given port instead of 3000", () => {
+    const run = (PORT: string | undefined) =>
+      new Function("process", `${portFromEnv("port", "", 4321)}\nreturn port;`)({
+        env: PORT === undefined ? {} : { PORT },
+      });
+    expect(run(undefined)).toBe(4321);
+    expect(run("abc")).toBe(4321);
+    expect(run("8080")).toBe(8080);
+  });
+
+  it.each([0, 65536, 4000.5, Number.NaN])("refuses a fallback of %s", (fallback) => {
+    expect(() => portFromEnv("port", "", fallback)).toThrow(RangeError);
+  });
 });

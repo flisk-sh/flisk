@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
-export function getExpressIndexTemplate(name) {
+export function getExpressIndexTemplate(name, _durability, options = {}) {
     return `import express from 'express';
 
 const app = express();
@@ -52,7 +52,7 @@ app.get('/', (_req, res) => {
   });
 });
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 app.listen(port, '0.0.0.0', () => {

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: MIT
 import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
-export function getBackendIndexTemplate(name) {
-    return renderBackendIndex(name, false);
+export function getBackendIndexTemplate(name, _durability, options = {}) {
+    return renderBackendIndex(name, false, options);
 }
 /** The Bun + Hono backend with a `/health/db` route that runs a query through the Drizzle client. */
-export function getDrizzleBackendIndexTemplate(name) {
-    return renderBackendIndex(name, true);
+export function getDrizzleBackendIndexTemplate(name, _durability, options = {}) {
+    return renderBackendIndex(name, true, options);
 }
-function renderBackendIndex(name, drizzle) {
+function renderBackendIndex(name, drizzle, options) {
     const drizzleImports = drizzle
         ? "import { sql } from 'drizzle-orm';\nimport { db } from './db.js';\n"
         : "";
@@ -64,7 +64,7 @@ ${drizzleRoute}app.get('/', (c) => {
   });
 });
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 console.log('\\n🚀 ${name} running on http://localhost:' + port);
 console.log('📊 Health check: http://localhost:' + port + '/health\\n');
 

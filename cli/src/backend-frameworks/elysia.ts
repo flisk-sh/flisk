@@ -4,11 +4,15 @@ import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/g
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
-export function getElysiaIndexTemplate(name: string) {
+export function getElysiaIndexTemplate(
+  name: string,
+  _durability?: string,
+  options: { port?: number } = {},
+) {
   return `import { cors } from '@elysiajs/cors';
 import { Elysia } from 'elysia';
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // ${LOCAL_FRONTEND_CORS_REASON}
 ${localFrontendOriginConst()}

@@ -1953,16 +1953,22 @@ This file contains the resource configuration for Flisk.
           (backendFramework?.id ?? "hono") === "hono"
             ? getDrizzleBackendIndexTemplate
             : undefined;
+        const indexOptions = { port: serviceJson.port };
         let indexContent: string;
         if (resourceType === "agent") {
           indexContent = (backendFramework?.createIndex ?? getBackendIndexTemplate)(
             resourceName,
             agentConfig?.durability,
+            indexOptions,
           );
         } else if (drizzleRouteTemplate) {
-          indexContent = drizzleRouteTemplate(resourceName);
+          indexContent = drizzleRouteTemplate(resourceName, undefined, indexOptions);
         } else {
-          indexContent = (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName);
+          indexContent = (backendFramework?.createIndex ?? getBackendIndexTemplate)(
+            resourceName,
+            undefined,
+            indexOptions,
+          );
         }
         let description = "Generating backend source";
         if (resourceType === "mcp") {

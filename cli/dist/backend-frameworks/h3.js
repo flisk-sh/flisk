@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
-export function getH3IndexTemplate(name) {
+export function getH3IndexTemplate(name, _durability, options = {}) {
     return `import { createServer } from 'node:http';
 import { createApp, createRouter, defineEventHandler, handleCors, toNodeListener } from 'h3';
 
@@ -30,7 +30,7 @@ router.get('/', defineEventHandler(() => ({
 
 app.use(router);
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // node:http works on Bun. Bind beyond loopback: Traefik reaches the container over the Docker network.
 createServer(toNodeListener(app)).listen(port, '0.0.0.0', () => {

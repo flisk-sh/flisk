@@ -4,7 +4,11 @@ import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/g
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
-export function getFastifyIndexTemplate(name: string) {
+export function getFastifyIndexTemplate(
+  name: string,
+  _durability?: string,
+  options: { port?: number } = {},
+) {
   return `import cors from '@fastify/cors';
 import Fastify from 'fastify';
 
@@ -39,7 +43,7 @@ app.get('/', async () => ({
   endpoints: ['/health', '/health/live', '/health/ready']
 }));
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 await app.listen({ port, host: '0.0.0.0' });

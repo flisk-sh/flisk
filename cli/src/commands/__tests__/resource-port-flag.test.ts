@@ -82,6 +82,44 @@ describe("--port for every port-assigned resource type", () => {
     expect(JSON.parse(readFileSync(serviceJson, "utf-8")).port).toBe(port);
   });
 
+  // #4228: the scaffold's own PORT fallback must be the port service.json, the Dockerfile and
+  // `flisk networks` use, so running `bun run dev` without PORT does not listen somewhere else.
+  it.each([
+    ["backend", "api", 4321, []],
+    ["backend", "drizzle-api", 4322, ["--feature", "drizzle"]],
+    ...["express", "elysia", "fastify", "h3", "koa", "nestjs"].map(
+      (framework, offset) =>
+        ["backend", `${framework}-api`, 4330 + offset, ["--framework", framework]] as const,
+    ),
+    ["mcp", "tools", 4801, []],
+    ["agent", "planner", 4501, []],
+    ["agent", "durable-planner", 4502, ["--durability", "postgres"]],
+  ] as const)(
+    "falls back to the assigned %s port in src/index.ts (%s)",
+    async (type, name, port, extra) => {
+      const serviceJson = await createResource(name, type, ["--port", String(port), ...extra]);
+      const index = readFileSync(join(serviceJson, "..", "src", "index.ts"), "utf-8");
+      expect(index).toContain(`envPort <= 65535 ? envPort : ${port};`);
+      expect(index).not.toContain("envPort : 3000;");
+    },
+  );
+
+  it("falls back to the automatically assigned port, not the type's first port", async () => {
+    for (const name of ["first-api", "second-api"]) {
+      const serviceJson = await createResource(name, "backend");
+      clearDiscoveryCache();
+      const { port } = JSON.parse(readFileSync(serviceJson, "utf-8"));
+      const index = readFileSync(join(serviceJson, "..", "src", "index.ts"), "utf-8");
+      expect(index).toContain(`envPort <= 65535 ? envPort : ${port};`);
+    }
+    const ports = ["first-api", "second-api"].map(
+      (name) =>
+        JSON.parse(readFileSync(join(tempDir, "services", "shop", name, "service.json"), "utf-8"))
+          .port,
+    );
+    expect(new Set(ports).size).toBe(2);
+  });
+
   it("applies the type's own range: a worker port outside 6000-6999 is refused", async () => {
     const message = await refuse("jobs", "worker", ["--port", "4100"]);
     expect(message).toContain("--port must be an integer from 6000 through 6999");

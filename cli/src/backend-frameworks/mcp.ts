@@ -14,7 +14,11 @@ export const MCP_ICON_512_PNG_BASE64 =
  * The generated MCP server's src/index.ts: a stateless Streamable HTTP endpoint at /mcp with a sample tool and prompt, a
  * /health route and the icon at /icon-512.png, advertised in serverInfo.icons. It listens only when run as the entry point.
  */
-export function getMcpIndexTemplate(name: string) {
+export function getMcpIndexTemplate(
+  name: string,
+  _durability?: string,
+  options: { port?: number } = {},
+) {
   return `import { realpathSync } from 'node:fs';
 import { createServer, type IncomingMessage } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -141,7 +145,7 @@ export const httpServer = createServer(async (req, res) => {
   res.end(JSON.stringify({ error: 'not_found' }));
 });
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // Listen only when this file is the entry point (node dist/index.js, tsx src/index.ts). The protocol test imports it
 // and listens on a port of its own.

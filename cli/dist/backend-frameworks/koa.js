@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
-export function getKoaIndexTemplate(name) {
+export function getKoaIndexTemplate(name, _durability, options = {}) {
     return `import Koa from 'koa';
 
 const app = new Koa();
@@ -50,7 +50,7 @@ app.use(async (ctx) => {
   ctx.body = { error: 'not_found' };
 });
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 app.listen(port, '0.0.0.0', () => {
