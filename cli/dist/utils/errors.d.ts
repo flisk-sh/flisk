@@ -26,6 +26,7 @@ export declare const errorFactories: {
     directoryExists: (path: string) => FliskError;
     invalidPath: (path: string) => FliskError;
     notInProject: () => FliskError;
+    noResources: () => FliskError;
     interactiveTerminalRequired: (commandName?: string) => FliskError;
 };
 export declare function requireProjectRoot(): string;

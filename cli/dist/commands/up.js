@@ -958,6 +958,21 @@ export const upCommand = new Command("up")
             console.log(chalk.gray(`Found ${formatCount(servicesToStart.length, "service")} in ${stackDescription}`));
         }
         const serviceNames = servicesToStart.map((s) => s.name);
+        // A project with no resources has nothing to start. Refuse before Tilt, so `flisk project --yes && flisk up`
+        // does not start Traefik, Postgres and the gateway for an empty stack (#3781). A project that wraps its own
+        // Tiltfile (`orchestration.source === "tiltfile"`) still runs it, exactly as before. A dry run does not clone, so
+        // with a declared repository not cloned yet the resources are pending, not absent: the pending-clone warning
+        // above already says so, and refusing here would contradict it.
+        const hasPendingClone = options.dryRun && missingDeclaredRepoDirs(foundRoot).length > 0;
+        if (discoveredResources.length === 0 &&
+            !hasPendingClone &&
+            !isTiltfileOrchestration(projectRoot)) {
+            const error = errorFactories.noResources();
+            emit?.({ ok: false }, [
+                { code: "NO_RESOURCES", message: error.message, suggestions: error.suggestions },
+            ]);
+            error.exit();
+        }
         if (!options.quiet) {
             console.log(chalk.blue(`${options.dryRun ? "Would start" : "Starting"} ${formatCount(serviceNames.length, "service")} from ${stackDescription}...`));
             for (const name of serviceNames) {
