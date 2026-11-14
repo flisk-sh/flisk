@@ -361,9 +361,9 @@ describe("native supervisor", () => {
       join(root, "leaker.mjs"),
       [
         'console.log("Authorization: Bearer abcdef1234567890");',
-        'console.log("-----BEG' + 'IN PRIVATE KEY-----");',
+        'console.log("-----' + 'BEGIN PRIVATE KEY-----");',
         'console.log("MIIEvQIBADANBgkqhkiG9w0BAQEFAASC");',
-        'console.log("-----E' + 'ND PRIVATE KEY-----");',
+        'console.log("-----' + 'END PRIVATE KEY-----");',
         'console.log("done");',
       ].join("\n"),
     );

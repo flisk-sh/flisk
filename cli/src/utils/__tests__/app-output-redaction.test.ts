@@ -31,10 +31,10 @@ import { type UpWaitDeps, upAndWait } from "../up-wait.js";
 const DB_PASSWORD = "p4ssw0rd-from-dotenv-0001";
 const STRIPE = "sk_" + "live_51HabcdEFGHijklMNOPqrstUV";
 const KEY_BLOCK = [
-  "-----BEG" + "IN RSA PRIVATE KEY-----",
+  "-----" + "BEGIN RSA PRIVATE KEY-----",
   "MIIEowIBAAKCAQEA7bq0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-  "-----E" + "ND RSA PRIVATE KEY-----",
+  "-----" + "END RSA PRIVATE KEY-----",
 ];
 
 const dirs: string[] = [];
@@ -96,7 +96,7 @@ describe("secret shapes", () => {
     ["a private key block inside one JSON string", KEY_BLOCK.join("\\n"), REDACTED],
     [
       "a private key header whose block is cut off",
-      "-----BEG" + "IN PRIVATE KEY----- MIIE",
+      "-----" + "BEGIN PRIVATE KEY----- MIIE",
       REDACTED,
     ],
   ];

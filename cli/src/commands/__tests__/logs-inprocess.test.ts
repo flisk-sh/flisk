@@ -135,9 +135,9 @@ describe("flisk logs (in-process)", () => {
     it("--json masks secret shapes and a private key spread over several lines", async () => {
       nativeRuntime.readNativeLogLines.mockReturnValue([
         line("api", "Authorization: Bearer abcdef1234567890"),
-        line("api", "-----BEG" + "IN PRIVATE KEY-----"),
+        line("api", "-----" + "BEGIN PRIVATE KEY-----"),
         line("api", "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC"),
-        line("api", "-----E" + "ND PRIVATE KEY-----"),
+        line("api", "-----" + "END PRIVATE KEY-----"),
         line("frontend", "AKI" + "AIOSFODNN7EXAMPLE"),
         line("frontend", "ready"),
       ]);
