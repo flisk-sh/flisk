@@ -22,6 +22,7 @@ import {
   type PortOwnerDetails,
 } from "./port-owner.js";
 import { isApiServiceType } from "./resource-kind.js";
+import { redactProjectText } from "./secret-redaction.js";
 import { healthCheckPathOf, isHealthCheckDisabled } from "./service-manifest.js";
 import { getProjectName, type HealthProbe } from "./service-urls.js";
 import { discoverResources, discoverResourcesFromRoot } from "./services.js";
@@ -1215,16 +1216,19 @@ export function probeContainerRuntimeError(
       names.find((name) => name.includes(resourceName));
     if (!match) return null;
 
-    const logs = runHostCommand(
-      exec,
-      "docker",
-      ["logs", "--tail", "120", match],
-      `docker logs --tail 120 ${shellQuote(match)} 2>&1`,
-      {
-        stdio: "pipe",
-        encoding: "utf-8",
-        timeout: EXEC_TIMEOUT_MS,
-      },
+    // The excerpts below are quoted in the report, so the log is masked before anything is read from it.
+    const logs = redactProjectText(
+      runHostCommand(
+        exec,
+        "docker",
+        ["logs", "--tail", "120", match],
+        `docker logs --tail 120 ${shellQuote(match)} 2>&1`,
+        {
+          stdio: "pipe",
+          encoding: "utf-8",
+          timeout: EXEC_TIMEOUT_MS,
+        },
+      ),
     );
 
     if (/getaddrinfo ENOTFOUND/i.test(logs) && /kafka:9092/i.test(logs)) {

@@ -10,11 +10,38 @@ export declare class EnvUnreadableError extends FliskError {
  */
 export declare const MIN_REDACTED_VALUE_LENGTH = 8;
 /**
- * Values of the project's own .env file, longest first so a value that contains another is masked whole. Throws when the
- * file exists but cannot be read: continuing without the values would print secrets unmasked.
+ * Values of the project's own .env file and of the services' env, longest first so a value that contains another is masked
+ * whole. The sources are the project `.env`, the file `--env-file` selected (FLISK_ENV_FILE) and `extraEnvPaths`, each
+ * bring-your-own service's `envFile` files, the shell values of the names a service lists under `secrets`, and the `env` and
+ * `params` entries of a service whose name says it is a secret (PASSWORD, TOKEN, KEY ...). Throws when an env file exists but
+ * cannot be read: continuing without the values would print secrets unmasked.
  */
 export declare function envSecretValues(projectRoot: string, extraEnvPaths?: readonly string[]): string[];
+/**
+ * Secret shapes masked wherever they appear, whether or not the value is in an env file: a token an application printed from
+ * its own memory, a connection string, a key pair. Each pattern keeps its non-secret part (`Bearer `, `postgres://user:`) so
+ * the line stays readable. The list is deliberately short and specific; it is not a secret scanner.
+ */
+export declare const SECRET_PATTERNS: ReadonlyArray<{
+    name: string;
+    pattern: RegExp;
+    replacement: string;
+}>;
+/** Masks the secret shapes in SECRET_PATTERNS. */
+export declare function redactSecretPatterns(text: string): string;
+/** Masks the given secret values, then the secret shapes. */
 export declare function redactSecrets(text: string, secrets: readonly string[]): string;
+/**
+ * Masks a log that arrives line by line. A private key spans many lines and each line is masked alone, so the lines between
+ * `-----BEGIN ... PRIVATE KEY-----` and `-----END ... PRIVATE KEY-----` are masked by remembering that the block is open.
+ * One guard per stream; a block whose BEGIN line is not in the lines shown cannot be recognised.
+ */
+export declare function createPrivateKeyLineGuard(): (line: string) => string;
+/** Masks the text of log lines of several resources, one private key guard per resource, in the order given. */
+export declare function redactLogLines<T extends {
+    resource: string | null;
+    text: string;
+}>(lines: readonly T[], secrets: readonly string[]): T[];
 /** Redacts every string inside a JSON-shaped value, so the output stays valid JSON. */
 export declare function redactValue<T>(value: T, secrets: readonly string[]): T;
 /**
@@ -26,3 +53,12 @@ export declare function redactValue<T>(value: T, secrets: readonly string[]): T;
  * much as the ones in the project .env.
  */
 export declare function createEnvRedactor(projectRoot: string, extraEnvPaths?: readonly string[]): (text: string) => string;
+/** What replaces output that cannot be masked because the project's env files cannot be read. */
+export declare const OUTPUT_WITHHELD = "[output withheld: the project's env files could not be read]";
+/**
+ * The secret values of the project that holds `startDir` (the current directory by default); empty outside a project, so the
+ * secret shapes still apply. Null when an env file exists but cannot be read, because the values are then unknown.
+ */
+export declare function projectSecretValues(startDir?: string): string[] | null;
+/** Masks text that came from an application, for the project that holds `startDir`. Never throws, never returns a secret. */
+export declare function redactProjectText(text: string, startDir?: string): string;

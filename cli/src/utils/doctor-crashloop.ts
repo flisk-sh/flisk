@@ -168,11 +168,12 @@ export async function checkCrashLoopingContainers(
     } catch {
       // The container may have just been removed; report it without logs.
     }
-    const lines = redactSecrets(logs, secrets)
+    const safeLogs = redactSecrets(logs, secrets);
+    const lines = safeLogs
       .split(/\r?\n/)
       .map((line) => line.trim().slice(0, LOG_LINE_MAX))
       .filter(Boolean);
-    const hint = crashLoopHint(logs, state);
+    const hint = crashLoopHint(safeLogs, state);
     if (hint) hints.add(hint);
     details.push(
       [

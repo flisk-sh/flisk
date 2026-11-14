@@ -200,7 +200,7 @@
 					{
 						"text": {
 							"file": "docs/assurance-case.md",
-							"contains": "Values from the project `.env` are redacted from output"
+							"contains": "masks the values from `.env` and each service's env, and common secret shapes"
 						}
 					}
 				]

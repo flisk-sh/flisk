@@ -355,6 +355,39 @@ describe("native supervisor", () => {
     }
   });
 
+  it("masks secret shapes and a printed private key before output and the stored log", async () => {
+    const root = createTempDir();
+    writeFileSync(
+      join(root, "leaker.mjs"),
+      [
+        'console.log("Authorization: Bearer abcdef1234567890");',
+        'console.log("-----' + 'BEGIN PRIVATE KEY-----");',
+        'console.log("MIIEvQIBADANBgkqhkiG9w0BAQEFAASC");',
+        'console.log("-----' + 'END PRIVATE KEY-----");',
+        'console.log("done");',
+      ].join("\n"),
+    );
+    const plan = planNativeRun(
+      [nativeService(root, "leaker", { appType: "migrator", command: `${NODE} leaker.mjs` })],
+      {},
+      root,
+    );
+    const lines: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onLine: (_name, line) => lines.push(line),
+    });
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+    await waitFor(() => lines.includes("done"));
+
+    const stored = readFileSync(nativeLogPath(root, "leaker"), "utf-8");
+    for (const text of [lines.join("\n"), stored]) {
+      expect(text).toContain("Bearer [REDACTED]");
+      expect(text).not.toContain("abcdef1234567890");
+      expect(text).not.toContain("MIIEvQIBADANBgkqhkiG9w0BAQEFAASC");
+    }
+  });
+
   it("starts a service only after its dependency answers, and serves both", async () => {
     const root = createTempDir();
     const apiDir = join(root, "api");

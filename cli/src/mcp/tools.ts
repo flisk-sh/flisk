@@ -9,6 +9,12 @@ import { cliInvocation } from "../utils/cli-invocation.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import {
+  OUTPUT_WITHHELD,
+  projectSecretValues,
+  redactProjectText,
+  redactValue,
+} from "../utils/secret-redaction.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
@@ -292,7 +298,11 @@ export async function startUp(
       return { ...result };
     }
     if (exited !== undefined) {
-      return toToolResult({ exitCode: exited, stdout: "", stderr: log.slice(-2000) });
+      return toToolResult({
+        exitCode: exited,
+        stdout: "",
+        stderr: redactProjectText(log.slice(-2000), projectPath(args.projectPath)),
+      });
     }
     if (deps.now() >= deadline) {
       // A zero window would otherwise return before a failed spawn has emitted its "error" event.
@@ -1003,5 +1013,22 @@ export function createFliskTools(
       handler: viaCli(buildProjectImportArgs, { timeoutMs: IMPORT_TIMEOUT_MS }),
     },
   ];
-  return tools.map((tool) => ({ ...tool, annotations: TOOL_ANNOTATIONS[tool.name] }));
+  // Every tool returns what a `flisk` child printed, and a child can quote an application's output (logs, `run`, agent sessions,
+  // failure excerpts). The child masks it already; this is the last stop before the text reaches an MCP client.
+  return tools.map((tool) => ({
+    ...tool,
+    annotations: TOOL_ANNOTATIONS[tool.name],
+    handler: async (args: Record<string, unknown>) => {
+      const result = await tool.handler(args);
+      const secrets = projectSecretValues(projectPath(args.projectPath));
+      return {
+        ...result,
+        data:
+          secrets === null
+            ? { errors: [{ code: "ENV_UNREADABLE", message: OUTPUT_WITHHELD }] }
+            : redactValue(result.data, secrets),
+        ...(secrets === null ? { isError: true } : {}),
+      };
+    },
+  }));
 }

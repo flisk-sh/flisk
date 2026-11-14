@@ -68,7 +68,12 @@ await build({
   platform: "node",
   target: "node22",
   minify: false,
-  external: ["commander", "react-devtools-core"],
+  // sigstore (about 1.8 MB) is only used by `flisk upgrade` on the standalone
+  // binary, which `bun build --compile` builds from src/ with sigstore inlined. The
+  // npm package never takes that path (it upgrades through npm), so leaving it
+  // out keeps the packed size under the install-weight ratchet. If it were ever
+  // reached there, the import fails and the upgrade aborts: it never skips the check.
+  external: ["commander", "react-devtools-core", "sigstore"],
   banner: {
     js: "import{createRequire as __fliskRequire}from'node:module';const require=__fliskRequire(import.meta.url);",
   },

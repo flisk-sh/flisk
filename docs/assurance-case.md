@@ -12,9 +12,9 @@ Flisk runs on a developer's machine. It reads a `service.json` for each service,
 | --- | --- | --- | --- |
 | Injected YAML keys through `service.json` values | A `service.json` copied from an untrusted repository | Each value is checked against an allowlist pattern before it is written into generated YAML (`cli/src/utils/service-manifest.ts`), with tests. Fixed in 1.3.126 (GHSA-phgf-pww4-7jxc, #789). | Fixed, advisory published |
 | Dev services reachable from other machines | Ports bound on all interfaces | Dev ports bind to loopback, and the Traefik insecure API is off (#720, GHSA-3hj3-f39v-j2x5, fixed in 1.3.130). | Fixed, advisory published |
-| Secrets leaking into logs or diagnostics | `flisk logs` and `flisk doctor` output | Values from the project `.env` are redacted from output (#703). Secrets stay in the gitignored `.env`; generated files hold no secret values (`docs/security.md`). | Partly audited: a secret printed by an application's own output is **Not audited** |
+| Secrets leaking into logs or diagnostics | `flisk logs` and `flisk doctor` output | Every path that shows application output (`flisk logs`, native process logs, `flisk up` failures and waits, `flisk doctor`, smoke, the MCP tools) masks the values from `.env` and each service's env, and common secret shapes (`docs/security.md#secrets`). Secrets stay in the gitignored `.env`; generated files hold no secret values. | Audited for output Flisk shows, with tests. Tilt's own web UI and direct `tilt`/`docker` log commands are **Not audited** |
 | Weak secrets | Default values for the database and JWT secrets | Generated per project with `crypto.randomBytes` (`cli/src/utils/env-validator.ts`). | Met |
-| Tampered release downloads | Man-in-the-middle, or a replaced binary | Downloads are over HTTPS. `checksums.txt` is signed with Sigstore in the release workflow, and `flisk upgrade` checks each binary against it. | Met, see `docs/security.md#releases` |
+| Tampered release downloads | Man-in-the-middle, or a replaced binary | Downloads are over HTTPS. `checksums.txt` is signed with Sigstore in the release workflow. `flisk upgrade` verifies that signature (Sigstore bundle, GitHub Actions issuer, identity of the `release-binaries` or `sign-release` workflow of this repository) and then checks the binary and engine against the verified checksums. A bundle that fails verification aborts the install; a release at or after v1.3.130 with no bundle is refused, an older one only warns (unless `FLISK_UPGRADE_REQUIRE_SIGNATURE=1`), and an unreachable Sigstore trust root fails the upgrade rather than skipping the check. The separate `install.sh` hand-off is not covered. | Met, see `docs/security.md#releases` |
 | Vulnerable dependencies | npm and container dependencies | Dependabot, OSV-Scanner, Trivy and Semgrep run in CI; the lockfile is frozen in CI. | Met for the checks listed; container images pinned by tag, generated `Dockerfile` lines also by digest (`docs/security.md#images`) |
 | Unsafe generated code | Templates that build code from user input | Generators validate names and values before writing files, and fuzz tests check the `service.json` line-break guard on every PR (`tests/fuzz`). | Partly audited |
 
@@ -41,11 +41,11 @@ Flisk runs on a developer's machine. It reads a `service.json` for each service,
 | Non-atomic writes leaving half-written files | Generated files are replaced atomically (`cli/src/utils/atomic-write.ts`) |
 | Insecure randomness for secrets | `crypto.randomBytes` only (`cli/src/utils/env-validator.ts`) |
 | Unsafe TypeScript | `strict: true` in `cli/tsconfig.json`, Biome and Semgrep in CI |
-| Secrets in logs | Redaction of `.env` values (#703) |
+| Secrets in logs | Redaction of `.env` and service values and of secret shapes on every output path (`cli/src/utils/secret-redaction.ts`, `cli/src/utils/__tests__/app-output-redaction.test.ts`) |
 
 ## Limits of this case
 
-- **Not audited:** whether an application prints its own environment variables to the Tilt UI or container logs.
+- **Not audited:** what an application prints to the Tilt web UI (`:10350`) or to a direct `tilt logs`, `docker logs` or `docker compose logs`. Flisk does not proxy or filter these. Also not masked: `flisk run` output, a secret shorter than 8 characters, and a secret of an unlisted shape that is in no env file (`docs/security.md#secrets`).
 - **Not verified by default:** the golden image signature check runs only when cosign is installed or `FLISK_GOLDEN_VERIFY=require` is set (`docs/security.md#images`).
 - **Audited 2026-11-14:** every image Flisk generates or ships is listed in `docs/security.md#images` with its tag policy, and the `base-images` gate fails on `:latest` without a digest, an untagged reference or a release line past its end of life.
 - **Not audited:** a formal third-party security review. The project has not commissioned one.

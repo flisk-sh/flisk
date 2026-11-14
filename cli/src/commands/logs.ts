@@ -16,6 +16,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import {
   EnvUnreadableError,
   envSecretValues,
+  redactLogLines,
   redactSecrets,
   redactValue,
 } from "../utils/secret-redaction.js";
@@ -206,10 +207,15 @@ export const logsCommand = new Command("logs")
           selected = selected.filter((name) => bad.has(name));
           if (selected.length === 0) return reportAllHealthy();
         }
-        const lines = readNativeLogLines(projectRoot, selected, {
-          tail,
-          sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
-        });
+        // Lines were masked when written; masking again covers a log from before a secret was added, and the guard masks a
+        // private key that spans lines.
+        const lines = redactLogLines(
+          readNativeLogLines(projectRoot, selected, {
+            tail,
+            sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
+          }),
+          secrets,
+        );
         if (options.json) {
           console.log(
             JSON.stringify(
@@ -287,7 +293,7 @@ export const logsCommand = new Command("logs")
         process.stdout.write(redactSecrets(result.stdout, secrets));
         return;
       }
-      const lines = parseTiltLogLines(result.stdout, tail);
+      const lines = redactLogLines(parseTiltLogLines(result.stdout, tail), secrets);
       console.log(
         JSON.stringify(
           redactValue(
