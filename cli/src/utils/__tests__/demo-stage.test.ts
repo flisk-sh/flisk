@@ -143,6 +143,27 @@ describe("renderDemoFrame", () => {
     expect(rows[FRAME_ROWS - 1]).toContain("A star helps");
   });
 
+  it("puts the license, the telemetry statement and the release check on the version row", () => {
+    const rows = frameToPlain(
+      renderDemoFrame(
+        baseState({
+          done: {
+            urls: ["localhost:3000"],
+            summary: "2 services",
+            hint: "Edit a file.",
+            version: "1.4.20",
+          },
+        }),
+        80,
+      ),
+    );
+    const versionRow = rows.find((row) => row.includes("flisk 1.4.20"));
+    expect(versionRow).toContain("MIT");
+    expect(versionRow).toContain("no telemetry");
+    expect(versionRow).toContain("docs/security.md");
+    expect(rows).toHaveLength(FRAME_ROWS);
+  });
+
   it("keeps the blank row and shows no Discord row without a Discord URL", () => {
     const rows = frameToPlain(
       renderDemoFrame(
