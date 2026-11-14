@@ -1153,7 +1153,10 @@ export const resourceCommand = addYesOption(new Command("resource"))
           options.stack ?? "default",
           name,
         );
-        if (!((options.stack ?? "default") === "default" && inferred.adjustedFrom)) {
+        // With --stack omitted the final folder is chosen after the stack prompt, so a services/<stack>/<name> manifest
+        // read here may belong to a stack the user does not pick; only stack-independent folders (apps/, workers/) are read early.
+        const stackDependent = options.stack === undefined && inferred.path.startsWith("services/");
+        if (!stackDependent && !(options.stack === "default" && inferred.adjustedFrom)) {
           suppliedExistingManifest = readExistingManifest(projectRoot, inferred.path);
         }
       }
@@ -1531,19 +1534,16 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
-      let updatedServiceJson: ExistingServiceConfig | undefined;
-      if (shouldRegisterExisting && hasServiceJson) {
-        const existingServiceJson =
-          suppliedExistingManifest?.path === existingServiceJsonPath
-            ? suppliedExistingManifest.config
-            : readExistingManifest(projectRoot, finalResourcePath)?.config;
-        if (!existingServiceJson) throw errorFactories.invalidPath(finalResourcePath);
-
+      // Builds the registered manifest from `existingServiceJson`. Run again from a fresh read after the confirmation
+      // prompt, so an edit made to service.json while the prompt was open is not overwritten.
+      const buildRegisteredServiceJson = (
+        existingServiceJson: ExistingServiceConfig,
+      ): ExistingServiceConfig => {
         const updatedAppType =
           resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType;
 
         // Update with new values while preserving existing fields
-        updatedServiceJson = {
+        const updatedServiceJson: ExistingServiceConfig = {
           ...existingServiceJson,
           $schema: existingServiceJson.$schema ?? SERVICE_MANIFEST_SCHEMA_URL,
           schemaVersion: existingServiceJson.schemaVersion ?? SERVICE_MANIFEST_SCHEMA_VERSION,
@@ -1582,6 +1582,16 @@ export const resourceCommand = addYesOption(new Command("resource"))
             assertExistingFrontendBasePath(updatedServiceJson.basePath, existingServiceJsonPath);
           }
         }
+        return updatedServiceJson;
+      };
+      let updatedServiceJson: ExistingServiceConfig | undefined;
+      if (shouldRegisterExisting && hasServiceJson) {
+        const existingServiceJson =
+          suppliedExistingManifest?.path === existingServiceJsonPath
+            ? suppliedExistingManifest.config
+            : readExistingManifest(projectRoot, finalResourcePath)?.config;
+        if (!existingServiceJson) throw errorFactories.invalidPath(finalResourcePath);
+        updatedServiceJson = buildRegisteredServiceJson(existingServiceJson);
       }
 
       const report = (action: ResourceReport["action"]): { data: ResourceReport } => {
@@ -1639,6 +1649,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
             : "\nCreate resource?",
         ));
       if (!confirmed) return { data: null };
+
+      if (updatedServiceJson) {
+        const fresh = readExistingManifest(projectRoot, finalResourcePath)?.config;
+        if (!fresh) throw errorFactories.invalidPath(finalResourcePath);
+        updatedServiceJson = buildRegisteredServiceJson(fresh);
+      }
 
       const plan = new ResourceFilePlan();
       const preview = (): JsonCommandResult => {

@@ -1180,6 +1180,21 @@ describe("resource command non-interactive mode", () => {
     }
   });
 
+  it("does not read a manifest in another stack's folder before the stack is chosen (no --stack)", () => {
+    const projectRoot = createResourceProject();
+    try {
+      // services/default/api is not where --yes puts the resource (it uses the only stack, main), so its broken manifest must not abort the run.
+      mkdirSync(join(projectRoot, "services", "default", "api"), { recursive: true });
+      writeFileSync(join(projectRoot, "services", "default", "api", "service.json"), "{ not json");
+      const result = runResourceCli(projectRoot, ["api", "--type", "backend", "--yes"]);
+
+      expect(result.status).toBe(0);
+      expect(existsSync(join(projectRoot, "services", "main", "api", "service.json"))).toBe(true);
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it("uses the default main stack and creates a named resource with --yes", () => {
     const projectRoot = createResourceProject();
     try {
