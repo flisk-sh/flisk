@@ -156,7 +156,7 @@ const STACK_FILES: Golden[] = [
   {
     // Re-captured when the golden Dockerfile moved to the shared flisk-golden name, so every project shares one hash (#2826).
     file: ".flisk/.flisk-out/golden-layers.Dockerfile",
-    sha256: "d0818df91fa102f06e267728c57237b10951b0a4ea7a8a115368884caf0e4073",
+    sha256: "3547fd9501f3af92bb026aa413a885d67ace1e3f011bc9b0c58f00f483df0549",
     contains: ["SYSTEM-GENERATED FILE", "l1_golden", "l4_frontend_golden"],
   },
 ];
