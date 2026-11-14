@@ -138,4 +138,27 @@ describe("stack feature E2E", () => {
     const spec = readFileSync(join(projectRoot, ".flisk", ".flisk-out", "spec.master"), "utf-8");
     expect(spec).toMatch(/"billing":\s*True/);
   });
+
+  it("moves a resource out of main with --move, folder included", () => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-move-out-"));
+
+    runFlisk(["project", "--yes"], projectRoot);
+    runFlisk(["resource", "api", "--type", "backend", "--yes"], projectRoot);
+
+    const output = runFlisk(
+      ["stack", "staging", "--move", "--resources", "api", "--yes"],
+      projectRoot,
+    );
+    expect(output).toContain("moved api: main -> staging");
+
+    expect(existsSync(join(projectRoot, "services", "main", "api"))).toBe(false);
+    const movedManifest = join(projectRoot, "services", "staging", "api", "service.json");
+    expect(existsSync(movedManifest)).toBe(true);
+    expect(JSON.parse(readFileSync(movedManifest, "utf-8")).stack).toBe("staging");
+
+    const report = JSON.parse(runFlisk(["stacks", "--json"], projectRoot));
+    expect(report.data.stacks).toEqual([{ name: "staging", resourceCount: 1 }]);
+
+    expect(runFlisk(["config", "verify"], projectRoot)).toContain("All files are in sync");
+  });
 });

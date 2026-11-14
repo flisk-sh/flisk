@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { generateMasterConfigs } from "../generator/template-engine.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
 import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
@@ -74,8 +76,7 @@ export const stackCommand = addYesOption(new Command("stack"))
             ]);
         }
         const discovery = createDiscoveryContext();
-        const report = (updated = [], stack = options.list || options.remove ? null : (stackName ?? null)) => {
-            const changedPaths = new Set(updated.map((resource) => resource.configPath));
+        const report = (updated = [], stack = options.list || options.remove ? null : (stackName ?? null), changedPaths = new Set(updated.map((resource) => resource.configPath))) => {
             const counts = new Map();
             const unassigned = [];
             for (const resource of discovery.resources) {
@@ -159,6 +160,8 @@ export const stackCommand = addYesOption(new Command("stack"))
         }
         const resourcesToUpdate = discovery.unassignedResources;
         const selectedResources = [];
+        // Canonical service.json paths that move to another stack's folder, old path -> new path.
+        const relocations = new Map();
         if (options.resources !== undefined) {
             const requestedNames = normalizeResourceNames(options.resources);
             if (requestedNames.length === 0) {
@@ -187,6 +190,16 @@ export const stackCommand = addYesOption(new Command("stack"))
                 }
                 if (resource.stack && !options.move && !options.remove) {
                     throw new FliskError(`Resource "${name}" is already assigned to stack "${resource.stack}".`, ["Pass --move to move it, or --remove to clear its stack assignment."]);
+                }
+                if (options.move && targetStack && resource.stack && resource.stack !== targetStack) {
+                    const resourceDir = dirname(resource.configPath);
+                    if (resolve(dirname(resourceDir)) === resolve(projectRoot, "services", resource.stack)) {
+                        const targetDir = join(projectRoot, "services", targetStack, basename(resourceDir));
+                        if (existsSync(targetDir)) {
+                            throw new FliskError(`Cannot move "${name}" to stack "${targetStack}": ${targetDir} already exists.`, ["Move or rename the existing folder, then run the command again."]);
+                        }
+                        relocations.set(resource.configPath, join(targetDir, basename(resource.configPath)));
+                    }
                 }
                 selectedResources.push(resource.configPath);
             }
@@ -223,7 +236,9 @@ export const stackCommand = addYesOption(new Command("stack"))
         // Clear cache since we're about to modify resources
         clearDiscoveryCache();
         const nameByConfigPath = new Map(discovery.resources.map((resource) => [resource.configPath, resource.name]));
+        const previousStackByConfigPath = new Map(discovery.resources.map((resource) => [resource.configPath, resource.stack]));
         const assigned = [];
+        const changedPaths = new Set();
         for (const configPath of selectedResources) {
             const content = readFileSync(configPath, "utf-8");
             const config = parseStackResourceConfig(content, configPath);
@@ -232,17 +247,28 @@ export const stackCommand = addYesOption(new Command("stack"))
             else
                 config.stack = targetStack;
             writeJsonFile(configPath, config);
-            assigned.push({
-                name: nameByConfigPath.get(configPath) ?? config.appName ?? configPath,
-                configPath,
-            });
+            const name = nameByConfigPath.get(configPath) ?? config.appName ?? configPath;
+            let finalPath = configPath;
+            const movedTo = relocations.get(configPath);
+            if (movedTo) {
+                mkdirSync(dirname(dirname(movedTo)), { recursive: true });
+                renameSync(dirname(configPath), dirname(movedTo));
+                finalPath = movedTo;
+                showDetail(`moved ${name}: ${previousStackByConfigPath.get(configPath)} -> ${targetStack}`);
+            }
+            changedPaths.add(configPath);
+            changedPaths.add(finalPath);
+            assigned.push({ name, configPath: finalPath });
             showSuccess(`${config.appName || configPath}`);
+        }
+        if (relocations.size > 0) {
+            await generateMasterConfigs(projectRoot, { discardHandEdits: true, quiet: true });
         }
         console.log();
         showSuccess(`Updated ${formatCount(assigned.length, "resource")}.`);
         if (!options.remove)
             showDetail(`\nYou can now run: flisk up ${targetStack}`, 0);
-        return report(assigned, targetStack);
+        return report(assigned, targetStack, changedPaths);
     };
     if (options.json) {
         await runJsonCommand("STACK_FAILED", "flisk stack", action);

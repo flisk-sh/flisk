@@ -421,7 +421,13 @@ export function buildStackAssignArgs(args: Record<string, unknown>): string[] {
       "resource_list shows each resource's stack; pass the names without one",
     ]);
   }
-  return ["stack", stack, ...resources.map((resource) => `--resources=${resource}`), "--yes"];
+  return [
+    "stack",
+    stack,
+    ...(args.move === true ? ["--move"] : []),
+    ...resources.map((resource) => `--resources=${resource}`),
+    "--yes",
+  ];
 }
 
 /** `flisk project [template] --yes`. Never `--force`, which overwrites an existing .flisk/project.json. */
@@ -936,7 +942,7 @@ export function createFliskTools(
     {
       name: "stack_assign",
       description:
-        "Assign resources that have no stack yet to a stack (writes `stack` into their service.json). A resource already in a stack is refused. Returns the command's text output. Set projectPath when the MCP server is not running from the project root.",
+        "Assign resources that have no stack yet to a stack (writes `stack` into their service.json). A resource already in a stack is refused unless move is true, which moves it out of its current stack. Returns the command's text output. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
@@ -945,6 +951,11 @@ export function createFliskTools(
             type: "array",
             items: { type: "string" },
             description: "Names of the resources to assign",
+          },
+          move: {
+            type: "boolean",
+            description:
+              "Move resources that are already in another stack instead of refusing them",
           },
         }),
         required: ["stack", "resources"],

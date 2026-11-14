@@ -343,6 +343,18 @@ describe("argument building", () => {
       "--yes",
     ]);
   });
+  it("passes --move to stack_assign only when move is true", () => {
+    expect(buildStackAssignArgs({ stack: "shop", resources: ["api"], move: true })).toEqual([
+      "stack",
+      "shop",
+      "--move",
+      "--resources=api",
+      "--yes",
+    ]);
+    expect(buildStackAssignArgs({ stack: "shop", resources: ["api"], move: false })).not.toContain(
+      "--move",
+    );
+  });
   it.each([
     [{ resources: ["api"] }, "stack is required"],
     [{ stack: "shop" }, "resources must name at least one resource"],
