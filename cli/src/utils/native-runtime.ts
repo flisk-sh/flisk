@@ -34,7 +34,7 @@ import {
 } from "./native-container.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
-import { createEnvRedactor } from "./secret-redaction.js";
+import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -1005,10 +1005,12 @@ export class NativeSupervisor {
     const logPath = nativeLogPath(this.projectRoot, name);
     let pending = "";
     let redactionWarningShown = false;
+    // One guard per stream: a private key printed over many lines is masked from its BEGIN line to its END line.
+    const keyGuard = createPrivateKeyLineGuard();
     const emit = (line: string) => {
       let safeLine: string;
       try {
-        safeLine = this.redactLine(line);
+        safeLine = this.redactLine(keyGuard(line));
       } catch {
         // An unreadable env file must not turn a secret-scrubbing failure into a leak.
         if (!redactionWarningShown) {

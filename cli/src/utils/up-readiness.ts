@@ -7,6 +7,7 @@ import {
   getDeferredResourceNames,
   parseTiltResourceFailures,
 } from "./doctor-runtime.js";
+import { redactProjectText } from "./secret-redaction.js";
 import { isHealthCheckDisabled } from "./service-manifest.js";
 import { discoverResources } from "./services.js";
 import { effectiveRuntimeStatus } from "./tilt-resource-state.js";
@@ -45,7 +46,9 @@ export function tiltResourceLogs(port: number, name: string): Promise<string | n
       findOnPath("tilt") ?? "tilt",
       ["logs", name, "--port", String(port)],
       { timeout: 15_000, maxBuffer: 16 * 1024 * 1024 },
-      (error, stdout) => resolve(error ? null : stdout),
+      // An application can print its own environment, so what the user or an agent reads is masked here, at the one place every
+      // `flisk up` log excerpt comes from (failure reasons, timeouts, URL checks).
+      (error, stdout) => resolve(error ? null : redactProjectText(stdout)),
     );
   });
 }

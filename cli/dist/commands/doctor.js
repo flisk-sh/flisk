@@ -42,7 +42,7 @@ import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
-import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
+import { EnvUnreadableError, envSecretValues, projectSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
 import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
@@ -1818,7 +1818,9 @@ export const doctorCommand = new Command("doctor")
     }
     for (const error of errors)
         console.error(`${chalk.red("✗")} Doctor check failed: ${error.message}`);
-    renderDoctorOutput(machineResults, projectResults, inProject, options, results);
+    // The JSON report is masked above; the text report quotes the same application output, so it is masked too.
+    const textSecrets = projectSecretValues(findProjectRoot() ?? process.cwd()) ?? [];
+    renderDoctorOutput(redactValue(machineResults, textSecrets), redactValue(projectResults, textSecrets), inProject, options, redactValue(results, textSecrets));
     const outcome = getDoctorOutcomeMessage(inProject, allPassed);
     console.log(`${allPassed ? chalk.green(chalk.bold("✓")) : chalk.red(chalk.bold("✗"))} ${outcome}`);
     if (exitCode !== 0)

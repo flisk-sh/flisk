@@ -4,6 +4,7 @@ import { execFile, spawn } from "node:child_process";
 import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { redactProjectText } from "./secret-redaction.js";
 import { formatWaitFailures, lastLines } from "./startup-report.js";
 /** Seconds `flisk up --wait` waits for a healthy stack when `--wait-timeout` is not given. */
 export const DEFAULT_WAIT_TIMEOUT_SECONDS = 1800;
@@ -70,7 +71,8 @@ export function fetchUnhealthyLogLines(invocation, cwd, timeoutMs = 20_000) {
                 resolve(Array.isArray(found)
                     ? found.map((entry) => ({
                         resource: entry.resource ?? null,
-                        text: String(entry.text ?? ""),
+                        // `flisk logs` already masked these; masking again keeps a failed wait safe if that child is an older flisk.
+                        text: redactProjectText(String(entry.text ?? ""), cwd),
                     }))
                     : null);
             }
@@ -186,11 +188,19 @@ export async function upAndWait(argv, timeoutSeconds, deps, cwd) {
             }
         }
         if (exited !== undefined) {
-            return { kind: "exited", exitCode: exited, logTail: log.slice(-LOG_TAIL_CHARS) };
+            return {
+                kind: "exited",
+                exitCode: exited,
+                logTail: redactProjectText(log.slice(-LOG_TAIL_CHARS), cwd),
+            };
         }
         if (deps.now() >= deadline) {
             child.unref();
-            return { kind: "timeout", logTail: log.slice(-LOG_TAIL_CHARS), logFile };
+            return {
+                kind: "timeout",
+                logTail: redactProjectText(log.slice(-LOG_TAIL_CHARS), cwd),
+                logFile,
+            };
         }
         await deps.sleep(POLL_MS);
     }

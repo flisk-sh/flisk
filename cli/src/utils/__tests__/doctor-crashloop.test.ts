@@ -155,6 +155,23 @@ describe("checkCrashLoopingContainers", () => {
     expect(result.fix).toContain("database provisioning");
   });
 
+  it("masks secret shapes in the excerpt and in the hint that is read from it", async () => {
+    const result = await checkCrashLoopingContainers(
+      "umami",
+      [],
+      docker({
+        ps: "a1\tumami_backend\n",
+        inspect: "/umami-app-1\t12\trunning\t2026-10-16T11:59:00Z\t1\n",
+        logs: "connect postgres://app:hunter2hunter2@db/app failed\nBearer abcdef1234567890\n",
+      }),
+      NOW,
+    );
+    expect(result.message).toContain("postgres://app:[REDACTED]@db/app");
+    expect(result.message).toContain("Bearer [REDACTED]");
+    expect(result.message).not.toContain("hunter2hunter2");
+    expect(result.message).not.toContain("abcdef1234567890");
+  });
+
   it("only inspects this project's containers", async () => {
     let inspected: string[] = [];
     const run: DockerRun = async (args) => {

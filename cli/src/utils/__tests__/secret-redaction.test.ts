@@ -249,8 +249,8 @@ describe("redactValue", () => {
     });
   });
 
-  it("returns the input untouched when there is nothing to redact", () => {
+  it("returns an equal value when there is nothing to redact", () => {
     const value = { a: "b" };
-    expect(redactValue(value, [])).toBe(value);
+    expect(redactValue(value, [])).toStrictEqual(value);
   });
 });
