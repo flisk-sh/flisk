@@ -210,7 +210,7 @@ FROM l4_backend_bun AS l4_backend_golden
 # =============================================================================
 # L4-FRONTEND: FRONTEND PRODUCTION RUNTIME
 # =============================================================================
-FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS l4_frontend_golden
+FROM nginx:1.30-alpine@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a AS l4_frontend_golden
 
 LABEL layer="l4-frontend" \
       description="Frontend production runtime with Nginx" \

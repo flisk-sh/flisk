@@ -18,7 +18,7 @@ COPY orders.lobster ./
 RUN mkdir www && { /opt/lobster/bin/lobster orders.lobster && test -s www/health; } \
  || { echo "lobster failed (exit $?)" >&2; ldd /opt/lobster/bin/lobster >&2; /opt/lobster/bin/lobster orders.lobster >&2; exit 1; }
 
-FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+FROM alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
 COPY --from=generate /site/www /www
 # busybox-extras provides the httpd applet that alpine 3.20's busybox omits.
 RUN apk add --no-cache busybox-extras

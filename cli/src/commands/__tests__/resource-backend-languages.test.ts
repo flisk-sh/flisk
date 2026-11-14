@@ -62,7 +62,7 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // It was re-captured for #3192: the scaffold's `@types/node` moves to ^22 because vitest 5 peers on ^22 and npm enforces
 // the range, so `npm install` in the scaffold no longer fails with ERESOLVE. That is the only file that differs.
 const BUN_BASELINE: Record<string, string> = {
-  Dockerfile: "068f15a55176c3960bae240a370244f1976879f126fddb01920c3eca3af5dd89",
+  Dockerfile: "ab9eccc0e49b03ed292bcffeb84e59dcc1a35d7e54170a489242df549fa7d11e",
   "package.json": "d1614a133b3f74c3829c8d55ade1f125dfb11873c9f4a7ea7545e6bf16e47b8b",
   "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "431072306a4be139b9d4ff599f639b32f125f5349443aebf7c5d384c43a3b3e5",

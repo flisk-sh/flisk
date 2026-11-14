@@ -8,8 +8,8 @@
 - `go mod tidy` runs at build time to resolve Gin and write `go.sum`, so no `go.sum` is committed. The Gin version is whatever
   that resolves to.
 - The server listens on `":" + $PORT` (every interface) and `GIN_MODE=release` turns off Gin's debug output.
-- **Gin 1.12 needs Go 1.25.** With the `golang:1.23` image used by the Fiber example, `go mod tidy` stopped with
-  `github.com/gin-gonic/gin@v1.12.0 requires go >= 1.25.0 (running go 1.23.12; GOTOOLCHAIN=local)`, so this image is `golang:1.25-alpine`.
+- **Gin 1.12 needs Go 1.25.** With an older image such as `golang:1.23`, `go mod tidy` stopped with
+  `github.com/gin-gonic/gin@v1.12.0 requires go >= 1.25.0 (running go 1.23.12; GOTOOLCHAIN=local)`, so this image is `golang:1.27-alpine`.
 - Through Flisk, Traefik sends `Host: api.<project>.localhost`; Gin accepted it with no host configuration (checked through a real `flisk up`).
 - Flisk's native Go provider (`--language go`) scaffolds standard-library `net/http`; this example is for people who already use Gin.
   The other Go framework example is [fiber](../fiber/README.md).

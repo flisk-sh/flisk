@@ -20,7 +20,7 @@ MEMORY_LIMITS = {
 }
 
 DOCKER_BASE_IMAGES = {
-    "bun": "oven/bun:1.2",
+    "bun": "oven/bun:1.3",
     "node": "node:20-alpine",
     "nginx": "nginx:alpine",
 }

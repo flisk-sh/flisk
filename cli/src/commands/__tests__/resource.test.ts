@@ -681,7 +681,7 @@ describe("resource command", () => {
   describe("dockerfile template", () => {
     it("follows the service port and health path", () => {
       const dockerfile = getDockerfileTemplate(4123, "/health");
-      expect(dockerfile).toContain("FROM oven/bun:1.2");
+      expect(dockerfile).toContain("FROM oven/bun:1.3");
       expect(dockerfile).toContain("WORKDIR /app");
       expect(dockerfile).toContain("EXPOSE 4123");
       expect(dockerfile).toContain("ENV PORT=4123");

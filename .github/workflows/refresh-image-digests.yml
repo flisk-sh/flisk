@@ -1,0 +1,50 @@
+# Every generated and shipped Dockerfile line pins `name:tag@sha256:...`. A digest nobody refreshes stops taking the base
+# image's patches, so every Monday (or on demand) this re-resolves each pinned tag to its current digest with
+# scripts/refresh-image-digests.mjs and opens a pull request when anything moved. A tag whose release line is past its
+# end of life is not refreshed here: the base-images gate (scripts/scores/base-images.mjs) fails on it instead.
+# Needs "Allow GitHub Actions to create and approve pull requests" under Settings > Actions > General.
+name: 🤖 BOT | Automation | Refresh image digests
+
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.23.5
+      - name: Re-resolve the pinned tags
+        run: node scripts/refresh-image-digests.mjs
+      - name: Open a pull request when a digest moved
+        # Context values go through env, never into the script text (template injection).
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git diff --quiet; then echo "up to date"; exit 0; fi
+          branch=chore/refresh-image-digests
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The checkout keeps no credentials (persist-credentials: false), so push with the job token.
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git checkout -B "$branch"
+          git commit -s -am "chore(images): refresh pinned base image digests"
+          git push --force origin "$branch"
+          body="The pinned tags in the generated Dockerfile lines, the golden layers, the release image and the examples now point at new digests (scripts/refresh-image-digests.mjs). A golden layer line changed the golden Dockerfile hash, so the golden images are republished when this merges."
+          gh pr create --base "$DEFAULT_BRANCH" --head "$branch" \
+            --title "chore(images): refresh pinned base image digests" --body "$body" \
+            || gh pr edit "$branch" --body "$body"

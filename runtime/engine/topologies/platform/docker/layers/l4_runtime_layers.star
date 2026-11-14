@@ -324,7 +324,7 @@ def L4_generate_frontend_runtime(res_path, target_path = '/usr/share/nginx/html'
     
     if use_nginx:
         # Use golden L4-frontend image if enabled (Nginx pre-configured)
-        base_image = GOLDEN_L4_FRONTEND_IMAGE if use_golden else "nginx:1.27-alpine"
+        base_image = GOLDEN_L4_FRONTEND_IMAGE if use_golden else "nginx:1.30-alpine@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a"
         
         # If using golden image, skip curl installation (already there)
         healthcheck_setup = "" if use_golden else "RUN apk add --no-cache curl\n"

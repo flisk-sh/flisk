@@ -1,5 +1,5 @@
 # One-shot migration job: Atlas applies schema.hcl to Flisk's Postgres and exits 0.
-FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+FROM alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
 RUN apk add --no-cache postgresql-client
 COPY --from=arigaio/atlas:latest /atlas /usr/local/bin/atlas
 COPY schema.hcl migrate.sh /
