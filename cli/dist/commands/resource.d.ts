@@ -34,6 +34,7 @@ export declare function assertInfraPresetOptions(framework: InfraFramework, opti
  * a wrong id gets the type that offers it, because the ids of the types are disjoint.
  */
 export declare function assertInfraFramework(type: string, framework: string | undefined): void;
+export declare function resolveBasePath(value: string | undefined): string | undefined;
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
 export declare function resolveInferencePort(value: string | undefined, resources: Array<{
     config?: {
