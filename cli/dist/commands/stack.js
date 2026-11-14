@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -162,6 +162,12 @@ export const stackCommand = addYesOption(new Command("stack"))
         const selectedResources = [];
         // Canonical service.json paths that move to another stack's folder, old path -> new path.
         const relocations = new Map();
+        // Two resources from different stacks can share a folder basename, so two
+        // planned moves can land on one target folder. The existsSync check runs at
+        // selection time, before anything is moved, so it passes for both and the
+        // second rename then fails after the first move already happened. Claim
+        // each target up front instead.
+        const moveTargets = new Map();
         if (options.resources !== undefined) {
             const requestedNames = normalizeResourceNames(options.resources);
             if (requestedNames.length === 0) {
@@ -195,9 +201,16 @@ export const stackCommand = addYesOption(new Command("stack"))
                     const resourceDir = dirname(resource.configPath);
                     if (resolve(dirname(resourceDir)) === resolve(projectRoot, "services", resource.stack)) {
                         const targetDir = join(projectRoot, "services", targetStack, basename(resourceDir));
+                        const claimedBy = moveTargets.get(resolve(targetDir));
+                        if (claimedBy) {
+                            throw new FliskError(`Cannot move "${name}" to stack "${targetStack}": "${claimedBy}" already moves to ${targetDir}.`, [
+                                "Two resources from different stacks share this folder name; rename one of them first.",
+                            ]);
+                        }
                         if (existsSync(targetDir)) {
                             throw new FliskError(`Cannot move "${name}" to stack "${targetStack}": ${targetDir} already exists.`, ["Move or rename the existing folder, then run the command again."]);
                         }
+                        moveTargets.set(resolve(targetDir), name);
                         relocations.set(resource.configPath, join(targetDir, basename(resource.configPath)));
                     }
                 }
@@ -246,15 +259,28 @@ export const stackCommand = addYesOption(new Command("stack"))
                 delete config.stack;
             else
                 config.stack = targetStack;
-            writeJsonFile(configPath, config);
             const name = nameByConfigPath.get(configPath) ?? config.appName ?? configPath;
             let finalPath = configPath;
             const movedTo = relocations.get(configPath);
             if (movedTo) {
                 mkdirSync(dirname(dirname(movedTo)), { recursive: true });
-                renameSync(dirname(configPath), dirname(movedTo));
+                writeJsonFile(configPath, config);
+                try {
+                    renameSync(dirname(configPath), dirname(movedTo));
+                }
+                catch (error) {
+                    // The manifest already names the new stack, and the retry guard above
+                    // skips relocation once it does — so a failed rename would leave the
+                    // resource stranded in the old folder with no way to finish the move.
+                    // Put the old content back before rethrowing.
+                    writeFileSync(configPath, content);
+                    throw error;
+                }
                 finalPath = movedTo;
                 showDetail(`moved ${name}: ${previousStackByConfigPath.get(configPath)} -> ${targetStack}`);
+            }
+            else {
+                writeJsonFile(configPath, config);
             }
             changedPaths.add(configPath);
             changedPaths.add(finalPath);
@@ -262,7 +288,9 @@ export const stackCommand = addYesOption(new Command("stack"))
             showSuccess(`${config.appName || configPath}`);
         }
         if (relocations.size > 0) {
-            await generateMasterConfigs(projectRoot, { discardHandEdits: true, quiet: true });
+            // A move does not authorize discarding hand edits to the root .tiltignore;
+            // that stays behind `flisk config regenerate` (`discardHandEdits`).
+            await generateMasterConfigs(projectRoot, { quiet: true });
         }
         console.log();
         showSuccess(`Updated ${formatCount(assigned.length, "resource")}.`);
