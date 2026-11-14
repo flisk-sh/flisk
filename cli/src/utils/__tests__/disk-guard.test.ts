@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DISK_SAFE_CLEANUP,
+  diskRule,
   diskWarningField,
   enforceDiskGuard,
   evaluateDisk,
@@ -207,5 +208,51 @@ describe("enforceDiskGuard (cycles 1 and 2)", () => {
     });
     expect(h.warned).toEqual([]);
     expect(h.shown).toEqual([]);
+  });
+});
+
+describe("evaluateDisk: local-process runtime (#4201)", () => {
+  const native = { runtime: "native" as const, env: {} };
+
+  it("starts with less than the container limit when there is enough for local processes", () => {
+    expect(evaluateDisk({ ...native, statfs: hostFree(3) }).level).toBe("ok");
+    expect(evaluateDisk({ ...native, statfs: hostFree(1.2) }).level).toBe("warn");
+  });
+
+  it("warns between the native limits without image or Docker words", () => {
+    const result = evaluateDisk({ ...native, statfs: hostFree(1.5) });
+    expect(result.level).toBe("warn");
+    for (const text of [result.message, result.fix ?? ""]) {
+      expect(text).not.toMatch(/image|docker|prune/i);
+    }
+  });
+
+  it("refuses on a nearly full disk with free-space wording and no Docker commands", () => {
+    const result = evaluateDisk({ ...native, statfs: hostFree(0.5) });
+    expect(result.level).toBe("fail");
+    expect(result.message).toMatch(/0\.5 GiB free/);
+    expect(result.message).toMatch(/logs and installs/);
+    expect(`${result.message}\n${result.fix}`).not.toMatch(/image|docker|prune/i);
+  });
+
+  it("ignores the Docker VM disk", () => {
+    const result = evaluateDisk({ ...native, statfs: hostFree(50), vmFreeGib: 0.1 });
+    expect(result.level).toBe("ok");
+  });
+
+  it("honours FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB for both runtimes", () => {
+    const env = { FLISK_DISK_MIN_GIB: "20", FLISK_DISK_WARN_GIB: "30" };
+    expect(diskRule("native", env)).toMatchObject({ failBelowGib: 20, warnBelowGib: 30 });
+    expect(diskRule("container", env)).toMatchObject({ failBelowGib: 20, warnBelowGib: 30 });
+    expect(evaluateDisk({ runtime: "native", statfs: hostFree(13.9), env }).level).toBe("fail");
+  });
+
+  it("keeps the container rule unchanged", () => {
+    const rule = diskRule("container", {});
+    expect(rule).toMatchObject({ failBelowGib: 5, warnBelowGib: 15 });
+    const fail = evaluateDisk({ runtime: "container", statfs: hostFree(3), env: {} });
+    expect(fail.message).toMatch(/building images needs at least 5 GiB/);
+    expect(fail.fix).toContain("docker builder prune -f");
+    expect(evaluateDisk({ statfs: hostFree(3), env: {} }).message).toBe(fail.message);
   });
 });

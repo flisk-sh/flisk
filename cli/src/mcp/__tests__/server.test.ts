@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { FliskError } from "../../utils/errors.js";
+import { resolveToolPolicy } from "../policy.js";
 import { createMcpServer, type McpTool } from "../server.js";
 
 const echo: McpTool = {
@@ -227,5 +228,66 @@ describe("serverInfo icons", () => {
       JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
     );
     expect(JSON.parse(raw ?? "").result.serverInfo.icons).toEqual(icons);
+  });
+});
+
+describe("tool policy", () => {
+  const readTool: McpTool = { ...echo, name: "status", annotations: { readOnlyHint: true } };
+  const writeTool: McpTool = {
+    ...echo,
+    name: "up",
+    aliases: ["start_stack"],
+    annotations: { readOnlyHint: false },
+  };
+  const all = [readTool, writeTool];
+  const call = async (srv: ReturnType<typeof createMcpServer>, method: string, params: unknown) =>
+    JSON.parse(
+      (await srv.handleLine(JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }))) ?? "null",
+    ) as { result: ToolsListResult & ToolCallResult };
+
+  it("--read-only lists only readOnlyHint tools and refuses the rest, aliases included", async () => {
+    const policy = resolveToolPolicy(all, { readOnly: true }, {});
+    const srv = createMcpServer(all, { name: "flisk", version: "1" }, policy);
+    const list = await call(srv, "tools/list", {});
+    expect(list.result.tools.map((t) => t.name)).toEqual(["status"]);
+    for (const name of ["up", "start_stack"]) {
+      const refusal = await call(srv, "tools/call", { name, arguments: {} });
+      expect(refusal.result.isError).toBe(true);
+      expect(refusal.result.content[0]?.text).toContain("read-only");
+      expect(refusal.result.content[0]?.text).toContain("--read-only");
+    }
+    const ok = await call(srv, "tools/call", { name: "status", arguments: {} });
+    expect(ok.result.isError).toBe(false);
+  });
+
+  it("--tools and FLISK_MCP_TOOLS allow only the named tools", async () => {
+    for (const policy of [
+      resolveToolPolicy(all, { tools: "up" }, {}),
+      resolveToolPolicy(all, {}, { FLISK_MCP_TOOLS: " up " }),
+    ]) {
+      const srv = createMcpServer(all, { name: "flisk", version: "1" }, policy);
+      expect((await call(srv, "tools/list", {})).result.tools.map((t) => t.name)).toEqual(["up"]);
+      const refused = await call(srv, "tools/call", { name: "status", arguments: {} });
+      expect(refused.result.isError).toBe(true);
+      expect(refused.result.content[0]?.text).toContain("--tools");
+    }
+  });
+
+  it("FLISK_MCP_READ_ONLY=1 turns read-only on, the flag wins over the env, and read-only intersects --tools", async () => {
+    const env = resolveToolPolicy(all, {}, { FLISK_MCP_READ_ONLY: "1" });
+    expect(env?.isAllowed(writeTool)).toBe(false);
+    expect(resolveToolPolicy(all, { readOnly: false }, { FLISK_MCP_READ_ONLY: "1" })).toBeNull();
+    const both = resolveToolPolicy(all, { readOnly: true, tools: "up,status" }, {});
+    expect(both?.isAllowed(readTool)).toBe(true);
+    expect(both?.isAllowed(writeTool)).toBe(false);
+  });
+
+  it("rejects an unknown tool name in the allowlist and restricts nothing by default", () => {
+    expect(() => resolveToolPolicy(all, { tools: "nope" }, {})).toThrow(
+      "Unknown MCP tool in the allowlist: nope",
+    );
+    expect(resolveToolPolicy(all, {}, {})).toBeNull();
+    const srv = createMcpServer(all, { name: "flisk", version: "1" }, null);
+    expect(srv).toBeDefined();
   });
 });

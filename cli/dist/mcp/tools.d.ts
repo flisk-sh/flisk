@@ -56,6 +56,9 @@ export declare function buildConfigRegenerateArgs(args: Record<string, unknown>)
  * changes nothing and needs no confirmation.
  */
 export declare function buildProjectEjectArgs(args: Record<string, unknown>): string[];
-/** `flisk import [dir] --json`, which writes without a prompt unless `dryRun` is set. `dir` comes before the flags. */
+/**
+ * `flisk import [dir] --json`, which writes without a prompt unless `dryRun` is set. `dir` comes before the flags. `force`
+ * overwrites an existing service.json, so a real run with it is refused unless `confirm` is true (a dry run changes nothing).
+ */
 export declare function buildProjectImportArgs(args: Record<string, unknown>): string[];
 export declare function createFliskTools(run?: RunFlisk, up?: UpDeps): McpTool[];

@@ -457,7 +457,7 @@ export const upCommand = new Command("up")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
-    .addHelpText("after", "\nFree disk space is checked first: under 5 GiB flisk up stops, under 15 GiB it warns (FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits). The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
+    .addHelpText("after", "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
     .action(async (stackName, options) => {
     const baseEmit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
     // A low-disk warning (5 to 15 GiB free) rides along in every successful --json result.
@@ -471,6 +471,7 @@ export const upCommand = new Command("up")
             return;
         const disk = enforceDiskGuard({
             vmFreeGib: isDockerRun ? readDockerVmFreeGib() : null,
+            runtime: isDockerRun ? "container" : "native",
             emit: baseEmit,
             quiet: options.quiet || options.json,
             warn: (line) => console.warn(chalk.yellow(line)),

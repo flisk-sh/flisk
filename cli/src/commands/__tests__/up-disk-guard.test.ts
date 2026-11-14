@@ -57,9 +57,9 @@ describe("flisk up disk guard (cycles 1 and 2)", () => {
     expect(envelope.errors[0]).toMatchObject({ code: "DISK_SPACE_LOW" });
     expect(envelope.errors[0].message).toMatch(/GiB free/);
     expect(envelope.errors[0].message).toMatch(/needs at least 99999999 GiB/);
-    expect((envelope.errors[0] as { suggestions?: string[] }).suggestions?.join("\n")).toContain(
-      "docker builder prune -f",
-    );
+    // A local-process project: free-space wording, no Docker words or prune commands (#4201).
+    const failure = `${envelope.errors[0].message}\n${(envelope.errors[0] as { suggestions?: string[] }).suggestions?.join("\n")}`;
+    expect(failure).not.toMatch(/image|docker|prune/i);
     expect(existsSync(join(dir, ".flisk", "native"))).toBe(false);
     expect(existsSync(calls)).toBe(false);
   }, 60_000);
@@ -73,7 +73,8 @@ describe("flisk up disk guard (cycles 1 and 2)", () => {
       timeout: 30_000,
     });
     expect(run.status).toBe(1);
-    expect(run.stderr).toContain("docker builder prune -f");
+    expect(run.stderr).toMatch(/logs and installs/);
+    expect(run.stderr).not.toMatch(/docker|prune/i);
   }, 60_000);
 
   it("warns, keeps going and carries the warning in the --json result", async () => {
@@ -103,8 +104,8 @@ describe("flisk up disk guard (cycles 1 and 2)", () => {
       level: "warn",
       failBelowGib: 0,
       warnBelowGib: 99999999,
-      fix: expect.stringContaining("docker builder prune -f"),
     });
+    expect(JSON.stringify(up.data.diskWarning)).not.toMatch(/image|docker|prune/i);
     runFlisk(["down", "--json"], { cwd: dir, env: fullEnv });
   }, 90_000);
 });

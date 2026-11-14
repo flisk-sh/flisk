@@ -15,6 +15,9 @@ const GIB = 1024 ** 3;
 export const DISK_FAIL_GIB = 5;
 /** Below this much free space the run goes on with a warning. Override with FLISK_DISK_WARN_GIB. */
 export const DISK_WARN_GIB = 15;
+/** Local-process projects (no Docker) need room for logs and installs only, not for image builds. */
+export const NATIVE_DISK_FAIL_GIB = 1;
+export const NATIVE_DISK_WARN_GIB = 2;
 export const DISK_MIN_ENV = "FLISK_DISK_MIN_GIB";
 export const DISK_WARN_ENV = "FLISK_DISK_WARN_GIB";
 /** The first cleanup offered: Docker's build cache only, safe while a stack is running. */
@@ -28,6 +31,39 @@ export const DISK_CLEANUP_FIX = [
     "  bun pm cache rm",
     "  brew cleanup -s",
 ].join("\n");
+/** Free-space guidance for a project that runs as local processes: no Docker words, no prune commands. */
+export const NATIVE_DISK_CLEANUP_FIX = [
+    "This is about the machine, not the project: free disk space, then retry: flisk doctor",
+    "  Local processes write logs under .flisk/ and installs write dependencies: remove old logs and unused node_modules folders",
+    "  npm cache clean --force",
+    "  bun pm cache rm",
+    "  brew cleanup -s",
+].join("\n");
+/**
+ * The one disk rule for a runtime: limits (FLISK_DISK_MIN_GIB / FLISK_DISK_WARN_GIB override the defaults of both),
+ * wording and cleanup suggestions. `flisk up` and `flisk doctor` share it.
+ */
+export function diskRule(runtime = "container", env = process.env) {
+    const native = runtime === "native";
+    const failBelowGib = gibFromEnv(env[DISK_MIN_ENV], native ? NATIVE_DISK_FAIL_GIB : DISK_FAIL_GIB);
+    const warnBelowGib = Math.max(gibFromEnv(env[DISK_WARN_ENV], native ? NATIVE_DISK_WARN_GIB : DISK_WARN_GIB), failBelowGib);
+    if (native) {
+        return {
+            failBelowGib,
+            warnBelowGib,
+            failMessage: (shown) => `${shown}: running the project needs at least ${failBelowGib} GiB for logs and installs`,
+            warnMessage: (shown) => `${shown}: logs and installs may fail below ${failBelowGib} GiB`,
+            fix: NATIVE_DISK_CLEANUP_FIX,
+        };
+    }
+    return {
+        failBelowGib,
+        warnBelowGib,
+        failMessage: (shown) => `${shown}: building images needs at least ${failBelowGib} GiB, and a full disk damages Docker's image store`,
+        warnMessage: (shown) => `${shown}: image builds may fail below ${failBelowGib} GiB`,
+        fix: DISK_CLEANUP_FIX,
+    };
+}
 function gibFromEnv(value, fallback) {
     if (value === undefined || value.trim() === "")
         return fallback;
@@ -50,9 +86,11 @@ export function readHostFreeGib(statfs = statfsSync, path = homedir()) {
     }
 }
 export function evaluateDisk(input = {}) {
-    const { failBelowGib, warnBelowGib } = diskThresholds(input.env);
+    const rule = diskRule(input.runtime, input.env);
+    const { failBelowGib, warnBelowGib } = rule;
     const host = readHostFreeGib(input.statfs, input.path);
-    const vm = input.vmFreeGib ?? null;
+    // Local processes do not store anything in Docker's VM, so only the host disk counts for them.
+    const vm = input.runtime === "native" ? null : (input.vmFreeGib ?? null);
     if (host === null && vm === null) {
         return {
             level: "unknown",
@@ -71,16 +109,16 @@ export function evaluateDisk(input = {}) {
         return {
             ...base,
             level: "fail",
-            message: `${shown}: building images needs at least ${failBelowGib} GiB, and a full disk damages Docker's image store`,
-            fix: DISK_CLEANUP_FIX,
+            message: rule.failMessage(shown),
+            fix: rule.fix,
         };
     }
     if (freeGib < warnBelowGib) {
         return {
             ...base,
             level: "warn",
-            message: `${shown}: image builds may fail below ${failBelowGib} GiB`,
-            fix: DISK_CLEANUP_FIX,
+            message: rule.warnMessage(shown),
+            fix: rule.fix,
         };
     }
     return { ...base, level: "ok", message: shown };

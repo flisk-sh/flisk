@@ -1,2 +1,4 @@
 allowBuilds:
   esbuild: set this to true or false
+overrides:
+  minimatch: ^11.0.8

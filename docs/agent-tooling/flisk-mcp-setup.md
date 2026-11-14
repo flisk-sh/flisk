@@ -191,7 +191,7 @@ The tools were renamed to the `<noun>_<verb>` pattern the others follow: `restar
 | `resource_list` | Lists the project's services with their stack, type, and port. | To find a service name. | `projectPath`, `stack` |
 | `down` | Stops the running stack. | When you are finished. | `projectPath`, `dryRun` |
 | `resource_restart` | Restarts a running resource, or triggers its rebuild. | When one service needs a fresh start. | `projectPath`, `resource` |
-| `resource_run` | Runs a one-off command with the environment one resource has in the stack, and returns its exit code, stdout and stderr. A container resource must be running. | To seed data, check a migration, or read the env a service really gets. | `projectPath`, `resource`, `command` |
+| `resource_run` | Runs a one-off command with the environment one resource has in the stack, and returns its exit code, stdout and stderr. A container resource must be running. | To seed data or check a migration. Refused unless `confirm` is `true`, and `.env` values in the output are masked. | `projectPath`, `resource`, `command`, `confirm` |
 | `agent_list` | Lists the project's agent resources with their stack, runtime, durability, and port. | To work with agent resources. | `projectPath`, `stack` |
 | `agent_sessions` | Lists the sessions of a running agent resource, or reads one checkpoint. | To inspect an agent's session state. | `projectPath`, `resource`, `sessionId` (optional) |
 | `stack_list` | Lists the project's stacks with their resource counts. | To find a stack name. | `projectPath`, `services`, `verbose` |
@@ -207,7 +207,21 @@ The tools were renamed to the `<noun>_<verb>` pattern the others follow: `restar
 | `stack_assign` | Assigns resources that have no stack yet to a stack. | To group services so `up` can start them together. | `projectPath`, `stack`, `resources` |
 | `project_init` | Creates a Flisk project in a directory, or clones a starter template into it. | To start a new project. | `projectPath`, `template`, `path`, `agentSkills` |
 | `project_eject` | Writes `EJECTED.md`, which lists the generated Tilt files and how to run the stack with plain Tilt. It copies, moves, and deletes nothing. | When the user has decided to stop using the Flisk CLI. | `projectPath`, `confirm`, `dryRun` |
-| `project_import` | Imports the services in a directory's root `docker-compose.yml` as bring-your-own `service.json` files. | To adopt an existing Compose project. | `projectPath`, `dir`, `dryRun`, `force` |
+| `project_import` | Imports the services in a directory's root `docker-compose.yml` as bring-your-own `service.json` files. | To adopt an existing Compose project. `force` is refused unless `confirm` is `true` (or `dryRun` is set). | `projectPath`, `dir`, `dryRun`, `force`, `confirm` |
+
+### Limit the tools an agent gets
+
+By default `flisk mcp` lists every tool. For a reviewer bot, a CI agent or a cloud agent, start it read-only:
+
+```json
+{ "command": "flisk", "args": ["mcp", "--read-only"] }
+```
+
+`--read-only` (or `FLISK_MCP_READ_ONLY=1`) lists and runs only the tools annotated `readOnlyHint`: `doctor`, `status`, `logs`, `resource_list`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain` and `runtime_check`. A `tools/call` on any other tool, including a former name, returns an error result that says the server is read-only and that the user must restart it without `--read-only` to give write access.
+
+For an explicit list, pass `--tools status,logs,doctor` (or `FLISK_MCP_TOOLS=status,logs,doctor`). A tool outside the list is neither listed nor run, and an unknown name stops the server with the list of valid names. Together with `--read-only`, only the read-only tools in the list are allowed. A flag takes precedence over its environment variable. `flisk connect` does not write these options; add them to the `args` of the entry it wrote.
+
+`resource_run` and `project_import` with `force` ask for `confirm: true`, like `project_eject`, so the agent has to ask you before it runs an arbitrary command or overwrites a `service.json`.
 
 `projectPath` is an absolute path to a Flisk project root. Every tool accepts it, so a client that does not launch the server from the project directory can still target the right project. Without it, the tools use the server's own working directory and fail with `Could not find project root` when that directory is not a Flisk project. For `project_init` it is the existing directory to create the project in, or to clone the template from.
 

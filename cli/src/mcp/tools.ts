@@ -474,8 +474,21 @@ export function buildProjectEjectArgs(args: Record<string, unknown>): string[] {
   return dryRun ? ["eject", "--dry-run", "--json"] : ["eject", "--yes", "--json"];
 }
 
-/** `flisk import [dir] --json`, which writes without a prompt unless `dryRun` is set. `dir` comes before the flags. */
+/**
+ * `flisk import [dir] --json`, which writes without a prompt unless `dryRun` is set. `dir` comes before the flags. `force`
+ * overwrites an existing service.json, so a real run with it is refused unless `confirm` is true (a dry run changes nothing).
+ */
 export function buildProjectImportArgs(args: Record<string, unknown>): string[] {
+  if (flag(args.force, "force") && !flag(args.dryRun, "dryRun") && !flag(args.confirm, "confirm")) {
+    throw new FliskError(
+      "project_import with force overwrites existing service.json files; it needs confirm: true",
+      [
+        "Ask the user, then pass confirm: true together with force: true",
+        "Pass dryRun: true to see the plan without confirm",
+        "Drop force to import without overwriting an existing service.json",
+      ],
+    );
+  }
   const dir = optionalPath(args.dir, "dir");
   const out = ["import"];
   if (dir) out.push(dir);
@@ -684,7 +697,7 @@ export function createFliskTools(
     {
       name: "resource_run",
       description:
-        "Run a one-off command (a seed script, a status check, printenv) with the environment one resource has in the stack, and return its exit code, stdout and stderr (the last 64 KB of each). A container resource must be running (start it with `up`); a local-process resource runs from its folder. No input is passed. Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
+        "Run a one-off command (a seed script, a migration, a status check) with the environment one resource has in the stack, and return its exit code, stdout and stderr (the last 64 KB of each; values from the project's .env files are masked). It runs any command, so it is refused unless confirm is true: ask the user first. A container resource must be running (start it with `up`); a local-process resource runs from its folder. No input is passed. Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
@@ -695,7 +708,12 @@ export function createFliskTools(
           command: {
             type: "array",
             items: { type: "string" },
-            description: 'The program and its arguments, for example ["printenv", "DATABASE_URL"]',
+            description: 'The program and its arguments, for example ["node", "scripts/seed.js"]',
+          },
+          confirm: {
+            type: "boolean",
+            description:
+              "Must be true to run the command: it runs arbitrary code in the resource's environment",
           },
         }),
         required: ["resource", "command"],
@@ -712,8 +730,17 @@ export function createFliskTools(
           : [];
         if (command.length === 0) {
           throw new FliskError("command is required", [
-            'Pass the program and its arguments, for example ["printenv", "DATABASE_URL"]',
+            'Pass the program and its arguments, for example ["node", "scripts/seed.js"]',
           ]);
+        }
+        if (!flag(args.confirm, "confirm")) {
+          throw new FliskError(
+            `resource_run runs \`${command.join(" ")}\` in the ${resource} environment; it needs confirm: true`,
+            [
+              "Ask the user to approve this command, then call resource_run again with confirm: true",
+              "For read-only inspection use status, logs or resource_list, which need no confirm",
+            ],
+          );
         }
         return ["run", resource, "--json", "--", ...command];
       }),
@@ -1000,7 +1027,7 @@ export function createFliskTools(
     {
       name: "project_import",
       description:
-        "Import the services in a directory's root docker-compose.yml as bring-your-own service.json files with `flisk import --json`, which runs the pinned flisk-import from npm (the first run needs network access). It writes without asking: set dryRun to get the plan only, and force to overwrite an existing service.json. Returns data.written and the importer's output. Set projectPath when the MCP server is not running from the project root.",
+        "Import the services in a directory's root docker-compose.yml as bring-your-own service.json files with `flisk import --json`, which runs the pinned flisk-import from npm (the first run needs network access). It writes without asking: set dryRun to get the plan only, and force to overwrite an existing service.json (force needs confirm: true unless dryRun is set). Returns data.written and the importer's output. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         dir: {
@@ -1010,6 +1037,10 @@ export function createFliskTools(
         },
         dryRun: { type: "boolean", description: "Print the plan and write nothing" },
         force: { type: "boolean", description: "Overwrite an existing service.json" },
+        confirm: {
+          type: "boolean",
+          description: "Must be true together with force (unless dryRun) to overwrite files",
+        },
       }),
       handler: viaCli(buildProjectImportArgs, { timeoutMs: IMPORT_TIMEOUT_MS }),
     },

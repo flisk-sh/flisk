@@ -66,12 +66,27 @@ export interface McpIcon {
   sizes?: string[];
 }
 
+/** Which tools a server exposes: a tool the policy refuses is neither listed nor run, and tools/call explains why. */
+export interface McpToolPolicy {
+  isAllowed: (tool: McpTool) => boolean;
+  refusal: (tool: McpTool) => string;
+}
+
 export function createMcpServer(
-  tools: McpTool[],
+  allTools: McpTool[],
   info: { name: string; version: string; icons?: McpIcon[] },
+  policy?: McpToolPolicy | null,
 ): McpServer {
-  // Aliases first, so a tool's own name always wins over another tool's former name.
+  const tools = policy ? allTools.filter((tool) => policy.isAllowed(tool)) : allTools;
   const byName = new Map<string, McpTool>();
+  // A refused tool stays resolvable (by name and alias) so tools/call can refuse it clearly instead of "Unknown tool".
+  const refused = new Map<string, McpTool>();
+  for (const tool of allTools) {
+    if (tools.includes(tool)) continue;
+    for (const alias of tool.aliases ?? []) refused.set(alias, tool);
+    refused.set(tool.name, tool);
+  }
+  // Aliases first, so a tool's own name always wins over another tool's former name.
   for (const tool of tools) for (const alias of tool.aliases ?? []) byName.set(alias, tool);
   for (const tool of tools) byName.set(tool.name, tool);
 
@@ -108,6 +123,11 @@ export function createMcpServer(
       case "tools/call": {
         const name = message.params?.name;
         const tool = typeof name === "string" ? byName.get(name) : undefined;
+        const blocked = typeof name === "string" && !tool ? refused.get(name) : undefined;
+        if (blocked && policy) {
+          const text = policy.refusal(blocked);
+          return reply(message.id, { content: [{ type: "text", text }], isError: true });
+        }
         if (!tool) return fail(message.id, ERROR.invalidParams, `Unknown tool: ${String(name)}`);
         const args = message.params?.arguments;
         if (
