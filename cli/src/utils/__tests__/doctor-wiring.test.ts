@@ -801,6 +801,34 @@ describe("checkTiltInstances", () => {
     ]);
   });
 
+  it("extracts full project roots containing spaces (#4165)", () => {
+    const ps = [
+      tiltLine(4201, "/work/project with spaces"),
+      '4202 tilt up -f "/work/quoted project with spaces/.flisk/.flisk-out/Tiltfile" -- --focus=store',
+      "4203 tilt up -f /Users/me/.flisk/flisk demo/.flisk/.flisk-out/Tiltfile -- --focus=store",
+      '4204 "C:\\Program Files\\Tilt\\tilt.exe" up -f "C:\\Users\\me\\my project\\.flisk\\.flisk-out\\Tiltfile"',
+    ].join("\n");
+    expect(parseTiltProcesses(ps)).toEqual([
+      { pid: 4201, root: "/work/project with spaces" },
+      { pid: 4202, root: "/work/quoted project with spaces" },
+      { pid: 4203, root: "/Users/me/.flisk/flisk demo" },
+      { pid: 4204, root: "C:\\Users\\me\\my project" },
+    ]);
+  });
+
+  it("requires the complete generated .flisk/.flisk-out/Tiltfile path for nested dirs with spaces (#4165)", () => {
+    const ps = [
+      "4205 tilt up -f /repo/.flisk/Tiltfile demo/.flisk/.flisk-out/Tiltfile",
+      "4206 tilt up -f /repo/.flisk/Tiltfile demo/.flisk/.flisk-out/Tiltfile -- --focus=app",
+      "4207 tilt up -f /repo/.flisk/Tiltfile",
+    ].join("\n");
+    expect(parseTiltProcesses(ps)).toEqual([
+      { pid: 4205, root: "/repo/.flisk/Tiltfile demo" },
+      { pid: 4206, root: "/repo/.flisk/Tiltfile demo" },
+      { pid: 4207, root: "/repo/.flisk/Tiltfile" },
+    ]);
+  });
+
   it("passes when no Tilt is running", () => {
     expect(checkTiltInstances(root, fakeExec("1 launchd\n")).didPass).toBe(true);
   });

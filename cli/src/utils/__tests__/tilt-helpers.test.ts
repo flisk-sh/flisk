@@ -8,6 +8,7 @@ import {
   resolveTiltPort,
   secondUpAction,
   stopTiltForUp,
+  waitForTiltPortsToStop,
 } from "../tilt-startup.js";
 
 const { execFileSyncMock } = vi.hoisted(() => ({ execFileSyncMock: vi.fn() }));
@@ -314,5 +315,73 @@ describe("stopTiltForUp", () => {
     );
     expect(deps.stop).toHaveBeenCalledWith(10351);
     expect(deps.wait).toHaveBeenCalledWith(2000);
+  });
+
+  it("also stops this project's own Tilt on another port, so --force leaves one Tilt (#4165)", async () => {
+    const deps = dependencies();
+    await stopTiltForUp({ force: true, quiet: false, port: 10350, ownPorts: [10353] }, deps);
+
+    expect(deps.stop.mock.calls).toEqual([[10350], [10353]]);
+    expect(deps.log).toHaveBeenCalledWith(
+      "Force flag set - stopping Tilt on port 10350, 10353 if running...",
+    );
+    expect(deps.wait).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops this project's own Tilt when another project holds the base port", async () => {
+    // `force` is false then, so the base port (another project's Tilt) is never stopped.
+    const deps = dependencies();
+    await stopTiltForUp({ force: false, quiet: true, port: 10352, ownPorts: [10351] }, deps);
+
+    expect(deps.stop.mock.calls).toEqual([[10351]]);
+    expect(deps.wait).toHaveBeenCalledWith(2000);
+  });
+
+  it("stops an own port reused as the destination when force is false (#4165)", async () => {
+    const deps = dependencies();
+    await stopTiltForUp({ force: false, quiet: true, port: 10351, ownPorts: [10351] }, deps);
+
+    expect(deps.stop.mock.calls).toEqual([[10351]]);
+    expect(deps.wait).toHaveBeenCalledWith(2000);
+  });
+
+  it("does not stop the new port twice when it is also an own port", async () => {
+    const deps = dependencies();
+    await stopTiltForUp({ force: true, quiet: true, port: 10351, ownPorts: [10351] }, deps);
+
+    expect(deps.stop.mock.calls).toEqual([[10351]]);
+  });
+
+  it("does nothing without --force and without own ports", async () => {
+    const deps = dependencies();
+    await stopTiltForUp({ force: false, quiet: false, port: TILT_PORT, ownPorts: [] }, deps);
+
+    expect(deps.stop).not.toHaveBeenCalled();
+    expect(deps.wait).not.toHaveBeenCalled();
+  });
+});
+
+describe("waitForTiltPortsToStop", () => {
+  it("returns nothing when no port serves", async () => {
+    const wait = vi.fn(async () => {});
+    expect(await waitForTiltPortsToStop([10351], async () => false, { wait })).toEqual([]);
+    expect(wait).not.toHaveBeenCalled();
+  });
+
+  it("waits for a Tilt that stops within the timeout", async () => {
+    let calls = 0;
+    const wait = vi.fn(async () => {});
+    const stopped = await waitForTiltPortsToStop([10351], async () => ++calls < 3, { wait });
+    expect(stopped).toEqual([]);
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns the ports that still serve after the timeout", async () => {
+    const stillServing = await waitForTiltPortsToStop(
+      [10351, 10352],
+      async (port) => port === 10351,
+      { timeoutMs: 1000, intervalMs: 500, wait: async () => {} },
+    );
+    expect(stillServing).toEqual([10351]);
   });
 });

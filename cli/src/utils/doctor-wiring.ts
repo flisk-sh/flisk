@@ -927,12 +927,17 @@ interface TiltProcess {
 export function parseTiltProcesses(psOutput: string): TiltProcess[] {
   const processes: TiltProcess[] = [];
   for (const line of psOutput.split("\n")) {
-    const match = line.match(/^\s*(\d+)\s+.*\btilt up\b.*?\s-f\s+(\S+)/i);
+    // Prefer the full generated `<root>/.flisk/.flisk-out/Tiltfile` path before shorter fallbacks, so nested paths like
+    // `/repo/.flisk/Tiltfile demo/.flisk/.flisk-out/Tiltfile` never truncate at the earlier `Tiltfile` (#4165).
+    const match = line.match(
+      /^\s*(\d+)\s+.*\btilt(?:\.exe)?["']?\s+up\b.*?\s-f\s+(?:"([^"]+)"|'([^']+)'|(.+[\\/]\.flisk[\\/]\.flisk-out[\\/]Tiltfile|.+?[\\/]Tiltfile|\S+))(?=\s|$)/i,
+    );
     if (!match) continue;
-    // The root precedes the LAST `.flisk` folder: the demo lives in ~/.flisk/flisk-demo, and cutting at the first one gave the
-    // home folder, so `flisk demo` took its own Tilt for another project's and never showed progress (#4123).
-    const tiltfile = match[2];
-    const root = tiltfile.match(/^(.*)[\\/]\.flisk[\\/]/i)?.[1] ?? tiltfile;
+    // Only extract a project root from the complete generated `<root>/.flisk/.flisk-out/Tiltfile` path (#4123, #4165).
+    const tiltfile = match[2] ?? match[3] ?? match[4];
+    if (!tiltfile) continue;
+    const root =
+      tiltfile.match(/^(.*)[\\/]\.flisk[\\/]\.flisk-out[\\/]Tiltfile$/i)?.[1] ?? tiltfile;
     processes.push({ pid: Number(match[1]), root });
   }
   return processes;
