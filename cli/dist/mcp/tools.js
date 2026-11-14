@@ -261,7 +261,8 @@ export async function startUp(args, deps = defaultUpDeps) {
             return toToolResult({
                 exitCode: exited,
                 stdout: "",
-                stderr: redactProjectText(log.slice(-2000), projectPath(args.projectPath)),
+                // Masked before it is cut, so the cut cannot shorten a secret out of recognition.
+                stderr: redactProjectText(log, projectPath(args.projectPath)).slice(-2000),
             });
         }
         if (deps.now() >= deadline) {

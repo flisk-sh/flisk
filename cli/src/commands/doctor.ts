@@ -120,6 +120,7 @@ import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
 import {
   EnvUnreadableError,
   envSecretValues,
+  OUTPUT_WITHHELD,
   projectSecretValues,
   redactSecrets,
   redactValue,
@@ -2218,11 +2219,19 @@ export const doctorCommand = new Command("doctor")
       if (exitCode !== 0) process.exit(exitCode);
       return;
     }
+    // The JSON report is masked above; the text report and the check errors quote the same application output, so they are
+    // masked too. Without the secret values nothing can be masked, so the report is withheld, as in the JSON branch.
+    const textSecrets = projectSecretValues(findProjectRoot() ?? process.cwd());
+    if (textSecrets === null) {
+      console.error(`${chalk.red("✗")} ${OUTPUT_WITHHELD}`);
+      console.error("  Check that the project's .env and --env-file files are readable files.");
+      process.exit(1);
+    }
     for (const error of errors)
-      console.error(`${chalk.red("✗")} Doctor check failed: ${error.message}`);
+      console.error(
+        `${chalk.red("✗")} Doctor check failed: ${redactSecrets(error.message, textSecrets)}`,
+      );
 
-    // The JSON report is masked above; the text report quotes the same application output, so it is masked too.
-    const textSecrets = projectSecretValues(findProjectRoot() ?? process.cwd()) ?? [];
     renderDoctorOutput(
       redactValue(machineResults, textSecrets),
       redactValue(projectResults, textSecrets),

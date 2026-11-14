@@ -90,6 +90,11 @@ export declare function parseWaitTimeout(value: unknown): {
     message: string;
 };
 /**
+ * The last LOG_TAIL_CHARS of a log, masked before it is cut: cutting first could keep the end of a secret without its start,
+ * and the shortened value would no longer match.
+ */
+export declare function logTailOf(log: string, cwd?: string): string;
+/**
  * Starts the stack detached and waits for the JSON result `flisk up --json` prints when the stack is ready or the
  * command fails. The stack keeps running afterwards, also on a timeout (`flisk down` stops it).
  */

@@ -6,6 +6,7 @@ import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
 import { dependsOnOf } from "./dependency-graph.js";
+import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
 import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
@@ -35,21 +36,6 @@ const QUICK_CRASH_MS = 10_000;
 /** `http://localhost:<port>` for display and health checks. Built here so callers never hold a URL literal. */
 export function localUrl(port, path = "") {
     return `http://localhost:${port}${path}`;
-}
-/**
- * Expands `${VAR}` and `${VAR:-default}` from `vars`. An unknown variable without a default becomes an empty string, the way a
- * shell expands it, and is reported through `onMissing` so `flisk up` can say which one.
- */
-export function expandEnvValue(value, vars, onMissing = () => { }) {
-    return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (_match, name, fallback) => {
-        const found = vars[name];
-        if (found !== undefined && found !== "")
-            return found;
-        if (fallback !== undefined)
-            return fallback;
-        onMissing(name);
-        return "";
-    });
 }
 /**
  * Start order as waves: every service in a wave depends only on services in earlier waves. Names in `dependsOn` that are not

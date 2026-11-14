@@ -5,7 +5,12 @@ import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { closeSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { redactProjectText } from "./secret-redaction.js";
+import {
+  OUTPUT_WITHHELD,
+  projectSecretValues,
+  redactLogLines,
+  redactProjectText,
+} from "./secret-redaction.js";
 import { formatWaitFailures, lastLines } from "./startup-report.js";
 
 /** Seconds `flisk up --wait` waits for a healthy stack when `--wait-timeout` is not given. */
@@ -91,14 +96,18 @@ export function fetchUnhealthyLogLines(
             data?: { lines?: Array<{ resource?: string | null; text?: string }> } | null;
           };
           const found = parsed.data?.lines;
+          if (!Array.isArray(found)) return resolve(null);
+          const lines = found.map((entry) => ({
+            resource: entry.resource ?? null,
+            text: String(entry.text ?? ""),
+          }));
+          // `flisk logs` already masked these; masking again keeps a failed wait safe if that child is an older flisk. The
+          // entries are masked together, one private key guard per service, so a key split over entries is masked whole.
+          const secrets = projectSecretValues(cwd);
           resolve(
-            Array.isArray(found)
-              ? found.map((entry) => ({
-                  resource: entry.resource ?? null,
-                  // `flisk logs` already masked these; masking again keeps a failed wait safe if that child is an older flisk.
-                  text: redactProjectText(String(entry.text ?? ""), cwd),
-                }))
-              : null,
+            secrets === null
+              ? lines.map((line) => ({ ...line, text: OUTPUT_WITHHELD }))
+              : redactLogLines(lines, secrets),
           );
         } catch {
           resolve(null);
@@ -199,6 +208,14 @@ export function parseWaitTimeout(
   return { ok: true, seconds };
 }
 
+/**
+ * The last LOG_TAIL_CHARS of a log, masked before it is cut: cutting first could keep the end of a secret without its start,
+ * and the shortened value would no longer match.
+ */
+export function logTailOf(log: string, cwd?: string): string {
+  return redactProjectText(log, cwd).slice(-LOG_TAIL_CHARS);
+}
+
 function resultLine(log: string): string | undefined {
   return log
     .split("\n")
@@ -253,14 +270,14 @@ export async function upAndWait(
       return {
         kind: "exited",
         exitCode: exited,
-        logTail: redactProjectText(log.slice(-LOG_TAIL_CHARS), cwd),
+        logTail: logTailOf(log, cwd),
       };
     }
     if (deps.now() >= deadline) {
       child.unref();
       return {
         kind: "timeout",
-        logTail: redactProjectText(log.slice(-LOG_TAIL_CHARS), cwd),
+        logTail: logTailOf(log, cwd),
         logFile,
       };
     }
