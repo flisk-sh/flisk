@@ -201,6 +201,30 @@ const CHECKSUMS_BUNDLE_ASSET_NAME = `${CHECKSUMS_ASSET_NAME}.sigstore.json`;
 /** Set to 1 to refuse a release that has no signature bundle for checksums.txt. */
 const REQUIRE_SIGNATURE_ENV = "FLISK_UPGRADE_REQUIRE_SIGNATURE";
 
+/**
+ * First release whose checksums.txt is signed: every release from v1.3.130 on in
+ * flisk-sh/releases carries checksums.txt.sigstore.json. For those, a missing
+ * bundle means the asset was removed (a downgrade attack) or the release is
+ * broken, so it is an error. Older releases predate signing and only warn.
+ */
+const FIRST_SIGNED_VERSION = [1, 3, 130] as const;
+
+/** Upper bound for the whole signature check, trust-root download included. */
+const SIGNATURE_CHECK_TIMEOUT_MS = 60_000;
+
+/** True when `tag` (e.g. "v1.4.2") is at or after FIRST_SIGNED_VERSION; unparseable tags count as signed. */
+function isSignedRelease(tag: string): boolean {
+  const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return true;
+  const parts = [Number(match[1]), Number(match[2]), Number(match[3])];
+  for (let i = 0; i < 3; i++) {
+    const have = parts[i] ?? 0;
+    const want = FIRST_SIGNED_VERSION[i] ?? 0;
+    if (have !== want) return have > want;
+  }
+  return true;
+}
+
 /** Workflows of this repository that sign checksums.txt (cosign, keyless). */
 const SIGNER_IDENTITY =
   /^https:\/\/github\.com\/flisk-sh\/flisk\/\.github\/workflows\/(release-binaries|sign-release)\.yml@.*$/;
@@ -277,15 +301,21 @@ function verifyChecksum(
 export async function verifyChecksumsSignature(
   checksums: Buffer,
   bundleUrl: string,
+  tag: string,
 ): Promise<boolean> {
-  const required = process.env[REQUIRE_SIGNATURE_ENV] === "1";
+  const mustBeSigned = isSignedRelease(tag);
+  const required = mustBeSigned || process.env[REQUIRE_SIGNATURE_ENV] === "1";
   const response = await fetch(bundleUrl, { signal: AbortSignal.timeout(30_000) });
   if (response.status === 404) {
     if (required)
       throw new FliskError(
-        `This release has no signature (${CHECKSUMS_BUNDLE_ASSET_NAME}) and ${REQUIRE_SIGNATURE_ENV}=1 is set`,
+        mustBeSigned
+          ? `Release ${tag} has no signature (${CHECKSUMS_BUNDLE_ASSET_NAME}), but every release since v1.3.130 is signed`
+          : `Release ${tag} has no signature (${CHECKSUMS_BUNDLE_ASSET_NAME}) and ${REQUIRE_SIGNATURE_ENV}=1 is set`,
         [
-          "Upgrade to a signed release, or unset FLISK_UPGRADE_REQUIRE_SIGNATURE",
+          mustBeSigned
+            ? "Do not install this release; report it at https://github.com/flisk-sh/flisk/security"
+            : "Upgrade to a signed release, or unset FLISK_UPGRADE_REQUIRE_SIGNATURE",
           "Or install with: npm install -g @flisk-sh/flisk",
         ],
       );
@@ -308,14 +338,38 @@ export async function verifyChecksumsSignature(
       "Or install with: npm install -g @flisk-sh/flisk",
     ]);
   let signer: { identity?: { subjectAlternativeName?: string } };
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const bundle = JSON.parse(await response.text()) as Parameters<
       typeof import("sigstore").verify
     >[0];
     const { verify } = await import("sigstore");
-    signer = await verify(bundle, checksums, { certificateIssuer: SIGNER_ISSUER, timeout: 30_000 });
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(Object.assign(new Error("timed out"), { code: "TUF_TIMEOUT" })),
+        SIGNATURE_CHECK_TIMEOUT_MS,
+      );
+    });
+    signer = await Promise.race([
+      verify(bundle, checksums, { certificateIssuer: SIGNER_ISSUER, timeout: 30_000 }),
+      timeout,
+    ]);
   } catch (err: unknown) {
+    // The Sigstore trust root (TUF) comes from the network; if it cannot be
+    // fetched we cannot verify, and must not install unverified.
+    const code = (err as { code?: unknown } | null)?.code;
+    if (typeof code === "string" && code.startsWith("TUF_"))
+      throw new FliskError(
+        `Could not fetch the Sigstore trust root needed to verify ${CHECKSUMS_ASSET_NAME}: ${getErrorMessage(err)}`,
+        [
+          "Nothing was installed. Check your network connection (tuf-repo-cdn.sigstore.dev) and run flisk upgrade again",
+          `The signature check is never skipped, and ${REQUIRE_SIGNATURE_ENV} does not bypass it`,
+          "Or install with: npm install -g @flisk-sh/flisk",
+        ],
+      );
     throw fail(getErrorMessage(err));
+  } finally {
+    clearTimeout(timer);
   }
   const identity = signer.identity?.subjectAlternativeName ?? "";
   if (!SIGNER_IDENTITY.test(identity)) throw fail(`unexpected signer identity "${identity}"`);
@@ -445,7 +499,7 @@ export async function upgradeViaBinary(
     // checksums.txt comes from the same release as the binaries, so check its
     // signature before trusting anything it says.
     spinner.text = `Verifying signature (${release.tag})...`;
-    await verifyChecksumsSignature(checksumBytes, release.checksumsBundleUrl);
+    await verifyChecksumsSignature(checksumBytes, release.checksumsBundleUrl, release.tag);
     const sums = parseChecksums(checksumBytes.toString("utf8"));
     verifyChecksum(tmpPath, release.assetName, sums, true);
     verifyChecksum(engineTmpPath, ENGINE_ASSET_NAME, sums, false);

@@ -279,7 +279,43 @@ describe("upgradeViaBinary", () => {
       expect(existsSync(fliskPath)).toBe(false);
     });
 
-    it("warns and continues on checksums when the release has no bundle", async () => {
+    it("refuses a release at or after v1.3.130 that has no bundle, without any env var", async () => {
+      bundleStatus = 404;
+      for (const tag of ["v1.3.130", "v1.4.64", "v2.0.0"]) {
+        const ok = await upgradeViaBinary(fliskPath, { ...release, tag });
+        expect(ok).toBe(false);
+        expect(existsSync(fliskPath)).toBe(false);
+      }
+      expect(sigstoreVerifyMock).not.toHaveBeenCalled();
+    });
+
+    it("fails clearly, and installs nothing, when the trust root cannot be fetched", async () => {
+      sigstoreVerifyMock.mockRejectedValue(
+        Object.assign(new Error("failed to fetch root.json"), {
+          code: "TUF_REFRESH_METADATA_ERROR",
+        }),
+      );
+      const errors: unknown[] = [];
+      const { verifyChecksumsSignature } = await import("../upgrade.js");
+      await verifyChecksumsSignature(
+        Buffer.from(checksums),
+        release.checksumsBundleUrl,
+        release.tag,
+      ).catch((e: unknown) => errors.push(e));
+      const message = String((errors[0] as Error)?.message);
+      expect(message).toContain("trust root");
+      expect(message).toContain("failed to fetch root.json");
+      expect(JSON.stringify((errors[0] as { suggestions?: string[] }).suggestions)).toContain(
+        "FLISK_UPGRADE_REQUIRE_SIGNATURE",
+      );
+
+      const ok = await upgradeViaBinary(fliskPath, release);
+      expect(ok).toBe(false);
+      expect(existsSync(fliskPath)).toBe(false);
+    });
+
+    it("warns and continues on checksums when an older release has no bundle", async () => {
+      release = { ...release, tag: "v1.3.129" };
       bundleStatus = 404;
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const ok = await upgradeViaBinary(fliskPath, release);
@@ -290,7 +326,8 @@ describe("upgradeViaBinary", () => {
       warn.mockRestore();
     });
 
-    it("refuses a release with no bundle when FLISK_UPGRADE_REQUIRE_SIGNATURE=1", async () => {
+    it("refuses an older release with no bundle when FLISK_UPGRADE_REQUIRE_SIGNATURE=1", async () => {
+      release = { ...release, tag: "v1.3.129" };
       bundleStatus = 404;
       vi.stubEnv("FLISK_UPGRADE_REQUIRE_SIGNATURE", "1");
       const ok = await upgradeViaBinary(fliskPath, release);
@@ -1129,6 +1166,8 @@ describe("upgradeAllInstallations", () => {
       return "";
     });
 
+    sigstoreVerifyMock.mockReset();
+    sigstoreVerifyMock.mockResolvedValue({ identity: { subjectAlternativeName: SIGNER } });
     const binarySha = sha256("fake-bin");
     const engineSha = sha256("fake-engine");
     const sumsText = `${binarySha}  flisk-darwin-arm64\n${engineSha}  flisk-cli-engine.tar.gz`;
@@ -1166,7 +1205,7 @@ describe("upgradeAllInstallations", () => {
           };
         }
         if (url.pathname.endsWith("/checksums.txt.sigstore.json")) {
-          return { ok: false, status: 404 };
+          return { ok: true, status: 200, text: async () => "{}" };
         }
         if (
           url.protocol === "https:" &&
