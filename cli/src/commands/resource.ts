@@ -65,7 +65,13 @@ import {
   isPathDiscovered,
   readDiscoveryPaths,
 } from "../utils/discovery-paths.js";
-import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
+import {
+  errorFactories,
+  FliskError,
+  getErrorMessage,
+  requireProjectRoot,
+  runCommand,
+} from "../utils/errors.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import {
   createInfraServiceJson,
@@ -1203,6 +1209,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
               const validation = createKebabCaseValidator("stack")(input);
               return validation === true || validation;
             },
+          }).catch((err: unknown) => {
+            // A closed stdin rejects the prompt; name the flags that skip it.
+            throw new FliskError(getErrorMessage(err), [
+              "Pass --stack <name> to choose the stack, or --yes to use the default stack.",
+            ]);
           });
           stackName = newStack;
         }
