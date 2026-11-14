@@ -1329,7 +1329,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
                 plan.directory(resolve(dockerfilePath, ".."));
                 const healthConfigPath = resolve(dockerfilePath, "..", "health.conf");
                 const healthConfigRelativePath = relative(fullPath, healthConfigPath).replace(/\\/g, "/");
-                const dockerfileContent = `FROM nginx:1.27-alpine
+                const dockerfileContent = `FROM nginx:1.30-alpine
 RUN apk add --no-cache curl
 COPY ${healthConfigRelativePath} /etc/nginx/conf.d/default.conf
 EXPOSE ${port}

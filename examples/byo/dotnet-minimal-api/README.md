@@ -3,8 +3,8 @@
 **Stack:** a real `dotnet new web` project (ASP.NET Core minimal API, .NET 9)
 
 **Notes:**
-- The template is generated at build time, then `dotnet publish -c Release`. Multi-stage build: the `dotnet/sdk:9.0` image
-  builds, the `dotnet/aspnet:9.0` image runs.
+- The template is generated at build time, then `dotnet publish -c Release`. Multi-stage build: the `dotnet/sdk:10.0` image
+  builds, the `dotnet/aspnet:10.0` image runs.
 - Kestrel is told to listen on `0.0.0.0` and on Flisk's `PORT` through `ASPNETCORE_URLS`.
 - The template's `/` route returns `Hello World!` and is the health route. Register it with `--health-path /`.
 - The SDK and runtime images are pinned to .NET 9; the template contents are whatever that SDK generates.

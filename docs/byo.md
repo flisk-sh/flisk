@@ -471,7 +471,7 @@ routed through Traefik.
 | `database` | `mongodb` | `mongo:8.0` | 27017 | `/data/db` | `MONGODB_URL=mongodb://<name>:27017` |
 | `database` | `clickhouse` | `clickhouse/clickhouse-server:25.8-alpine` | 8123 | `/var/lib/clickhouse` | `CLICKHOUSE_URL=http://<name>:8123`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DB` |
 | `queue` | `nats` (default) | `nats:2.11.8-alpine` | 4222 | `/data` | `NATS_URL=nats://<name>:4222` |
-| `queue` | `rabbitmq` | `rabbitmq:4.1-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
+| `queue` | `rabbitmq` | `rabbitmq:4.4-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
 | `mail` | `mailpit` (default) | `axllent/mailpit:v1.33.1` | 1025 (SMTP), 8025 (inbox UI and API) | `/data` | `SMTP_URL=smtp://<name>:1025`, `SMTP_HOST`, `SMTP_PORT`, `MAILPIT_API_URL=http://<name>:8025` |
 | `payment` | `stripe-mock` (default) | `stripe/stripe-mock:v0.206.0` | 12111 | none (stateless) | `STRIPE_API_BASE=http://<name>:12111`, `STRIPE_SECRET_KEY=sk_test_flisklocal` (a stripe-mock test key, not a secret) |
 

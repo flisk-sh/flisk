@@ -182,7 +182,7 @@ export const INFRA_PRESETS = {
   rabbitmq: {
     type: QUEUE_RESOURCE_TYPE,
     description: "RabbitMQ message broker",
-    image: "rabbitmq:4.1-management-alpine",
+    image: "rabbitmq:4.4-management-alpine",
     port: 5672,
     healthCheck: { command: ["rabbitmq-diagnostics", "-q", "ping"] },
     dataPath: "/var/lib/rabbitmq",

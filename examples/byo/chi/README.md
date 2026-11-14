@@ -8,7 +8,7 @@
   resolves to.
 - chi is a router for the standard library's `net/http`, so the server is `http.ListenAndServe(":" + $PORT, router)`, which listens on
   every interface.
-- The image is `golang:1.25-alpine`, the same as the [gin](../gin/README.md) and [echo](../echo/README.md) examples. I did not test
+- The image is `golang:1.27-alpine`, the same as the [gin](../gin/README.md) and [echo](../echo/README.md) examples. I did not test
   whether chi builds on an older Go image, so no minimum Go version is claimed.
 - Through Flisk, Traefik sends `Host: api.<project>.localhost`; the app accepted it with no host configuration (checked through a
   real `flisk up`).

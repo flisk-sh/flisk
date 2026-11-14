@@ -173,7 +173,7 @@ export declare const INFRA_PRESETS: {
     readonly rabbitmq: {
         readonly type: "queue";
         readonly description: "RabbitMQ message broker";
-        readonly image: "rabbitmq:4.1-management-alpine";
+        readonly image: "rabbitmq:4.4-management-alpine";
         readonly port: 5672;
         readonly healthCheck: {
             readonly command: ["rabbitmq-diagnostics", "-q", "ping"];

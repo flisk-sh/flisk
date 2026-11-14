@@ -5,7 +5,7 @@
 **Notes:**
 - Echo has no project generator, so unlike the `create-*` examples the app is written out here (a `/health` route and a `/` route).
 - `go mod tidy` runs at build time to resolve Echo and write `go.sum`, so no `go.sum` is committed. Echo v5 declares Go 1.26,
-  so the build image is `golang:1.26-alpine`. The image's `GOTOOLCHAIN=local` refuses a `go.mod` newer than the image.
+  so the build image is `golang:1.27-alpine`. The image's `GOTOOLCHAIN=local` refuses a `go.mod` newer than the image.
 - This example is on Echo v5 because Echo v4 has no fixed release for the proxy `X-Real-IP` advisory (GO-2026-6875) and the
   rate-limiter `X-Forwarded-For` advisory (GO-2026-6872); v5.4.0 or later fixes both. v5 handlers take `*echo.Context`, and the
   server starts with `echo.StartConfig`. Keep it at v5.4.0 or later.

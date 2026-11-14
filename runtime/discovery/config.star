@@ -174,7 +174,6 @@ def get_global_config():
         "database": PlatformDockerConstants.DB_CONFIG,
         "docker": {
             "base_image": PlatformDockerConstants.BUN_IMAGE,
-            "nginx_image": "nginx:alpine",
             "golden_l1_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l1:latest",
             "golden_l2_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l2:latest",
             "golden_l3_backend_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l3-backend:latest",

@@ -26,18 +26,41 @@ Without a licence key, and without running `flisk upgrade`, the CLI makes no out
 
 ## Images
 
-Images defined by the engine, with the tag in the source:
+Every third-party image that Flisk generates or ships, with the tag in the source. Audited on 2026-11-14 against [endoflife.date](https://endoflife.date); the `base-images` gate (`scripts/scores/base-images.mjs`, run by `make scores` and `make test-shell`) fails when a line below goes past its end of life, when a reference has no tag or uses `:latest` without a digest, and when an image the engine or the CLI generates is missing from this table.
 
-| Image | Tag | Used for |
-| --- | --- | --- |
-| `traefik` | `v3.6.8` | Ingress |
-| `postgres` | `16-alpine` | Database |
-| `oven/bun` | `1.3.11-alpine` | Bun runtime layers |
-| `node` | `22-alpine` | Node backend runtime |
-| `nginx` | `1.27-alpine` | Static frontend runtime |
-| `sablierapp/sablier` | `1.18.0` | Idle stop (premium) |
+| Image | Tag | Used by | Tag policy |
+| --- | --- | --- | --- |
+| `traefik` | `v3.7.14` | Ingress (`traefik_standalone.star`) | Version tag; official |
+| `postgres` | `16-alpine` | Database (`infra-loader.star`, `next-postgres` template) | Major line; official |
+| `oven/bun` | `1.3.11-alpine` | Golden Bun runtime layer | Exact version plus digest; official |
+| `oven/bun` | `1.4.4-alpine` | `wake-gateway` image | Exact version plus digest, refreshed by Dependabot (the one Dockerfile it covers); official |
+| `oven/bun` | `1.4.4-slim` | Release image (`scripts/release/flisk-image.Dockerfile`) | Exact version plus digest; official |
+| `oven/bun` | `1.3` | Scaffolded `Dockerfile` that `flisk up` does not build | Minor line, no digest (the user owns the file); official |
+| `node` | `22-alpine` | Golden Node backend layer | Major line plus digest; official |
+| `node` | `22-slim` | Generated Node and Next.js `Dockerfile` | Major line plus digest; official |
+| `nginx` | `1.30-alpine` | Golden static frontend layer, non-golden runtime layer, bring-your-own placeholder `Dockerfile` | Stable line plus digest; official |
+| `alpine` | `3.22` | Golden base layer and generated runtime layers | Minor line; official |
+| `golang` | `1.27-bookworm` | Generated Go `Dockerfile` | Minor line plus digest; official |
+| `rust` | `1-slim-bookworm` | Generated Rust `Dockerfile` | Major line plus digest; official |
+| `python` | `3.12-slim` | Generated Python `Dockerfile` | Minor line plus digest; official |
+| `debian` | `bookworm-slim` | Runtime stage of the generated Go and Rust `Dockerfile` | Release name plus digest; official |
+| `sablierapp/sablier` | `1.18.0` | Idle stop (premium) | Exact version; the upstream project's own image |
+| `docker` | `29.9.2-cli` | Release image (Docker CLI) | Exact version plus digest; official |
+| `redis` | `7.4-alpine` | `flisk resource` infra presets | Minor line; official |
+| `mysql` | `8.4` | `flisk resource` infra presets | LTS line; official |
+| `mongo` | `8.0` | `flisk resource` infra presets | Major line; official |
+| `rabbitmq` | `4.4-management-alpine` | `flisk resource` infra presets | Minor line; official |
+| `nats` | `2.11.8-alpine` | `flisk resource` infra presets | Exact version; official |
+| `clickhouse/clickhouse-server` | `25.8-alpine` | `flisk resource` infra presets | Minor line; the vendor's own image |
+| `qdrant/qdrant` | `v1.12.5` | `flisk resource` infra presets | Exact version; the vendor's own image |
+| `ghcr.io/mlflow/mlflow` | `v3.17.2` | `flisk resource` infra presets | Exact version; the project's own registry |
+| `pgsty/minio` | `RELEASE.2026-08-04T00-00-00Z` | `flisk resource` infra presets | Exact release; a community fork, because MinIO no longer publishes official images |
+| `axllent/mailpit` | `v1.33.1` | `flisk resource` infra presets | Exact version; the project's own image |
+| `stripe/stripe-mock` | `v0.206.0` | `flisk resource` infra presets | Exact version; Stripe's own image |
 
-Tags are version tags, not digests, so a registry could still move them. The golden layer images (`...-l1:latest` and similar) are built from these bases. By default `flisk up` pulls them prebuilt from `ghcr.io/flisk-sh/golden-<layer>:<hash12>`, which this repository's `publish-golden-images.yml` workflow builds from the same generated Dockerfile; the tag is the Dockerfile's hash. The workflow signs each image by digest with cosign (keyless, GitHub's OIDC identity) in both registries and attaches a build provenance attestation (`gh attestation verify oci://ghcr.io/flisk-sh/golden-<layer>@<digest> --repo flisk-sh/flisk`). On pull, `flisk up` runs `cosign verify` for the workflow identity `https://github.com/flisk-sh/flisk/.github/workflows/publish-golden-images.yml@.*` (issuer `https://token.actions.githubusercontent.com`) **only when `cosign` is on your PATH**; an image that fails is discarded and the layers are built locally instead. Without cosign nothing is checked and the pull works as before, unless you set `FLISK_GOLDEN_VERIFY=require`, which treats a missing cosign like a failed check and builds locally. This proves the image was pushed by that workflow; it does not prove the Dockerfile is free of problems, and it is not checked at all by default. Images published before signing was added are signed afterwards by the publish workflow (it signs an already published hash that has no signature, without rebuilding it), so the first run after that does not rebuild locally. The check reads the digest of the pulled image, so it is not defeated by a moved tag, but the base images in the Dockerfile are still pinned by tag. Set `FLISK_GOLDEN_REGISTRY=off` to build them locally instead. Images for the optional features (monitoring, ELK, Debezium and others) and the generated `FROM` lines for Go, Rust, Python and Java were **not audited** here. Also not in the table: the scaffolded `Dockerfile` that `flisk up` does not build uses `oven/bun:1.2`, the bring-your-own placeholder `Dockerfile` uses `nginx:1.27-alpine`, and `runtime/engine/topologies/tilt/manifest/constants.star` names `node:20-alpine`; where that last one is used was not checked.
+Policy. A tag that names a supported release line (or an exact version) is required; `:latest` is only allowed next to a digest, where the tag is cosmetic. The generated language `Dockerfile` lines, the golden layers, `wake-gateway` and the release image pin `name:tag@sha256:...`, which keeps the multi-arch manifest list, so the same line works on amd64 and arm64. The other references (Alpine in the runtime layers, Postgres, Traefik, Sablier, the scaffold and the `flisk resource` infra presets) are tags only. Dependabot reads one Dockerfile in this repository (`wake-gateway`); the generated lines live in Starlark and TypeScript, so a person refreshes the digests with `docker buildx imagetools inspect <image>:<tag>` when the `base-images` gate reports a line at its end of life. The end-of-life table in the gate is dated; update it in the same change that moves a tag. Changing a line of the golden layers changes the golden Dockerfile hash, so the golden images are republished on the next merge. The engine ships no monitoring, ELK, Debezium or Java images, and `node:20-alpine` is no longer used.
+
+The golden layer images (`...-l1:latest` and similar) are built from these bases. By default `flisk up` pulls them prebuilt from `ghcr.io/flisk-sh/golden-<layer>:<hash12>`, which this repository's `publish-golden-images.yml` workflow builds from the same generated Dockerfile; the tag is the Dockerfile's hash. The workflow signs each image by digest with cosign (keyless, GitHub's OIDC identity) in both registries and attaches a build provenance attestation (`gh attestation verify oci://ghcr.io/flisk-sh/golden-<layer>@<digest> --repo flisk-sh/flisk`). On pull, `flisk up` runs `cosign verify` for the workflow identity `https://github.com/flisk-sh/flisk/.github/workflows/publish-golden-images.yml@.*` (issuer `https://token.actions.githubusercontent.com`) **only when `cosign` is on your PATH**; an image that fails is discarded and the layers are built locally instead. Without cosign nothing is checked and the pull works as before, unless you set `FLISK_GOLDEN_VERIFY=require`, which treats a missing cosign like a failed check and builds locally. This proves the image was pushed by that workflow; it does not prove the Dockerfile is free of problems, and it is not checked at all by default. Images published before signing was added are signed afterwards by the publish workflow (it signs an already published hash that has no signature, without rebuilding it), so the first run after that does not rebuild locally. The check reads the digest of the pulled image, so it is not defeated by a moved tag, and the base images in the Dockerfile are pinned by tag and digest where the table says so. Set `FLISK_GOLDEN_REGISTRY=off` to build them locally instead.
 
 ## Dependency advisories
 

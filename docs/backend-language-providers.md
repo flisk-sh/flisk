@@ -92,7 +92,7 @@ You can also customize the test directory (defaults to `tests`):
 ## Go
 
 `flisk resource api --type backend --language go --stack shop` scaffolds `go.mod`, `main.go` (standard-library `net/http`, `GET /health`,
-reads `PORT`, listens on every interface) and `main_test.go`. The engine generates the image: a `golang:1.23` build stage
+reads `PORT`, listens on every interface) and `main_test.go`. The engine generates the image: a `golang:1.27` build stage
 (`CGO_ENABLED=0 go build`), a `test` stage that runs `go test ./...`, and a small `debian:bookworm-slim` `production` stage with a
 health check. It has no package.json, Prisma or Bun configuration, and `--framework` cannot be combined with it.
 
@@ -131,7 +131,7 @@ Without the switch nothing changes. `liveReload: true` on a language that has no
   only your package, not the standard library.
 - **Debugging.** The watcher builds with `-ldflags='-s -w'`, which drops debug information and shortens the link step. A debugger
   such as delve cannot attach to that binary. If you need one, build the `development` target without the flag yourself.
-- **Go version.** The image is `golang:1.23-bookworm` with `GOTOOLCHAIN=auto`, so a `go.mod` that asks for a newer Go (Gin 1.12 asks
+- **Go version.** The image is `golang:1.27-bookworm` with `GOTOOLCHAIN=auto`, so a `go.mod` that asks for a newer Go (Gin 1.12 asks
   for 1.25) makes Go download that toolchain on the first image build instead of stopping with `go.mod requires go >= 1.25`. The
   default `production` and `test` stages set the same variable.
 - **Watcher limits.** The loop is synchronous: a file saved while `go build` is running is not in that binary, and is picked up on the

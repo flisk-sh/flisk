@@ -1,6 +1,6 @@
 services:
   nats:
-    image: nats:2.10-alpine
+    image: nats:2.11-alpine
     container_name: flisk_example_nats
     command: ["--jetstream", "--store_dir=/data/jetstream", "--http_port", "8222"]
     restart: unless-stopped
