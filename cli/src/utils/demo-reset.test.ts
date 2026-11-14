@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { stopDemoStack } from "./demo-reset.js";
 
+const none = async (): Promise<string[]> => [];
+
 describe("stopDemoStack", () => {
   let dir: string;
 
@@ -29,7 +31,7 @@ describe("stopDemoStack", () => {
     project(true);
     const runDown = vi.fn();
 
-    expect(await stopDemoStack(dir, runDown, async () => {})).toBe(true);
+    expect(await stopDemoStack(dir, runDown, async () => {}, none)).toBe(true);
     expect(runDown).toHaveBeenCalledWith(dir);
   });
 
@@ -42,6 +44,7 @@ describe("stopDemoStack", () => {
       async () => {
         order.push("stop-tilt");
       },
+      none,
     );
     expect(order).toEqual(["stop-tilt", "down"]);
   });
@@ -51,7 +54,7 @@ describe("stopDemoStack", () => {
     const stopTilt = vi.fn(async () => {});
     const runDown = vi.fn();
 
-    expect(await stopDemoStack(dir, runDown, stopTilt)).toBe(true);
+    expect(await stopDemoStack(dir, runDown, stopTilt, none)).toBe(true);
     expect(stopTilt).toHaveBeenCalledWith(join(dir, ".flisk", ".flisk-out", "Tiltfile"));
     expect(runDown).not.toHaveBeenCalled();
   });
@@ -60,8 +63,43 @@ describe("stopDemoStack", () => {
     const runDown = vi.fn();
     const stopTilt = vi.fn(async () => {});
 
-    expect(await stopDemoStack(dir, runDown, stopTilt)).toBe(false);
+    expect(await stopDemoStack(dir, runDown, stopTilt, none)).toBe(false);
     expect(runDown).not.toHaveBeenCalled();
     expect(stopTilt).not.toHaveBeenCalled();
+  });
+
+  it("also stops containers an older layout left in the folder, after down (#4124)", async () => {
+    project(true);
+    const order: string[] = [];
+    const sweep = vi.fn(async (folder: string) => {
+      order.push(`sweep ${folder}`);
+      return [];
+    });
+    await stopDemoStack(
+      dir,
+      () => order.push("down"),
+      async () => {},
+      sweep,
+    );
+    expect(order).toEqual(["down", `sweep ${dir}`]);
+  });
+
+  it("sweeps even when the Tiltfile is gone, which is the case for the old layout", async () => {
+    project(false);
+    const sweep = vi.fn(none);
+    await stopDemoStack(dir, vi.fn(), async () => {}, sweep);
+    expect(sweep).toHaveBeenCalledWith(dir);
+  });
+
+  it("fails, and so deletes nothing, when an old container will not stop", async () => {
+    project(true);
+    await expect(
+      stopDemoStack(
+        dir,
+        vi.fn(),
+        async () => {},
+        async () => ["flisk_demo"],
+      ),
+    ).rejects.toThrow(/flisk_demo/);
   });
 });

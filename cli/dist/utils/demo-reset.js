@@ -13,15 +13,24 @@ import { projectNameAt, readProjectRecords } from "./project-registry.js";
  * stack still runs; then `down` fails and the old Tilt keeps the ports and containers the new run needs, so the
  * second demo sat at "0 of 7 services ready". Returns true when a Flisk project was found.
  */
-export async function stopDemoStack(projectDir, runDown = runFliskDown, stopTilt = stopRunningTilt) {
+export async function stopDemoStack(projectDir, runDown = runFliskDown, stopTilt = stopRunningTilt, stopFolderContainers = stopContainersUnder) {
     if (!existsSync(join(projectDir, ".flisk", "project.json")))
         return false;
     const tiltfile = join(projectDir, ".flisk", ".flisk-out", "Tiltfile");
     await stopTilt(tiltfile);
-    if (!existsSync(tiltfile))
-        return true;
-    runDown(projectDir);
+    if (existsSync(tiltfile))
+        runDown(projectDir);
+    // `down` only knows the current layout. Containers an older version started in this folder (flisk_demo_postgres,
+    // flisk_demo_traefik) keep their host ports, and the new run then fails with "port is already allocated" (#4124).
+    const stuck = await stopFolderContainers(projectDir);
+    if (stuck.length > 0) {
+        throw new Error(`could not stop ${stuck.join(", ")} (docker compose down failed)`);
+    }
     return true;
+}
+async function stopContainersUnder(folder) {
+    const { stopComposeProjectsUnder } = await import("./down-cleanup.js");
+    return stopComposeProjectsUnder(folder).failed.map((entry) => entry.name);
 }
 async function stopRunningTilt(tiltfile) {
     const { findProjectTiltUpPids, stopProjectTiltUp, waitForTiltUpExit } = await import("./down-cleanup.js");

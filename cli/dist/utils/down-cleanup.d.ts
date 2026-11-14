@@ -64,6 +64,14 @@ export declare function waitForTiltUpExit(tiltfilePath: string, timeoutMs?: numb
  * from taking `shop-admin`'s containers.
  */
 export declare function projectComposeProjects(projectRoot: string, commandRunner?: CommandRunner): string[];
+/**
+ * Every Compose project that has a container whose working folder is `folder` or inside it, whatever generated it. Used by
+ * the demo reset, which deletes the folder: a container left running from an older layout (`flisk_demo_postgres`, from
+ * `.tdk/` or `services/platform/...`) keeps its host port and the next run fails with "port is already allocated" (#4124).
+ */
+export declare function composeProjectsUnder(folder: string, commandRunner?: CommandRunner): string[];
+/** Stops and removes the Compose projects of {@link composeProjectsUnder}. Volumes are kept. Never throws. */
+export declare function stopComposeProjectsUnder(folder: string, commandRunner?: CommandRunner): ComposeFallbackResult;
 export interface ComposeFallbackResult {
     stopped: string[];
     failed: {
