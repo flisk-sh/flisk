@@ -39,7 +39,7 @@ import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
 import { createPortClaimer } from "../utils/port-claims.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
-import { findPortOccupant } from "../utils/port-occupant.js";
+import { findPortContainer, findPortOccupant } from "../utils/port-occupant.js";
 import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/profiles.js";
 import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-owner.js";
 import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
@@ -1327,7 +1327,7 @@ export const upCommand = new Command("up")
                     }
                     report.failed = await withLoggedReasons(report.failed, (name) => tiltResourceLogs(port, name));
                     const machineFixes = await machineProblemFixes(report.failed, (name) => tiltResourceLogs(port, name));
-                    const reportLines = formatStartupReport(report, readiness.timedOut, (port) => findPortOccupant(port), machineFixes, readiness.lastLogs);
+                    const reportLines = formatStartupReport(report, readiness.timedOut, (port) => findPortContainer(port) ?? findPortOccupant(port), machineFixes, readiness.lastLogs);
                     if (reportLines.length > 0) {
                         showError(reportLines.join("\n"), undefined, upFailureHints({
                             kind: "services",

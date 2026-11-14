@@ -49,3 +49,26 @@ export function findPortOccupant(port, platform = process.platform, commandRunne
         return null;
     }
 }
+/**
+ * The Docker container that publishes `port` on the host, or null when none does or Docker cannot be read. A published
+ * port shows up in `lsof` as Docker's own helper (`ssh`, `com.docker.backend`, `limactl`), which names no one; the
+ * container is the answer the user can act on (#4124).
+ */
+export function findPortContainer(port, commandRunner = run) {
+    try {
+        const [name] = commandRunner("docker", [
+            "ps",
+            "--filter",
+            `publish=${port}`,
+            "--format",
+            "{{.Names}}",
+        ])
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+        return name ? { pid: 0, command: "docker", container: name } : null;
+    }
+    catch {
+        return null;
+    }
+}

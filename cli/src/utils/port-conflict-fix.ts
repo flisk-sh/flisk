@@ -31,8 +31,10 @@ export function portConflictFix(
   const port = conflictPort(message);
   if (port === null) return null;
   const envVar = PORT_ENV_VARS[String(port)];
-  const body = occupant
-    ? `Fix: port ${port} is held by ${occupant.command} (pid ${occupant.pid}). Stop it`
-    : `Fix: stop the process using port ${port} (find it with: lsof -nP -iTCP:${port} -sTCP:LISTEN)`;
+  const body = occupant?.container
+    ? `Fix: port ${port} is held by the Docker container ${occupant.container}. Stop it (docker stop ${occupant.container})`
+    : occupant
+      ? `Fix: port ${port} is held by ${occupant.command} (pid ${occupant.pid}). Stop it`
+      : `Fix: stop the process using port ${port} (find it with: lsof -nP -iTCP:${port} -sTCP:LISTEN)`;
   return envVar ? `${body}, or set ${envVar} to a free port and run flisk up` : body;
 }
