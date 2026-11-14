@@ -143,6 +143,27 @@ describe("renderDemoFrame", () => {
     expect(rows[FRAME_ROWS - 1]).toContain("A star helps");
   });
 
+  it("puts the license, the telemetry statement and the release check on the version row", () => {
+    const rows = frameToPlain(
+      renderDemoFrame(
+        baseState({
+          done: {
+            urls: ["localhost:3000"],
+            summary: "2 services",
+            hint: "Edit a file.",
+            version: "1.4.20",
+          },
+        }),
+        80,
+      ),
+    );
+    const versionRow = rows.find((row) => row.includes("flisk 1.4.20"));
+    expect(versionRow).toContain("MIT");
+    expect(versionRow).toContain("no telemetry");
+    expect(versionRow).toContain("docs/security.md");
+    expect(rows).toHaveLength(FRAME_ROWS);
+  });
+
   it("keeps the blank row and shows no Discord row without a Discord URL", () => {
     const rows = frameToPlain(
       renderDemoFrame(
@@ -187,6 +208,25 @@ describe("renderDemoFrame", () => {
     ).join("\n");
     expect(text).toContain("no services found");
     expect(text).not.toContain("0 of 0");
+  });
+
+  it("shows the setup step as its own phase and keeps the total on the last frame", () => {
+    const first = frameToPlain(
+      renderDemoFrame(
+        baseState({
+          servicesReady: 0,
+          servicesTotal: 9,
+          servicesBuilding: 0,
+          servicesPhase: "Building base images",
+        }),
+      ),
+    ).join("\n");
+    const last = frameToPlain(
+      renderDemoFrame(baseState({ servicesReady: 9, servicesTotal: 9, servicesBuilding: 0 })),
+    ).join("\n");
+    expect(first).toContain("0 of 9 services ready · Building base images");
+    expect(last).toContain("9 of 9 services ready");
+    expect(last).not.toContain("building");
   });
 
   it("fits every row inside the terminal at any common width", () => {

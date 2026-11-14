@@ -34,7 +34,7 @@ export interface ExtraOption {
 }
 /**
  * Extra parts a project can add on the Docker route: the creatable resource types that are not the website or the API, and
- * every framework of the infrastructure types (queues, databases).
+ * every framework of the infrastructure types (queues, storage, databases).
  */
 export declare function extraCatalog(): ExtraOption[];
 /** The programs a local project needs on the host, read from the generators it was built with. */

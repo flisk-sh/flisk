@@ -15,6 +15,7 @@ New to contributing? Start with the [step-by-step contributor guide](../docs/con
 Run in a project with Bun, Docker, and Tilt, or, when every service's `service.json` declares a `command`, with only your app's runtime: `flisk up` then runs the services as local processes ([guide](../docs/run-without-docker.md)). On Windows, run the CLI in WSL2.
 
 `flisk project` writes the project configuration and clones starter templates without a running Docker daemon or an installed Tilt; the runtime is only needed by `flisk up`.
+Cloned starters keep their source remote as `upstream`, leaving `origin` available for your own repository (`git remote add origin <url>`). Unpinned starters use a shallow clone; pinned starters retain the history needed to check out their exact commit.
 
 | Command | When to use it |
 | --- | --- |
@@ -155,11 +156,28 @@ flisk resource --type backend --frameworks                      # list backend f
 
 # Non-interactive resource creation
 flisk resource my-api --type backend --stack api --yes
+
+# Preview the configuration and planned files without changing the project
+flisk resource my-api --type backend --stack api --dry-run --yes
+flisk resource my-api --type backend --stack api --dry-run --json
 ```
 
 `--yes` skips resource creation prompts and requires an explicit resource name. A new project uses the
 `main` stack, an existing single-stack project reuses that stack, and a project with multiple stacks
 must pass `--stack`. Without `--yes`, prompt answers can still be supplied on stdin for scripted use.
+
+`--dry-run` resolves the same type, stack, framework/language and port as creation, then lists the
+files it would create or update, including a Prisma migrator when requested. Interactive choices
+still work; the final creation confirmation is skipped. No files, generated configs or port
+reservations are changed. Run again without `--dry-run` to apply; the plan is resolved again at
+that time. `--json` returns the plan in the [machine-readable envelope](../docs/reference/machine-readable-cli.md).
+For `--ddd`, previews require a fresh cached license result so checking entitlement cannot write
+license state or register a project remotely.
+
+Both preview and creation reject colliding generated file paths and file/directory conflicts
+before writing. Custom Dockerfile paths cannot replace `service.json` or `AGENTS.md`.
+When registering an existing resource, the report reflects the type, language and framework
+preserved in its manifest, including the defaults for omitted runtime fields.
 
 **Creates:**
 - 📄 `service.json` — Auto-assigned port from master config
@@ -253,6 +271,7 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk --help` | ❓ Show help |
 
 Shell completion for `flisk resource --type` includes the `inference` preset and `sdk` registration.
+It also suggests supported values for `completion --shell`, `doctor --scope`, and `create --runtime` and `--starter`.
 
 `-v` is context-specific: `flisk -v` prints the version, while `flisk up -v` and `flisk down -v`
 enable verbose output. Use `--version` and `--verbose` when clarity matters.
@@ -265,6 +284,8 @@ and no dimmed secondary text. `flisk ui --no-animations` keeps the loading scree
 static. If `NO_COLOR` is set (including an empty value), or `TERM` begins with
 `dumb`, the environment takes precedence over `--high-contrast`: color styling
 is disabled and ASCII markers, separators, and file-tree symbols are used.
+ASCII markers are also used, with colors kept, when `TERM` is `linux` or the first
+set of `LC_ALL`, `LC_CTYPE` and `LANG` does not name UTF-8 (for example `LANG=C`).
 
 If `flisk ui` finds no services, its empty state points to `flisk project` to create a
 project and `flisk resource api --type backend` to add a service. Press `q` to leave

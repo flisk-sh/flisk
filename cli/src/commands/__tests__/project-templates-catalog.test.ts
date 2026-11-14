@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, runFlisk } from "../../test-support/index.js";
 import { FliskError } from "../../utils/errors.js";
@@ -78,14 +79,26 @@ describe("cloneProjectTemplate with a pinned ref", () => {
     const destination = join(createTempDir(), "app");
     await cloneProjectTemplate(TEST_KEY, destination, [], { quiet: true });
     expect(git(destination, "rev-parse", "HEAD")).toBe(first);
+    expect(git(destination, "rev-parse", "--is-shallow-repository")).toBe("false");
+    expect(git(destination, "remote")).toBe("upstream");
+    expect(git(destination, "remote", "get-url", "upstream")).toBe(repo);
+    git(destination, "remote", "add", "origin", "https://example.com/my-app.git");
+    expect(git(destination, "remote", "get-url", "origin")).toBe("https://example.com/my-app.git");
   });
 
   it("stays on the default branch when no ref is set", async () => {
     const { repo } = twoCommitRepo();
-    PROJECT_TEMPLATES[TEST_KEY] = { repo, description: "unpinned" };
+    // Git ignores --depth for a plain local path; file:// exercises a real shallow clone.
+    PROJECT_TEMPLATES[TEST_KEY] = { repo: pathToFileURL(repo).href, description: "unpinned" };
     const destination = join(createTempDir(), "app");
     await cloneProjectTemplate(TEST_KEY, destination, [], { quiet: true });
     expect(git(destination, "rev-parse", "HEAD")).toBe(git(repo, "rev-parse", "HEAD"));
+    expect(git(destination, "rev-list", "--count", "HEAD")).toBe("1");
+    expect(git(destination, "rev-parse", "--is-shallow-repository")).toBe("true");
+    expect(git(destination, "remote")).toBe("upstream");
+    expect(git(destination, "remote", "get-url", "upstream")).toBe(pathToFileURL(repo).href);
+    git(destination, "remote", "add", "origin", "https://example.com/my-app.git");
+    expect(git(destination, "remote", "get-url", "origin")).toBe("https://example.com/my-app.git");
   });
 
   it("reports a pinned commit that the repository does not have", async () => {

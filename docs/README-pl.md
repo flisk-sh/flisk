@@ -12,7 +12,7 @@ Flisk to narzędzie wiersza poleceń do lokalnego tworzenia oprogramowania. Uruc
 Szybki start:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Chcesz wybrać własny stack? Odpowiedz na kilka pytań strzałkami i Enter:

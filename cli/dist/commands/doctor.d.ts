@@ -5,6 +5,7 @@ import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { type DockerRun } from "../utils/doctor-crashloop.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { type ExecAsync } from "../utils/exec-async.js";
+import { type HostCommandCache } from "../utils/host-command-cache.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
 export { checkDockerBuildCache, checkDockerFileSharing, checkPublicEnvSecrets, checkStarlarkLoadExports, };
@@ -47,7 +48,7 @@ export declare function runChecks(checks: DoctorCheckFn[], options?: {
 export declare function formatDoctorSummary(results: CheckResult[]): string;
 /** The Colima VM behind Docker: a stopped VM or a colima CLI that cannot see it. */
 export declare function checkColima(): Promise<CheckResult>;
-export declare function checkDockerRuntime(): Promise<CheckResult>;
+export declare function checkDockerRuntime(commandCache?: HostCommandCache): Promise<CheckResult>;
 export declare const checkDockerCompose: DoctorCheckFn;
 export declare function checkDockerVersions(exec?: ExecAsync): Promise<CheckResult>;
 export declare namespace checkDockerVersions {
@@ -68,6 +69,8 @@ export declare function checkBun(exec?: ExecAsync): Promise<CheckResult>;
  * Shared with `flisk up` so both commands report the same message and fix.
  */
 export declare function checkFliskVersion(currentVersion?: string): CheckResult;
+/** A CLI older than the latest release is a warning, never a failure; an unreachable registry is skipped (#4119). */
+export declare function checkLatestFliskVersion(currentVersion?: string, lookup?: () => Promise<string | null>): Promise<CheckResult>;
 /**
  * Tilt only builds resources under `discovery.paths`, but the CLI finds every service.json,
  * so a resource outside them is listed and given a URL by `flisk up` yet never started.

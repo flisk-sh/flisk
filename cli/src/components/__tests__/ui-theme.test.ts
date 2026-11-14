@@ -62,6 +62,20 @@ describe("flisk ui theme", () => {
     expect(darkTheme.accent).toBe("cyan");
   });
 
+  it("uses ASCII markers but keeps colors when the locale or TERM cannot draw Unicode", () => {
+    for (const environment of [
+      { LANG: "C" },
+      { LC_ALL: "POSIX", LANG: "en_US.UTF-8" },
+      { LC_CTYPE: "en_US.ISO-8859-1" },
+      { TERM: "linux" },
+    ]) {
+      const theme = createTUITheme(false, environment);
+      expect(theme.ascii).toBe(true);
+      expect(theme.accent).toBe("cyan");
+    }
+    expect(createTUITheme(false, { LC_ALL: "en_US.utf8", LANG: "C" }).ascii).toBe(false);
+  });
+
   it.each([{ NO_COLOR: "1" }, { NO_COLOR: "" }, { TERM: "dumb" }, { TERM: "dumb-256color" }])(
     "disables styling and uses ASCII markers for a plain terminal",
     (environment) => {

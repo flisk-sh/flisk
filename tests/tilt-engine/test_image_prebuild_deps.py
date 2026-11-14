@@ -34,12 +34,27 @@ def test_prebuild_waits_only_for_what_the_image_build_needs(tmp_path):
         "'none': needs_image_prebuild([]), "
         "}\n",
     )
-    assert result["deps"] == ["golden-layers-build", "orders-api-config-gen"]
+    # Postgres is kept as an ordering dep (#4127); provision-db, the migrator and other services are not.
+    assert result["deps"] == ["golden-layers-build", "orders-api-config-gen", "postgres"]
     assert result["verdaccio"] == ["verdaccio", "x-config-gen"]
     assert result["gated"] is True
     # Nothing to overlap: the image already builds as early as it can.
     assert result["ungated"] is False
     assert result["none"] is False
+
+
+@TILT_REQUIRED
+def test_postgres_alone_still_gets_a_separate_image_build(tmp_path):
+    # Postgres is an ordering dep of the image build, not an input: a service that waits only for Postgres must still get its
+    # `-image` step, or its image would build after Postgres through the dc_resource's own docker_build, as before.
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'image_prebuild_deps', 'needs_image_prebuild')\n"
+        "deps = ['postgres', 'golden-layers-build', 'x-config-gen']\n"
+        "r = {'gated': needs_image_prebuild(deps), 'deps': image_prebuild_deps(deps)}\n",
+    )
+    assert result["gated"] is True
+    assert result["deps"] == ["golden-layers-build", "x-config-gen", "postgres"]
 
 
 def _registered(tmp_path):
@@ -78,7 +93,8 @@ def _registered(tmp_path):
 def test_a_service_in_a_dependency_chain_gets_a_parallel_image_build(tmp_path):
     deps = _registered(tmp_path)
     # The image build waits only for its inputs, so it overlaps with the migrator instead of following it.
-    assert sorted(deps["api-image"]) == ["api-config-gen", "golden-layers-build"]
-    assert sorted(deps["migrator-image"]) == ["golden-layers-build", "migrator-config-gen"]
+    # Postgres is an ordering dep only (#4127): the migrator stays out, so the API image still overlaps the migration.
+    assert sorted(deps["api-image"]) == ["api-config-gen", "golden-layers-build", "postgres"]
+    assert sorted(deps["migrator-image"]) == ["golden-layers-build", "migrator-config-gen", "postgres"]
     # The service itself still waits for everything it declared, and for its prebuilt image.
     assert {"postgres", "migrator-done", "api-image"} <= set(deps["api"])

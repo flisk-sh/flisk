@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
+import { formatBytes, trimColimaAndMeasure } from "../utils/colima-disk.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
 import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
@@ -21,6 +22,7 @@ import { projectNameAt, readProjectRecords } from "../utils/project-registry.js"
 import { promptConfirm } from "../utils/prompt.js";
 import { discoverResources, discoverResourcesFromRoot, discoverStacks } from "../utils/services.js";
 import { buildTiltDownArgs, getTiltfilePath, runTilt } from "../utils/tilt.js";
+import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 function allStackNames() {
     try {
         const names = discoverStacks(discoverResources()).map((stack) => stack.name);
@@ -445,6 +447,22 @@ export const downCommand = addYesOption(new Command("down"))
                     if (!options.json) {
                         console.log(chalk.gray(`Pruned Docker build cache: ${pruned.reclaimed} reclaimed (filter: until=${cacheUntil}).`));
                     }
+                    // Pruning frees space inside the Colima VM only; its disk file keeps its size on the Mac until it is trimmed.
+                    try {
+                        const trimmed = await trimColimaAndMeasure();
+                        if (trimmed) {
+                            const returned = formatBytes(trimmed.returnedBytes);
+                            cachePruneResult = { ...cachePruneResult, hostReturned: returned };
+                            if (!options.json) {
+                                console.log(chalk.gray(`Trimmed the Colima VM: ${returned} returned to the Mac.`));
+                            }
+                        }
+                    }
+                    catch (err) {
+                        if (!options.json) {
+                            console.log(chalk.yellow(`Could not trim the Colima VM: ${err instanceof Error ? err.message : String(err)}. The Mac keeps the freed space until you run: colima ssh -- sudo fstrim -av`));
+                        }
+                    }
                 }
                 catch (err) {
                     const reason = err instanceof Error ? err.message : String(err);
@@ -453,6 +471,15 @@ export const downCommand = addYesOption(new Command("down"))
                         console.log(chalk.yellow(`Could not prune Docker build cache: ${reason}`));
                     }
                 }
+            }
+        }
+        // Tilt tags every build tilt-<hash> and only a running Tilt cleans them up, so superseded builds pile up
+        // (a day of rebuilds held 34 GB of images). Untag all but the newest per repo; running images are refused.
+        let tiltImages;
+        if (!options.dryRun) {
+            tiltImages = await pruneSupersededTiltImages(1);
+            if (tiltImages.removed.length > 0 && !options.json) {
+                console.log(chalk.gray(`Removed ${tiltImages.removed.length} superseded tilt-* image(s) (up to ${(tiltImages.removedBytes / 1e9).toFixed(1)} GB).`));
             }
         }
         // The stack is down but its images, volumes and the shared build cache still fill the disk (#3708).
@@ -475,6 +502,9 @@ export const downCommand = addYesOption(new Command("down"))
             ok: true,
             stoppedTilt,
             ...(retained ? { retained } : {}),
+            ...(tiltImages && tiltImages.removed.length > 0
+                ? { prunedTiltImages: tiltImages.removed }
+                : {}),
             ...(composeFallback
                 ? {
                     composeFallback: {

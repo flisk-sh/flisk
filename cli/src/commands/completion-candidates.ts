@@ -14,10 +14,12 @@ import { BACKEND_LANGUAGES } from "../backend-languages/registry.js";
 import { FRONTEND_FRAMEWORKS } from "../frontend-frameworks/registry.js";
 import {
   DATABASE_FRAMEWORKS,
-  QUEUE_FRAMEWORKS,
+  PRESET_RESOURCE_TYPES,
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../types/index.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
+import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import { SUPPORTED_SHELLS } from "./completion-shells.js";
 
 /** What a command's positional argument completes. */
 export type CompletionPositional =
@@ -96,7 +98,7 @@ const POSITIONALS: Record<string, CompletionPositional> = {
 };
 
 /**
- * The values of a flag, for the commands that accept another set than the default.
+ * Command-specific flag values, including overrides of the default value lists.
  *
  * `flisk resource` creates a resource and accepts `RESOURCE_CREATE_TYPE_VALUES` plus `sdk`,
  * while `flisk resources` filters the resources of the project and accepts
@@ -106,12 +108,18 @@ const POSITIONALS: Record<string, CompletionPositional> = {
  */
 const COMMAND_VALUES: Record<string, Record<string, string[]>> = {
   resources: { "--type": [...VALID_RESOURCE_TYPES] },
+  completion: { "--shell": [...SUPPORTED_SHELLS] },
+  doctor: { "--scope": ["project", "machine"] },
+  create: {
+    "--runtime": ["local", "docker"],
+    "--starter": Object.keys(PROJECT_TEMPLATES),
+  },
 };
 
 /**
  * The values of the flags that depend on the `--type` of the command line.
  *
- * `--framework` exists for a frontend, a backend, a database or a queue, and the framework ids of the four
+ * `--framework` exists for a frontend, a backend, a database and each preset type (queue, storage), and the framework ids
  * are disjoint, so the completion offers the frameworks of the type the user asked for. `--language`
  * belongs to a backend, so it offers the languages only for that type.
  */
@@ -121,7 +129,12 @@ const TYPE_VALUES: Record<string, TypeDependentValues> = {
       frontend: Object.keys(FRONTEND_FRAMEWORKS),
       backend: Object.keys(BACKEND_FRAMEWORKS),
       database: [...DATABASE_FRAMEWORKS],
-      queue: [...QUEUE_FRAMEWORKS],
+      ...Object.fromEntries(
+        Object.entries(PRESET_RESOURCE_TYPES).map(([type, { frameworks }]) => [
+          type,
+          [...frameworks],
+        ]),
+      ),
     },
     // `flisk resource` creates a backend unless the user asks for another type.
     fallback: Object.keys(BACKEND_FRAMEWORKS),

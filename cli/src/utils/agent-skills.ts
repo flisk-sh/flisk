@@ -18,6 +18,7 @@ export const PROJECT_AGENT_SKILLS = [
   "flisk-doctor",
   "flisk-up",
   "flisk-resource",
+  "flisk-tool-add",
   "flisk-status",
   "flisk-troubleshoot",
   "flisk-agent-ops",

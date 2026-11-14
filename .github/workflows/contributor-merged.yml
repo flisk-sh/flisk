@@ -191,46 +191,57 @@ jobs:
             const milestone = MILESTONES[mergedCount]
               || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`;
             // Everything below the opening lines is shared by the PR comment and each fixed issue's comment.
+            // Kept short on purpose: the Discord perks come first, the rest is one line each.
             const lines = [];
             if (rankLine) lines.push('', rankLine);
+            // The claim steps live in flisk-sh/.github (messages/claim-badge.md) so the wording can
+            // change without a change here. If that file cannot be read, a short built-in version is used.
+            const claimVars = {
+              lockedBadge: `[![${badgeName} badge, locked](${lockedBadgeUrl})](${discordInvite})`,
+              badgeName,
+              repoUrl: base,
+              orgUrl: `https://github.com/${owner}`,
+              discordInvite,
+              // The contributor's own post, so the link to their PR is welcome here.
+              xPostUrl: `https://x.com/intent/post?text=${encodeURIComponent(`My PR to flisk just got merged. flisk runs your microservices and agent stacks locally with one command. Claiming my ${badgeName} badge, first ${SEATS} only: ${base}/pull/${pr.number}`)}`,
+              seatsLine: founding && seatsLeft !== null ? `First ${SEATS} only. ${seatsLeft} left.` : '',
+              claimButton: discordButton('Claim your badge'),
+            };
+            let claimTemplate = null;
+            try {
+              const file = await retry(() => github.rest.repos.getContent({ owner, repo: '.github', path: 'messages/claim-badge.md' }));
+              claimTemplate = Buffer.from(file.data.content, 'base64').toString('utf8');
+            } catch (e) {
+              core.warning(`Could not read messages/claim-badge.md from ${owner}/.github, using the built-in text: ${e.message}`);
+            }
+            claimTemplate ??= [
+              '### 🎁 Your {{badgeName}} badge in 3 steps', '', '{{lockedBadge}}', '',
+              '1. ⭐ [Star the repo]({{repoUrl}}) and 👤 [follow us]({{orgUrl}})',
+              '2. ✅ Get a PR merged. Done! Now 📣 [post it on X]({{xPostUrl}}), the text is ready',
+              '3. 💬 Post this PR\'s link in `#start-here` on [our Discord]({{discordInvite}}) and the bot gives you your number.',
+              '', '{{seatsLine}}', '', '{{claimButton}}',
+            ].join('\n');
+            const claim = claimTemplate
+              .replace(/<!--[\s\S]*?-->/g, '')
+              .replace(/\{\{(\w+)\}\}/g, (m, k) => (k in claimVars ? claimVars[k] : m))
+              .replace(/\n{3,}/g, '\n\n')
+              .trim();
+            lines.push('', claim);
             // The Hall of Fame badge is shown rendered; the Markdown to copy sits in a fenced block,
             // because a badge wrapped in inline code renders as plain text.
             lines.push('', '### 🏅 Your Hall of Fame badge');
             lines.push('', copySnippet(author, mergedCount));
-            // Link the open hall-of-fame issue so a new contributor can find their place on it.
-            try {
-              const hall = (await retry(() => github.rest.search.issuesAndPullRequests({
-                q: `repo:${owner}/${repo} is:issue is:open in:title "Hall of fame: community contributors"`, per_page: 1,
-              }))).data.items[0];
-              if (hall) lines.push('', `You will appear on the [Hall of fame](${hall.html_url}) once it refreshes.`);
-            } catch (e) {
-              core.warning(`Could not look up the hall of fame issue: ${e.message}`);
-            }
             lines.push('', '<details>');
-            lines.push('<summary>Copy it into your portfolio or README</summary>');
+            lines.push('<summary>Copy it into your README</summary>');
             lines.push('', '```markdown', copySnippet(author, mergedCount), '```');
             lines.push('', '</details>');
-            lines.push('', `### 🔒 Unlock your numbered ${badgeName} badge`);
-            lines.push('', `[![${badgeName} badge, locked](${lockedBadgeUrl})](${discordInvite})`);
-            lines.push('', founding
-              ? `The first ${SEATS} people to ship code to Flisk each get a numbered, permanent badge to show on their GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers.`
-              : `All ${SEATS} Founding badges are taken, and yours is a numbered **Flisk Contributor** badge for your GitHub profile or CV. Post this PR's link in \`#start-here\` on [our Discord](${discordInvite}) and the bot gives you your number and your badge, plus access to the private channel where contributors talk directly with the maintainers.`);
-            lines.push('', discordButton('Claim your badge'));
             if (next.length) {
-              lines.push('', '### 🎯 Ready for another one?');
-              lines.push('', 'These are open and unclaimed. Comment on one to claim it:', '');
-              // GitHub expands a bare #123 list item to the issue title, so adding the title shows it twice.
+              // GitHub expands a bare #123 to the issue title, so the list stays bare numbers.
+              lines.push('', '### 🎯 Ready for another one?', '');
               for (const i of next) lines.push(`- #${i.number}`);
             }
             lines.push('', '---');
-            // Ask for a star only if the author's public starred list does not include this repo.
-            // A hidden star list looks unstarred, so the ask can show up for a starred user; that is harmless.
-            const starred = await retry(() => github.paginate(github.rest.activity.listReposStarredByUser,
-              { username: author, per_page: 100 })).catch(() => null);
-            if (starred && !starred.some((r) => r.full_name === `${owner}/${repo}`)) {
-              lines.push('', `⭐ If Flisk helps you, [a star on ${owner}/${repo}](${base}) helps other people find it.`);
-            }
-            lines.push('', 'Was anything unclear while you worked on this? Tell us in a comment. That is how the contributor guide gets better.');
+            lines.push('', 'Was anything unclear? Tell us in a comment.');
 
             if (!(await hasMark(pr.number, MARK_PR))) {
               const prLines = [MARK_PR, `## 🎉 Merged! Thank you @${author}`, '', milestone];

@@ -231,6 +231,13 @@ function isPending(item: Item): boolean {
   );
 }
 
+/**
+ * Shared resources every service needs. When one of them fails, nothing still pending can become ready, so the wait
+ * ends at the next poll instead of when the last unrelated image build finishes (#4125). An image build is a Tilt
+ * resource of its own with no dependencies, so the dependency graph alone never links it to a failed postgres.
+ */
+export const SHARED_INFRASTRUCTURE = ["postgres", "traefik", "golden-layers-build"];
+
 export function buildStartupReport(
   jsonText: string,
   dependsOn: Record<string, string[]>,
@@ -270,9 +277,12 @@ export function buildStartupReport(
       isNeverStarted(item.status)
     )
       continue;
-    const because = [...transitiveDependencies(name, deps)]
-      .filter((dep) => failedNames.has(dep))
-      .sort();
+    const because = [
+      ...new Set([
+        ...[...transitiveDependencies(name, deps)].filter((dep) => failedNames.has(dep)),
+        ...SHARED_INFRASTRUCTURE.filter((infra) => failedNames.has(infra)),
+      ]),
+    ].sort();
     if (because.length > 0) {
       blocked.push({ name, because });
     } else if (isPending(item)) {

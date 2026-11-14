@@ -12,7 +12,7 @@ Flisk est un outil en ligne de commande pour le développement local. Il exécut
 Démarrage rapide:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Vous voulez choisir votre propre stack ? Répondez à quelques questions avec les flèches et Entrée :

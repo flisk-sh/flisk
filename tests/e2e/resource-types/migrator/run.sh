@@ -76,6 +76,7 @@ M3() { # flisk up starts Postgres, runs the migrator to completion, then starts 
   : >"$DIR/up.log"
   start_stack "$STACK"
   poll_until "$MIGRATOR logs a completed migration" "$READY_TIMEOUT" migrator_completed
+  timing_serving cold_start || true # a migrator serves no route: its start ends when the migration completes
   poll_until "a running $API container" "$READY_TIMEOUT" api_running
   # The migrator is a one-shot job: it exits 0 and stays exited. It used to get the backend service (restart:
   # unless-stopped, an HTTP health check), so Docker restarted it forever, its health stayed unhealthy and flisk up never
@@ -122,6 +123,8 @@ M4() { # a database resource (#2863): the migrator waits for it by name, and fli
   : >"$DIR/up.log"
   start_stack "$STACK"
   poll_until "$MIGRATOR logs a completed migration" "$READY_TIMEOUT" migrator_completed
+  # A database resource is the shared Postgres: its start is flisk up until the migrator that depends on it has run (stacklytics).
+  timing_serving cold_start database || true
   poll_until "$MIGRATOR exited" "$READY_TIMEOUT" migrator_exited
   poll_until "a running $API container" "$READY_TIMEOUT" api_running
   # Verify after flisk up: the dependsOn edit leaves the service outputs stale until up rewrites them.

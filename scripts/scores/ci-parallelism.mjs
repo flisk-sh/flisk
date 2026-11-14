@@ -44,7 +44,8 @@ export function runParallelism(jobs, nonLegs = []) {
 			!nonLegs.includes(j.name) &&
 			j.startedAt &&
 			j.completedAt &&
-			j.conclusion !== "skipped",
+			j.conclusion !== "skipped" &&
+			new Date(j.completedAt) >= new Date(j.startedAt),
 	);
 	if (!legs.length) return null;
 	const durations = legs.map((j) => seconds(j.startedAt, j.completedAt));

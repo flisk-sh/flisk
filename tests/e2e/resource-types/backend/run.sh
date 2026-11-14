@@ -66,6 +66,12 @@ B2b() { # the command in the probe directory name did not run, during discovery 
 B3() { # the routed health check answers 200 through Traefik
   log "B3 $API answers /health through Traefik"
   poll_until "$API answers /health 200 through Traefik" "$READY_TIMEOUT" api_healthy
+  timing_serving cold_start || true
+}
+
+B3b() { # flisk down, then flisk up again with the images cached: /health answers 200 (the warm start, stacklytics)
+  log "B3b warm start: flisk down, flisk up, $API answers /health"
+  common_warm_start "$STACK" "$API answers /health 200 through Traefik" api_healthy
 }
 
 B4() { # flisk restart, then the API answers /health again through Traefik

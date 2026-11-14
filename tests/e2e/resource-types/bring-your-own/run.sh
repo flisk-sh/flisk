@@ -34,8 +34,11 @@ variant_field() { node -e 'const s=require(process.argv[1]); const v=s.variants.
 run_verify() { # <verify script> <case label>
   local script="$1" label="$2"
   log "$label with arguments: $(variant_field args)"
+  local cold; cold="$(mktemp)"
   # shellcheck disable=SC2046
-  bash "$SUITE_DIR/$script" $(variant_field args)
+  BYO_COLD_START_FILE="$cold" bash "$SUITE_DIR/$script" $(variant_field args)
+  [ ! -s "$cold" ] || timing cold_start "$(cat "$cold")" || true
+  rm -f "$cold"
 }
 
 # A folder listed in examples/byo/templates.json comes from its own repository (#1965): sync it at the pinned tag first,

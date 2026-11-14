@@ -88,7 +88,7 @@ The publish gate refuses a commit no passing candidate covers. `main` moves ever
 # a fresh branch per attempt: a retry after a fix on main needs a new name (release/<version>-rc2, ...)
 gh api repos/flisk-sh/flisk/git/refs -f ref=refs/heads/release/<version>-rc<n> -f sha=<commit>
 gh workflow run release-candidate.yml --ref release/<version>-rc<n>
-# or the same, and start the release now (step 3 happens on its own; see below):
+# or the same, and start the release once it passes (step 3 happens on its own; see below):
 gh workflow run release-candidate.yml --ref release/<version>-rc<n> -f release=true
 # or: an rc tag at the commit
 git tag rc-<version> <commit> && git push origin refs/tags/rc-<version>
@@ -116,11 +116,11 @@ It accepts an **exact** candidate, or an **ancestor** candidate when no commit s
 
 ### 3. Dispatch the release
 
-A candidate started with `-f release=true` does this itself, right after its plan (its `dispatch release` job): `build` and
-`windows-binary` then run alongside the suites, and `publish` waits for the candidate on the same commit
-(`check-release-candidate.mjs --wait 45`, at most 45 minutes) and publishes only if every candidate job passed. If one fails,
-nothing is published; a candidate that failed or is missing still refuses at once. This takes the binaries' ~2 minutes off the
-critical path. Otherwise,
+A candidate started with `-f release=true` does this itself once every candidate job has passed (its `dispatch release` job
+runs after `gate`), so a failed candidate starts no release. `publish` still checks the candidate on the same commit
+(`check-release-candidate.mjs --wait 45`), which now waits only the few seconds until the candidate run is marked done.
+It used to start right after the plan, so `build` ran alongside the suites but `publish` then held a runner for minutes
+waiting for them (#3979). Otherwise,
 dispatch it on the candidate's own branch, so it publishes exactly the commit the candidate tested:
 
 ```bash

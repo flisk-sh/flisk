@@ -404,25 +404,38 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
 # 👁️ AUTO-DISCOVERY DAEMON
 # =============================================================================
 if _AUTO_DISCOVER_ENABLED:
-    watch_file('snapshots/resource-snapshot.json')
-    
     # Get extension install path: vendored copy inside this project
     discovery_path = _local_flisk_path + "/discovery"
 
     daemon_script = discovery_path + '/resource_snapshot.py'
     daemon_cmd = ["sh", "-c", 'cd "$1" && python3 "$2" watch', "sh", config.main_dir, daemon_script]
-    
+
     # Native Windows has no sh: the same daemon through PowerShell, using python3 or, failing that, python or the py launcher.
     # The two paths go in as single-quoted PowerShell strings (a quote inside one is doubled).
-    daemon_cmd_bat = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+    _daemon_ps_find_python = (
         # Python writes to a pipe in the console code page (cp1252), and resource_snapshot.py prints emoji, so it died with
         # UnicodeEncodeError on the hosted Windows run 42091105693. UTF-8 mode fixes that for this process only.
         "$env:PYTHONUTF8 = '1'; Set-Location -LiteralPath '" + config.main_dir.replace("'", "''") + "'; "
         # A Microsoft Store "App Execution Alias" resolves for python3 yet runs nothing, so each candidate must answer --version.
         + "$py = $null; foreach ($n in 'python3', 'python', 'py') { foreach ($c in @(Get-Command $n -All -ErrorAction SilentlyContinue)) { "
-        + "& $c.Source --version *> $null; if ($LASTEXITCODE -eq 0) { $py = $c; break } }; if ($py) { break } }; "
+        + "& $c.Source --version *> $null; if ($LASTEXITCODE -eq 0) { $py = $c; break } }; if ($py) { break } }; ")
+    _daemon_ps_script = "'" + daemon_script.replace("'", "''") + "'"
+    daemon_cmd_bat = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+        _daemon_ps_find_python
         + "if (-not $py) { Write-Output 'python3, python or py is needed on PATH for the service discovery daemon'; exit 1 }; "
-        + "& $py.Source '" + daemon_script.replace("'", "''") + "' watch; exit $LASTEXITCODE"]
+        + "& $py.Source " + _daemon_ps_script + " watch; exit $LASTEXITCODE"]
+
+    # The daemon rewrites the snapshot when a service.json is added, removed or changed, and the watch_file below then
+    # reloads this Tiltfile. When no snapshot existed, the daemon wrote the first one after Tilt was already watching it,
+    # so every clean start (a new project, every `flisk demo`) evaluated the whole Tiltfile a second time: 46.8 s on a
+    # cold demo start, 10.4 s on a warm one (#4128). Write the first snapshot here, during the load, instead. A missing
+    # Python must not fail the load (it only stops the daemon), so this step never fails.
+    if not os.path.exists(config.main_dir + '/snapshots/resource-snapshot.json'):
+        local(["sh", "-c", 'cd "$1" && python3 "$2" save >/dev/null 2>&1 || true', "sh", config.main_dir, daemon_script],
+            command_bat=["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                _daemon_ps_find_python + "if ($py) { & $py.Source " + _daemon_ps_script + " save *> $null }; exit 0"],
+            quiet=True, echo_off=True)
+    watch_file('snapshots/resource-snapshot.json')
 
     local_resource('service-discovery-daemon',
         serve_cmd=daemon_cmd,

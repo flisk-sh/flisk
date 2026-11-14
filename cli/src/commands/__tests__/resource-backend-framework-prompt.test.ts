@@ -15,6 +15,9 @@ const promptMocks = vi.hoisted(() => ({
 
 vi.mock("../../utils/prompt.js", () => promptMocks);
 
+const licenseMock = vi.hoisted(() => vi.fn());
+vi.mock("../../generator/extension-fetch.js", () => ({ hasDddLicense: licenseMock }));
+
 /** The choices the backend picker shows: every registered framework, the default first. */
 const BACKEND_FRAMEWORK_CHOICES = [
   { title: "Bun + Hono", value: "hono" },
@@ -76,6 +79,7 @@ describe("interactive backend framework choice", () => {
     promptMocks.promptSelect.mockResolvedValue("express");
     promptMocks.promptText.mockResolvedValue("main");
     promptMocks.promptConfirm.mockResolvedValue(true);
+    licenseMock.mockResolvedValue(true);
   });
 
   it("asks which backend framework to use and scaffolds the chosen one", async () => {
@@ -96,6 +100,26 @@ describe("interactive backend framework choice", () => {
     expect(
       readFileSync(join(result.projectRoot, "services/shop/api/src/index.ts"), "utf-8"),
     ).toContain("from 'express'");
+  });
+
+  it("uses interactive choices in a preview without asking to create or writing files", async () => {
+    const result = await runResource(["api", "--type", "backend", "--stack", "shop", "--dry-run"]);
+    expect(result.status, result.stderr).toBeUndefined();
+    expect(backendFrameworkPromptCalls()).toHaveLength(1);
+    expect(result.stdout).toContain("Framework: express");
+    expect(result.stdout).toContain("create  services/shop/api/service.json");
+    expect(promptMocks.promptConfirm).not.toHaveBeenCalled();
+    expect(existsSync(join(result.projectRoot, "services"))).toBe(false);
+  });
+
+  it("previews the empty DDD folders using only a cached license check", async () => {
+    const result = await runResource(["api", "--stack", "shop", "--ddd", "--dry-run", "--yes"]);
+    expect(result.status, result.stderr).toBeUndefined();
+    expect(licenseMock).toHaveBeenCalledWith(result.projectRoot, { cachedOnly: true });
+    for (const layer of ["domain", "application", "infrastructure", "presentation"]) {
+      expect(result.stdout).toContain(`create directory  services/shop/api/src/${layer}/`);
+    }
+    expect(existsSync(join(result.projectRoot, "services"))).toBe(false);
   });
 
   it("offers the default framework first, so the default is the one a user picks with 1", async () => {

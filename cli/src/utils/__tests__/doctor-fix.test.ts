@@ -409,6 +409,7 @@ describe("dockerFixDeps", () => {
   it("provides the expected default dependency handlers with correct types", () => {
     const expectedKeys = [
       "colima",
+      "colimaDiskBloat",
       "colimaStatus",
       "dockerAnswers",
       "freeDiskGib",
@@ -597,6 +598,19 @@ describe("disk reclaim", () => {
     expect(trim?.command).toBe("colima ssh -- sudo fstrim -av");
     expect(trim?.scope).toBe("host");
     expect(trim?.reason).toContain("3.4 GB free");
+  });
+
+  it("plans a trim when the disk is fine but the Colima disk file is over 3x what Docker uses", async () => {
+    const { deps, colimaState } = fakeDocker([]);
+    colimaState.isColima = true;
+    deps.colimaDiskBloat = async () => ({
+      diskFileBytes: 34 * 1024 ** 3,
+      dockerBytes: 8 * 1024 ** 3,
+    });
+    const plan = await planDoctorFixes("p", deps);
+    expect(plan.map((a) => a.id)).toEqual(["trim:colima"]);
+    expect(plan[0]?.reason).toContain("34.0 GB");
+    expect(plan[0]?.reason).toContain("8.0 GB");
   });
 
   it("plans the trim even when there is nothing left to prune", async () => {

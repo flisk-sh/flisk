@@ -39,6 +39,8 @@ export declare function buildUpArgs(args: Record<string, unknown>): string[];
 export declare function startUp(args: Record<string, unknown>, deps?: UpDeps): Promise<McpToolResult>;
 export declare function buildLogsArgs(args: Record<string, unknown>): string[];
 /** `flisk resource <name> ... --yes`: options as `--flag=value`, after the name, so a variadic `--feature` never takes it. */
+/** `flisk tool add <tool> [name] --json` for the tool_add tool; the tool must be one the catalog knows. */
+export declare function buildToolAddArgs(args: Record<string, unknown>): string[];
 export declare function buildResourceCreateArgs(args: Record<string, unknown>): string[];
 /** `flisk stack <stack> --resources=<name>... --yes`: one `--resources=` per name so a value is never a flag. */
 export declare function buildStackAssignArgs(args: Record<string, unknown>): string[];

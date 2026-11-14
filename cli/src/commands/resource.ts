@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -19,7 +19,7 @@ import {
   getBackendIndexTemplate,
   getDrizzleBackendIndexTemplate,
 } from "../backend-languages/bun.js";
-import { resolveBackendLanguage } from "../backend-languages/registry.js";
+import { DEFAULT_BACKEND_LANGUAGE, resolveBackendLanguage } from "../backend-languages/registry.js";
 import {
   DEFAULT_FRONTEND_FRAMEWORK,
   listFrontendFrameworks,
@@ -38,6 +38,7 @@ import type {
   CreatableResourceType,
   FileGenerationTask,
   InfraFramework,
+  InfraResourceType,
   JsonCommandResult,
   PortAssignableResourceType,
   ResourceType,
@@ -45,9 +46,9 @@ import type {
 import {
   DATABASE_FRAMEWORK,
   DATABASE_RESOURCE_TYPE,
-  DEFAULT_QUEUE_FRAMEWORK,
   INFERENCE_RESOURCE_TYPE,
-  QUEUE_RESOURCE_TYPE,
+  PRESET_RESOURCE_TYPES,
+  type PresetResourceType,
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../types/index.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
@@ -65,15 +66,17 @@ import {
   readDiscoveryPaths,
 } from "../utils/discovery-paths.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
-import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import {
   createInfraServiceJson,
+  defaultFrameworkOfType,
   frameworksOfType,
   INFRA_PRESETS,
   type InfraPreset,
   infraFrameworkFor,
   isInfraFramework,
+  isInfraResourceType,
+  isPresetResourceType,
   replacementForRemovedType,
 } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
@@ -83,6 +86,7 @@ import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
 import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.js";
+import { ResourceFilePlan } from "../utils/resource-plan.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -141,7 +145,9 @@ export const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificConfig> = 
   },
   worker: {
     dev: {
-      command: "bun run worker",
+      // The scaffolded package.json has no "worker" script; "dev" matches its
+      // `bun run --watch src/index.ts` script (#3740).
+      command: "bun run dev",
       watch: ["src/**/*"],
     },
   },
@@ -194,15 +200,14 @@ export function assertInfraPresetOptions(
 }
 
 /**
- * `--framework` for `--type database` (postgres, or an infrastructure framework) and `--type queue`: a wrong id gets the
- * type that offers it, because the ids of the two types are disjoint.
+ * `--framework` for `--type database` (postgres, or an infrastructure framework) and the preset types (`queue`, `storage`):
+ * a wrong id gets the type that offers it, because the ids of the types are disjoint.
  */
 export function assertInfraFramework(type: string, framework: string | undefined): void {
   if (framework === undefined) return;
-  const offered =
-    type === QUEUE_RESOURCE_TYPE
-      ? frameworksOfType(type)
-      : [DATABASE_FRAMEWORK, ...frameworksOfType(type)];
+  const offered = isPresetResourceType(type)
+    ? frameworksOfType(type)
+    : [DATABASE_FRAMEWORK, ...frameworksOfType(type)];
   if (offered.includes(framework)) return;
   const otherType = isInfraFramework(framework) ? INFRA_PRESETS[framework].type : undefined;
   throw new FliskError(
@@ -596,12 +601,10 @@ export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 
 /**
  * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` is a preset of it.
- * `database` and `queue` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
+ * `database`, `queue` and `storage` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
  * container is created. The preset types of 1.4.24 (redis, qdrant, rabbitmq, minio, mlflow) are frameworks now.
  */
-export function parseResourceType(
-  type: string,
-): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE | "sdk" {
+export function parseResourceType(type: string): CreatableResourceType | InfraResourceType | "sdk" {
   const replacement = replacementForRemovedType(type);
   if (replacement) {
     throw new FliskError(`${type} is a framework: use ${replacement}.`, [
@@ -616,11 +619,7 @@ export function parseResourceType(
       [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"],
     );
   }
-  return normalized as
-    | CreatableResourceType
-    | typeof DATABASE_RESOURCE_TYPE
-    | typeof QUEUE_RESOURCE_TYPE
-    | "sdk";
+  return normalized as CreatableResourceType | InfraResourceType | "sdk";
 }
 
 /** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */
@@ -718,7 +717,7 @@ function printFrameworkInventory(
     printFrontendFrameworks();
     return;
   }
-  if (listing.type === DATABASE_RESOURCE_TYPE || listing.type === QUEUE_RESOURCE_TYPE) {
+  if (isInfraResourceType(listing.type)) {
     for (const f of infraFrameworkListing(listing.type)) {
       console.log(
         `${f.id}\t${f.label}\t${f.image ?? "-"}\t${f.default ? "default" : "-"}\t${f.command}`,
@@ -739,13 +738,11 @@ function printFrameworkInventory(
 }
 
 /**
- * The frameworks `--type database` and `--type queue` accept, in the order the help lists them. The database default is
- * the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image, and a queue
- * without `--framework` is NATS.
+ * The frameworks `--type database` and the preset types (`queue`, `storage`) accept, in the order the help lists them. The
+ * database default is the shared Flisk Postgres (no container of its own, so no image); every other one is a pinned image,
+ * and a preset type without `--framework` runs its default (NATS, MinIO).
  */
-export function infraFrameworkListing(
-  type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE,
-): {
+export function infraFrameworkListing(type: InfraResourceType): {
   id: string;
   label: string;
   image: string | null;
@@ -758,11 +755,11 @@ export function infraFrameworkListing(
       id,
       label: preset.description,
       image: preset.image,
-      default: type === QUEUE_RESOURCE_TYPE && id === DEFAULT_QUEUE_FRAMEWORK,
+      default: id === defaultFrameworkOfType(type),
       command: `flisk resource <name> --type ${type} --framework ${id}`,
     };
   });
-  if (type === QUEUE_RESOURCE_TYPE) return rows;
+  if (isPresetResourceType(type)) return rows;
   return [
     {
       id: DATABASE_FRAMEWORK,
@@ -782,18 +779,18 @@ function frameworkListing(
 ):
   | { type: "frontend" }
   | { type: "backend"; language: string | undefined }
-  | { type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE } {
+  | { type: InfraResourceType } {
   // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
   // it is a backend option, and the frontend listing has never carried one.
   if (!isTypeExplicit) return { type: "frontend" };
 
   const resourceType = parseResourceType(options.type ?? "backend");
-  if (resourceType === DATABASE_RESOURCE_TYPE || resourceType === QUEUE_RESOURCE_TYPE) {
+  if (isInfraResourceType(resourceType)) {
     return { type: resourceType };
   }
   if (resourceType !== "frontend" && resourceType !== "backend") {
     throw new FliskError(`No frameworks are registered for --type ${resourceType}.`, [
-      "Use --type frontend, backend, database or queue to list frameworks",
+      `Use --type ${["frontend", "backend", "database", ...Object.keys(PRESET_RESOURCE_TYPES)].join(", ").replace(/, ([^,]+)$/, " or $1")} to list frameworks`,
       "Omit --type to list the frontend frameworks",
     ]);
   }
@@ -811,7 +808,7 @@ export function frameworkInventoryReport(
   isTypeExplicit: boolean,
 ): Record<string, unknown> {
   const listing = frameworkListing(options, isTypeExplicit);
-  if (listing.type === DATABASE_RESOURCE_TYPE || listing.type === QUEUE_RESOURCE_TYPE) {
+  if (isInfraResourceType(listing.type)) {
     return { type: listing.type, frameworks: infraFrameworkListing(listing.type) };
   }
   return listing.type !== "backend"
@@ -839,6 +836,35 @@ export interface ResourceReport {
   discovered: boolean;
 }
 
+/** Registration keeps runtime fields, even when the creation flags would select another scaffold. */
+function registrationReport(
+  report: ResourceReport,
+  manifest: ExistingServiceConfig,
+): ResourceReport {
+  const type = manifest.appType ?? report.type;
+  const language =
+    typeof manifest.language === "string"
+      ? manifest.language
+      : type === "backend"
+        ? DEFAULT_BACKEND_LANGUAGE
+        : null;
+  const framework =
+    typeof manifest.framework === "string"
+      ? manifest.framework
+      : type === "backend" && language === DEFAULT_BACKEND_LANGUAGE
+        ? DEFAULT_BACKEND_FRAMEWORK
+        : type === "frontend"
+          ? DEFAULT_FRONTEND_FRAMEWORK
+          : null;
+  return {
+    ...report,
+    type,
+    language,
+    framework,
+    port: typeof manifest.port === "number" && manifest.port > 0 ? manifest.port : null,
+  };
+}
+
 /** The historical frontend listing: id, display name, kind, verification, command. */
 function printFrontendFrameworks(): void {
   for (const f of listFrontendFrameworks()) {
@@ -853,7 +879,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .argument("[name]", "Resource name (kebab-case)")
   .option(
     "-t, --type <type>",
-    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, sdk",
+    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, storage, mail, payment, sdk",
     "backend",
   )
   .option(
@@ -862,7 +888,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   )
   .option(
     "--frameworks",
-    "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue)",
+    "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage, --type mail, --type payment)",
   )
   .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
   .option("-s, --stack <stack>", "Stack to assign resource to", "default")
@@ -912,6 +938,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)",
     false,
   )
+  .option("--dry-run", "Preview the resource and files without writing or reserving a port", false)
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .addHelpText(
     "after",
@@ -970,8 +997,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
 
       const requestedType = parseResourceType(options.type);
       const isInference = options.type === INFERENCE_TYPE;
-      if (requestedType === DATABASE_RESOURCE_TYPE || requestedType === QUEUE_RESOURCE_TYPE) {
-        // Asked on a terminal only; --yes and --json take the default (the shared Postgres, NATS).
+      if (isInfraResourceType(requestedType)) {
+        // Asked on a terminal only; --yes and --json take the default (the shared Postgres, NATS, MinIO).
         if (
           options.framework === undefined &&
           !assumeYes &&
@@ -979,7 +1006,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
           process.stdout.isTTY
         ) {
           options.framework = await promptSelect({
-            message: `${requestedType === QUEUE_RESOURCE_TYPE ? "Queue" : "Database"} framework:`,
+            message: `${isPresetResourceType(requestedType) ? PRESET_RESOURCE_TYPES[requestedType].label : "Database"} framework:`,
             choices: infraFrameworkListing(requestedType).map((f) => ({
               title: `${f.id}: ${f.label}`,
               value: f.id,
@@ -993,10 +1020,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
         requestedType,
         options.framework,
       );
-      // A queue is always an infrastructure framework (NATS without --framework), so it never reaches the scaffolding below.
+      // A preset type is always an infrastructure framework (its default without --framework), so it never reaches the
+      // scaffolding below.
       const resourceType = infraPreset
         ? BRING_YOUR_OWN_TYPE
-        : (requestedType as Exclude<typeof requestedType, typeof QUEUE_RESOURCE_TYPE>);
+        : (requestedType as Exclude<typeof requestedType, PresetResourceType>);
       const isDatabase = resourceType === DATABASE_RESOURCE_TYPE;
       // Before any early return below (databases, queues, bring-your-own), or --local would be accepted and ignored.
       if (options.local && resourceType !== "frontend" && resourceType !== "backend") {
@@ -1096,7 +1124,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
             ),
           );
         } else {
-          const granted = await hasDddLicense(projectRoot);
+          const granted = options.dryRun
+            ? await hasDddLicense(projectRoot, { cachedOnly: true })
+            : await hasDddLicense(projectRoot);
           if (!granted) {
             throw new FliskError(
               "DDD scaffolding is a Premium feature and requires a license key that grants it. " +
@@ -1314,31 +1344,30 @@ export const resourceCommand = addYesOption(new Command("resource"))
         );
       }
 
-      console.log(chalk.gray("\nResource details:"));
-      console.log(chalk.gray(`  Name:  ${resourceName}`));
-      console.log(chalk.gray(`  Type:  ${resourceType}`));
-      console.log(chalk.gray(`  Stack: ${stackName}`));
-      console.log(
-        chalk.gray(`  Port: ${assignedPort || (isDatabase ? "N/A (database)" : "N/A (SDK)")}`),
-      );
-      console.log(chalk.gray(`  Path:  ${finalResourcePath}`));
-
+      const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
+      let updatedServiceJson: ExistingServiceConfig | undefined;
       if (shouldRegisterExisting && hasServiceJson) {
-        console.log(
-          chalk.yellow("\n⚠️  Existing resource detected - will update service.json only"),
+        // Read existing service.json
+        const existingContent = readFileSync(existingServiceJsonPath, "utf-8");
+        const existingServiceJson = parseExistingServiceJson(
+          existingContent,
+          existingServiceJsonPath,
         );
+
+        // Update with new values while preserving existing fields
+        updatedServiceJson = {
+          ...existingServiceJson,
+          $schema: existingServiceJson.$schema ?? SERVICE_MANIFEST_SCHEMA_URL,
+          schemaVersion: existingServiceJson.schemaVersion ?? SERVICE_MANIFEST_SCHEMA_VERSION,
+          appName: resourceName,
+          appType: resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType,
+          stack: stackName,
+          ...(assignedPort > 0 && { port: assignedPort }),
+        };
       }
 
-      const confirmed =
-        assumeYes ||
-        (await confirmOrCancel(
-          shouldRegisterExisting && hasServiceJson
-            ? "\nRegister existing resource?"
-            : "\nCreate resource?",
-        ));
-      if (!confirmed) return { data: null };
-      const report = (action: ResourceReport["action"]): JsonCommandResult => ({
-        data: {
+      const report = (action: ResourceReport["action"]): { data: ResourceReport } => {
+        const data: ResourceReport = {
           action,
           name: resourceName,
           type: resourceType,
@@ -1359,33 +1388,58 @@ export const resourceCommand = addYesOption(new Command("resource"))
             finalResourcePath,
             readDiscoveryPaths(projectRoot),
           ),
-        } satisfies ResourceReport,
-      });
+        };
+        return { data: updatedServiceJson ? registrationReport(data, updatedServiceJson) : data };
+      };
+      const resource = report(updatedServiceJson ? "registered" : "created").data;
+
+      console.log(chalk.gray("\nResource details:"));
+      console.log(chalk.gray(`  Name:  ${resourceName}`));
+      console.log(chalk.gray(`  Type:  ${resource.type}`));
+      console.log(chalk.gray(`  Stack: ${stackName}`));
+      console.log(
+        chalk.gray(
+          `  Port: ${resource.port || (resource.type === DATABASE_RESOURCE_TYPE ? "N/A (database)" : "N/A (SDK)")}`,
+        ),
+      );
+      console.log(chalk.gray(`  Path:  ${finalResourcePath}`));
+
+      if (shouldRegisterExisting && hasServiceJson) {
+        console.log(
+          chalk.yellow("\n⚠️  Existing resource detected - will update service.json only"),
+        );
+      }
+
+      const confirmed =
+        options.dryRun ||
+        assumeYes ||
+        (await confirmOrCancel(
+          shouldRegisterExisting && hasServiceJson
+            ? "\nRegister existing resource?"
+            : "\nCreate resource?",
+        ));
+      if (!confirmed) return { data: null };
+
+      const plan = new ResourceFilePlan();
+      const preview = (): JsonCommandResult => {
+        const { files, directories } = plan.preview(projectRoot);
+        console.log(chalk.cyan("\nDry run - planned changes:"));
+        console.log(chalk.gray(`  Framework: ${resource.framework ?? "N/A"}`));
+        console.log(chalk.gray(`  Language: ${resource.language ?? "N/A"}`));
+        for (const directory of directories) console.log(`  create directory  ${directory}/`);
+        for (const file of files) console.log(`  ${file.action}  ${file.path}`);
+        console.log(
+          "\nNo files were written or ports reserved. Run again without --dry-run to apply.",
+        );
+        return { data: { dryRun: true, resource, files, directories } };
+      };
 
       // Handle existing resource registration
-      if (shouldRegisterExisting && hasServiceJson) {
-        // Read existing service.json
-        const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
-        const existingContent = readFileSync(existingServiceJsonPath, "utf-8");
-        const existingServiceJson = parseExistingServiceJson(
-          existingContent,
-          existingServiceJsonPath,
-        );
-
-        // Update with new values while preserving existing fields
-        const updatedServiceJson = {
-          ...existingServiceJson,
-          $schema: existingServiceJson.$schema ?? SERVICE_MANIFEST_SCHEMA_URL,
-          schemaVersion: existingServiceJson.schemaVersion ?? SERVICE_MANIFEST_SCHEMA_VERSION,
-          appName: resourceName,
-          appType: resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType,
-          stack: stackName,
-          ...(assignedPort > 0 && { port: assignedPort }),
-        };
-
+      if (updatedServiceJson) {
         // Write updated service.json
-        const { writeFileSync } = await import("node:fs");
-        writeFileSync(existingServiceJsonPath, JSON.stringify(updatedServiceJson, null, 2));
+        plan.text(existingServiceJsonPath, JSON.stringify(updatedServiceJson, null, 2));
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
 
         console.log(chalk.green("\n✅ Existing resource registered successfully!"));
@@ -1396,13 +1450,14 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       if (isDatabase) {
-        console.log(chalk.blue("\n📁 Creating database resource..."));
-        mkdirSync(fullPath, { recursive: true });
-        const { writeFileSync } = await import("node:fs");
-        writeFileSync(
+        if (!options.dryRun) console.log(chalk.blue("\n📁 Creating database resource..."));
+        plan.directory(fullPath);
+        plan.text(
           resolve(fullPath, SERVICE_JSON),
           `${JSON.stringify(createDatabaseServiceJson(resourceName, stackName), null, 2)}\n`,
         );
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
 
         console.log(chalk.green("\n✅ Database resource created successfully!"));
@@ -1418,22 +1473,24 @@ export const resourceCommand = addYesOption(new Command("resource"))
       // An infrastructure framework is a pinned image with a probe, a data volume and the connection settings it provides.
       if (infraPreset) {
         const preset: InfraPreset = INFRA_PRESETS[infraPreset];
-        console.log(chalk.blue(`\n📁 Creating ${preset.description}...`));
-        mkdirSync(fullPath, { recursive: true });
+        if (!options.dryRun) console.log(chalk.blue(`\n📁 Creating ${preset.description}...`));
+        plan.directory(fullPath);
         const serviceJson = createInfraServiceJson(
           resourceName,
           stackName,
           infraPreset,
           options.image,
         );
-        writeFileSync(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
+        plan.text(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
         const agentsPath = resolve(fullPath, "AGENTS.md");
         if (!existsSync(agentsPath)) {
-          writeFileSync(
+          plan.text(
             agentsPath,
             `# AGENTS.md\n\nDO NOT DELETE service.json\n\n${preset.description} for Flisk. Services that list "${resourceName}" in dependsOn get its \`provides\` settings in their environment.\n`,
           );
         }
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
         console.log(chalk.green(`\n✅ ${preset.description} created.`));
         console.log(chalk.gray(`\nLocation: ${fullPath}`));
@@ -1455,7 +1512,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
 
       // Handle bring-your-own type
       if (resourceType === BRING_YOUR_OWN_TYPE) {
-        console.log(chalk.blue("\n📁 Creating bring-your-own resource..."));
+        if (!options.dryRun) console.log(chalk.blue("\n📁 Creating bring-your-own resource..."));
 
         // Parse port option
         const port = assignedPort;
@@ -1478,7 +1535,18 @@ export const resourceCommand = addYesOption(new Command("resource"))
           throw errorFactories.invalidPath(dockerfile);
         }
 
-        mkdirSync(fullPath, { recursive: true });
+        if (
+          [SERVICE_JSON, "AGENTS.md"].some(
+            (path) => path.toLowerCase() === dockerfileRelativePath.toLowerCase(),
+          )
+        ) {
+          throw new FliskError(
+            `Dockerfile path "${dockerfile}" is reserved for a resource manifest or instructions.`,
+            ["Use Dockerfile or another path that does not replace service.json or AGENTS.md."],
+          );
+        }
+
+        plan.directory(fullPath);
 
         // Create service.json
         const byoServiceJson = createByoServiceJson(resourceName, stackName, port, {
@@ -1489,12 +1557,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
           ...(options.restart ? { restart: options.restart } : {}),
         });
 
-        const { writeFileSync } = await import("node:fs");
-        writeFileSync(resolve(fullPath, SERVICE_JSON), JSON.stringify(byoServiceJson, null, 2));
+        plan.text(resolve(fullPath, SERVICE_JSON), JSON.stringify(byoServiceJson, null, 2));
 
         // Create Dockerfile stub if no image provided and dockerfile doesn't exist
         if (!image && !existsSync(dockerfilePath)) {
-          mkdirSync(resolve(dockerfilePath, ".."), { recursive: true });
+          plan.directory(resolve(dockerfilePath, ".."));
           const healthConfigPath = resolve(dockerfilePath, "..", "health.conf");
           const healthConfigRelativePath = relative(fullPath, healthConfigPath).replace(/\\/g, "/");
           const dockerfileContent = `FROM nginx:1.27-alpine
@@ -1502,7 +1569,7 @@ RUN apk add --no-cache curl
 COPY ${healthConfigRelativePath} /etc/nginx/conf.d/default.conf
 EXPOSE ${port}
 `;
-          writeFileSync(dockerfilePath, dockerfileContent);
+          plan.text(dockerfilePath, dockerfileContent);
 
           const healthConfContent = `server {
   listen ${port};
@@ -1516,7 +1583,7 @@ EXPOSE ${port}
   }
 }
 `;
-          writeFileSync(healthConfigPath, healthConfContent);
+          plan.text(healthConfigPath, healthConfContent);
         }
 
         // Create AGENTS.md
@@ -1527,8 +1594,10 @@ DO NOT DELETE service.json
 This file contains the resource configuration for Flisk.
 `;
         const agentsPath = resolve(fullPath, "AGENTS.md");
-        if (!existsSync(agentsPath)) writeFileSync(agentsPath, agentsMdContent);
+        if (!existsSync(agentsPath)) plan.text(agentsPath, agentsMdContent);
 
+        if (options.dryRun) return preview();
+        plan.write();
         clearDiscoveryCache();
 
         console.log(chalk.green("\n✅ Bring-your-own resource created successfully!"));
@@ -1539,8 +1608,8 @@ This file contains the resource configuration for Flisk.
       }
 
       // Create directory structure for new resources
-      console.log(chalk.blue("\n📁 Creating directory structure..."));
-      mkdirSync(fullPath, { recursive: true });
+      if (!options.dryRun) console.log(chalk.blue("\n📁 Creating directory structure..."));
+      plan.directory(fullPath);
       // A provider that owns its runtime files only gets the folders it writes into (Go keeps its files at the root).
       const ownedTopLevel = new Set(
         (backendLanguage?.createFiles?.(resourceName) ?? []).map(
@@ -1549,19 +1618,19 @@ This file contains the resource configuration for Flisk.
       );
       for (const folder of ["src", "tests"]) {
         if (!backendLanguage?.createFiles || ownedTopLevel.has(folder)) {
-          mkdirSync(resolve(fullPath, folder), { recursive: true });
+          plan.directory(resolve(fullPath, folder));
         }
       }
       if (resourceType === "frontend") {
-        mkdirSync(resolve(fullPath, "public"), { recursive: true });
+        plan.directory(resolve(fullPath, "public"));
         // A framework can keep its files in folders of its own (Next.js: src/app).
         for (const file of frontendFramework?.createFiles(resourceName) ?? []) {
-          mkdirSync(dirname(resolve(fullPath, file.filename)), { recursive: true });
+          plan.directory(dirname(resolve(fullPath, file.filename)));
         }
       }
       if (dddEnabled) {
         for (const layer of ["domain", "application", "infrastructure", "presentation"]) {
-          mkdirSync(resolve(fullPath, "src", layer), { recursive: true });
+          plan.directory(resolve(fullPath, "src", layer));
         }
       }
 
@@ -1781,15 +1850,15 @@ This file contains the resource configuration for Flisk.
       }
 
       // Execute all file writes with progress
-      console.log(chalk.blue("💻 Generating source files..."));
+      if (!options.dryRun) console.log(chalk.blue("💻 Generating source files..."));
       // A new resource's folder did not exist when it was checked, so nothing in it may be overwritten.
-      writeFilesWithProgress(fullPath, tasks, undefined, { exclusive: !isExistingResource });
+      plan.files(fullPath, tasks, { exclusive: !isExistingResource });
 
       if (prismaEnabled && resourceType === "backend") {
-        mkdirSync(resolve(fullPath, "prisma"), { recursive: true });
+        plan.directory(resolve(fullPath, "prisma"));
         const migratorName = `${resourceName}-migrator`;
         const migratorPath = resolve(projectRoot, `services/${stackName}/${migratorName}`);
-        mkdirSync(resolve(migratorPath, "prisma"), { recursive: true });
+        plan.directory(resolve(migratorPath, "prisma"));
         const migratorConfig = {
           ...JSON.parse(JSON.stringify(BASE_TEMPLATE)),
           $schema: SERVICE_MANIFEST_SCHEMA_URL,
@@ -1809,7 +1878,7 @@ This file contains the resource configuration for Flisk.
           ...migratorPackage.scripts,
           start: "prisma migrate deploy",
         };
-        writeFilesWithProgress(migratorPath, [
+        plan.files(migratorPath, [
           {
             type: "json",
             filename: SERVICE_JSON,
@@ -1839,7 +1908,7 @@ This file contains the resource configuration for Flisk.
             emoji: "⚙️",
           },
         ]);
-        writeFilesWithProgress(fullPath, [
+        plan.files(fullPath, [
           {
             type: "text",
             filename: "prisma/schema.prisma",
@@ -1857,6 +1926,8 @@ This file contains the resource configuration for Flisk.
         ]);
       }
 
+      if (options.dryRun) return preview();
+      plan.write();
       clearDiscoveryCache();
       console.log(chalk.green("\n✅ Resource created successfully!"));
       console.log(chalk.gray(`\nLocation: ${fullPath}`));
@@ -1899,6 +1970,7 @@ This file contains the resource configuration for Flisk.
     // Which platform services a project starts follows its resources (#2963), so a new resource can change the generated
     // spec.master and Tiltfile. Refresh them here, or `flisk config verify` reports them out of sync right after `flisk resource`.
     const refreshGenerated = async (): Promise<void> => {
+      if (options.dryRun) return;
       try {
         const root = findProjectRoot();
         if (

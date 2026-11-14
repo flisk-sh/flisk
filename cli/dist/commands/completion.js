@@ -14,7 +14,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { showError } from "../utils/errors.js";
 import { buildCompletionCandidates, } from "./completion-candidates.js";
-const SUPPORTED_SHELLS = ["bash", "zsh", "fish", "powershell"];
+import { SUPPORTED_SHELLS } from "./completion-shells.js";
 function toEntries(commands, parent = "") {
     return commands.map((command) => {
         const path = parent ? `${parent} ${command.name}` : command.name;

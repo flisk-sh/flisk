@@ -88,7 +88,7 @@ import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
 import { createPortClaimer } from "../utils/port-claims.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
-import { findPortOccupant } from "../utils/port-occupant.js";
+import { findPortContainer, findPortOccupant } from "../utils/port-occupant.js";
 import {
   applyProfiles,
   declaredProfiles,
@@ -143,6 +143,7 @@ import {
   withLoggedReasons,
 } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
+import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import {
@@ -932,6 +933,16 @@ export const upCommand = new Command("up")
     // The shared build cache has a size ceiling (20 GiB; FLISK_BUILD_CACHE_MAX_GIB): trim it first, so the disk check sees the space.
     // The `docker system df` behind it is throttled: at most every 6 h while the cache is far below the ceiling (#3860).
     if (!options.dryRun) {
+      // Rebuilds leave every superseded tilt-<hash> tag behind; a stack that is never stopped never reaches
+      // the cleanup in `flisk down`, so trim them here too (#4067). Images a container uses are refused.
+      const tilt = await pruneSupersededTiltImages(1);
+      if (tilt.removed.length > 0 && !options.quiet) {
+        console.log(
+          chalk.gray(
+            `Removed ${tilt.removed.length} superseded tilt-* image(s) (up to ${(tilt.removedBytes / 1e9).toFixed(1)} GB).`,
+          ),
+        );
+      }
       const cache = await enforceBuildCacheCeiling();
       if (cache.pruned && !options.quiet) {
         console.log(
@@ -1741,7 +1752,7 @@ export const upCommand = new Command("up")
             const reportLines = formatStartupReport(
               report,
               readiness.timedOut,
-              (port) => findPortOccupant(port),
+              (port) => findPortContainer(port) ?? findPortOccupant(port),
               machineFixes,
               readiness.lastLogs,
             );

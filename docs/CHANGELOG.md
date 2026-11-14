@@ -4,6 +4,29 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.61 (2026-11-13)
+
+- New `flisk tool add weather`, `flisk tool add chart` and `flisk tool add services` add the Flisk Chat widgets by name, in the same way as the other tools (#4106).
+- The CLI's status markers are plain ASCII on terminals that cannot show UTF-8 and on `TERM=linux` consoles, so they no longer print as broken characters (#4105).
+- `flisk doctor` and `flisk up` now name the process that holds a conflicting port on Windows too; they used to name it only on macOS and Linux (#4029).
+
+## 1.4.60 (2026-11-13)
+
+- New `flisk tool add <tool> [name]` adds a tool by the name people know it by (`react`, `nextjs`, `nodejs`, `fastapi`, `postgresql`, `mysql`, `mongodb`, `rag`, `embeddings`, `llm-api`) by running the matching `flisk resource` command. It refuses a name already in use, validates `--stack` before anything runs, reports one error outside a project, and rejects cloud providers (#4038, #4040, #4065, #4066).
+- `flisk resource <name> --type mail` runs Mailpit, a local mail catcher, and `--type payments` runs stripe-mock, a local Stripe API stand-in, so an app can send mail and take payments without a cloud account (#4020).
+- Infrastructure types are one table of presets. MinIO moves from `--type queue` to `--type storage`; the other types are unchanged (#4017).
+- `flisk resource <name> --type ... --dry-run` shows the scaffold plan without writing any file, and scaffold plans and registration reports are validated before they are written (#3996, #3997).
+- Shell completion offers the fixed values of flags such as shell, scope, runtime and starter (#3986).
+- `flisk project <starter>` keeps the starter repository as `origin`'s upstream and shallow-clones unpinned templates; pinned commits are kept as before (#3987).
+- A scaffolded worker's `dev` command runs a script that exists in its `package.json`. It used to run `bun run worker`, which the template does not have, so the first `flisk up` failed (#3740, #3988).
+- `flisk logs` says so when a local-process service has not written any log line yet, instead of printing nothing (#3990).
+- `flisk up` and `flisk down` keep only the newest `tilt-<hash>` image of each service and untag the older ones, so a stack that is never stopped no longer piles up tagged images (#4067, #4069, #4074).
+- Versions 1.4.58 and 1.4.59 were released without changelog entries; their changes are listed here.
+
+- The Next.js frontend image no longer stores `node_modules` twice. A `chown -R` over the app folder after `npm install` added a second layer of 387 MB for a minimal app and a slower cold build; ownership is now set by `COPY --chown`, and the development stage chowns only the app folder and `.next`. Images already built keep their size until they are rebuilt.
+- On Colima and Lima, `flisk down --prune-cache` now trims the VM after pruning and prints how much space went back to the Mac, and `flisk doctor` has a `Colima Disk` check (also in `--json` as `colimaDisk`) that compares the VM's disk file with what `docker system df` reports and warns when it is more than 3x and 5 GB larger. The disk file only shrinks after `fstrim`, so freed Docker space stayed unavailable on the Mac. `flisk doctor --fix` plans the trim for that case too (#4071).
+- A scaffolded Prisma migrator image is 175 MB smaller (606 MB to 431 MB of layers, 478 MB to 303 MB over the shared golden base). The relink step copied `@prisma/client`, `adapter-pg` and `engines` a second time in their own layer (98 MB) and is gone, and the build moves aside the TypeScript native compiler, pglite, elkjs, react-dom and the query-plan executor, which `migrate deploy` never loads, and puts them back if `prisma validate` then fails. The prisma e2e suite has a new case (P5) that fails when the migrator holds more than 400 MB over its base. Part of #4070; the 100 MB target needs the migrator to share the API image's dependency layer, which this does not do.
+
 ## 1.4.57 (2026-11-11)
 
 - Two projects with the same name in different folders (two clones of a starter, git worktrees, `flisk demo` next to your own copy) share one set of Docker containers and one Postgres volume. `flisk up` now stops, before it replaces anything, when another existing folder already has containers of this project name, and says which folder and how to rename the project. `flisk down --purge` (and its `--dry-run`) refuses when another folder holds the project's containers or is recorded in `~/.flisk/projects`, so it can no longer delete a database that another folder uses (#3961).

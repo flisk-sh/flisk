@@ -146,6 +146,33 @@ describe("flisk logs (in-process)", () => {
       expect(tilt.runTilt).not.toHaveBeenCalled();
     });
 
+    it("says so instead of printing nothing when the services have no log lines", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([]);
+
+      const run = await runLogs([]);
+
+      expect(run.status).toBeUndefined();
+      expect(run.stdout).toContain("No log lines yet for api, frontend.");
+    });
+
+    it("mentions --since in that message only when the user passed it", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([]);
+
+      const run = await runLogs(["--since", "30s"]);
+
+      expect(run.status).toBeUndefined();
+      expect(run.stdout).toContain("printed nothing in the last 30s.");
+    });
+
+    it("leaves --since out of the message when the user did not pass it", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([]);
+
+      const run = await runLogs([]);
+
+      expect(run.status).toBeUndefined();
+      expect(run.stdout).not.toContain("in the last");
+    });
+
     it("rejects a service the project does not declare with UNKNOWN_SERVICE and exit 2", async () => {
       const run = await runLogs(["--json", "--service", "apii"]);
       const envelope = parseEnvelope(run.stdout);

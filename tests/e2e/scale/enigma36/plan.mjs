@@ -20,27 +20,41 @@ export const COUNT = 36;
 export const STACKS = ["rotor-i", "rotor-ii", "rotor-iii", "rotor-iv", "rotor-v", "rotor-vi"];
 // The kinds every plan holds at least once. library and migrator are not creatable with `flisk resource --type`; inference
 // pulls a multi-gigabyte model image, so it stays in its own suite.
-export const KINDS = ["backend", "frontend", "worker", "mcp", "agent", "database", "queue", "bring-your-own", "sdk"];
+export const KINDS = ["backend", "frontend", "worker", "mcp", "agent", "database", "queue", "storage", "mail", "payment", "bring-your-own", "sdk"];
 // Each infrastructure server (Postgres, Redis, Qdrant, MinIO, MLflow, NATS, RabbitMQ) appears at most once: a second one of the
 // same framework only collides on its UI host port and adds boot time, not combinations. Every one of them is always drawn
 // when the count leaves room, so a plan never holds just the Postgres.
 const MAX_PER_VARIANT = 1;
-const INFRA_KINDS = ["database", "queue"];
-const QUEUE_FRAMEWORKS = ["nats", "rabbitmq"];
+// The `flisk resource --type` values whose frameworks are infrastructure presets (cli/src/utils/infra-presets.ts).
+export const INFRA_KINDS = ["database", "queue", "storage", "mail", "payment"];
 // The type `flisk status` and the scaffold envelope report. Every infrastructure framework except the shared Postgres is a
 // bring-your-own container (docs/byo.md, "Infrastructure frameworks").
 export const reportedType = (e) => (INFRA_KINDS.includes(e.kind) && e.variant !== "postgres" ? "bring-your-own" : e.kind);
 
-// The infrastructure frameworks `flisk resource --type database|queue --framework <id>` creates, read from the CLI's INFRA_PRESETS
+// The infrastructure frameworks `flisk resource --type <database|queue|storage|mail|payment> --framework <id>` creates, read from the CLI's INFRA_PRESETS
 // (the top-level keys, two-space indent) so a new framework joins the draw without editing this file.
 export function infraFrameworks(root = path.resolve(here, "../../../..")) {
   const text = readFileSync(path.join(root, "cli/src/utils/infra-presets.ts"), "utf8");
   const from = text.indexOf("export const INFRA_PRESETS");
   if (from < 0) throw new Error("cli/src/utils/infra-presets.ts has no INFRA_PRESETS");
   const to = text.indexOf("\n} ", from);
-  const ids = [...text.slice(from, to < 0 ? undefined : to).matchAll(/\n  ([a-z][\w-]*): \{/g)].map((m) => m[1]);
+  const ids = [...presetEntries(text.slice(from, to < 0 ? undefined : to))].map(([id]) => id);
   if (ids.length === 0) throw new Error("INFRA_PRESETS lists no frameworks");
   return ids;
+}
+
+// Each preset's id and the `--type` it belongs to (its `type: <KIND>_RESOURCE_TYPE` line), so a framework of a new kind joins
+// the draw under that kind without editing this file. Keys may be quoted ("stripe-mock").
+function presetEntries(block) {
+  return [...block.matchAll(/\n  "?([a-z][\w-]*)"?: \{\n    type: ([A-Z]+)_RESOURCE_TYPE,/g)].map((m) => [m[1], m[2].toLowerCase()]);
+}
+
+// The `--type` of every infrastructure framework, read from INFRA_PRESETS like infraFrameworks.
+export function infraKindOf(root = path.resolve(here, "../../../..")) {
+  const text = readFileSync(path.join(root, "cli/src/utils/infra-presets.ts"), "utf8");
+  const from = text.indexOf("export const INFRA_PRESETS");
+  const to = text.indexOf("\n} ", from);
+  return Object.fromEntries(presetEntries(text.slice(from, to < 0 ? undefined : to)));
 }
 
 // mulberry32: a small seeded PRNG that is the same on every Node version and platform.
@@ -57,6 +71,7 @@ export function rng(seed) {
 
 // Every piece the rotors can land on: { kind, variant, args } where args are the extra `flisk resource` arguments.
 export function pieces(axes) {
+  const infraKind = infraKindOf();
   return [
     ...axes.httpFramework.map((f) => ({ kind: "backend", variant: f, args: ["--framework", f] })),
     ...axes.language.filter((l) => l !== "bun").map((l) => ({ kind: "backend", variant: l, args: ["--language", l] })),
@@ -66,7 +81,7 @@ export function pieces(axes) {
     ...axes.agentDurability.map((d) => ({ kind: "agent", variant: `agent-${d}`, args: ["--durability", d] })),
     { kind: "database", variant: "postgres", args: ["--framework", "postgres"] },
     ...(axes.infraFramework ?? infraFrameworks()).map((f) => ({
-      kind: QUEUE_FRAMEWORKS.includes(f) ? "queue" : "database",
+      kind: infraKind[f] ?? "database",
       variant: f,
       args: ["--framework", f],
     })),

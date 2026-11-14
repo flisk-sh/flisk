@@ -12,7 +12,7 @@ Flisk adalah alat baris perintah untuk pengembangan lokal. Flisk menjalankan set
 Mulai cepat:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Ingin memilih stack sendiri? Jawab beberapa pertanyaan dengan tombol panah dan Enter:

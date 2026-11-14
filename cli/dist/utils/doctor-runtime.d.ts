@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import type { CheckResult, DiscoveredResource, ProjectCapabilities } from "../types/index.js";
+import { type HostCommandCache } from "./host-command-cache.js";
 import { type PortOwnerDetails } from "./port-owner.js";
 import { type HealthProbe } from "./service-urls.js";
 import type { SmokeResult } from "./smoke.js";
@@ -77,7 +78,7 @@ export declare function projectExpectsVerdaccio(projectRoot?: string): boolean;
  * When the project uses a local Verdaccio registry, fail early with a clear
  * fix instead of only showing truncated ImageBuild exit codes later.
  */
-export declare function checkPrivateNpmRegistry(exec?: typeof execSync, projectRoot?: string, registryUrl?: string, verdaccioLicensed?: boolean): CheckResult;
+export declare function checkPrivateNpmRegistry(exec?: typeof execSync, projectRoot?: string, registryUrl?: string, verdaccioLicensed?: boolean, commandCache?: HostCommandCache): CheckResult;
 /**
  * Fail when another container already owns Traefik's host ports (80/443).
  * This is the exact failure mode that leaves apps never scheduled while doctor
@@ -86,6 +87,7 @@ export declare function checkPrivateNpmRegistry(exec?: typeof execSync, projectR
 export declare function checkIngressPorts(exec?: typeof execSync, projectName?: string, ports?: readonly number[], options?: {
     gateway?: boolean;
     capabilities?: ProjectCapabilities;
+    commandCache?: HostCommandCache;
 }): CheckResult;
 /** Host ports the generated stack publishes: Traefik (80, 443) and Postgres (5432). */
 export declare const HOST_PORTS: Record<number, string>;
@@ -126,7 +128,7 @@ export declare function summarizeAdvertisedProbes(probes: HealthProbe[]): CheckR
  * are reported by checkIngressPorts, so only 5432 is checked against other
  * containers here.
  */
-export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>, options?: Record<string, unknown>, findOwner?: (port: number) => PortOwnerDetails | null): Promise<CheckResult>;
+export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>, options?: Record<string, unknown>, findOwner?: (port: number) => PortOwnerDetails | null, commandCache?: HostCommandCache): Promise<CheckResult>;
 /**
  * When a Tilt session is active, surface resource update errors (Traefik port
  * binds, image builds, etc.) instead of claiming the environment is ready

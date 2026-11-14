@@ -12,8 +12,10 @@ export interface StackProgress {
   pending: number;
   /** Resources that failed. */
   failed: number;
-  /** Every resource Tilt knows about. */
+  /** The services the user sees: their own services plus the database and the proxy, not Tilt helpers. */
   total: number;
+  /** The infrastructure step still running (base images, databases, networks), when one is. */
+  infraPhase?: string;
   /** The resources that are still working, with their state. */
   working: { name: string; state: string }[];
   /** The resources that failed, with the reason. */
@@ -34,6 +36,17 @@ const defaultTiltResourceReader: TiltResourceReader = (port) =>
       (error, stdout) => resolve(error ? null : stdout),
     );
   });
+
+/** Tilt rows that only exist to run a service. They are never counted as a service. */
+const HELPER_NAME = /^(\(Tiltfile\)|service-discovery-daemon)$|-(yaml|run-only|typecheck)$/;
+
+/** Setup steps that run before the services. They get their own phase label instead of a count. */
+function infraLabel(name: string): string | undefined {
+  if (name === "golden-layers-build") return "Building base images";
+  if (name === "init-networks") return "Preparing networks";
+  if (name.startsWith("provision-db-")) return "Preparing databases";
+  return undefined;
+}
 
 /** Reads the resource states from the Tilt UI API. */
 export async function readStackProgress(
@@ -64,11 +77,31 @@ export async function readStackProgress(
   let building = 0;
   let pending = 0;
   let failed = 0;
+  let total = 0;
+  let infraPhase: string | undefined;
 
   for (const item of items) {
     const name = item.metadata?.name ?? "unknown";
     const update = item.status?.updateStatus ?? "";
     const runtime = item.status?.runtimeStatus ?? "";
+    if (HELPER_NAME.test(name)) continue;
+    const infra = infraLabel(name);
+    if (infra) {
+      // An infrastructure step that fails is still a failure the user must see.
+      if (update === "error" || runtime === "error") {
+        failed += 1;
+        broken.push({
+          name,
+          message: (item.status?.buildHistory?.[0]?.error ?? "the resource failed")
+            .replace(/\s+/g, " ")
+            .slice(0, 160),
+        });
+      } else if (update === "in_progress") {
+        infraPhase ??= infra;
+      }
+      continue;
+    }
+    total += 1;
     if (update === "error" || runtime === "error") {
       failed += 1;
       broken.push({
@@ -83,6 +116,16 @@ export async function readStackProgress(
       ready += 1;
       continue;
     }
+    // "none" is a resource Tilt never builds: it is not building, and it is up when it runs fine.
+    if (update === "none") {
+      if (runtime === "ok" || runtime === "not_applicable") {
+        ready += 1;
+      } else {
+        pending += 1;
+        working.push({ name, state: runtime || "pending" });
+      }
+      continue;
+    }
     if (update === "pending" || update === "") {
       pending += 1;
       working.push({ name, state: runtime || "pending" });
@@ -92,7 +135,7 @@ export async function readStackProgress(
     working.push({ name, state: update });
   }
 
-  return { ready, building, pending, failed, total: items.length, working, broken };
+  return { ready, building, pending, failed, total, infraPhase, working, broken };
 }
 
 /** A one-line summary of the progress, for the progress line. */

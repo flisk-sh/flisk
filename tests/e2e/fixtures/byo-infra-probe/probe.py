@@ -2,6 +2,7 @@
 
 import json
 import os
+import smtplib
 import socket
 import time
 import urllib.parse
@@ -94,6 +95,32 @@ def mlflow_artifact_round_trip(url):
         return r.read() == b"artifact-ok"
 
 
+def mail_round_trip(url):
+    # One message over SMTP, then read back through the Mailpit API by its unique subject.
+    u = urllib.parse.urlparse(url)
+    subject = "probe-{}".format(time.time_ns())
+    message = "From: app@example.test\r\nTo: user@example.test\r\nSubject: {}\r\n\r\nok\r\n".format(subject)
+    with smtplib.SMTP(u.hostname, u.port or 1025, timeout=5) as smtp:
+        smtp.sendmail("app@example.test", ["user@example.test"], message)
+    query = urllib.parse.urlencode({"query": "subject:" + subject})
+    for _ in range(20):
+        with urllib.request.urlopen(os.environ["MAILPIT_API_URL"] + "/api/v1/search?" + query, timeout=5) as r:
+            if json.load(r).get("messages_count", 0) == 1:
+                return True
+        time.sleep(0.2)
+    return False
+
+
+def stripe_round_trip(url):
+    # A PaymentIntent created with the provided test key; stripe-mock answers from Stripe's OpenAPI spec.
+    body = urllib.parse.urlencode({"amount": 2000, "currency": "usd"}).encode()
+    request = urllib.request.Request(url + "/v1/payment_intents", data=body, method="POST")
+    request.add_header("Authorization", "Bearer " + os.environ["STRIPE_SECRET_KEY"])
+    with urllib.request.urlopen(request, timeout=5) as r:
+        intent = json.load(r)
+    return intent.get("object") == "payment_intent" and intent.get("status") == "requires_payment_method"
+
+
 CHECKS = {
     "REDIS_URL": redis_round_trip,
     "QDRANT_URL": qdrant_round_trip,
@@ -101,6 +128,8 @@ CHECKS = {
     "NATS_URL": nats_round_trip,
     "MINIO_ENDPOINT": minio_round_trip,
     "MLFLOW_TRACKING_URI": mlflow_round_trip,
+    "SMTP_URL": mail_round_trip,
+    "STRIPE_API_BASE": stripe_round_trip,
 }
 
 

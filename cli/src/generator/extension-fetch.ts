@@ -30,6 +30,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { FliskError } from "../utils/errors.js";
 import { extractTarball } from "../utils/tar.js";
 
 // The worker keeps its pre-rename name (tdk-extension-dist, see wrangler.toml
@@ -255,13 +256,18 @@ function liveResourceAccessCachePath(key: string, resource: string): string {
  * stops at the FIRST resource the key grants and would report false for a
  * key that grants this resource but not, say, playwright (or vice versa).
  *
- * Best-effort: returns false (never throws) if there's no key, the fetch
+ * Best-effort: returns false if there's no key, the fetch
  * fails, or the worker denies the resource - the caller decides what "not
  * licensed" means. Caches the grant/deny outcome (not the bundle itself,
  * which we never need here) for CACHE_TTL_MS so repeated checks don't
- * re-download the full premium.tar.gz just to read a status code.
+ * re-download the full premium.tar.gz just to read a status code. With cachedOnly,
+ * an unavailable fresh result throws instead of contacting the server or writing state.
  */
-async function hasLiveResourceLicense(projectRoot: string, resource: string): Promise<boolean> {
+async function hasLiveResourceLicense(
+  projectRoot: string,
+  resource: string,
+  options: { cachedOnly?: boolean } = {},
+): Promise<boolean> {
   const key = getLicenseKey();
   if (!key) return false;
 
@@ -278,6 +284,12 @@ async function hasLiveResourceLicense(projectRoot: string, resource: string): Pr
     }
   }
 
+  // A preview must not create a project ID, write a cache, or register a new project with the license server.
+  if (options.cachedOnly) {
+    throw new FliskError(`Cannot verify the ${resource} license from a fresh local cache.`, [
+      "Preview without --ddd, or first verify the license with a normal licensed command.",
+    ]);
+  }
   const projectId = getOrCreateProjectId(projectRoot);
 
   let granted = false;
@@ -318,8 +330,11 @@ export async function hasVerdaccioLicense(projectRoot: string): Promise<boolean>
  * resources - see generate_backend_path_aliases() in
  * engine/topologies/tilt/generators/vite/helpers.star).
  */
-export async function hasDddLicense(projectRoot: string): Promise<boolean> {
-  return hasLiveResourceLicense(projectRoot, "ddd");
+export async function hasDddLicense(
+  projectRoot: string,
+  options: { cachedOnly?: boolean } = {},
+): Promise<boolean> {
+  return hasLiveResourceLicense(projectRoot, "ddd", options);
 }
 
 /**

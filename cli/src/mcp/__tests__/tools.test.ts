@@ -22,6 +22,7 @@ import {
   buildProjectInitArgs,
   buildResourceCreateArgs,
   buildStackAssignArgs,
+  buildToolAddArgs,
   buildUpArgs,
   createFliskTools,
   defaultUpDeps,
@@ -137,7 +138,9 @@ function checkDocCliInvocations(docText: string, commands: Map<string, Command>)
       idx += 1;
     }
 
-    if (positionalCount > targetCmd.registeredArguments.length) {
+    // A variadic last argument (`flisk tool add <tool...>`) takes any number of words, as in undeclaredArguments.
+    const takesAny = targetCmd.registeredArguments.at(-1)?.variadic === true;
+    if (!takesAny && positionalCount > targetCmd.registeredArguments.length) {
       problems.push(
         `flisk ${targetCmd.name()} takes ${targetCmd.registeredArguments.length} positional argument(s), but doc has ${positionalCount} in "${match[0]}"`,
       );
@@ -235,6 +238,26 @@ describe("argument building", () => {
 
   it("builds resource_create arguments, always non-interactive, with options after the name", () => {
     expect(buildResourceCreateArgs({ name: "api" })).toEqual(["resource", "api", "--yes"]);
+  });
+
+  it("builds flisk tool add arguments for tool_add and rejects an unknown tool before running", () => {
+    expect(buildToolAddArgs({ tool: "react" })).toEqual(["tool", "add", "react", "--json"]);
+    expect(
+      buildToolAddArgs({ tool: "postgresql", name: "db", stack: "shop", dryRun: true }),
+    ).toEqual(["tool", "add", "postgresql", "db", "--json", "--stack=shop", "--dry-run"]);
+    expect(() => buildToolAddArgs({})).toThrow(/tool is required/);
+    expect(() => buildToolAddArgs({ tool: "cobol" })).toThrow(/does not know the tool "cobol"/);
+    // Everyday spellings resolve to the id, so a rejected cloud provider reaches the CLI and its reason.
+    expect(buildToolAddArgs({ tool: "google cloud" })).toEqual([
+      "tool",
+      "add",
+      "google-cloud",
+      "--json",
+    ]);
+    expect(buildToolAddArgs({ tool: "Next.js" })).toEqual(["tool", "add", "nextjs", "--json"]);
+    expect(() => buildToolAddArgs({ tool: "react", name: "--evil" })).toThrow(
+      /name must be a name/,
+    );
     expect(buildResourceCreateArgs({ name: "api", type: "backend", local: true })).toEqual([
       "resource",
       "api",
@@ -686,6 +709,7 @@ describe("tool list", () => {
       "runtime_check",
       "config_regenerate",
       "resource_create",
+      "tool_add",
       "stack_assign",
       "project_init",
       "project_eject",
@@ -1102,6 +1126,7 @@ describe("tool list", () => {
         runtime: "custom",
         durability: "files",
       },
+      tool_add: { tool: "react", name: "web", stack: "shop", dryRun: true },
       stack_assign: { stack: "shop", resources: ["api", "web"] },
       project_init: { agentSkills: false },
       project_eject: { confirm: true },
@@ -1207,7 +1232,13 @@ describe("tool annotations", () => {
   });
 
   it("flags the tools that can discard or overwrite files as destructive", () => {
-    for (const name of ["down", "config_regenerate", "resource_create", "project_import"]) {
+    for (const name of [
+      "down",
+      "config_regenerate",
+      "resource_create",
+      "tool_add",
+      "project_import",
+    ]) {
       expect(byName.get(name)?.annotations?.destructiveHint, name).toBe(true);
     }
   });

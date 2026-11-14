@@ -66,3 +66,4 @@ release-dist-*/
 /examples/byo/create-analog/
 /examples/byo/create-bati/
 /examples/byo/.sync-*
+.gstack/

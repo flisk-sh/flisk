@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { BYO_FILE_VARIANTS, CANARY, changedTemplateFolders, prLegs } from "../pr-legs.mjs";
+import { BYO_FILE_VARIANTS, CANARY, changedByoCases, changedByoVariants, changedTemplateFolders, explainMarkdown, globToRegExp, prLegs, runShBlocks } from "../pr-legs.mjs";
 import { selectSuites } from "../suite-matrix.mjs";
 
 const e2eDir = fileURLToPath(new URL("../..", import.meta.url));
@@ -230,4 +230,86 @@ test("the plan job uses the merge commit's parent and a depth-2 checkout", () =>
   assert.match(wf, /git show "HEAD\^1:examples\/byo\/templates\.json"/);
   assert.match(wf, /fetch-depth: 2/);
   assert.doesNotMatch(wf, /BASE_SHA/);
+});
+
+// The content-aware rules: old and new text of run.sh and suite.json, so only what changed selects legs.
+const byoDir = "tests/e2e/resource-types/bring-your-own/";
+const runSh = readFileSync(path.join(e2eDir, "resource-types/bring-your-own/run.sh"), "utf8");
+const suiteJson = readFileSync(path.join(e2eDir, "resource-types/bring-your-own/suite.json"), "utf8");
+const withTexts = (file, base, head) => ({
+  baseText: (f) => (f === file ? base : null),
+  headText: (f) => (f === file ? head : null),
+});
+const byoOfCase = (name) => byoVariants.filter((v) => v.case === name).map((v) => `bring-your-own-${v.id}`);
+
+test("a comment, a blank line or a usage line in run.sh selects nothing", () => {
+  const head = `# a new comment\n\n${runSh.replace("#!/usr/bin/env bash", "#!/usr/bin/env bash\n# one more comment")}\n\n`;
+  assert.deepEqual(labels([`${byoDir}run.sh`], withTexts(`${byoDir}run.sh`, runSh, head)), []);
+});
+
+test("a changed case function in run.sh selects the variants of that case only", () => {
+  const head = runSh.replace('verify-byo-infra.sh "BY8 ', 'verify-byo-infra.sh "BY8 changed: ');
+  assert.notEqual(head, runSh);
+  assert.deepEqual(sorted(labels([`${byoDir}run.sh`], withTexts(`${byoDir}run.sh`, runSh, head))), sorted(byoOfCase("BY8")));
+});
+
+test("a change to the code outside the case functions of run.sh is suite-wide", () => {
+  const head = `${runSh}\necho "a new helper step"\n`;
+  assert.deepEqual(sorted(labels([`${byoDir}run.sh`], withTexts(`${byoDir}run.sh`, runSh, head))), sorted(byoLabels));
+});
+
+test("a description-only change to suite.json selects nothing; a changed variant selects that leg", () => {
+  const doc = JSON.parse(suiteJson);
+  const described = JSON.stringify({ ...doc, description: `${doc.description} More.` }, null, 2);
+  assert.deepEqual(labels([`${byoDir}suite.json`], withTexts(`${byoDir}suite.json`, suiteJson, described)), []);
+  const variants = doc.variants.map((v) => (v.id === "ports" ? { ...v, args: "x" } : v));
+  const changed = JSON.stringify({ ...doc, variants }, null, 2);
+  assert.deepEqual(labels([`${byoDir}suite.json`], withTexts(`${byoDir}suite.json`, suiteJson, changed)), ["bring-your-own-ports"]);
+  const wide = JSON.stringify({ ...doc, timeoutMinutes: 99 }, null, 2);
+  assert.deepEqual(sorted(labels([`${byoDir}suite.json`], withTexts(`${byoDir}suite.json`, suiteJson, wide))), sorted(byoLabels));
+});
+
+test("without --base, run.sh and suite.json keep selecting the whole suite", () => {
+  assert.deepEqual(sorted(labels([`${byoDir}run.sh`])), sorted(byoLabels));
+  assert.deepEqual(sorted(labels([`${byoDir}suite.json`])), sorted(byoLabels));
+});
+
+test("a new run.sh or suite.json (absent at the base) is suite-wide, never silently nothing", () => {
+  const options = { baseText: () => null, headText: () => runSh };
+  assert.deepEqual(sorted(labels([`${byoDir}run.sh`], options)), sorted(byoLabels));
+});
+
+test("a file in a variant's inputs selects that leg alone, and skips the canary", () => {
+  assert.deepEqual(labels(["cli/src/utils/infra-presets.ts"]), ["bring-your-own-infra"]);
+  assert.deepEqual(labels(["tests/e2e/fixtures/byo-infra-probe/probe.py"]), ["bring-your-own-infra"]);
+  assert.deepEqual(labels(["cli/src/utils/service-manifest.ts"]), []);
+});
+
+test("globToRegExp: * stays in a segment, ** crosses them, **/ may match nothing", () => {
+  assert.ok(globToRegExp("a/*.ts").test("a/b.ts") && !globToRegExp("a/*.ts").test("a/b/c.ts"));
+  assert.ok(globToRegExp("a/**").test("a/b/c.ts") && globToRegExp("a/**/c.ts").test("a/c.ts") && globToRegExp("a/**/c.ts").test("a/b/x/c.ts"));
+  assert.ok(!globToRegExp("a.ts").test("axts"));
+});
+
+test("runShBlocks and the two change functions ignore comments and blank lines", () => {
+  const a = runShBlocks("# c\nBY1() { echo a; }\nBY2() {\n  echo b\n}\nrest\n");
+  assert.deepEqual([...a.blocks.keys()], ["BY1", "BY2"]);
+  assert.deepEqual(changedByoCases("BY1() { echo a; }\nBY2() {\n  echo b\n}\n", "# n\nBY1() { echo a; }\n\nBY2() {\n  echo c\n}\n"), { cases: new Set(["BY2"]), suiteWide: false });
+  assert.deepEqual(changedByoVariants('{"description":"a","variants":[{"id":"x"}]}', '{"description":"b","variants":[{"id":"x"},{"id":"y"}]}'), { ids: new Set(["y"]), suiteWide: false });
+});
+
+test("--explain reports each file, its rule and its legs", () => {
+  const result = prLegs(matrix, ["docs/README.md", "cli/src/utils/infra-presets.ts", "cli/src/commands/resource.ts"], { e2eDir });
+  assert.deepEqual(result.explain.map((e) => [e.file, e.rule]), [["docs/README.md", "11 none"], ["cli/src/utils/infra-presets.ts", "0 inputs"], ["cli/src/commands/resource.ts", "10 shared code, canary"]]);
+  const md = explainMarkdown(result.explain, all.length);
+  assert.match(md, new RegExp(`of ${all.length} legs selected`));
+  assert.match(md, /\| `cli\/src\/utils\/infra-presets\.ts` \| 0 inputs \| bring-your-own-infra \|/);
+});
+
+test("the PR #4020 shape: presets, probe, verify script, resource.ts run 7 legs, not 38", () => {
+  const files = ["cli/src/utils/infra-presets.ts", "cli/src/commands/resource.ts", "tests/e2e/fixtures/byo-infra-probe/probe.py", "tests/e2e/resource-types/bring-your-own/verify-byo-infra.sh"];
+  const got = labels(files);
+  assert.ok(got.includes("bring-your-own-infra"));
+  assert.ok(got.length <= canary.length + 1, got.join(","));
+  assert.ok(got.length < all.length / 4);
 });

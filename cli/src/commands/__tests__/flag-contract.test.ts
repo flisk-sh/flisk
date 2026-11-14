@@ -21,6 +21,7 @@ import { downCommand } from "../down.js";
 import { ejectCommand } from "../eject.js";
 import { networksCommand } from "../networks.js";
 import { projectsCommand } from "../projects.js";
+import { resourceCommand } from "../resource.js";
 import { resourcesCommand } from "../resources.js";
 import { stacksCommand } from "../stacks.js";
 import { statusCommand } from "../status.js";
@@ -104,6 +105,11 @@ const JSON_SPAWN_MATRIX: Array<{
   },
   { site: "config migrate --json", command: ["config", "migrate"], project: CONFIGURED_PROJECT },
   {
+    site: "tool add --json",
+    command: ["tool", "add", "react", "web"],
+    project: CONFIGURED_PROJECT,
+  },
+  {
     site: "config enable-infra --json",
     command: ["config", "enable-infra", "monitoring"],
     project: CONFIGURED_PROJECT,
@@ -125,6 +131,12 @@ const DRY_RUN_MATRIX: Array<{
   project: Parameters<typeof createTempProject>[0];
   expect: string;
 }> = [
+  {
+    site: "resource --dry-run",
+    command: ["resource"],
+    project: CONFIGURED_PROJECT,
+    expect: "Dry run",
+  },
   {
     site: "config regenerate --dry-run",
     command: ["config", "regenerate"],
@@ -171,6 +183,7 @@ const YES_MATRIX: Array<{
     project: CONFIGURED_PROJECT,
   },
   { site: "project --yes", command: ["project"], project: CONFIGURED_PROJECT },
+  { site: "tool add --yes", command: ["tool", "add", "react", "web"], project: CONFIGURED_PROJECT },
 ];
 
 /**
@@ -201,6 +214,8 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
+  "tool add --dry-run":
+    "forwards --dry-run to a spawned flisk resource, which the in-process dry-run rows cannot start; add.test.ts checks the forwarding and resource --dry-run has its own row",
   "projects --yes":
     "only confirms --stale --prune, which deletes Docker objects, so a matrix row cannot run it; projects-prune.test.ts covers every prompt path",
   "create --yes":
@@ -486,6 +501,7 @@ describe("flag contract: completeness", () => {
 
 /** The command object and arguments that each dry-run row runs in-process, without `--dry-run` (added below). */
 const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
+  resource: { command: resourceCommand, args: ["preview-api", "--stack", "api", "--yes"] },
   "config regenerate": { command: configCommand, args: ["regenerate"] },
   connect: { command: connectCommand, args: ["claude"] },
   down: { command: downCommand, args: [] },

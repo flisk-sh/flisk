@@ -8,6 +8,8 @@
 #   D2  After `flisk down` (which keeps Docker volumes), a second `flisk demo` in a new folder gets a new random DB_PASSWORD. It must
 #       start too, and the migrator must not fail with Prisma P1000 (authentication failed against the old Postgres data).
 #   D3  The frontend the second run printed answers with a 2xx.
+#   D4  A container an older layout left in the demo folder (it holds Postgres's host port) is stopped by the demo's reset, so
+#       the demo starts instead of failing with "port is already allocated" (#4124).
 #   N1  With Docker not running (a `docker` on PATH that fails), `flisk demo` falls back to the small demo as local processes, exits 0,
 #       and its website and the menu API behind it answer.
 #   N2  A second `flisk demo` while it runs reopens it instead of starting another copy.
@@ -89,6 +91,34 @@ D3() { # a frontend the second run printed answers
     sleep 5
   done
   die "no demo URL answered 2xx:$tried"
+}
+
+D4() { # a leftover container of an older layout holds a port the demo needs
+  log "D4 flisk demo with a container of an older layout in the demo folder"
+  local home="$SUITE_ROOT/home" folder legacy docker_host
+  # Docker finds its socket through $HOME (Colima, Docker Desktop), so the scratch HOME must keep talking to the same daemon.
+  docker_host="${DOCKER_HOST:-$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)}"
+  # The demo's own folder is ~/.flisk/flisk-demo, which is where the reset runs: point HOME at a scratch folder so a machine's real demo is untouched.
+  folder="$home/.flisk/flisk-demo"
+  legacy="$folder/services/platform/database-management"
+  rm -rf "$home"
+  mkdir -p "$folder/.flisk" "$legacy"
+  # The Compose plugin and the CLI config live in ~/.docker.
+  [ -e "$HOME/.docker" ] && ln -s "$HOME/.docker" "$home/.docker"
+  echo '{"project":{"name":"flisk-restaurant-example"}}' > "$folder/.flisk/project.json"
+  # What 1.3.x started: Compose project `flisk_demo`, publishing Postgres's host port.
+  printf 'services:\n  postgres:\n    image: busybox:latest\n    command: sleep 3600\n    ports: ["127.0.0.1:15434:80"]\n' > "$legacy/docker-compose.yml"
+  (cd "$legacy" && docker compose -p flisk_demo up -d >/dev/null) || die "could not start the stand-in for the old demo container"
+  docker ps --filter publish=15434 --format '{{.Names}}' | grep -q . || die "the stand-in container does not hold port 15434"
+  if ! HOME="$home" DOCKER_HOST="$docker_host" timeout "$DEMO_TIMEOUT" flisk demo --yes > "$OUT/demo-legacy.out" 2>&1; then
+    tail -60 "$OUT/demo-legacy.out"
+    docker compose -p flisk_demo down >/dev/null 2>&1 || true
+    die "flisk demo did not finish ready with an old container holding port 15434"
+  fi
+  if docker ps -a --format '{{.Label "com.docker.compose.project"}}' | grep -qx flisk_demo; then
+    die "the old demo container is still there after the demo"
+  fi
+  (cd "$folder" && HOME="$home" DOCKER_HOST="$docker_host" flisk down --yes) || die "flisk down failed in $folder"
 }
 
 native_demo() { # <log name>: `flisk demo` with a Docker that is installed but not running

@@ -216,6 +216,7 @@ number. A full disk damages Docker's image store, and the repair deletes every v
 | --- | --- | --- |
 | `FLISK_DISK_MIN_GIB` | `5` | Below this, `flisk up` and `flisk doctor` fail |
 | `FLISK_DISK_WARN_GIB` | `15` | Below this, they warn |
+| `FLISK_OFFLINE` | unset | When set (and not `0`), `flisk demo` and `flisk doctor` do not ask the npm registry for the latest version. `CI`, `NO_UPDATE_NOTIFIER` and `--offline` skip it too. The answer is cached for a day in `~/.flisk/latest-version.json` |
 | `FLISK_BUILD_CACHE_MAX_GIB` | `20` | `flisk up` trims the shared Docker build cache to this size (`docker builder prune -f --keep-storage`); `0` turns the ceiling off |
 
 After `flisk down` stops a container project, it prints the size of the project's images and of the shared build cache, with
@@ -223,7 +224,7 @@ the commands that free them (`flisk down --purge`, `docker builder prune -f`); `
 
 ## Where `flisk demo` puts the project
 
-No environment variable changes it. `flisk demo` (and `npx @flisk-sh/flisk demo`) always clones the demo into
+No environment variable changes it. `flisk demo` (and `npx @flisk-sh/flisk@latest demo`) always clones the demo into
 `~/.flisk/flisk-demo`, whichever folder you run it from, so a second run reuses that checkout instead of leaving a new folder
 behind. If `~/.flisk/flisk-demo` exists but is not a Flisk project, the command stops and tells you to remove it.
 

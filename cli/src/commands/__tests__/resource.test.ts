@@ -139,7 +139,7 @@ describe("resource command", () => {
       expect(serviceJson).toHaveProperty("name", name);
       expect(serviceJson).toHaveProperty("type", type);
       expect(serviceJson.port).toBe(0); // Workers may not need ports
-      expect(serviceJson.dev.command).toBe("bun run worker");
+      expect(serviceJson.dev.command).toBe("bun run dev");
     });
 
     it("creates agent service.json with durability and custom runtime", () => {
@@ -185,7 +185,7 @@ describe("resource command", () => {
     it("should have correct TYPE_SPECIFIC extensions for each resource type", () => {
       expect(TYPE_SPECIFIC.backend).toHaveProperty("healthCheckPath", "/health");
       expect(TYPE_SPECIFIC.frontend.dev?.watch).toContain("public/**/*");
-      expect(TYPE_SPECIFIC.worker.dev?.command).toBe("bun run worker");
+      expect(TYPE_SPECIFIC.worker.dev?.command).toBe("bun run dev");
     });
 
     it("should have correct BASE_TEMPLATE structure", () => {
@@ -288,6 +288,20 @@ describe("resource command", () => {
       expect(packageJson.dependencies).toHaveProperty("hono");
       expect(packageJson.dependencies).not.toHaveProperty("vite");
       expect(packageJson.scripts.dev).toBe("bun run --watch src/index.ts");
+    });
+
+    it("scaffolds a package.json script for every resource type's dev command (#3740)", () => {
+      // #3740: a worker's service.json ran `bun run worker`, but the worker
+      // package.json template has no "worker" script, so a fresh worker
+      // could not start. The dev command of every scaffolded resource type
+      // must name a script its generated package.json actually has.
+      for (const type of ["backend", "frontend", "worker", "mcp", "agent"] as const) {
+        const devCommand = TYPE_SPECIFIC[type].dev?.command ?? BASE_TEMPLATE.dev.command;
+        const match = /^bun run (\S+)$/.exec(devCommand);
+        expect(match, `${type}: service.json dev.command "${devCommand}"`).not.toBeNull();
+        const scripts = createPackageJson("test-resource", type).scripts as Record<string, string>;
+        expect(scripts, `${type}: generated package.json scripts`).toHaveProperty(match![1]);
+      }
     });
 
     it("guards the frontend dev/build scripts with a clear message when the generated Vite config is missing", () => {

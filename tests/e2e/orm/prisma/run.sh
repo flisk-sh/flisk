@@ -7,6 +7,7 @@
 #
 #   tests/e2e/orm/prisma/run.sh all          every case in order, then cleanup
 #   tests/e2e/orm/prisma/run.sh P1 P2        single cases (later cases need the earlier ones)
+# P5 measures the migrator image against a budget (MIGRATOR_UNIQUE_MAX_MB, default 400; the target in #4070 is 100).
 #
 # The scaffolded API keeps the template's /health and gets a /health/db route that queries Postgres through DATABASE_URL, so
 # P4 proves the API reaches the database and not only that the container is up.
@@ -87,7 +88,28 @@ P3() { # DATABASE_URL is in the API container's environment
 P4() { # the routed /health/db queries Postgres through DATABASE_URL
   log "P4 $API queries Postgres through /health/db"
   poll_until "$API answers /health/db with ok 1 from Postgres" "$READY_TIMEOUT" db_healthy
+  timing_serving cold_start || true
   echo "$(cat "$OUT/health-db.json")"
+}
+
+P5() { # the migrator image adds no more than its budget over the shared golden migrator layer (#4070)
+  log "P5 $MIGRATOR image stays within its size budget"
+  local img; img="$(docker ps -a --filter "name=$MIGRATOR" --format '{{.Image}}' | head -n 1)"
+  [ -n "$img" ] || die "no $MIGRATOR container, so there is no image to measure"
+  local base="" candidate n
+  # The golden base is the *-l4-migrator image whose layers are the first layers of the migrator image.
+  while read -r candidate; do
+    n="$(docker image inspect "$candidate" -f '{{len .RootFS.Layers}}')"
+    if [ "$(docker image inspect "$img" -f "{{json .RootFS.Layers}}" | jq -c ".[0:$n]")" = "$(docker image inspect "$candidate" -f '{{json .RootFS.Layers}}' | jq -c .)" ]; then base="$candidate"; break; fi
+  done < <(docker images --format '{{.Repository}}:{{.Tag}}' | grep -- '-l4-migrator:')
+  [ -n "$base" ] || die "$img is not built on a golden l4-migrator image"
+  # Unpacked layer bytes from docker history: `docker image inspect .Size` is the compressed size on a containerd image store.
+  local total basesize unique_mb
+  total="$(docker history --human=false --format '{{.Size}}' "$img" | awk '{s+=$1} END {print s+0}')"
+  basesize="$(docker history --human=false --format '{{.Size}}' "$base" | awk '{s+=$1} END {print s+0}')"
+  unique_mb=$(( (total - basesize) / 1000000 ))
+  echo "$img is $((total / 1000000)) MB; the shared golden base $base is $((basesize / 1000000)) MB; unique: $unique_mb MB (budget ${MIGRATOR_UNIQUE_MAX_MB:-400} MB)"
+  [ "$unique_mb" -le "${MIGRATOR_UNIQUE_MAX_MB:-400}" ] || die "the $MIGRATOR image holds $unique_mb MB of its own layers, over the ${MIGRATOR_UNIQUE_MAX_MB:-400} MB budget; look at docker history $img for a layer that stores node_modules twice"
 }
 
 e2e_main "$@"

@@ -45,6 +45,11 @@ if (templateArg && rootOptions.projectError) {
     process.exit(1);
 }
 if (templateArg === "demo") {
+    // npx runs a locally installed copy before it downloads one, so tell the user when it is old (#4119).
+    const { staleVersionNotice } = await import("./utils/latest-version.js");
+    const staleNotice = await staleVersionNotice(pkg.version);
+    if (staleNotice)
+        console.log(chalk.yellow(staleNotice));
     // No Docker or Tilt (or native Windows, or --no-docker): run the small demo as local processes. It needs only Node, so it is
     // decided before the Windows refusal and the Bun preflight below.
     const { NATIVE_DEMO_DIR, nativeDemoReason, runNativeDemo } = await import("./utils/native-demo.js");
@@ -290,7 +295,7 @@ if (templateArg) {
     const { readSavedTiltPort } = await import("./utils/host-port-config.js");
     const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
     let watching = true;
-    // Tilt counts every resource it starts, including the database and the proxy. That is the
+    // The progress line counts the user's services plus the database and the proxy, not Tilt helpers. That is the
     // number the progress line shows, so the last frame has to finish on the same one.
     let lastTotal = discovered;
     void (async () => {
@@ -307,6 +312,7 @@ if (templateArg) {
                             servicesReady: progress.ready,
                             servicesTotal: progress.total,
                             servicesBuilding: progress.building,
+                            servicesPhase: progress.infraPhase,
                         });
                         break;
                     }
@@ -332,7 +338,12 @@ if (templateArg) {
         process.exit(1);
     }
     setPhase("start", "done", Date.now() - startStarted);
-    stage.update({ servicesReady: lastTotal, servicesTotal: lastTotal });
+    stage.update({
+        servicesReady: lastTotal,
+        servicesTotal: lastTotal,
+        servicesBuilding: 0,
+        servicesPhase: undefined,
+    });
     // 5. Open the browser only when a frontend actually answers, the same way `flisk open`
     // does. A failed open is not a failed demo: the URL is already on screen.
     const targets = await listFrontendTargets(destination);

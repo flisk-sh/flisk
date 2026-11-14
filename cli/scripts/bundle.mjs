@@ -80,6 +80,6 @@ const buildInfo = {
   commit: commitSha,
   commitSha,
 };
-const buildInfoJson = JSON.stringify(buildInfo, null, 2) + "\n";
+const buildInfoJson = `${JSON.stringify(buildInfo, null, 2)}\n`;
 
 writeFileSync(join(out, "build-info.json"), buildInfoJson, "utf8");

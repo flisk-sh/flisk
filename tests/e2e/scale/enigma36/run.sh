@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Enigma 36: one project of 36 resources drawn at random from every type `flisk resource` creates (each backend framework and
-# language, each frontend framework, worker, mcp, agent with each durability, database with Redis, Qdrant, MinIO and MLflow beside the Postgres, NATS and RabbitMQ queues, bring-your-own and sdk), dealt over six
+# language, each frontend framework, worker, mcp, agent with each durability, database with Redis, Qdrant and MLflow beside the Postgres, MinIO storage, NATS and RabbitMQ queues, bring-your-own and sdk), dealt over six
 # stacks and booted with one `flisk up`. Each night draws a new combination; the seed is printed first, so any failure replays
 # with E2E_SEED=<seed>. plan.mjs draws the plan and checks it on the diagonal board before anything is scaffolded.
 #
@@ -58,7 +58,7 @@ contract() { # <entry json>
     frontend) http_ok "$name" / ;;
     worker) worker_started "$name" ;;
     database) if [ "$(field "$1" variant)" = postgres ]; then database_ready "$name"; else container_running "$name"; fi ;;
-    queue) container_running "$name" ;;
+    queue | storage | mail | payment) container_running "$name" ;;
     sdk) common_listed "$name" sdk ;;
   esac
 }
@@ -89,10 +89,10 @@ K1() { # draw the plan, print the seed and the board
   load_plan
   plan_names
   echo "seed $(jq -r .seed "$PLAN")   replay: E2E_SEED=$(jq -r .seed "$PLAN") tests/e2e/scale/enigma36/run.sh all"
-  jq -r '.entries[] | [.name, .kind, (if .kind == "database" or .kind == "queue" then .variant else "-" end), .stack] | @tsv' "$PLAN" | column -t
+  jq -r '.entries[] | [.name, .kind, (if (.kind | IN("database", "queue", "storage", "mail", "payment")) then .variant else "-" end), .stack] | @tsv' "$PLAN" | column -t
   jq -r '.entries | group_by(.kind) | map("\(.[0].kind) \(length)") | join(", ")' "$PLAN"
-  # The database and queue kinds by framework, so a draw that holds only the Postgres shows at a glance.
-  jq -r '[.entries[] | select(.kind == "database" or .kind == "queue") | "\(.kind)=\(.variant)"] | join(", ")' "$PLAN"
+  # The infrastructure kinds (database, queue, storage, mail, payment) by framework, so a draw that holds only the Postgres shows at a glance.
+  jq -r '[.entries[] | select(.kind | IN("database", "queue", "storage", "mail", "payment")) | "\(.kind)=\(.variant)"] | join(", ")' "$PLAN"
 }
 
 K2() { # one project, every drawn resource scaffolded into it with flisk resource

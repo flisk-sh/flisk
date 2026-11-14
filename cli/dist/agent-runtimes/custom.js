@@ -18,6 +18,11 @@ import { Client } from 'pg';
 const DURABILITY = 'postgres';
 ${portFromEnv("PORT")}
 const DRAIN_TIMEOUT_MS = 10_000;
+// A checkpoint is kept until its session has been quiet this long, swept on this interval. Idle is healthy here and
+// nothing else ever reaps a session, so without the sweep the checkpoint store grows for the life of the service.
+// A malformed override falls back to the default: a NaN threshold would disable the sweep without saying so.
+const SESSION_IDLE_TIMEOUT_MS = Number(process.env.SESSION_IDLE_TIMEOUT_MS) || 86_400_000;
+const SESSION_CLEANUP_INTERVAL_MS = Number(process.env.SESSION_CLEANUP_INTERVAL_MS) || 3_600_000;
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
 
 interface Checkpoint {
@@ -88,6 +93,14 @@ const store = {
       checkpointBytes: Number(row.bytes),
     }));
   },
+  async delete(sessionId: string): Promise<void> {
+    try {
+      const c = await getClient();
+      await c.query('DELETE FROM flisk_agent_sessions WHERE session_id = $1', [sessionId]);
+    } catch (err) {
+      console.error('[agent] delete checkpoint failed:', err);
+    }
+  },
   async save(checkpoint: Checkpoint): Promise<void> {
     const c = await getClient();
     await c.query(
@@ -99,13 +112,15 @@ const store = {
     );
   },
   async close(): Promise<void> {
-    if (client) {
+    // Take the client first: drain can call close twice at once, and a second end() on one client throws.
+    const c = client;
+    client = null;
+    if (c) {
       try {
-        await client.end();
+        await c.end();
       } catch (err) {
         console.warn('[agent] closing the checkpoint client failed:', err);
       }
-      client = null;
     }
   },
 };
@@ -119,11 +134,31 @@ async function runTurn(checkpoint: Checkpoint, input: string): Promise<string> {
 
 let draining = false;
 let inFlight = 0;
+let sweepTimer: ReturnType<typeof setInterval> | null = null;
 // Turns in flight per session, so GET /sessions can tell an active session from an idle one.
 const activeTurns = new Map<string, number>();
 // Per-session operation queues to serialize activeTurns updates and prevent race conditions.
 const sessionOperationQueues = new Map<string, Promise<void>>();
 const SESSION_LIST_LIMIT = 500;
+
+// A session with a turn in flight is never swept however old its checkpoint looks: the turn is about to write that
+// checkpoint again, and deleting it under the turn would drop the conversation the caller is still having.
+async function sweepIdleSessions() {
+  if (draining) return;
+  try {
+    const idleBefore = Date.now() - SESSION_IDLE_TIMEOUT_MS;
+    let swept = 0;
+    for (const session of await store.list()) {
+      if (activeTurns.has(session.sessionId)) continue;
+      if (new Date(session.lastActivity).getTime() >= idleBefore) continue;
+      await store.delete(session.sessionId);
+      swept++;
+    }
+    if (swept > 0) console.log('[agent] swept ' + swept + ' idle session(s)');
+  } catch (err) {
+    console.error('[agent] idle sweep failed:', err);
+  }
+}
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
@@ -215,6 +250,14 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { sessionId, turns: checkpoint.messages.length / 2, messages: checkpoint.messages });
     }
 
+    if (url.pathname === '/session' && req.method === 'DELETE') {
+      const sessionId = String(req.headers['x-session-id'] ?? '');
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) return sendJson(res, 400, { error: 'x-session-id header is required' });
+      if (activeTurns.has(sessionId)) return sendJson(res, 409, { error: 'turn_in_flight' });
+      await store.delete(sessionId);
+      return sendJson(res, 200, { deleted: sessionId });
+    }
+
     // Read-only list of the stored sessions, most recent first. status is 'active' while this instance runs a turn
     // for the session, otherwise 'idle'. total counts every stored session, also those past the limit.
     if (url.pathname === '/sessions' && req.method === 'GET') {
@@ -236,6 +279,9 @@ const server = createServer(async (req, res) => {
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 server.listen(PORT, '0.0.0.0', () => {
   console.log('\\n🤖 ${name} agent on http://localhost:' + PORT + ' (durability: ' + DURABILITY + ')');
+  // unref: a scheduled sweep must never be the reason the process stays alive.
+  sweepTimer = setInterval(() => sweepIdleSessions(), SESSION_CLEANUP_INTERVAL_MS);
+  sweepTimer.unref();
 });
 
 // Drain on SIGTERM (flisk down, hot reload, docker stop): stop taking turns, let in-flight turns finish, then exit 0.
@@ -243,6 +289,7 @@ server.listen(PORT, '0.0.0.0', () => {
 function shutdown(signal: string) {
   if (draining) return;
   draining = true;
+  if (sweepTimer) clearInterval(sweepTimer);
   console.log('[agent] ' + signal + ' received, draining ' + inFlight + ' in-flight request(s)');
   server.close(async () => {
     await store.close();
@@ -261,7 +308,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 `;
     }
     return `import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Contract with Flisk (see docs/agents/ai-agents.md):
@@ -274,6 +321,11 @@ const DURABILITY = 'files';
 const STATE_DIR = process.env.AGENT_STATE_DIR || join(process.cwd(), '.agent-state');
 ${portFromEnv("PORT")}
 const DRAIN_TIMEOUT_MS = 10_000;
+// A checkpoint is kept until its session has been quiet this long, swept on this interval. Idle is healthy here and
+// nothing else ever reaps a session, so without the sweep the checkpoint store grows for the life of the service.
+// A malformed override falls back to the default: a NaN threshold would disable the sweep without saying so.
+const SESSION_IDLE_TIMEOUT_MS = Number(process.env.SESSION_IDLE_TIMEOUT_MS) || 86_400_000;
+const SESSION_CLEANUP_INTERVAL_MS = Number(process.env.SESSION_CLEANUP_INTERVAL_MS) || 3_600_000;
 
 interface Checkpoint {
   sessionId: string;
@@ -323,6 +375,14 @@ const store = {
     writeFileSync(tmp, JSON.stringify(checkpoint));
     renameSync(tmp, file);
   },
+  delete(sessionId: string): void {
+    try {
+      unlinkSync(join(STATE_DIR, sessionId + '.json'));
+    } catch (err) {
+      // Already gone is the goal state, so only a real failure is worth a line.
+      if ((err as { code?: string }).code !== 'ENOENT') console.error('[agent] delete checkpoint failed:', err);
+    }
+  },
 };
 
 // Replace this with the agent's work: call your model, run tools, return the reply. Keep it a pure function of the
@@ -334,11 +394,31 @@ async function runTurn(checkpoint: Checkpoint, input: string): Promise<string> {
 
 let draining = false;
 let inFlight = 0;
+let sweepTimer: ReturnType<typeof setInterval> | null = null;
 // Turns in flight per session, so GET /sessions can tell an active session from an idle one.
 const activeTurns = new Map<string, number>();
 // Per-session operation queues to serialize activeTurns updates and prevent race conditions.
 const sessionOperationQueues = new Map<string, Promise<void>>();
 const SESSION_LIST_LIMIT = 500;
+
+// A session with a turn in flight is never swept however old its checkpoint looks: the turn is about to write that
+// checkpoint again, and deleting it under the turn would drop the conversation the caller is still having.
+async function sweepIdleSessions() {
+  if (draining) return;
+  try {
+    const idleBefore = Date.now() - SESSION_IDLE_TIMEOUT_MS;
+    let swept = 0;
+    for (const session of await store.list()) {
+      if (activeTurns.has(session.sessionId)) continue;
+      if (new Date(session.lastActivity).getTime() >= idleBefore) continue;
+      await store.delete(session.sessionId);
+      swept++;
+    }
+    if (swept > 0) console.log('[agent] swept ' + swept + ' idle session(s)');
+  } catch (err) {
+    console.error('[agent] idle sweep failed:', err);
+  }
+}
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
@@ -430,6 +510,14 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { sessionId, turns: checkpoint.messages.length / 2, messages: checkpoint.messages });
     }
 
+    if (url.pathname === '/session' && req.method === 'DELETE') {
+      const sessionId = String(req.headers['x-session-id'] ?? '');
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) return sendJson(res, 400, { error: 'x-session-id header is required' });
+      if (activeTurns.has(sessionId)) return sendJson(res, 409, { error: 'turn_in_flight' });
+      await store.delete(sessionId);
+      return sendJson(res, 200, { deleted: sessionId });
+    }
+
     // Read-only list of the stored sessions, most recent first. status is 'active' while this instance runs a turn
     // for the session, otherwise 'idle'. total counts every stored session, also those past the limit.
     if (url.pathname === '/sessions' && req.method === 'GET') {
@@ -451,6 +539,9 @@ const server = createServer(async (req, res) => {
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 server.listen(PORT, '0.0.0.0', () => {
   console.log('\\n🤖 ${name} agent on http://localhost:' + PORT + ' (durability: ' + DURABILITY + ')');
+  // unref: a scheduled sweep must never be the reason the process stays alive.
+  sweepTimer = setInterval(() => sweepIdleSessions(), SESSION_CLEANUP_INTERVAL_MS);
+  sweepTimer.unref();
 });
 
 // Drain on SIGTERM (flisk down, hot reload, docker stop): stop taking turns, let in-flight turns finish, then exit 0.
@@ -458,6 +549,7 @@ server.listen(PORT, '0.0.0.0', () => {
 function shutdown(signal: string) {
   if (draining) return;
   draining = true;
+  if (sweepTimer) clearInterval(sweepTimer);
   console.log('[agent] ' + signal + ' received, draining ' + inFlight + ' in-flight request(s)');
   server.close();
   const deadline = Date.now() + DRAIN_TIMEOUT_MS;

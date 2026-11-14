@@ -4,7 +4,7 @@
 
 Windows cannot run the full Flisk stack by itself, so `flisk doctor` tells you to use Ubuntu on WSL2. This page puts every step in one place, in the order that worked for a first-time user on Windows 10, with what `flisk doctor` prints when a step is missing.
 
-Short on time? The two-service demo (`npx @flisk-sh/flisk demo`) runs on plain Windows without any of this. You need the steps below for the full Docker stack. [Windows & WSL2](wsl2.md) has the reference version.
+Short on time? The two-service demo (`npx @flisk-sh/flisk@latest demo`) runs on plain Windows without any of this. You need the steps below for the full Docker stack. [Windows & WSL2](wsl2.md) has the reference version.
 
 **One command instead:** in PowerShell, this runs steps 1 and 3 to 6 for you and checks step 2, skipping whatever is already done. Pass your repository's URL to clone it into Ubuntu as well:
 

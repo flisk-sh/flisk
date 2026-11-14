@@ -12,7 +12,7 @@
 Γρήγορη εκκίνηση:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Θέλετε να διαλέξετε μόνοι σας το stack; Απαντήστε σε λίγες ερωτήσεις με τα βελάκια και το Enter:

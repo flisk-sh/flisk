@@ -781,7 +781,11 @@ export function parseTiltProcesses(psOutput) {
         const match = line.match(/^\s*(\d+)\s+.*\btilt up\b.*?\s-f\s+(\S+)/i);
         if (!match)
             continue;
-        processes.push({ pid: Number(match[1]), root: match[2].split(/[\\/]\.flisk[\\/]/i)[0] });
+        // The root precedes the LAST `.flisk` folder: the demo lives in ~/.flisk/flisk-demo, and cutting at the first one gave the
+        // home folder, so `flisk demo` took its own Tilt for another project's and never showed progress (#4123).
+        const tiltfile = match[2];
+        const root = tiltfile.match(/^(.*)[\\/]\.flisk[\\/]/i)?.[1] ?? tiltfile;
+        processes.push({ pid: Number(match[1]), root });
     }
     return processes;
 }

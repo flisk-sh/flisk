@@ -20,6 +20,12 @@ export const DEMO_STAR_URL = CLI_REPOSITORY.replace(/^https:\/\//, "");
 /** Where the finished frame points someone with a question. The invite never expires. */
 export const DEMO_DISCORD_URL = "discord.gg/qMu5Xn8Kaq";
 
+/**
+ * What the finished frame says about trust, next to the version. Each claim is in the repo: the license file, the
+ * telemetry statement and the signed-release steps in docs/security.md. The frame has a fixed height, so it is one row.
+ */
+export const DEMO_PROOF = "MIT \u00b7 no telemetry \u00b7 signed release: docs/security.md";
+
 /** The narrowest frame that still reads. Below this the labels are truncated to nothing. */
 const MIN_FRAME_WIDTH = 24;
 
@@ -54,6 +60,8 @@ export type DemoState = {
   servicesReady: number;
   servicesTotal: number;
   servicesBuilding: number;
+  /** The setup step running before the services, e.g. "Building base images". */
+  servicesPhase?: string;
   /** What the setup produced, e.g. "240 config files generated". */
   detail?: string;
   elapsedMs: number;
@@ -178,6 +186,7 @@ function servicesLine(state: DemoState): string {
   const ready = Math.min(Math.max(0, state.servicesReady), total);
   const parts = [`${ready} of ${total} services ready`];
   if (state.servicesBuilding > 0) parts.push(`${state.servicesBuilding} building`);
+  if (state.servicesPhase) parts.push(state.servicesPhase);
   return parts.join(" · ");
 }
 
@@ -233,7 +242,7 @@ export function renderDemoFrame(state: DemoState, columns = 80): FrameRow[] {
     if (!state.done.discordUrl) blank();
     push([
       { text: " ", style: "plain" },
-      { text: `flisk ${sanitizeCell(state.done.version)}`, style: "dim" },
+      { text: `flisk ${sanitizeCell(state.done.version)} \u00b7 ${DEMO_PROOF}`, style: "dim" },
     ]);
     if (state.done.discordUrl) {
       push([

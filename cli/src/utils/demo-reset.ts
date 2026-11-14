@@ -5,30 +5,57 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { cliInvocation } from "./cli-invocation.js";
+import { FliskError } from "./errors.js";
 import { projectNameAt, readProjectRecords } from "./project-registry.js";
 
 /** Stops the `tilt up` processes that run this project's Tiltfile, and waits for them to exit. */
 export type StopTilt = (tiltfile: string) => Promise<void>;
 
+/** Stops every container whose Compose folder is inside the demo folder; returns the Compose projects that would not stop. */
+export type StopFolderContainers = (folder: string) => Promise<string[]>;
+
 /**
  * Stop the stack of an existing demo folder before the folder is deleted. Deleting the folder alone leaves its
  * containers running, and a standalone Traefik that stays up keeps port 80 for the next run.
  *
- * The live `tilt up` goes first. `flisk down` needs the Tiltfile, and it can be gone or mid-rewrite while the old
- * stack still runs; then `down` fails and the old Tilt keeps the ports and containers the new run needs, so the
- * second demo sat at "0 of 7 services ready". Returns true when a Flisk project was found.
+ * The live `tilt up` goes first, so the old Tilt cannot keep the ports and containers the new run needs (the second
+ * demo sat at "0 of 7 services ready"). Returns true when a Flisk project was found.
  */
 export async function stopDemoStack(
   projectDir: string,
   runDown: (dir: string) => void = runFliskDown,
   stopTilt: StopTilt = stopRunningTilt,
+  stopFolderContainers: StopFolderContainers = stopContainersUnder,
 ): Promise<boolean> {
   if (!existsSync(join(projectDir, ".flisk", "project.json"))) return false;
   const tiltfile = join(projectDir, ".flisk", ".flisk-out", "Tiltfile");
   await stopTilt(tiltfile);
-  if (!existsSync(tiltfile)) return true;
-  runDown(projectDir);
+  // `flisk down` runs `tilt down`, which evaluates the whole Tiltfile just to learn what to stop: about 20 s warm and
+  // 2 min cold, before the demo shows anything (#4128). The folder is deleted next, so stop what runs in it directly:
+  // the live `tilt up` is gone and every Compose project whose folder is inside it is brought down by label. That also
+  // catches containers an older layout (flisk_demo_postgres, flisk_demo_traefik) left holding host ports (#4124).
+  let stuck = await stopFolderContainers(projectDir);
+  if (stuck.length > 0 && existsSync(tiltfile)) {
+    // Something would not stop by label: let `flisk down` try, then look again.
+    try {
+      runDown(projectDir);
+    } catch {
+      // The sweep below decides whether anything is still running.
+    }
+    stuck = await stopFolderContainers(projectDir);
+  }
+  if (stuck.length > 0) {
+    throw new FliskError(`could not stop ${stuck.join(", ")} (docker compose down failed)`, [
+      `Stop them by hand: docker stop ${stuck.join(" ")}`,
+      "Then run the demo again",
+    ]);
+  }
   return true;
+}
+
+async function stopContainersUnder(folder: string): Promise<string[]> {
+  const { stopComposeProjectsUnder } = await import("./down-cleanup.js");
+  return stopComposeProjectsUnder(folder).failed.map((entry) => entry.name);
 }
 
 async function stopRunningTilt(tiltfile: string): Promise<void> {

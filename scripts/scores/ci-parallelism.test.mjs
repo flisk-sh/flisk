@@ -76,3 +76,15 @@ test("measure with no runs reports no data", () => {
 	const r = measure({ repo: "o/r", gh: () => [] });
 	assert.equal(r.value, null);
 });
+
+test("jobs with negative durations are not legs", () => {
+	const p = runParallelism([
+		job("valid", "01:00", "02:00"),
+		job("negative", "03:00", "01:00"),
+	]);
+
+	assert.equal(p.legs, 1);
+	assert.equal(p.sum, 60);
+	assert.equal(p.span, 60);
+	assert.equal(p.longest, 60);
+});

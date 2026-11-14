@@ -11,7 +11,7 @@
     "tests/e2e/resource-types/mcp/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["P1", "P2", "P3"],
+  "cases": ["P1", "P2", "P2b", "P3"],
   "triggers": ["nightly", "release", "manual"],
   "timeoutMinutes": 25,
   "needsSecrets": []

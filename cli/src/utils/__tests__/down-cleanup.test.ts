@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+  composeProjectsUnder,
   findProjectTiltUpPids,
   findRunningFliskProjects,
   fliskNetworkOwner,
@@ -14,6 +15,7 @@ import {
   projectComposeProjects,
   projectNetworkNames,
   pruneProjectNetworks,
+  stopComposeProjectsUnder,
   stopProjectComposeProjects,
   stopProjectTiltUp,
   waitForTiltUpExit,
@@ -413,5 +415,48 @@ describe("planProjectNetworkPrune", () => {
       remove: [],
       keep: [{ name: "shop_backend", reason: "permission denied" }],
     });
+  });
+});
+
+describe("containers an older layout left in a folder (#4124)", () => {
+  const ps = [
+    "flisk_demo\t/home/me/.flisk/flisk-demo/services/platform/database-management",
+    "flisk_demo_traefik\t/home/me/.flisk/flisk-demo/.tdk/.tdk-out",
+    "other\t/home/me/.flisk/flisk-demo-2/services/x",
+    "elsewhere\t/home/me/shop",
+    "nolabel\t",
+  ].join("\n");
+
+  it("finds every project whose working folder is the folder or inside it, and not a sibling with the same prefix", () => {
+    expect(composeProjectsUnder("/home/me/.flisk/flisk-demo", () => ps)).toEqual([
+      "flisk_demo",
+      "flisk_demo_traefik",
+    ]);
+  });
+
+  it("stops each with compose down, and reports one that fails", () => {
+    const calls: string[][] = [];
+    const runner = (_cmd: string, args: string[]): string => {
+      if (args[0] === "ps") return ps;
+      calls.push(args);
+      if (args[2] === "flisk_demo_traefik") throw new Error("boom");
+      return "";
+    };
+    const result = stopComposeProjectsUnder("/home/me/.flisk/flisk-demo", runner);
+    expect(calls.map((c) => c[2])).toEqual(["flisk_demo", "flisk_demo_traefik"]);
+    expect(result.stopped).toEqual(["flisk_demo"]);
+    expect(result.failed.map((f) => f.name)).toEqual(["flisk_demo_traefik"]);
+  });
+
+  it("does nothing when Docker cannot be listed", () => {
+    const runner = (): string => {
+      throw new Error("no docker");
+    };
+    expect(stopComposeProjectsUnder("/home/me/x", runner)).toEqual({ stopped: [], failed: [] });
+  });
+
+  it("flisk down recognises the legacy .tdk/.tdk-out folder", () => {
+    const legacy = "p\t/work/shop/.tdk/.tdk-out";
+    expect(projectComposeProjects("/work/shop", () => legacy)).toEqual(["p"]);
   });
 });

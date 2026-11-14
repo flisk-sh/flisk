@@ -18,7 +18,7 @@ function workflowScript() {
 const labels = (...names) => ({ nodes: names.map((name) => ({ name })) });
 
 // Runs the workflow script for one merged PR and returns the comments it posts, keyed by number.
-async function run({ issueLabels = [], priorIssueLabels = null }) {
+async function run({ issueLabels = [], priorIssueLabels = null, claimTemplate = null }) {
   const AsyncFunction = (async () => {}).constructor;
   const posted = {};
   const pr = {
@@ -62,6 +62,13 @@ async function run({ issueLabels = [], priorIssueLabels = null }) {
         }),
       },
       activity: { listReposStarredByUser: () => {} },
+      repos: {
+        getContent: async ({ repo, path }) => {
+          assert.equal(`${repo}/${path}`, ".github/messages/claim-badge.md");
+          if (claimTemplate === null) throw Object.assign(new Error("Not Found"), { status: 404 });
+          return { data: { content: Buffer.from(claimTemplate).toString("base64") } };
+        },
+      },
     },
   };
   const context = { repo: { owner: "flisk-sh", repo: "flisk" }, payload: { pull_request: pr } };
@@ -79,9 +86,19 @@ describe("contributor merged comments", () => {
     assert.match(issue, /Merged into `main` as 0fd0fb1/);
     assert.match(issue, /🥋 You cleared a \*\*7 kyu\*\* issue\. That sets your starting rank: \*\*7 kyu\*\*/);
     assert.match(issue, /### 🏅 Your Hall of Fame badge/);
-    assert.match(issue, /### 🔒 Unlock your numbered Founding Contributor badge/);
-    assert.match(issue, /### 🎯 Ready for another one\?\n\n.*\n\n- #99/);
+    assert.match(issue, /### 🎁 Your Founding Contributor badge in 3 steps/);
+    assert.match(issue, /2\. ✅ Get a PR merged\. Done! Now 📣 \[post it on X\]\(https:\/\/x\.com\/intent\/post\?text=My%20PR%20to%20flisk[^)]*%2Fpull%2F50\)/);
+    assert.match(issue, /First 100 only\. 100 left\./);
+    assert.match(issue, /### 🎯 Ready for another one\?\n\n- #99/);
     assert.match(issue, /Was anything unclear/);
+  });
+
+  it("fills the claim steps from the template in flisk-sh/.github", async () => {
+    const template = "<!-- notes for editors -->\n### {{badgeName}}\n\n[star]({{repoUrl}}) [follow]({{orgUrl}}) {{seatsLine}} {{unknown}}";
+    const issue = (await run({ issueLabels: ["rank: 7 kyu"], claimTemplate: template }))[7];
+    assert.match(issue, /### Founding Contributor\n\n\[star\]\(https:\/\/github\.com\/flisk-sh\/flisk\) \[follow\]\(https:\/\/github\.com\/flisk-sh\) First 100 only\. 100 left\. {{unknown}}/);
+    assert.doesNotMatch(issue, /notes for editors/);
+    assert.doesNotMatch(issue, /Done!/);
   });
 
   it("keeps the PR note as it was", async () => {

@@ -2,9 +2,9 @@ name: Set up Bun
 description: Install Bun and restore Bun's package cache, keyed on bun.lock. Bump the pinned action here only.
 inputs:
   bun-version:
-    description: Bun version to install
+    description: Bun version to install. Defaults to the version pinned in release-binaries.yml; override only in nightly-adopters.yml (canary).
     required: false
-    default: latest
+    default: "1.4.4"
 runs:
   using: composite
   steps:

@@ -14,7 +14,9 @@ export declare function hasVerdaccioLicense(projectRoot: string): Promise<boolea
  * resources - see generate_backend_path_aliases() in
  * engine/topologies/tilt/generators/vite/helpers.star).
  */
-export declare function hasDddLicense(projectRoot: string): Promise<boolean>;
+export declare function hasDddLicense(projectRoot: string, options?: {
+    cachedOnly?: boolean;
+}): Promise<boolean>;
 /**
  * Checks whether the configured license key grants the "sablier" resource
  * (on-demand start/stop for idle resources via a `sablier: {enable: true}`

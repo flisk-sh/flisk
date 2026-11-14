@@ -582,6 +582,12 @@ test("the CLI image stores the flisk binary in one layer (#3947)", () => {
   assert.doesNotMatch(instructions, /^RUN\b.*\b(chmod|chown)\b.*\/opt\/flisk\/flisk\b/m, "a RUN that changes the binary's mode or owner copies it into a new layer");
 });
 
+test("the candidate starts the release only after its gate passed (#3979)", () => {
+  const release = jobBlock(readFileSync(join(ROOT_DIR, ".github/workflows/release-candidate.yml"), "utf8"), "release");
+  assert.match(release, /^\s+needs: \[[^\]]*\bgate\b[^\]]*\]$/m, "dispatched before the suites end, publish holds a runner waiting for them");
+  assert.match(release, /needs\.gate\.result == 'success'/);
+});
+
 test("the release candidate runs at least 15 legs at once", () => {
   const workflow = readFileSync(join(ROOT_DIR, ".github/workflows/release-candidate.yml"), "utf8");
   const cap = Number(workflow.match(/max-parallel: (\d+)/)?.[1]);

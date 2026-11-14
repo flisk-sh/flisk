@@ -1,7 +1,8 @@
-import { DATABASE_RESOURCE_TYPE, type InfraFramework, QUEUE_RESOURCE_TYPE } from "../types/index.js";
+import { type InfraFramework, type InfraResourceType, type PresetResourceType } from "../types/index.js";
 /**
- * Infrastructure frameworks: `flisk resource <name> --type database --framework redis|qdrant|minio|mlflow` and
- * `--type queue --framework nats|rabbitmq` (the shared Postgres is `--type database` on its own). Each is a pinned image
+ * Infrastructure frameworks: `flisk resource <name> --type database --framework redis|qdrant|mlflow|...`,
+ * `--type queue --framework nats|rabbitmq`, `--type storage --framework minio`, `--type mail --framework mailpit` and
+ * `--type payment --framework stripe-mock` (the shared Postgres is `--type database` on its own). A preset's `type` must be the type that lists it in types/index.ts. Each is a pinned image
  * with a readiness probe, a named data volume that `flisk down` keeps, and `provides`: the connection settings every
  * service that lists it in `dependsOn` gets in its environment. Services in the stack reach it on the Docker network by
  * name. A framework with a web UI also publishes it on 127.0.0.1 only (`extraPorts`); two resources of one framework
@@ -10,7 +11,7 @@ import { DATABASE_RESOURCE_TYPE, type InfraFramework, QUEUE_RESOURCE_TYPE } from
  */
 export interface InfraPreset {
     /** The resource type that offers it. */
-    type: typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE;
+    type: InfraResourceType;
     /** What it is, for `flisk resource --help` and the created message. */
     description: string;
     image: string;
@@ -22,8 +23,8 @@ export interface InfraPreset {
     } | {
         command: string[];
     };
-    /** Where the image keeps its data; mounted from the named volume `<name>-data`. */
-    dataPath: string;
+    /** Where the image keeps its data; mounted from the named volume `<name>-data`. Left out for a stateless emulator. */
+    dataPath?: string;
     /** Non-secret settings for the image itself (service.json `params`). */
     params?: Record<string, string>;
     /** service.json `container.command` (`{name}` replaced), for an image whose default command does not start the server the way Flisk needs. */
@@ -64,7 +65,7 @@ export declare const INFRA_PRESETS: {
         };
     };
     readonly minio: {
-        readonly type: "database";
+        readonly type: "storage";
         readonly description: "MinIO S3-compatible object storage";
         readonly image: "pgsty/minio:RELEASE.2026-08-04T00-00-00Z";
         readonly port: 9000;
@@ -187,17 +188,56 @@ export declare const INFRA_PRESETS: {
             readonly AMQP_URL: "amqp://guest:guest@{name}:5672";
         };
     };
+    readonly mailpit: {
+        readonly type: "mail";
+        readonly description: "Mailpit SMTP server and inbox (stands in for Resend, SendGrid, Postmark, SES)";
+        readonly image: "axllent/mailpit:v1.33.1";
+        readonly port: 1025;
+        readonly healthCheck: {
+            readonly port: 1025;
+        };
+        readonly dataPath: "/data";
+        readonly params: {
+            readonly MP_DATABASE: "/data/mailpit.db";
+        };
+        readonly uiPorts: [8025];
+        readonly provides: {
+            readonly SMTP_URL: "smtp://{name}:1025";
+            readonly SMTP_HOST: "{name}";
+            readonly SMTP_PORT: "1025";
+            readonly MAILPIT_API_URL: "http://{name}:8025";
+        };
+    };
+    readonly "stripe-mock": {
+        readonly type: "payment";
+        readonly description: "stripe-mock Stripe API emulator (stateless: answers every call from the OpenAPI spec)";
+        readonly image: "stripe/stripe-mock:v0.206.0";
+        readonly port: 12111;
+        readonly healthCheck: {
+            readonly port: 12111;
+        };
+        readonly provides: {
+            readonly STRIPE_API_BASE: "http://{name}:12111";
+            readonly STRIPE_SECRET_KEY: "sk_test_flisklocal";
+        };
+    };
 };
 /** The `--type ... --framework ...` that replaces a removed preset type, or undefined when `type` was never one. */
 export declare function replacementForRemovedType(type: string): string | undefined;
 export declare function isInfraFramework(value: unknown): value is InfraFramework;
 /**
- * The preset `--type database|queue` with `--framework` selects, or undefined for the shared Postgres (`--type database`
- * with no framework or `postgres`). A queue without `--framework` is NATS. Throws nothing: assertInfraFramework reports a
- * wrong combination.
+ * The preset `--type database|queue|storage` with `--framework` selects, or undefined for the shared Postgres (`--type
+ * database` with no framework or `postgres`). A preset type without `--framework` runs its default (a queue is NATS, storage
+ * is MinIO). Throws nothing: assertInfraFramework reports a wrong combination.
  */
 export declare function infraFrameworkFor(type: string, framework: string | undefined): InfraFramework | undefined;
+/** True for a `--type` whose every framework is a preset container (`queue`, `storage`). */
+export declare function isPresetResourceType(type: string): type is PresetResourceType;
+/** True for a `--type` that offers infrastructure frameworks: `database` and the preset types. */
+export declare function isInfraResourceType(type: string): type is InfraResourceType;
 /** The frameworks `type` accepts, in the order the help lists them. */
 export declare function frameworksOfType(type: string): readonly string[];
+/** The framework a preset type runs when `--framework` is left out; undefined for `database` (the shared Postgres). */
+export declare function defaultFrameworkOfType(type: string): string | undefined;
 /** The service.json of an infrastructure preset. `image` replaces the pinned image (for example redis:8-alpine). */
 export declare function createInfraServiceJson(name: string, stack: string, framework: InfraFramework, image?: string): Record<string, unknown>;

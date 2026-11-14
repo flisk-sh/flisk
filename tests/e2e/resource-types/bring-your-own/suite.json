@@ -114,7 +114,11 @@
     {
       "id": "infra",
       "case": "BY8",
-      "args": ""
+      "args": "",
+      "inputs": [
+        "cli/src/utils/infra-presets.ts",
+        "tests/e2e/fixtures/byo-infra-probe/**"
+      ]
     },
     {
       "id": "providers",

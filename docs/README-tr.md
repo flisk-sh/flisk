@@ -12,7 +12,7 @@ Flisk, yerel geliştirme için bir komut satırı aracıdır. Uygulamanızın he
 Hızlı başlangıç:
 
 ```bash
-npx @flisk-sh/flisk demo
+npx @flisk-sh/flisk@latest demo
 ```
 
 Kendi stack'inizi seçmek ister misiniz? Ok tuşları ve Enter ile birkaç soruyu yanıtlayın:

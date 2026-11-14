@@ -105,6 +105,42 @@ def prisma_cli_pin_step():
     )
 
 
+def prisma_migrator_slim_step():
+    """
+    Dockerfile step that removes what the migrator never runs from its node_modules before the runtime stage copies them.
+
+    `prisma migrate deploy` and `prisma generate` do not load the TypeScript native compiler, pglite, elkjs, react-dom or the
+    query-plan executor, which Bun's install pulls in through Prisma's optional and peer dependencies (about 70 MB). The
+    packages are moved aside, `prisma validate` runs against what is left, and they are moved back when it fails, so a
+    Prisma release that starts to need one of them still builds a working migrator instead of a broken one.
+    """
+    return (
+        "# Move aside what migrate deploy never loads; restore it if prisma validate then fails (a future Prisma may need it).\n"
+        + "RUN set -e; mkdir -p /tmp/pruned; cd node_modules/.bun; "
+        + "for p in @electric-sql+pglite@* @typescript+typescript-* typescript@* elkjs@* react-dom@* @prisma+query-plan-executor@*; do "
+        + "[ -e \"$p\" ] && mv \"$p\" /tmp/pruned/ || true; done; cd ../..; "
+        + "if ! DATABASE_URL=postgresql://u:p@localhost:5432/d node_modules/.bin/prisma validate >/dev/null 2>&1; then "
+        + "echo 'prune broke prisma validate, restoring'; mv /tmp/pruned/* node_modules/.bun/ 2>/dev/null || true; fi; rm -rf /tmp/pruned\n"
+    )
+
+
+def prisma_lock_pin_script():
+    """
+    Shell snippet that pins `@prisma/client` and `prisma` in the image's package.json to the version the project's bun.lock resolved (#4122).
+
+    The migrator deletes bun.lock before it installs (a frozen install was 6x slower cold, #4131), so `^7.5.0` floated to the newest
+    7.x and the migrator ran a different Prisma than the API images and the developer's machine. The text lockfile is only read
+    here with sed, so it works even when the image's bun cannot parse that lockfile version. It is a no-op when there is no
+    bun.lock or no entry, and it adds no network step: the install resolves one exact version instead of a range.
+    """
+    return (
+        "for pkg in @prisma/client prisma; do "
+        + "v=$(sed -n \"s|^[[:space:]]*\\\"$pkg\\\": \\[\\\"$pkg@\\([0-9][^\\\"]*\\)\\\".*|\\1|p\" bun.lock 2>/dev/null | head -n 1); "
+        + "if [ -n \"$v\" ]; then sed \"s|\\(\\\"$pkg\\\"[[:space:]]*:[[:space:]]*\\)\\\"[^\\\"]*\\\"|\\1\\\"$v\\\"|\" package.json > package.json.pin && mv package.json.pin package.json; fi; "
+        + "done; "
+    )
+
+
 def L3_generate_migration_engine(res_path, use_golden = True):
     """
     Generate the migration engine layer for Prisma database migrations.
@@ -139,13 +175,14 @@ def L3_generate_migration_engine(res_path, use_golden = True):
         + "# back to the public npm registry and fail with ConnectionRefused/404.\n"
         + "# A Prisma engine download in a postinstall can stall with no timeout of its own and hold the build for\n"
         + "# many minutes, so each attempt is time-boxed and retried (the cache mount makes a retry fast).\n"
-        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared rm -f bun.lock bun.lockb && n=0 && until env -u CI BUN_CONFIG_FROZEN_LOCKFILE=false BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun install --production --no-frozen-lockfile --concurrent-scripts --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
+        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared " + prisma_lock_pin_script() + "rm -f bun.lock bun.lockb && n=0 && until env -u CI BUN_CONFIG_FROZEN_LOCKFILE=false BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun install --production --no-frozen-lockfile --concurrent-scripts --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
         + prisma_cli_pin_step()
         + "# Generate Prisma client and normalize output location for runtime compatibility\n"
         + PRISMA_GENERATE_RUN
         + prisma_normalize_output_block(include_generated_client_export = False)
         + "RUN mkdir -p " + PRISMA_PACKAGE_NODE_MODULES_REL_PATH + "\n"
         + "RUN test -f " + PRISMA_SCHEMA_PATH + "\n"
+        + prisma_migrator_slim_step()
     )
 
 GLOBAL_CONFIG = {}

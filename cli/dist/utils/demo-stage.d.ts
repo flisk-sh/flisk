@@ -9,6 +9,11 @@ export declare const FRAME_ROWS = 12;
 export declare const DEMO_STAR_URL: string;
 /** Where the finished frame points someone with a question. The invite never expires. */
 export declare const DEMO_DISCORD_URL = "discord.gg/qMu5Xn8Kaq";
+/**
+ * What the finished frame says about trust, next to the version. Each claim is in the repo: the license file, the
+ * telemetry statement and the signed-release steps in docs/security.md. The frame has a fixed height, so it is one row.
+ */
+export declare const DEMO_PROOF = "MIT \u00B7 no telemetry \u00B7 signed release: docs/security.md";
 export type DemoPhaseStatus = "pending" | "active" | "done" | "failed";
 export type DemoPhase = {
     id: string;
@@ -37,6 +42,8 @@ export type DemoState = {
     servicesReady: number;
     servicesTotal: number;
     servicesBuilding: number;
+    /** The setup step running before the services, e.g. "Building base images". */
+    servicesPhase?: string;
     /** What the setup produced, e.g. "240 config files generated". */
     detail?: string;
     elapsedMs: number;
