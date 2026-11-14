@@ -8,6 +8,7 @@ import {
   resolveTiltPort,
   secondUpAction,
   stopTiltForUp,
+  waitForTiltPortsToStop,
 } from "../tilt-startup.js";
 
 const { execFileSyncMock } = vi.hoisted(() => ({ execFileSyncMock: vi.fn() }));
@@ -357,5 +358,30 @@ describe("stopTiltForUp", () => {
 
     expect(deps.stop).not.toHaveBeenCalled();
     expect(deps.wait).not.toHaveBeenCalled();
+  });
+});
+
+describe("waitForTiltPortsToStop", () => {
+  it("returns nothing when no port serves", async () => {
+    const wait = vi.fn(async () => {});
+    expect(await waitForTiltPortsToStop([10351], async () => false, { wait })).toEqual([]);
+    expect(wait).not.toHaveBeenCalled();
+  });
+
+  it("waits for a Tilt that stops within the timeout", async () => {
+    let calls = 0;
+    const wait = vi.fn(async () => {});
+    const stopped = await waitForTiltPortsToStop([10351], async () => ++calls < 3, { wait });
+    expect(stopped).toEqual([]);
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns the ports that still serve after the timeout", async () => {
+    const stillServing = await waitForTiltPortsToStop(
+      [10351, 10352],
+      async (port) => port === 10351,
+      { timeoutMs: 1000, intervalMs: 500, wait: async () => {} },
+    );
+    expect(stillServing).toEqual([10351]);
   });
 });

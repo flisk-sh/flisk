@@ -84,3 +84,21 @@ export async function stopTiltForUp(options, dependencies) {
         dependencies.stop(port);
     await dependencies.wait(2000);
 }
+/** The ports among `ports` that still serve a Tilt after waiting up to `timeoutMs` for them to stop. */
+export async function waitForTiltPortsToStop(ports, isServing, options = {}) {
+    const timeoutMs = options.timeoutMs ?? 5000;
+    const intervalMs = options.intervalMs ?? 500;
+    const wait = options.wait ??
+        ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+    let remaining = [...ports];
+    for (let waited = 0;; waited += intervalMs) {
+        const stillServing = [];
+        for (const port of remaining)
+            if (await isServing(port))
+                stillServing.push(port);
+        remaining = stillServing;
+        if (remaining.length === 0 || waited >= timeoutMs)
+            return remaining;
+        await wait(intervalMs);
+    }
+}

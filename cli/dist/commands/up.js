@@ -55,7 +55,7 @@ import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 import { findProjectTiltPorts, stopOwnedTiltOnPort } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
-import { alreadyRunningReport, parseTiltPort, resolveTiltPort, secondUpAction, stopTiltForUp, } from "../utils/tilt-startup.js";
+import { alreadyRunningReport, parseTiltPort, resolveTiltPort, secondUpAction, stopTiltForUp, waitForTiltPortsToStop, } from "../utils/tilt-startup.js";
 import { cloneForUp, isGitRepoArg } from "../utils/up-from-git.js";
 import { attachedUpInCiWarning, upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
@@ -1040,7 +1040,7 @@ export const upCommand = new Command("up")
         const basePort = STANDARD_PORTS.tiltUi;
         const watchedPort = configuredTiltPort ?? basePort;
         const candidatePorts = options.only ? [...new Set([basePort, watchedPort])] : [watchedPort];
-        const { running, foreign, savedRunning } = await findProjectTiltPorts({
+        const { running, foreign, savedRunning, unknownSaved } = await findProjectTiltPorts({
             watchedPorts: candidatePorts,
             savedPort: savedTiltPort,
             projectRoot,
@@ -1056,6 +1056,11 @@ export const upCommand = new Command("up")
             for (const other of foreign) {
                 console.log(chalk.yellow(`⚠️  Tilt on port ${other.port} belongs to another project (${other.root}); this project will use another port.`));
             }
+        }
+        if (options.force && unknownSaved.length > 0) {
+            const message = `Tilt on saved port ${unknownSaved.join(", ")} cannot be identified as this project's, so --force will not stop it and will not start a second Tilt beside it. Run flisk down, or stop that Tilt yourself, then run flisk up again.`;
+            emit?.({ ok: false }, [{ code: "TILT_OWNER_UNKNOWN", message }]);
+            showErrorAndExit(message);
         }
         // --force replaces this project's Tilt; it must never stop another project's. `running` holds only this project's
         // Tilt, so --force replaces it even when another project holds the base port.
@@ -1177,6 +1182,17 @@ export const upCommand = new Command("up")
             log: (message) => console.log(chalk.yellow(message)),
             wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
         });
+        // stopOwnedTiltOnPort refuses (returns nothing) when the listener changed owner since discovery, and [] also means
+        // "nothing was listening", so judge by the port: a saved Tilt still serving means it was not stopped, and starting
+        // another would run two controllers for one Tiltfile (#4165).
+        if (options.force && savedRunning.length > 0) {
+            const stillServing = await waitForTiltPortsToStop(savedRunning, (candidate) => tiltGetUiResources(candidate).then((resources) => resources !== null));
+            if (stillServing.length > 0) {
+                const message = `Tilt on port ${stillServing.join(", ")} is still running after --force tried to stop it, so flisk up did not start a second Tilt. Run flisk down, then run flisk up again.`;
+                emit?.({ ok: false }, [{ code: "TILT_STOP_FAILED", message }]);
+                showErrorAndExit(message);
+            }
+        }
         // A cold start (no images yet, no build cache) can take minutes where a warm one takes seconds; say so once, so a
         // slow first run does not look stuck (#3201). Under --json it goes to stderr: stdout carries the envelope only.
         const coldNotice = await upColdStartNotice(projectRoot, servicesToStart);

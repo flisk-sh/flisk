@@ -212,6 +212,7 @@ describe("findProjectTiltPorts", () => {
       running: [10351],
       foreign: [{ port: 10350, root: "/work/other" }],
       savedRunning: [10351],
+      unknownSaved: [],
     });
   });
 
@@ -223,7 +224,12 @@ describe("findProjectTiltPorts", () => {
       isServing: servingOn(10351),
       ownerOf: owners({ 10351: mine }),
     });
-    expect(result).toEqual({ running: [10351], foreign: [], savedRunning: [10351] });
+    expect(result).toEqual({
+      running: [10351],
+      foreign: [],
+      savedRunning: [10351],
+      unknownSaved: [],
+    });
   });
 
   it("ignores a saved port that no Tilt answers on", async () => {
@@ -235,7 +241,7 @@ describe("findProjectTiltPorts", () => {
       isServing: servingOn(),
       ownerOf,
     });
-    expect(result).toEqual({ running: [], foreign: [], savedRunning: [] });
+    expect(result).toEqual({ running: [], foreign: [], savedRunning: [], unknownSaved: [] });
     expect(ownerOf).not.toHaveBeenCalled();
   });
 
@@ -249,7 +255,7 @@ describe("findProjectTiltPorts", () => {
     });
     // `foreign` drives the TILT_PORT_IN_USE refusal and the "will use another port" warning, which are about the watched
     // ports only.
-    expect(result).toEqual({ running: [], foreign: [], savedRunning: [] });
+    expect(result).toEqual({ running: [], foreign: [], savedRunning: [], unknownSaved: [] });
   });
 
   it("checks the saved port once when it is a watched port", async () => {
@@ -261,7 +267,7 @@ describe("findProjectTiltPorts", () => {
       isServing,
       ownerOf: owners({ 10350: mine }),
     });
-    expect(result).toEqual({ running: [10350], foreign: [], savedRunning: [] });
+    expect(result).toEqual({ running: [10350], foreign: [], savedRunning: [], unknownSaved: [] });
     expect(isServing).toHaveBeenCalledTimes(1);
   });
 
@@ -281,7 +287,7 @@ describe("findProjectTiltPorts", () => {
       isServing: servingOn(10350),
       ownerOf: owners({ 10350: mine }),
     });
-    expect(none).toEqual({ running: [10350], foreign: [], savedRunning: [] });
+    expect(none).toEqual({ running: [10350], foreign: [], savedRunning: [], unknownSaved: [] });
   });
 
   it("does not include a stale saved port with unknown ownership in savedRunning (#4165)", async () => {
@@ -292,8 +298,25 @@ describe("findProjectTiltPorts", () => {
       isServing: servingOn(10351),
       ownerOf: owners({}),
     });
-    // Still detected in `running` (e.g. Windows / no lsof), but excluded from `savedRunning` so --force never kills it.
-    expect(result).toEqual({ running: [10351], foreign: [], savedRunning: [] });
+    // Unknown ownership (e.g. Windows / no lsof) is not confirmation: it is not this project's `running` Tilt, and it is
+    // reported in `unknownSaved` so --force can refuse instead of stopping it or starting a second Tilt.
+    expect(result).toEqual({ running: [], foreign: [], savedRunning: [], unknownSaved: [10351] });
+  });
+
+  it("reports an unknown saved listener in unknownSaved even when a confirmed watched Tilt exists (#4165)", async () => {
+    const result = await findProjectTiltPorts({
+      watchedPorts: [10350],
+      savedPort: 10351,
+      projectRoot: "/work/mine",
+      isServing: servingOn(10350, 10351),
+      ownerOf: owners({ 10350: mine }),
+    });
+    expect(result).toEqual({
+      running: [10350],
+      foreign: [],
+      savedRunning: [],
+      unknownSaved: [10351],
+    });
   });
 
   it("uses lsof and ps to tell the saved port's owner by default", async () => {
@@ -309,8 +332,8 @@ describe("findProjectTiltPorts", () => {
       projectRoot: "/work/mine",
       isServing: servingOn(10351),
     });
-    expect(result.running).toEqual([10351]);
     if (process.platform !== "win32") {
+      expect(result.running).toEqual([10351]);
       expect(result.savedRunning).toEqual([10351]);
       expect(execFileSyncMock).toHaveBeenCalledWith(
         "ps",
@@ -318,7 +341,9 @@ describe("findProjectTiltPorts", () => {
         expect.anything(),
       );
     } else {
+      expect(result.running).toEqual([]);
       expect(result.savedRunning).toEqual([]);
+      expect(result.unknownSaved).toEqual([10351]);
     }
   });
 
@@ -471,6 +496,7 @@ describe("stopOwnedTiltOnPort (#4165)", () => {
       ownerOf: (port) => (port === 10350 ? { pid: 2, root: "/work/other" } : null),
     });
     expect(result.savedRunning).toEqual([]);
+    expect(result.unknownSaved).toEqual([10351]);
     const force = true && result.foreign.length === 0;
     const stop = vi.fn();
     await stopTiltForUp(
@@ -496,7 +522,7 @@ describe("stopOwnedTiltOnPort (#4165)", () => {
         projectRoot: "/repo",
         isServing: async (port) => port === 10351,
       });
-      expect(result).toEqual({ running: [], foreign: [], savedRunning: [] });
+      expect(result).toEqual({ running: [], foreign: [], savedRunning: [], unknownSaved: [] });
 
       const killer = vi.fn((command: string, args: string[]) => {
         if (command === "lsof") return "555\n";
@@ -524,6 +550,7 @@ describe("confirmed saved Tilt vs unknown watched listener and fallback port (#4
       running: [10351],
       foreign: [],
       savedRunning: [10351],
+      unknownSaved: [],
     });
   });
 

@@ -93,6 +93,7 @@ vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
     running: [] as number[],
     foreign: [] as unknown[],
     savedRunning: [] as number[],
+    unknownSaved: [] as number[],
   })),
   stopOwnedTiltOnPort: vi.fn(() => []),
 }));
@@ -1012,6 +1013,7 @@ describe("flisk up --env-file", () => {
       running: [],
       foreign: [],
       savedRunning: [],
+      unknownSaved: [],
     });
   });
 
@@ -1193,6 +1195,7 @@ describe("flisk up --env-file", () => {
       running: [10350],
       foreign: [],
       savedRunning: [],
+      unknownSaved: [],
     });
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const { exit } = captureExit();
@@ -1219,6 +1222,7 @@ describe("flisk up --env-file", () => {
       running: [10351],
       foreign: [{ port: 10350, root: "/work/other" }],
       savedRunning: [10351],
+      unknownSaved: [],
     });
     vi.mocked(getHostPortPlan).mockResolvedValueOnce({
       ingressHttp: 8080,
@@ -1279,6 +1283,7 @@ describe("flisk up --env-file", () => {
       running: savedPort === 10351 ? [10351] : [],
       foreign: [{ port: 10350, root: "/work/other" }],
       savedRunning: savedPort === 10351 ? [10351] : [],
+      unknownSaved: [],
     }));
     vi.mocked(tiltGetUiResources).mockResolvedValue(null);
     vi.mocked(runTilt).mockClear();
@@ -1328,16 +1333,18 @@ describe("flisk up --env-file", () => {
     }
   });
 
-  it("does not stop a stale saved port with unknown ownership on flisk up --force (#4165)", async () => {
-    writeSavedHostPortPlan(projectDir, {
-      ingressHttp: 8080,
-      ingressHttps: 8443,
-      postgres: 5432,
-      tiltUi: 10351,
-      requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
-      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
-      reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
-    });
+  const savedTiltPlan = {
+    ingressHttp: 8080,
+    ingressHttps: 8443,
+    postgres: 5432,
+    tiltUi: 10351,
+    requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+    explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+    reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+  } as const;
+
+  it("refuses flisk up --force instead of starting a second Tilt beside a saved listener with unknown ownership (#4165)", async () => {
+    writeSavedHostPortPlan(projectDir, savedTiltPlan);
     const actualPortOwner = await vi.importActual<typeof import("../../utils/tilt-port-owner.js")>(
       "../../utils/tilt-port-owner.js",
     );
@@ -1352,25 +1359,90 @@ describe("flisk up --env-file", () => {
     vi.mocked(stopOwnedTiltOnPort).mockClear();
     vi.mocked(stopTiltForUp).mockClear();
     vi.mocked(runTilt).mockClear();
-    vi.mocked(runTilt).mockImplementationOnce(() => {
-      throw new Error("STOP_BEFORE_WAIT");
-    });
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
 
     try {
       await expect(upCommand.parseAsync(["--quiet", "--force"], { from: "user" })).rejects.toThrow(
+        "process.exit",
+      );
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("saved port 10351"));
+      expect(runTilt).not.toHaveBeenCalled();
+      expect(stopTiltForUp).not.toHaveBeenCalled();
+      expect(stopOwnedTiltOnPort).not.toHaveBeenCalled();
+    } finally {
+      exit.mockRestore();
+      error.mockRestore();
+      upCommand.setOptionValue("force", false);
+      upCommand.setOptionValue("quiet", false);
+    }
+  });
+
+  it("does not report an unknown-owner saved listener as this project's Tilt on an ordinary flisk up (#4165)", async () => {
+    writeSavedHostPortPlan(projectDir, savedTiltPlan);
+    const actualPortOwner = await vi.importActual<typeof import("../../utils/tilt-port-owner.js")>(
+      "../../utils/tilt-port-owner.js",
+    );
+    vi.mocked(findProjectTiltPorts).mockImplementationOnce((opts) =>
+      actualPortOwner.findProjectTiltPorts({
+        ...opts,
+        isServing: async (port) => port === 10351,
+        ownerOf: () => null,
+      }),
+    );
+    vi.mocked(runTilt).mockClear();
+    vi.mocked(runTilt).mockImplementationOnce(() => {
+      throw new Error("STOP_BEFORE_WAIT");
+    });
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+
+    try {
+      await expect(upCommand.parseAsync(["--quiet"], { from: "user" })).rejects.toThrow(
         "STOP_BEFORE_WAIT",
       );
       expect(runTilt).toHaveBeenCalled();
-      expect(stopTiltForUp).toHaveBeenCalledWith(
-        expect.objectContaining({ force: false, ownPorts: [] }),
-        expect.anything(),
-      );
-      expect(stopOwnedTiltOnPort).not.toHaveBeenCalled();
+      expect(lines.join("\n")).not.toContain("already running");
     } finally {
-      upCommand.setOptionValue("force", false);
       upCommand.setOptionValue("quiet", false);
       log.mockRestore();
+    }
+  });
+
+  it("aborts --force before starting Tilt when the saved Tilt is still serving after the stop (#4165)", async () => {
+    writeSavedHostPortPlan(projectDir, savedTiltPlan);
+    vi.mocked(findProjectTiltPorts).mockResolvedValueOnce({
+      running: [10351],
+      foreign: [],
+      savedRunning: [10351],
+      unknownSaved: [],
+    });
+    vi.mocked(findAvailablePort).mockResolvedValueOnce(10352);
+    // The ownership re-check refuses the stop (returns nothing) and the original Tilt keeps answering.
+    vi.mocked(stopOwnedTiltOnPort).mockReturnValueOnce([]);
+    vi.mocked(tiltGetUiResources).mockResolvedValue({} as never);
+    vi.mocked(stopTiltForUp).mockImplementationOnce(async () => {});
+    vi.mocked(runTilt).mockClear();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      // Waits the real 5 s grace period for the saved Tilt to stop before giving up.
+      await expect(upCommand.parseAsync(["--quiet", "--force"], { from: "user" })).rejects.toThrow(
+        "process.exit",
+      );
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("port 10351 is still running"));
+      expect(runTilt).not.toHaveBeenCalled();
+    } finally {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(null);
+      exit.mockRestore();
+      error.mockRestore();
+      upCommand.setOptionValue("force", false);
+      upCommand.setOptionValue("quiet", false);
     }
   });
 
@@ -1429,6 +1501,7 @@ describe("flisk up --env-file", () => {
       running: [10351],
       foreign: [],
       savedRunning: [10351],
+      unknownSaved: [],
     });
     vi.mocked(findAvailablePort).mockResolvedValueOnce(10352);
     vi.mocked(stopOwnedTiltOnPort).mockClear();

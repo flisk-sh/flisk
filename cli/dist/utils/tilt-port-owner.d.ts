@@ -30,6 +30,11 @@ export interface ProjectTiltPorts extends ClassifiedTiltPorts {
      * Unknown-owner listeners on a stale saved port are excluded so `--force` never stops an unconfirmed process.
      */
     savedRunning: number[];
+    /**
+     * The saved port serves a Tilt whose owner could not be identified (Windows, or no lsof/ps). It is not counted as this
+     * project's in `running`, and `--force` must refuse rather than start a second Tilt beside it.
+     */
+    unknownSaved: number[];
 }
 /**
  * The Tilt UI ports `flisk up` treats as this project's running Tilt. The watched ports are classified as before. The port

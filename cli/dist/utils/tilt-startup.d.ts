@@ -64,3 +64,9 @@ export declare function stopTiltForUp(options: {
     log: (message: string) => void;
     wait: (milliseconds: number) => Promise<void>;
 }): Promise<void>;
+/** The ports among `ports` that still serve a Tilt after waiting up to `timeoutMs` for them to stop. */
+export declare function waitForTiltPortsToStop(ports: number[], isServing: (port: number) => Promise<boolean>, options?: {
+    timeoutMs?: number;
+    intervalMs?: number;
+    wait?: (milliseconds: number) => Promise<void>;
+}): Promise<number[]>;

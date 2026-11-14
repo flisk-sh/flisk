@@ -97,6 +97,11 @@ export interface ProjectTiltPorts extends ClassifiedTiltPorts {
    * Unknown-owner listeners on a stale saved port are excluded so `--force` never stops an unconfirmed process.
    */
   savedRunning: number[];
+  /**
+   * The saved port serves a Tilt whose owner could not be identified (Windows, or no lsof/ps). It is not counted as this
+   * project's in `running`, and `--force` must refuse rather than start a second Tilt beside it.
+   */
+  unknownSaved: number[];
 }
 
 /**
@@ -131,10 +136,10 @@ export async function findProjectTiltPorts(options: {
   const watchedRunning = [...confirmedWatched, ...unknownWatched];
   const savedPort = options.savedPort;
   if (savedPort === null || options.watchedPorts.includes(savedPort)) {
-    return { running: watchedRunning, foreign, savedRunning: [] };
+    return { running: watchedRunning, foreign, savedRunning: [], unknownSaved: [] };
   }
   if (!(await options.isServing(savedPort))) {
-    return { running: watchedRunning, foreign, savedRunning: [] };
+    return { running: watchedRunning, foreign, savedRunning: [], unknownSaved: [] };
   }
   const savedOwner = ownerOf(savedPort);
   if (isOwnTilt(savedOwner, options.projectRoot) && savedOwner !== null) {
@@ -143,20 +148,18 @@ export async function findProjectTiltPorts(options: {
       running: [...confirmedWatched, savedPort],
       foreign,
       savedRunning: [savedPort],
+      unknownSaved: [],
     };
   }
   if (isForeignTilt(savedOwner, options.projectRoot)) {
-    return { running: watchedRunning, foreign, savedRunning: [] };
+    return { running: watchedRunning, foreign, savedRunning: [], unknownSaved: [] };
   }
-  // If watched ports already have a confirmed owner, do not mix an unknown saved-port listener in either.
+  // Unknown ownership is not confirmation: the saved listener is never reported as this project's in `running`. It is
+  // returned in `unknownSaved` so --force can refuse rather than start a second Tilt beside it.
   if (confirmedWatched.length > 0) {
-    return { running: confirmedWatched, foreign, savedRunning: [] };
+    return { running: confirmedWatched, foreign, savedRunning: [], unknownSaved: [savedPort] };
   }
-  return {
-    running: [...unknownWatched, savedPort],
-    foreign,
-    savedRunning: [],
-  };
+  return { running: unknownWatched, foreign, savedRunning: [], unknownSaved: [savedPort] };
 }
 
 /**
