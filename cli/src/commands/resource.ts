@@ -22,6 +22,7 @@ import {
 import { DEFAULT_BACKEND_LANGUAGE, resolveBackendLanguage } from "../backend-languages/registry.js";
 import {
   DEFAULT_FRONTEND_FRAMEWORK,
+  FRONTEND_FRAMEWORKS,
   listFrontendFrameworks,
   resolveFrontendFramework,
 } from "../frontend-frameworks/registry.js";
@@ -61,6 +62,7 @@ import {
 } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import {
+  type ChosenResourcePath,
   chooseResourcePath,
   isPathDiscovered,
   readDiscoveryPaths,
@@ -235,10 +237,18 @@ function suggestBasePath(value: string): string {
   return cleaned ? `/${cleaned}` : "/storefront";
 }
 
+/**
+ * The schema pattern plus no consecutive slashes: `//foo` reads as a protocol-relative URL when the engine routes the
+ * frontend, and `/shop//x` never matches a request path. `suggestBasePath` collapses them, so this agrees with it.
+ */
+function isValidBasePath(value: string): boolean {
+  return BASE_PATH_PATTERN.test(value) && !value.includes("//");
+}
+
 export function resolveBasePath(value: string | undefined): string | undefined {
   if (value === undefined || value === "") return undefined;
   const basePath = value.startsWith("/") ? value : `/${value}`;
-  if (BASE_PATH_PATTERN.test(basePath)) return basePath;
+  if (isValidBasePath(basePath)) return basePath;
   const suggestion = suggestBasePath(value);
   throw new FliskError(
     `--base-path must be a path such as /storefront (lower-case letters, digits, "-" and "/"), not ${JSON.stringify(value)}.`,
@@ -254,7 +264,7 @@ function assertExistingFrontendBasePath(
   existingServiceJsonPath: string,
 ): void {
   if (existingBasePath === undefined) return;
-  if (typeof existingBasePath === "string" && BASE_PATH_PATTERN.test(existingBasePath)) return;
+  if (typeof existingBasePath === "string" && isValidBasePath(existingBasePath)) return;
   const suggestion =
     typeof existingBasePath === "string" ? suggestBasePath(existingBasePath) : "/storefront";
   throw new FliskError(
@@ -264,6 +274,51 @@ function assertExistingFrontendBasePath(
       "Or fix or remove basePath in service.json before registering",
     ],
   );
+}
+
+/**
+ * The existing `service.json` in a resource folder, parsed, or undefined when the folder has none or the path escapes the
+ * project. The one lookup both the early validation and the registration branch use, so they cannot disagree.
+ */
+function readExistingManifest(
+  projectRoot: string,
+  resourcePath: string,
+): { path: string; config: ExistingServiceConfig } | undefined {
+  const fullPath = resolve(projectRoot, resourcePath);
+  const rel = relative(projectRoot, fullPath);
+  if (rel.startsWith("..") || isAbsolute(rel) || !isPathSafe(resourcePath)) return undefined;
+  const manifestPath = resolve(fullPath, SERVICE_JSON);
+  if (!existsSync(manifestPath)) return undefined;
+  return {
+    path: manifestPath,
+    config: parseExistingServiceJson(readFileSync(manifestPath, "utf-8"), manifestPath),
+  };
+}
+
+/** The folder a resource gets without --path: the type's conventional folder, or services/<stack>/<name> when discovery skips it. */
+function inferResourcePath(
+  projectRoot: string,
+  resourceType: CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk",
+  stackName: string,
+  resourceName: string,
+): ChosenResourcePath {
+  const defaultPaths: Record<
+    CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk",
+    string
+  > = {
+    backend: `services/${stackName}/${resourceName}`,
+    frontend: `apps/${resourceName}`,
+    worker: `workers/${resourceName}`,
+    mcp: `services/${stackName}/${resourceName}`,
+    agent: `services/${stackName}/${resourceName}`,
+    [BRING_YOUR_OWN_TYPE]: `services/${stackName}/${resourceName}`,
+    [DATABASE_RESOURCE_TYPE]: `services/${stackName}/${resourceName}`,
+    sdk: `packages/${resourceName}`,
+  };
+  const conventional = defaultPaths[resourceType];
+  // An SDK is registered where it already lives, so its folder is never moved.
+  if (resourceType === "sdk") return { path: conventional };
+  return chooseResourcePath(projectRoot, conventional, stackName, resourceName);
 }
 
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
@@ -331,6 +386,36 @@ export function resolveResourcePort(
   return port;
 }
 
+/**
+ * The probe route of a server framework (Next.js): its health route lives under the same prefix the engine serves the
+ * frontend on, which is `basePath` or, without one, the service name (get_frontend_base_path).
+ */
+export function serverFrameworkHealthPath(name: string, basePath?: string): string {
+  const prefix = basePath ? basePath.replace(/\/+$/, "") : `/${name}`;
+  return `${prefix}/health`;
+}
+
+/**
+ * After registering an existing server-framework frontend under a new base path (or name), the new probe route when the
+ * manifest still carries a generated default, else undefined. A `healthCheckPath` the user set is never rewritten.
+ */
+export function retargetServerHealthPath(
+  existing: { appName?: string; basePath?: unknown; healthCheckPath?: unknown },
+  newName: string,
+  newBasePath: string | undefined,
+): string | undefined {
+  const current = existing.healthCheckPath;
+  if (typeof current !== "string") return undefined;
+  const oldBase = typeof existing.basePath === "string" ? existing.basePath : undefined;
+  const generated = new Set([
+    serverFrameworkHealthPath(newName, oldBase),
+    ...(existing.appName ? [serverFrameworkHealthPath(existing.appName, oldBase)] : []),
+  ]);
+  if (!generated.has(current)) return undefined;
+  const next = serverFrameworkHealthPath(newName, newBasePath);
+  return next === current ? undefined : next;
+}
+
 export function createServiceJson(
   name: string,
   type: CreatableResourceType,
@@ -388,7 +473,9 @@ export function createServiceJson(
     ...(framework ? { framework: framework.id } : {}),
     // A server framework (Next.js) is served under /<name>/ with a base path, so the engine's default /health probe finds
     // nothing there. Probe the framework's own health route under the same prefix.
-    ...(framework?.kind === "server" ? { healthCheckPath: `/${name}/health` } : {}),
+    ...(framework?.kind === "server"
+      ? { healthCheckPath: serverFrameworkHealthPath(name, basePath) }
+      : {}),
     ...(backendFramework && type !== "mcp" && type !== "agent"
       ? { framework: backendFramework.id }
       : {}),
@@ -719,6 +806,9 @@ type ExistingServiceConfig = {
   appType?: string;
   stack?: string;
   port?: number;
+  basePath?: unknown;
+  framework?: unknown;
+  healthCheckPath?: unknown;
 };
 
 /**
@@ -1029,25 +1119,31 @@ export const resourceCommand = addYesOption(new Command("resource"))
       // framework, or stack prompts run, so invalid configurations fail without prompting (#4162).
       let suppliedExistingManifest: { path: string; config: ExistingServiceConfig } | undefined;
       if (resourcePath) {
-        const suppliedFullPath = resolve(projectRoot, resourcePath);
-        const suppliedRel = relative(projectRoot, suppliedFullPath);
-        if (!suppliedRel.startsWith("..") && !isAbsolute(suppliedRel) && isPathSafe(resourcePath)) {
-          const candidateServiceJson = resolve(suppliedFullPath, SERVICE_JSON);
-          if (existsSync(candidateServiceJson)) {
-            const existingContent = readFileSync(candidateServiceJson, "utf-8");
-            suppliedExistingManifest = {
-              path: candidateServiceJson,
-              config: parseExistingServiceJson(existingContent, candidateServiceJson),
-            };
-          }
+        suppliedExistingManifest = readExistingManifest(projectRoot, resourcePath);
+      } else if (
+        name &&
+        !isInfraResourceType(requestedType) &&
+        validateResourceName(name).valid &&
+        validateStackName(options.stack).valid
+      ) {
+        // No --path: the folder is already determined by the type, name and --stack, so an existing manifest there is
+        // checked before the framework and stack prompts too. A "default" stack is only known after a prompt, so a folder
+        // that depends on it is left to the registration branch.
+        const inferred = inferResourcePath(
+          projectRoot,
+          requestedType as CreatableResourceType | "sdk",
+          options.stack,
+          name,
+        );
+        if (!(options.stack === "default" && inferred.adjustedFrom)) {
+          suppliedExistingManifest = readExistingManifest(projectRoot, inferred.path);
         }
       }
       const earlyAppType =
         requestedType === "sdk" ? "sdk" : suppliedExistingManifest?.config.appType || requestedType;
+      // Only a resource that ends up a frontend takes --base-path (the update path ignores it on any other appType).
       const preValidatedBasePath =
-        requestedType === "frontend" || earlyAppType === "frontend"
-          ? resolveBasePath(options.basePath)
-          : undefined;
+        earlyAppType === "frontend" ? resolveBasePath(options.basePath) : undefined;
       if (
         earlyAppType === "frontend" &&
         suppliedExistingManifest &&
@@ -1121,7 +1217,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       if (isDatabase) assertDatabaseOptions(options);
       // Before any prompt, preview or write: a value the schema rejects would leave `flisk config verify` invalid.
       const basePath =
-        resourceType === "frontend"
+        resourceType === "frontend" && earlyAppType === "frontend"
           ? (preValidatedBasePath ?? resolveBasePath(options.basePath))
           : undefined;
       if (
@@ -1289,32 +1385,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
       let finalResourcePath = resourcePath;
       let pathAdjustedFrom: string | undefined;
       if (!finalResourcePath) {
-        const defaultPaths: Record<
-          CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk",
-          string
-        > = {
-          backend: `services/${stackName}/${resourceName}`,
-          frontend: `apps/${resourceName}`,
-          worker: `workers/${resourceName}`,
-          mcp: `services/${stackName}/${resourceName}`,
-          agent: `services/${stackName}/${resourceName}`,
-          [BRING_YOUR_OWN_TYPE]: `services/${stackName}/${resourceName}`,
-          [DATABASE_RESOURCE_TYPE]: `services/${stackName}/${resourceName}`,
-          sdk: `packages/${resourceName}`,
-        };
-        finalResourcePath = defaultPaths[resourceType];
-
-        // An SDK is registered where it already lives, so its folder is never moved.
-        if (resourceType !== "sdk") {
-          const chosen = chooseResourcePath(
-            projectRoot,
-            finalResourcePath,
-            stackName,
-            resourceName,
-          );
-          finalResourcePath = chosen.path;
-          pathAdjustedFrom = chosen.adjustedFrom;
-        }
+        const chosen = inferResourcePath(projectRoot, resourceType, stackName, resourceName);
+        finalResourcePath = chosen.path;
+        pathAdjustedFrom = chosen.adjustedFrom;
       }
 
       const fullPath = resolve(projectRoot, finalResourcePath);
@@ -1437,12 +1510,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
       const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
       let updatedServiceJson: ExistingServiceConfig | undefined;
       if (shouldRegisterExisting && hasServiceJson) {
-        // Read existing service.json
-        const existingContent = readFileSync(existingServiceJsonPath, "utf-8");
-        const existingServiceJson = parseExistingServiceJson(
-          existingContent,
-          existingServiceJsonPath,
-        );
+        const existingServiceJson =
+          suppliedExistingManifest?.path === existingServiceJsonPath
+            ? suppliedExistingManifest.config
+            : readExistingManifest(projectRoot, finalResourcePath)?.config;
+        if (!existingServiceJson) throw errorFactories.invalidPath(finalResourcePath);
 
         const updatedAppType =
           resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType;
@@ -1465,6 +1537,23 @@ export const resourceCommand = addYesOption(new Command("resource"))
               updatedServiceJson.basePath = explicitBasePath;
             } else {
               delete updatedServiceJson.basePath;
+            }
+            // The engine reads healthCheckPath, not basePath: keep a generated server-framework probe under the new prefix.
+            const manifestFramework =
+              typeof existingServiceJson.framework === "string"
+                ? existingServiceJson.framework.toLowerCase()
+                : undefined;
+            const isServerFramework =
+              manifestFramework !== undefined &&
+              Object.hasOwn(FRONTEND_FRAMEWORKS, manifestFramework) &&
+              FRONTEND_FRAMEWORKS[manifestFramework]?.kind === "server";
+            if (isServerFramework) {
+              const retargeted = retargetServerHealthPath(
+                existingServiceJson,
+                resourceName,
+                explicitBasePath,
+              );
+              if (retargeted !== undefined) updatedServiceJson.healthCheckPath = retargeted;
             }
           } else {
             assertExistingFrontendBasePath(updatedServiceJson.basePath, existingServiceJsonPath);

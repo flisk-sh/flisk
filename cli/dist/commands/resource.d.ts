@@ -51,6 +51,20 @@ export declare function resolveResourcePort(resourceType: PortAssignableResource
         port?: number;
     };
 }>): number;
+/**
+ * The probe route of a server framework (Next.js): its health route lives under the same prefix the engine serves the
+ * frontend on, which is `basePath` or, without one, the service name (get_frontend_base_path).
+ */
+export declare function serverFrameworkHealthPath(name: string, basePath?: string): string;
+/**
+ * After registering an existing server-framework frontend under a new base path (or name), the new probe route when the
+ * manifest still carries a generated default, else undefined. A `healthCheckPath` the user set is never rewritten.
+ */
+export declare function retargetServerHealthPath(existing: {
+    appName?: string;
+    basePath?: unknown;
+    healthCheckPath?: unknown;
+}, newName: string, newBasePath: string | undefined): string | undefined;
 export declare function createServiceJson(name: string, type: CreatableResourceType, stack: string, port: number, extraFeatures?: string[], frameworkId?: string, languageId?: string, agent?: AgentConfig, basePath?: string): any;
 export declare function createByoServiceJson(name: string, stack: string, port: number, options: {
     healthCheckPath: string;
@@ -173,6 +187,9 @@ type ExistingServiceConfig = {
     appType?: string;
     stack?: string;
     port?: number;
+    basePath?: unknown;
+    framework?: unknown;
+    healthCheckPath?: unknown;
 };
 /**
  * Parse an existing `service.json` manifest.

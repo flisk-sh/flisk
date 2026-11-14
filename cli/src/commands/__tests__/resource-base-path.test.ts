@@ -60,6 +60,9 @@ describe("--base-path validation", () => {
       ["/a\nb: c", "/a-b-c"],
       ["   ", "/storefront"],
       ["!!!", "/storefront"],
+      ["//foo", "/foo"],
+      ["/shop//x", "/shop/x"],
+      ["foo//bar", "/foo/bar"],
     ])("refuses %j and suggests %s", async (value, suggestion) => {
       const { resolveBasePath } = await import("../../commands/resource.js");
       let thrown: unknown;
@@ -74,6 +77,37 @@ describe("--base-path validation", () => {
         `Try --base-path ${suggestion}`,
       );
       expect(resolveBasePath(suggestion)).toBe(suggestion);
+    });
+  });
+
+  describe("serverFrameworkHealthPath and retargetServerHealthPath", () => {
+    it("probes under the base path, or the name without one", async () => {
+      const { serverFrameworkHealthPath } = await import("../../commands/resource.js");
+      expect(serverFrameworkHealthPath("web")).toBe("/web/health");
+      expect(serverFrameworkHealthPath("web", "/shop")).toBe("/shop/health");
+      expect(serverFrameworkHealthPath("web", "/shop/")).toBe("/shop/health");
+    });
+
+    it("rewrites only a generated default", async () => {
+      const { retargetServerHealthPath } = await import("../../commands/resource.js");
+      expect(
+        retargetServerHealthPath(
+          { appName: "web", healthCheckPath: "/web/health" },
+          "web",
+          "/shop",
+        ),
+      ).toBe("/shop/health");
+      expect(
+        retargetServerHealthPath(
+          { appName: "web", basePath: "/old", healthCheckPath: "/old/health" },
+          "web",
+          undefined,
+        ),
+      ).toBe("/web/health");
+      expect(
+        retargetServerHealthPath({ appName: "web", healthCheckPath: "/custom" }, "web", "/shop"),
+      ).toBeUndefined();
+      expect(retargetServerHealthPath({ appName: "web" }, "web", "/shop")).toBeUndefined();
     });
   });
 
@@ -393,7 +427,32 @@ describe("--base-path validation", () => {
       expectZeroPrompts();
     });
 
-    it.each(["backend", ""])(
+    it("ignores an invalid --base-path when the existing manifest is a backend that keeps its appType", async () => {
+      const { serviceJsonPath } = writeExistingManifest("services/main/existing", {
+        appName: "existing",
+        appType: "backend",
+        stack: "main",
+        port: 3000,
+      });
+      const { exitCode, errorText } = await runFreshResource([
+        "existing",
+        "--type",
+        "frontend",
+        "--stack",
+        "main",
+        "--path",
+        "services/main/existing",
+        "--base-path",
+        "Bad Path/x y",
+        "--yes",
+      ]);
+      expect(exitCode, errorText).toBeUndefined();
+      const written = JSON.parse(readFileSync(serviceJsonPath, "utf-8"));
+      expect(written.appType).toBe("backend");
+      expect("basePath" in written).toBe(false);
+    });
+
+    it.each([""])(
       "rejects invalid explicit --base-path before name prompt when existing manifest has appType %j",
       async (existingAppType) => {
         const { serviceJsonPath, raw } = writeExistingManifest("services/main/existing", {
@@ -413,6 +472,118 @@ describe("--base-path validation", () => {
         expectZeroPrompts();
       },
     );
+
+    it("rejects a legacy basePath with consecutive slashes in an existing frontend", async () => {
+      const { serviceJsonPath, raw } = writeExistingManifest("services/main/web", {
+        appName: "web",
+        appType: "frontend",
+        stack: "main",
+        port: 3000,
+        basePath: "/shop//x",
+      });
+      const { exitCode, errorText } = await runFreshResource(
+        ["web", "--type", "frontend", "--path", "services/main/web", "--yes"],
+        { isTTY: true },
+      );
+      expect(exitCode).toBe(1);
+      expect(errorText).toContain("Pass --base-path /shop/x to replace it");
+      expect(readFileSync(serviceJsonPath, "utf-8")).toBe(raw);
+      expectZeroPrompts();
+    });
+
+    it("rejects a legacy invalid basePath at the inferred path (no --path) before the framework prompt", async () => {
+      // apps/ is outside discovery.paths, so the folder is services/main/web: the case from the review.
+      const { serviceJsonPath, raw } = writeExistingManifest("services/main/web", {
+        appName: "web",
+        appType: "frontend",
+        stack: "main",
+        port: 3000,
+        basePath: "no-slash",
+      });
+      const { exitCode, errorText } = await runFreshResource(
+        ["web", "--type", "frontend", "--stack", "main"],
+        { isTTY: true },
+      );
+      expect(exitCode).toBe(1);
+      expect(errorText).toContain(
+        `Existing service.json at ${serviceJsonPath} has invalid basePath "no-slash"`,
+      );
+      expect(readFileSync(serviceJsonPath, "utf-8")).toBe(raw);
+      expectZeroPrompts();
+    });
+
+    it("moves a generated Next.js health probe with --base-path on registration, but keeps a custom one", async () => {
+      const generated = writeExistingManifest("services/main/web", {
+        appName: "web",
+        appType: "frontend",
+        stack: "main",
+        port: 3000,
+        framework: "next",
+        basePath: "/web",
+        healthCheckPath: "/web/health",
+      });
+      const custom = writeExistingManifest("services/main/site", {
+        appName: "site",
+        appType: "frontend",
+        stack: "main",
+        port: 3001,
+        framework: "next",
+        healthCheckPath: "/ping",
+      });
+      const a = await runFreshResource([
+        "web",
+        "--type",
+        "frontend",
+        "--stack",
+        "main",
+        "--path",
+        "services/main/web",
+        "--base-path",
+        "/shop",
+        "--yes",
+      ]);
+      expect(a.exitCode, a.errorText).toBeUndefined();
+      const b = await runFreshResource([
+        "site",
+        "--type",
+        "frontend",
+        "--stack",
+        "main",
+        "--path",
+        "services/main/site",
+        "--base-path",
+        "/store",
+        "--yes",
+      ]);
+      expect(b.exitCode, b.errorText).toBeUndefined();
+      const g = JSON.parse(readFileSync(generated.serviceJsonPath, "utf-8"));
+      expect(g.basePath).toBe("/shop");
+      expect(g.healthCheckPath).toBe("/shop/health");
+      const c = JSON.parse(readFileSync(custom.serviceJsonPath, "utf-8"));
+      expect(c.basePath).toBe("/store");
+      expect(c.healthCheckPath).toBe("/ping");
+    });
+
+    it("scaffolds a Next.js frontend with its probe under --base-path", async () => {
+      const { exitCode, errorText } = await runFreshResource([
+        "shopfront",
+        "--type",
+        "frontend",
+        "--framework",
+        "next",
+        "--stack",
+        "shop",
+        "--base-path",
+        "/store",
+        "--yes",
+      ]);
+      expect(exitCode, errorText).toBeUndefined();
+      const written = JSON.parse(
+        readFileSync(join(tempDir, "services", "shop", "shopfront", "service.json"), "utf-8"),
+      );
+      expect(written.basePath).toBe("/store");
+      expect(written.healthCheckPath).toBe("/store/health");
+    });
 
     it("rejects registering an existing manifest with empty appType and invalid legacy basePath before prompts", async () => {
       const { serviceJsonPath, raw } = writeExistingManifest("services/main/legacy-empty", {
