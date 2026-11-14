@@ -10,6 +10,9 @@ import { projectNameAt, readProjectRecords } from "./project-registry.js";
 /** Stops the `tilt up` processes that run this project's Tiltfile, and waits for them to exit. */
 export type StopTilt = (tiltfile: string) => Promise<void>;
 
+/** Stops every container whose Compose folder is inside the demo folder; returns the Compose projects that would not stop. */
+export type StopFolderContainers = (folder: string) => Promise<string[]>;
+
 /**
  * Stop the stack of an existing demo folder before the folder is deleted. Deleting the folder alone leaves its
  * containers running, and a standalone Traefik that stays up keeps port 80 for the next run.
@@ -22,13 +25,24 @@ export async function stopDemoStack(
   projectDir: string,
   runDown: (dir: string) => void = runFliskDown,
   stopTilt: StopTilt = stopRunningTilt,
+  stopFolderContainers: StopFolderContainers = stopContainersUnder,
 ): Promise<boolean> {
   if (!existsSync(join(projectDir, ".flisk", "project.json"))) return false;
   const tiltfile = join(projectDir, ".flisk", ".flisk-out", "Tiltfile");
   await stopTilt(tiltfile);
-  if (!existsSync(tiltfile)) return true;
-  runDown(projectDir);
+  if (existsSync(tiltfile)) runDown(projectDir);
+  // `down` only knows the current layout. Containers an older version started in this folder (flisk_demo_postgres,
+  // flisk_demo_traefik) keep their host ports, and the new run then fails with "port is already allocated" (#4124).
+  const stuck = await stopFolderContainers(projectDir);
+  if (stuck.length > 0) {
+    throw new Error(`could not stop ${stuck.join(", ")} (docker compose down failed)`);
+  }
   return true;
+}
+
+async function stopContainersUnder(folder: string): Promise<string[]> {
+  const { stopComposeProjectsUnder } = await import("./down-cleanup.js");
+  return stopComposeProjectsUnder(folder).failed.map((entry) => entry.name);
 }
 
 async function stopRunningTilt(tiltfile: string): Promise<void> {

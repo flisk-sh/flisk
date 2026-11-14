@@ -1,6 +1,8 @@
 import { projectNameAt, readProjectRecords } from "./project-registry.js";
 /** Stops the `tilt up` processes that run this project's Tiltfile, and waits for them to exit. */
 export type StopTilt = (tiltfile: string) => Promise<void>;
+/** Stops every container whose Compose folder is inside the demo folder; returns the Compose projects that would not stop. */
+export type StopFolderContainers = (folder: string) => Promise<string[]>;
 /**
  * Stop the stack of an existing demo folder before the folder is deleted. Deleting the folder alone leaves its
  * containers running, and a standalone Traefik that stays up keeps port 80 for the next run.
@@ -9,7 +11,7 @@ export type StopTilt = (tiltfile: string) => Promise<void>;
  * stack still runs; then `down` fails and the old Tilt keeps the ports and containers the new run needs, so the
  * second demo sat at "0 of 7 services ready". Returns true when a Flisk project was found.
  */
-export declare function stopDemoStack(projectDir: string, runDown?: (dir: string) => void, stopTilt?: StopTilt): Promise<boolean>;
+export declare function stopDemoStack(projectDir: string, runDown?: (dir: string) => void, stopTilt?: StopTilt, stopFolderContainers?: StopFolderContainers): Promise<boolean>;
 /** Docker calls behind {@link removeStaleProjectVolumes}, injectable so the logic is testable without Docker. */
 export interface VolumeRunner {
     /** One entry per volume: its name and the Compose project that created it (empty when it has none). */
