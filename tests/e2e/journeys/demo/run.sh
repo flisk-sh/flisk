@@ -96,6 +96,10 @@ D3() { # a frontend the second run printed answers
 D4() { # a leftover container of an older layout holds a port the demo needs
   log "D4 flisk demo with a container of an older layout in the demo folder"
   local home="$SUITE_ROOT/home" folder legacy docker_host
+  # D2 leaves the second demo running in $DIR_TWO under the same Compose project name. `flisk demo` rightly refuses to take
+  # over another folder's containers ("already has Docker containers from another folder"), so stop the earlier stacks first.
+  stack_down "$DIR_ONE"
+  stack_down "$DIR_TWO"
   # Docker finds its socket through $HOME (Colima, Docker Desktop), so the scratch HOME must keep talking to the same daemon.
   docker_host="${DOCKER_HOST:-$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)}"
   # The demo's own folder is ~/.flisk/flisk-demo, which is where the reset runs: point HOME at a scratch folder so a machine's real demo is untouched.
