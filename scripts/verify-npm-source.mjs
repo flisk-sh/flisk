@@ -11,7 +11,7 @@ export const REGISTRY = "https://registry.npmjs.org";
 
 /** The registry URL of one published version: scoped names keep "@" and encode the "/". */
 export const versionUrl = (pkg, version, registry = REGISTRY) =>
-	`${registry}/${pkg.replace("/", "%2f")}/${encodeURIComponent(version)}`;
+	`${registry}/${pkg.replaceAll("/", "%2f")}/${encodeURIComponent(version)}`;
 
 /**
  * Find the tarball URL of pkg@version, retrying while the registry catches up with a publish.
