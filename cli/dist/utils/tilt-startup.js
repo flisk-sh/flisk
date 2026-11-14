@@ -61,14 +61,26 @@ export async function resolveTiltPort(options) {
     if (availablePort && availablePort !== options.basePort) {
         return { port: availablePort, autoSwitched: true };
     }
+    if (!availablePort && options.fallbackPort !== undefined) {
+        return { port: options.fallbackPort, autoSwitched: options.fallbackPort !== options.basePort };
+    }
     return { port: options.basePort, autoSwitched: false };
 }
+/**
+ * Under --force, stop the Tilt on the port this run starts on, and this project's own Tilt on any other port (`ownPorts`), so
+ * the replaced stack does not keep running beside the new one (#4165). `force` is false when another project holds the base
+ * port; `ownPorts` are still this project's and are stopped.
+ */
 export async function stopTiltForUp(options, dependencies) {
-    if (!options.force)
+    const ports = [
+        ...new Set([...(options.force ? [options.port] : []), ...(options.ownPorts ?? [])]),
+    ];
+    if (ports.length === 0)
         return;
     if (!options.quiet) {
-        dependencies.log(`Force flag set - stopping Tilt on port ${options.port} if running...`);
+        dependencies.log(`Force flag set - stopping Tilt on port ${ports.join(", ")} if running...`);
     }
-    dependencies.stop(options.port);
+    for (const port of ports)
+        dependencies.stop(port);
     await dependencies.wait(2000);
 }

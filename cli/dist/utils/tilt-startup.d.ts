@@ -44,14 +44,21 @@ export declare function resolveTiltPort(options: {
     force: boolean;
     basePort: number;
     findAvailablePort: (basePort: number, attempts: number) => Promise<number | null | undefined>;
+    fallbackPort?: number;
 }): Promise<{
     port: number;
     autoSwitched: boolean;
 }>;
+/**
+ * Under --force, stop the Tilt on the port this run starts on, and this project's own Tilt on any other port (`ownPorts`), so
+ * the replaced stack does not keep running beside the new one (#4165). `force` is false when another project holds the base
+ * port; `ownPorts` are still this project's and are stopped.
+ */
 export declare function stopTiltForUp(options: {
     force: boolean;
     quiet: boolean;
     port: number;
+    ownPorts?: number[];
 }, dependencies: {
     stop: (port: number) => void;
     log: (message: string) => void;

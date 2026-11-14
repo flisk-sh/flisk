@@ -67,6 +67,7 @@ import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import {
   exportHostPortPlan,
   getHostPortPlan,
+  readSavedTiltPort,
   writeSavedHostPortPlan,
 } from "../utils/host-port-config.js";
 import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan.js";
@@ -144,7 +145,7 @@ import {
 } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
-import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
+import { findProjectTiltPorts, stopOwnedTiltOnPort } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import {
   alreadyRunningReport,
@@ -1109,6 +1110,9 @@ export const upCommand = new Command("up")
       // A real start claims the host ports it picks, so a second project starting at the same moment moves to the next
       // port instead of choosing the same one. A dry run only reports and holds nothing.
       const claimPort = options.dryRun ? undefined : createPortClaimer(projectRoot);
+      // Read before the plan below is saved: a plan made afresh has no tiltUi and would erase the port this project's
+      // running Tilt was started on (#4165).
+      const savedTiltPort = readSavedTiltPort(projectRoot);
       const hostPortPlan = await getHostPortPlan(projectRoot, {
         inspectDocker: !options.dryRun,
         database: options.database,
@@ -1401,16 +1405,16 @@ export const upCommand = new Command("up")
       }
 
       exportHostPortPlan(hostPortPlan);
-      writeSavedHostPortPlan(projectRoot, hostPortPlan);
 
       const basePort = STANDARD_PORTS.tiltUi;
       const watchedPort = configuredTiltPort ?? basePort;
       const candidatePorts = options.only ? [...new Set([basePort, watchedPort])] : [watchedPort];
-      const { running, foreign } = await classifyTiltPorts(
-        candidatePorts,
+      const { running, foreign, savedRunning } = await findProjectTiltPorts({
+        watchedPorts: candidatePorts,
+        savedPort: savedTiltPort,
         projectRoot,
-        async (candidate) => (await tiltGetUiResources(candidate)) !== null,
-      );
+        isServing: async (candidate) => (await tiltGetUiResources(candidate)) !== null,
+      });
       if (foreign.length > 0 && configuredTiltPort !== undefined) {
         const other = foreign[0];
         const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run flisk down in that project.`;
@@ -1426,11 +1430,12 @@ export const upCommand = new Command("up")
           );
         }
       }
-      // --force replaces this project's Tilt; it must never stop another project's.
+      // --force replaces this project's Tilt; it must never stop another project's. `running` holds only this project's
+      // Tilt, so --force replaces it even when another project holds the base port.
       const force = options.force && foreign.length === 0;
       const decision = secondUpAction({
         runningPorts: running,
-        force,
+        force: Boolean(options.force),
         only: Boolean(options.only),
       });
       if (decision.action === "already-running") {
@@ -1444,6 +1449,19 @@ export const upCommand = new Command("up")
         }
         const runningPort = decision.ports[0] ?? watchedPort;
         const tiltUrl = `http://localhost:${runningPort}`;
+        const parsedWaitTimeout =
+          emit && typeof options.waitTimeout !== "undefined"
+            ? parseWaitTimeout(options.waitTimeout)
+            : undefined;
+        if (emit && parsedWaitTimeout && !parsedWaitTimeout.ok) {
+          emit({ ok: false }, [
+            { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
+          ]);
+          showErrorAndExit(parsedWaitTimeout.message, 1, []);
+        }
+        // Keep the running Tilt's port saved once refusal checks pass, so the next `flisk up` (and status, logs, restart) finds it again.
+        hostPortPlan.tiltUi = runningPort;
+        writeSavedHostPortPlan(projectRoot, hostPortPlan);
         const deferred = getDeferredResourceNames(discoveredResources);
         if (emit) {
           // `ok` means the stack is healthy (`flisk up --wait` prints "Stack is healthy" from it), so wait for the running
@@ -1451,16 +1469,6 @@ export const upCommand = new Command("up")
           const dependsOn = Object.fromEntries(
             discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]),
           );
-          const parsedWaitTimeout =
-            typeof options.waitTimeout !== "undefined"
-              ? parseWaitTimeout(options.waitTimeout)
-              : undefined;
-          if (parsedWaitTimeout && !parsedWaitTimeout.ok) {
-            emit({ ok: false }, [
-              { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
-            ]);
-            showErrorAndExit(parsedWaitTimeout.message, 1, []);
-          }
           const readiness = await waitForTiltResourcesReady(runningPort, {
             timeoutMs: parsedWaitTimeout?.ok ? parsedWaitTimeout.seconds * 1000 : undefined,
             deferred,
@@ -1503,6 +1511,7 @@ export const upCommand = new Command("up")
           console.log(
             chalk.green(`Environment is already running on port ${decision.ports.join(", ")}.`),
           );
+          console.log(`Tilt UI: ${tiltUrl}`);
         }
         return;
       }
@@ -1511,15 +1520,22 @@ export const upCommand = new Command("up")
         emit?.({ ok: false }, [{ code: "TILT_ALREADY_RUNNING", message }]);
         showErrorAndExit(message);
       }
-      if (options.only) {
-        for (const runningPort of running) stopTiltOnPort(runningPort);
+      if (options.only && force) {
+        for (const runningPort of running) {
+          if (candidatePorts.includes(runningPort)) stopTiltOnPort(runningPort);
+        }
       }
 
+      // Only force-claim `basePort` without probing when `basePort` is held by a Tilt we are replacing; otherwise a
+      // non-Tilt service on `basePort` would cause `--force` to stop `savedRunning` and then fail binding `basePort`.
+      const canReplaceTargetPort =
+        Boolean(force) && (configuredTiltPort !== undefined || running.includes(basePort));
       const resolution = await resolveTiltPort({
         configuredPort: configuredTiltPort,
-        force,
+        force: canReplaceTargetPort,
         basePort,
         findAvailablePort: (base, attempts) => findAvailablePort(base, attempts, claimPort),
+        fallbackPort: savedRunning[0],
       });
       const port = resolution.port;
       if (resolution.autoSwitched && !options.quiet) {
@@ -1532,9 +1548,20 @@ export const upCommand = new Command("up")
       writeSavedHostPortPlan(projectRoot, hostPortPlan);
 
       await stopTiltForUp(
-        { force, quiet: options.quiet, port },
         {
-          stop: stopTiltOnPort,
+          force: canReplaceTargetPort,
+          quiet: options.quiet,
+          port,
+          ownPorts: options.force ? savedRunning : [],
+        },
+        {
+          stop: (targetPort) => {
+            if (savedRunning.includes(targetPort)) {
+              stopOwnedTiltOnPort(targetPort, projectRoot);
+            } else {
+              stopTiltOnPort(targetPort);
+            }
+          },
           log: (message) => console.log(chalk.yellow(message)),
           wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
         },

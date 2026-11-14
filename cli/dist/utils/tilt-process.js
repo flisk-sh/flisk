@@ -43,8 +43,7 @@ export function findTiltProcessIdsOnPort(port, platform = process.platform, comm
         }
     });
 }
-export function stopTiltOnPort(port, platform = process.platform, commandRunner = run) {
-    const pids = findTiltProcessIdsOnPort(port, platform, commandRunner);
+export function stopTiltProcessIds(pids, platform = process.platform, commandRunner = run) {
     for (const pid of pids) {
         if (platform === "win32")
             commandRunner("taskkill.exe", ["/PID", String(pid), "/F"]);
@@ -52,4 +51,7 @@ export function stopTiltOnPort(port, platform = process.platform, commandRunner 
             commandRunner("kill", ["-TERM", String(pid)]);
     }
     return pids;
+}
+export function stopTiltOnPort(port, platform = process.platform, commandRunner = run) {
+    return stopTiltProcessIds(findTiltProcessIdsOnPort(port, platform, commandRunner), platform, commandRunner);
 }

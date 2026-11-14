@@ -64,15 +64,26 @@ export function findTiltProcessIdsOnPort(
   });
 }
 
-export function stopTiltOnPort(
-  port: number,
+export function stopTiltProcessIds(
+  pids: number[],
   platform = process.platform,
   commandRunner: CommandRunner = run,
 ): number[] {
-  const pids = findTiltProcessIdsOnPort(port, platform, commandRunner);
   for (const pid of pids) {
     if (platform === "win32") commandRunner("taskkill.exe", ["/PID", String(pid), "/F"]);
     else commandRunner("kill", ["-TERM", String(pid)]);
   }
   return pids;
+}
+
+export function stopTiltOnPort(
+  port: number,
+  platform = process.platform,
+  commandRunner: CommandRunner = run,
+): number[] {
+  return stopTiltProcessIds(
+    findTiltProcessIdsOnPort(port, platform, commandRunner),
+    platform,
+    commandRunner,
+  );
 }

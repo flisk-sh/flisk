@@ -85,6 +85,7 @@ export async function resolveTiltPort(options: {
   force: boolean;
   basePort: number;
   findAvailablePort: (basePort: number, attempts: number) => Promise<number | null | undefined>;
+  fallbackPort?: number;
 }): Promise<{ port: number; autoSwitched: boolean }> {
   if (options.configuredPort !== undefined) {
     return { port: options.configuredPort, autoSwitched: false };
@@ -95,22 +96,33 @@ export async function resolveTiltPort(options: {
   if (availablePort && availablePort !== options.basePort) {
     return { port: availablePort, autoSwitched: true };
   }
+  if (!availablePort && options.fallbackPort !== undefined) {
+    return { port: options.fallbackPort, autoSwitched: options.fallbackPort !== options.basePort };
+  }
   return { port: options.basePort, autoSwitched: false };
 }
 
+/**
+ * Under --force, stop the Tilt on the port this run starts on, and this project's own Tilt on any other port (`ownPorts`), so
+ * the replaced stack does not keep running beside the new one (#4165). `force` is false when another project holds the base
+ * port; `ownPorts` are still this project's and are stopped.
+ */
 export async function stopTiltForUp(
-  options: { force: boolean; quiet: boolean; port: number },
+  options: { force: boolean; quiet: boolean; port: number; ownPorts?: number[] },
   dependencies: {
     stop: (port: number) => void;
     log: (message: string) => void;
     wait: (milliseconds: number) => Promise<void>;
   },
 ): Promise<void> {
-  if (!options.force) return;
+  const ports = [
+    ...new Set([...(options.force ? [options.port] : []), ...(options.ownPorts ?? [])]),
+  ];
+  if (ports.length === 0) return;
 
   if (!options.quiet) {
-    dependencies.log(`Force flag set - stopping Tilt on port ${options.port} if running...`);
+    dependencies.log(`Force flag set - stopping Tilt on port ${ports.join(", ")} if running...`);
   }
-  dependencies.stop(options.port);
+  for (const port of ports) dependencies.stop(port);
   await dependencies.wait(2000);
 }

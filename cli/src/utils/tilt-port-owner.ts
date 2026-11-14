@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseTiltProcesses } from "./doctor-wiring.js";
+import { findTiltProcessIdsOnPort, stopTiltProcessIds } from "./tilt-process.js";
 
 type CommandRunner = (command: string, args: string[]) => string;
 
@@ -56,6 +57,11 @@ function canonical(path: string): string {
   }
 }
 
+/** Whether `owner` is confirmed to belong to this project's Tiltfile. */
+export function isOwnTilt(owner: TiltPortOwner | null, projectRoot: string): boolean {
+  return owner !== null && canonical(owner.root) === canonical(projectRoot);
+}
+
 /** Whether `owner` is another project's Tilt, as opposed to this project's or unknown. */
 export function isForeignTilt(owner: TiltPortOwner | null, projectRoot: string): boolean {
   return owner !== null && canonical(owner.root) !== canonical(projectRoot);
@@ -83,4 +89,98 @@ export async function classifyTiltPorts(
     else result.running.push(port);
   }
   return result;
+}
+
+export interface ProjectTiltPorts extends ClassifiedTiltPorts {
+  /**
+   * Ports in `running` that only the saved port found and whose Tilt is confirmed to belong to this project.
+   * Unknown-owner listeners on a stale saved port are excluded so `--force` never stops an unconfirmed process.
+   */
+  savedRunning: number[];
+}
+
+/**
+ * The Tilt UI ports `flisk up` treats as this project's running Tilt. The watched ports are classified as before. The port
+ * the last `flisk up` saved is checked too: a project whose first run moved off 10350 (another project's Tilt held it) keeps
+ * its Tilt on that port, and a second run that looked at 10350 alone started another Tilt for the same Tiltfile on the next
+ * free port (#4165). The saved port only adds to `running`. Another project's Tilt on it is not reported in `foreign`,
+ * because this run never asked for that port. Only confirmed project-owned saved ports enter `savedRunning` for `--force`.
+ */
+export async function findProjectTiltPorts(options: {
+  watchedPorts: number[];
+  savedPort: number | null;
+  projectRoot: string;
+  isServing: (port: number) => Promise<boolean>;
+  ownerOf?: (port: number) => TiltPortOwner | null;
+}): Promise<ProjectTiltPorts> {
+  const ownerOf = options.ownerOf ?? findTiltPortOwner;
+  const confirmedWatched: number[] = [];
+  const unknownWatched: number[] = [];
+  const foreign: { port: number; root: string }[] = [];
+  for (const port of options.watchedPorts) {
+    if (!(await options.isServing(port))) continue;
+    const owner = ownerOf(port);
+    if (owner && isForeignTilt(owner, options.projectRoot)) {
+      foreign.push({ port, root: owner.root });
+    } else if (isOwnTilt(owner, options.projectRoot)) {
+      confirmedWatched.push(port);
+    } else {
+      unknownWatched.push(port);
+    }
+  }
+  const watchedRunning = [...confirmedWatched, ...unknownWatched];
+  const savedPort = options.savedPort;
+  if (savedPort === null || options.watchedPorts.includes(savedPort)) {
+    return { running: watchedRunning, foreign, savedRunning: [] };
+  }
+  if (!(await options.isServing(savedPort))) {
+    return { running: watchedRunning, foreign, savedRunning: [] };
+  }
+  const savedOwner = ownerOf(savedPort);
+  if (isOwnTilt(savedOwner, options.projectRoot) && savedOwner !== null) {
+    // Prefer confirmed project ownership over an unknown watched listener (e.g. another project's plain `tilt up` without `-f`).
+    return {
+      running: [...confirmedWatched, savedPort],
+      foreign,
+      savedRunning: [savedPort],
+    };
+  }
+  if (isForeignTilt(savedOwner, options.projectRoot)) {
+    return { running: watchedRunning, foreign, savedRunning: [] };
+  }
+  // If watched ports already have a confirmed owner, do not mix an unknown saved-port listener in either.
+  if (confirmedWatched.length > 0) {
+    return { running: confirmedWatched, foreign, savedRunning: [] };
+  }
+  return {
+    running: [...unknownWatched, savedPort],
+    foreign,
+    savedRunning: [],
+  };
+}
+
+/**
+ * Stop a Tilt on `port` only after re-verifying that the current listener is a `tilt` process owned by `projectRoot`
+ * (and matching `expectedOwner.pid` when provided). Prevents `--force` from killing an unrelated or unknown-owner Tilt
+ * that reused a stale saved port.
+ */
+export function stopOwnedTiltOnPort(
+  port: number,
+  projectRoot: string,
+  expectedOwner?: TiltPortOwner,
+  platform = process.platform,
+  commandRunner: CommandRunner = run,
+): number[] {
+  const currentOwner = findTiltPortOwner(port, platform, commandRunner);
+  if (!isOwnTilt(currentOwner, projectRoot) || currentOwner === null) {
+    return [];
+  }
+  if (expectedOwner && currentOwner.pid !== expectedOwner.pid) {
+    return [];
+  }
+  const tiltPids = findTiltProcessIdsOnPort(port, platform, commandRunner);
+  if (!tiltPids.includes(currentOwner.pid)) {
+    return [];
+  }
+  return stopTiltProcessIds([currentOwner.pid], platform, commandRunner);
 }

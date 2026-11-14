@@ -21,11 +21,12 @@ import { captureExit, makeResource } from "../../test-support/index.js";
 import { runCommandInProcess } from "../../test-support/run-in-process.js";
 import { PROJECT_ENV_FILE_VAR } from "../../utils/env-selection.js";
 import { requireProjectRoot } from "../../utils/errors.js";
-import { getHostPortPlan } from "../../utils/host-port-config.js";
+import { getHostPortPlan, writeSavedHostPortPlan } from "../../utils/host-port-config.js";
 import { findProjectRoot } from "../../utils/paths.js";
+import { findAvailablePort } from "../../utils/port-assignment.js";
 import { discoverResourcesStrict } from "../../utils/services.js";
 import { runTilt } from "../../utils/tilt.js";
-import { classifyTiltPorts } from "../../utils/tilt-port-owner.js";
+import { findProjectTiltPorts, stopOwnedTiltOnPort } from "../../utils/tilt-port-owner.js";
 import { findTiltProcessIdsOnPort, stopTiltOnPort } from "../../utils/tilt-process.js";
 import {
   alreadyRunningReport,
@@ -34,6 +35,7 @@ import {
   secondUpAction,
   stopTiltForUp,
 } from "../../utils/tilt-startup.js";
+import { tiltGetUiResources } from "../../utils/up-readiness.js";
 import type * as UpWaitModule from "../../utils/up-wait.js";
 import { upAndWait } from "../../utils/up-wait.js";
 import {
@@ -87,8 +89,17 @@ vi.mock("../../utils/host-port-config.js", async (importOriginal) => ({
 }));
 vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/tilt-port-owner.js")>()),
-  classifyTiltPorts: vi.fn(async () => ({ running: [] as number[], foreign: [] as unknown[] })),
+  findProjectTiltPorts: vi.fn(async () => ({
+    running: [] as number[],
+    foreign: [] as unknown[],
+    savedRunning: [] as number[],
+  })),
+  stopOwnedTiltOnPort: vi.fn(() => []),
 }));
+vi.mock("../../utils/up-readiness.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/up-readiness.js")>();
+  return { ...actual, tiltGetUiResources: vi.fn(actual.tiltGetUiResources) };
+});
 // Which other folders hold containers of this project name is a Docker question (#3961); the tests answer it.
 const foreignOwners = vi.hoisted(() => vi.fn(() => [] as { root: string; containers: string[] }[]));
 vi.mock("../../utils/project-owner.js", async (importOriginal) => ({
@@ -104,6 +115,18 @@ vi.mock("../../utils/up-wait.js", async (importOriginal) => ({
   ...(await importOriginal<typeof UpWaitModule>()),
   upAndWait: vi.fn(),
 }));
+vi.mock("../../utils/port-assignment.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/port-assignment.js")>();
+  return { ...actual, findAvailablePort: vi.fn(actual.findAvailablePort) };
+});
+vi.mock("../../utils/tilt-startup.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/tilt-startup.js")>();
+  return {
+    ...actual,
+    resolveTiltPort: vi.fn(actual.resolveTiltPort),
+    stopTiltForUp: vi.fn(actual.stopTiltForUp),
+  };
+});
 
 /**
  * The exit code the "Exit codes" table in `CONTRIBUTING.md` lists for a diagnostic.
@@ -985,16 +1008,18 @@ describe("flisk up --env-file", () => {
       diffs: [],
       handEdited: [],
     });
-    vi.mocked(classifyTiltPorts).mockResolvedValue({
+    vi.mocked(findProjectTiltPorts).mockResolvedValue({
       running: [],
       foreign: [],
-    } as unknown as Awaited<ReturnType<typeof classifyTiltPorts>>);
+      savedRunning: [],
+    });
   });
 
   afterEach(() => {
     process.chdir(originalCwd);
     rmSync(dir, { recursive: true, force: true });
     delete process.env[PROJECT_ENV_FILE_VAR];
+    delete process.env.TILT_PORT;
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
@@ -1164,10 +1189,11 @@ describe("flisk up --env-file", () => {
 
   it("refuses the option when a stack is already running, because it keeps its env file", async () => {
     writeFileSync(join(projectDir, ".env.integration"), COMPLETE_ENV);
-    vi.mocked(classifyTiltPorts).mockResolvedValue({
+    vi.mocked(findProjectTiltPorts).mockResolvedValue({
       running: [10350],
       foreign: [],
-    } as unknown as Awaited<ReturnType<typeof classifyTiltPorts>>);
+      savedRunning: [],
+    });
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const { exit } = captureExit();
 
@@ -1183,6 +1209,254 @@ describe("flisk up --env-file", () => {
     } finally {
       exit.mockRestore();
       error.mockRestore();
+    }
+  });
+
+  it("reuses this project's Tilt on its saved port instead of starting a second Tilt (#4165)", async () => {
+    // Another project's Tilt holds 10350, so the first `flisk up` started this project's Tilt on 10351. A second `flisk up`
+    // that looked at 10350 alone started another Tilt for the same Tiltfile on 10352.
+    vi.mocked(findProjectTiltPorts).mockResolvedValue({
+      running: [10351],
+      foreign: [{ port: 10350, root: "/work/other" }],
+      savedRunning: [10351],
+    });
+    vi.mocked(getHostPortPlan).mockResolvedValueOnce({
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 5432,
+      requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+    });
+    vi.mocked(tiltGetUiResources).mockResolvedValueOnce(null);
+    vi.mocked(runTilt).mockClear();
+    upCommand.setOptionValue("quiet", false);
+    upCommand.setOptionValue("envFile", undefined);
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+
+    try {
+      await upCommand.parseAsync([], { from: "user" });
+    } finally {
+      log.mockRestore();
+    }
+
+    const output = stripVTControlCharacters(lines.join("\n"));
+    expect(runTilt).not.toHaveBeenCalled();
+    expect(output).toContain("Environment is already running on port 10351.");
+    expect(output).toContain("Tilt UI: http://localhost:10351");
+    // The running Tilt's port stays saved, so a third `flisk up` finds it too.
+    const saved = JSON.parse(
+      readFileSync(join(projectDir, ".flisk", ".flisk-out", "host-ports.json"), "utf-8"),
+    );
+    expect(saved.tiltUi).toBe(10351);
+  });
+
+  it("preserves the saved Tilt port across --env-file and --only startup refusals so retry still finds it (#4165)", async () => {
+    writeFileSync(join(projectDir, ".env.integration"), COMPLETE_ENV);
+    writeSavedHostPortPlan(projectDir, {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 5432,
+      tiltUi: 10351,
+      requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+    });
+    const freshPlan = {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 5432,
+      requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+    };
+    vi.mocked(getHostPortPlan).mockResolvedValue(freshPlan);
+    vi.mocked(findProjectTiltPorts).mockClear();
+    vi.mocked(findProjectTiltPorts).mockImplementation(async ({ savedPort }) => ({
+      running: savedPort === 10351 ? [10351] : [],
+      foreign: [{ port: 10350, root: "/work/other" }],
+      savedRunning: savedPort === 10351 ? [10351] : [],
+    }));
+    vi.mocked(tiltGetUiResources).mockResolvedValue(null);
+    vi.mocked(runTilt).mockClear();
+
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      await expect(
+        upCommand.parseAsync(["--quiet", "--env-file", ".env.integration"], { from: "user" }),
+      ).rejects.toThrow("process.exit");
+      expect(exit).toHaveBeenCalledWith(1);
+
+      let savedAfterEnvRefusal = JSON.parse(
+        readFileSync(join(projectDir, ".flisk", ".flisk-out", "host-ports.json"), "utf-8"),
+      );
+      expect(savedAfterEnvRefusal.tiltUi).toBe(10351);
+
+      upCommand.setOptionValue("envFile", undefined);
+      vi.mocked(discoverResourcesStrict).mockReturnValueOnce([makeResource("api", "backend")]);
+      await expect(
+        upCommand.parseAsync(["--quiet", "--only", "api"], { from: "user" }),
+      ).rejects.toThrow("process.exit");
+      expect(exit).toHaveBeenCalledTimes(2);
+
+      savedAfterEnvRefusal = JSON.parse(
+        readFileSync(join(projectDir, ".flisk", ".flisk-out", "host-ports.json"), "utf-8"),
+      );
+      expect(savedAfterEnvRefusal.tiltUi).toBe(10351);
+
+      upCommand.setOptionValue("only", undefined);
+      upCommand.setOptionValue("quiet", false);
+      await upCommand.parseAsync([], { from: "user" });
+
+      expect(vi.mocked(findProjectTiltPorts).mock.calls.map((c) => c[0]?.savedPort)).toEqual([
+        10351, 10351, 10351,
+      ]);
+      expect(runTilt).not.toHaveBeenCalled();
+    } finally {
+      upCommand.setOptionValue("envFile", undefined);
+      upCommand.setOptionValue("only", undefined);
+      upCommand.setOptionValue("quiet", false);
+      exit.mockRestore();
+      error.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it("does not stop a stale saved port with unknown ownership on flisk up --force (#4165)", async () => {
+    writeSavedHostPortPlan(projectDir, {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 5432,
+      tiltUi: 10351,
+      requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+    });
+    const actualPortOwner = await vi.importActual<typeof import("../../utils/tilt-port-owner.js")>(
+      "../../utils/tilt-port-owner.js",
+    );
+    vi.mocked(findProjectTiltPorts).mockImplementationOnce((opts) =>
+      actualPortOwner.findProjectTiltPorts({
+        ...opts,
+        isServing: async (port) => port === 10350 || port === 10351,
+        ownerOf: (port) => (port === 10350 ? { pid: 2, root: "/work/other" } : null),
+      }),
+    );
+    vi.mocked(findAvailablePort).mockResolvedValueOnce(10352);
+    vi.mocked(stopOwnedTiltOnPort).mockClear();
+    vi.mocked(stopTiltForUp).mockClear();
+    vi.mocked(runTilt).mockClear();
+    vi.mocked(runTilt).mockImplementationOnce(() => {
+      throw new Error("STOP_BEFORE_WAIT");
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      await expect(upCommand.parseAsync(["--quiet", "--force"], { from: "user" })).rejects.toThrow(
+        "STOP_BEFORE_WAIT",
+      );
+      expect(runTilt).toHaveBeenCalled();
+      expect(stopTiltForUp).toHaveBeenCalledWith(
+        expect.objectContaining({ force: false, ownPorts: [] }),
+        expect.anything(),
+      );
+      expect(stopOwnedTiltOnPort).not.toHaveBeenCalled();
+    } finally {
+      upCommand.setOptionValue("force", false);
+      upCommand.setOptionValue("quiet", false);
+      log.mockRestore();
+    }
+  });
+
+  it("prefers confirmed saved-port ownership over an unknown listener on 10350 (#4165)", async () => {
+    writeSavedHostPortPlan(projectDir, {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 5432,
+      tiltUi: 10351,
+      requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+    });
+    const actualPortOwner = await vi.importActual<typeof import("../../utils/tilt-port-owner.js")>(
+      "../../utils/tilt-port-owner.js",
+    );
+    vi.mocked(findProjectTiltPorts).mockImplementationOnce((opts) =>
+      actualPortOwner.findProjectTiltPorts({
+        ...opts,
+        isServing: async (port) => port === 10350 || port === 10351,
+        ownerOf: (port) => (port === 10351 ? { pid: 1, root: projectDir } : null),
+      }),
+    );
+    vi.mocked(tiltGetUiResources).mockResolvedValueOnce(null);
+    vi.mocked(runTilt).mockClear();
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+
+    try {
+      await upCommand.parseAsync([], { from: "user" });
+      const output = stripVTControlCharacters(lines.join("\n"));
+      expect(output).toContain("Environment is already running on port 10351.");
+      expect(runTilt).not.toHaveBeenCalled();
+      const saved = JSON.parse(
+        readFileSync(join(projectDir, ".flisk", ".flisk-out", "host-ports.json"), "utf-8"),
+      );
+      expect(saved.tiltUi).toBe(10351);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("picks an available port instead of an occupied non-Tilt base port under --force (#4165)", async () => {
+    writeSavedHostPortPlan(projectDir, {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 5432,
+      tiltUi: 10351,
+      requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+    });
+    vi.mocked(findProjectTiltPorts).mockResolvedValueOnce({
+      running: [10351],
+      foreign: [],
+      savedRunning: [10351],
+    });
+    vi.mocked(findAvailablePort).mockResolvedValueOnce(10352);
+    vi.mocked(stopOwnedTiltOnPort).mockClear();
+    vi.mocked(stopTiltForUp).mockClear();
+    vi.mocked(runTilt).mockClear();
+    vi.mocked(runTilt).mockImplementationOnce(() => {
+      throw new Error("STOP_BEFORE_WAIT");
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      await expect(upCommand.parseAsync(["--quiet", "--force"], { from: "user" })).rejects.toThrow(
+        "STOP_BEFORE_WAIT",
+      );
+      expect(stopTiltForUp).toHaveBeenCalledWith(
+        expect.objectContaining({ force: false, port: 10352, ownPorts: [10351] }),
+        expect.anything(),
+      );
+      expect(stopOwnedTiltOnPort).toHaveBeenCalledWith(10351, projectDir);
+      expect(process.env.TILT_PORT).toBe("10352");
+      const saved = JSON.parse(
+        readFileSync(join(projectDir, ".flisk", ".flisk-out", "host-ports.json"), "utf-8"),
+      );
+      expect(saved.tiltUi).toBe(10352);
+    } finally {
+      upCommand.setOptionValue("force", false);
+      upCommand.setOptionValue("quiet", false);
+      log.mockRestore();
     }
   });
 
