@@ -540,6 +540,8 @@ export interface PortOccupant {
     pid: number;
     /** The program's name, without its directory (`postgres`, not `/opt/homebrew/bin/postgres`). */
     command: string;
+    /** Set when a Docker container publishes the port: its name. Then `pid` is 0, since the host process is Docker's. */
+    container?: string;
 }
 export interface ServiceRuntimeState {
     status: ResourceStatus;

@@ -88,7 +88,7 @@ import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
 import { createPortClaimer } from "../utils/port-claims.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
-import { findPortOccupant } from "../utils/port-occupant.js";
+import { findPortContainer, findPortOccupant } from "../utils/port-occupant.js";
 import {
   applyProfiles,
   declaredProfiles,
@@ -1752,7 +1752,7 @@ export const upCommand = new Command("up")
             const reportLines = formatStartupReport(
               report,
               readiness.timedOut,
-              (port) => findPortOccupant(port),
+              (port) => findPortContainer(port) ?? findPortOccupant(port),
               machineFixes,
               readiness.lastLogs,
             );
