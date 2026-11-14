@@ -27,6 +27,9 @@ vi.mock("node:child_process", () => ({
   execSync: (...args: unknown[]) => execSyncMock(...args),
   execFileSync: (...args: unknown[]) => execFileSyncMock(...args),
 }));
+const sigstoreVerifyMock = vi.hoisted(() => vi.fn());
+vi.mock("sigstore", () => ({ verify: sigstoreVerifyMock }));
+
 vi.mock("../../utils/tar.js", () => ({
   extractTarball: (_data: Buffer, destination: string) => {
     mkdirSync(destination, { recursive: true });
@@ -105,7 +108,31 @@ const BINARY_BYTES = "fake flisk binary";
 const ENGINE_BYTES = "fake engine tarball";
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
+const SIGNER =
+  "https://github.com/flisk-sh/flisk/.github/workflows/release-binaries.yml@refs/heads/main";
+
 describe("upgradeViaBinary", () => {
+  let bundleStatus = 200;
+  const serve = (url: string) => {
+    if (url === release.checksumsBundleUrl)
+      return {
+        ok: bundleStatus === 200,
+        status: bundleStatus,
+        text: async () => JSON.stringify({ mediaType: "bundle" }),
+      };
+    const body =
+      url === release.checksumsUrl
+        ? checksums
+        : url === release.engineDownloadUrl
+          ? ENGINE_BYTES
+          : BINARY_BYTES;
+    return {
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => Buffer.from(body),
+      text: async () => body,
+    };
+  };
   let installDir: string;
   let fliskPath: string;
   let release: BinaryRelease;
@@ -113,6 +140,8 @@ describe("upgradeViaBinary", () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
+    bundleStatus = 200;
+    vi.stubEnv("FLISK_UPGRADE_REQUIRE_SIGNATURE", "");
     installDir = mkdtempSync(join(tmpdir(), "flisk-upgrade-test-"));
     fliskPath = join(installDir, "flisk");
     release = {
@@ -121,6 +150,7 @@ describe("upgradeViaBinary", () => {
       downloadUrl: "https://example.test/flisk-darwin-arm64",
       engineDownloadUrl: "https://example.test/flisk-cli-engine.tar.gz",
       checksumsUrl: "https://example.test/checksums.txt",
+      checksumsBundleUrl: "https://example.test/checksums.txt.sigstore.json",
     };
     checksums = [
       `${sha256(BINARY_BYTES)}  flisk-darwin-arm64`,
@@ -129,19 +159,20 @@ describe("upgradeViaBinary", () => {
     ].join("\n");
     execSyncMock.mockReset();
     fetchMock.mockReset();
-    fetchMock.mockImplementation(async (url: string) => ({
-      ok: true,
-      status: 200,
-      arrayBuffer: async () =>
-        Buffer.from(url === release.engineDownloadUrl ? ENGINE_BYTES : BINARY_BYTES),
-      text: async () => checksums,
-    }));
+    sigstoreVerifyMock.mockReset();
+    // Default: a valid bundle signed by the release workflow, over exactly the bytes served.
+    sigstoreVerifyMock.mockImplementation(async (_bundle: unknown, data: Buffer) => {
+      if (data.toString("utf8") !== checksums) throw new Error("signature does not match data");
+      return { identity: { subjectAlternativeName: SIGNER } };
+    });
+    fetchMock.mockImplementation(async (url: string) => serve(url));
     vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
     rmSync(installDir, { recursive: true, force: true });
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("downloads and extracts the bundled engine tarball next to the binary, not just the binary itself", async () => {
@@ -153,6 +184,7 @@ describe("upgradeViaBinary", () => {
       release.downloadUrl,
       release.engineDownloadUrl,
       release.checksumsUrl,
+      release.checksumsBundleUrl,
     ]);
     expect(readFileSync(fliskPath, "utf-8")).toBe(BINARY_BYTES);
     expect(readFileSync(join(engineDir, "engine-marker"), "utf-8")).toBe("extracted");
@@ -182,6 +214,7 @@ describe("upgradeViaBinary", () => {
       release.downloadUrl,
       release.engineDownloadUrl,
       release.checksumsUrl,
+      release.checksumsBundleUrl,
     ]);
     expect(existsSync(fliskPath)).toBe(true);
   });
@@ -207,6 +240,66 @@ describe("upgradeViaBinary", () => {
     expect(existsSync(fliskPath)).toBe(false);
   });
 
+  describe("checksums.txt signature", () => {
+    it("installs when the bundle verifies against checksums.txt", async () => {
+      const ok = await upgradeViaBinary(fliskPath, release);
+
+      expect(ok).toBe(true);
+      expect(readFileSync(fliskPath, "utf-8")).toBe(BINARY_BYTES);
+      expect(fetchMock).toHaveBeenCalledWith(release.checksumsBundleUrl, expect.any(Object));
+      expect(sigstoreVerifyMock).toHaveBeenCalledWith(
+        { mediaType: "bundle" },
+        Buffer.from(checksums),
+        expect.objectContaining({
+          certificateIssuer: "https://token.actions.githubusercontent.com",
+        }),
+      );
+    });
+
+    it("refuses tampered checksums.txt even when its entries match the downloads", async () => {
+      // Attacker swaps binary and checksums together; the signed bytes differ.
+      sigstoreVerifyMock.mockRejectedValue(new Error("signature does not match data"));
+      writeFileSync(fliskPath, "old binary");
+      const ok = await upgradeViaBinary(fliskPath, release);
+
+      expect(ok).toBe(false);
+      expect(readFileSync(fliskPath, "utf-8")).toBe("old binary");
+    });
+
+    it("refuses a bundle signed by another identity", async () => {
+      sigstoreVerifyMock.mockResolvedValue({
+        identity: {
+          subjectAlternativeName:
+            "https://github.com/evil/flisk/.github/workflows/release-binaries.yml@refs/heads/main",
+        },
+      });
+      const ok = await upgradeViaBinary(fliskPath, release);
+
+      expect(ok).toBe(false);
+      expect(existsSync(fliskPath)).toBe(false);
+    });
+
+    it("warns and continues on checksums when the release has no bundle", async () => {
+      bundleStatus = 404;
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const ok = await upgradeViaBinary(fliskPath, release);
+
+      expect(ok).toBe(true);
+      expect(sigstoreVerifyMock).not.toHaveBeenCalled();
+      expect(warn.mock.calls.flat().join(" ")).toContain("no signature");
+      warn.mockRestore();
+    });
+
+    it("refuses a release with no bundle when FLISK_UPGRADE_REQUIRE_SIGNATURE=1", async () => {
+      bundleStatus = 404;
+      vi.stubEnv("FLISK_UPGRADE_REQUIRE_SIGNATURE", "1");
+      const ok = await upgradeViaBinary(fliskPath, release);
+
+      expect(ok).toBe(false);
+      expect(existsSync(fliskPath)).toBe(false);
+    });
+  });
+
   it("still installs releases whose checksums.txt predates the engine entry", async () => {
     checksums = checksums
       .split("\n")
@@ -225,15 +318,7 @@ describe("upgradeViaBinary", () => {
     writeFileSync(fliskPath, "old binary");
     const url = failingUrl();
     fetchMock.mockImplementation(async (requested: string) =>
-      requested === url
-        ? { ok: false, status: 503 }
-        : {
-            ok: true,
-            status: 200,
-            arrayBuffer: async () =>
-              Buffer.from(requested === release.engineDownloadUrl ? ENGINE_BYTES : BINARY_BYTES),
-            text: async () => checksums,
-          },
+      requested === url ? { ok: false, status: 503 } : serve(requested),
     );
 
     const ok = await upgradeViaBinary(fliskPath, release);
@@ -518,6 +603,8 @@ describe("getLatestBinaryRelease", () => {
       engineDownloadUrl:
         "https://github.com/flisk-sh/releases/releases/download/v1.4.0/flisk-cli-engine.tar.gz",
       checksumsUrl: "https://github.com/flisk-sh/releases/releases/download/v1.4.0/checksums.txt",
+      checksumsBundleUrl:
+        "https://github.com/flisk-sh/releases/releases/download/v1.4.0/checksums.txt.sigstore.json",
     });
   });
 });
@@ -1074,8 +1161,12 @@ describe("upgradeAllInstallations", () => {
           return {
             ok: true,
             status: 200,
+            arrayBuffer: async () => Buffer.from(sumsText),
             text: async () => sumsText,
           };
+        }
+        if (url.pathname.endsWith("/checksums.txt.sigstore.json")) {
+          return { ok: false, status: 404 };
         }
         if (
           url.protocol === "https:" &&

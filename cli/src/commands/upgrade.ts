@@ -196,6 +196,15 @@ const BINARY_RELEASE_REPO = "flisk-sh/releases";
 
 const ENGINE_ASSET_NAME = "flisk-cli-engine.tar.gz";
 const CHECKSUMS_ASSET_NAME = "checksums.txt";
+const CHECKSUMS_BUNDLE_ASSET_NAME = `${CHECKSUMS_ASSET_NAME}.sigstore.json`;
+
+/** Set to 1 to refuse a release that has no signature bundle for checksums.txt. */
+const REQUIRE_SIGNATURE_ENV = "FLISK_UPGRADE_REQUIRE_SIGNATURE";
+
+/** Workflows of this repository that sign checksums.txt (cosign, keyless). */
+const SIGNER_IDENTITY =
+  /^https:\/\/github\.com\/flisk-sh\/flisk\/\.github\/workflows\/(release-binaries|sign-release)\.yml@.*$/;
+const SIGNER_ISSUER = "https://token.actions.githubusercontent.com";
 
 /** @internal Exported for unit tests only; not part of the package API. */
 export interface BinaryRelease {
@@ -204,6 +213,7 @@ export interface BinaryRelease {
   downloadUrl: string;
   engineDownloadUrl: string;
   checksumsUrl: string;
+  checksumsBundleUrl: string;
 }
 
 /** Parses `shasum -a 256` / `sha256sum` output ("<hash>  <name>" or "<hash> *<name>"). */
@@ -254,6 +264,64 @@ function verifyChecksum(
   }
 }
 
+/**
+ * Verifies checksums.txt against the release's keyless Sigstore bundle, so a
+ * release whose assets and checksums were replaced together is still caught:
+ * the signing certificate must name one of this repository's release
+ * workflows. A bundle that fails verification is an error. A release without a
+ * bundle (published before signing) only warns, unless
+ * FLISK_UPGRADE_REQUIRE_SIGNATURE=1.
+ *
+ * @internal Exported for unit tests only; not part of the package API.
+ */
+export async function verifyChecksumsSignature(
+  checksums: Buffer,
+  bundleUrl: string,
+): Promise<boolean> {
+  const required = process.env[REQUIRE_SIGNATURE_ENV] === "1";
+  const response = await fetch(bundleUrl, { signal: AbortSignal.timeout(30_000) });
+  if (response.status === 404) {
+    if (required)
+      throw new FliskError(
+        `This release has no signature (${CHECKSUMS_BUNDLE_ASSET_NAME}) and ${REQUIRE_SIGNATURE_ENV}=1 is set`,
+        [
+          "Upgrade to a signed release, or unset FLISK_UPGRADE_REQUIRE_SIGNATURE",
+          "Or install with: npm install -g @flisk-sh/flisk",
+        ],
+      );
+    console.warn(
+      chalk.yellow(
+        `Warning: this release has no signature for ${CHECKSUMS_ASSET_NAME}; verifying checksums only. Set ${REQUIRE_SIGNATURE_ENV}=1 to refuse unsigned releases.`,
+      ),
+    );
+    return false;
+  }
+  if (!response.ok)
+    throw new FliskError(`Signature download failed (${response.status})`, [
+      "Check your network connection and run flisk upgrade again",
+      "Or install with: npm install -g @flisk-sh/flisk",
+    ]);
+
+  const fail = (reason: string): FliskError =>
+    new FliskError(`Signature verification failed for ${CHECKSUMS_ASSET_NAME}: ${reason}`, [
+      "Nothing was installed. Do not use this release; report it at https://github.com/flisk-sh/flisk/security",
+      "Or install with: npm install -g @flisk-sh/flisk",
+    ]);
+  let signer: { identity?: { subjectAlternativeName?: string } };
+  try {
+    const bundle = JSON.parse(await response.text()) as Parameters<
+      typeof import("sigstore").verify
+    >[0];
+    const { verify } = await import("sigstore");
+    signer = await verify(bundle, checksums, { certificateIssuer: SIGNER_ISSUER, timeout: 30_000 });
+  } catch (err: unknown) {
+    throw fail(getErrorMessage(err));
+  }
+  const identity = signer.identity?.subjectAlternativeName ?? "";
+  if (!SIGNER_IDENTITY.test(identity)) throw fail(`unexpected signer identity "${identity}"`);
+  return true;
+}
+
 /** @internal Exported for unit tests only; not part of the package API. */
 export async function getLatestBinaryRelease(): Promise<BinaryRelease | null> {
   const assetName = binaryAssetName();
@@ -276,6 +344,7 @@ export async function getLatestBinaryRelease(): Promise<BinaryRelease | null> {
       downloadUrl: `https://github.com/${BINARY_RELEASE_REPO}/releases/download/${data.tag_name}/${assetName}`,
       engineDownloadUrl: `https://github.com/${BINARY_RELEASE_REPO}/releases/download/${data.tag_name}/${ENGINE_ASSET_NAME}`,
       checksumsUrl: `https://github.com/${BINARY_RELEASE_REPO}/releases/download/${data.tag_name}/${CHECKSUMS_ASSET_NAME}`,
+      checksumsBundleUrl: `https://github.com/${BINARY_RELEASE_REPO}/releases/download/${data.tag_name}/${CHECKSUMS_BUNDLE_ASSET_NAME}`,
     };
   } catch (err: unknown) {
     logVerbose("Binary release lookup error", err);
@@ -372,7 +441,12 @@ export async function upgradeViaBinary(
         "Check your network connection and run flisk upgrade again",
         "Or install with: npm install -g @flisk-sh/flisk",
       ]);
-    const sums = parseChecksums(await checksumResponse.text());
+    const checksumBytes = Buffer.from(await checksumResponse.arrayBuffer());
+    // checksums.txt comes from the same release as the binaries, so check its
+    // signature before trusting anything it says.
+    spinner.text = `Verifying signature (${release.tag})...`;
+    await verifyChecksumsSignature(checksumBytes, release.checksumsBundleUrl);
+    const sums = parseChecksums(checksumBytes.toString("utf8"));
     verifyChecksum(tmpPath, release.assetName, sums, true);
     verifyChecksum(engineTmpPath, ENGINE_ASSET_NAME, sums, false);
 
