@@ -65,7 +65,13 @@ import {
   isPathDiscovered,
   readDiscoveryPaths,
 } from "../utils/discovery-paths.js";
-import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
+import {
+  errorFactories,
+  FliskError,
+  getErrorMessage,
+  requireProjectRoot,
+  runCommand,
+} from "../utils/errors.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import {
   createInfraServiceJson,
@@ -874,6 +880,15 @@ function printFrontendFrameworks(): void {
   }
 }
 
+/**
+ * The stack a new project's first resource lands in. The `--stack` help text and the
+ * fallback below read the same constant, so the printed default cannot drift from what
+ * the command assigns.
+ */
+const DEFAULT_STACK_NAME = "main";
+/** Marker for "no --stack given"; an omitted flag asks which stack to use instead of picking one. */
+const STACK_OPTION_SENTINEL = "default";
+
 export const resourceCommand = addYesOption(new Command("resource"))
   .description("Create a new resource (service) from scratch, or register an existing one")
   .argument("[name]", "Resource name (kebab-case)")
@@ -891,7 +906,10 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage, --type mail, --type payment)",
   )
   .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
-  .option("-s, --stack <stack>", "Stack to assign resource to", "default")
+  .option(
+    "-s, --stack <stack>",
+    `Stack to assign resource to (default: "${DEFAULT_STACK_NAME}" for a new project)`,
+  )
   .option("-p, --path <path>", "Custom path for resource directory")
   .option("--resource-path <path>", "Alias for --path (for backward compatibility)")
   .option("--register-existing", "Register an existing resource without creating templates")
@@ -1141,9 +1159,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
         }
       }
 
-      assertValid(validateStackName(options.stack));
-      let stackName = options.stack;
-      if (stackName === "default") {
+      assertValid(validateStackName(options.stack ?? STACK_OPTION_SENTINEL));
+      let stackName = options.stack ?? STACK_OPTION_SENTINEL;
+      if (stackName === STACK_OPTION_SENTINEL) {
         const existingResources = allResources;
         const stackSet = new Set<string>();
         for (const r of existingResources) {
@@ -1158,7 +1176,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
                 `Available stacks: ${existingStacks.join(", ")}`,
               ]);
             }
-            stackName = existingStacks[0] ?? "main";
+            stackName = existingStacks[0] ?? DEFAULT_STACK_NAME;
           } else {
             const selectedStack = await promptSelect({
               message: "Assign to stack:",
@@ -1182,15 +1200,20 @@ export const resourceCommand = addYesOption(new Command("resource"))
             }
           }
         } else if (assumeYes) {
-          stackName = "main";
+          stackName = DEFAULT_STACK_NAME;
         } else {
           const newStack = await promptText({
             message: "Stack name (first resource):",
-            initial: "main",
+            initial: DEFAULT_STACK_NAME,
             validate: (input: string) => {
               const validation = createKebabCaseValidator("stack")(input);
               return validation === true || validation;
             },
+          }).catch((err: unknown) => {
+            // A closed stdin rejects the prompt; name the flags that skip it.
+            throw new FliskError(getErrorMessage(err), [
+              "Pass --stack <name> to choose the stack, or --yes to use the default stack.",
+            ]);
           });
           stackName = newStack;
         }
