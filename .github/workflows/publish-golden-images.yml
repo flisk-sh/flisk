@@ -31,6 +31,8 @@ jobs:
     permissions:
       contents: read
       packages: write # push ghcr.io/flisk-sh/golden-* with GITHUB_TOKEN
+      id-token: write # keyless cosign signing and the provenance attestation (GitHub OIDC)
+      attestations: write # attest-build-provenance stores the attestation for the images
     env:
       # Repository secrets: the Docker Hub user and an access token that can push to <namespace>/golden-*.
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -94,3 +96,93 @@ jobs:
       - name: Verify the published golden images
         if: steps.published.outputs.skip != 'true'
         run: python3 -I scripts/golden/verify-golden-images.py "$RUNNER_TEMP/golden/golden-layers.Dockerfile" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"
+
+      # Signs every pushed image by digest (keyless, this workflow's identity) in both registries. `flisk up` runs
+      # `cosign verify` against that identity when cosign is installed. The digest of each layer comes back as a step output.
+      - name: Install cosign
+        if: steps.published.outputs.skip != 'true'
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Sign the golden images by digest
+        id: sign
+        if: steps.published.outputs.skip != 'true'
+        run: bash scripts/golden/sign-golden-images.sh "$RUNNER_TEMP/golden" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance for golden-l1
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l1
+          subject-digest: ${{ steps.sign.outputs.l1 }}
+          push-to-registry: true
+
+      - name: Attest build provenance for golden-l2
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l2
+          subject-digest: ${{ steps.sign.outputs.l2 }}
+          push-to-registry: true
+
+      - name: Attest build provenance for golden-l3-backend
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l3-backend
+          subject-digest: ${{ steps.sign.outputs.l3-backend }}
+          push-to-registry: true
+
+      - name: Attest build provenance for golden-l3-frontend
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l3-frontend
+          subject-digest: ${{ steps.sign.outputs.l3-frontend }}
+          push-to-registry: true
+
+      - name: Attest build provenance for golden-l4-backend
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-backend
+          subject-digest: ${{ steps.sign.outputs.l4-backend }}
+          push-to-registry: true
+
+      - name: Attest build provenance for golden-l4-backend-node
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-backend-node
+          subject-digest: ${{ steps.sign.outputs.l4-backend-node }}
+          push-to-registry: true
+
+      - name: Attest build provenance for golden-l4-frontend
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-frontend
+          subject-digest: ${{ steps.sign.outputs.l4-frontend }}
+          push-to-registry: true
+
+      - name: Attest build provenance for golden-l4-migrator
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-migrator
+          subject-digest: ${{ steps.sign.outputs.l4-migrator }}
+          push-to-registry: true
+
+      # Reads the signatures back with the check `flisk up` runs, so a signing step that silently did nothing fails here.
+      - name: Verify the golden image signatures
+        if: steps.published.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          tag12="$(sha256sum "$RUNNER_TEMP/golden/golden-layers.Dockerfile" | cut -c1-12)"
+          for layer in l1 l2 l3-backend l3-frontend l4-backend l4-backend-node l4-frontend l4-migrator; do
+            for registry in "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"; do
+              cosign verify \
+                --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/publish-golden-images.yml@.*' \
+                --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+                "$registry/golden-$layer:$tag12" >/dev/null
+            done
+          done

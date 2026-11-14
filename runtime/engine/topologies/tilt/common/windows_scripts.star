@@ -243,8 +243,8 @@ def golden_build_script():
     """Build the golden layer images (PowerShell twin of _GOLDEN_BUILD_TEMPLATE in golden_image_build.star).
 
     env: FLISK_GOLDEN_CONFIG, JSON {df, root, hash_label, registry, images[], legacy[], layers[{key, target, ref}]}.
-    registry is the default golden registry; FLISK_GOLDEN_REGISTRY overrides it (off or empty: no pull).
-    Also reads FLISK_GOLDEN_REBUILD and FLISK_GOLDEN_RETRY_DELAY from the environment.
+    signer_identity/signer_issuer are the cosign verify arguments. registry is the default golden registry; FLISK_GOLDEN_REGISTRY overrides it (off or empty: no pull).
+    Also reads FLISK_GOLDEN_REBUILD, FLISK_GOLDEN_VERIFY and FLISK_GOLDEN_RETRY_DELAY from the environment.
     """
     return _join([
         "$q = [char]34; $cfg = ConvertFrom-Json $env:FLISK_GOLDEN_CONFIG;",
@@ -280,7 +280,17 @@ def golden_build_script():
         "    if (-not $pulled) { break; }",
         "    $remote = $reg + '/golden-' + $l.key + ':' + $tag12;",
         "    docker pull -q $remote *> $null;",
-        "    if ($LASTEXITCODE -eq 0) { docker tag $remote $l.ref; if ($LASTEXITCODE -eq 0) { docker tag $remote ('flisk-golden-' + $l.key + ':' + $tag12); } if ($LASTEXITCODE -ne 0) { $pulled = $false; } else { docker image rm $remote *> $null; } } else { $pulled = $false; }",
+        "    $ok = ($LASTEXITCODE -eq 0);",
+        "    if ($ok) {",
+        "      $cosign = Get-Command cosign -ErrorAction SilentlyContinue;",
+        "      if ($cosign) {",
+        "        $gvRef = docker image inspect -f '{{index .RepoDigests 0}}' $remote 2>$null; if (-not $gvRef) { $gvRef = $remote; }",
+        "        cosign verify --certificate-identity-regexp $cfg.signer_identity --certificate-oidc-issuer $cfg.signer_issuer $gvRef *> $null;",
+        "        if ($LASTEXITCODE -ne 0) { Write-Output ('Signature check failed for ' + $remote + ' (cosign verify); discarding it and building locally'); $ok = $false; }",
+        "      } elseif ($env:FLISK_GOLDEN_VERIFY -eq 'require') { Write-Output ('FLISK_GOLDEN_VERIFY=require but cosign is not installed; discarding ' + $remote + ' and building locally'); $ok = $false; }",
+        "      if (-not $ok) { docker image rm $remote *> $null; }",
+        "    }",
+        "    if ($ok) { docker tag $remote $l.ref; if ($LASTEXITCODE -eq 0) { docker tag $remote ('flisk-golden-' + $l.key + ':' + $tag12); } if ($LASTEXITCODE -ne 0) { $pulled = $false; } else { docker image rm $remote *> $null; } } else { $pulled = $false; }",
         "  }",
         "  if ($pulled) {",
         "    Write-Output ('Golden images pulled from ' + $reg + ' (hash ' + $tag12 + ')');",

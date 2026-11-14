@@ -12,6 +12,10 @@ GOLDEN_HASH_LABEL = 'flisk.golden.hash'
 # Where publish-golden-images.yml pushes golden-<layer>:<hash12> (public, no login). `flisk up` pulls from here first.
 GOLDEN_REGISTRY_DEFAULT = 'ghcr.io/flisk-sh'
 
+# Who may have signed a golden image: this repository's publish workflow, keyless through GitHub's OIDC issuer.
+GOLDEN_SIGNER_IDENTITY = 'https://github.com/flisk-sh/flisk/.github/workflows/publish-golden-images.yml@.*'
+GOLDEN_SIGNER_ISSUER = 'https://token.actions.githubusercontent.com'
+
 # Machine-wide names: flisk-golden-<layer>:<hash12> is built or pulled once, every project's <project>-<layer> tag points at it.
 SHARED_GOLDEN_PREFIX = 'flisk-golden-'
 
@@ -135,9 +139,10 @@ def _pull_line(key, ref):
     untags (the project tag keeps the image): a registry tag per hash would keep every old version's image alive.
     """
     remote = '"$GOLDEN_REGISTRY/golden-' + key + ':$TAG12"'
-    return ('[ "$pulled" = 1 ] && if docker pull -q ' + remote + ' >/dev/null 2>&1 && docker tag ' + remote + ' ' + ref
+    return ('[ "$pulled" = 1 ] && if docker pull -q ' + remote + ' >/dev/null 2>&1 && golden_verify ' + remote
+        + ' && docker tag ' + remote + ' ' + ref
         + ' && docker tag ' + remote + ' ' + _shared_ref(key)
-        + '; then docker image rm ' + remote + ' >/dev/null 2>&1; else pulled=0; fi')
+        + '; then docker image rm ' + remote + ' >/dev/null 2>&1; else pulled=0; docker image rm ' + remote + ' >/dev/null 2>&1; fi')
 
 
 def _pull_block(pull_lines):
@@ -145,8 +150,24 @@ def _pull_block(pull_lines):
     Prebuilt images, on by default. Every golden image is pulled from GOLDEN_REGISTRY_DEFAULT for this Dockerfile's
     hash before anything is built; FLISK_GOLDEN_REGISTRY names another registry, and `off` (or an empty value) turns
     the pull off. If any pull fails (offline, or no image published for this hash), the local build runs as before.
+    Each pulled image is checked with `cosign verify` when cosign is on PATH (signed by publish-golden-images.yml); an
+    image that fails is discarded and counts as a failed pull. Without cosign nothing is checked, unless
+    FLISK_GOLDEN_VERIFY=require, which treats a missing cosign like a failed check.
     """
     return '\n'.join([
+        'golden_verify() {',
+        '  if ! command -v cosign >/dev/null 2>&1; then',
+        '    [ "$FLISK_GOLDEN_VERIFY" = require ] || return 0',
+        '    echo "❌ FLISK_GOLDEN_VERIFY=require but cosign is not installed; discarding $1 and building locally"',
+        '    return 1',
+        '  fi',
+        '  gv_ref="$(docker image inspect -f \'{{index .RepoDigests 0}}\' "$1" 2>/dev/null)"',
+        '  [ -n "$gv_ref" ] || gv_ref="$1"',
+        '  if cosign verify --certificate-identity-regexp \'' + GOLDEN_SIGNER_IDENTITY + '\' --certificate-oidc-issuer ' + GOLDEN_SIGNER_ISSUER
+            + ' "$gv_ref" >/dev/null 2>&1; then return 0; fi',
+        '  echo "❌ Signature check failed for $1 (cosign verify); discarding it and building locally"',
+        '  return 1',
+        '}',
         'GOLDEN_REGISTRY="${FLISK_GOLDEN_REGISTRY-' + GOLDEN_REGISTRY_DEFAULT + '}"',
         'case "$GOLDEN_REGISTRY" in off|none|false|0) GOLDEN_REGISTRY="" ;; esac',
         'if [ -n "$GOLDEN_REGISTRY" ] && [ -z "$FLISK_GOLDEN_REBUILD" ]; then',
@@ -272,6 +293,8 @@ def build_golden_layers(project_root='.', needed=True):
             'root': context,
             'hash_label': GOLDEN_HASH_LABEL,
             'registry': GOLDEN_REGISTRY_DEFAULT,
+            'signer_identity': GOLDEN_SIGNER_IDENTITY,
+            'signer_issuer': GOLDEN_SIGNER_ISSUER,
             'images': images,
             'legacy': LEGACY_GOLDEN_IMAGES,
             'layers': [{'key': k, 'target': GOLDEN_LAYERS[k]['target'], 'ref': GOLDEN_LAYERS[k]['name'] + ':' + GOLDEN_LAYERS[k]['tag']} for k in GOLDEN_LAYERS],

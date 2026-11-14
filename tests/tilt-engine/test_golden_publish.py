@@ -10,7 +10,11 @@ Covers two things:
   docker.io/flisk-sh, which never existed, so following them always fell back to a local build)
 """
 
+from __future__ import annotations
+
 import fnmatch
+import json
+import shutil
 import hashlib
 import os
 import re
@@ -290,3 +294,162 @@ class TestVerifyPublishedImages:
 
         assert push < verify
         assert '"$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"' in text[verify:]
+
+
+SIGN = REPO_ROOT / "scripts" / "golden" / "sign-golden-images.sh"
+IDENTITY = "https://github.com/flisk-sh/flisk/.github/workflows/publish-golden-images.yml@.*"
+ISSUER = "https://token.actions.githubusercontent.com"
+
+
+class TestWorkflowSignsEveryImage:
+    """The publish workflow signs by digest (keyless) and attests provenance, with the permissions at job level only."""
+
+    TEXT = WORKFLOW.read_text(encoding="utf-8")
+
+    def test_signing_comes_after_the_push_and_uses_a_pinned_installer(self):
+        push = self.TEXT.index("push-golden-images.sh")
+        sign = self.TEXT.index("sign-golden-images.sh")
+
+        assert push < sign
+        assert re.search(r"sigstore/cosign-installer@[0-9a-f]{40} # v", self.TEXT)
+
+    def test_every_layer_gets_a_pinned_provenance_attestation_pushed_to_the_registry(self):
+        for layer in LAYERS:
+            assert f"subject-digest: ${{{{ steps.sign.outputs.{layer} }}}}" in self.TEXT
+            assert f"subject-name: ${{{{ env.GHCR_REGISTRY }}}}/golden-{layer}\n" in self.TEXT
+        assert len(re.findall(r"actions/attest-build-provenance@[0-9a-f]{40} # v", self.TEXT)) == len(LAYERS)
+        assert self.TEXT.count("push-to-registry: true") == len(LAYERS)
+
+    def test_oidc_and_attestation_permissions_are_on_the_job_not_the_workflow(self):
+        top, job = self.TEXT.split("\njobs:\n", 1)
+
+        assert "id-token" not in top and "attestations" not in top
+        assert re.search(r"^\s+id-token: write\b", job, re.M)
+        assert re.search(r"^\s+attestations: write\b", job, re.M)
+
+    def test_the_workflow_reads_the_signatures_back_with_the_pull_side_check(self):
+        assert f"--certificate-identity-regexp '{IDENTITY}'" in self.TEXT
+        assert f"--certificate-oidc-issuer {ISSUER}" in self.TEXT
+
+
+@pytest.mark.skipif(os.name == "nt", reason="runs a POSIX shell script")
+class TestSignScript:
+    def test_signs_each_layer_by_digest_in_every_registry(self, tmp_path):
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        log = tmp_path / "log"
+        (bin_dir / "docker").write_text("#!/bin/bash\necho sha256:" + "a" * 64 + "\n", encoding="utf-8")
+        (bin_dir / "cosign").write_text(f'#!/bin/bash\necho "$@" >> "{log}"\n', encoding="utf-8")
+        for tool in ("docker", "cosign"):
+            (bin_dir / tool).chmod(0o755)
+        golden = tmp_path / "golden"
+        golden.mkdir()
+        (golden / "golden-layers.Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+        env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+
+        result = subprocess.run(["bash", str(SIGN), str(golden), "ghcr.io/x", "docker.io/y"], capture_output=True, text=True, env=env, check=False)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [f"{layer}=sha256:{'a' * 64}" for layer in LAYERS]
+        calls = log.read_text(encoding="utf-8").splitlines()
+        assert len(calls) == 2 * len(LAYERS)
+        assert calls[0] == f"sign --yes ghcr.io/x/golden-l1@sha256:{'a' * 64}"
+        assert all("@sha256:" in call for call in calls)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or shutil.which("tilt") is None, reason="renders the pull script with Tilt and runs it in a POSIX shell"
+)
+class TestPullVerifiesSignature:
+    """The generated golden pull script runs `cosign verify` when cosign is present, and FLISK_GOLDEN_VERIFY=require needs it."""
+
+    FALLBACK = "building them here"
+
+    @pytest.fixture(scope="class")
+    def script(self, tmp_path_factory):
+        work = tmp_path_factory.mktemp("render")
+        (work / "Tiltfile").write_text(
+            f"load('{GOLDEN_BUILD}', 'build_golden_layers')\nbuild_golden_layers('.')\n", encoding="utf-8"
+        )
+        proc = subprocess.run(
+            ["tilt", "alpha", "tiltfile-result", "-f", "Tiltfile"], capture_output=True, text=True, cwd=work, timeout=180, check=False
+        )
+        manifests = json.loads(proc.stdout)["Manifests"]
+        return manifests[0]["DeployTarget"]["UpdateCmdSpec"]["args"][2]
+
+    @staticmethod
+    def _run(tmp_path: Path, script: str, cosign: str | None, **env_extra: str):
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        log = tmp_path / "log"
+        # Fake docker: pull and tag work, no image carries a hash label (so nothing counts as built), the build always fails.
+        (bin_dir / "docker").write_text(
+            "#!/bin/bash\n"
+            f'echo "docker $*" >> "{log}"\n'
+            'case "$1 $2" in\n'
+            '  "image inspect") case "$*" in *RepoDigests*) echo "ghcr.io/flisk-sh/golden-l1@sha256:abc" ;; esac; exit 0 ;;\n'
+            '  "buildx version") exit 1 ;;\n'
+            '  "build "*|"build -"*) exit 1 ;;\n'
+            "esac\n"
+            'case "$1" in build) exit 1 ;; esac\n'
+            "exit 0\n",
+            encoding="utf-8",
+        )
+        (bin_dir / "docker").chmod(0o755)
+        if cosign is not None:
+            (bin_dir / "cosign").write_text(f'#!/bin/bash\necho "cosign $*" >> "{log}"\nexit {cosign}\n', encoding="utf-8")
+            (bin_dir / "cosign").chmod(0o755)
+        project = tmp_path / "project"
+        (project / ".flisk" / ".flisk-out").mkdir(parents=True)
+        (project / ".flisk" / ".flisk-out" / "golden-layers.Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+        # PATH holds only the fakes and the system essentials, so a cosign on the developer's machine is never found.
+        env = {"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(tmp_path), **env_extra}
+        result = subprocess.run(["sh", "-c", script], capture_output=True, text=True, cwd=project, env=env, check=False)
+        calls = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+        return result.stdout + result.stderr, calls, result.returncode
+
+    def test_cosign_present_and_verify_passes_keeps_the_pulled_images(self, tmp_path, script):
+        out, calls, code = self._run(tmp_path, script, cosign="0")
+
+        assert code == 0, out
+        assert "Golden images pulled from ghcr.io/flisk-sh" in out
+        verifies = [c for c in calls if c.startswith("cosign verify")]
+        assert len(verifies) == len(LAYERS)
+        assert f"--certificate-identity-regexp {IDENTITY} --certificate-oidc-issuer {ISSUER}" in verifies[0]
+        assert verifies[0].endswith("ghcr.io/flisk-sh/golden-l1@sha256:abc")  # by digest, not by the movable tag
+
+    def test_cosign_present_and_verify_fails_discards_the_image_and_builds_locally(self, tmp_path, script):
+        out, calls, _ = self._run(tmp_path, script, cosign="1")
+
+        assert "Signature check failed for ghcr.io/flisk-sh/golden-l1:" in out
+        assert self.FALLBACK in out
+        assert "Golden images pulled" not in out
+        assert sum(c.startswith("cosign verify") for c in calls) == 1  # the remaining layers are not tried
+        assert any(c.startswith("docker image rm ghcr.io/flisk-sh/golden-l1:") for c in calls)
+        assert not any(c.startswith("docker tag ") for c in calls)  # nothing was tagged as the project's image
+
+    def test_no_cosign_behaves_as_before(self, tmp_path, script):
+        out, calls, code = self._run(tmp_path, script, cosign=None)
+
+        assert code == 0, out
+        assert "Golden images pulled from ghcr.io/flisk-sh" in out
+        assert not any(c.startswith("cosign") for c in calls)
+
+    def test_no_cosign_with_require_builds_locally(self, tmp_path, script):
+        out, calls, _ = self._run(tmp_path, script, cosign=None, FLISK_GOLDEN_VERIFY="require")
+
+        assert "FLISK_GOLDEN_VERIFY=require but cosign is not installed" in out
+        assert self.FALLBACK in out
+        assert not any(c.startswith("docker tag ") for c in calls)
+
+    def test_require_with_a_passing_cosign_still_uses_the_pull(self, tmp_path, script):
+        out, _, code = self._run(tmp_path, script, cosign="0", FLISK_GOLDEN_VERIFY="require")
+
+        assert code == 0, out
+        assert "Golden images pulled from ghcr.io/flisk-sh" in out
+
+    def test_windows_script_carries_the_same_check(self):
+        windows = (REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "common" / "windows_scripts.star").read_text(encoding="utf-8")
+
+        assert "cosign verify --certificate-identity-regexp $cfg.signer_identity --certificate-oidc-issuer $cfg.signer_issuer" in windows
+        assert "FLISK_GOLDEN_VERIFY" in windows
