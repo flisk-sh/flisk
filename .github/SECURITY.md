@@ -38,3 +38,7 @@ In scope: the `flisk` CLI, the Tilt engine and generated local runtime files in 
 ## What Flisk sends and how secrets are handled
 
 See [docs/security.md](../docs/security.md).
+
+## Due diligence
+
+For who runs Flisk, how it is paid for, its security record and what has not been checked yet, see [docs/project/TRUST.md](../docs/project/TRUST.md). A scope for an independent review is in [docs/security-review-brief.md](../docs/security-review-brief.md).

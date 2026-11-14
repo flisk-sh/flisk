@@ -35,3 +35,7 @@ A future foundation donation covers the MIT tree only. It does not include imple
 ## Contributions
 
 Commits must carry a DCO sign-off; see [CONTRIBUTING.md](../../.github/CONTRIBUTING.md) and [DCO](DCO).
+
+## Due diligence
+
+[TRUST.md](TRUST.md) answers the questions a reviewer asks before depending on Flisk: who runs it, how it is funded, its security record, and what is not stated yet.
