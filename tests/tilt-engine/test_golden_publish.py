@@ -181,7 +181,23 @@ class TestWorkflowPublishesEveryHash:
 
         assert check < push
         steps = text[check:].split("\n      - ")[1:]
-        assert steps and all("if: steps.published.outputs.skip != 'true'" in step for step in steps)
+        building = [step for step in steps if re.search(r"setup-qemu|setup-buildx|push-golden-images\.sh|verify-golden-images\.py", step)]
+        assert len(building) == 4
+        assert all("if: steps.published.outputs.skip != 'true'\n" in step for step in building)
+
+    def test_an_already_published_hash_is_still_checked_for_a_signature(self):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        steps = text[text.index("golden-published.sh"):].split("\n      - ")[1:]
+        looks = next(step for step in steps if "golden-signed.sh" in step)
+        signing = [step for step in steps if re.search(r"sign-golden-images\.sh|attest-build-provenance|Verify the golden image signatures", step)]
+
+        assert "if: steps.published.outputs.skip == 'true'" in looks
+        assert len(signing) == len(LAYERS) + 2  # sign, one attestation per layer, read-back
+        assert all("steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'" in step for step in signing)
+        # Signing pushes signatures, so the logins and cosign cannot wait for a build.
+        for step in steps:
+            if "docker/login-action" in step or "cosign-installer" in step:
+                assert "if:" not in step
 
 
 @pytest.mark.skipif(os.name == "nt", reason="runs a POSIX shell script")
@@ -453,3 +469,32 @@ class TestPullVerifiesSignature:
 
         assert "cosign verify --certificate-identity-regexp $cfg.signer_identity --certificate-oidc-issuer $cfg.signer_issuer" in windows
         assert "FLISK_GOLDEN_VERIFY" in windows
+
+
+GOLDEN_SIGNED = REPO_ROOT / "scripts" / "golden" / "golden-signed.sh"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="runs a POSIX shell script")
+class TestExistingHashSigning:
+    """golden-signed.sh decides between "skip entirely" (signed) and "sign only" (exists, unsigned)."""
+
+    @staticmethod
+    def _run(tmp_path: Path, cosign_exit: int):
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        (bin_dir / "cosign").write_text(f"#!/bin/bash\nexit {cosign_exit}\n", encoding="utf-8")
+        (bin_dir / "cosign").chmod(0o755)
+        golden = tmp_path / "golden"
+        golden.mkdir()
+        (golden / "golden-layers.Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+        env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+        return subprocess.run(["bash", str(GOLDEN_SIGNED), str(golden), "ghcr.io/x", "docker.io/y"], capture_output=True, text=True, env=env, check=False)
+
+    def test_signed_hash_is_skipped_entirely(self, tmp_path):
+        assert self._run(tmp_path, 0).returncode == 0
+
+    def test_existing_unsigned_hash_asks_for_signing_only(self, tmp_path):
+        result = self._run(tmp_path, 1)
+
+        assert result.returncode == 1
+        assert "is not signed in ghcr.io/x" in result.stderr

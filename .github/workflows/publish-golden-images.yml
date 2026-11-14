@@ -4,7 +4,7 @@ name: 🏷️ RELEASE | Image | Publish golden images
 # (ghcr.io/flisk-sh/golden-<layer>:<hash12>) and to Docker Hub (docker.io/alexdykyi), the same image in both. `flisk up`
 # pulls these from ghcr.io/flisk-sh by default and builds locally only when the pull fails, so the hash of every engine on
 # main has to be published: this runs on each push to main that can change the golden Dockerfile, and skips a hash that is
-# already in GHCR. Run it by hand to republish. GHCR makes a new package private: after the first push of a NEW layer, an
+# already in GHCR (it still signs and attests that hash when it has no signature yet). Run it by hand to republish. GHCR makes a new package private: after the first push of a NEW layer, an
 # org owner sets that golden-* package to public in its package settings, or anonymous pulls fail and projects build locally.
 on:
   push:
@@ -75,14 +75,12 @@ jobs:
         if: steps.published.outputs.skip != 'true'
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        if: steps.published.outputs.skip != 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        if: steps.published.outputs.skip != 'true'
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
@@ -100,16 +98,25 @@ jobs:
       # Signs every pushed image by digest (keyless, this workflow's identity) in both registries. `flisk up` runs
       # `cosign verify` against that identity when cosign is installed. The digest of each layer comes back as a step output.
       - name: Install cosign
-        if: steps.published.outputs.skip != 'true'
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # A hash that is already published is not rebuilt, but images pushed before signing existed carry no signature: look for
+      # one with the check `flisk up` runs, and sign (and attest) the existing digests only when it is missing.
+      - name: Look for a signature on an already published hash
+        id: signed
+        if: steps.published.outputs.skip == 'true'
+        run: |
+          if bash scripts/golden/golden-signed.sh "$RUNNER_TEMP/golden" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Sign the golden images by digest
         id: sign
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         run: bash scripts/golden/sign-golden-images.sh "$RUNNER_TEMP/golden" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY" >> "$GITHUB_OUTPUT"
 
       - name: Attest build provenance for golden-l1
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l1
@@ -117,7 +124,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance for golden-l2
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l2
@@ -125,7 +132,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance for golden-l3-backend
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l3-backend
@@ -133,7 +140,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance for golden-l3-frontend
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l3-frontend
@@ -141,7 +148,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance for golden-l4-backend
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-backend
@@ -149,7 +156,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance for golden-l4-backend-node
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-backend-node
@@ -157,7 +164,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance for golden-l4-frontend
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-frontend
@@ -165,7 +172,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance for golden-l4-migrator
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.GHCR_REGISTRY }}/golden-l4-migrator
@@ -174,7 +181,7 @@ jobs:
 
       # Reads the signatures back with the check `flisk up` runs, so a signing step that silently did nothing fails here.
       - name: Verify the golden image signatures
-        if: steps.published.outputs.skip != 'true'
+        if: steps.published.outputs.skip != 'true' || steps.signed.outputs.signed != 'true'
         run: |
           set -euo pipefail
           tag12="$(sha256sum "$RUNNER_TEMP/golden/golden-layers.Dockerfile" | cut -c1-12)"
