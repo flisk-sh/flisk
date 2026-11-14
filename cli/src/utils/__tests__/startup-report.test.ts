@@ -66,7 +66,7 @@ describe("buildStartupReport", () => {
 
   it("does not blame a failure for a service that does not depend on it", () => {
     const report = buildStartupReport(
-      json(item("postgres", "error", "none"), item("worker", "pending", "pending")),
+      json(item("redis", "error", "none"), item("worker", "pending", "pending")),
       { worker: [] },
     );
     expect(report.blocked).toEqual([]);
@@ -97,7 +97,11 @@ describe("buildStartupReport", () => {
     expect(report.failed).toEqual([
       { name: "postgres", message: "container is running, but its health check is failing" },
     ]);
-    expect(report.blocked).toEqual([{ name: "api", because: ["postgres"] }]);
+    // Shared postgres is needed by every service, so the worker is blocked too (#4125).
+    expect(report.blocked).toEqual([
+      { name: "api", because: ["postgres"] },
+      { name: "worker", because: ["postgres"] },
+    ]);
     expect(report.starting).toEqual([]);
   });
 
@@ -144,7 +148,7 @@ describe("buildStartupReport", () => {
 
   it("counts exactly the resources parseTiltResourceFailures counts as pending", () => {
     const mixed = json(
-      item("postgres", "error", "none"),
+      item("redis", "error", "none"),
       item("a", "pending", "pending"),
       item("b", "ok", "pending"),
       item("c", "none", "none"),
@@ -152,7 +156,7 @@ describe("buildStartupReport", () => {
       item("e", "ok", "not_applicable"),
       item("(Tiltfile)", "pending", "none"),
     );
-    const deps = { a: ["postgres"] };
+    const deps = { a: ["redis"] };
     const report = buildStartupReport(mixed, deps);
     const parsed = parseTiltResourceFailures(mixed);
     expect(report.blocked.length + report.starting.length).toBe(parsed.pendingCount);
@@ -318,8 +322,40 @@ describe("isStartupStalled", () => {
   });
 
   it("is false while something unrelated to the failure is still starting", () => {
-    const text = json(item("postgres", "error", "none"), item("worker", "pending", "pending"));
+    const text = json(item("api", "error", "none"), item("worker", "pending", "pending"));
     expect(isStartupStalled(text, deps)).toBe(false);
+  });
+
+  it("is true as soon as shared postgres fails, though an unrelated image build is still running", () => {
+    const text = json(
+      item("postgres", "error", "none"),
+      item("kitchen-api-image", "error", "none", failedBuild("npm ERR!")),
+      item("restaurant-migrator-image", "in_progress", "pending"),
+      item("migrator", "pending", "pending"),
+    );
+    expect(isStartupStalled(text, deps)).toBe(true);
+    const report = buildStartupReport(text, deps);
+    expect(report.starting).toEqual([]);
+    expect(report.blocked.map((b) => b.name)).toContain("restaurant-migrator-image");
+  });
+
+  it("is true when traefik or the golden layers build fails", () => {
+    for (const shared of ["traefik", "golden-layers-build"]) {
+      const text = json(item(shared, "error", "none"), item("web-image", "in_progress", "pending"));
+      expect(isStartupStalled(text, {})).toBe(true);
+    }
+  });
+
+  it("keeps waiting when only one image failed and other services can still start", () => {
+    const text = json(
+      item("postgres", "ok", "ok"),
+      item("kitchen-api-image", "error", "none", failedBuild("npm ERR!")),
+      item("menu-api-image", "in_progress", "pending"),
+    );
+    expect(isStartupStalled(text, {})).toBe(false);
+    const report = buildStartupReport(text, {});
+    expect(report.failed.map((f) => f.name)).toEqual(["kitchen-api-image"]);
+    expect(report.stillBuilding).toEqual(["menu-api-image"]);
   });
 
   it("is false when nothing has failed", () => {
