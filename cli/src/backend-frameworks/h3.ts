@@ -4,7 +4,11 @@ import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/g
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
-export function getH3IndexTemplate(name: string) {
+export function getH3IndexTemplate(
+  name: string,
+  _durability?: string,
+  options: { port?: number } = {},
+) {
   return `import { createServer } from 'node:http';
 import { createApp, createRouter, defineEventHandler, handleCors, toNodeListener } from 'h3';
 
@@ -32,7 +36,7 @@ router.get('/', defineEventHandler(() => ({
 
 app.use(router);
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // node:http works on Bun. Bind beyond loopback: Traefik reaches the container over the Docker network.
 createServer(toNodeListener(app)).listen(port, '0.0.0.0', () => {

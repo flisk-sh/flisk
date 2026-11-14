@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
-export function getElysiaIndexTemplate(name) {
+export function getElysiaIndexTemplate(name, _durability, options = {}) {
     return `import { cors } from '@elysiajs/cors';
 import { Elysia } from 'elysia';
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // ${LOCAL_FRONTEND_CORS_REASON}
 ${localFrontendOriginConst()}

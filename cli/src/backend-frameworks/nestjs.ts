@@ -4,7 +4,11 @@ import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/g
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendFrameworkProvider } from "./types.js";
 
-export function getNestIndexTemplate(name: string) {
+export function getNestIndexTemplate(
+  name: string,
+  _durability?: string,
+  options: { port?: number } = {},
+) {
   return `import 'reflect-metadata';
 import { Controller, Get, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -36,7 +40,7 @@ class AppModule {}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log'] });
-${portFromEnv("port", "  ")}
+${portFromEnv("port", "  ", options.port)}
 
   app.enableCors({ origin: LOCAL_FRONTEND_ORIGIN });
 

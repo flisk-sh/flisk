@@ -8,7 +8,9 @@ export declare const MCP_ICON_512_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAgAAAAIA
  * The generated MCP server's src/index.ts: a stateless Streamable HTTP endpoint at /mcp with a sample tool and prompt, a
  * /health route and the icon at /icon-512.png, advertised in serverInfo.icons. It listens only when run as the entry point.
  */
-export declare function getMcpIndexTemplate(name: string): string;
+export declare function getMcpIndexTemplate(name: string, _durability?: string, options?: {
+    port?: number;
+}): string;
 /**
  * The generated project's protocol test: it starts the server on a port from the OS and speaks JSON-RPC to /mcp the way a
  * client does (initialize, tools/list, prompts/list, one tools/call), then checks the 405 on GET /mcp and the icon.

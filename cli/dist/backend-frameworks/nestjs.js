@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
-export function getNestIndexTemplate(name) {
+export function getNestIndexTemplate(name, _durability, options = {}) {
     return `import 'reflect-metadata';
 import { Controller, Get, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -34,7 +34,7 @@ class AppModule {}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log'] });
-${portFromEnv("port", "  ")}
+${portFromEnv("port", "  ", options.port)}
 
   app.enableCors({ origin: LOCAL_FRONTEND_ORIGIN });
 

@@ -4,16 +4,24 @@ import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/g
 import { portFromEnv } from "../utils/generated-port.js";
 import type { BackendLanguageProvider } from "./types.js";
 
-export function getBackendIndexTemplate(name: string) {
-  return renderBackendIndex(name, false);
+export function getBackendIndexTemplate(
+  name: string,
+  _durability?: string,
+  options: { port?: number } = {},
+) {
+  return renderBackendIndex(name, false, options);
 }
 
 /** The Bun + Hono backend with a `/health/db` route that runs a query through the Drizzle client. */
-export function getDrizzleBackendIndexTemplate(name: string) {
-  return renderBackendIndex(name, true);
+export function getDrizzleBackendIndexTemplate(
+  name: string,
+  _durability?: string,
+  options: { port?: number } = {},
+) {
+  return renderBackendIndex(name, true, options);
 }
 
-function renderBackendIndex(name: string, drizzle: boolean) {
+function renderBackendIndex(name: string, drizzle: boolean, options: { port?: number }) {
   const drizzleImports = drizzle
     ? "import { sql } from 'drizzle-orm';\nimport { db } from './db.js';\n"
     : "";
@@ -68,7 +76,7 @@ ${drizzleRoute}app.get('/', (c) => {
   });
 });
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 console.log('\\n🚀 ${name} running on http://localhost:' + port);
 console.log('📊 Health check: http://localhost:' + port + '/health\\n');
 

@@ -4,7 +4,7 @@ import { portFromEnv } from "../utils/generated-port.js";
  * It is the escape hatch the agent resource type is built on. Replace the `runTurn` body with your model call and tools;
  * the process contract around it (health, readiness, session checkpoints, SIGTERM drain) is what Flisk relies on.
  */
-export function getCustomAgentIndexTemplate(name, durability = "files") {
+export function getCustomAgentIndexTemplate(name, durability = "files", options = {}) {
     if (durability === "postgres") {
         return `import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { Client } from 'pg';
@@ -17,7 +17,7 @@ import { Client } from 'pg';
 // /health: the process is alive. /ready: the checkpoint store is reachable. Idle is healthy, so /health never checks the store.
 
 const DURABILITY = 'postgres';
-${portFromEnv("PORT")}
+${portFromEnv("PORT", "", options.port)}
 const DRAIN_TIMEOUT_MS = 10_000;
 // A checkpoint is kept until its session has been quiet this long, swept on this interval. Idle is healthy here and
 // nothing else ever reaps a session, so without the sweep the checkpoint store grows for the life of the service.
@@ -350,7 +350,7 @@ import { join } from 'node:path';
 
 const DURABILITY = 'files';
 const STATE_DIR = process.env.AGENT_STATE_DIR || join(process.cwd(), '.agent-state');
-${portFromEnv("PORT")}
+${portFromEnv("PORT", "", options.port)}
 const DRAIN_TIMEOUT_MS = 10_000;
 // A checkpoint is kept until its session has been quiet this long, swept on this interval. Idle is healthy here and
 // nothing else ever reaps a session, so without the sweep the checkpoint store grows for the life of the service.

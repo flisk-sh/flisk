@@ -4,5 +4,7 @@ import type { BackendFrameworkProvider } from "../backend-frameworks/types.js";
  * It is the escape hatch the agent resource type is built on. Replace the `runTurn` body with your model call and tools;
  * the process contract around it (health, readiness, session checkpoints, SIGTERM drain) is what Flisk relies on.
  */
-export declare function getCustomAgentIndexTemplate(name: string, durability?: "files" | "postgres"): string;
+export declare function getCustomAgentIndexTemplate(name: string, durability?: "files" | "postgres", options?: {
+    port?: number;
+}): string;
 export declare const customAgentRuntime: BackendFrameworkProvider;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { LOCAL_FRONTEND_CORS_REASON, localFrontendOriginConst } from "../utils/generated-cors.js";
 import { portFromEnv } from "../utils/generated-port.js";
-export function getFastifyIndexTemplate(name) {
+export function getFastifyIndexTemplate(name, _durability, options = {}) {
     return `import cors from '@fastify/cors';
 import Fastify from 'fastify';
 
@@ -37,7 +37,7 @@ app.get('/', async () => ({
   endpoints: ['/health', '/health/live', '/health/ready']
 }));
 
-${portFromEnv()}
+${portFromEnv("port", "", options.port)}
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 await app.listen({ port, host: '0.0.0.0' });
