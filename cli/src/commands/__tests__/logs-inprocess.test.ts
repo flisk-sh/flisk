@@ -132,6 +132,29 @@ describe("flisk logs (in-process)", () => {
       expect(tilt.runTilt).not.toHaveBeenCalled();
     });
 
+    it("--json masks secret shapes and a private key spread over several lines", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([
+        line("api", "Authorization: Bearer abcdef1234567890"),
+        line("api", "-----" + "BEGIN PRIVATE KEY-----"),
+        line("api", "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC"),
+        line("api", "-----" + "END PRIVATE KEY-----"),
+        line("frontend", "AKI" + "AIOSFODNN7EXAMPLE"),
+        line("frontend", "ready"),
+      ]);
+
+      const run = await runLogs(["--json"]);
+      const texts = parseEnvelope(run.stdout).data.lines.map((l: NativeLogLine) => l.text);
+
+      expect(texts).toEqual([
+        "Authorization: Bearer [REDACTED]",
+        "[REDACTED]",
+        "[REDACTED]",
+        "[REDACTED]",
+        "[REDACTED]",
+        "ready",
+      ]);
+    });
+
     it("prints each line behind its service name, padded to the longest, with secrets redacted", async () => {
       secrets.envSecretValues.mockReturnValue(["hunter2-secret"]);
       nativeRuntime.readNativeLogLines.mockReturnValue([

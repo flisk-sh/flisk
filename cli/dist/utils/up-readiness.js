@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { execFile, execFileSync } from "node:child_process";
 import { findStaleDisabledResources, getDeferredResourceNames, parseTiltResourceFailures, } from "./doctor-runtime.js";
+import { redactProjectText } from "./secret-redaction.js";
 import { isHealthCheckDisabled } from "./service-manifest.js";
 import { discoverResources } from "./services.js";
 import { effectiveRuntimeStatus } from "./tilt-resource-state.js";
@@ -14,7 +15,10 @@ export function tiltGetUiResources(port) {
 }
 export function tiltResourceLogs(port, name) {
     return new Promise((resolve) => {
-        execFile(findOnPath("tilt") ?? "tilt", ["logs", name, "--port", String(port)], { timeout: 15_000, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => resolve(error ? null : stdout));
+        execFile(findOnPath("tilt") ?? "tilt", ["logs", name, "--port", String(port)], { timeout: 15_000, maxBuffer: 16 * 1024 * 1024 }, 
+        // An application can print its own environment, so what the user or an agent reads is masked here, at the one place every
+        // `flisk up` log excerpt comes from (failure reasons, timeouts, URL checks).
+        (error, stdout) => resolve(error ? null : redactProjectText(stdout)));
     });
 }
 /**

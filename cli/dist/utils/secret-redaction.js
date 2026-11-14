@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
+import { findProjectRoot } from "./paths.js";
+import { discoverResourcesWithProblems } from "./services.js";
 export const REDACTED = "[REDACTED]";
 export class EnvUnreadableError extends FliskError {
     path;
@@ -19,15 +22,85 @@ export class EnvUnreadableError extends FliskError {
  */
 export const MIN_REDACTED_VALUE_LENGTH = 8;
 /**
- * Values of the project's own .env file, longest first so a value that contains another is masked whole. Throws when the
- * file exists but cannot be read: continuing without the values would print secrets unmasked.
+ * Values of the project's own .env file and of the services' env, longest first so a value that contains another is masked
+ * whole. The sources are the project `.env`, the file `--env-file` selected (FLISK_ENV_FILE) and `extraEnvPaths`, each
+ * bring-your-own service's `envFile` files, the shell values of the names a service lists under `secrets`, and the `env` and
+ * `params` entries of a service whose name says it is a secret (PASSWORD, TOKEN, KEY ...). Throws when an env file exists but
+ * cannot be read: continuing without the values would print secrets unmasked.
  */
 export function envSecretValues(projectRoot, extraEnvPaths = []) {
+    const selected = process.env[PROJECT_ENV_FILE_VAR];
     const values = [
         ...secretValuesOf(join(projectRoot, ".env")),
         ...extraEnvPaths.flatMap((path) => secretValuesOf(path)),
+        ...(selected ? secretValuesOf(selected) : []),
+        ...serviceSecretValues(projectRoot),
     ];
     return [...new Set(values)].sort((a, b) => b.length - a.length);
+}
+/** A variable name that says its value is a secret. */
+const SECRET_NAME = /(?:SECRET|TOKEN|PASSW(?:OR)?D|PASSPHRASE|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_?KEY|AUTH|(?:^|_)KEY$)/i;
+function secretNamesOf(secrets) {
+    if (!secrets || typeof secrets !== "object")
+        return [];
+    const names = [];
+    for (const kind of ["required", "optional", "generate"]) {
+        const list = secrets[kind];
+        if (Array.isArray(list)) {
+            for (const item of list) {
+                if (typeof item === "string")
+                    names.push(item);
+                else if (item &&
+                    typeof item === "object" &&
+                    typeof item.name === "string")
+                    names.push(item.name);
+            }
+        }
+        else if (list && typeof list === "object")
+            names.push(...Object.keys(list));
+    }
+    return names;
+}
+/**
+ * Secret values that a service declares itself: the other half of what reaches a container or a local process besides the
+ * project .env. A project whose services cannot be discovered contributes nothing here (the .env values still apply).
+ */
+function serviceSecretValues(projectRoot) {
+    let resources;
+    try {
+        resources = discoverResourcesWithProblems(projectRoot).resources;
+    }
+    catch {
+        return [];
+    }
+    const found = [];
+    const keep = (value) => {
+        if (typeof value === "string" && value.length >= MIN_REDACTED_VALUE_LENGTH)
+            found.push(value);
+    };
+    for (const resource of resources) {
+        const config = resource.config;
+        if (!config)
+            continue;
+        for (const name of secretNamesOf(config.secrets))
+            keep(process.env[name]);
+        for (const field of ["env", "params"]) {
+            const entries = config[field];
+            if (!entries || typeof entries !== "object" || Array.isArray(entries))
+                continue;
+            for (const [name, value] of Object.entries(entries)) {
+                if (SECRET_NAME.test(name))
+                    keep(value);
+            }
+        }
+        if (Array.isArray(config.envFile)) {
+            for (const file of config.envFile) {
+                if (typeof file === "string")
+                    found.push(...secretValuesOf(join(resource.path, file)));
+            }
+        }
+    }
+    return found;
 }
 /** Smallest line of a multiline secret that is masked on its own; ordinary 1-3 letter words stay readable. */
 const MIN_REDACTED_LINE_LENGTH = 4;
@@ -74,16 +147,104 @@ function secretValuesOf(envPath) {
         return parts.length > 1 ? [value, ...parts] : [value];
     });
 }
+/**
+ * Secret shapes masked wherever they appear, whether or not the value is in an env file: a token an application printed from
+ * its own memory, a connection string, a key pair. Each pattern keeps its non-secret part (`Bearer `, `postgres://user:`) so
+ * the line stays readable. The list is deliberately short and specific; it is not a secret scanner.
+ */
+export const SECRET_PATTERNS = [
+    {
+        name: "private key block",
+        pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----/g,
+        replacement: REDACTED,
+    },
+    {
+        name: "private key header without its end",
+        pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----[^\r\n]*/g,
+        replacement: REDACTED,
+    },
+    {
+        name: "bearer token",
+        pattern: /\b(Bearer\s+)[A-Za-z0-9._~+/=-]{8,}/gi,
+        replacement: `$1${REDACTED}`,
+    },
+    {
+        name: "url credentials",
+        pattern: /\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:)[^\s@/]+(@)/gi,
+        replacement: `$1${REDACTED}$2`,
+    },
+    { name: "aws access key id", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g, replacement: REDACTED },
+    { name: "github token", pattern: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/g, replacement: REDACTED },
+    {
+        name: "github fine-grained token",
+        pattern: /\bgithub_pat_[A-Za-z0-9_]{22,}\b/g,
+        replacement: REDACTED,
+    },
+    { name: "slack token", pattern: /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, replacement: REDACTED },
+    {
+        name: "stripe key",
+        pattern: /\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}\b/g,
+        replacement: REDACTED,
+    },
+    {
+        name: "provider api key",
+        pattern: /\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{24,}/g,
+        replacement: REDACTED,
+    },
+    {
+        name: "json web token",
+        pattern: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+        replacement: REDACTED,
+    },
+];
+/** Masks the secret shapes in SECRET_PATTERNS. */
+export function redactSecretPatterns(text) {
+    let result = text;
+    for (const { pattern, replacement } of SECRET_PATTERNS)
+        result = result.replace(pattern, replacement);
+    return result;
+}
+/** Masks the given secret values, then the secret shapes. */
 export function redactSecrets(text, secrets) {
     let result = text;
     for (const secret of secrets)
         result = result.split(secret).join(REDACTED);
-    return result;
+    return redactSecretPatterns(result);
+}
+/**
+ * Masks a log that arrives line by line. A private key spans many lines and each line is masked alone, so the lines between
+ * `-----BEGIN ... PRIVATE KEY-----` and `-----END ... PRIVATE KEY-----` are masked by remembering that the block is open.
+ * One guard per stream; a block whose BEGIN line is not in the lines shown cannot be recognised.
+ */
+export function createPrivateKeyLineGuard() {
+    let isOpen = false;
+    return (line) => {
+        if (isOpen) {
+            if (/-----END [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----/.test(line))
+                isOpen = false;
+            return REDACTED;
+        }
+        if (/-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----/.test(line) &&
+            !/-----END [A-Z0-9 ]*PRIVATE KEY/.test(line)) {
+            isOpen = true;
+        }
+        return line;
+    };
+}
+/** Masks the text of log lines of several resources, one private key guard per resource, in the order given. */
+export function redactLogLines(lines, secrets) {
+    const guards = new Map();
+    return lines.map((line) => {
+        let guard = guards.get(line.resource);
+        if (!guard) {
+            guard = createPrivateKeyLineGuard();
+            guards.set(line.resource, guard);
+        }
+        return { ...line, text: redactSecrets(guard(line.text), secrets) };
+    });
 }
 /** Redacts every string inside a JSON-shaped value, so the output stays valid JSON. */
 export function redactValue(value, secrets) {
-    if (secrets.length === 0)
-        return value;
     if (typeof value === "string")
         return redactSecrets(value, secrets);
     if (Array.isArray(value))
@@ -112,4 +273,33 @@ export function createEnvRedactor(projectRoot, extraEnvPaths = []) {
         };
     }
     return (text) => redactSecrets(text, secrets);
+}
+/** What replaces output that cannot be masked because the project's env files cannot be read. */
+export const OUTPUT_WITHHELD = "[output withheld: the project's env files could not be read]";
+/**
+ * The secret values of the project that holds `startDir` (the current directory by default); empty outside a project, so the
+ * secret shapes still apply. Null when an env file exists but cannot be read, because the values are then unknown.
+ */
+export function projectSecretValues(startDir) {
+    try {
+        const root = findProjectRoot(startDir);
+        return root ? envSecretValues(root) : [];
+    }
+    catch (error) {
+        if (error instanceof EnvUnreadableError)
+            return null;
+        // Anything else (a service.json that cannot be read) only loses the service values, never the .env ones.
+        try {
+            const root = findProjectRoot(startDir);
+            return root ? secretValuesOf(join(root, ".env")) : [];
+        }
+        catch {
+            return null;
+        }
+    }
+}
+/** Masks text that came from an application, for the project that holds `startDir`. Never throws, never returns a secret. */
+export function redactProjectText(text, startDir) {
+    const secrets = projectSecretValues(startDir);
+    return secrets === null ? OUTPUT_WITHHELD : redactSecrets(text, secrets);
 }

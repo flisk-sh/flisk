@@ -11,7 +11,7 @@ import { createMachineEnvelope } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
+import { EnvUnreadableError, envSecretValues, redactLogLines, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { unhealthyServiceNames } from "../utils/status-groups.js";
@@ -166,10 +166,12 @@ export const logsCommand = new Command("logs")
                 if (selected.length === 0)
                     return reportAllHealthy();
             }
-            const lines = readNativeLogLines(projectRoot, selected, {
+            // Lines were masked when written; masking again covers a log from before a secret was added, and the guard masks a
+            // private key that spans lines.
+            const lines = redactLogLines(readNativeLogLines(projectRoot, selected, {
                 tail,
                 sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
-            });
+            }), secrets);
             if (options.json) {
                 console.log(JSON.stringify(redactValue(createMachineEnvelope({ services, tail, since: options.since ?? null, lines }), secrets)));
                 return;
@@ -235,7 +237,7 @@ export const logsCommand = new Command("logs")
             process.stdout.write(redactSecrets(result.stdout, secrets));
             return;
         }
-        const lines = parseTiltLogLines(result.stdout, tail);
+        const lines = redactLogLines(parseTiltLogLines(result.stdout, tail), secrets);
         console.log(JSON.stringify(redactValue(createMachineEnvelope({ services, tail, since: options.since ?? null, lines }), secrets)));
     };
     await runCommand(action);
