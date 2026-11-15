@@ -171,6 +171,15 @@ A worker:
 }
 ```
 
+### Readiness: listening is not ready
+
+A service counts as ready when its health check passes, not when its process listens on a port. `healthCheckPath` (default `/health` for backend and `mcp` services) is what Docker probes, and what `flisk up`, `flisk status` and services that wait for this one go by.
+
+- A service that lists the project's Postgres in `dependsOn` starts only after Postgres passes its own health check, not as soon as the container runs. Services that do not list it start as usual (see [dependency conditions](service-json.md#compose-style-dependency-conditions)).
+- If Postgres turns unhealthy instead, `flisk up` stops waiting and names it, with the number of dependent services that are not ready.
+- A generated Python (FastAPI) backend's `/health` also checks the database when `DATABASE_URL` is set, and answers 503 with the reason when it cannot reach it. With a Postgres driver installed (`psycopg` or `psycopg2`) it runs `SELECT 1`, so a wrong password shows as this service failing on its database connection, not as Postgres failing. Without a driver it checks only that the Postgres port accepts connections.
+- Readiness says the service is up. It does not prove the public route works or which database answered; a `smoke` block (below) checks that through the URL `flisk up` prints.
+
 ### `smoke`: check the public URL after `flisk up`
 
 `healthCheckPath` is a GET inside the container, and `traefik.healthCheck` is Traefik's own probe. Neither opens the URL `flisk up` prints, so a container can be green while the route is a 404, the router is shared with another backend, or the database is not the one the service uses. A `smoke` block closes that gap:

@@ -4,6 +4,9 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- A service that lists Postgres in `dependsOn` now starts only once Postgres passes its health check, not as soon as its container runs, so it no longer logs connection errors during startup. Services that do not list Postgres start as before; `"condition": "service_started"` keeps the old behaviour (#683).
+- A new Python (FastAPI) backend's `/health` checks the database when `DATABASE_URL` is set and answers 503 with the reason, so a wrong password shows as that service failing (#683).
+
 ## 1.4.61 (2026-11-13)
 
 - New `flisk tool add weather`, `flisk tool add chart` and `flisk tool add services` add the Flisk Chat widgets by name, in the same way as the other tools (#4106).

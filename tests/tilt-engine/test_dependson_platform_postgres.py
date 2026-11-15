@@ -317,7 +317,7 @@ def test_build_resource_deps_feature_off_depends_on_postgres_has_edge(tmp_path):
         "manifest = {'dependsOn': ['postgres']}\n"
         "r = {'deps': build_resource_deps(res, 'svc-api', manifest, {}, [], {}, {}, None, {})}\n",
     )
-    assert result["deps"] == ["postgres"]
+    assert result["deps"] == ["postgres", "postgres-healthy"]
 
 
 @TILT_REQUIRED
@@ -329,7 +329,7 @@ def test_build_resource_deps_feature_off_depends_on_database_management_has_edge
         "manifest = {'dependsOn': ['database-management']}\n"
         "r = {'deps': build_resource_deps(res, 'svc-api', manifest, {}, [], {}, {}, None, {})}\n",
     )
-    assert result["deps"] == ["postgres"]
+    assert result["deps"] == ["postgres", "postgres-healthy"]
 
 
 @TILT_REQUIRED
@@ -342,7 +342,7 @@ def test_build_resource_deps_feature_on_depends_on_exactly_one_postgres(tmp_path
         "manifest = {'dependsOn': ['postgres']}\n"
         "r = {'deps': build_resource_deps(res, 'svc-api', manifest, {}, ['postgres'], {}, {}, None, {})}\n",
     )
-    assert result["deps"] == ["postgres"]
+    assert result["deps"] == ["postgres", "postgres-healthy"]
     assert result["deps"].count("postgres") == 1
 
 
@@ -355,7 +355,7 @@ def test_build_resource_deps_feature_on_depends_on_dm_exactly_one_postgres(tmp_p
         "manifest = {'dependsOn': ['database-management']}\n"
         "r = {'deps': build_resource_deps(res, 'svc-api', manifest, {}, ['postgres'], {}, {}, None, {})}\n",
     )
-    assert result["deps"] == ["postgres"]
+    assert result["deps"] == ["postgres", "postgres-healthy"]
     assert result["deps"].count("postgres") == 1
 
 

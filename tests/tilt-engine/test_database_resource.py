@@ -72,9 +72,10 @@ def test_a_service_depending_on_the_database_waits_for_postgres(tmp_path):
         "r = {'off': build_resource_deps(res, 'orders-api-migrator', manifest, {}, [], {}, {}, None, services), "
         "'on': build_resource_deps(res, 'orders-api-migrator', manifest, {}, ['postgres'], {}, {}, None, services)}\n",
     )
-    assert result["off"] == ["postgres"]
+    # It also waits for postgres-healthy: a running Postgres container is not one that accepts connections (#683).
+    assert result["off"] == ["postgres", "postgres-healthy"]
     # With the feature on, infra_deps already carries postgres: still exactly one edge, and no `shop-db` edge.
-    assert result["on"] == ["postgres"]
+    assert result["on"] == ["postgres", "postgres-healthy"]
 
 
 @TILT_REQUIRED

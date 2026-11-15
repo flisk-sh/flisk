@@ -152,6 +152,29 @@ def test_postgres_dependency_with_service_healthy_condition(tmp_path):
     assert result["deps"] == ["postgres", "postgres-healthy"]
 
 
+@TILT_REQUIRED
+def test_postgres_dependency_without_condition_waits_until_healthy(tmp_path):
+    """#683: a plain dependsOn on Postgres holds the service until Postgres is healthy, not only running.
+
+    Other unconditioned dependencies keep Compose's default (service_started), and a service that does not name
+    Postgres gets no postgres-healthy edge even when the shared Postgres is on (infra_deps).
+    """
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'api'}\n"
+        "r = {\n"
+        "  'plain': build_resource_deps(res, 'api', {'dependsOn': ['postgres', 'cache']}, {}, [], {}, {}, None, services),\n"
+        "  'opt_out': build_resource_deps(res, 'api', {'dependsOn': [{'name': 'postgres', 'condition': 'service_started'}]}, {}, [], {}, {}, None, services),\n"
+        "  'unrelated': build_resource_deps(res, 'api', {'dependsOn': ['cache']}, {}, ['postgres'], {}, {}, None, services),\n"
+        "}\n",
+    )
+    assert result["plain"] == ["postgres", "postgres-healthy", "cache"]
+    assert result["opt_out"] == ["postgres"]
+    assert result["unrelated"] == ["postgres", "cache"]
+
+
 def test_orchestrator_source_registers_healthy_resource():
     """Verify orchestrator registers healthy local_resource and healthy script."""
     source = ORCHESTRATOR.read_text()
