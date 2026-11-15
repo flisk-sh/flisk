@@ -148,7 +148,7 @@ describe("Go development wiring", () => {
 
   it("builds the development target in Tilt instead of production when the switch is on", () => {
     expect(tsBuilder).toContain(
-      "def _build_typescript_service(name, context, dockerfile, live_update_rules, deps, env=None, target='production')",
+      "def _build_typescript_service(name, context, dockerfile, live_update_rules, deps, env=None, target='production', prebuilt=None)",
     );
     expect(tsBuilder).toContain("target=target,");
     expect(registration).toContain(
@@ -167,16 +167,14 @@ describe("Go development wiring", () => {
     expect(start).toBeGreaterThan(-1);
     const next = registration.indexOf("\ndef ", start + 1);
     const prebuild = registration.slice(start, next === -1 ? undefined : next);
-    // The variable passed to `docker build` is assigned once, from the shared helper, before the argv list is built.
-    const assignments = prebuild.match(/^\s*target = .*$/gm) ?? [];
-    expect(assignments).toEqual(["    target = _image_target(config)"]);
-    const assigned = prebuild.indexOf("target = _image_target(config)");
-    // `--target "$4"` takes the fourth positional argument after "sh": dockerfile, prebuild, ignore_content, target.
-    const used = prebuild.indexOf('--target "$4"');
-    const passed = prebuild.indexOf("        ignore_content,\n        target,\n");
-    expect(assigned).toBeGreaterThan(-1);
-    expect(used).toBeGreaterThan(assigned);
-    expect(passed).toBeGreaterThan(used);
+    // The target comes from the shared helper through _prebuild_args, as the fourth positional argument after "sh".
+    const argsStart = registration.indexOf("def _prebuild_args(");
+    expect(argsStart).toBeGreaterThan(-1);
+    const argsEnd = registration.indexOf("\ndef ", argsStart + 1);
+    const argsBody = registration.slice(argsStart, argsEnd === -1 ? undefined : argsEnd);
+    expect(argsBody).toContain("_image_target(config),");
+    expect(prebuild).toContain("args = _prebuild_args(config)");
+    expect(prebuild).toContain('--target "$4"');
     expect(prebuild).not.toMatch(/--target\s+production/);
   });
 

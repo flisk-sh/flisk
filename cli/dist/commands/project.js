@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { cwd } from "node:process";
+import { cwd, execPath } from "node:process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -21,7 +21,7 @@ import { writeLanggraphProject } from "../utils/langgraph-template.js";
 import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
-import { listProjectTemplates, PROJECT_TEMPLATES, templateGitCommands, } from "../utils/project-templates.js";
+import { listProjectTemplates, PROJECT_TEMPLATES, resolveBundledTemplateDir, templateGitCommands, } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
@@ -137,6 +137,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         showDetail(`Destination: ${destination}\n`, 0);
     }
     let gitStep = "clone";
+    let bundledCopyUsed = false;
     try {
         if (template.generated === "swarm") {
             writeSwarmProject(destination);
@@ -157,8 +158,23 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
             writeNextPostgresProject(destination);
         }
         else if (template.bundledPath) {
-            const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
-            cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });
+            const bundledSource = resolveBundledTemplateDir(template.bundledPath, {
+                packageRoot: resolve(dirname(fileURLToPath(import.meta.url)), "../../../"),
+                exeDir: dirname(execPath),
+                workingDir: cwd(),
+            });
+            if (bundledSource) {
+                bundledCopyUsed = true;
+                cpSync(bundledSource, destination, { recursive: true });
+            }
+            else {
+                // No bundled copy (standalone binary whose engine bundle predates #3880): clone the same example.
+                for (const gitArgs of templateGitCommands(template, destination)) {
+                    gitStep =
+                        gitArgs[0] === "clone" ? "clone" : gitArgs[2] === "remote" ? "remote" : "checkout";
+                    execFileSync("git", gitArgs, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf-8" });
+                }
+            }
             const projectSlug = basename(destination).replace(/-/g, "_");
             for (const file of [
                 "services/platform/messaging/docker-compose.yml",
@@ -168,6 +184,8 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
                 "services/shop/orders-worker/src/index.ts",
             ]) {
                 const copiedPath = join(destination, file);
+                if (!existsSync(copiedPath))
+                    continue;
                 const contents = readFileSync(copiedPath, "utf-8");
                 writeFileSync(copiedPath, contents.replaceAll("flisk_example", projectSlug));
             }
@@ -187,7 +205,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
     }
     catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
-        const message = template.bundledPath
+        const message = template.bundledPath && bundledCopyUsed
             ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
             : gitStep === "remote"
                 ? `git remote rename origin upstream failed: ${lastLine(detail)}. The cloned repository is left in ${destination}; inspect its remotes before trying again.`
@@ -198,7 +216,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         // failure itself instead of having the process die mid-paint.
         if (options.quiet) {
             throw new FliskError(message, [
-                template.bundledPath
+                template.bundledPath && bundledCopyUsed
                     ? "Reinstall the Flisk CLI package, then run the command again"
                     : "Check that git is installed and that you are online, then run the command again",
             ]);
