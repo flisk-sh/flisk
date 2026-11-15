@@ -76,6 +76,18 @@ def test_prisma_backend_runtime_takes_the_cli_from_the_purger_stage(tmp_path):
 
 
 @TILT_REQUIRED
+def test_prisma_cli_stash_is_not_under_tmp_and_matches_the_copy(tmp_path):
+    """flisk#4226: the stash and the runtime COPY use one path, and it is not in /tmp."""
+    dockerfile = generate(tmp_path, "backend", "orders-api")
+    stash = [l for l in run_lines(dockerfile, "cp -a node_modules/prisma ")]
+    assert len(stash) == 1, stash
+    target = stash[0].split("cp -a node_modules/prisma ", 1)[1].split()[0]
+    assert not target.startswith("/tmp"), target
+    copies = [l for l in dockerfile.splitlines() if l.startswith("COPY") and "--from=l3_production_purger" in l and "prisma-cli" in l]
+    assert copies and all(f"--from=l3_production_purger {target} " in l for l in copies), (target, copies)
+
+
+@TILT_REQUIRED
 def test_migrator_still_builds_its_own_migration_stage(tmp_path):
     dockerfile = generate(tmp_path, "migrator", "orders-migrator")
     assert "AS l3_migration_build" in dockerfile
