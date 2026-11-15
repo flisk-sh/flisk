@@ -711,7 +711,8 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                 }
                 const cwd = projectPath(args.projectPath);
                 const rebuild = flag(args.rebuild, "rebuild");
-                return toToolResult(await run(["restart", resource, "--json", ...(rebuild ? ["--rebuild"] : [])], {
+                const cliArgs = ["restart", resource, "--json", ...(rebuild ? ["--rebuild"] : [])];
+                return toToolResult(await run(cliArgs, {
                     cwd,
                     timeoutMs: restartCliTimeoutMs(cwd, resource, rebuild),
                 }));
