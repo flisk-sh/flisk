@@ -31,3 +31,10 @@ export declare function currentDockerContext(home: string, read: (path: string) 
  * caller already chose.
  */
 export declare function kiriBuildEnv(env: NodeJS.ProcessEnv, context: string | undefined): Record<string, string>;
+/**
+ * The Docker socket path containers mount to reach the daemon. Containers get `/var/run/docker.sock`, which is
+ * Kiri's inside its Mac VM but is the host's own Docker on Linux, where Kiri runs without a VM and listens on
+ * `/run/kiri/docker.sock`. Without this Traefik watches the wrong daemon and routes nothing. A value the caller
+ * set is kept.
+ */
+export declare function kiriSocketEnv(env: NodeJS.ProcessEnv, platform: NodeJS.Platform, context: string | undefined): Record<string, string>;

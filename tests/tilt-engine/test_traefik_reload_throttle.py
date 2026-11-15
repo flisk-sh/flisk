@@ -28,3 +28,19 @@ r = {'traefik': generate_standalone_traefik_compose()}
 def test_traefik_applies_new_routes_without_the_2s_default_throttle(tmp_path):
     traefik = run_project(tmp_path, "shop", BODY)["traefik"]
     assert '"--providers.providersThrottleDuration=100ms"' in traefik, traefik
+
+
+@TILT_REQUIRED
+def test_traefik_watches_the_docker_socket_the_cli_names(tmp_path, monkeypatch):
+    """Kiri on Linux listens on /run/kiri/docker.sock; /var/run/docker.sock there is the host's own Docker, so Traefik
+    would discover none of Kiri's containers and answer 404 for every route."""
+    monkeypatch.setenv("FLISK_DOCKER_SOCKET", "/run/kiri/docker.sock")
+    traefik = run_project(tmp_path, "shop", BODY)["traefik"]
+    assert "- /run/kiri/docker.sock:/var/run/docker.sock:ro" in traefik, traefik
+
+
+@TILT_REQUIRED
+def test_traefik_watches_var_run_docker_sock_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("FLISK_DOCKER_SOCKET", raising=False)
+    traefik = run_project(tmp_path, "shop", BODY)["traefik"]
+    assert "- /var/run/docker.sock:/var/run/docker.sock:ro" in traefik, traefik

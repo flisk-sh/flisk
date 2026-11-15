@@ -5,6 +5,7 @@ import {
   currentDockerContext,
   detectEngine,
   kiriBuildEnv,
+  kiriSocketEnv,
   parseDockerInfo,
 } from "./container-engine.js";
 
@@ -59,6 +60,35 @@ describe("kiriBuildEnv", () => {
       kiriBuildEnv({ DOCKER_HOST: "unix:///Users/me/.colima/default/docker.sock" }, "kiri"),
     ).toEqual({});
     expect(kiriBuildEnv({ DOCKER_BUILDKIT: "1" }, "kiri")).toEqual({});
+  });
+});
+
+describe("kiriBuildEnv on Linux", () => {
+  it("recognises the Linux socket path", () => {
+    expect(kiriBuildEnv({ DOCKER_HOST: "unix:///run/kiri/docker.sock" }, undefined)).toEqual({
+      DOCKER_BUILDKIT: "0",
+    });
+  });
+});
+
+describe("kiriSocketEnv", () => {
+  const host = { DOCKER_HOST: "unix:///run/kiri/docker.sock" };
+
+  it("points containers at Kiri's own socket on Linux, where /var/run/docker.sock is the host's Docker", () => {
+    expect(kiriSocketEnv(host, "linux", undefined)).toEqual({
+      FLISK_DOCKER_SOCKET: "/run/kiri/docker.sock",
+    });
+  });
+
+  it("leaves a Mac (Kiri's VM mounts its own socket), other engines and an explicit value alone", () => {
+    expect(kiriSocketEnv(host, "darwin", undefined)).toEqual({});
+    expect(
+      kiriSocketEnv({ DOCKER_HOST: "unix:///var/run/docker.sock" }, "linux", undefined),
+    ).toEqual({});
+    expect(kiriSocketEnv({ ...host, FLISK_DOCKER_SOCKET: "/x.sock" }, "linux", undefined)).toEqual(
+      {},
+    );
+    expect(kiriSocketEnv({}, "linux", "kiri")).toEqual({});
   });
 });
 
