@@ -29,7 +29,10 @@ def _postgres_healthcheck(tmp_path, env=None):
 
 
 @TILT_REQUIRED
-def test_postgres_is_probed_at_the_short_start_interval_while_it_starts(tmp_path):
+def test_postgres_is_probed_at_the_short_start_interval_while_it_starts(tmp_path, monkeypatch):
+    # A developer may have these set; this test is about the defaults.
+    monkeypatch.delenv("FLISK_HEALTHCHECK_START_INTERVAL_SECONDS", raising=False)
+    monkeypatch.delenv("FLISK_HEALTHCHECK_START_PERIOD_SECONDS", raising=False)
     healthcheck = _postgres_healthcheck(tmp_path)
     assert healthcheck["start_interval"] == "0.5s"
     assert healthcheck["start_period"] == "30s"
@@ -48,3 +51,15 @@ def test_postgres_start_interval_follows_the_shared_healthcheck_settings(tmp_pat
     )
     assert healthcheck["start_interval"] == "1s"
     assert healthcheck["start_period"] == "45s"
+
+
+@TILT_REQUIRED
+def test_postgres_probe_asks_over_tcp_so_the_init_time_server_does_not_count(tmp_path):
+    """On an empty volume the postgres image first runs a temporary server that listens on the Unix socket only, then stops it.
+
+    A probe with no host goes through that socket, and one success marks the container healthy, so with the short start
+    interval the database could be reported ready while the real server is not up yet. Asking 127.0.0.1 only succeeds once
+    the real server listens.
+    """
+    probe = _postgres_healthcheck(tmp_path)["test"]
+    assert re.search(r"pg_isready\b[^\"]*-h 127\.0\.0\.1\b", probe), probe
