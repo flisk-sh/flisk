@@ -523,6 +523,19 @@ src/index.ts(33,14): error TS2591: Cannot find name 'process'.
 - **Fix:** in an older service, add `"types": ["node"]` under `compilerOptions` in `tsconfig.json` by hand. A service scaffolded by the current code already has it.
 - **Checked:** the current scaffold was seen to contain `"types": ["node"]`; the error itself was **read from the PR, not reproduced**, because it needs an older scaffold.
 
+## Kiri
+
+[Kiri](https://github.com/libracoder/kiri) is a Docker-compatible runtime. `flisk doctor` shows it as the container engine when `docker` talks to Kiri (`DOCKER_HOST` pointing at `~/.kiri/run/docker.sock`, or `docker context use kiri`).
+
+What works (tested on Kiri 0.2.1, Apple Silicon): `docker run`, Compose, networks, volumes and published ports.
+
+What does not work yet: `flisk demo` and any stack that builds images. Kiri has no builder of its own, so `docker build` uses a BuildKit container, and that fails two ways:
+
+- `granting entitlement network.host is not allowed by build daemon configuration`: Flisk builds with `--network host`. A builder created with `--buildkitd-flags '--allow-insecure-entitlement network.host'` accepts it.
+- `pull access denied ... flisk-<project>-l4-backend`: the BuildKit container cannot see Flisk's golden images, which exist only in the local image store.
+
+Until Kiri's builder can use local images, run those stacks on Colima, OrbStack or Docker Desktop (`docker context use colima`).
+
 ## Windows and WSL2
 
 Native Windows can run `flisk doctor`, inspect a project, run `flisk demo` and start services that each declare a `command` ([without Docker](run-without-docker.md)); starting a Docker stack needs WSL2. Setup and the smoke run are in [WSL2 setup](wsl2.md#troubleshooting). All entries here are **read from source, not reproduced** (no Windows machine was used).
