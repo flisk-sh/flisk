@@ -54,3 +54,22 @@ repos:
         files: \.star$
         pass_filenames: true
         description: Basic Python syntax validation for Starlark files
+
+  # Biome on staged CLI files, and the scoreboard gates before a push (`make test-shell`).
+  # Install both stages with: pre-commit install --hook-type pre-commit --hook-type pre-push
+  - repo: local
+    hooks:
+      - id: biome-cli
+        name: Biome (staged cli/ files)
+        entry: bash -c 'cd cli && ./node_modules/.bin/biome check --no-errors-on-unmatched --files-ignore-unknown=true "${@#cli/}"' --
+        language: system
+        files: ^cli/.*\.(ts|tsx|js|mjs|cjs|json|jsonc)$
+        exclude: ^cli/dist/
+        stages: [pre-commit]
+      - id: test-shell-scores
+        name: make test-shell (scoreboard gates)
+        entry: make test-shell
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
