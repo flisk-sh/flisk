@@ -9,6 +9,7 @@ import { stripVTControlCharacters } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeResource } from "../../test-support/doubles.js";
 import { runCommandInProcess } from "../../test-support/run-in-process.js";
+import type { DiscoveredResource } from "../../types/index.js";
 import type { FastNoopFlags, FastNoopState, UP_STATE_VERSION } from "../../utils/up-fast-noop.js";
 
 const mocks = vi.hoisted(() => ({
@@ -25,7 +26,7 @@ const mocks = vi.hoisted(() => ({
     diffs: [],
     handEdited: [],
   })),
-  discoverResourcesStrict: vi.fn(() => [] as ReturnType<typeof resource>[]),
+  discoverResourcesStrict: vi.fn(() => [] as DiscoveredResource[]),
   discoverResourcesWithProblems: vi.fn(() => ({ resources: [] as unknown[], problems: [] })),
   tiltGetUiResources: vi.fn(async () => null as string | null),
   findTiltPortOwner: vi.fn(() => null as { pid: number; root: string } | null),
