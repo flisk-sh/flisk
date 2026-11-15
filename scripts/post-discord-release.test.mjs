@@ -39,7 +39,7 @@ test("run posts once, with mentions disabled", async () => {
   await run({ version: "1.4.50", changelog: CHANGELOG, token: "t", channelId: "c", fetchImpl, log: (m) => logs.push(m) });
   const post = calls.find((c) => c.init.method === "POST");
   assert.equal(post.init.headers.Authorization, "Bot t");
-  assert.deepEqual(JSON.parse(post.init.body).allowed_mentions, { parse: [] });
+  assert.deepEqual(JSON.parse(post.init.body).allowed_mentions, { parse: [], users: [] });
 });
 
 test("run skips a version already posted, and never throws", async () => {
@@ -72,4 +72,44 @@ test("run falls back to the release notes when the changelog has no entry", asyn
   };
   await run({ version: "9.9.9", changelog: CHANGELOG, token: "t", channelId: "c", fetchImpl, log: () => {} });
   assert.ok(calls.some((u) => new URL(u).pathname.endsWith("/channels/c/messages")));
+});
+
+test("buildMessage tags each PR author and thanks them, skipping bots", () => {
+  const people = new Map([["alice", "111"]]);
+  const msg = buildMessage(
+    "1.4.50",
+    [
+      { text: "Fixed up.", logins: ["alice"] },
+      { text: "Added export.", logins: ["bob"] },
+      { text: "Bumped deps.", logins: ["dependabot[bot]"] },
+    ],
+    people,
+  );
+  assert.match(msg, /- Fixed up\. \(<@111>\)/);
+  assert.match(msg, /- Added export\. \(\[@bob\]\(https:\/\/github\.com\/bob\)\)/);
+  assert.match(msg, /- Bumped deps\.\n/);
+  assert.match(msg, /Huge thanks to <@111>, \[@bob\]/);
+  assert.doesNotMatch(msg, /dependabot/);
+});
+
+test("run tags authors from the release notes and allows only their mentions", async () => {
+  const body = "## Pull requests\n\n- fix: Fixed up: [#3374](https://x/3374) (@alice)\n";
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    calls.push({ url, init });
+    if (new URL(url).hostname === "api.github.com") return { ok: true, json: async () => ({ body }) };
+    return init.method === "POST" ? { ok: true, text: async () => "" } : { ok: true, json: async () => [] };
+  };
+  await run({
+    version: "1.4.50",
+    changelog: CHANGELOG,
+    token: "t",
+    channelId: "c",
+    fetchImpl,
+    loadRegistry: async () => [{ github: "Alice", discord: "111" }],
+    log: () => {},
+  });
+  const post = JSON.parse(calls.find((c) => c.init.method === "POST").init.body);
+  assert.match(post.content, /More detail\. \(<@111>\)/);
+  assert.deepEqual(post.allowed_mentions, { parse: [], users: ["111"] });
 });
