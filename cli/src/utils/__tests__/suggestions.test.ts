@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { suggestClosest } from "../suggestions.js";
+import { rankByDistance, suggestClosest } from "../suggestions.js";
 
 describe("suggestClosest", () => {
   it("does not suggest a candidate that already matches exactly", () => {
@@ -49,5 +49,20 @@ describe("suggestClosest", () => {
   it("includes the two-edit threshold and rejects one edit beyond it", () => {
     expect(suggestClosest("abcdefg", ["abxyefg"])).toBe("abxyefg");
     expect(suggestClosest("abcdefg", ["abxyzfg"])).toBeUndefined();
+  });
+});
+
+describe("rankByDistance", () => {
+  it("puts a near-miss candidate first ahead of unrelated names", () => {
+    expect(rankByDistance("ok", ["zeta", "alpha", "ok1"])).toEqual(["ok1", "zeta", "alpha"]);
+  });
+
+  it("treats an adjacent transposition as one edit when ranking", () => {
+    expect(rankByDistance("aip", ["web", "api"])).toEqual(["api", "web"]);
+  });
+
+  it("deduplicates entries, skips empty strings, and breaks equal-distance ties by code-unit order", () => {
+    expect(rankByDistance("ap", ["app", "", "api", "app"])).toEqual(["api", "app"]);
+    expect(rankByDistance("", ["orders", "api"])).toEqual(["api", "orders"]);
   });
 });

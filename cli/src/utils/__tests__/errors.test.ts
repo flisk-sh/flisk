@@ -14,6 +14,8 @@ import {
   runCommand,
   showError,
   showErrorAndExit,
+  UNKNOWN_RESOURCE_CODE,
+  UnknownResourceError,
   withTiltCheck,
 } from "../errors.js";
 import { toMachineError } from "../machine-output.js";
@@ -84,6 +86,47 @@ describe("not-found error suggestions", () => {
     expect(error.suggestions).toEqual([
       'Did you mean "widget" for "widgt"?',
       'Did you mean "widget" for "widge"?',
+    ]);
+  });
+
+  it("orders valid names by edit distance for a single unknown service", () => {
+    const error = errorFactories.unknownServices(["ok"], ["zeta", "ok1"]);
+
+    expect(error.message).toBe("Unknown service ok. Valid names: ok1, zeta");
+    expect(error.suggestions).toEqual(['Did you mean "ok1"?']);
+  });
+
+  it("builds a shared UNKNOWN_RESOURCE error with valid resource names and closest match first", () => {
+    const unrelated = errorFactories.unknownResource("nope", ["orders", "api"]);
+    expect(unrelated).toBeInstanceOf(UnknownResourceError);
+    expect(unrelated).toBeInstanceOf(FliskError);
+    expect(unrelated.code).toBe(UNKNOWN_RESOURCE_CODE);
+    expect(unrelated.exitCode).toBe(1);
+    expect(unrelated.message).toBe('Resource "nope" not found in project.');
+    expect(unrelated.suggestions).toEqual([
+      "Resources: api, orders",
+      "See the names with: flisk resources",
+    ]);
+    expect(toMachineError(unrelated)).toEqual({
+      error: {
+        code: "UNKNOWN_RESOURCE",
+        message: 'Resource "nope" not found in project.',
+        suggestions: ["Resources: api, orders", "See the names with: flisk resources"],
+      },
+      exitCode: 1,
+    });
+
+    const nearMiss = errorFactories.unknownResource("ok", ["zeta", "ok1"]);
+    expect(nearMiss.suggestions).toEqual([
+      'Did you mean "ok1"?',
+      "Resources: ok1, zeta",
+      "See the names with: flisk resources",
+    ]);
+
+    const empty = errorFactories.unknownResource("nope", []);
+    expect(empty.suggestions).toEqual([
+      "This project has no resources yet",
+      "See the names with: flisk resources",
     ]);
   });
   it("preserves usage exit codes in machine-readable errors", () => {

@@ -181,6 +181,17 @@ describe("flisk logs --json", () => {
     expect(tilt.runTilt).toHaveBeenCalledTimes(1);
   });
 
+  it("orders valid names by edit distance when a near-miss service is requested", async () => {
+    tilt.runTilt.mockResolvedValueOnce(resources("zeta", "ok1"));
+    const { envelope, code } = await run("-s", "ok");
+    expect(code).toBe(2);
+    expect(envelope.errors[0]).toEqual({
+      code: "UNKNOWN_SERVICE",
+      message: "Unknown service ok. Valid names: ok1, zeta",
+      suggestions: ['Did you mean "ok1"?'],
+    });
+  });
+
   it("uses the shared unknown-service factory for an unknown Tilt resource", async () => {
     tilt.runTilt.mockResolvedValueOnce(resources("api", "web"));
     const factory = vi.spyOn(errorFactories, "unknownServices");

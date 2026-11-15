@@ -48,7 +48,13 @@ agentCommand
     // JSON mode prints its envelope and exits 1; human mode throws, and runCommand prints the message and hints.
     const fail = ({ code, message, hints }) => {
         if (options.json) {
-            console.log(JSON.stringify(createMachineEnvelope(null, [{ code, message }])));
+            console.log(JSON.stringify(createMachineEnvelope(null, [
+                {
+                    code,
+                    message,
+                    ...(hints && hints.length > 0 ? { suggestions: hints } : {}),
+                },
+            ])));
             process.exit(1);
         }
         throw new FliskError(message, hints);
@@ -70,9 +76,11 @@ agentCommand
         const discovery = createDiscoveryContext();
         const resource = discovery.resources.find((r) => r.name === resourceName);
         if (!resource) {
+            const error = errorFactories.unknownResource(resourceName, discovery.resources.map((candidate) => candidate.name));
             fail({
-                code: "UNKNOWN_RESOURCE",
-                message: `Resource "${resourceName}" not found in project.`,
+                code: error.code,
+                message: error.message,
+                hints: error.suggestions,
             });
             return;
         }
