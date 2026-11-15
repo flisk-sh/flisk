@@ -32,6 +32,7 @@ import {
   PACKAGE_JSON,
   REQUIRED_PACKAGE_SCRIPTS,
 } from "../utils/constants.js";
+import { detectEngine, parseDockerInfo } from "../utils/container-engine.js";
 import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
@@ -464,6 +465,25 @@ async function succeeds(command: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Which Docker-compatible engine answers `docker` (Docker Desktop, Colima, OrbStack, Kiri, Podman, Docker Engine). */
+export async function checkContainerEngine(): Promise<CheckResult> {
+  let raw = "";
+  try {
+    raw = String(await execAsync("docker info --format '{{json .}}'", EXEC_TIMEOUT_MS));
+  } catch {
+    return { name: "Container Engine", didPass: true, message: "No Docker daemon answered" };
+  }
+  const engine = detectEngine(parseDockerInfo(raw));
+  if (engine.id === "kiri") {
+    return {
+      name: "Container Engine",
+      didPass: true,
+      message: `${engine.label}. Flisk builds with the classic builder here (DOCKER_BUILDKIT=0), one golden image at a time. Experimental: see docs/troubleshooting.md#kiri`,
+    };
+  }
+  return { name: "Container Engine", didPass: true, message: engine.label };
 }
 
 /** The Colima VM behind Docker: a stopped VM or a colima CLI that cannot see it. */
@@ -1955,6 +1975,7 @@ export const doctorCommand = new Command("doctor")
           ]
         : []),
       checkColima,
+      checkContainerEngine,
       () => checkDockerRuntime(hostCommandCache),
       () => checkDiskSpace(),
       requiresContainerRuntime("Docker Build Cache", () => checkDockerBuildCache()),

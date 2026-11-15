@@ -17,9 +17,15 @@ import {
   ProcessExitError,
   runCommand,
   showErrorAndExit,
+  UnknownResourceError,
+  unknownResourceSuggestions,
 } from "../utils/errors.js";
 import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
-import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
+import {
+  createMachineEnvelope,
+  toMachineError,
+  writeMachineError,
+} from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
@@ -62,16 +68,16 @@ export const restartCommand = new Command("restart")
       const discovery = createDiscoveryContext();
       const resource = discovery.resources.find((r) => r.name === resourceName);
       if (!resource) {
-        const msg = `Resource "${resourceName}" not found in project.`;
+        const suggestions = unknownResourceSuggestions(
+          resourceName,
+          discovery.resources.map((candidate) => candidate.name),
+        );
         if (options.json) {
-          console.log(
-            JSON.stringify(
-              createMachineEnvelope(null, [{ code: "UNKNOWN_RESOURCE", message: msg }]),
-            ),
-          );
+          const { error } = toMachineError(new UnknownResourceError(resourceName, suggestions));
+          console.log(JSON.stringify(createMachineEnvelope(null, [error])));
           process.exit(1);
         }
-        throw new FliskError(msg, ["See the names with: flisk resources"]);
+        throw new UnknownResourceError(resourceName, suggestions);
       }
 
       let tiltAvailable = false;

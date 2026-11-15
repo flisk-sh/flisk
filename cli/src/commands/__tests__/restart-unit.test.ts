@@ -235,21 +235,44 @@ describe("restart command unit tests", () => {
 
     expect(exitCode).toBe(1);
     expect(stderr).toContain('Resource "nope" not found in project.');
+    expect(stderr).toContain("Resources: api, web, unknown-service");
     expect(stderr).toContain("See the names with: flisk resources");
     expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
     expect(tilt.runTilt).not.toHaveBeenCalled();
     expect(container.restartContainer).not.toHaveBeenCalled();
   });
 
-  it("reports UNKNOWN_RESOURCE in --json mode for a name not in the project, before probing Tilt", async () => {
+  it("reports UNKNOWN_RESOURCE in --json mode with project resource suggestions, before probing Tilt", async () => {
     const { envelope, exitCode } = await runRestart(["nope", "--json"]);
 
     expect(exitCode).toBe(1);
-    expect(envelope?.errors[0]?.code).toBe("UNKNOWN_RESOURCE");
-    expect(envelope?.errors[0]?.message).toBe('Resource "nope" not found in project.');
+    expect(envelope?.errors[0]).toEqual({
+      code: "UNKNOWN_RESOURCE",
+      message: 'Resource "nope" not found in project.',
+      suggestions: ["Resources: api, web, unknown-service", "See the names with: flisk resources"],
+    });
     expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
     expect(tilt.runTilt).not.toHaveBeenCalled();
     expect(container.restartContainer).not.toHaveBeenCalled();
+  });
+
+  it("puts the closest resource name first for a near-miss in --json mode", async () => {
+    discovery.createDiscoveryContext.mockReturnValue({
+      resources: [{ name: "zeta" }, { name: "ok1" }],
+    });
+
+    const { envelope, exitCode } = await runRestart(["ok", "--json"]);
+
+    expect(exitCode).toBe(1);
+    expect(envelope?.errors[0]).toEqual({
+      code: "UNKNOWN_RESOURCE",
+      message: 'Resource "ok" not found in project.',
+      suggestions: [
+        'Did you mean "ok1"?',
+        "Resources: ok1, zeta",
+        "See the names with: flisk resources",
+      ],
+    });
   });
 
   it("reports error in text mode when isTiltAvailable returns false", async () => {

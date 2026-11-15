@@ -65,8 +65,11 @@ describe("flisk restart", () => {
       const res = runFlisk(["restart", "nope", "--json", "--port=59999"], tmp);
       expect(res.status).not.toBe(0);
       const envelope = JSON.parse(res.stdout);
-      expect(envelope.errors[0].code).toBe("UNKNOWN_RESOURCE");
-      expect(envelope.errors[0].message).toBe('Resource "nope" not found in project.');
+      expect(envelope.errors[0]).toEqual({
+        code: "UNKNOWN_RESOURCE",
+        message: 'Resource "nope" not found in project.',
+        suggestions: ["Resources: api", "See the names with: flisk resources"],
+      });
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
