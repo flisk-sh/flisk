@@ -1,0 +1,146 @@
+import { createRootProgram } from "../program-root.js";
+import { FliskError } from "../utils/errors.js";
+/** The module and export that owns each top-level command. */
+export const LAZY_COMMANDS = {
+    stacks: { module: "./stacks.js", exportName: "stacksCommand" },
+    resources: { module: "./resources.js", exportName: "resourcesCommand" },
+    projects: { module: "./projects.js", exportName: "projectsCommand" },
+    up: { module: "./up.js", exportName: "upCommand" },
+    down: { module: "./down.js", exportName: "downCommand" },
+    mcp: { module: "./mcp.js", exportName: "mcpCommand" },
+    connect: { module: "./connect.js", exportName: "connectCommand" },
+    logs: { module: "./logs.js", exportName: "logsCommand" },
+    eject: { module: "./eject.js", exportName: "ejectCommand" },
+    export: { module: "./export.js", exportName: "exportCommand" },
+    import: { module: "./import.js", exportName: "importCommand" },
+    open: { module: "./open.js", exportName: "openCommand" },
+    status: { module: "./status.js", exportName: "statusCommand" },
+    stack: { module: "./stack.js", exportName: "stackCommand" },
+    resource: { module: "./resource.js", exportName: "resourceCommand" },
+    runtime: { module: "./runtime.js", exportName: "runtimeCommand" },
+    project: { module: "./project.js", exportName: "projectCommand" },
+    create: { module: "./create.js", exportName: "createCommand" },
+    tool: { module: "./tool.js", exportName: "toolCommand" },
+    config: { module: "./config.js", exportName: "configCommand" },
+    ui: { module: "./ui.js", exportName: "uiCommand" },
+    os: { module: "./os.js", exportName: "osCommand" },
+    version: { module: "./version.js", exportName: "versionCommand" },
+    maintainers: { module: "./maintainers.js", exportName: "maintainersCommand" },
+    doctor: { module: "./doctor.js", exportName: "doctorCommand" },
+    completion: { module: "./completion.js", exportName: "completionCommand" },
+    upgrade: { module: "./upgrade.js", exportName: "upgradeCommand" },
+    networks: { module: "./networks.js", exportName: "networksCommand" },
+    agent: { module: "./agent.js", exportName: "agentCommand" },
+    restart: { module: "./restart.js", exportName: "restartCommand" },
+    run: { module: "./run.js", exportName: "runServiceCommand" },
+    distribute: { module: "./distribute.js", exportName: "distributeCommand" },
+    repos: { module: "./repos.js", exportName: "reposCommand" },
+};
+/**
+ * Imports one command module and runs the real action with the original argv.
+ *
+ * The spec program has already validated the arguments, so this parse only dispatches.
+ * Commander's option sources and `command.parent` are reconstructed from the full argv.
+ */
+export async function runLazyCommand(spec, argv) {
+    const top = spec.path[0] ?? "";
+    const entry = LAZY_COMMANDS[top];
+    if (!entry) {
+        throw new FliskError(`No lazy command module is registered for "flisk ${top}".`, [
+            "Reinstall Flisk, then try the command again.",
+        ]);
+    }
+    // A literal specifier per module keeps each dynamic import statically analysable for the
+    // dist-bundle build. Bundlers and Node both resolve these at runtime from this file.
+    const mod = await importLazyModule(top, entry.module);
+    const command = mod[entry.exportName];
+    if (!command || typeof command !== "object" || !("parseAsync" in command)) {
+        throw new FliskError(`${entry.module} does not export a Commander Command as ${entry.exportName}.`, ["Reinstall Flisk, then try the command again."]);
+    }
+    // `flisk completion` generates candidates from `command.parent`, so it needs the whole
+    // command tree, not just its own module. Every other command only needs its own file.
+    if (top === "completion") {
+        const { createProgram } = await import("../program.js");
+        await createProgram().parseAsync([...argv], { from: "user" });
+        return;
+    }
+    const program = createRootProgram();
+    program.addCommand(command);
+    // `cli.ts` passes the user arguments (process.argv.slice(2)); `{ from: "user" }`
+    // parses exactly those, with no executable or script path in front.
+    await program.parseAsync([...argv], { from: "user" });
+}
+async function importLazyModule(name, path) {
+    switch (name) {
+        case "stacks":
+            return await import("./stacks.js");
+        case "resources":
+            return await import("./resources.js");
+        case "projects":
+            return await import("./projects.js");
+        case "up":
+            return await import("./up.js");
+        case "down":
+            return await import("./down.js");
+        case "mcp":
+            return await import("./mcp.js");
+        case "connect":
+            return await import("./connect.js");
+        case "logs":
+            return await import("./logs.js");
+        case "eject":
+            return await import("./eject.js");
+        case "export":
+            return await import("./export.js");
+        case "import":
+            return await import("./import.js");
+        case "open":
+            return await import("./open.js");
+        case "status":
+            return await import("./status.js");
+        case "stack":
+            return await import("./stack.js");
+        case "resource":
+            return await import("./resource.js");
+        case "runtime":
+            return await import("./runtime.js");
+        case "project":
+            return await import("./project.js");
+        case "create":
+            return await import("./create.js");
+        case "tool":
+            return await import("./tool.js");
+        case "config":
+            return await import("./config.js");
+        case "ui":
+            return await import("./ui.js");
+        case "os":
+            return await import("./os.js");
+        case "version":
+            return await import("./version.js");
+        case "maintainers":
+            return await import("./maintainers.js");
+        case "doctor":
+            return await import("./doctor.js");
+        case "completion":
+            return await import("./completion.js");
+        case "upgrade":
+            return await import("./upgrade.js");
+        case "networks":
+            return await import("./networks.js");
+        case "agent":
+            return await import("./agent.js");
+        case "restart":
+            return await import("./restart.js");
+        case "run":
+            return await import("./run.js");
+        case "distribute":
+            return await import("./distribute.js");
+        case "repos":
+            return await import("./repos.js");
+        default:
+            throw new FliskError(`No lazy import for command "${name}" (${path}).`, [
+                "Reinstall Flisk, then try the command again.",
+            ]);
+    }
+}

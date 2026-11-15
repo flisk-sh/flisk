@@ -42,8 +42,8 @@
     "shared-platform-engineering/docker-templates"
   ],
   "scripts": {
-    "build": "tsc && node scripts/bundle.mjs",
-    "build:watch": "tsc --watch",
+    "build": "tsc && node scripts/generate-command-specs.mjs --no-compile && tsc && node scripts/bundle.mjs",
+    "build:watch": "node scripts/watch-build.mjs",
     "check:dist": "npm run build && ../scripts/check-cli-dist.sh",
     "lint": "biome check . ../tests/generated ../tests/runtime-layout",
     "lint:fix": "biome check . ../tests/generated ../tests/runtime-layout --write",
