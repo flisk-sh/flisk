@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
-import { lastLine, templateTargetDir } from "../project.js";
+import { PROJECT_TEMPLATES, templateTargetDir } from "../../utils/project-templates.js";
+import { lastLine } from "../project.js";
 
 describe("templateTargetDir", () => {
   it("returns targetDir when provided", () => {
@@ -13,18 +13,32 @@ describe("templateTargetDir", () => {
     );
   });
 
-  it("returns repo basename without .git when targetDir is undefined", () => {
+  it("returns repo basename without .git for cloned starters", () => {
     expect(templateTargetDir("demo")).toBe("flisk-restaurant-example");
     expect(templateTargetDir("restaurant")).toBe("flisk-restaurant-example");
     expect(templateTargetDir("saas")).toBe("flisk-saas-starter");
     expect(templateTargetDir("ecommerce")).toBe("flisk-ecommerce-example");
     expect(templateTargetDir("agent-stack")).toBe("flisk-agent-stack");
     expect(templateTargetDir("user-management")).toBe("flisk-user-management");
+    expect(templateTargetDir("example")).toBe("flisk-example");
 
     for (const [name, template] of Object.entries(PROJECT_TEMPLATES)) {
+      if (template.generated || template.composed) continue;
       const repoBase = template.repo.split("/").pop() ?? name;
-      const expected = repoBase.replace(/\.git$/, "");
-      expect(templateTargetDir(name), name).toBe(expected);
+      expect(templateTargetDir(name), name).toBe(repoBase.replace(/\.git$/, ""));
+    }
+  });
+
+  it("returns the starter name for starters the CLI writes without a clone", () => {
+    for (const [name, template] of Object.entries(PROJECT_TEMPLATES)) {
+      if (!template.generated && !template.composed) continue;
+      expect(templateTargetDir(name), name).toBe(name);
+    }
+  });
+
+  it("answers the default folder without a requested path", () => {
+    for (const name of Object.keys(PROJECT_TEMPLATES)) {
+      expect(templateTargetDir(name), name).toBe(templateTargetDir(name, ""));
     }
   });
 

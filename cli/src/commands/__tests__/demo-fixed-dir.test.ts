@@ -208,6 +208,23 @@ describe("flisk demo fixed directory", () => {
     },
   );
 
+  it.each(["swarm", "tool-loop"])(
+    "--template=%s lands in a folder named after the starter",
+    async (template) => {
+      expect(await runDemoCli(`--template=${template}`)).toBe(0);
+
+      expect(readdirSync(dirs.cwd)).toEqual([template]);
+      expect(existsSync(join(dirs.cwd, template, ".flisk", "project.json"))).toBe(true);
+    },
+  );
+
+  it("--project still wins for a generated starter", async () => {
+    expect(await runDemoCli("--template=swarm", "--project=my-swarm")).toBe(0);
+
+    expect(readdirSync(dirs.cwd)).toEqual(["my-swarm"]);
+    expect(existsSync(join(dirs.cwd, "my-swarm", ".flisk", "project.json"))).toBe(true);
+  });
+
   it("uses the first failed machine check and writes the stack output to a log", async () => {
     const raw = [
       "PASS Docker is running",

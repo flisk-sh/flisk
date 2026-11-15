@@ -12,6 +12,7 @@ import {
   PROJECT_TEMPLATES,
   resolveBundledTemplateDir,
   templateGitCommands,
+  templateTargetDir,
 } from "../project-templates.js";
 
 const exampleRoot = resolve(
@@ -118,6 +119,34 @@ describe("PROJECT_TEMPLATES", () => {
     expect(commandNames).toContain("project");
     const clashes = Object.keys(PROJECT_TEMPLATES).filter((key) => commandNames.has(key));
     expect(clashes).toEqual([]);
+  });
+});
+
+describe("templateTargetDir", () => {
+  it("names generated and composed starters after the starter, not the main repository", () => {
+    for (const name of [
+      "swarm",
+      "security",
+      "super-agent",
+      "langgraph",
+      "tool-loop",
+      "next-postgres",
+    ]) {
+      expect(PROJECT_TEMPLATES[name]?.repo).toBe("https://github.com/flisk-sh/flisk.git");
+      expect(templateTargetDir(name), name).toBe(name);
+    }
+    const folders = Object.keys(PROJECT_TEMPLATES).map((name) => templateTargetDir(name));
+    expect(new Set(folders).size).toBe(folders.length - 1); // demo and restaurant are one repository
+  });
+
+  it("keeps the repository name for starters that are cloned", () => {
+    expect(templateTargetDir("restaurant")).toBe("flisk-restaurant-example");
+    expect(templateTargetDir("example")).toBe("flisk-example");
+    expect(templateTargetDir("launch")).toBe("flisk-template-launch");
+  });
+
+  it("falls back to the name when a starter is unknown", () => {
+    expect(templateTargetDir("unknown-starter.git")).toBe("unknown-starter");
   });
 });
 

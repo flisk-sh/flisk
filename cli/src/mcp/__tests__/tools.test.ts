@@ -1173,7 +1173,10 @@ describe("tool list", () => {
       required: ["stack", "resources"],
     });
     expect(tools.find((t) => t.name === "project_init")?.inputSchema).toMatchObject({
-      properties: { template: { enum: Object.keys(PROJECT_TEMPLATES) } },
+      properties: {
+        template: { enum: Object.keys(PROJECT_TEMPLATES) },
+        path: { description: expect.stringContaining("starter name") },
+      },
     });
     expect(JSON.stringify(tools.find((t) => t.name === "project_init")?.inputSchema)).not.toContain(
       "force",

@@ -152,7 +152,7 @@ flisk project next-postgres --path myapp  # Next.js + Express + Postgres with a 
 | Flag | Effect |
 | --- | --- |
 | `[template]` | Clone a starter instead of a blank project: `restaurant`, `saas`, `erp`, `user-management`, `ecommerce`, `example` |
-| `--path <dir>` | Directory to clone the template into (default: the template's repo name) |
+| `--path <dir>` | Directory to clone the template into (default: the starter name, or its repository name) |
 | `--check` | Check that master configs exist and are in sync |
 | `--force` | Overwrite existing configuration ⚠️ destructive |
 | `--yes` | Non-interactive, use defaults |

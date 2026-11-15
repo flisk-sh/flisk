@@ -1042,7 +1042,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--path <dir>",
-        description: "Directory to clone the template into (default: the template's repo name)",
+        description:
+          "Directory to clone the template into (default: the starter name, or its repository name)",
       },
       {
         flags: "--check",

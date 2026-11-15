@@ -88,8 +88,8 @@ if (templateArg) {
         console.error(chalk.gray("   Run it from Ubuntu in WSL2. Guide: docs/start-here-on-windows.md (reference: docs/wsl2.md)"));
         process.exit(1);
     }
-    const { cloneProjectTemplate, exitUnknownTemplate, templateTargetDir } = await import("./commands/project.js");
-    const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
+    const { cloneProjectTemplate, exitUnknownTemplate } = await import("./commands/project.js");
+    const { PROJECT_TEMPLATES, templateTargetDir } = await import("./utils/project-templates.js");
     // A mistyped starter name is refused before the machine check and before anything is drawn,
     // so the error and the list of templates are the only output.
     if (!Object.hasOwn(PROJECT_TEMPLATES, templateArg)) {

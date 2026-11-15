@@ -1133,7 +1133,7 @@ export function createFliskTools(
         path: {
           type: "string",
           description:
-            "Template only: directory to clone into, relative to projectPath or absolute (default: the template's repository name)",
+            "Template only: directory to clone into, relative to projectPath or absolute (default: the starter name, or its repository name)",
         },
         agentSkills: {
           type: "boolean",

@@ -233,7 +233,8 @@ behind. If `~/.flisk/flisk-demo` exists but is not a Flisk project, the command 
 To put the demo somewhere else, give a directory: `flisk demo --project my-demo` clones into `my-demo` in the current folder.
 If that folder already has files in it, the next free name is used (`my-demo-2`, `my-demo-3`, and so on). The other templates
 (`flisk restaurant`, `flisk saas` and the rest) always clone into the current folder, under the template's repository name
-unless you pass `--project`.
+unless you pass `--project`. A starter the CLI writes itself (`swarm`, `security`, `super-agent`, `langgraph`, `tool-loop`,
+`next-postgres`) is not cloned from its own repository, so it uses the starter name instead.
 
 ## What was checked, and what was not
 
