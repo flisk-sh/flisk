@@ -247,7 +247,7 @@ export function describeUrlFailure(
     case "missing-env":
       return {
         message: `the latest logs of ${service} say the environment variable ${failure.envName ?? "(unnamed)"} is not set`,
-        nextCommand: `add ${failure.envName ?? "it"}=<value> to .env, then run: flisk restart ${service}`,
+        nextCommand: `add ${failure.envName ?? "it"}=<value> to .env, then run: flisk restart ${service} --rebuild`,
       };
     case "container-exited":
       return {

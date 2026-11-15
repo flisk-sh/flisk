@@ -12,7 +12,7 @@ import { createMachineEnvelope } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import { OUTPUT_WITHHELD, projectSecretValues, redactProjectText, redactValue, } from "../utils/secret-redaction.js";
-import { discoverResourcesWithProblems } from "../utils/services.js";
+import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -568,6 +568,7 @@ function restartCliTimeoutMs(cwd, resourceName, rebuild = false) {
     if (!root)
         return resolveRestartCliTimeoutMs();
     try {
+        clearDiscoveryResultCache(root);
         const { resources } = discoverResourcesWithProblems(root);
         const resource = resources.find((candidate) => candidate.name === resourceName);
         if (!resource)

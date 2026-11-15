@@ -23,7 +23,7 @@ import {
   redactProjectText,
   redactValue,
 } from "../utils/secret-redaction.js";
-import { discoverResourcesWithProblems } from "../utils/services.js";
+import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
@@ -627,6 +627,7 @@ function restartCliTimeoutMs(
   const root = findProjectRoot(cwd);
   if (!root) return resolveRestartCliTimeoutMs();
   try {
+    clearDiscoveryResultCache(root);
     const { resources } = discoverResourcesWithProblems(root);
     const resource = resources.find((candidate) => candidate.name === resourceName);
     if (!resource) return resolveRestartCliTimeoutMs();

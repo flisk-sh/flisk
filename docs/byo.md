@@ -568,10 +568,13 @@ through Compose interpolation and is never written to a generated file. A provid
 `"required": false` to start without it, or `"required": true` to need it even with a fallback. List the fallback in
 `dependsOn` too; `flisk config verify` reports it when it is missing.
 
-To add, rotate or remove a token, edit the project `.env` and run `flisk restart <service> --rebuild`. A plain
+To add or rotate a token, edit the project `.env` and run `flisk restart <service> --rebuild`. A plain
 `flisk restart <service>` keeps the container and its environment; `--rebuild` recreates the container with the new
 value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
 the flag still follows the variable.
+
+To remove a token, edit the project `.env`, then run `flisk down` and `flisk up`. `--rebuild` does not clear it: the
+running Tilt process loaded the old value and only sets the keys that are still present in `.env`.
 
 `providers` applies to backend, worker, mcp, agent and bring-your-own services running in containers. It does not start a
 proxy in front of the provider; the service calls the URL itself.

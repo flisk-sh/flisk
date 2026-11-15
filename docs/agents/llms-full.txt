@@ -177,7 +177,7 @@ All inspection and lifecycle commands support `--json`:
 - `flisk resources [--json]`: List the project's services with their stack, type, and port.
 - `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.
 - `flisk stacks [--json]`: List the project's stacks (alias `ls`).
-- `flisk restart <resource> [--rebuild]`: Restart one running resource without rebuilding its image; `--rebuild` rebuilds the image and recreates the container through Tilt.
+- `flisk restart <resource> [--rebuild]`: Restart one running resource. A Flisk-generated Compose container is stopped and started without rebuilding its image; a local process or an imported Tiltfile uses `tilt trigger`. `--rebuild` rebuilds the image and recreates the container through Tilt.
 - `flisk run <service> <command...>`: Run a one-off command with the environment the service has in the stack (`docker exec` in its running container, or on the host for a local process); put `--` before a command that has flags of its own. The exit code is the command's. `--json` runs it without input and returns `exitCode`, `stdout` and `stderr`.
 - `flisk networks [--json]`: Show the Traefik URL of every frontend and API service (aliases `urls`, `traefik`).
 - `flisk agent sessions <resource>`: List the stored sessions of an agent resource (`--session-id <id>` reads one checkpoint).
