@@ -36,9 +36,11 @@ import {
   secondUpAction,
   stopTiltForUp,
 } from "../../utils/tilt-startup.js";
-import { tiltGetUiResources } from "../../utils/up-readiness.js";
+import { readFastNoopState, writeFastNoopState } from "../../utils/up-fast-noop.js";
+import { tiltGetUiResources, waitForTiltResourcesReady } from "../../utils/up-readiness.js";
 import type * as UpWaitModule from "../../utils/up-wait.js";
 import { upAndWait } from "../../utils/up-wait.js";
+import { checkPrintedUrls } from "../../utils/url-check.js";
 import {
   DRIFT_EXIT_CODE,
   driftReport,
@@ -101,7 +103,15 @@ vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
 }));
 vi.mock("../../utils/up-readiness.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../utils/up-readiness.js")>();
-  return { ...actual, tiltGetUiResources: vi.fn(actual.tiltGetUiResources) };
+  return {
+    ...actual,
+    tiltGetUiResources: vi.fn(actual.tiltGetUiResources),
+    waitForTiltResourcesReady: vi.fn(actual.waitForTiltResourcesReady),
+  };
+});
+vi.mock("../../utils/url-check.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/url-check.js")>();
+  return { ...actual, checkPrintedUrls: vi.fn(actual.checkPrintedUrls) };
 });
 // Which other folders hold containers of this project name is a Docker question (#3961); the tests answer it.
 const foreignOwners = vi.hoisted(() => vi.fn(() => [] as { root: string; containers: string[] }[]));
@@ -1794,5 +1804,76 @@ describe("flisk up with no resources (#3781)", () => {
     expect(error.mock.calls.flat().join("\n")).not.toContain("no resources yet");
     log.mockRestore();
     error.mockRestore();
+  });
+
+  it("rejects already-running --json when printed URLs do not answer and clears cached state (#4193)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-up-already-url-"));
+    try {
+      mkdirSync(join(dir, ".flisk", ".flisk-out"), { recursive: true });
+      writeFileSync(join(dir, ".flisk", "project.json"), `${JSON.stringify(PROJECT_JSON)}\n`);
+      writeFileSync(join(dir, ".flisk", ".flisk-out", "Tiltfile"), "# tilt\n");
+      vi.mocked(findProjectRoot).mockReturnValue(dir);
+      vi.mocked(requireProjectRoot).mockReturnValue(dir);
+      vi.mocked(discoverResourcesStrict).mockReturnValue([
+        makeResource("api", "backend", { schemaVersion: 1, port: 8080 }),
+      ]);
+      vi.mocked(findProjectTiltPorts).mockResolvedValueOnce({
+        running: [10350],
+        foreign: [],
+        savedRunning: [10350],
+        unknownSaved: [],
+      });
+      vi.mocked(getHostPortPlan).mockResolvedValueOnce({
+        ingressHttp: 8080,
+        ingressHttps: 8443,
+        postgres: 5432,
+        requested: { ingressHttp: 8080, ingressHttps: 8443, postgres: 5432 },
+        explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+        reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+      });
+      vi.mocked(waitForTiltResourcesReady).mockResolvedValueOnce({
+        ready: true,
+        pending: 0,
+        failures: [],
+        enabled: ["api"],
+        timedOut: false,
+      });
+      vi.mocked(checkPrintedUrls).mockResolvedValueOnce([
+        { service: "api", url: "http://api.shop.localhost:8080/api/api", didAnswer: false },
+      ]);
+      writeFastNoopState(dir, {
+        version: 1,
+        fingerprint: "stale",
+        tiltPort: 10350,
+        tiltPid: 123,
+        stack: null,
+        services: ["api"],
+        ingressPort: 8080,
+        urls: ["http://api.shop.localhost:8080/api/api"],
+      });
+
+      let written = "";
+      vi.mocked(writeSync).mockImplementation((_fd, data) => {
+        written += String(data);
+        return String(data).length;
+      });
+      const prevCode = process.exitCode;
+      process.exitCode = undefined;
+
+      try {
+        await upCommand.parseAsync(["--json"], { from: "user" });
+        expect(process.exitCode).toBe(1);
+      } finally {
+        process.exitCode = prevCode;
+      }
+
+      const envelope = JSON.parse(written.trim().split("\n").pop() as string);
+      expect(envelope.data.ok).toBe(false);
+      expect(envelope.data.alreadyRunning).toBe(true);
+      expect(envelope.errors[0]?.code).toBe("UP_URL_UNREACHABLE");
+      expect(readFastNoopState(dir)).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

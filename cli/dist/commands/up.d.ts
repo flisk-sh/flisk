@@ -1,7 +1,9 @@
 import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
 import { type SelectedEnvFile } from "../utils/env-selection.js";
+import { type JsonEmitter } from "../utils/json-output.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
+import { type FastNoopFlags, tryFastNoop } from "../utils/up-fast-noop.js";
 import { checkPrintedUrls, type UrlCheck } from "../utils/url-check.js";
 export interface ServiceHealth {
     name: string;
@@ -81,6 +83,17 @@ export interface NativeUpSelection {
  * stack or service, an invalid service.json, and a run that would mix native and container services.
  */
 export declare function selectNativeRun(stackName: string | undefined, only: string[] | undefined, fail: (code: string, message: string, suggestions?: string[]) => never, cwd?: string): NativeUpSelection | null;
+/** Flags and environment of this run, for the fast no-op decision. */
+export declare function fastNoopFlags(options: Record<string, unknown>, stackName: string | undefined, configuredTiltPort: number | undefined): FastNoopFlags;
+/**
+ * The already-up answer, in both output modes. `--wait` calls it after its child has exited; an attached `up` calls it
+ * before any prerequisite, write or Tilt command. The URLs are printed so a script sees the same addresses a normal
+ * start prints.
+ */
+export declare function printFastNoopResult(result: NonNullable<Awaited<ReturnType<typeof tryFastNoop>>>, options: {
+    json?: boolean;
+    quiet?: boolean;
+}, emit?: JsonEmitter): void;
 export declare const upCommand: Command;
 /**
  * Probes every URL `flisk up` prints for the started services (#3211): "ready" means each one answers. A URL that does not is
