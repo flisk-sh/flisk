@@ -1330,3 +1330,52 @@ describe("confirm safeguards and output masking", () => {
     }
   });
 });
+
+describe("unknown arguments over the real tool registry", () => {
+  it("refuses a made-up argument on every tool without running the CLI", async () => {
+    const { createMcpServer } = await import("../server.js");
+    const { seen, tools } = recordingTools("{}");
+    const server = createMcpServer(tools, { name: "flisk", version: "1.0.0" });
+    for (const tool of tools) {
+      const line = await server.handleLine(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: tool.name, arguments: { bogusArgument: 1 } },
+        }),
+      );
+      const result = (
+        JSON.parse(line as string) as { result: { isError: boolean; content: { text: string }[] } }
+      ).result;
+      expect(result.isError, tool.name).toBe(true);
+      expect(result.content[0]?.text, tool.name).toContain("Unknown argument: bogusArgument");
+    }
+    expect(seen).toEqual([]);
+  });
+  it("points logs {resource} at services and resource_restart {name} at resource", async () => {
+    const { createMcpServer } = await import("../server.js");
+    const { tools } = recordingTools("{}");
+    const server = createMcpServer(tools, { name: "flisk", version: "1.0.0" });
+    const text = async (name: string, args: unknown): Promise<string> => {
+      const line = await server.handleLine(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name, arguments: args },
+        }),
+      );
+      return (
+        (JSON.parse(line as string) as { result: { content: { text: string }[] } }).result
+          .content[0]?.text ?? ""
+      );
+    };
+    expect(await text("logs", { resource: "agent" })).toContain(
+      `Did you mean "services" instead of "resource"?`,
+    );
+    expect(await text("resource_restart", { name: "agent" })).toContain(
+      `Did you mean "resource" instead of "name"?`,
+    );
+  });
+});

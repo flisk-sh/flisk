@@ -54,6 +54,80 @@ function fail(id: JsonRpcRequest["id"], code: number, message: string): string {
   return JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 }
 
+/** Names callers use for the same idea; `logs` takes `services` where other tools take `resource` or `name`. */
+const SYNONYM_GROUPS: readonly (readonly string[])[] = [
+  ["resource", "resources", "service", "services", "name", "names", "app", "apps"],
+];
+
+/** Edit distance where swapping two adjacent letters ("tial" for "tail") counts as one edit. */
+function editDistance(a: string, b: string): number {
+  const rows: number[][] = [];
+  for (let i = 0; i <= a.length; i++) {
+    const row: number[] = [i];
+    for (let j = 1; j <= b.length; j++) {
+      if (i === 0) {
+        row[j] = j;
+        continue;
+      }
+      let best = Math.min(
+        (rows[i - 1]?.[j] ?? 0) + 1,
+        (row[j - 1] ?? 0) + 1,
+        (rows[i - 1]?.[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        best = Math.min(best, (rows[i - 2]?.[j - 2] ?? 0) + 1);
+      }
+      row[j] = best;
+    }
+    rows.push(row);
+  }
+  return rows[a.length]?.[b.length] ?? 0;
+}
+
+/** The accepted argument name closest to an unknown one, or undefined when none is close. */
+export function closestArgument(unknown: string, accepted: readonly string[]): string | undefined {
+  const lower = unknown.toLowerCase();
+  const group = SYNONYM_GROUPS.find((names) => names.includes(lower));
+  const synonym = group ? accepted.find((name) => group.includes(name.toLowerCase())) : undefined;
+  if (synonym) return synonym;
+  let best: { name: string; distance: number } | undefined;
+  for (const name of accepted) {
+    const distance = editDistance(lower, name.toLowerCase());
+    if (
+      distance <= Math.max(1, Math.floor(name.length / 3)) &&
+      (!best || distance < best.distance)
+    ) {
+      best = { name, distance };
+    }
+  }
+  return best?.name;
+}
+
+/**
+ * Check the arguments against the tool's published schema: when it declares `additionalProperties: false`, an argument it
+ * does not list is refused with the accepted names and the closest match. Returns the message, or undefined when all fit.
+ */
+export function unknownArgumentsMessage(
+  inputSchema: Record<string, unknown>,
+  args: Record<string, unknown>,
+): string | undefined {
+  if (inputSchema.additionalProperties !== false) return undefined;
+  const properties = inputSchema.properties;
+  if (typeof properties !== "object" || properties === null) return undefined;
+  const accepted = Object.keys(properties);
+  const unknown = Object.keys(args).filter((key) => !accepted.includes(key));
+  if (unknown.length === 0) return undefined;
+  const lines = [
+    `Unknown argument${unknown.length === 1 ? "" : "s"}: ${unknown.join(", ")}. The call was not run.`,
+    `Accepted arguments: ${accepted.length > 0 ? accepted.join(", ") : "(none)"}.`,
+  ];
+  for (const key of unknown) {
+    const match = closestArgument(key, accepted);
+    if (match) lines.push(`Did you mean "${match}" instead of "${key}"?`);
+  }
+  return lines.join("\n");
+}
+
 export interface McpServer {
   /** Handle one line from the client; returns the line to send back, or null for notifications. */
   handleLine(line: string): Promise<string | null>;
@@ -135,6 +209,16 @@ export function createMcpServer(
           (typeof args !== "object" || args === null || Array.isArray(args))
         ) {
           return fail(message.id, ERROR.invalidParams, "arguments must be an object");
+        }
+        const unknownMessage = unknownArgumentsMessage(
+          tool.inputSchema,
+          (args ?? {}) as Record<string, unknown>,
+        );
+        if (unknownMessage) {
+          return reply(message.id, {
+            content: [{ type: "text", text: unknownMessage }],
+            isError: true,
+          });
         }
         try {
           const result = await tool.handler((args ?? {}) as Record<string, unknown>);

@@ -25,6 +25,13 @@ export interface McpToolResult {
     isError: boolean;
 }
 export declare const SUPPORTED_PROTOCOL_VERSIONS: readonly ["2025-06-18", "2025-03-26", "2024-11-05"];
+/** The accepted argument name closest to an unknown one, or undefined when none is close. */
+export declare function closestArgument(unknown: string, accepted: readonly string[]): string | undefined;
+/**
+ * Check the arguments against the tool's published schema: when it declares `additionalProperties: false`, an argument it
+ * does not list is refused with the accepted names and the closest match. Returns the message, or undefined when all fit.
+ */
+export declare function unknownArgumentsMessage(inputSchema: Record<string, unknown>, args: Record<string, unknown>): string | undefined;
 export interface McpServer {
     /** Handle one line from the client; returns the line to send back, or null for notifications. */
     handleLine(line: string): Promise<string | null>;
