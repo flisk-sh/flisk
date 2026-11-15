@@ -1,6 +1,6 @@
 # One Python backend on your machine
 
-This example is one authored `service.json` and one small FastAPI service on Python 3.12. Flisk creates the local orchestration files; Docker builds the service and Tilt runs it. Live reload does not work yet: every edit rebuilds the image (see [Live reload](#live-reload)). No Kubernetes cluster is needed, and you do not need Bun, Node.js, or Python installed on your machine for the service itself.
+This example is one authored `service.json` and one small FastAPI service on Python 3.12. Flisk creates the local orchestration files; Docker builds the service and Tilt runs it. Edits to `src/` are synced into the running container and uvicorn reloads without an image rebuild (see [Live reload](#live-reload)). No Kubernetes cluster is needed, and you do not need Bun, Node.js, or Python installed on your machine for the service itself.
 
 It is the Python counterpart of the [one-backend example](../one-backend/README.md). The source in `services/one-backend-python/api` is exactly what this command generates:
 
@@ -31,7 +31,7 @@ Open the Tilt dashboard at `http://localhost:10350`. Stop the local stack with `
 
 ## Live reload
 
-Edit `services/one-backend-python/api/src/main.py` and Tilt picks the change up. Today every edit, including to `main.py`, triggers a full image rebuild instead of a file sync (Tilt reports `Found file(s) not matching any sync`), so expect a few seconds of rebuild per change. This is a known engine issue, tracked in `openspec/changes/add-python-backend-provider/tasks.md` task 4.5, and is not specific to Python. Changing `pyproject.toml` rebuilds the image to install the new dependencies, which is the intended behavior.
+Edit `services/one-backend-python/api/src/main.py` and Tilt syncs the file into the container; uvicorn `--reload` restarts the process, with no image rebuild. Measured median save-to-ready is about 0.5 s (see [the measurements](../../docs/backend-language-providers.md#measured-the-python-dev-loop-through-flisk-up)). Changing `pyproject.toml` rebuilds the image to install the new dependencies, which is the intended behavior.
 
 ## Run the tests
 
