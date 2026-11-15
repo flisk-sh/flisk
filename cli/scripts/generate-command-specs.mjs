@@ -13,7 +13,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -141,16 +141,28 @@ function toTypeScriptLiteral(value, indent) {
 // Node's executable (portable across Windows/macOS/Linux) and write only when content changed so
 // watch mode never loops.
 const biomeBin = join(cliDir, "node_modules", "@biomejs", "biome", "bin", "biome");
-const formatted = execFileSync(
-  process.execPath,
-  [biomeBin, "format", "--stdin-file-path", output],
-  {
-    cwd: cliDir,
-    input: body,
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "ignore"],
-  },
-);
+// A path relative to cliDir with forward slashes: Biome matches it against `files.includes`, and an absolute
+// Windows path (`D:\a\flisk\...`) is not matched the way the same file is on macOS/Linux.
+const outputRelative = relative(cliDir, output).split(sep).join("/");
+let formatted;
+try {
+  formatted = execFileSync(
+    process.execPath,
+    [biomeBin, "format", "--stdin-file-path", outputRelative],
+    {
+      cwd: cliDir,
+      input: body,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+} catch (error) {
+  // Show why Biome refused: a bare "Command failed" hides the cause on CI.
+  const detail = [error.stderr, error.stdout].filter(Boolean).join("\n").trim();
+  throw new Error(`biome format failed for ${outputRelative}${detail ? `:\n${detail}` : ""}`, {
+    cause: error,
+  });
+}
 const previous = existsSync(output) ? readFileSync(output, "utf8") : "";
 if (previous !== formatted) {
   writeFileSync(output, formatted, "utf8");
