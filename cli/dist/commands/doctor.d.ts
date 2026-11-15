@@ -46,6 +46,8 @@ export declare function runChecks(checks: DoctorCheckFn[], options?: {
     containerRuntimeFailed?: boolean;
 }): Promise<CheckResult[]>;
 export declare function formatDoctorSummary(results: CheckResult[]): string;
+/** Which Docker-compatible engine answers `docker` (Docker Desktop, Colima, OrbStack, Kiri, Podman, Docker Engine). */
+export declare function checkContainerEngine(): Promise<CheckResult>;
 /** The Colima VM behind Docker: a stopped VM or a colima CLI that cannot see it. */
 export declare function checkColima(): Promise<CheckResult>;
 export declare function checkDockerRuntime(commandCache?: HostCommandCache): Promise<CheckResult>;
