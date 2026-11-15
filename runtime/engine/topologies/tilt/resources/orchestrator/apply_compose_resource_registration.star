@@ -1022,7 +1022,8 @@ def register_python_test_resource(config, resource_path, compose_project_name, a
         env_file = project_env_file(root)
 
     compose_files = ['-f', compose_file]
-    if file_exists(port_override):
+    # os.path.exists, as in the wake-gateway files above: no shell-out per check (flisk#4237).
+    if os.path.exists(port_override):
         compose_files = compose_files + ['-f', port_override]
 
     test_dir = service_dir + '/' + test_path if test_path != '.' else service_dir
@@ -1105,12 +1106,13 @@ def _compose_project_argv(config, resource_path, compose_project_name):
         port_override = root + '/' + port_override
         env_file = project_env_file(root)
     compose_files = ['-f', compose_file]
-    if file_exists(port_override):
+    # os.path.exists, as in the wake-gateway files above: no shell-out per check (flisk#4237).
+    if os.path.exists(port_override):
         compose_files = compose_files + ['-f', port_override]
     # .env is gitignored (no .env.example shipped) across every Flisk example repo, so a
     # fresh clone must not hard-require it: only pass --env-file when it actually exists.
     env_file_flag = []
-    if file_exists(env_file):
+    if os.path.exists(env_file):
         env_file_flag = ['--env-file', env_file]
     # Built as an argv list (extend, not `+`) so no argument is ever joined into shell text.
     argv = ['docker', 'compose', '-p', compose_project_name]
