@@ -77,7 +77,7 @@ services:
 {sablier_flags}    ports:
       - "{bind_address}:{http_host_port}:80"
 {https_port}    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {docker_socket}:/var/run/docker.sock:ro
       - ./{dynamic_dir_name}:/etc/traefik/dynamic:ro
 {plugins_volume}    networks:
       - traefik-public
@@ -112,6 +112,7 @@ volumes:
             docker_socket_gid=_docker_socket_gid(),
             gateway_image=wake_gateway_image(),
         ) if sablier_enabled else "",
+        docker_socket=_docker_socket_source(),
         dynamic_dir_name=PlatformDockerConstants.TRAEFIK_DYNAMIC_DIR_REL.split("/")[-1],
         vendored_gateway_dir="flisk-cli-ext/engine/assets/docker/wake-gateway",
         gateway_container=PlatformDockerConstants.TRAEFIK_WAKE_GATEWAY_CONTAINER,
@@ -121,6 +122,15 @@ volumes:
         log_level=log_level,
         plugins_volume=plugins_volume,
     )
+
+
+def _docker_socket_source():
+    """The host path Traefik mounts as the Docker socket.
+
+    /var/run/docker.sock everywhere except Kiri on Linux, which has no VM and listens on /run/kiri/docker.sock while
+    /var/run/docker.sock is the host's own Docker. The CLI sets FLISK_DOCKER_SOCKET there.
+    """
+    return os.environ.get("FLISK_DOCKER_SOCKET", "/var/run/docker.sock")
 
 
 def _docker_socket_gid():
