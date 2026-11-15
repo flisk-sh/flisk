@@ -1380,6 +1380,8 @@ describe("template-engine", () => {
           path.join(generatedDir, "Dockerfile.prebuild.dockerignore"),
           "node_modules\n",
         );
+        // The marker the build step leaves once the image is built.
+        fs.writeFileSync(path.join(generatedDir, "Dockerfile.prebuild.built"), "1\n");
         expect(generatedErrors().join("\n")).not.toContain("prebuild");
 
         // Nested files are collected recursively and compared to their nested snapshot.
