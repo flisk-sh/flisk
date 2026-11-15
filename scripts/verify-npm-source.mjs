@@ -9,6 +9,10 @@ import { pathToFileURL } from "node:url";
 
 export const REGISTRY = "https://registry.npmjs.org";
 
+/** A fresh publish can take several minutes to show on the registry: 1.4.65 still answered 404 after two (#4272). */
+export const FIND_ATTEMPTS = 30;
+export const FIND_DELAY_MS = 10_000;
+
 /** The registry URL of one published version: scoped names keep "@" and encode the "/". */
 export const versionUrl = (pkg, version, registry = REGISTRY) =>
 	`${registry}/${pkg.replaceAll("/", "%2f")}/${encodeURIComponent(version)}`;
@@ -26,8 +30,8 @@ export const findTarball = async (
 	{
 		fetchImpl = fetch,
 		sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
-		attempts = 12,
-		delayMs = 10_000,
+		attempts = FIND_ATTEMPTS,
+		delayMs = FIND_DELAY_MS,
 	} = {},
 ) => {
 	let error = "no attempt made";
@@ -74,7 +78,7 @@ const main = async () => {
 		const { tarballUrl, error } = await findTarball(pkg, version);
 		if (!tarballUrl) {
 			console.error(
-				`::error::${pkg}@${version} is not visible on the registry after 2 minutes (${error})`,
+				`::error::${pkg}@${version} is not visible on the registry after ${Math.round((FIND_ATTEMPTS * FIND_DELAY_MS) / 60_000)} minutes: expected version ${version} (${error})`,
 			);
 			process.exit(1);
 		}
