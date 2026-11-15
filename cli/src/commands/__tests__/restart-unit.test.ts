@@ -249,7 +249,10 @@ describe("restart command unit tests", () => {
     expect(envelope?.errors[0]).toEqual({
       code: "UNKNOWN_RESOURCE",
       message: 'Resource "nope" not found in project.',
-      suggestions: ["Resources: api, local, web, unknown-service", "See the names with: flisk resources"],
+      suggestions: [
+        "Resources: api, local, web, unknown-service",
+        "See the names with: flisk resources",
+      ],
     });
     expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
     expect(tilt.runTilt).not.toHaveBeenCalled();
