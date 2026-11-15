@@ -57,6 +57,7 @@ artifact. For a trend, download the weekly artifact into `docs/benchmarks/result
 | --- | --- |
 | `requires` | commands that must exist, else the tool is reported as skipped (not failed) |
 | `start` | run in the background, so a command that never returns (`tilt up`) is fine; the clock stops when every `health` URL answers 2xx |
+| `milestones` | optional. `[{ "name", "match", "pick" }]`: lines of the start command's output to time, so the report shows where a start spends its time. `match` is a regex tested against each output line (colours removed); `pick` is `"first"` (default) or `"last"` (for "the last image was built"). The report also lists when each `health` URL first answered |
 | `stop` | timed; afterwards no `health` URL may answer. A stop that leaves the app running is reported |
 | `purge` | final cleanup, also removes data and images this run built |
 | `base`, `paths` | where the gateway is. Defaults: `/api/products`, `/api/orders`, `/api/payments`, `/api/notifications`, `/`, `/admin/`. A path that starts with `http` is used as is (a tool that routes APIs on another host) |

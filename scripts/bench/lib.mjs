@@ -69,7 +69,60 @@ export function validateContract(c) {
       if (!/^https?:\/\//.test(h)) errs.push(`health URL must start with http: ${h}`);
   if (c.requires && !Array.isArray(c.requires))
     errs.push("requires must be an array of command names");
+  if (c.milestones !== undefined) {
+    if (!Array.isArray(c.milestones)) errs.push("milestones must be an array");
+    else
+      c.milestones.forEach((m, i) => {
+        if (typeof m?.name !== "string" || !m.name) errs.push(`milestones[${i}] needs a name`);
+        if (!isRegex(m?.match))
+          errs.push(`milestones[${i}].match must be a regular expression (a string)`);
+        if (m?.pick !== undefined && m.pick !== "first" && m.pick !== "last")
+          errs.push(`milestones[${i}].pick must be "first" or "last"`);
+      });
+  }
   return errs;
+}
+
+function isRegex(src) {
+  if (typeof src !== "string" || !src) return false;
+  try {
+    new RegExp(src); // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- pattern from a reviewed bench.json
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const tenths = (ms) => Math.round(ms / 100) / 10;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: terminal colour codes start with ESC
+const ANSI = /\u001b\[[0-9;?]*[A-Za-z]/g;
+
+/**
+ * Times the `milestones` of a bench.json against the start command's output: feed it every line with the milliseconds
+ * since the start command ran, then take a snapshot when the stack is healthy. A milestone is the first line its `match`
+ * regex finds, or the last one with `pick: "last"` ("the last image was built"). Not printed: `seconds` is null.
+ */
+export function createMilestoneTracker(milestones = []) {
+  const marks = milestones.map((m) => ({
+    name: m.name,
+    last: m.pick === "last",
+    re: new RegExp(m.match), // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- pattern from a reviewed bench.json
+    at: [],
+  }));
+  return {
+    line(text, ms) {
+      const plain = text.replace(ANSI, "");
+      for (const m of marks) if ((m.last || m.at.length === 0) && m.re.test(plain)) m.at.push(ms);
+    },
+    /** `untilMs`: when the stack was healthy. Later lines belong to the running stack, not to the start. */
+    snapshot(untilMs = Number.POSITIVE_INFINITY) {
+      return marks.map((m) => {
+        const at = m.at.filter((t) => t <= untilMs);
+        const ms = m.last ? at.at(-1) : at[0];
+        return { name: m.name, seconds: ms === undefined ? null : tenths(ms) };
+      });
+    },
+  };
 }
 
 function walk(dir, out = []) {
@@ -190,6 +243,14 @@ export function scanWiring(workDir, benchDir, c) {
 const fmt = (v, unit = " s") => (v === null || v === undefined ? "–" : `${v}${unit}`);
 const mark = (b) => (b === undefined ? "–" : b ? "✅" : "❌");
 
+function urlPath(u) {
+  try {
+    return new URL(u).pathname;
+  } catch {
+    return u;
+  }
+}
+
 export function renderReport(doc) {
   const r = doc.runner;
   const L = [];
@@ -208,6 +269,33 @@ export function renderReport(doc) {
     L.push(
       `| ${x.name} | ${x.version ?? "–"} | ${x.status === "ok" ? "✅ pass" : x.status === "skipped" ? "⏭️ skipped" : "❌ failed"} | ${fmt(p.firstStartSeconds)} | ${fmt(p.orderToShippedSeconds)} | ${fmt(p.stopSeconds)} | ${fmt(p.restartSeconds)} |`,
     );
+  }
+  const timed = doc.results.filter((x) => x.breakdown);
+  if (timed.length) {
+    L.push("", "### Where a start spends its time", "");
+    L.push(
+      "Seconds since the start command ran. Milestones are lines of the tool's own output (`milestones` in its `bench.json`); a health URL is polled once a second, so its time is up to a second late.",
+    );
+    for (const x of timed) {
+      const first = x.breakdown.firstStart ?? {};
+      const again = x.breakdown.restart ?? {};
+      const cell = (list, key, value) => fmt(list?.find((e) => e[key] === value)?.seconds);
+      const names = (key) => [
+        ...new Set([...(first[key] ?? []), ...(again[key] ?? [])].map((e) => e.name ?? e.url)),
+      ];
+      L.push("", `**${x.name}**`, "", "| Reached | First start | Restart |", "| --- | --- | --- |");
+      for (const n of names("milestones"))
+        L.push(
+          `| ${n} | ${cell(first.milestones, "name", n)} | ${cell(again.milestones, "name", n)} |`,
+        );
+      for (const u of names("health"))
+        L.push(
+          `| answers: ${urlPath(u)} | ${cell(first.health, "url", u)} | ${cell(again.health, "url", u)} |`,
+        );
+      L.push(
+        `| healthy (all URLs answer) | ${fmt(x.phases.firstStartSeconds)} | ${fmt(x.phases.restartSeconds)} |`,
+      );
+    }
   }
   L.push("", "### Outcome checks", "");
   L.push(

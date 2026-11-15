@@ -32,5 +32,16 @@
     "http://api.flisk.localhost:${BENCH_PORT}/api/payments/health",
     "http://api.flisk.localhost:${BENCH_PORT}/api/notifications/health"
   ],
-  "wiring": { "configFiles": ["services/**/service.json"], "waitsOnHealthy": "\"dependsOn\"", "healthChecks": "healthCheck" }
+  "milestones": [
+    { "name": "flisk checks done, engine started", "match": "^Running tilt up" },
+    { "name": "engine read the project", "match": "Successfully loaded Tiltfile" },
+    { "name": "database ready", "match": "^postgres: ready \\(" },
+    { "name": "migrations done", "match": "^migrator-done: ready \\(" },
+    { "name": "last image built", "match": "^[\\w-]+-image: ready \\(", "pick": "last" }
+  ],
+  "wiring": {
+    "configFiles": ["services/**/service.json"],
+    "waitsOnHealthy": "\"dependsOn\"",
+    "healthChecks": "healthCheck"
+  }
 }
