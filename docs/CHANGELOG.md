@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.65 (2026-11-15)
+
 - `flisk doctor --json` on a usage error now returns `data: null` instead of a placeholder report claiming `inProject: false`, matching `logs` (#4252).
 - A new Python (FastAPI) backend's `/health` checks the database when `DATABASE_URL` is set and answers 503 with the reason, so a wrong password shows as that service failing (#683).
 - The Python dev loop is measured through a real `flisk up`: a source edit is synced and uvicorn reloads without an image rebuild, median save-to-ready 0.50 s (plain `uvicorn --reload` 0.24 s); first start 41 s, start with a warm image 19 s. The numbers and the script are in `docs/backend-language-providers.md` (#683).
