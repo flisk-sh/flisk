@@ -1233,7 +1233,9 @@ _HEALTHY_SCRIPT = (
     + '      bad_since=""; '
     + '    fi; '
     + '  fi; '
-    + '  sleep 1; '
+    # A container that is still starting is checked four times a second for the first 12 checks: Docker runs the first probes
+    # every start_interval (0.5 s), and a once-a-second check held each wave of dependents about a second (#4237).
+    + '  if [ "$i" -le 12 ] && [ "$state" = "running" ] && [ "$health" = "starting" ]; then sleep 0.25 2>/dev/null || sleep 1; else sleep 1; fi; '
     + 'done; '
     + 'if [ -n "$bad_since" ]; then echo "ERROR: $job is unhealthy: its health check still failed ${grace}s after it first failed"; exit 1; fi; '
     + 'echo "ERROR: timed out waiting for $job to become healthy (waited ${max_polls}s)"; exit 1'
