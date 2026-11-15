@@ -21,7 +21,7 @@ import { applyDoctorFixes, checkDuplicateFliskInstalls, hasFailedActions, planDo
 import { formatFixFirst, rankDoctorFixes } from "../utils/doctor-fix-first.js";
 import { checkDiskSpace, dockerDesktopStuck } from "../utils/doctor-host.js";
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
-import { collectDoctorChecks, createDoctorReport, getDoctorExitCode, } from "../utils/doctor-report.js";
+import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, } from "../utils/doctor-report.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, summarizeAdvertisedProbes, summarizeServiceProbes, summarizeSmokeResults, } from "../utils/doctor-runtime.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkInfraFrameworks, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
@@ -1365,7 +1365,7 @@ export const doctorCommand = new Command("doctor")
     if (error.exitCode === 0)
         process.exit(0);
     if (doctorCommand.opts().json) {
-        console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message: error.message }])));
+        console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message: error.message }])));
     }
     process.exit(2);
 })
@@ -1387,7 +1387,7 @@ export const doctorCommand = new Command("doctor")
         pingTimeout <= 0) {
         const message = "--ping-timeout must be a positive integer number of milliseconds";
         if (options.json)
-            console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
+            console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
         console.error(message);
         process.exit(2);
         return;
@@ -1406,7 +1406,7 @@ export const doctorCommand = new Command("doctor")
             message = `${options.dryRun ? "--dry-run" : "--yes"} only applies with --fix`;
         }
         if (options.json)
-            console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
+            console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
         console.error(message);
         process.exit(2);
         return;

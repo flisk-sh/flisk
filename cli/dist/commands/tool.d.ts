@@ -15,6 +15,10 @@ export interface AddOptions {
     json?: boolean;
     yes?: boolean;
 }
+export interface ListOptions {
+    json?: boolean;
+}
+export declare function listTools(options?: ListOptions): unknown;
 /** The catalog as lines, grouped, for `flisk tool add` with no tool. */
 export declare function formatToolList(): string[];
 /** What `flisk tool add --json` reports for one tool, before anything runs. */
@@ -75,6 +79,6 @@ export declare function checkResource(tool: ResourceTool, name: string, stack: s
 export declare function runResource(args: string[], json: boolean, invocation?: CliInvocation, spawn?: Spawn): unknown;
 /** The whole action, without the JSON wrapper, so tests can call it. */
 export declare function addTool(words: string[], options: AddOptions, run?: (args: string[], json: boolean) => unknown, project?: () => ProjectView | undefined): unknown;
-/** `flisk tool`: tools by their everyday name. `add` is its only subcommand. */
+/** `flisk tool`: tools by their everyday name. `list` and `add` are its subcommands. */
 export declare const toolCommand: Command;
 export {};

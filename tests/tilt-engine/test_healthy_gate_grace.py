@@ -74,7 +74,7 @@ POSTGRES = _starlark_string(TILT / "resources" / "infra-loader.star", "_HEALTHY_
 def _run(tmp_path: Path, script: str, args: list[str], steps: list[dict]):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    for name, body in (("docker", FAKE_DOCKER), ("sleep", "#!/bin/sh\nexit 0\n")):
+    for name, body in (("docker", FAKE_DOCKER), ("sleep", '#!/bin/sh\necho "$1" >> "$FAKE_DOCKER_DIR/sleeps"\nexit 0\n')):
         target = bin_dir / name
         target.write_text(body)
         target.chmod(target.stat().st_mode | stat.S_IEXEC)
@@ -141,6 +141,60 @@ def test_still_starting_times_out_at_the_poll_limit(tmp_path, script, args, labe
     assert out.returncode == 1
     assert f"ERROR: timed out waiting for {label} to become healthy" in out.stdout
     assert polls == 120
+
+
+def _sleeps(tmp_path: Path) -> list[str]:
+    return (tmp_path / "sleeps").read_text().split() if (tmp_path / "sleeps").exists() else []
+
+
+@pytest.mark.parametrize("script,args,label", SCRIPTS)
+def test_a_starting_container_is_checked_four_times_a_second_at_first(tmp_path, script, args, label):
+    """A service that is up in half a second must not wait a whole second to be seen (#4237).
+
+    Docker runs the first probes every `start_interval` (0.5 s), so a once-a-second check held each wave of dependent
+    services for about a second after its dependencies were already healthy.
+    """
+    out, polls = _run(tmp_path, script, args, [{"health": "starting"}] * 3 + [{"health": "healthy"}])
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert polls == 4
+    assert _sleeps(tmp_path) == ["0.25"] * 3
+
+
+@pytest.mark.parametrize("script,args,label", SCRIPTS)
+def test_the_quick_checks_stop_after_the_first_twelve(tmp_path, script, args, label):
+    # a slow service is checked once a second as before, so the wait still ends after about `max_polls` seconds
+    out, _ = _run(tmp_path, script, args, [{"health": "starting"}] * 30 + [{"health": "healthy"}])
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert _sleeps(tmp_path) == ["0.25"] * 12 + ["1"] * 18
+
+
+@pytest.mark.parametrize("script,args,label", SCRIPTS)
+def test_only_a_starting_container_is_checked_quickly(tmp_path, script, args, label):
+    # unhealthy and exited containers keep the one-second check: their limits count seconds
+    out, _ = _run(tmp_path, script, args, [{"health": "unhealthy"}] * 3 + [{"health": "healthy"}])
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert _sleeps(tmp_path) == ["1"] * 3
+    (tmp_path / "sleeps").unlink()
+    (tmp_path / "polls").unlink()
+    for child in (tmp_path / "bin").iterdir():
+        child.unlink()
+    (tmp_path / "bin").rmdir()
+    out, _ = _run(tmp_path, script, args, [{"health": "starting", "state": "exited", "code": 3}])
+    assert out.returncode == 1
+    assert set(_sleeps(tmp_path)) == {"1"}
+
+
+def test_quick_check_falls_back_when_sleep_takes_whole_seconds_only():
+    """A `sleep` that rejects 0.25 (some minimal shells) must not turn the wait into a busy loop."""
+    for script in (GENERIC, POSTGRES):
+        assert "sleep 0.25 2>/dev/null || sleep 1" in script
+
+
+def test_windows_gates_check_a_starting_container_quickly_too():
+    ps = (TILT / "common" / "windows_scripts.star").read_text()
+    for start, end in (("def healthy_postgres_script", "def provision_database_script"), ("def healthy_script", "def job_done_script")):
+        body = ps[ps.index(start):ps.index(end)]
+        assert "if ($i -le 12 -and $state -eq 'running' -and $health -eq 'starting') { Start-Sleep -Milliseconds 250; } else { Start-Sleep -Seconds 1; }" in body
 
 
 def test_windows_gates_have_the_same_unhealthy_window():

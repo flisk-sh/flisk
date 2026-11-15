@@ -66,7 +66,7 @@ def healthy_postgres_script():
         "    if ($badSince -lt 0) { $badSince = $i; Write-Output ('postgres health check is failing; waiting up to ' + $grace + 's for it to recover'); }",
         "  } else { $badSince = -1; }",
         "  if ($health -eq 'none') { Write-Output 'ERROR: postgres container has no health check configured'; exit 1; }",
-        "  Start-Sleep -Seconds 1;",
+        "  if ($i -le 12 -and $state -eq 'running' -and $health -eq 'starting') { Start-Sleep -Milliseconds 250; } else { Start-Sleep -Seconds 1; }",
         "}",
         "if ($badSince -ge 0) { Write-Output ('ERROR: postgres is unhealthy: its health check still failed ' + $grace + 's after it first failed'); exit 1; }",
         "Write-Output 'ERROR: timed out waiting for postgres to become healthy'; exit 1;",
@@ -207,10 +207,10 @@ def healthy_script():
         "      if ($badSince -lt 0) { $badSince = $i; Write-Output ($job + ' health check is failing; waiting up to ' + $grace + 's for it to recover'); }",
         "    } else { $badSince = -1; }",
         "  }",
-        "  Start-Sleep -Seconds 1;",
+        "  if ($i -le 12 -and $state -eq 'running' -and $health -eq 'starting') { Start-Sleep -Milliseconds 250; } else { Start-Sleep -Seconds 1; }",
         "}",
         "if ($badSince -ge 0) { Write-Output ('ERROR: ' + $job + ' is unhealthy: its health check still failed ' + $grace + 's after it first failed'); exit 1; }",
-        "Write-Output ('ERROR: timed out waiting for ' + $job + ' to become healthy (waited ' + $max + 's)'); exit 1;",
+        "Write-Output ('ERROR: timed out waiting for ' + $job + ' to become healthy (gave up after ' + $max + ' checks)'); exit 1;",
     ])
 
 def job_done_script():

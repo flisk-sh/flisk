@@ -291,6 +291,8 @@ const EXEMPT: Record<string, string> = {
     "updates the installed CLI checkout, so a test run would rebuild the repo under test",
   "version --json":
     "prints the version envelope and works outside a project, so the matrix's project-required rows do not fit; version.test.ts covers the envelope",
+  "tool list --json":
+    "lists the static tool catalogue and works outside a project, so the matrix's project-required rows do not fit; tool-add.test.ts covers the envelope",
   "open --json":
     "polls for a running frontend on a published port, so a matrix run would wait for timeouts; open.test.ts covers the envelope and its error cases",
 };

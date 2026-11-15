@@ -54,7 +54,8 @@ export function validateNativeServiceFields(manifest) {
     }
     return errors;
 }
-function serviceLabel(manifest) {
+/** How an error names a service: its quoted appName, or "(unnamed)". */
+export function serviceLabel(manifest) {
     const name = manifest.appName;
     return typeof name === "string" && name ? `"${name}"` : "(unnamed)";
 }
