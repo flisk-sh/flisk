@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  createMilestoneTracker,
   globToRegex,
   loadCompetitors,
   renderReport,
@@ -163,4 +164,98 @@ test("a failed tool shows why and how long it ran", () => {
     ],
   });
   assert.match(md, /\*\*F\*\* \(failed after 1503.2 s\): not healthy after 1500s/);
+});
+
+test("validateContract rejects a milestone without a name or with a pattern that is not a regex", () => {
+  assert.deepEqual(
+    validateContract({ ...good, milestones: [{ name: "engine started", match: "^Running" }] }),
+    [],
+  );
+  const errs = validateContract({
+    ...good,
+    milestones: [
+      { match: "x" },
+      { name: "bad", match: "(" },
+      { name: "p", match: "x", pick: "middle" },
+    ],
+  });
+  assert.ok(errs.some((e) => /milestones\[0\].*name/.test(e)));
+  assert.ok(errs.some((e) => /milestones\[1\].*regular expression/.test(e)));
+  assert.ok(errs.some((e) => /milestones\[2\].*first.*last/.test(e)));
+  assert.ok(
+    validateContract({ ...good, milestones: {} }).some((e) =>
+      /milestones must be an array/.test(e),
+    ),
+  );
+});
+
+test("a milestone is timed at its first matching output line, or its last with pick: last, colours ignored", () => {
+  const t = createMilestoneTracker([
+    { name: "engine started", match: "^Running tilt up" },
+    { name: "images built", match: "-image: ready \\(", pick: "last" },
+    { name: "never printed", match: "nope" },
+  ]);
+  t.line("\u001b[32mRunning tilt up...\u001b[0m", 2100);
+  t.line("Running tilt up again", 2500);
+  t.line("admin-image: ready (4/32 ready)", 6000);
+  t.line("orders-image: ready (15/32 ready)", 11940);
+  assert.deepEqual(t.snapshot(), [
+    { name: "engine started", seconds: 2.1 },
+    { name: "images built", seconds: 11.9 },
+    { name: "never printed", seconds: null },
+  ]);
+});
+
+test("a milestone snapshot leaves out lines printed after the stack was healthy", () => {
+  const t = createMilestoneTracker([
+    { name: "images built", match: "-image: ready", pick: "last" },
+  ]);
+  t.line("a-image: ready", 3000);
+  t.line("b-image: ready", 9000);
+  assert.deepEqual(t.snapshot(5000), [{ name: "images built", seconds: 3 }]);
+});
+
+test("the report breaks a start down per tool: milestones, then each health URL, for first start and restart", () => {
+  const md = renderReport({
+    runner: { os: "Linux", arch: "x64", cpus: 4, memGB: 16, docker: "29", ci: true },
+    startedAt: "t",
+    commit: "abc",
+    results: [
+      {
+        id: "flisk",
+        name: "Flisk",
+        status: "ok",
+        phases: { firstStartSeconds: 58.3, restartSeconds: 27.1 },
+        checks: {},
+        wiring: null,
+        breakdown: {
+          firstStart: {
+            milestones: [{ name: "engine started", seconds: 4.2 }],
+            health: [{ url: "http://api.flisk.localhost:1/api/orders/health", seconds: 51 }],
+          },
+          restart: {
+            milestones: [{ name: "engine started", seconds: 3.9 }],
+            health: [{ url: "http://api.flisk.localhost:1/api/orders/health", seconds: null }],
+          },
+        },
+      },
+      { id: "old", name: "Old", status: "ok", phases: {}, checks: {}, wiring: null },
+    ],
+  });
+  assert.match(md, /### Where a start spends its time/);
+  assert.match(md, /\*\*Flisk\*\*/);
+  assert.match(md, /\| engine started \| 4\.2 s \| 3\.9 s \|/);
+  assert.match(md, /\| answers: \/api\/orders\/health \| 51 s \| – \|/);
+  assert.match(md, /\| healthy \(all URLs answer\) \| 58\.3 s \| 27\.1 s \|/);
+  assert.doesNotMatch(md, /\*\*Old\*\*/);
+});
+
+test("a report of results without any breakdown has no breakdown section", () => {
+  const md = renderReport({
+    runner: { os: "Linux", arch: "x64", cpus: 4, memGB: 16, docker: "29", ci: true },
+    startedAt: "t",
+    commit: "abc",
+    results: [{ id: "a", name: "A", status: "ok", phases: {}, checks: {}, wiring: null }],
+  });
+  assert.doesNotMatch(md, /Where a start spends its time/);
 });

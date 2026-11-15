@@ -17,5 +17,9 @@
     "http://localhost:${BENCH_PORT}/api/payments/health",
     "http://localhost:${BENCH_PORT}/api/notifications/health"
   ],
-  "wiring": { "configFiles": ["Tiltfile", "docker-compose.yml"], "waitsOnHealthy": "service_healthy|service_completed_successfully|depends_on|resource_deps" }
+  "milestones": [{ "name": "engine read the project", "match": "Successfully loaded Tiltfile" }],
+  "wiring": {
+    "configFiles": ["Tiltfile", "docker-compose.yml"],
+    "waitsOnHealthy": "service_healthy|service_completed_successfully|depends_on|resource_deps"
+  }
 }

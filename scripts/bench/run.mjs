@@ -17,6 +17,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  createMilestoneTracker,
   loadCompetitors,
   renderReport,
   scanWiring,
@@ -137,8 +138,8 @@ async function retrying(fn, done, windowMs = 45_000) {
   return r;
 }
 
-async function waitHealthy(urls, timeoutMs, child) {
-  const t0 = now();
+/** `answered`, when given, receives each URL's first 2xx as milliseconds since `t0`. */
+async function waitHealthy(urls, timeoutMs, child, { t0 = now(), answered } = {}) {
   const pending = new Set(urls);
   while (pending.size) {
     if (child?.exited && child.code !== 0)
@@ -146,7 +147,11 @@ async function waitHealthy(urls, timeoutMs, child) {
     if (now() - t0 > timeoutMs)
       throw new Error(`not healthy after ${secs(timeoutMs)}s: ${[...pending].join(", ")}`);
     await Promise.all(
-      [...pending].map(async (u) => ((await get(u)).ok ? pending.delete(u) : null)),
+      [...pending].map(async (u) => {
+        if (!(await get(u)).ok) return;
+        pending.delete(u);
+        answered?.set(u, now() - t0);
+      }),
     );
     if (pending.size) await sleep(1000);
   }
@@ -168,6 +173,59 @@ function startBackground(cmd, { cwd, env, logFile }) {
   });
   p.unref();
   return h;
+}
+
+/** Feeds the lines the start command appends to its log to `tracker`, timed since `t0`. Returns a function that stops. */
+function followLog(logFile, tracker, t0) {
+  let pos = fs.existsSync(logFile) ? fs.statSync(logFile).size : 0;
+  let rest = "";
+  const read = () => {
+    if (!fs.existsSync(logFile)) return;
+    const size = fs.statSync(logFile).size;
+    if (size <= pos) return;
+    const buf = Buffer.alloc(size - pos);
+    const fd = fs.openSync(logFile, "r");
+    try {
+      fs.readSync(fd, buf, 0, buf.length, pos);
+    } finally {
+      fs.closeSync(fd);
+    }
+    pos = size;
+    const lines = (rest + buf.toString("utf8")).split(/\r?\n|\r/);
+    rest = lines.pop() ?? "";
+    for (const l of lines) tracker.line(l, now() - t0);
+  };
+  const timer = setInterval(read, 100);
+  return () => {
+    clearInterval(timer);
+    read();
+  };
+}
+
+/**
+ * Starts the stack and waits until it is healthy. Returns the milliseconds that took; `into[key]` gets where they went
+ * (the contract's milestones and each health URL's first answer), also when the start fails, where it is most needed.
+ */
+async function timedStart(c, { cwd, env, logFile, healthUrls, timeoutMs }, into, key) {
+  const tracker = createMilestoneTracker(c.milestones);
+  const answered = new Map();
+  const t0 = now();
+  const unfollow = followLog(logFile, tracker, t0);
+  let ms;
+  try {
+    const child = startBackground(c.start, { cwd, env, logFile });
+    ms = await waitHealthy(healthUrls, timeoutMs, child, { t0, answered });
+    return ms;
+  } finally {
+    unfollow();
+    into[key] = {
+      milestones: tracker.snapshot(ms),
+      health: healthUrls.map((u) => ({
+        url: u,
+        seconds: answered.has(u) ? secs(answered.get(u)) : null,
+      })),
+    };
+  }
 }
 
 async function runOne(c, opts, ctx) {
@@ -221,8 +279,11 @@ async function runOne(c, opts, ctx) {
 
     // 1. first start to healthy
     started = true;
-    const child = startBackground(c.start, { cwd: work, env, logFile });
-    res.phases.firstStartSeconds = secs(await waitHealthy(healthUrls, timeoutMs, child));
+    const startOpts = { cwd: work, env, logFile, healthUrls, timeoutMs };
+    res.breakdown = {};
+    res.phases.firstStartSeconds = secs(
+      await timedStart(c, startOpts, res.breakdown, "firstStart"),
+    );
 
     // 2. order flow
     const paths = c.paths;
@@ -283,8 +344,7 @@ async function runOne(c, opts, ctx) {
     res.checks.stopReallyStops = still === 0;
 
     // 4. restart with the data kept
-    const child2 = startBackground(c.start, { cwd: work, env, logFile });
-    res.phases.restartSeconds = secs(await waitHealthy(healthUrls, timeoutMs, child2));
+    res.phases.restartSeconds = secs(await timedStart(c, startOpts, res.breakdown, "restart"));
     res.checks.dataKept = (await get(`${url(paths.orders)}/${orderId}`)).json?.status === "shipped";
     res.status = Object.values(res.checks).every(Boolean) ? "ok" : "failed";
   } catch (e) {
