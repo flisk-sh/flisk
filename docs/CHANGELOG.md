@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk config verify` on a Docker project that was never generated reports one "not generated yet" finding (`data.state` `not_generated`) instead of one error and one diff per file (68 errors and 54 KB for the saas starter); a deleted or edited generated file is still reported (#4219).
+
 ## 1.4.61 (2026-11-13)
 
 - New `flisk tool add weather`, `flisk tool add chart` and `flisk tool add services` add the Flisk Chat widgets by name, in the same way as the other tools (#4106).

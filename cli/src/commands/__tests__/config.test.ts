@@ -330,6 +330,8 @@ describe("config verify", () => {
 
   it("exits 1 and suggests regenerate when generated files are missing", async () => {
     const root = createTempProject({ projectJson: projectJson() });
+    await runCommandInProcess(configCommand, ["regenerate"], root);
+    fs.rmSync(path.join(root, ".flisk", ".flisk-out", "spec.master"));
 
     const result = await runCommandInProcess(configCommand, ["verify"], root);
 

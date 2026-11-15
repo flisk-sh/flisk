@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createTempProject, parseEnvelope, runFlisk } from "../../test-support/index.js";
 
@@ -29,6 +31,9 @@ const runVerify = (projectRoot: string) =>
 describe("flisk config verify --json", () => {
   it("prints one JSON report and exits 1 for drift without Commander diagnostics", () => {
     const projectRoot = createTempProject({ projectJson: verifyProject("verify-json") });
+    // A generated project with one file deleted: a never-generated one is a single finding (#4219).
+    expect(runFlisk(["config", "regenerate", "--json"], { cwd: projectRoot }).status).toBe(0);
+    fs.rmSync(path.join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"));
 
     const result = runVerify(projectRoot);
 
