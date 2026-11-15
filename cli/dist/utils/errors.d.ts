@@ -1,3 +1,4 @@
+export declare const UNKNOWN_RESOURCE_CODE: "UNKNOWN_RESOURCE";
 export declare function getErrorMessage(err: unknown): string;
 export declare function logVerbose(message: string, err?: unknown): void;
 export declare class FliskError extends Error {
@@ -7,6 +8,11 @@ export declare class FliskError extends Error {
     display(): void;
     /** Display this error and exit the process with its exit code. */
     exit(): never;
+}
+export declare function unknownResourceSuggestions(name: string, validNames?: readonly string[]): string[];
+export declare class UnknownResourceError extends FliskError {
+    readonly code: "UNKNOWN_RESOURCE";
+    constructor(name: string, suggestions: string[]);
 }
 /**
  * Thrown by the `process.exit` test double so the stack unwinds at an intentional exit.
@@ -22,6 +28,7 @@ export declare const errorFactories: {
     dockerNotResponding: () => FliskError;
     stackNotFound: (name: string, stackNames?: readonly string[]) => FliskError;
     resourceNotFound: (name: string, resourceNames?: readonly string[]) => FliskError;
+    unknownResource: (name: string, validNames?: readonly string[]) => UnknownResourceError;
     unknownServices: (names: readonly string[], validNames: readonly string[]) => FliskError;
     directoryExists: (path: string) => FliskError;
     invalidPath: (path: string) => FliskError;
