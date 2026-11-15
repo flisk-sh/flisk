@@ -222,6 +222,8 @@ Supported conditions:
 - `service_healthy`: Gates startup on the dependency's health check reporting `healthy` via a companion `<svc>-healthy` resource. Designed for long-running services (databases, backend APIs, redis).
 - `service_completed_successfully`: Gates startup on a one-shot job exiting with code 0 via a companion `<job>-done` resource. Designed for one-shot tasks (database migrators, seeders).
 
+Without a condition, a name waits as `service_started` does, with two exceptions: a one-shot job waits as `service_completed_successfully`, and the project's Postgres (`postgres`, `database-management`, or the name of a `database` resource) waits as `service_healthy`. A running Postgres container is not yet one that accepts connections, so a service that names it starts only once the `postgres-healthy` check passes. Services that do not name Postgres are never held back by it. Write `{ "name": "postgres", "condition": "service_started" }` to start as soon as the container runs.
+
 #### Direct service dependencies vs. stack dependencies
 
 - **Direct service dependencies:** When `name` specifies a direct service or database, Flisk enforces strict semantic validity. Specifying `service_healthy` on a one-shot job is invalid because migrators exit rather than running continuous health checks. Specifying `service_completed_successfully` on a persistent service is invalid because long-running services do not exit. In both cases, Flisk fails with an actionable manifest error.

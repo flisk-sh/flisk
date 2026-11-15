@@ -60,6 +60,23 @@ describe("Python backend language module", () => {
     expect(testFile).toContain("def test_root()");
   });
 
+  it("makes /health check the database when DATABASE_URL is set (#683)", () => {
+    const mainFile = generatedFile("test-app", "src/main.py");
+    expect(mainFile).toContain("def check_database() -> str | None:");
+    expect(mainFile).toContain('os.environ.get("DATABASE_URL", "")');
+    // A wrong password must fail /health, so a driver connection runs SELECT 1 when one is installed.
+    expect(mainFile).toContain("from psycopg import connect");
+    expect(mainFile).toContain('execute("SELECT 1")');
+    // Prisma's ?schema= in the Flisk DATABASE_URL is dropped before libpq sees it.
+    expect(mainFile).toContain('if key != "schema"');
+    expect(mainFile).toContain("response.status_code = 503");
+    // No new dependency: the scaffold still installs only FastAPI and uvicorn.
+    expect(generatedFile("test-app", "pyproject.toml")).not.toContain("psycopg");
+    expect(generatedFile("test-app", "tests/test_health.py")).toContain(
+      "def test_health_reports_an_unreachable_database(monkeypatch)",
+    );
+  });
+
   it("falls back to port 3000 for invalid generated-server PORT values", () => {
     const mainFile = generatedFile("test-app", "src/main.py");
     expect(mainFile).toContain("def read_port() -> int:");

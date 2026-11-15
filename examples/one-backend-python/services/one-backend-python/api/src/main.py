@@ -1,6 +1,8 @@
 import os
+import socket
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="api-backend")
@@ -14,8 +16,47 @@ app.add_middleware(
 )
 
 
+def check_database() -> str | None:
+    """None when the database answers, or when this service has none; otherwise the reason it does not.
+
+    Flisk sets DATABASE_URL when service.json lists the database in dependsOn. With a Postgres driver installed (psycopg or
+    psycopg2) this runs SELECT 1, so a wrong password fails here; without one it only checks that the port accepts connections.
+    """
+    url = os.environ.get("DATABASE_URL", "")
+    if not url:
+        return None
+    parts = urlsplit(url)
+    # Prisma's ?schema= is not a libpq parameter, and libpq refuses a URL that carries it.
+    query = urlencode([(key, value) for key, value in parse_qsl(parts.query) if key != "schema"])
+    url = urlunsplit(parts._replace(query=query))
+    try:
+        try:
+            from psycopg import connect
+        except ImportError:
+            try:
+                from psycopg2 import connect
+            except ImportError:
+                connect = None
+        if connect is None:
+            with socket.create_connection((parts.hostname or "localhost", parts.port or 5432), timeout=2):
+                return None
+        connection = connect(url, connect_timeout=2)
+        try:
+            connection.cursor().execute("SELECT 1")
+        finally:
+            connection.close()
+    except Exception as error:  # any failure means "not ready"; the reason goes into the response
+        return f"database is not reachable: {error}".strip()
+    return None
+
+
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(response: Response) -> dict[str, str]:
+    # Ready means the server and its database are both up, so services that wait for this one start only then.
+    database_error = check_database()
+    if database_error:
+        response.status_code = 503
+        return {"status": "error", "service": "api-backend", "database": database_error}
     return {"status": "ok", "service": "api-backend"}
 
 

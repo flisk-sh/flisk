@@ -525,6 +525,14 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
                     elif dep_condition == "service_started":
                         pass
 
+                    elif resolved_dep == 'postgres' and (is_shared_platform_postgres_dependency(dep) or _is_database_resource(dep, all_services_map)):
+                        # A service that names the project's Postgres waits until it accepts connections, not only until its
+                        # container runs: Tilt counts a running container as ready, so the API started while Postgres was still
+                        # `starting` and logged connection errors (#683). Write `condition: "service_started"` to opt out.
+                        healthy = job_healthy_resource_name(resolved_dep)
+                        if healthy not in res_deps:
+                            res_deps.append(healthy)
+
                     elif dep_is_job:
                         # Direct dependency on a one-shot job with no explicit condition: default to completion (#2871)
                         done = job_done_resource_name(resolved_dep)
