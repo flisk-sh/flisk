@@ -20,7 +20,9 @@ export function checkNativeRuntime(resources, dockerRunning = isDockerRunning) {
             message: running
                 ? `Local processes, plus ${formatCount(containers.length, "container")} (${containers.join(", ")}) started with docker run; Compose and Tilt are not needed`
                 : `${containers.join(", ")} run from an image, which needs Docker, and Docker is not running`,
-            ...(running ? {} : { fix: "Start Docker Desktop, OrbStack or Colima, then run flisk up" }),
+            ...(running
+                ? {}
+                : { fix: "Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up" }),
         };
     }
     return {

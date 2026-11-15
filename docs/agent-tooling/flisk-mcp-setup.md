@@ -249,7 +249,7 @@ To start part of a stack, name the services in `only`. Flisk starts their depend
 
 - **The client does not list the server:** check that the command is `flisk` with the argument `mcp`, that `flisk --version` works in the same shell, and that the client was restarted after the configuration changed.
 - **`Could not find project root`:** the server's working directory is not a Flisk project. Start the client in the project, set `cwd`, or pass `projectPath` with the absolute project path.
-- **Docker is not running:** start Docker Desktop, OrbStack, or Colima, then run doctor again.
+- **Docker is not running:** start Docker Desktop, OrbStack, Colima, or Kiri, then run doctor again.
 - **Tilt CLI or Docker Compose is missing:** install the missing prerequisite using the links in the doctor output, then retry.
 - **Doctor passes but a service is not ready:** check project status and read that service's recent logs. Doctor checks the host and the project configuration, not every running service.
 - **`up` returns but nothing comes up:** `up` is detached, so read the stack's status and logs instead of restarting it.

@@ -111,7 +111,7 @@ export async function runNativeUp(input) {
         await stopNativeRun(projectRoot);
     }
     if (containers.length > 0 && !isDockerRunning()) {
-        fail("DOCKER_NOT_RUNNING", `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack or Colima, then run flisk up again.`);
+        fail("DOCKER_NOT_RUNNING", `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up again.`);
     }
     for (const service of plan.services) {
         if (service.port !== undefined && (await isPortListening(service.port))) {

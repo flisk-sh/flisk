@@ -1,6 +1,6 @@
 # Agent hosts: Dev Containers, Codespaces, WebContainers
 
-`flisk doctor` reports where it is running (`data.host.kind` in `--json`): `local`, `wsl2`, `devcontainer`, `codespaces`, `webcontainer`, or `native-windows`. `data.host.containerRuntimeReachable` says whether doctor found a working container runtime (Docker, Colima or Podman), and `data.host.canUp` is false when `flisk up` cannot work: on a WebContainer, on native Windows without `FLISK_ALLOW_NATIVE_WINDOWS=1`, or when no container runtime is reachable.
+`flisk doctor` reports where it is running (`data.host.kind` in `--json`): `local`, `wsl2`, `devcontainer`, `codespaces`, `webcontainer`, or `native-windows`. `data.host.containerRuntimeReachable` says whether doctor found a working container runtime (Docker, Colima, Kiri or Podman), and `data.host.canUp` is false when `flisk up` cannot work: on a WebContainer, on native Windows without `FLISK_ALLOW_NATIVE_WINDOWS=1`, or when no container runtime is reachable.
 
 ## Dev Containers and Codespaces
 

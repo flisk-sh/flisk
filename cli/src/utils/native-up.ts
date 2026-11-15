@@ -179,7 +179,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   if (containers.length > 0 && !isDockerRunning()) {
     fail(
       "DOCKER_NOT_RUNNING",
-      `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack or Colima, then run flisk up again.`,
+      `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up again.`,
     );
   }
 
