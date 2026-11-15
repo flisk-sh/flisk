@@ -52,6 +52,22 @@ jobs:
           chmod +x cli/bin/flisk.js
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Kiri (the flisk-kiri lane; a failure here only skips that lane)
+        continue-on-error: true
+        env:
+          KIRI_VERSION: "0.2.1"
+          KIRI_DEB_SHA256: 5e7b1f6d8239aa590b314fd2ccc8f1472ba1427f414b35efa86ccedd6a6571b2 # kiri-lite_0.2.1_amd64.deb, from the release's own digest
+        run: |
+          # Engine only (kiri-lite): the runner already has docker, compose and buildx. Kiri runs on the kernel on Linux, no VM.
+          scripts/e2e/retry-infra.sh "download Kiri v${KIRI_VERSION}" -- curl -fsSL -o kiri.deb "https://github.com/libracoder/kiri/releases/download/v${KIRI_VERSION}/kiri-lite_${KIRI_VERSION}_amd64.deb"
+          echo "${KIRI_DEB_SHA256}  kiri.deb" | sha256sum -c -
+          sudo apt-get install -y ./kiri.deb
+          rm -f kiri.deb
+          sudo kiri host-access "$USER" # starts the engine and puts the user in the kiri group
+          for _ in $(seq 1 30); do [ -S /run/kiri/docker.sock ] && break; sleep 1; done
+          sudo chmod a+rw /run/kiri/docker.sock # the group only applies to new logins; this runner is thrown away
+          docker context create kiri --docker host=unix:///run/kiri/docker.sock
+          DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'kiri: {{.Name}} {{.ServerVersion}}'
       - name: Machine
         run: |
           echo "cpus: $(nproc)"; free -h; df -h / | tail -1

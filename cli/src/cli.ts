@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import "./utils/env-compat-init.js";
+import "./utils/engine-env-init.js";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";

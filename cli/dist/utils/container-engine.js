@@ -54,3 +54,26 @@ export function parseDockerInfo(raw) {
         return {};
     }
 }
+/** The Docker CLI's active context, read from its config file without starting a process. */
+export function currentDockerContext(home, read) {
+    try {
+        const config = JSON.parse(read(`${home}/.docker/config.json`));
+        return config.currentContext;
+    }
+    catch {
+        return undefined;
+    }
+}
+/**
+ * Kiri has no BuildKit of its own. `docker build` there starts a BuildKit container that rejects
+ * `--network host` and cannot see local images, which breaks every golden-image build. Kiri's classic
+ * builder (`DOCKER_BUILDKIT=0`) accepts both, so Flisk and every command it starts use it unless the
+ * caller already chose.
+ */
+export function kiriBuildEnv(env, context) {
+    if (env.DOCKER_BUILDKIT !== undefined)
+        return {};
+    const host = env.DOCKER_HOST ?? "";
+    const onKiri = host ? host.includes("/.kiri/") : (env.DOCKER_CONTEXT ?? context) === "kiri";
+    return onKiri ? { DOCKER_BUILDKIT: "0" } : {};
+}
