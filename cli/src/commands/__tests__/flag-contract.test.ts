@@ -289,6 +289,8 @@ const EXEMPT: Record<string, string> = {
     "compares the installed CLI with origin over git on the host, and prints 'Dry run:' rather than 'Dry run -'",
   "upgrade --yes":
     "updates the installed CLI checkout, so a test run would rebuild the repo under test",
+  "open --json":
+    "polls for a running frontend on a published port, so a matrix run would wait for timeouts; open.test.ts covers the envelope and its error cases",
 };
 
 interface FlagSite {

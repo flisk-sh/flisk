@@ -34,7 +34,7 @@ Cloned starters keep their source remote as `upstream`, leaving `origin` availab
 
 Every command and flag: [mega cheat sheet](../docs/cheat-sheet.md).
 
-`flisk open --print` waits for a frontend to answer, like `flisk open`, then writes only its URL and a newline to stdout. Local-process projects use the frontend's localhost port. If no frontend is available, it reports the problem on stderr and exits with status 1.
+`flisk open --print` waits for a frontend to answer, like `flisk open`, then writes only its URL and a newline to stdout. Local-process projects use the frontend's localhost port. If no frontend is available, it reports the problem on stderr and exits with status 1. `flisk open --json` (or `flisk open --print --json`) outputs the standard machine envelope with `{ url, resource }` on stdout.
 
 ---
 

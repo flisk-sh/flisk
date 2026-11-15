@@ -2,10 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTempDir, createTempProject, makeResource } from "../../test-support/index.js";
+import {
+  captureExit,
+  createTempDir,
+  createTempProject,
+  makeResource,
+  parseEnvelope,
+} from "../../test-support/index.js";
 import type { HostPortPlan } from "../../types/index.js";
 import { checkColima } from "../../utils/colima.js";
 import { probeHostPort } from "../../utils/doctor-runtime.js";
+import { ProcessExitError } from "../../utils/errors.js";
 import { getHostPortPlan } from "../../utils/host-port-config.js";
 import { discoverResourcesWithProblems } from "../../utils/services.js";
 import { openUrl } from "../../utils/url-actions.js";
@@ -77,9 +84,14 @@ beforeEach(() => {
   stderr = "";
   process.exitCode = 0;
   openCommand.setOptionValue("print", false);
+  openCommand.setOptionValue("json", false);
   vi.spyOn(console, "log").mockImplementation((...lines: unknown[]) => {
     stdout += `${lines.map(String).join(" ")}\n`;
   });
+  vi.spyOn(process.stdout, "write").mockImplementation(((chunk: unknown) => {
+    stdout += String(chunk);
+    return true;
+  }) as never);
   vi.spyOn(process.stderr, "write").mockImplementation(((chunk: unknown) => {
     stderr += String(chunk);
     return true;
@@ -336,5 +348,86 @@ describe("flisk open, in process", () => {
       process.chdir(cwd);
     }
     expect(openUrl).toHaveBeenCalledWith(ADMIN);
+  });
+
+  describe("with --json", () => {
+    async function runWithJson(
+      root: string,
+      args: string[] = ["--json"],
+    ): Promise<{ envelope: ReturnType<typeof parseEnvelope>; status: number | undefined }> {
+      const cwd = process.cwd();
+      process.chdir(root);
+      const exit = captureExit();
+      let status: number | undefined;
+      try {
+        const pending = openCommand.parseAsync(args, { from: "user" });
+        const result = pending.catch((error: unknown) => error);
+        await vi.runAllTimersAsync();
+        const error = await result;
+        if (error instanceof Error && !(error instanceof ProcessExitError)) throw error;
+      } finally {
+        status = exit.exit.mock.calls[0]?.[0];
+        process.chdir(cwd);
+        exit.exit.mockRestore();
+      }
+      return { envelope: parseEnvelope(stdout), status };
+    }
+
+    it("outputs machine envelope with url and resource when frontend is ready", async () => {
+      const root = shopProject();
+      answer((url) => (url === ADMIN ? 200 : 503));
+
+      const { envelope, status } = await runWithJson(root, ["--json"]);
+
+      expect(status).toBeUndefined();
+      expect(envelope.schemaVersion).toBe(1);
+      expect(envelope.data).toEqual({ url: ADMIN, resource: "admin" });
+      expect(envelope.errors).toEqual([]);
+      expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("handles --print --json the same as --json", async () => {
+      const root = shopProject();
+      answer((url) => (url === ADMIN ? 200 : 503));
+
+      const { envelope, status } = await runWithJson(root, ["--print", "--json"]);
+
+      expect(status).toBeUndefined();
+      expect(envelope.data).toEqual({ url: ADMIN, resource: "admin" });
+      expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("outputs FRONTEND_NOT_READY error in machine envelope and exits 1 when no frontend answers", async () => {
+      const root = shopProject();
+      answer(() => 503);
+
+      const { envelope, status } = await runWithJson(root, ["--json"]);
+
+      expect(status).toBe(1);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0]?.code).toBe("FRONTEND_NOT_READY");
+      expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("outputs NO_FRONTEND error in machine envelope and exits 1 when project has no frontends", async () => {
+      const root = shopProject();
+      vi.mocked(discoverResourcesWithProblems).mockReturnValue({ resources: [], problems: [] });
+
+      const { envelope, status } = await runWithJson(root, ["--json"]);
+
+      expect(status).toBe(1);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0]?.code).toBe("NO_FRONTEND");
+      expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("outputs NOT_IN_PROJECT error in machine envelope and exits 1 when outside a project", async () => {
+      const { envelope, status } = await runWithJson(createTempDir(), ["--json"]);
+
+      expect(status).toBe(1);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0]?.code).toBe("NOT_IN_PROJECT");
+      expect(openUrl).not.toHaveBeenCalled();
+    });
   });
 });
