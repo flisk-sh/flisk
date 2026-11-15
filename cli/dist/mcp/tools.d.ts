@@ -42,7 +42,7 @@ export declare function buildLogsArgs(args: Record<string, unknown>): string[];
 /** `flisk tool add <tool> [name] --json` for the tool_add tool; the tool must be one the catalog knows. */
 export declare function buildToolAddArgs(args: Record<string, unknown>): string[];
 export declare function buildResourceCreateArgs(args: Record<string, unknown>): string[];
-/** `flisk stack <stack> --resources=<name>... --yes`: one `--resources=` per name so a value is never a flag. */
+/** `flisk stack <stack> --resources=<name>... --json`: one `--resources=` per name so a value is never a flag. */
 export declare function buildStackAssignArgs(args: Record<string, unknown>): string[];
 /** `flisk project [template] --yes`. Never `--force`, which overwrites an existing .flisk/project.json. */
 export declare function buildProjectInitArgs(args: Record<string, unknown>): string[];
