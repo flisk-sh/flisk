@@ -41,7 +41,9 @@ def amqp_round_trip(url):
     connection = pika.BlockingConnection(pika.URLParameters(url))
     try:
         channel = connection.channel()
-        channel.queue_declare(queue="probe")
+        # RabbitMQ 4.x refuses a transient non-exclusive queue (`transient_nonexcl_queues` is deprecated and
+        # off by default), so declare a durable one.
+        channel.queue_declare(queue="probe", durable=True)
         channel.basic_publish(exchange="", routing_key="probe", body=b"ok")
         for _ in range(20):
             _, _, body = channel.basic_get(queue="probe", auto_ack=True)
