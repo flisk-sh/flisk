@@ -16,6 +16,13 @@ const stateFile = process.env.STATE_FILE ?? ".data/swarm-state.json";
 const claimMs = Number(process.env.CLAIM_MS ?? 15_000);
 // A subtask that fails or times out this many times is marked failed instead of retried.
 const maxAttempts = Number(process.env.MAX_ATTEMPTS ?? 3);
+// Request bodies are capped (default 64 KiB) so one request cannot fill memory or the state file: over the limit gives
+// 413 {"error":"payload_too_large"}, the same wording as the generated agent runtime (AGENT_MAX_TURN_BODY_BYTES).
+const maxBodyBytes = Number(process.env.MAX_BODY_BYTES) || 65_536;
+// A goal longer than this many characters gets a 400 that says so.
+const maxGoalChars = Number(process.env.MAX_GOAL_CHARS) || 2_000;
+
+class PayloadTooLargeError extends Error {}
 
 /** Writes the goals to a temporary file and renames it over the old one, so a crash mid-write never leaves half a file. */
 function save() {
@@ -46,7 +53,15 @@ function json(response, status, body) {
 
 async function readJson(request) {
   const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
+  let totalBytes = 0;
+  for await (const chunk of request) {
+    totalBytes += chunk.length;
+    if (totalBytes > maxBodyBytes) {
+      request.pause(); // stop reading: the rest of the body is never buffered
+      throw new PayloadTooLargeError();
+    }
+    chunks.push(chunk);
+  }
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}");
   } catch {
@@ -118,7 +133,7 @@ async function tick(){out.textContent=JSON.stringify(await (await fetch('/goals'
 setInterval(tick,1000);tick();
 </script>`;
 
-const server = createServer(async (request, response) => {
+async function handle(request, response) {
   const url = new URL(request.url ?? "/", "http://localhost");
   if (url.pathname === "/health") return json(response, 200, { ok: true });
   if (url.pathname === "/" && request.method === "GET") {
@@ -132,6 +147,11 @@ const server = createServer(async (request, response) => {
     const body = await readJson(request);
     if (!body || typeof body.goal !== "string" || !body.goal.trim()) {
       return json(response, 400, { error: 'send JSON like {"goal":"..."}' });
+    }
+    if (body.goal.length > maxGoalChars) {
+      return json(response, 400, {
+        error: `goal is too long: ${body.goal.length} characters, the limit is ${maxGoalChars}`,
+      });
     }
     const subtasks = split(body.goal).map((text) => ({
       id: randomUUID(),
@@ -195,6 +215,18 @@ const server = createServer(async (request, response) => {
     return json(response, 200, { status: found.subtask.status, attempts: found.subtask.attempts });
   }
   json(response, 404, { error: "not found" });
+}
+
+const server = createServer(async (request, response) => {
+  try {
+    await handle(request, response);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      response.writeHead(413, { "content-type": "application/json", connection: "close" });
+      return response.end(JSON.stringify({ error: "payload_too_large" }));
+    }
+    throw error;
+  }
 });
 
 server.listen(Number(process.env.PORT ?? 4100));
