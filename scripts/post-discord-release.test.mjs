@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMessage, releaseNoteBullets, run } from "./post-discord-release.mjs";
+import { buildMessage, releaseNoteBullets, run, spotlight } from "./post-discord-release.mjs";
 
 const CHANGELOG = `# Changelog
 
@@ -112,4 +112,15 @@ test("run tags authors from the release notes and allows only their mentions", a
   const post = JSON.parse(calls.find((c) => c.init.method === "POST").init.body);
   assert.match(post.content, /More detail\. \(<@111>\)/);
   assert.deepEqual(post.allowed_mentions, { parse: [], users: ["111"] });
+});
+
+test("buildMessage adds a seeded grow teaser for up to two contributors", () => {
+  const items = ["a", "b", "c"].map((l) => ({ text: `Fixed ${l}.`, logins: [l] }));
+  const msg = buildMessage("1.4.50", items);
+  assert.match(msg, /🌱 .*you are our picks this time/);
+  assert.match(msg, /grow\.flisk\.si/);
+  assert.match(msg, /chat\.flisk\.si/);
+  assert.equal(msg, buildMessage("1.4.50", items));
+  assert.equal(spotlight("1.4.50", ["a", "b", "c"]).length, 2);
+  assert.doesNotMatch(buildMessage("1.4.50", ["no authors"]), /🌱/);
 });

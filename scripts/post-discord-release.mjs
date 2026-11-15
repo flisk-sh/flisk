@@ -23,6 +23,19 @@ function person(login, people) {
   return id ? `<@${id}>` : `[@${login}](https://github.com/${login})`;
 }
 
+// Up to two contributors picked at random for the "grow your project" teaser. The pick is seeded by the version, so a
+// re-run of the same release names the same people.
+export function spotlight(version, logins, count = 2) {
+  let seed = [...version].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const pool = [...logins];
+  const picked = [];
+  while (pool.length && picked.length < count) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    picked.push(pool.splice(seed % pool.length, 1)[0]);
+  }
+  return picked;
+}
+
 // A Discord message for one version. Null when the changelog has no entry for it.
 // An item is a string or { text, logins }; `people` maps a lowercase GitHub login to a Discord user id.
 export function buildMessage(version, items, people = new Map()) {
@@ -41,7 +54,11 @@ export function buildMessage(version, items, people = new Map()) {
     const thanksLine = thanks.length
       ? `Huge thanks to ${thanks.map((l) => person(l, people)).join(", ")} for shipping this release! 💜\n\n`
       : "";
-    return `**Flisk CLI ${version} is out**\n\n${entries.map((e) => e.line).join("\n")}\n\n${thanksLine}${footer}`;
+    const chosen = spotlight(version, thanks);
+    const teaser = chosen.length
+      ? `🌱 ${chosen.map((l) => person(l, people)).join(" and ")}: you are our picks this time, and we are here to help you grow with us. Got a project you want more people to find? Paste its link into <https://grow.flisk.si> for a first-customer plan, or build it with <https://chat.flisk.si> (sign in with GitHub). Tell us what you are making and we will help.\n\n`
+      : "";
+    return `**Flisk CLI ${version} is out**\n\n${entries.map((e) => e.line).join("\n")}\n\n${thanksLine}${teaser}${footer}`;
   };
   let content = compose();
   while (content.length > CONTENT_MAX && entries.length > 1) {
