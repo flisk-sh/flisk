@@ -53,9 +53,10 @@ import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } fr
 import { buildStartupReport, explainFailures, formatStartupReport, isStartupStalled, machineProblemFixes, withLoggedReasons, } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
-import { findProjectTiltPorts, stopOwnedTiltOnPort } from "../utils/tilt-port-owner.js";
+import { findProjectTiltPorts, findTiltPortOwner, stopOwnedTiltOnPort, } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import { alreadyRunningReport, parseTiltPort, resolveTiltPort, secondUpAction, stopTiltForUp, waitForTiltPortsToStop, } from "../utils/tilt-startup.js";
+import { clearFastNoopState, fastNoopUrls, isPlainUp, stackFingerprint, tryFastNoop, UP_STATE_VERSION, writeFastNoopState, } from "../utils/up-fast-noop.js";
 import { cloneForUp, isGitRepoArg } from "../utils/up-from-git.js";
 import { attachedUpInCiWarning, upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
@@ -319,6 +320,94 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
         dependencies: only ? selection.dependencies : [],
     };
 }
+/** Flags and environment of this run, for the fast no-op decision. */
+export function fastNoopFlags(options, stackName, configuredTiltPort) {
+    return {
+        force: options.force,
+        dryRun: options.dryRun,
+        ignoreDrift: options.ignoreDrift,
+        ignoreVersion: options.ignoreVersion,
+        only: options.only,
+        envFile: options.envFile,
+        profile: options.profile,
+        database: options.database,
+        gateway: options.gateway,
+        stackName,
+        configuredTiltPort,
+        env: { ...process.env },
+    };
+}
+/**
+ * The already-up answer, in both output modes. `--wait` calls it after its child has exited; an attached `up` calls it
+ * before any prerequisite, write or Tilt command. The URLs are printed so a script sees the same addresses a normal
+ * start prints.
+ */
+export function printFastNoopResult(result, options, emit) {
+    const { state, services, urls } = result;
+    const tiltUrl = `http://localhost:${state.tiltPort}`;
+    if (emit) {
+        emit({
+            ok: true,
+            alreadyRunning: true,
+            stack: state.stack,
+            services,
+            tiltUrl,
+            ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
+        });
+        return;
+    }
+    if (options.quiet)
+        return;
+    console.log(chalk.green("Stack is healthy."));
+    for (const url of urls)
+        console.log(chalk.cyan(`  ${url}`));
+    console.log(chalk.gray(`Tilt: ${tiltUrl}`));
+    console.log(chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."));
+}
+/**
+ * Records a healthy run so the next `flisk up` can recognize an unchanged stack. Only a plain run of the whole project
+ * is recorded: a `--only`, `--force` or `--profile` stack is not the state a later plain `flisk up` may reuse. Returns
+ * the URLs of the recorded stack, so the caller can report them in its JSON result too.
+ */
+function recordHealthyRun(details) {
+    const { projectRoot, flags, tiltPort, stack, resources, ingressPort, gatewayEnabled } = details;
+    const urls = fastNoopUrls(resources, ingressPort ?? undefined, gatewayEnabled);
+    if (!isPlainUp(flags))
+        return urls;
+    const fingerprint = stackFingerprint(projectRoot, flags);
+    if (!fingerprint) {
+        clearFastNoopState(projectRoot);
+        return urls;
+    }
+    writeFastNoopState(projectRoot, {
+        version: UP_STATE_VERSION,
+        fingerprint,
+        tiltPort,
+        // The Tilt process that served this run: if it is replaced, the next `flisk up` takes the normal path.
+        tiltPid: findTiltPortOwner(tiltPort)?.pid ?? null,
+        stack,
+        services: resources.map((r) => r.name),
+        ingressPort,
+        urls,
+    });
+    return urls;
+}
+/**
+ * The read-only fast path (#4193): when this project's Tilt already answers with an unchanged, healthy stack, report it
+ * without regenerating files, stopping Tilt or starting a build. Any doubt falls back to the normal `up` path.
+ */
+async function tryFastNoopUp(options, stackName, configuredTiltPort, emit, beforeEmit) {
+    const root = findProjectRoot();
+    if (!root)
+        return false;
+    const flags = fastNoopFlags(options, stackName, configuredTiltPort);
+    const result = await tryFastNoop(root, flags);
+    if (!result)
+        return false;
+    beforeEmit?.();
+    printFastNoopResult(result, options, emit);
+    return true;
+}
 /**
  * `flisk up --wait`: runs `flisk up --json` detached and waits for its one result line, so a script gets an exit code
  * when the stack is healthy instead of an attached command that never returns.
@@ -346,6 +435,15 @@ async function runUpWait(options) {
             const parsed = JSON.parse(outcome.json);
             if (outcome.kind === "ready") {
                 console.log(chalk.green("Stack is healthy."));
+                // A no-op run (#4193) carries the advertised URLs of the running stack, so a script sees the same
+                // addresses a normal start prints. `data.urls` remains the per-URL URLCheck[] contract of `up --json`.
+                const advertised = Array.isArray(parsed.data?.advertisedUrls)
+                    ? parsed.data.advertisedUrls
+                    : [];
+                for (const url of advertised) {
+                    if (typeof url === "string")
+                        console.log(chalk.cyan(`  ${url}`));
+                }
                 if (parsed.data?.tiltUrl)
                     console.log(chalk.gray(`Tilt: ${parsed.data.tiltUrl}`));
                 console.log(chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."));
@@ -511,6 +609,21 @@ export const upCommand = new Command("up")
         showErrorAndExit(portSetting.message, 1, suggestions);
     }
     const configuredTiltPort = portSetting.port;
+    // A second `flisk up` on an unchanged, healthy stack must not regenerate files or start a build (#4193). Only
+    // read-only checks run here, before the host, Docker, disk and version gates; any doubt takes the normal path.
+    const fastFlags = fastNoopFlags(options, stackName, configuredTiltPort);
+    if (isPlainUp(fastFlags)) {
+        // Only run the fast container disk-warning check once the fast path actually matches a Docker/Tilt stack:
+        // native projects and cold stacks must fall through to the normal disk guard without calling container rules.
+        const fastResult = await tryFastNoopUp(options, stackName, configuredTiltPort, emit, () => {
+            if (emit) {
+                diskWarning =
+                    diskWarningField(enforceDiskGuard({ emit: baseEmit, quiet: true })) ?? diskWarning;
+            }
+        });
+        if (fastResult)
+            return;
+    }
     // First, before the host/Docker checks below: an old CLI must stop with one clear line, not a half-working stack.
     const versionRoot = findProjectRoot();
     if (versionRoot) {
@@ -1124,9 +1237,40 @@ export const upCommand = new Command("up")
                     : await explainFailures(readiness.failures, (name) => tiltResourceLogs(runningPort, name));
                 const report = alreadyRunningReport(runningPort, { ...readiness, failures });
                 if (report.ok) {
-                    emit({ ok: true, alreadyRunning: true, tiltUrl });
+                    if (gatewayEnabled) {
+                        const urlChecks = await checkStackUrls(runningPort, servicesToStart, hostPortPlan.ingressHttp, deferred);
+                        if (urlChecks.some((check) => !check.didAnswer)) {
+                            clearFastNoopState(projectRoot);
+                            emit({ ok: false, alreadyRunning: true, tiltUrl, urls: urlChecks }, [
+                                {
+                                    code: "UP_URL_UNREACHABLE",
+                                    message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
+                                    suggestions: urlFailureSuggestions(urlChecks),
+                                },
+                            ]);
+                            process.exitCode = 1;
+                            return;
+                        }
+                    }
+                    // A healthy second run is the state the fast path records (#4193): the next `flisk up` recognizes it.
+                    const urls = recordHealthyRun({
+                        projectRoot,
+                        flags: fastFlags,
+                        tiltPort: runningPort,
+                        stack: stackName ?? null,
+                        resources: servicesToStart,
+                        ingressPort: hostPortPlan.ingressHttp,
+                        gatewayEnabled,
+                    });
+                    emit({
+                        ok: true,
+                        alreadyRunning: true,
+                        tiltUrl,
+                        ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
+                    });
                 }
                 else {
+                    clearFastNoopState(projectRoot);
                     emit({ ok: false, alreadyRunning: true, tiltUrl, failures }, [
                         { code: report.code, message: report.message, suggestions: report.suggestions },
                     ]);
@@ -1489,6 +1633,23 @@ export const upCommand = new Command("up")
                     tiltUrl: `http://localhost:${port}`,
                     ...(urlChecks ? { urls: urlChecks } : {}),
                 });
+            }
+            // Only a healthy, unchanged stack gets a fingerprint: the next `flisk up` can then answer in one read-only
+            // look instead of regenerating files and restarting Tilt's build loop (#4193). Both the attached (human) and
+            // the --json readiness paths set `startupFailed`, so either can record a healthy run.
+            if (uiReady && !startupFailed && !smokeFailed) {
+                recordHealthyRun({
+                    projectRoot,
+                    flags: fastFlags,
+                    tiltPort: port,
+                    stack: stackName ?? null,
+                    resources: servicesToStart,
+                    ingressPort: hostPortPlan.ingressHttp,
+                    gatewayEnabled,
+                });
+            }
+            else {
+                clearFastNoopState(projectRoot);
             }
             if (startupFailed)
                 signalStartupFailed();
