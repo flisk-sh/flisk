@@ -231,6 +231,7 @@
 			"flisk": {
 				"status": "covered",
 				"scope": "in",
+				"reason": "`flisk restart` stops and starts the existing container without a rebuild; `flisk restart --rebuild` (or `resource_restart` with `rebuild: true`) forces the full Tilt update and image rebuild.",
 				"evidence": [
 					{
 						"command": "flisk restart"

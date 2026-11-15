@@ -7,6 +7,7 @@
     "cli/src/utils/resource-features.ts",
     "cli/src/backend-languages/**",
     "cli/src/backend-frameworks/**",
+    "cli/src/commands/restart.ts",
     "runtime/engine/**",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/common.sh",

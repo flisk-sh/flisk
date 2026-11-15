@@ -34,12 +34,12 @@
 ## You should see
 
 - The logs include your API's startup banner, a line that says `orders-api running on http://localhost:` followed by its port.
-- After the restart, `orders-api` goes briefly red or yellow in Tilt, then green. `shop-web` does not change.
+- After the restart, `orders-api` stops answering briefly and then answers again. `shop-web` does not change.
 - `flisk ui` lists your stacks and resources with their state.
 
 ## What just happened
 
-`flisk logs` prints a snapshot, not a live stream. For a live stream, use the log pane in the Tilt dashboard. `flisk restart` restarts one resource through Tilt, so the rest of the stack keeps serving.
+`flisk logs` prints a snapshot, not a live stream. For a live stream, use the log pane in the Tilt dashboard. `flisk restart` stops and starts a Flisk-generated Compose container directly (no image rebuild), so the rest of the stack keeps serving; local-process resources, imported Tiltfiles, and `--rebuild` run `tilt trigger` instead.
 
 Both commands talk to Tilt on its default port, 10350. If yours runs on another port, add `--port <n>`.
 

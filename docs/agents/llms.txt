@@ -22,7 +22,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
     - `status`: Inspect stacks, resources, ingress URLs, ports, and Tilt readiness.
     - `logs`: Fetch a bounded snapshot of recent logs from the running stack.
     - `resource_list`: List the project's services with their stack, type, and port.
-    - `resource_restart`: Restart a running resource in the stack (or trigger its rebuild).
+    - `resource_restart`: Restart a running resource in the stack (Flisk-generated Compose containers restart without rebuilding their image; local processes and imported Tiltfiles use `tilt trigger`); `rebuild: true` rebuilds the image and recreates the container through Tilt.
     - `resource_run`: Run a one-off command with the environment one resource has in the stack; returns the exit code, stdout and stderr. A container resource must be running. Refused unless `confirm: true`; `.env` values in the output are masked.
     - `agent_list`: List AI agent resources (`appType: "agent"`) with their stack, runtime, durability, and port.
     - `agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
@@ -69,7 +69,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - `flisk resources [--json]`: List the project's services with their stack, type, and port.
 - `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.
 - `flisk stacks [--json]`: List the project's stacks (alias `ls`).
-- `flisk restart <resource>`: Restart one running resource, or trigger its rebuild.
+- `flisk restart <resource> [--rebuild]`: Restart one running resource without rebuilding its image; `--rebuild` rebuilds the image and recreates the container through Tilt.
 - `flisk run <service> <command...>`: Run a one-off command with the environment the service has in the stack (`docker exec` in its running container, or on the host for a local process); put `--` before a command that has flags of its own. The exit code is the command's. `--json` runs it without input and returns `exitCode`, `stdout` and `stderr`.
 - `flisk networks [--json]`: Show the Traefik URL of every frontend and API service (aliases `urls`, `traefik`).
 - `flisk agent sessions <resource>`: List the stored sessions of an agent resource (`--session-id <id>` reads one checkpoint).

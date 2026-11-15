@@ -568,8 +568,9 @@ through Compose interpolation and is never written to a generated file. A provid
 `"required": false` to start without it, or `"required": true` to need it even with a fallback. List the fallback in
 `dependsOn` too; `flisk config verify` reports it when it is missing.
 
-To add, rotate or remove a token, edit the project `.env` and run `flisk restart <service>`. The container is recreated with
-the new value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
+To add, rotate or remove a token, edit the project `.env` and run `flisk restart <service> --rebuild`. A plain
+`flisk restart <service>` keeps the container and its environment; `--rebuild` recreates the container with the new
+value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
 the flag still follows the variable.
 
 `providers` applies to backend, worker, mcp, agent and bring-your-own services running in containers. It does not start a
@@ -578,8 +579,8 @@ proxy in front of the provider; the service calls the URL itself.
 Checked by `tests/tilt-engine/test_providers.py` (the generators) and
 `tests/e2e/resource-types/bring-your-own/verify-byo-providers.sh` (e2e BY9): `flisk up --dry-run` refuses a required provider
 token that is missing; without the token the service sees an empty `REMOTE` and reaches the simulator through its fallback
-URL; after the token is added to `.env` and `flisk restart`, it sees `REMOTE=true` and the new token, and no generated file
-holds it.
+URL; after the token is added to `.env` and `flisk restart <service> --rebuild` runs, it sees `REMOTE=true` and the new
+token, and no generated file holds it.
 
 ## Bringing a framework app (Node, Go, Rust, ...)
 

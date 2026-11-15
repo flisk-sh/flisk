@@ -190,7 +190,7 @@ The tools were renamed to the `<noun>_<verb>` pattern the others follow: `restar
 | `logs` | Returns a bounded snapshot of recent logs, 200 lines by default and 10,000 at most. | To read what a service printed. | `projectPath`, `services`, `tail`, `since` |
 | `resource_list` | Lists the project's services with their stack, type, and port. | To find a service name. | `projectPath`, `stack` |
 | `down` | Stops the running stack. | When you are finished. | `projectPath`, `dryRun` |
-| `resource_restart` | Restarts a running resource, or triggers its rebuild. | When one service needs a fresh start. | `projectPath`, `resource` |
+| `resource_restart` | Restarts a running Flisk-generated Compose container without rebuilding its image (local processes and imported Tiltfiles use `tilt trigger`); `rebuild` rebuilds the image and recreates the container through Tilt. | When one service needs a fresh start. | `projectPath`, `resource`, `rebuild` |
 | `resource_run` | Runs a one-off command with the environment one resource has in the stack, and returns its exit code, stdout and stderr. A container resource must be running. | To seed data or check a migration. Refused unless `confirm` is `true`, and `.env` values in the output are masked. | `projectPath`, `resource`, `command`, `confirm` |
 | `agent_list` | Lists the project's agent resources with their stack, runtime, durability, and port. | To work with agent resources. | `projectPath`, `stack` |
 | `agent_sessions` | Lists the sessions of a running agent resource, or reads one checkpoint. | To inspect an agent's session state. | `projectPath`, `resource`, `sessionId` (optional) |

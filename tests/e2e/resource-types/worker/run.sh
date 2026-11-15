@@ -46,20 +46,35 @@ W3b() { # flisk down, then flisk up again with the images cached: the worker log
   common_warm_start "$STACK" "$RES logged 'worker started' (warm)" worker_logged_start
 }
 
-worker_replaced() { # <container id from before the restart>: the newest container for the worker is a different one
-  local now; now="$(worker_container)"; [ -n "$now" ] && [ "$now" != "$1" ]
-}
-
-W4() { # flisk restart, then the worker's new container logs its start line again
+W4() { # flisk restart starts the existing worker container again, with no new image
   log "W4 flisk restart $RES"
-  local before; before="$(worker_container)"
-  # The stub may already have exited, so wait on the newest container of any state, not on a running one (see wait_restarted).
+  local before started_before logs_before now started_after
+  before="$(worker_container)"
+  [ -n "$before" ] || die "no $RES container before the restart"
+  started_before="$(docker inspect -f '{{.State.StartedAt}}' "$before")" || die "could not inspect $RES before restart"
+  [ -n "$started_before" ] || die "missing StartedAt for $RES before restart"
+  logs_before="$(worker_start_count "$before")"
   run restart-"$RES" restart "$RES" --json
   [ "$RC" -eq 0 ] || die "flisk restart $RES exited $RC"
   assert envelope "$OUT/restart-$RES.out"
   assert check "$OUT/restart-$RES.out" "j.errors.length === 0 && j.data.resource === '$RES' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
-  poll_until "$RES container replaced after restart" 60 worker_replaced "$before" || die "$RES container id unchanged after restart"
-  poll_until "$RES logged 'worker started' after restart" 180 worker_logged_start
+  # #4192: `docker restart` keeps the container id while advancing StartedAt and logging a fresh start line.
+  now="$(worker_container)"
+  [ -n "$now" ] && [ "$now" = "$before" ] || die "$RES container was replaced by the restart: expected $before, got ${now:-none}"
+  started_after="$(docker inspect -f '{{.State.StartedAt}}' "$before")" || die "could not inspect $RES after restart"
+  [ -n "$started_after" ] && [ "$started_after" != "$started_before" ] || die "$RES did not restart: StartedAt is unchanged or missing"
+  poll_until "$RES logged 'worker started' after restart" "${WORKER_LOG_TIMEOUT:-180}" worker_logged_new_start "$before" "$logs_before"
+}
+
+worker_start_count() {
+  local count
+  count="$(docker logs "$1" 2>&1 | grep -c "$RES worker started" || true)"
+  printf '%s
+' "${count:-0}"
+}
+
+worker_logged_new_start() { # <container id> <start-line count before restart>: a new start line appeared after restart
+  [ "$(worker_start_count "$1")" -gt "$2" ]
 }
 
 W5() { # restart with Tilt unreachable prints one TILT_NOT_RUNNING error envelope and exits 1

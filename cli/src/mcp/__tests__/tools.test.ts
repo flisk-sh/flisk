@@ -809,6 +809,122 @@ describe("tool list", () => {
       required: ["resource"],
     });
   });
+  it("documents target and transitive sidecarOf scope on resource_restart", () => {
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    const desc = tools.find((t) => t.name === "resource_restart")?.description ?? "";
+    expect(desc).toContain("sidecarOf");
+    expect(desc).not.toContain("the other resources are not touched");
+  });
+
+  it("forwards rebuild to flisk restart --rebuild for resource_restart", async () => {
+    const seen: string[][] = [];
+    const tools = createFliskTools(async (args) => {
+      seen.push(args);
+      return { exitCode: 0, stdout: '{"schemaVersion":1,"data":{},"errors":[]}', stderr: "" };
+    });
+    await tools
+      .find((t) => t.name === "resource_restart")
+      ?.handler({ resource: "api", rebuild: true });
+    await tools
+      .find((t) => t.name === "resource_restart")
+      ?.handler({ resource: "api", rebuild: false });
+    await tools.find((t) => t.name === "resource_restart")?.handler({ resource: "api" });
+    expect(seen).toEqual([
+      ["restart", "api", "--json", "--rebuild"],
+      ["restart", "api", "--json"],
+      ["restart", "api", "--json"],
+    ]);
+    await expect(
+      tools
+        .find((t) => t.name === "resource_restart")
+        ?.handler({ resource: "api", rebuild: "yes" }),
+    ).rejects.toThrow("rebuild must be a boolean");
+  });
+
+  it("extends the CLI subprocess timeout for resource_restart beyond stopGracePeriod", async () => {
+    const tempProject = mkdtempSync(join(tmpdir(), "flisk-mcp-restart-timeout-"));
+    try {
+      mkdirSync(join(tempProject, ".flisk"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "worker"), { recursive: true });
+      writeFileSync(
+        join(tempProject, ".flisk", "project.json"),
+        JSON.stringify({ project: { name: "timeout-test" } }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "worker", "service.json"),
+        JSON.stringify({
+          appName: "worker",
+          appType: "worker",
+          stack: "main",
+          container: { stopGracePeriod: "3m" },
+        }),
+      );
+      const { seen, tools } = recordingTools('{"schemaVersion":1,"data":{},"errors":[]}');
+      await tools
+        .find((t) => t.name === "resource_restart")
+        ?.handler({ projectPath: tempProject, resource: "worker" });
+      expect(seen).toEqual([
+        {
+          args: ["restart", "worker", "--json"],
+          cwd: tempProject,
+          timeoutMs: 310_000,
+        },
+      ]);
+    } finally {
+      rmSync(tempProject, { recursive: true, force: true });
+    }
+  });
+
+  it("accounts for sequential sidecarOf restarts in the resource_restart MCP timeout", async () => {
+    const tempProject = mkdtempSync(join(tmpdir(), "flisk-mcp-sidecar-timeout-"));
+    try {
+      mkdirSync(join(tempProject, ".flisk"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "tubehaus"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "bgutil"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "bgutil-helper"), { recursive: true });
+      writeFileSync(
+        join(tempProject, ".flisk", "project.json"),
+        JSON.stringify({ project: { name: "sidecar-timeout" } }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "tubehaus", "service.json"),
+        JSON.stringify({ appName: "tubehaus", appType: "bring-your-own", stack: "tube" }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "bgutil", "service.json"),
+        JSON.stringify({
+          appName: "bgutil",
+          appType: "bring-your-own",
+          stack: "tube",
+          sidecarOf: "tubehaus",
+        }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "bgutil-helper", "service.json"),
+        JSON.stringify({
+          appName: "bgutil-helper",
+          appType: "bring-your-own",
+          stack: "tube",
+          sidecarOf: "bgutil",
+          container: { stopGracePeriod: "2m" },
+        }),
+      );
+      const { seen, tools } = recordingTools('{"schemaVersion":1,"data":{},"errors":[]}');
+      await tools
+        .find((t) => t.name === "resource_restart")
+        ?.handler({ projectPath: tempProject, resource: "tubehaus" });
+      expect(seen).toEqual([
+        {
+          args: ["restart", "tubehaus", "--json"],
+          cwd: tempProject,
+          timeoutMs: 490_000,
+        },
+      ]);
+    } finally {
+      rmSync(tempProject, { recursive: true, force: true });
+    }
+  });
+
   it("rejects invalid tool arguments before running the CLI", async () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     await expect(
