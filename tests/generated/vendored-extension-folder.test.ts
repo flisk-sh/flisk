@@ -117,4 +117,19 @@ describe("vendored .flisk/.flisk-out/flisk-cli-ext folder", () => {
       fs.rmSync(bundle, { recursive: true, force: true });
     }
   }, 30000);
+
+  it("does not ship internal refactoring plans in the runtime tree or vendored folder", async () => {
+    const runtimeMdFiles = walk(path.join(repoRoot, "runtime"))
+      .filter((file) => file.endsWith(".md"))
+      .map((file) => path.basename(file));
+    for (const name of runtimeMdFiles) {
+      expect(name).not.toMatch(/REFACTORING|ROADMAP|PLAN/i);
+    }
+
+    await withExtensionSource(repoRoot, async (projectRoot) => {
+      const vendored = path.join(projectRoot, ".flisk", ".flisk-out", "flisk-cli-ext");
+      const vendoredFiles = walk(vendored).map((file) => path.relative(vendored, file));
+      expect(vendoredFiles).not.toContain("engine/REFACTORING_MANIFEST_SYSTEM.md");
+    });
+  }, 30000);
 });

@@ -322,4 +322,14 @@ describe("flisk eject", () => {
 
     expect(existsSync(join(tempDir, "EJECTED.md"))).toBe(false);
   });
+
+  it("does not include refactoring plans in generatedFiles on eject", async () => {
+    const result = await runCommandInProcess(ejectCommand, ["--dry-run", "--json"], tempDir);
+    expect(result.status).toBeUndefined();
+    const envelope = parseEnvelope(result.stdout);
+    const generatedFiles = (envelope.data as { generatedFiles: string[] }).generatedFiles;
+    for (const file of generatedFiles) {
+      expect(file).not.toContain("REFACTORING_MANIFEST_SYSTEM");
+    }
+  });
 });
