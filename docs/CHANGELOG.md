@@ -4,7 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
-- `flisk project --list --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"templates":[...]},"errors":[]}`) instead of a bare array; `key`/`repo`/`description`/`ref` are unchanged (#4247)., not as soon as its container runs, so it no longer logs connection errors during startup. Services that do not list Postgres start as before; `"condition": "service_started"` keeps the old behaviour (#683).
+- `flisk project --list --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"templates":[...]},"errors":[]}`) instead of a bare array; `key`/`repo`/`description`/`ref` are unchanged (#4247).
+- A service that lists Postgres in `dependsOn` now starts only once Postgres passes its health check, not as soon as its container runs, so it no longer logs connection errors during startup. Services that do not list Postgres start as before; `"condition": "service_started"` keeps the old behaviour (#683).
 - A new Python (FastAPI) backend's `/health` checks the database when `DATABASE_URL` is set and answers 503 with the reason, so a wrong password shows as that service failing (#683).
 - The Python dev loop is measured through a real `flisk up`: a source edit is synced and uvicorn reloads without an image rebuild, median save-to-ready 0.50 s (plain `uvicorn --reload` 0.24 s); first start 41 s, start with a warm image 19 s. The numbers and the script are in `docs/backend-language-providers.md` (#683).
 - `flisk config verify` on a Docker project that was never generated reports one "not generated yet" finding (`data.state` `not_generated`) instead of one error and one diff per file (68 errors and 54 KB for the saas starter); a deleted or edited generated file is still reported (#4219).
