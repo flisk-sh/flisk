@@ -570,7 +570,7 @@ export function printFastNoopResult(
   options: { json?: boolean; quiet?: boolean },
   emit?: JsonEmitter,
 ): void {
-  const { state, services, urls } = result;
+  const { state, services, urls, urlChecks } = result;
   const tiltUrl = `http://localhost:${state.tiltPort}`;
   if (emit) {
     emit({
@@ -580,6 +580,8 @@ export function printFastNoopResult(
       services,
       tiltUrl,
       ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
+      // The same per-URL objects a normal start reports, so `data.urls` parsers keep working.
+      ...(urlChecks.length > 0 ? { urls: urlChecks } : {}),
     });
     return;
   }
@@ -603,10 +605,19 @@ function recordHealthyRun(details: {
   resources: readonly DiscoveredResource[];
   ingressPort: number | null;
   gatewayEnabled: boolean;
+  /**
+   * False when this run only attached to a Tilt it did not start. That Tilt may hold an env file or `.env` this run's
+   * fingerprint does not describe, so no state is saved and any older record is cleared.
+   */
+  persist?: boolean;
 }): string[] {
   const { projectRoot, flags, tiltPort, stack, resources, ingressPort, gatewayEnabled } = details;
   const urls = fastNoopUrls(resources, ingressPort ?? undefined, gatewayEnabled);
   if (!isPlainUp(flags)) return urls;
+  if (details.persist === false) {
+    clearFastNoopState(projectRoot);
+    return urls;
+  }
   const fingerprint = stackFingerprint(projectRoot, flags);
   if (!fingerprint) {
     clearFastNoopState(projectRoot);
@@ -1652,6 +1663,7 @@ export const upCommand = new Command("up")
               );
           const report = alreadyRunningReport(runningPort, { ...readiness, failures });
           if (report.ok) {
+            let attachedUrlChecks: UrlCheck[] = [];
             if (gatewayEnabled) {
               const urlChecks = await checkStackUrls(
                 runningPort,
@@ -1671,8 +1683,10 @@ export const upCommand = new Command("up")
                 process.exitCode = 1;
                 return;
               }
+              attachedUrlChecks = urlChecks;
             }
-            // A healthy second run is the state the fast path records (#4193): the next `flisk up` recognizes it.
+            // This run attached to a Tilt it did not start, so it saves no fast-path state (#4193): the Tilt may hold an
+            // env file this run's fingerprint does not describe. A fresh healthy start records the state instead.
             const urls = recordHealthyRun({
               projectRoot,
               flags: fastFlags,
@@ -1681,12 +1695,14 @@ export const upCommand = new Command("up")
               resources: servicesToStart,
               ingressPort: hostPortPlan.ingressHttp,
               gatewayEnabled,
+              persist: false,
             });
             emit({
               ok: true,
               alreadyRunning: true,
               tiltUrl,
               ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
+              ...(attachedUrlChecks.length > 0 ? { urls: attachedUrlChecks } : {}),
             });
           } else {
             clearFastNoopState(projectRoot);

@@ -292,6 +292,8 @@ export interface FastNoopResult {
   state: FastNoopState;
   services: string[];
   urls: string[];
+  /** The probe results for `urls`, in the per-URL shape of `up --json`'s `data.urls`. Empty when nothing is printed. */
+  urlChecks: UrlCheck[];
 }
 
 /**
@@ -342,11 +344,16 @@ export async function tryFastNoop(
   if (!json) return null;
   let parsed: { items?: unknown[] };
   try {
-    parsed = JSON.parse(json) as { items?: unknown[] };
+    const root: unknown = JSON.parse(json);
+    // `null`, a number or an array parses fine but has no `items` to read: take the normal startup path.
+    if (root === null || typeof root !== "object" || Array.isArray(root)) return null;
+    parsed = root as { items?: unknown[] };
   } catch {
     return null;
   }
   if (!Array.isArray(parsed.items) || parsed.items.length === 0) return null;
+  // A null or non-object entry cannot be a Tilt resource; do not read its fields.
+  if (parsed.items.some((item) => item === null || typeof item !== "object")) return null;
   if (tiltAnswerIsForeign(parsed, new Set(services))) return null;
   if (d.staleDisabled(json, projectRoot).length > 0) return null;
   // Every expected service must be listed and enabled; a missing resource is not a healthy stack.
@@ -370,10 +377,11 @@ export async function tryFastNoop(
     state.urls.length > 0
       ? buildPrintedUrlTargets(selectedResources, state.ingressPort ?? undefined, deferred)
       : [];
+  let urlChecks: UrlCheck[] = [];
   if (urlTargets.length > 0) {
-    const urlChecks = await d.checkUrls(urlTargets);
+    urlChecks = await d.checkUrls(urlTargets);
     if (urlChecks.some((check) => !check.didAnswer)) return null;
   }
 
-  return { ok: true, state, services, urls: state.urls };
+  return { ok: true, state, services, urls: state.urls, urlChecks };
 }

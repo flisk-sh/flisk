@@ -77,6 +77,8 @@ export interface FastNoopResult {
     state: FastNoopState;
     services: string[];
     urls: string[];
+    /** The probe results for `urls`, in the per-URL shape of `up --json`'s `data.urls`. Empty when nothing is printed. */
+    urlChecks: UrlCheck[];
 }
 /**
  * Answers whether the project's own Tilt is already running the unchanged, healthy stack this `flisk up` would start.

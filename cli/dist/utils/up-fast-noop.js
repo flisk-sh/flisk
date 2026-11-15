@@ -256,12 +256,19 @@ export async function tryFastNoop(projectRoot, flags, deps = {}) {
         return null;
     let parsed;
     try {
-        parsed = JSON.parse(json);
+        const root = JSON.parse(json);
+        // `null`, a number or an array parses fine but has no `items` to read: take the normal startup path.
+        if (root === null || typeof root !== "object" || Array.isArray(root))
+            return null;
+        parsed = root;
     }
     catch {
         return null;
     }
     if (!Array.isArray(parsed.items) || parsed.items.length === 0)
+        return null;
+    // A null or non-object entry cannot be a Tilt resource; do not read its fields.
+    if (parsed.items.some((item) => item === null || typeof item !== "object"))
         return null;
     if (tiltAnswerIsForeign(parsed, new Set(services)))
         return null;
@@ -283,10 +290,11 @@ export async function tryFastNoop(projectRoot, flags, deps = {}) {
     const urlTargets = state.urls.length > 0
         ? buildPrintedUrlTargets(selectedResources, state.ingressPort ?? undefined, deferred)
         : [];
+    let urlChecks = [];
     if (urlTargets.length > 0) {
-        const urlChecks = await d.checkUrls(urlTargets);
+        urlChecks = await d.checkUrls(urlTargets);
         if (urlChecks.some((check) => !check.didAnswer))
             return null;
     }
-    return { ok: true, state, services, urls: state.urls };
+    return { ok: true, state, services, urls: state.urls, urlChecks };
 }

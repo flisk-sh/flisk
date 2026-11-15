@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeResource } from "../../test-support/doubles.js";
 import { runCommandInProcess } from "../../test-support/run-in-process.js";
 import type { FastNoopFlags, FastNoopState, UP_STATE_VERSION } from "../../utils/up-fast-noop.js";
 
@@ -60,16 +61,6 @@ const mocks = vi.hoisted(() => ({
     targets.map((target) => ({ service: target.service, url: target.url, didAnswer: true })),
   ),
 }));
-
-/** A resource the discovery mock returns; the shape is the subset `up` reads. */
-function resource(name: string, appType = "backend") {
-  return {
-    name,
-    path: `/project/${name}`,
-    configPath: `/project/${name}/service.json`,
-    config: { appName: name, appType },
-  };
-}
 
 vi.mock("../../generator/template-engine.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../generator/template-engine.js")>()),
@@ -178,7 +169,11 @@ import { fastNoopFlags, upCommand } from "../up.js";
 
 let projectDir: string;
 let home: string;
-const resources = [resource("api"), resource("web", "frontend"), resource("job", "worker")];
+const resources = [
+  makeResource("api", "backend"),
+  makeResource("web", "frontend"),
+  makeResource("job", "worker"),
+];
 
 /** A full project config, so a fallback run can take the normal path far enough to reach `tilt up`. */
 const PROJECT_JSON = {

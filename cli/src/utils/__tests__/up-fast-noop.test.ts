@@ -267,6 +267,16 @@ describe("flisk up fast no-op: tryFastNoop", () => {
     expect(result?.urls).toEqual(state().urls);
   });
 
+  it("returns the URL probe results so `up --json` keeps the per-URL data.urls shape", async () => {
+    const { deps } = harness();
+    const result = await tryFastNoop(project(), flags(), deps);
+    expect(result?.urlChecks.length).toBeGreaterThan(0);
+    for (const check of result?.urlChecks ?? []) {
+      expect(check).toMatchObject({ didAnswer: true });
+      expect(typeof check.url).toBe("string");
+    }
+  });
+
   it("does not query Tilt at all when there is no recorded state", async () => {
     const { deps, calls } = harness({ stored: null });
     expect(await tryFastNoop(project(), flags(), deps)).toBeNull();
@@ -324,7 +334,16 @@ describe("flisk up fast no-op: tryFastNoop", () => {
   });
 
   it("falls back when Tilt answers with malformed or empty JSON", async () => {
-    for (const tiltJson of ["not json", '{"items":[]}', "{}"]) {
+    // `null`, a bare number, an array and a null entry all parse as JSON but are not a Tilt resource list.
+    for (const tiltJson of [
+      "not json",
+      '{"items":[]}',
+      "{}",
+      "null",
+      "7",
+      "[]",
+      '{"items":[null]}',
+    ]) {
       const { deps } = harness({ tiltJson });
       expect(await tryFastNoop(project(), flags(), deps)).toBeNull();
     }
