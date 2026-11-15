@@ -140,6 +140,7 @@ def prebuild_image_script():
         "if (-not $?) { exit 1; }",
         "[IO.File]::WriteAllText($env:FLISK_PREBUILD + '.dockerignore', $env:FLISK_IGNORE, (New-Object Text.UTF8Encoding($false)));",
         "docker build --network host --target $env:FLISK_TARGET -f $env:FLISK_PREBUILD -t $env:FLISK_TAG $env:FLISK_BUILD_CONTEXT;",
+        "if ($LASTEXITCODE -ne 0) { Write-Output '[flisk] image build failed, retrying once (often a transient BuildKit cache error)'; docker build --network host --target $env:FLISK_TARGET -f $env:FLISK_PREBUILD -t $env:FLISK_TAG $env:FLISK_BUILD_CONTEXT; }",
         "exit $LASTEXITCODE;",
     ])
 

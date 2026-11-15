@@ -875,7 +875,10 @@ def _register_deferred_image_prebuild(config, auto_init_apps, deps=None):
     cmd = [
         "sh", "-c",
         'cp "$1" "$2" && printf "%s" "$3" > "$2.dockerignore"' +
-        ' && docker build --network host --target "$4" -f "$2" -t "$5" "$6"',
+        # One retry: a build that dies on a shared-cache hiccup (flisk#4226) usually passes when run again.
+        ' && { docker build --network host --target "$4" -f "$2" -t "$5" "$6"' +
+        ' || { echo "[flisk] image build failed, retrying once (often a transient BuildKit cache error)";' +
+        ' docker build --network host --target "$4" -f "$2" -t "$5" "$6"; }; }',
         "sh",
         dockerfile,
         prebuild_dockerfile,

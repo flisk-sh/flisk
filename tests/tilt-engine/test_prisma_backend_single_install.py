@@ -91,3 +91,14 @@ def test_prisma_cli_stash_is_not_under_tmp_and_matches_the_copy(tmp_path):
 def test_migrator_still_builds_its_own_migration_stage(tmp_path):
     dockerfile = generate(tmp_path, "migrator", "orders-migrator")
     assert "AS l3_migration_build" in dockerfile
+
+
+def test_image_prebuild_retries_a_failed_build_once():
+    # flisk#4226: one of two parallel image builds died on a shared-cache error and `up` failed with no second try.
+    root = Path(__file__).resolve().parents[2] / "runtime/engine/topologies/tilt"
+    unix = (root / "resources/orchestrator/apply_compose_resource_registration.star").read_text()
+    windows = (root / "common/windows_scripts.star").read_text()
+    assert unix.count('docker build --network host --target "$4"') == 2
+    assert "retrying once" in unix
+    assert windows.count("docker build --network host --target $env:FLISK_TARGET") == 2
+    assert "$LASTEXITCODE -ne 0" in windows
