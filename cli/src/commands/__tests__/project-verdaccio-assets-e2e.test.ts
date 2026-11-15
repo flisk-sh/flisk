@@ -161,12 +161,32 @@ describe("project assets and Verdaccio E2E", () => {
     projectRoot = copyProject(baseRoot);
 
     runFlisk(
-      ["resource", "api", "--type", "backend", "--stack", "alpha", "--path", "services/alpha/api"],
+      [
+        "resource",
+        "api",
+        "--type",
+        "backend",
+        "--stack",
+        "alpha",
+        "--path",
+        "services/alpha/api",
+        "--yes",
+      ],
       projectRoot,
       "\n",
     );
     runFlisk(
-      ["resource", "web", "--type", "frontend", "--stack", "alpha", "--path", "services/alpha/web"],
+      [
+        "resource",
+        "web",
+        "--type",
+        "frontend",
+        "--stack",
+        "alpha",
+        "--path",
+        "services/alpha/web",
+        "--yes",
+      ],
       projectRoot,
       "\n",
     );

@@ -21,12 +21,16 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function flisk(args: string[], cwd: string, input = "y\n") {
-  return spawnSync(process.execPath, [cliBin, ...args], {
-    cwd,
-    encoding: "utf-8",
-    input,
-    env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
-  });
+  return spawnSync(
+    process.execPath,
+    [cliBin, ...args, ...(args[0] === "resource" ? ["--yes"] : [])],
+    {
+      cwd,
+      encoding: "utf-8",
+      input,
+      env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
+    },
+  );
 }
 
 function listFiles(root: string, dir = root): string[] {

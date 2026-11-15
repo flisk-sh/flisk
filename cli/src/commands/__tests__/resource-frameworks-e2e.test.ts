@@ -16,6 +16,7 @@ const repoRoot = resolve(__dirname, "../../../..");
 const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function runFlisk(args: string[], cwd: string, input?: string): string {
+  if (args[0] === "resource") args = [...args, "--yes"];
   return execFileSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
@@ -639,6 +640,7 @@ describe("frontend resource framework selection", () => {
       resourceCommand,
       [
         "invalid-web",
+        "--yes",
         "--type",
         "frontend",
         "--framework",
@@ -664,6 +666,7 @@ describe("frontend resource framework selection", () => {
       resourceCommand,
       [
         "meta-web",
+        "--yes",
         "--type",
         "frontend",
         "--framework",
@@ -689,6 +692,7 @@ describe("frontend resource framework selection", () => {
       resourceCommand,
       [
         "orders-api",
+        "--yes",
         "--type",
         "backend",
         "--framework",

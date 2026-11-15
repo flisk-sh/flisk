@@ -27,7 +27,7 @@ function flisk(args: string[], cwd: string, input = "y\n"): Promise<CliResult> {
   return new Promise((resolve) => {
     const child = execFile(
       process.execPath,
-      [cliBin, ...args],
+      [cliBin, ...args, ...(args[0] === "resource" ? ["--yes"] : [])],
       { cwd, encoding: "utf-8", env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot } },
       (error, stdout, stderr) => {
         const status = error ? (typeof error.code === "number" ? error.code : 1) : 0;

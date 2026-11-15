@@ -25,6 +25,7 @@ interface CliResult {
 }
 
 function flisk(args: string[], cwd: string, input = "y\n"): Promise<CliResult> {
+  if (args[0] === "resource") args = [...args, "--yes"];
   return new Promise((resolve) => {
     const child = execFile(
       process.execPath,

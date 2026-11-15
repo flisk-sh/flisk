@@ -120,6 +120,12 @@ Create and manage individual services:
 
 Queues and inference services are saved as `bring-your-own` resources. To list them, use `flisk resources --type bring-your-own`. Passing `--type queue` or `--type inference` to `flisk resources` reports this filter in the error message.
 
+`flisk resource` creates a resource; use `flisk resources` to list them. Command-like names
+such as `list`, `ls`, `status` and `help` are rejected with a command hint. Scripts and agents
+must pass `--yes` or `--json` to create a resource without a terminal, even when `--stack`
+is specified. Otherwise the command exits immediately without prompting or creating files.
+`--json` implies `--yes`; the read-only `--frameworks` inventory needs neither flag.
+
 ```bash
 # 📋 List all resources
 flisk resources
