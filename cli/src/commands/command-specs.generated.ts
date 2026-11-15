@@ -1828,8 +1828,56 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     allowExcessArguments: false,
     options: [],
     arguments: [],
-    helpTexts: {},
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk agent list\n  flisk agent list --json\n  flisk agent sessions <resource>",
+      ],
+    },
     subcommands: [
+      {
+        name: "list",
+        path: ["agent", "list"],
+        description: "List AI agent resources in the project",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "-v, --verbose",
+            description: "Show detailed information about each agent resource",
+            defaultValue: false,
+          },
+          {
+            flags: "-s, --stack <stack>",
+            description: "Filter agent resources by stack name",
+          },
+          {
+            flags: "--no-stack",
+            description: "Show only agent resources without a stack",
+          },
+          {
+            flags: "--ports",
+            description: "Show port assignments",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description: "Output one JSON object and exit",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {
+          after: [
+            "\nExamples:\n  flisk agent list\n  flisk agent list --stack shop\n  flisk agent list --json",
+          ],
+        },
+        subcommands: [],
+      },
       {
         name: "sessions",
         path: ["agent", "sessions"],
