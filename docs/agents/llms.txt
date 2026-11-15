@@ -72,6 +72,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - `flisk restart <resource>`: Restart one running resource, or trigger its rebuild.
 - `flisk run <service> <command...>`: Run a one-off command with the environment the service has in the stack (`docker exec` in its running container, or on the host for a local process); put `--` before a command that has flags of its own. The exit code is the command's. `--json` runs it without input and returns `exitCode`, `stdout` and `stderr`.
 - `flisk networks [--json]`: Show the Traefik URL of every frontend and API service (aliases `urls`, `traefik`).
+- `flisk agent list [--stack <stack>] [--json]`: List the AI agent resources in the project.
 - `flisk agent sessions <resource>`: List the stored sessions of an agent resource (`--session-id <id>` reads one checkpoint).
 - `flisk runtime`: Check that the installed CLI has its bundled runtime assets.
 - `flisk import [dir] [--dry-run] [--json]`: Adopt an existing codebase as Flisk resources.

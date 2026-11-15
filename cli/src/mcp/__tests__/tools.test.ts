@@ -1391,6 +1391,78 @@ describe("tool annotations", () => {
     }
   });
 
+  it("maps every read-only MCP tool to a registered CLI command or lists it as MCP-only", () => {
+    const commands = loadRegisteredCommandMap();
+    const mcpOnlyReadTools = new Set<string>(["project_templates"]);
+    const readOnlyToolToCli: Record<string, [string] | [string, string]> = {
+      doctor: ["doctor"],
+      status: ["status"],
+      logs: ["logs"],
+      resource_list: ["resources"],
+      agent_list: ["agent", "list"],
+      agent_sessions: ["agent", "sessions"],
+      stack_list: ["stacks"],
+      project_info: ["info"],
+      network_list: ["networks"],
+      config_verify: ["config", "verify"],
+      config_explain: ["config", "explain"],
+      runtime_check: ["runtime"],
+    };
+
+    const readOnlyTools = tools.filter((t) => t.annotations?.readOnlyHint === true);
+    expect(readOnlyTools.length).toBeGreaterThan(0);
+
+    for (const tool of readOnlyTools) {
+      if (mcpOnlyReadTools.has(tool.name)) {
+        expect(
+          readOnlyToolToCli[tool.name],
+          `${tool.name} cannot be both MCP-only and CLI-mapped`,
+        ).toBeUndefined();
+        continue;
+      }
+
+      const cliPath = readOnlyToolToCli[tool.name];
+      expect(
+        cliPath,
+        `Read-only MCP tool "${tool.name}" must be mapped to a CLI command or listed in mcpOnlyReadTools`,
+      ).toBeDefined();
+
+      const [rootName, subName] = cliPath;
+      const rootCmd = commands.get(rootName);
+      expect(rootCmd, `CLI command "flisk ${rootName}" for tool "${tool.name}"`).toBeDefined();
+
+      const targetCmd = subName
+        ? rootCmd?.commands.find((c) => c.name() === subName || c.aliases().includes(subName))
+        : rootCmd;
+      expect(
+        targetCmd,
+        `CLI command "flisk ${cliPath.join(" ")}" for read-only MCP tool "${tool.name}"`,
+      ).toBeDefined();
+
+      const hasJsonOption = targetCmd?.options.some((opt) => opt.long === "--json");
+      expect(hasJsonOption, `CLI command "flisk ${cliPath.join(" ")}" must support --json`).toBe(
+        true,
+      );
+
+      // When a read-only tool is named `<group>_<subcommand>` and `flisk <group>` is a command group with subcommands,
+      // `flisk <group> <subcommand>` must exist so CLI users following MCP naming do not hit "unknown command".
+      const parts = tool.name.split("_");
+      if (parts.length === 2) {
+        const [groupName, actionName] = parts;
+        const groupCmd = commands.get(groupName);
+        if (groupCmd && groupCmd.commands.length > 0) {
+          const matchingSub = groupCmd.commands.find(
+            (c) => c.name() === actionName || c.aliases().includes(actionName),
+          );
+          expect(
+            matchingSub,
+            `Read-only tool "${tool.name}" implies "flisk ${groupName} ${actionName}" on command group "${groupName}"`,
+          ).toBeDefined();
+        }
+      }
+    }
+  });
+
   it("flags the tools that can discard or overwrite files as destructive", () => {
     for (const name of [
       "down",

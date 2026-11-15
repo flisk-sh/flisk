@@ -47,6 +47,7 @@ flisk resource <name> --type agent --stack <stack> [--runtime custom] [--durabil
   - `GET /health`: Returns 200 if the agent HTTP server is alive (idle is healthy). This is the path used by Flisk's generated Docker health check when `healthCheckPath` is `/health`.
   - `GET /ready`: Returns 200 only when the checkpoint directory/store is verified writable. Application-level check for callers before sending turns.
 - **Execution**: `POST /turn` loads the checkpoint, appends the user prompt, invokes `runTurn()`, commits the state atomically, and returns the reply.
+- **Discovery & Inspection**: `flisk agent list [--stack <stack>] [--json]` lists the project's agent resources (matching the MCP `agent_list` tool), and `flisk agent sessions <resource> [--session-id <id>] [--json]` inspects stored sessions or checkpoints.
 
 ### 2. `appType: "mcp"`
 Scaffolded via:

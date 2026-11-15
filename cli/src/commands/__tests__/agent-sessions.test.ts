@@ -775,3 +775,78 @@ describe("flisk agent sessions", () => {
     });
   });
 });
+
+describe("flisk agent list", () => {
+  it("prints the schema envelope with the agent in data and matches the MCP agent_list result", () => {
+    const tmp = createTempProject({
+      stacks: {
+        shop: {
+          bot: { appType: "agent", port: 4999 },
+          api: { appType: "backend", port: 4000 },
+        },
+      },
+    });
+    try {
+      const jsonRes = runFlisk(["agent", "list", "--json"], tmp);
+      expect(jsonRes.status).toBe(0);
+      expect(jsonRes.stderr).toBe("");
+      const envelope = JSON.parse(jsonRes.stdout);
+      expect(envelope.schemaVersion).toBe(1);
+      expect(envelope.errors).toEqual([]);
+      expect(envelope.data.resources).toEqual([
+        expect.objectContaining({
+          name: "bot",
+          stack: "shop",
+          type: "agent",
+          port: 4999,
+        }),
+      ]);
+
+      const mcpEquivalent = runFlisk(["resources", "--type=agent", "--json"], tmp);
+      expect(envelope).toEqual(JSON.parse(mcpEquivalent.stdout));
+
+      const humanRes = runFlisk(["agent", "list"], tmp);
+      expect(humanRes.status).toBe(0);
+      expect(humanRes.stdout).toContain("bot");
+      expect(humanRes.stdout).not.toContain("api");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("prints an empty list and exits 0 in a project with no agents", () => {
+    const tmp = createTempProject({
+      stacks: {
+        shop: {
+          api: { appType: "backend", port: 4000 },
+        },
+      },
+    });
+    try {
+      const jsonRes = runFlisk(["agent", "list", "--json"], tmp);
+      expect(jsonRes.status).toBe(0);
+      const envelope = JSON.parse(jsonRes.stdout);
+      expect(envelope.schemaVersion).toBe(1);
+      expect(envelope.errors).toEqual([]);
+      expect(envelope.data.resources).toEqual([]);
+
+      const humanRes = runFlisk(["agent", "list"], tmp);
+      expect(humanRes.status).toBe(0);
+      expect(humanRes.stdout).toContain('No resources found with type "agent".');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("lists both list and sessions in agent --help", () => {
+    const help = agentCommand.helpInformation();
+    expect(help).toContain("list");
+    expect(help).toContain("sessions");
+
+    const res = runFlisk(["agent", "--help"], repoRoot);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("list");
+    expect(res.stdout).toContain("sessions");
+    expect(res.stdout).toContain("flisk agent list");
+  });
+});
