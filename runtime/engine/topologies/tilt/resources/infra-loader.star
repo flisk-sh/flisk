@@ -29,6 +29,7 @@ load("./build_concurrency.star", "configure_build_concurrency")
 load("./tilt_image_tags.star", "register_tilt_image_tags")
 load("../../../../discovery/registry.star", "APP_RESOURCES")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
+load("../../platform/docker/config/healthcheck.star", "DOCKER_HEALTHCHECK")
 load("../../platform/docker/dockerfile/language_dockerfile.star", "is_provider_owned_language")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
 load("../../platform/docker/networking/sablier_container_cycle.star", "sablier_middleware_suffix")
@@ -67,7 +68,12 @@ def _docker_compose(compose_paths, env_file, infra):
 
 
 def _generate_database_management_compose():
-    """Generate the stack-feature compose for local PostgreSQL."""
+    """Generate the stack-feature compose for local PostgreSQL.
+
+    Postgres accepts connections well under a second after its container starts. With `interval: 5s` alone Docker first probes
+    it after 5 s, and the migrator and every service that needs the database wait for that probe. While it starts it is probed
+    at the shared short `start_interval` instead (#3857), like every other container Flisk generates.
+    """
     name = PlatformDockerConstants.PROJECT_NAME
     database_network = PlatformDockerConstants.NETWORK_DATABASE
     return """###############################################################################
@@ -96,6 +102,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: {start_period}s
+      start_interval: {start_interval}s
 
 networks:
   database:
@@ -104,7 +112,7 @@ networks:
 
 volumes:
   {name}_postgres_data:
-""".format(name=name, database_network=database_network, host_port=os.environ.get('FLISK_POSTGRES_PORT', '15432'), bind_address=os.environ.get('FLISK_BIND_ADDRESS', '127.0.0.1'))
+""".format(name=name, database_network=database_network, start_period=DOCKER_HEALTHCHECK["start_period_seconds"], start_interval=DOCKER_HEALTHCHECK["start_interval_seconds"], host_port=os.environ.get('FLISK_POSTGRES_PORT', '15432'), bind_address=os.environ.get('FLISK_BIND_ADDRESS', '127.0.0.1'))
 
 
 def _ensure_database_management_compose(root_prefix, write_fn):
@@ -656,6 +664,9 @@ Infra = struct(
     load_debezium = _load_debezium,
     load_elk = _load_elk,
     load_golden_image = _load_golden_image,
+
+    # Text of the generated database compose file (read by tests).
+    database_compose = _generate_database_management_compose,
 
     # Shared platform Postgres start signal (dependsOn postgres/database-management
     # when the database-management feature is off). Idempotent; no messaging/kafka/Prisma.
