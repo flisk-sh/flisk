@@ -210,7 +210,7 @@ def healthy_script():
         "  if ($i -le 12 -and $state -eq 'running' -and $health -eq 'starting') { Start-Sleep -Milliseconds 250; } else { Start-Sleep -Seconds 1; }",
         "}",
         "if ($badSince -ge 0) { Write-Output ('ERROR: ' + $job + ' is unhealthy: its health check still failed ' + $grace + 's after it first failed'); exit 1; }",
-        "Write-Output ('ERROR: timed out waiting for ' + $job + ' to become healthy (waited ' + $max + 's)'); exit 1;",
+        "Write-Output ('ERROR: timed out waiting for ' + $job + ' to become healthy (gave up after ' + $max + ' checks)'); exit 1;",
     ])
 
 def job_done_script():
