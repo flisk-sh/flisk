@@ -496,7 +496,10 @@ describe("networksCommand and helpers", () => {
       await networksCommand.parseAsync(["node", "flisk", "--stack", "shop", "--json"], {
         from: "node",
       });
-      const jsonReport = JSON.parse(lines.join("\n"));
+      // One compact line, so line-oriented readers (tail -1, JSON Lines) get the whole envelope.
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).not.toContain("\n");
+      const jsonReport = JSON.parse(lines[0]);
       expect(jsonReport.schemaVersion).toBe(1);
       expect(jsonReport.data.services).toHaveLength(2);
 
