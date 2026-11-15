@@ -127,7 +127,7 @@ jobs:
               POSTGRES_PASSWORD=ci-postgres-not-a-secret
               ACCESS_TOKEN_SALT=ci-access-token-salt-not-a-secret
               DATABASE_URL=postgresql://user:ci-postgres-not-a-secret@postgres:5432/ghostfolio-db?connect_timeout=300
-              JWT_SECRET_KEY=ci-jwt-secret-not-a-secret-padded-to-48-characters
+              JWT_SECRET_KEY=ci-jwt-secret-not-a-secret
           # Rejected firsttris/haben#188. The dev stack builds deploy/dev and serves on 127.0.0.1:${HABEN_DEV_PORT:-3000}.
           - name: Haben
             owner: firsttris
@@ -149,7 +149,7 @@ jobs:
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
-              JWT_SECRET_KEY=ci-jwt-secret-not-a-secret
+              JWT_SECRET_KEY=ci-jwt-secret-not-a-secret-padded-to-48-characters
               HASH_PEPPER=ci-hash-pepper-not-a-secret-padded-to-48-characters
               POSTGRES_PASSWORD=ci-postgres-not-a-secret
               DATABASE_URL=postgresql://openathlete:ci-postgres-not-a-secret@postgres:5432/openathlete
