@@ -146,15 +146,41 @@ describe("flisk run --json, in process", () => {
     expect(exec[1]).toEqual(["exec", "c0ffee", "printenv", "DATABASE_URL"]);
   });
 
-  it("reports RUN_FAILED with the service names when the service is unknown", async () => {
+  it("reports UNKNOWN_RESOURCE with the resource names when the resource is unknown", async () => {
     const root = project();
     const run = await runCommandInProcess(runServiceCommand, ["nope", "--json", "true"], root);
     const envelope = parseEnvelope(run.stdout);
     expect(envelope.data).toBeNull();
-    expect(envelope.errors[0]).toMatchObject({
-      code: "RUN_FAILED",
-      message: 'No service named "nope" in this project.',
-      suggestions: ["Services: api, orders"],
+    expect(envelope.errors[0]).toEqual({
+      code: "UNKNOWN_RESOURCE",
+      message: 'Resource "nope" not found in project.',
+      suggestions: ["Resources: api, orders", "See the names with: flisk resources"],
+    });
+    expect(run.status).toBe(1);
+    expect(spawnSync).not.toHaveBeenCalled();
+  });
+
+  it("puts the closest resource name first for a near-miss in --json mode", async () => {
+    const root = createTempProject({
+      projectJson: { project: { name: "Run-Near-Miss" } },
+      stacks: {
+        app: {
+          zeta: { appType: "backend", command: "node server.js", port: 4567 },
+          ok1: { appType: "backend", command: "node server.js", port: 4568 },
+        },
+      },
+    });
+    const run = await runCommandInProcess(runServiceCommand, ["ok", "--json", "true"], root);
+    const envelope = parseEnvelope(run.stdout);
+    expect(envelope.data).toBeNull();
+    expect(envelope.errors[0]).toEqual({
+      code: "UNKNOWN_RESOURCE",
+      message: 'Resource "ok" not found in project.',
+      suggestions: [
+        'Did you mean "ok1"?',
+        "Resources: ok1, zeta",
+        "See the names with: flisk resources",
+      ],
     });
     expect(run.status).toBe(1);
     expect(spawnSync).not.toHaveBeenCalled();

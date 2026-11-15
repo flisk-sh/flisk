@@ -88,10 +88,38 @@ describe("flisk agent sessions", () => {
     }
   }
 
-  it("reports UNKNOWN_RESOURCE when the resource does not exist in the project", async () => {
+  it("reports UNKNOWN_RESOURCE with project resource suggestions when the resource does not exist", async () => {
     const { status, envelope } = await runEnvelopeCase(envelopeProject, ["nonexistent"]);
     expect(status).toBe(1);
-    expect(envelope.errors[0].code).toBe("UNKNOWN_RESOURCE");
+    expect(envelope.errors[0]).toEqual({
+      code: "UNKNOWN_RESOURCE",
+      message: 'Resource "nonexistent" not found in project.',
+      suggestions: ["Resources: api", "See the names with: flisk resources"],
+    });
+  });
+
+  it("puts the closest resource name first for a near-miss in agent sessions --json", async () => {
+    const tmp = createTempProject({
+      resources: {
+        zeta: { appType: "agent", port: 4001 },
+        ok1: { appType: "agent", port: 4002 },
+      },
+    });
+    try {
+      const { status, envelope } = await runEnvelopeCase(tmp, ["ok"]);
+      expect(status).toBe(1);
+      expect(envelope.errors[0]).toEqual({
+        code: "UNKNOWN_RESOURCE",
+        message: 'Resource "ok" not found in project.',
+        suggestions: [
+          'Did you mean "ok1"?',
+          "Resources: ok1, zeta",
+          "See the names with: flisk resources",
+        ],
+      });
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 
   it("reports NOT_AN_AGENT when the resource exists but is not an agent", async () => {

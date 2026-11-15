@@ -7,43 +7,15 @@
  * The shell completion generator reads the same program, so the completions and the CLI can never
  * disagree about which commands and flags exist.
  */
-import chalk from "chalk";
-import { Command } from "commander";
-import pkg from "../package.json" with { type: "json" };
-import { showHelp } from "./commands/help.js";
+import type { Command } from "commander";
 import { getRegisteredCommands } from "./commands/registry.js";
+import { createRootProgram } from "./program-root.js";
 
 /** Builds the root program with every registered command. */
 export function createProgram(): Command {
-  const program = new Command();
-
-  program
-    .name("flisk")
-    .description("Flisk: local development for multi-service apps, started with one command.")
-    .enablePositionalOptions()
-    .version(pkg.version, "-v, --version", "Display version number")
-    .option("--verbose", "Enable verbose output", false)
-    .option(
-      "--template <name>",
-      "Create a project from a starter template in one command (see the names with: flisk project --list)",
-    )
-    .option("--project <dir>", "Directory to create the project in (default: the template name)")
-    .configureOutput({
-      outputError: (str, write) => write(chalk.red(str)),
-      writeOut: (str) => process.stdout.write(str),
-      writeErr: (str) => process.stderr.write(str),
-    });
-
-  program.helpCommand("help [command]", "Show colorful help").on("--help", () => {
-    showHelp();
-    process.exit(0);
-  });
-
-  program.addHelpText("before", "");
-
+  const program = createRootProgram();
   for (const command of getRegisteredCommands()) {
     program.addCommand(command);
   }
-
   return program;
 }

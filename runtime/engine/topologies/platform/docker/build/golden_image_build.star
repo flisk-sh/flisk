@@ -44,7 +44,7 @@ fi
 @@REUSE_SHARED@@
 @@PULL_GOLDEN@@
 echo "🏗️  Building golden layered images (@@COUNT@@ total)..."
-if docker buildx version >/dev/null 2>&1; then
+if [ "${DOCKER_BUILDKIT:-}" != "0" ] && docker buildx version >/dev/null 2>&1; then
   echo "  🧩 Building all golden targets with one docker buildx bake (independent stages run in parallel)"
   cat > golden-layers.bake.hcl <<HCL
 variable "HASH" {
@@ -78,7 +78,7 @@ HCL
     attempt=$((attempt + 1))
   done
 else
-  echo "  ⚠️  docker buildx is not available - building golden targets one at a time"
+  echo "  ⚠️  docker buildx is not available (not installed, or DOCKER_BUILDKIT=0 as on Kiri) - building golden targets one at a time"
   @@SERIAL_BUILDS@@
 fi
 
