@@ -123,7 +123,7 @@ describe("vendored .flisk/.flisk-out/flisk-cli-ext folder", () => {
       .filter((file) => file.endsWith(".md"))
       .map((file) => path.basename(file));
     for (const name of runtimeMdFiles) {
-      expect(name).not.toMatch(/REFACTORING|ROADMAP|PLAN/i);
+      expect(name).not.toMatch(/(^|[^a-z])(refactoring|roadmap|plan)([^a-z]|$)/i);
     }
 
     await withExtensionSource(repoRoot, async (projectRoot) => {
