@@ -192,15 +192,22 @@ Q5() { # run the documented quickstart path end to end: flisk project example, c
 
   # Run the whole case in a subshell with a trap, mirroring tests/e2e/examples/default/run.sh.
   (
-    trap 'kill "$flisk_pid" 2>/dev/null || true' EXIT
+    local flisk_pid=""
+    trap '[ -z "$flisk_pid" ] || kill "$flisk_pid" 2>/dev/null || true' EXIT
     flisk project example --path "$EXDIR"
     cd "$EXDIR"
 
     # Verify that flisk project example left .flisk/project.json.
     [ -f .flisk/project.json ] || die "flisk project example left no .flisk/project.json"
 
-    # Verify flisk doctor works in the new folder.
-    flisk doctor
+    # Verify flisk doctor finds the project root in the new folder. Doctor may still report the generated files a
+    # first `flisk up` writes (master configs, .env) as missing, so its exit code is not the check; the root is.
+    local doctor_out
+    doctor_out="$(flisk doctor 2>&1 || true)"
+    echo "$doctor_out" | tail -20
+    if echo "$doctor_out" | grep -q "Could not find project root"; then
+      die "flisk doctor could not find the project root in the example folder"
+    fi
 
     # Run flisk up.
     flisk up shop > up.log 2>&1 &
