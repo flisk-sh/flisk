@@ -160,6 +160,7 @@ const STACK_FILES: Golden[] = [
       "services:",
       "traefik",
       "--providers.docker.constraints=Label(`flisk.project`,",
+      "--providers.providersThrottleDuration=100ms",
     ],
   },
   {
