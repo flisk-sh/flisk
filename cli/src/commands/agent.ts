@@ -19,6 +19,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { buildServicePorts } from "../utils/status-ports.js";
+import { type ListResourcesOptions, runResourcesList } from "./resources.js";
 
 export { formatAge } from "../utils/agent-format.js";
 export { agentSessionRequest, httpGet } from "../utils/agent-sessions.js";
@@ -54,9 +55,28 @@ interface Failure {
   hints?: string[];
 }
 
-export const agentCommand = new Command("agent").description(
-  "Inspect and operate AI agent resources",
-);
+export const agentCommand = new Command("agent")
+  .description("Inspect and operate AI agent resources")
+  .addHelpText(
+    "after",
+    "\nExamples:\n  flisk agent list\n  flisk agent list --json\n  flisk agent sessions <resource>",
+  );
+
+agentCommand
+  .command("list")
+  .description("List AI agent resources in the project")
+  .option("-v, --verbose", "Show detailed information about each agent resource", false)
+  .option("-s, --stack <stack>", "Filter agent resources by stack name")
+  .option("--no-stack", "Show only agent resources without a stack")
+  .option("--ports", "Show port assignments", false)
+  .option("--json", "Output one JSON object and exit", false)
+  .addHelpText(
+    "after",
+    "\nExamples:\n  flisk agent list\n  flisk agent list --stack shop\n  flisk agent list --json",
+  )
+  .action(async (options: ListResourcesOptions) => {
+    await runResourcesList({ ...options, type: "agent" });
+  });
 
 agentCommand
   .command("sessions <resource>")
