@@ -15,6 +15,7 @@ import {
   runFlisk,
 } from "../../test-support/index.js";
 import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
+import { agentCommand } from "../agent.js";
 import { configCommand } from "../config.js";
 import { connectCommand } from "../connect.js";
 import { downCommand } from "../down.js";
@@ -42,6 +43,10 @@ const JSON_MATRIX: Array<{ command: string[]; project: Parameters<typeof createT
     {
       command: ["resources"],
       project: { stacks: { api: { gateway: { appType: "backend", port: 3100 } } } },
+    },
+    {
+      command: ["agent", "list"],
+      project: { stacks: { api: { assistant: { appType: "agent", port: 3200 } } } },
     },
     { command: ["projects"], project: { resources: { api: { runtime: "node" } } } },
     {
@@ -377,6 +382,7 @@ async function loadAllCommands(): Promise<Command[]> {
 const IN_PROCESS_TARGETS: Record<string, { command: Command; args: string[] }> = {
   stacks: { command: stacksCommand, args: [] },
   resources: { command: resourcesCommand, args: [] },
+  "agent list": { command: agentCommand, args: ["list"] },
   projects: { command: projectsCommand, args: [] },
   status: { command: statusCommand, args: [] },
   networks: { command: networksCommand, args: [] },
