@@ -268,6 +268,13 @@ export async function cloneProjectTemplate(
     showErrorAndExit(message);
   }
 
+  // A copied or cloned starter ships service.json files but no .flisk/project.json, and every command that needs a
+  // project root refuses without one: `flisk doctor` and `flisk up` in the new folder both failed with
+  // "Could not find project root". Generated starters run as local processes and keep being adopted by `flisk up`.
+  if (!template.generated && !existsSync(join(destination, ".flisk", PROJECT_JSON))) {
+    writeDefaultProjectConfig(destination);
+  }
+
   clearDiscoveryCache();
 
   if (options.quiet) return destination;
