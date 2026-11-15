@@ -79,7 +79,7 @@ These rules come from real failures in the agent suite. Each one cost a red CI r
 1. **One named function per case.** CI runs each case as its own step, so a red run names one behavior, and you can rerun one case by hand.
 2. **Each case sets up its own preconditions.** Do not rely on what an earlier case left behind. In CI order, B0 stops the agent and B1 to B7 leave it stopped, so A7 restarts it before writing its turn. Running `run.sh A7` on its own must work too.
 3. **Wait with `poll_until`, never `sleep`.** It takes a description and a deadline. When the deadline passes it prints what it waited for, the tail of `up.log` and `docker ps`.
-4. **After a restart, wait for a *replaced* container.** The old container keeps answering `/ready` until Tilt swaps it, so readiness alone proves nothing. Use `wait_restarted <resource> <container id before>` and then a readiness check.
+4. **After a restart, wait for readiness, not a replaced container.** `flisk restart` stops and starts the *same* container (no rebuild, #4192), so `wait_restarted` never sees a new id; use `poll_until` with a readiness check. Only `flisk restart --rebuild` replaces the container, and then `wait_restarted` applies.
 5. **A request that a later assertion depends on must fail on a non-2xx status.** Use `traefik_request_ok`. Without it, Traefik's `404 page not found` passed as an agent reply, and a later check blamed the agent for losing data.
 6. **A JSON failure prints exactly one envelope.** `assert envelope <file> <CODE>` checks that stdout is one line holding one parseable envelope with that error code, `data: null`, and no stack trace.
 7. **Show the evidence.** `run <name> <flisk args>` prints the command, its stdout and stderr, its exit code and its time, so the CI log is the proof. Check `$RC` yourself: `run` never aborts the case.
@@ -109,7 +109,7 @@ The findings report the suite writes (host facts, one row per case, the SHA-256 
 | `assert envelope / check / equal` | JSON assertions (`assert-json.mjs`) |
 | `status_json`, `resource_port`, `resource_url` | read `flisk status --json` |
 | `start_stack`, `wait_status_url` | `flisk up` in the background, then wait until the resource is routed |
-| `running_container`, `wait_restarted` | find a resource's container, and wait for a replaced one after a restart |
+| `running_container`, `wait_restarted` | find a resource's container, and (only after `--rebuild`) wait for a replaced one after a restart |
 | `traefik_request`, `traefik_request_ok` | curl a resource's Traefik route; the `_ok` form fails on non-2xx |
 | `with_stub`, `stop_stub` | stand-in server (`stub.mjs`: hang, stall, status, json) behind `FLISK_SERVICE_BASE_URL` |
 | `mcp_session`, `mcp_structured` | one `flisk mcp` stdio session through `mcp-client.mjs` |
@@ -122,7 +122,7 @@ The `.mjs` helpers have unit tests in `tests/e2e/lib/__tests__/`, which `make te
 1. **Scaffold the way a user does.** A1 runs `flisk project --yes` and `flisk resource bot --type agent`, then changes the scaffold's `runTurn` the way the scaffold tells a user to. It fails loudly if the scaffold has changed.
 2. **Boot and wait.** A2 runs `flisk up` in the background and calls `wait_stack`: first `flisk status --json` must list the agent with a url, then `/ready` must answer 200 through Traefik.
 3. **Check the contract.** A3 checks `/health` and `/ready` through Traefik, and that the agent publishes no host port. A4 writes a turn and reads it back with `flisk agent sessions --json`, asserting the envelope shape. A5 checks sticky routing.
-4. **Restart and survive.** A6 runs `flisk restart` and waits for a replaced container, then checks that the checkpoint survived. A8 sends SIGTERM during a slow turn and checks the drain. A7 cycles `flisk down` and `flisk up`, then removes the volume.
+4. **Restart and survive.** A6 runs `flisk restart` and waits for `/ready` (the container id is unchanged), then checks that the checkpoint survived. A8 sends SIGTERM during a slow turn and checks the drain. A7 cycles `flisk down` and `flisk up`, then removes the volume.
 5. **Break it on purpose.** B0 stops the container. B1 to B8 each assert one error code from the envelope, using `with_stub` to make the "agent" hang (B2), stall (B3) or answer 400 and 500 (B4).
 6. **Same answers over MCP.** C1 to C3 speak JSON-RPC to `flisk mcp`, and assert that each tool's `structuredContent` equals the CLI's `--json` envelope.
 
@@ -163,7 +163,7 @@ For example: make `flisk agent sessions` drop `data.session`, run A4, and show `
 
 - [ ] The suite is in the right group, with `run.sh` and `suite.json`.
 - [ ] Each case is one function that sets up its own preconditions.
-- [ ] Waits use `poll_until`; restarts use `wait_restarted`; dependent requests use `traefik_request_ok`.
+- [ ] Waits use `poll_until`; a plain restart waits for readiness (not `wait_restarted`); dependent requests use `traefik_request_ok`.
 - [ ] Error paths assert one envelope with `assert envelope`.
 - [ ] `make test-shell` passes.
 - [ ] The pull request shows a passing run and a deliberate-break run.

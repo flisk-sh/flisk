@@ -61,7 +61,7 @@ Use `flisk up`; you do not run `docker compose up` on a Flisk project. For a con
 
 ## flisk up vs flisk restart
 
-`flisk up` starts the stack; `flisk restart <resource>` restarts one resource in a stack that is already running. `flisk restart` asks the running Tilt to trigger that resource (`tilt trigger`), so it needs Tilt up and fails with `TILT_NOT_RUNNING` otherwise. Use it to restart one service without touching the rest, for example `flisk restart orders-api`. To start or stop whole stacks, use `flisk up` and `flisk down`. See [how flisk up works](how-flisk-up-works.md).
+`flisk up` starts the stack; `flisk restart <resource>` restarts one resource in a stack that is already running. For a Flisk-generated Compose container resource it stops and starts the existing labelled container with `docker restart` (and sequentially restarts any active containers that transitively declare `sidecarOf` on it), so no image is rebuilt and unrelated resources keep serving; local-process resources and projects using an imported Tiltfile keep their `tilt trigger` path. Add `--rebuild` for a full Tilt update that rebuilds the image and recreates the container (needed after changing a value in the project `.env`). It needs Tilt up and fails with `TILT_NOT_RUNNING` otherwise. Use it to restart one service (and any active dependent sidecars) without touching unrelated resources, for example `flisk restart orders-api`. To start or stop whole stacks, use `flisk up` and `flisk down`. See [how flisk up works](how-flisk-up-works.md).
 
 ## flisk down vs flisk down --purge
 
