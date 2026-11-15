@@ -36,3 +36,19 @@ export declare function templateGitCommands(template: ProjectTemplate, destinati
  * arguments hijacked every command that mentioned a template name anywhere.
  */
 export declare function bareTemplateArg(args: string[]): string | undefined;
+/** Where a bundled example can live: the npm/source package root, the engine bundle next to a compiled binary, an installed dependency. */
+export declare function bundledTemplateRootCandidates(roots: {
+    packageRoot: string;
+    exeDir: string;
+    workingDir: string;
+}): string[];
+/**
+ * The first candidate that really holds `bundledPath`, or null. A `bun build --compile`
+ * binary has no package root (import.meta.url resolves to /), so the engine bundle
+ * beside the executable is the one that matches there (#3880).
+ */
+export declare function resolveBundledTemplateDir(bundledPath: string, roots: {
+    packageRoot: string;
+    exeDir: string;
+    workingDir: string;
+}, exists?: (path: string) => boolean): string | null;

@@ -1,7 +1,7 @@
 {
   "group": "journeys",
   "suite": "quickstart",
-  "description": "The README quickstart on a clean machine (moved from the retired quickstart-e2e workflow, #1298): scaffold a backend and two frontends, flisk up, every /health answering through Traefik, each frontend serving its built app, and the time to a healthy stack recorded.",
+  "description": "The README quickstart on a clean machine (moved from the retired quickstart-e2e workflow, #1298): scaffold a backend and two frontends, flisk up, every /health answering through Traefik, each frontend serving its built app, the time to a healthy stack recorded, and Q5 runs the documented path (flisk project example, cd flisk-example, flisk up) and waits for every /health.",
   "paths": [
     "cli/**",
     "runtime/engine/**",
@@ -16,7 +16,8 @@
     "Q1",
     "Q2",
     "Q3",
-    "Q4"
+    "Q4",
+    "Q5"
   ],
   "triggers": [
     "pr",
@@ -25,7 +26,7 @@
     "release",
     "manual"
   ],
-  "timeoutMinutes": 30,
+  "timeoutMinutes": 45,
   "needsSecrets": [],
   "checkName": "🧭 README quickstart on a clean machine",
   "install": true,

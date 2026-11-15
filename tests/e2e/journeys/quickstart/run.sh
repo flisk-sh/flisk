@@ -182,4 +182,61 @@ Q4() { # nginx answers /health on its own, so also load each frontend's page and
   done
 }
 
+Q5() { # run the documented quickstart path end to end: flisk project example, cd flisk-example, flisk doctor, flisk up
+  log "Q5 documented quickstart path (flisk project example)"
+  local EXDIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/flisk-example"
+  rm -rf "$EXDIR"
+
+  # Stop the Q1-Q4 stack so the two stacks do not fight over the ingress port.
+  (cd "$DIR" && flisk down >/dev/null 2>&1 || true)
+
+  # Run the whole case in a subshell with a trap, mirroring tests/e2e/examples/default/run.sh.
+  (
+    trap 'kill "$flisk_pid" 2>/dev/null || true' EXIT
+    flisk project example --path "$EXDIR"
+    cd "$EXDIR"
+
+    # Verify that flisk project example left .flisk/project.json.
+    [ -f .flisk/project.json ] || die "flisk project example left no .flisk/project.json"
+
+    # Verify flisk doctor works in the new folder.
+    flisk doctor
+
+    # Run flisk up.
+    flisk up shop > up.log 2>&1 &
+    flisk_pid=$!
+
+    # Collect the URLs the run prints: poll up to 120s for /health URLs.
+    local urls="" n url
+    for n in $(seq 1 60); do
+      urls="$(grep -oE 'https?://[^ ]*/health' up.log | sort -u || true)"
+      [ -n "$urls" ] && break
+      sleep 2
+    done
+    [ -n "$urls" ] || { tail -200 up.log; die "flisk up never printed a /health URL"; }
+    echo "Waiting for:$urls"
+
+    # Poll every URL, accepting 2?? responses.
+    local pending code n
+    for n in $(seq 1 120); do
+      pending=""
+      for url in $urls; do
+        code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" || true)"
+        case "$code" in
+          2??) ;;
+          *) pending="$pending $url=$code" ;;
+        esac
+      done
+      if [ -z "$pending" ]; then
+        echo "example healthy: $urls"
+        return 0
+      fi
+      echo "poll $n ($((n * 10))s): waiting on$pending"
+      sleep 10
+    done
+    tail -200 up.log
+    die "the example stack was not healthy within 20 minutes"
+  )
+}
+
 e2e_main "$@"
