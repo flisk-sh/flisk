@@ -73,6 +73,9 @@ def _generate_database_management_compose():
     Postgres accepts connections well under a second after its container starts. With `interval: 5s` alone Docker first probes
     it after 5 s, and the migrator and every service that needs the database wait for that probe. While it starts it is probed
     at the shared short `start_interval` instead (#3857), like every other container Flisk generates.
+
+    The probe asks 127.0.0.1, not the Unix socket: on an empty volume the image first runs a temporary socket-only server for
+    its init scripts and stops it, and one successful probe marks the container healthy. Over TCP only the real server answers.
     """
     name = PlatformDockerConstants.PROJECT_NAME
     database_network = PlatformDockerConstants.NETWORK_DATABASE
@@ -98,7 +101,7 @@ services:
     networks:
       - database
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {name} -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U {name} -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 20
