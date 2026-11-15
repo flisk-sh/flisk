@@ -69,6 +69,7 @@ def L4_generate_orchestrator(res_path, res_type = 'backend', resource_name = 'se
         )
     dockerfile = "\n\n".join(parts)
     footer = Utils.get_template_header("dockerfile", "golden_docker_generator_v2.L4_generate_orchestrator", resource_name, "Use docker_build(dockerfile_contents=...) in Tiltfile")
-    # Heredocs (RUN cat > ... << 'EOF') need the BuildKit frontend; without this line an older builder
-    # reads the heredoc body as instructions ("unknown instruction: export").
-    return "# syntax=docker/dockerfile:1\n" + dockerfile + "\n\n" + footer
+    # No `# syntax=docker/dockerfile:1` line: it makes BuildKit fetch the frontend from Docker Hub and then ask Docker Hub
+    # about every local golden base image, about 1.5 s per cached build (flisk#4237). The built-in frontend of Docker 25
+    # (the oldest `flisk doctor` accepts) reads the migrator's heredocs (RUN cat > ... << 'EOF').
+    return dockerfile + "\n\n" + footer
