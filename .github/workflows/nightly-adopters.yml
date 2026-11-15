@@ -152,6 +152,7 @@ jobs:
               JWT_SECRET_KEY=ci-jwt-secret-not-a-secret
               HASH_PEPPER=ci-hash-pepper-not-a-secret
               POSTGRES_PASSWORD=ci-postgres-not-a-secret
+              DATABASE_URL=postgresql://openathlete:ci-postgres-not-a-secret@postgres:5432/openathlete
               APP_URL=http://localhost
     steps:
       - name: Checkout Flisk
