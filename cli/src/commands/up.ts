@@ -53,6 +53,7 @@ import {
   errorFactories,
   FliskError,
   getErrorMessage,
+  requireProjectBeforeDocker,
   requireProjectRoot,
   runCommand,
   showError,
@@ -897,9 +898,23 @@ export const upCommand = new Command("up")
       });
       return;
     }
+    const platformRefusal = nativeWindowsUpRefusal(
+      process.platform,
+      process.env.FLISK_ALLOW_NATIVE_WINDOWS,
+    );
+    if (platformRefusal) showErrorAndExit(platformRefusal);
+
+    // Find the project before pruning images, trimming build cache, or probing Docker (#4282).
+    const envFileRoot = requireProjectBeforeDocker(
+      () => versionRoot ?? findProjectRoot(),
+      (error) => {
+        emit?.({ ok: false }, [toMachineError(error).error]);
+        return error.exit();
+      },
+    );
+
     // The env file of the run. `--env-file` replaces the project .env for this run, so the file is
     // resolved and read before any prerequisite check, any write and any service starts.
-    const envFileRoot = versionRoot;
     let envFileSelection: SelectedEnvFile | undefined;
     if (options.envFile === undefined) {
       // Without the option the project .env is the env file of the run, whatever the environment
@@ -956,11 +971,6 @@ export const upCommand = new Command("up")
       }
     }
     guardDisk(true);
-    const platformRefusal = nativeWindowsUpRefusal(
-      process.platform,
-      process.env.FLISK_ALLOW_NATIVE_WINDOWS,
-    );
-    if (platformRefusal) showErrorAndExit(platformRefusal);
 
     // An unknown schemaVersion is refused before the machine check, so --json can name the file even when Bun is missing.
     const schemaRoot = findProjectRoot();

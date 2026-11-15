@@ -113,6 +113,21 @@ export function requireProjectRoot() {
     }
     return projectRoot;
 }
+/**
+ * Resolves the project root before a command mutates or probes Docker on the machine (#4282).
+ * Exits with the not-in-project error when `resolveRoot` returns null.
+ */
+export function requireProjectBeforeDocker(resolveRoot = findProjectRoot, onNotInProject) {
+    const projectRoot = resolveRoot();
+    if (!projectRoot) {
+        const error = errorFactories.notInProject();
+        if (onNotInProject) {
+            return onNotInProject(error);
+        }
+        return error.exit();
+    }
+    return projectRoot;
+}
 /** Prints a command failure the way every command does (a FliskError with its suggestions, anything else as one error line) and exits 1. */
 export function handleCommandError(err) {
     if (err instanceof FliskError) {
