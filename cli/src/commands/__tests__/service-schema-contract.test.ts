@@ -212,6 +212,12 @@ describe("service-schema.json stays independent of the provider registries", () 
     }
   });
 
+  it("refuses an empty dev.command, as the CLI does and as the schema does for top-level command (#4191)", () => {
+    const backend = { appName: "api", appType: "backend", port: 4000 };
+    expect(validateService(manifest({ ...backend, dev: { command: "bun run dev" } }))).toBe(true);
+    expect(validateService(manifest({ ...backend, dev: { command: "" } }))).toBe(false);
+  });
+
   it("keeps the rules for required fields", () => {
     expect(validateService({ appName: "api", appType: "backend", port: 4000 })).toBe(false);
     expect(validateService(manifest({ appName: "api", port: 4000 }))).toBe(false);

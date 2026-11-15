@@ -275,6 +275,7 @@
       "properties": {
         "command": {
           "description": "Command used for development live reload (e.g., uvicorn reload command).",
+          "minLength": 1,
           "type": "string"
         },
         "watch": {
