@@ -29,6 +29,7 @@ import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
 import { isTargetDirSafe } from "../utils/validation.js";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
  * cloned starter template). Tilt's discovery groups app resources by this
@@ -299,7 +300,7 @@ export function writeDefaultProjectConfig(projectRoot) {
 export function printTemplateCatalog(json) {
     const templates = listProjectTemplates();
     if (json) {
-        process.stdout.write(`${JSON.stringify(templates, null, 2)}\n`);
+        console.log(JSON.stringify(createMachineEnvelope({ templates })));
         return;
     }
     console.log(chalk.bold("Starter templates (flisk project <key>):\n"));
