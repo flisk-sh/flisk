@@ -100,21 +100,29 @@ describe("machine output contract: every --json command emits the standard envel
     return envelope;
   }
 
+  function assertSingleLine(stdout: string): void {
+    const lines = stdout.split(/\r?\n/).filter((line) => line.trim() !== "");
+    expect(lines).toHaveLength(1);
+    expect(stdout.endsWith("\n")).toBe(true);
+  }
+
   it.each([
-    ["projects", ["projects", "--json"]],
-    ["stacks", ["stacks", "--json"]],
-    ["resources", ["resources", "--json"]],
-    ["status", ["status", "--json"]],
-    ["networks", ["networks", "--json"]],
-    ["doctor", ["doctor", "--json", "--no-ping"]],
-    ["config verify", ["config", "verify", "--json"]],
+    // `projects` still pretty-prints its envelope (same family as this issue, tracked separately).
+    ["projects", ["projects", "--json"], false],
+    ["stacks", ["stacks", "--json"], true],
+    ["resources", ["resources", "--json"], true],
+    ["status", ["status", "--json"], true],
+    ["networks", ["networks", "--json"], true],
+    ["doctor", ["doctor", "--json", "--no-ping"], true],
+    ["config verify", ["config", "verify", "--json"], true],
   ])(
     "command '%s' emits standard machine envelope with schemaVersion, data, errors",
-    (_, args) => {
+    (_, args, singleLine) => {
       const projectRoot = createProject();
       const result = runCli(args, projectRoot);
       const envelope = assertStandardEnvelope(result.stdout);
       expect(envelope.schemaVersion).toBe(1);
+      if (singleLine) assertSingleLine(result.stdout);
     },
     60_000,
   );

@@ -522,6 +522,37 @@ describe("networksCommand and helpers", () => {
       expect(lines.join("\n")).toContain("http://api.acme.localhost:80/api/orders");
     });
 
+    it("prints --json as one compact line, so line-oriented readers see a whole document", async () => {
+      setupProject("acme", [{ name: "api", appType: "backend", stack: "shop", port: 4000 }]);
+      vi.mocked(childProcess.spawn).mockImplementation(() =>
+        createMockChildProcess({ stdout: "200" }),
+      );
+
+      const lines: string[] = [];
+      vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      });
+
+      await networksCommand.parseAsync(["node", "flisk", "--stack", "shop", "--json"], {
+        from: "node",
+      });
+
+      // One console.log call is not enough: the line itself must carry no newlines.
+      expect(lines.join("\n").split("\n")).toHaveLength(1);
+      const envelope = JSON.parse(lines[0] as string);
+      expect(envelope.schemaVersion).toBe(1);
+      expect(envelope.data.services).toHaveLength(1);
+
+      lines.length = 0;
+      networksCommand.setOptionValue("json", false);
+      await networksCommand.parseAsync(["node", "flisk", "--stack", "shop", "--json-legacy"], {
+        from: "node",
+      });
+
+      expect(lines.join("\n").split("\n")).toHaveLength(1);
+      expect(JSON.parse(lines[0] as string)).toHaveLength(1);
+    });
+
     it("exits with error when --stack does not exist in interactive mode", async () => {
       setupProject("acme", [{ name: "web", appType: "frontend", stack: "shop", port: 5173 }]);
       vi.spyOn(console, "error").mockImplementation(() => {});

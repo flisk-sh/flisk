@@ -10,7 +10,7 @@ import { errorFactories, logVerbose, requireProjectRoot } from "../utils/errors.
 import { colorizeByStatus, DEFAULT_BOX_WIDTH, formatBoxLine, formatPadded, getStatusIcon, printBoxedHeader, } from "../utils/formatting.js";
 import { readSavedHostPortPlan } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
-import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
+import { writeMachineError, writeMachineOutput } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
 import { isRoutableService, isWebUiBringYourOwn, resolveServicePath, resolveServiceUrl, withTrailingSlash, } from "../utils/service-urls.js";
@@ -224,10 +224,12 @@ export const networksCommand = new Command("networks")
             ? servicesWithUrls.filter((s) => s.stack === options.stack)
             : servicesWithUrls;
         if (options.json || options.jsonLegacy) {
-            const output = options.jsonLegacy
-                ? filteredServices
-                : createMachineEnvelope({ services: filteredServices });
-            console.log(JSON.stringify(output, null, 2));
+            // One compact line each, like every other `--json` command; `--json-legacy` keeps its deprecated bare array.
+            if (options.jsonLegacy) {
+                console.log(JSON.stringify(filteredServices));
+                return;
+            }
+            writeMachineOutput({ services: filteredServices });
             return;
         }
         if (filteredServices.length === 0) {

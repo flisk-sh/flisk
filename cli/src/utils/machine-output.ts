@@ -63,10 +63,18 @@ export function toMachineError(error: unknown): { error: MachineError; exitCode:
   };
 }
 
+/**
+ * Writes the envelope as one compact line, so `tail -1`, `head -1` and line-oriented log shippers always read a whole
+ * document from any `--json` command.
+ */
+export function writeMachineOutput(data: unknown, errors: MachineError[] = []): void {
+  console.log(JSON.stringify(createMachineEnvelope(data, errors)));
+}
+
 /** Keep machine stdout parseable when a command fails before it has data to return. */
 export function writeMachineError(error: unknown): never {
   const result = toMachineError(error);
-  console.log(JSON.stringify(createMachineEnvelope(null, [result.error])));
+  writeMachineOutput(null, [result.error]);
   console.error(result.error.message);
   process.exit(result.exitCode);
 }

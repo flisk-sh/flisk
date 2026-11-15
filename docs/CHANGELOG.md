@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk networks --json` prints one compact line, like `status`, `resources`, `stacks` and `config verify`, so `head -1`, `tail -1` and line-oriented readers get a whole document instead of a fragment (#4248).
 - A service that lists Postgres in `dependsOn` now starts only once Postgres passes its health check, not as soon as its container runs, so it no longer logs connection errors during startup. Services that do not list Postgres start as before; `"condition": "service_started"` keeps the old behaviour (#683).
 - A new Python (FastAPI) backend's `/health` checks the database when `DATABASE_URL` is set and answers 503 with the reason, so a wrong password shows as that service failing (#683).
 - The Python dev loop is measured through a real `flisk up`: a source edit is synced and uvicorn reloads without an image rebuild, median save-to-ready 0.50 s (plain `uvicorn --reload` 0.24 s); first start 41 s, start with a warm image 19 s. The numbers and the script are in `docs/backend-language-providers.md` (#683).
