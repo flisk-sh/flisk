@@ -85,9 +85,11 @@ describe("cloneProjectTemplate project config", () => {
     expect(config.project.name).toBe("already-here");
   });
 
-  it("leaves a generated starter without a project config", async () => {
+  it("writes a project config into a generated local-process starter (#4292)", async () => {
     const dest = join(createTempDir(), "swarm-app");
     await cloneProjectTemplate("swarm", dest, [], { quiet: true });
-    expect(existsSync(join(dest, ".flisk", "project.json"))).toBe(false);
+    expect(existsSync(join(dest, ".flisk", "project.json"))).toBe(true);
+    const config = JSON.parse(readFileSync(join(dest, ".flisk", "project.json"), "utf-8"));
+    expect(config.project.name).toBe("swarm-app");
   });
 });
