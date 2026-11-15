@@ -224,10 +224,10 @@ export const networksCommand = new Command("networks")
             ? servicesWithUrls.filter((s) => s.stack === options.stack)
             : servicesWithUrls;
         if (options.json || options.jsonLegacy) {
-            const output = options.jsonLegacy
-                ? filteredServices
-                : createMachineEnvelope({ services: filteredServices });
-            console.log(JSON.stringify(output, null, 2));
+            // The envelope is one compact line, like every other `--json` command; the deprecated legacy array keeps its old indented form.
+            console.log(options.jsonLegacy
+                ? JSON.stringify(filteredServices, null, 2)
+                : JSON.stringify(createMachineEnvelope({ services: filteredServices })));
             return;
         }
         if (filteredServices.length === 0) {

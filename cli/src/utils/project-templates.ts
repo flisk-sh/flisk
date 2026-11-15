@@ -1,5 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
+
 export interface ProjectTemplate {
   repo: string;
   description: string;
@@ -151,4 +154,34 @@ export function bareTemplateArg(args: string[]): string | undefined {
   const first = args[2];
   if (!first || first.startsWith("-")) return undefined;
   return first in PROJECT_TEMPLATES ? first : undefined;
+}
+
+/** Where a bundled example can live: the npm/source package root, the engine bundle next to a compiled binary, an installed dependency. */
+export function bundledTemplateRootCandidates(roots: {
+  packageRoot: string;
+  exeDir: string;
+  workingDir: string;
+}): string[] {
+  return [
+    roots.packageRoot,
+    join(roots.exeDir, "flisk-cli"),
+    join(roots.workingDir, "node_modules", "@flisk-sh", "flisk"),
+  ];
+}
+
+/**
+ * The first candidate that really holds `bundledPath`, or null. A `bun build --compile`
+ * binary has no package root (import.meta.url resolves to /), so the engine bundle
+ * beside the executable is the one that matches there (#3880).
+ */
+export function resolveBundledTemplateDir(
+  bundledPath: string,
+  roots: { packageRoot: string; exeDir: string; workingDir: string },
+  exists: (path: string) => boolean = existsSync,
+): string | null {
+  return (
+    bundledTemplateRootCandidates(roots)
+      .map((root) => resolve(root, bundledPath))
+      .find(exists) ?? null
+  );
 }
