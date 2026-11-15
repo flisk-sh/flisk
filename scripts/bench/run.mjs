@@ -21,6 +21,7 @@ import {
   loadCompetitors,
   renderReport,
   scanWiring,
+  timedLogLine,
   validateContract,
   writeResults,
 } from "./lib.mjs";
@@ -176,7 +177,7 @@ function startBackground(cmd, { cwd, env, logFile }) {
 }
 
 /** Feeds the lines the start command appends to its log to `tracker`, timed since `t0`. Returns a function that stops. */
-function followLog(logFile, tracker, t0) {
+function followLog(logFile, tracker, t0, timedFile) {
   let pos = fs.existsSync(logFile) ? fs.statSync(logFile).size : 0;
   let rest = "";
   const read = () => {
@@ -193,7 +194,10 @@ function followLog(logFile, tracker, t0) {
     pos = size;
     const lines = (rest + buf.toString("utf8")).split(/\r?\n|\r/);
     rest = lines.pop() ?? "";
-    for (const l of lines) tracker.line(l, now() - t0);
+    const at = now() - t0;
+    for (const l of lines) tracker.line(l, at);
+    if (timedFile && lines.length)
+      fs.appendFileSync(timedFile, `${lines.map((l) => timedLogLine(l, at)).join("\n")}\n`);
   };
   const timer = setInterval(read, 100);
   return () => {
@@ -210,7 +214,10 @@ async function timedStart(c, { cwd, env, logFile, healthUrls, timeoutMs }, into,
   const tracker = createMilestoneTracker(c.milestones);
   const answered = new Map();
   const t0 = now();
-  const unfollow = followLog(logFile, tracker, t0);
+  // The same log with the seconds since this start in front of each line (read every 100 ms, so times are that coarse).
+  const timedFile = logFile.replace(/\.log$/, ".timed.log");
+  fs.appendFileSync(timedFile, `== ${key} ==\n`);
+  const unfollow = followLog(logFile, tracker, t0, timedFile);
   let ms;
   try {
     const child = startBackground(c.start, { cwd, env, logFile });
