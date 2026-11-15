@@ -157,6 +157,17 @@ The product website already publishes a site-level [llms.txt](https://flisk.sh/l
 
 ---
 
+## Prompt injection: the lethal trifecta
+
+An agent is at risk when it holds all three of: private data, untrusted content (web pages, tickets, files, tool results written by someone else), and a way to act outward or destructively (send, post, delete, exec). Remove one and the attack has nowhere to go.
+
+The `tool-loop` starter ships `agent/guard.mjs`:
+
+- `createTurnGuard()` marks a turn as tainted as soon as any tool returns text. After that, tools whose name matches `DESTRUCTIVE_PATTERN` (or are listed in `DESTRUCTIVE_TOOLS`) are refused with a `Blocked:` result and reported in the `blocked` field of the turn response.
+- `beforeTurn(context)` runs before the model is called. It allows everything by default; put your own policy (rate limit, user allow-list, input screening) there.
+
+The offline mock model obeys `CALL_TOOL:<name>` found in a tool result, so `tool-loop-template.test.ts` proves the guard stops an injected delete without any API key. Keep that test when you add tools.
+
 ## Known concurrency issues in the custom agent runtime
 
 The custom agent runtime (generated in `src/index.ts`) is a production-ready template with documented limitations under high concurrency. **These are known bugs that do NOT break typical single-user agent workflows**:

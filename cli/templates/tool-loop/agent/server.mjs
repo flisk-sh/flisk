@@ -6,6 +6,7 @@
 import { createServer } from "node:http";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaTool } from "@anthropic-ai/sdk/helpers/beta/json-schema.mjs";
+import { beforeTurn, createTurnGuard } from "./guard.mjs";
 
 const toolsUrl = process.env.TOOLS_URL ?? "http://localhost:4501";
 // The SDK retries a request whose connection failed (the model is restarting, say) with backoff.
@@ -37,14 +38,14 @@ async function withRetries(call, attempts = 5) {
 }
 
 /** Every tool the MCP server lists, as a tool the SDK's runner can call. */
-async function mcpTools(called) {
+async function mcpTools(called, guard) {
   const { tools } = await withRetries(() => mcp("tools/list"));
   return tools.map((tool) =>
     betaTool({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
-      run: async (args) => {
+      run: guard.guardRun(tool.name, async (args) => {
         called.push(tool.name);
         const result = await withRetries(() =>
           mcp("tools/call", { name: tool.name, arguments: args }),
@@ -52,13 +53,17 @@ async function mcpTools(called) {
         const text = result.content?.[0]?.text ?? "";
         if (result.isError) throw new Error(text);
         return text;
-      },
+      }),
     }),
   );
 }
 
 export async function ask(question) {
+  const verdict = await beforeTurn({ question });
+  if (!verdict.allow)
+    throw Object.assign(new Error(verdict.reason ?? "refused"), { refused: true });
   const called = [];
+  const { guardRun, state } = createTurnGuard();
   const message = await client.beta.messages.toolRunner({
     model: "claude-opus-5-5",
     max_tokens: 16000,
@@ -69,7 +74,7 @@ export async function ask(question) {
     max_iterations: 8,
     system:
       "Answer the user's question. Look things up with the tools first; cite what they returned.",
-    tools: await mcpTools(called),
+    tools: await mcpTools(called, { guardRun }),
     messages: [{ role: "user", content: question }],
   });
   if (message.stop_reason === "refusal") throw new Error("the model declined to answer");
@@ -80,6 +85,7 @@ export async function ask(question) {
   return {
     answer,
     tools: called,
+    blocked: state.blocked,
     stopReason: message.stop_reason,
     model: usingMock ? "mock" : message.model,
   };
@@ -107,6 +113,7 @@ createServer(async (request, response) => {
     try {
       return json(response, 200, await ask(body.question));
     } catch (error) {
+      if (error.refused) return json(response, 403, { error: error.message });
       // The details stay in the agent's log; the caller only learns that the request failed.
       console.error(error);
       return json(response, 502, { error: "the agent could not answer; see the agent logs" });
