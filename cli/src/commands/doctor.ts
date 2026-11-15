@@ -59,6 +59,7 @@ import {
 import {
   collectDoctorChecks,
   createDoctorReport,
+  createDoctorUsageReport,
   type DoctorError,
   getDoctorExitCode,
 } from "../utils/doctor-report.js";
@@ -1683,7 +1684,7 @@ export const doctorCommand = new Command("doctor")
     if (error.exitCode === 0) process.exit(0);
     if (doctorCommand.opts().json) {
       console.log(
-        JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message: error.message }])),
+        JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message: error.message }])),
       );
     }
     process.exit(2);
@@ -1719,7 +1720,7 @@ export const doctorCommand = new Command("doctor")
     ) {
       const message = "--ping-timeout must be a positive integer number of milliseconds";
       if (options.json)
-        console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
+        console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
       console.error(message);
       process.exit(2);
       return;
@@ -1737,7 +1738,7 @@ export const doctorCommand = new Command("doctor")
         message = `${options.dryRun ? "--dry-run" : "--yes"} only applies with --fix`;
       }
       if (options.json)
-        console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
+        console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
       console.error(message);
       process.exit(2);
       return;

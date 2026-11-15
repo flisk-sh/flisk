@@ -73,6 +73,20 @@ function containerRuntimeReachable(checks: CheckResult[]): boolean | null {
   return runtime ? runtime.didPass : null;
 }
 
+/**
+ * Usage errors are raised before any probe runs, so there is no report to describe. `data: null` keeps a consumer
+ * from reading placeholder values (`inProject: false`, `checks: []`) as measurements, the same shape `logs` uses.
+ */
+export interface DoctorUsageReport {
+  schemaVersion: typeof SCHEMA_VERSION;
+  data: null;
+  errors: DoctorError[];
+}
+
+export function createDoctorUsageReport(errors: DoctorError[]): DoctorUsageReport {
+  return { schemaVersion: SCHEMA_VERSION, data: null, errors };
+}
+
 /** Produce the same readiness decision for human and machine consumers. */
 export function createDoctorReport(
   checks: CheckResult[],
