@@ -154,6 +154,11 @@ export declare function verifyMasterConfigs(projectRoot: string, options?: {
     }>;
     /** Generated service files (project-relative) whose content differs from their Flisk snapshot, i.e. edited by hand. */
     handEdited: string[];
+    /**
+     * `not_generated`: a project that needs container files and has produced none yet (no master file, no service output), reported
+     * as one finding. `generated`: the per-file comparison ran. `not_needed`: a local-process project, which generates none.
+     */
+    state: "generated" | "not_generated" | "not_needed";
 };
 /**
  * Services whose generated files (the app compose, the Dockerfile) were written from an older service.json than the one on disk,

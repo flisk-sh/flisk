@@ -410,7 +410,7 @@ export function buildResourceCreateArgs(args: Record<string, unknown>): string[]
   return out;
 }
 
-/** `flisk stack <stack> --resources=<name>... --yes`: one `--resources=` per name so a value is never a flag. */
+/** `flisk stack <stack> --resources=<name>... --json`: one `--resources=` per name so a value is never a flag. */
 export function buildStackAssignArgs(args: Record<string, unknown>): string[] {
   const stack = optionalName(args.stack, "stack");
   if (!stack) {
@@ -427,7 +427,7 @@ export function buildStackAssignArgs(args: Record<string, unknown>): string[] {
     stack,
     ...(args.move === true ? ["--move"] : []),
     ...resources.map((resource) => `--resources=${resource}`),
-    "--yes",
+    "--json",
   ];
 }
 
@@ -458,8 +458,8 @@ export function buildProjectInitArgs(args: Record<string, unknown>): string[] {
  */
 export function buildConfigRegenerateArgs(args: Record<string, unknown>): string[] {
   return flag(args.dryRun, "dryRun", true)
-    ? ["config", "regenerate", "--dry-run"]
-    : ["config", "regenerate"];
+    ? ["config", "regenerate", "--dry-run", "--json"]
+    : ["config", "regenerate", "--json"];
 }
 
 /**
@@ -879,7 +879,7 @@ export function createFliskTools(
     {
       name: "config_regenerate",
       description:
-        "Regenerate the master config files in .flisk/.flisk-out/ from .flisk/project.json. A dry run by default, which returns the planned changes as text; set dryRun to false to write them, which discards hand edits in those generated files. Set projectPath when the MCP server is not running from the project root.",
+        "Regenerate the master config files in .flisk/.flisk-out/ from .flisk/project.json. A dry run by default, which returns the planned changes as data.changes (each file's status and lineDiff) with data.hasChanges; set dryRun to false to write them and get the same list, which discards hand edits in those generated files. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         dryRun: {
@@ -888,7 +888,7 @@ export function createFliskTools(
             "Default true: show what would change. false rewrites the files and discards hand edits in them",
         },
       }),
-      handler: viaCliText(buildConfigRegenerateArgs),
+      handler: viaCli(buildConfigRegenerateArgs),
     },
     {
       name: "resource_create",
@@ -970,7 +970,7 @@ export function createFliskTools(
     {
       name: "stack_assign",
       description:
-        "Assign resources that have no stack yet to a stack (writes `stack` into their service.json). A resource already in a stack is refused unless move is true, which moves it out of its current stack. Returns the command's text output. Set projectPath when the MCP server is not running from the project root.",
+        "Assign resources that have no stack yet to a stack (writes `stack` into their service.json). A resource already in a stack is refused unless move is true, which moves it out of its current stack. Returns the structured envelope: data.stack and data.assigned (name and service.json path of each resource), or errors with a code and suggestions (for example the valid resource names). Set projectPath when the MCP server is not running from the project root.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
@@ -988,7 +988,7 @@ export function createFliskTools(
         }),
         required: ["stack", "resources"],
       },
-      handler: viaCliText(buildStackAssignArgs),
+      handler: viaCli(buildStackAssignArgs),
     },
     {
       name: "project_init",

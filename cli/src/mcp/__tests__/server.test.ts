@@ -291,3 +291,56 @@ describe("tool policy", () => {
     expect(srv).toBeDefined();
   });
 });
+
+describe("mcp server unknown arguments", () => {
+  const strict: McpTool = {
+    name: "logs",
+    description: "logs",
+    inputSchema: {
+      type: "object",
+      properties: { services: { type: "array" }, tail: { type: "integer" } },
+      additionalProperties: false,
+    },
+    handler: async (args) => ({ data: { got: args }, isError: false }),
+  };
+  const strictServer = createMcpServer([strict], { name: "flisk", version: "1.0.0" });
+  async function callStrict(args: unknown): Promise<ToolCallResult> {
+    const line = await strictServer.handleLine(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "logs", arguments: args },
+      }),
+    );
+    return (JSON.parse(line as string) as { result: ToolCallResult }).result;
+  }
+
+  it("refuses an undeclared argument, names it, lists the accepted ones and suggests services", async () => {
+    const result = await callStrict({ resource: "agent" });
+    expect(result.isError).toBe(true);
+    const text = result.content[0]?.text ?? "";
+    expect(text).toContain("Unknown argument: resource");
+    expect(text).toContain("Accepted arguments: services, tail");
+    expect(text).toContain('Did you mean "services" instead of "resource"?');
+  });
+  it("suggests the close match for a misspelt name and says nothing when none is close", async () => {
+    expect((await callStrict({ service: "a" })).content[0]?.text).toContain('"services"');
+    expect((await callStrict({ tial: 5 })).content[0]?.text).toContain('"tail"');
+    expect((await callStrict({ bogus: 1 })).content[0]?.text).not.toContain("Did you mean");
+  });
+  it("still runs a call whose arguments are all declared", async () => {
+    const result = await callStrict({ services: ["agent"], tail: 5 });
+    expect(result.isError).toBe(false);
+    expect(result.structuredContent).toEqual({ got: { services: ["agent"], tail: 5 } });
+  });
+  it("leaves a schema that does not forbid extra properties alone", async () => {
+    const res = await call({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { name: "echo", arguments: { anything: 1 } },
+    });
+    expect((res.result as ToolCallResult).isError).toBe(false);
+  });
+});

@@ -166,6 +166,7 @@ describe("swarm template", () => {
       };
       return {
         dir,
+        port,
         post,
         crashCoordinator,
         startWorker,
@@ -252,6 +253,38 @@ describe("swarm template", () => {
         swarm.stop();
       }
     }, 75_000);
+
+    it("rejects a body over 64 KiB with 413 and a too-long goal with 400, and writes no state", async () => {
+      const swarm = await startSwarm({});
+      try {
+        const url = (path: string) => `http://localhost:${swarm.port}${path}`;
+        const send = (body: string) =>
+          fetch(url("/goals"), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body,
+          });
+        const stateFile = join(swarm.dir, "coordinator/.data/swarm-state.json");
+        // {"goal":" is 9 bytes and "} is 2, so the padding makes up the rest.
+        const bodyOfSize = (bytes: number) => `{"goal":"${"a".repeat(bytes - 11)}"}`;
+        const over = bodyOfSize(65_537);
+        expect(Buffer.byteLength(over)).toBe(65_537);
+        const tooBig = await send(over);
+        expect(tooBig.status).toBe(413);
+        expect(await tooBig.json()).toEqual({ error: "payload_too_large" });
+
+        const tooLong = await send(JSON.stringify({ goal: "a".repeat(2_001) }));
+        expect(tooLong.status).toBe(400);
+        expect(((await tooLong.json()) as { error: string }).error).toContain("goal is too long");
+        expect(existsSync(stateFile)).toBe(false);
+
+        // A goal exactly at the length limit still works.
+        expect((await send(JSON.stringify({ goal: "a".repeat(2_000) }))).status).toBe(201);
+        expect(existsSync(stateFile)).toBe(true);
+      } finally {
+        swarm.stop();
+      }
+    }, 30_000);
 
     it("retries a failing subtask up to MAX_ATTEMPTS, then marks it and its goal failed", async () => {
       const swarm = await startSwarm({ MAX_ATTEMPTS: "2" });

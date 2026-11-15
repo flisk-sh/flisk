@@ -257,7 +257,7 @@ Why the workflow runs `flisk project --yes` first: `.env` and `.flisk/.flisk-out
 
 ### Exit codes
 
-From [machine-readable CLI](reference/machine-readable-cli.md): for `flisk config verify`, drift or missing tracked master outputs exits 1 and includes a unified diff; a valid project exits 0; a missing project exits 1; invalid project JSON or an unexpected failure exits 2. In general 1 is a blocking finding or command failure and 2 is invalid arguments or an internal error. `--json` prints one envelope on stdout (`schemaVersion`, `data`, `errors`) and keeps the same exit codes. `flisk doctor` exits 1 on a blocking check; warnings alone do not fail it. A step with `run:` fails the job on any non-zero exit.
+From [machine-readable CLI](reference/machine-readable-cli.md): for `flisk config verify`, drift or missing tracked master outputs exits 1 and includes a unified diff (a project that was never generated reports one "not generated yet" finding, `data.state` `not_generated`, instead of one error per file); a valid project exits 0; a missing project exits 1; invalid project JSON or an unexpected failure exits 2. In general 1 is a blocking finding or command failure and 2 is invalid arguments or an internal error. `--json` prints one envelope on stdout (`schemaVersion`, `data`, `errors`) and keeps the same exit codes. `flisk doctor` exits 1 on a blocking check; warnings alone do not fail it. A step with `run:` fails the job on any non-zero exit.
 
 ### A repository that already has a `.tiltignore`
 
