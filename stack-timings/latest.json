@@ -1,10 +1,10 @@
 {
 	"schema": 1,
-	"generated": "2026-11-15T14:46:43.069Z",
-	"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
+	"generated": "2026-11-15T22:17:02.228Z",
+	"commit": "9880b82339bd6fc190492617bc4811b247daffb0",
 	"trigger": "workflow_run",
 	"runner": "ubuntu-latest",
-	"runUrl": "https://github.com/flisk-sh/flisk/actions/runs/43724983260",
+	"runUrl": "https://github.com/flisk-sh/flisk/actions/runs/43756681149",
 	"metrics": [
 		"scaffold",
 		"listed",
@@ -83,15 +83,6 @@
 					"cold_start": 39058,
 					"warm_start": 7713,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 247,
-					"listed": 583,
-					"cold_start": 43315,
-					"warm_start": 13503,
-					"hot_reload": null
 				}
 			]
 		},
@@ -134,15 +125,6 @@
 					"listed": 433,
 					"cold_start": 33934,
 					"warm_start": 7695,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 246,
-					"listed": 585,
-					"cold_start": 29329,
-					"warm_start": 8622,
 					"hot_reload": null
 				}
 			]
@@ -187,15 +169,6 @@
 					"cold_start": 41176,
 					"warm_start": 8459,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 254,
-					"listed": 570,
-					"cold_start": 45941,
-					"warm_start": 8495,
-					"hot_reload": null
 				}
 			]
 		},
@@ -238,15 +211,6 @@
 					"listed": 384,
 					"cold_start": 44179,
 					"warm_start": 5265,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 209,
-					"listed": 453,
-					"cold_start": 53714,
-					"warm_start": 7744,
 					"hot_reload": null
 				}
 			]
@@ -291,15 +255,6 @@
 					"cold_start": 23204,
 					"warm_start": 8411,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 247,
-					"listed": 544,
-					"cold_start": 30251,
-					"warm_start": 8212,
-					"hot_reload": null
 				}
 			]
 		},
@@ -342,15 +297,6 @@
 					"listed": 356,
 					"cold_start": 39058,
 					"warm_start": 7713,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 247,
-					"listed": 583,
-					"cold_start": 43315,
-					"warm_start": 13503,
 					"hot_reload": null
 				}
 			]
@@ -395,15 +341,6 @@
 					"cold_start": 41263,
 					"warm_start": 11230,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 163,
-					"listed": 392,
-					"cold_start": 44188,
-					"warm_start": 9965,
-					"hot_reload": null
 				}
 			]
 		},
@@ -446,15 +383,6 @@
 					"listed": 542,
 					"cold_start": 45857,
 					"warm_start": 11079,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 245,
-					"listed": 578,
-					"cold_start": 44571,
-					"warm_start": 11233,
 					"hot_reload": null
 				}
 			]
@@ -499,15 +427,6 @@
 					"cold_start": 44706,
 					"warm_start": 13623,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 281,
-					"listed": 600,
-					"cold_start": 37868,
-					"warm_start": 11185,
-					"hot_reload": null
 				}
 			]
 		},
@@ -550,15 +469,6 @@
 					"listed": 450,
 					"cold_start": 44961,
 					"warm_start": 10410,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 279,
-					"listed": 537,
-					"cold_start": 35045,
-					"warm_start": 10970,
 					"hot_reload": null
 				}
 			]
@@ -603,15 +513,6 @@
 					"cold_start": 45323,
 					"warm_start": 11275,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 250,
-					"listed": 584,
-					"cold_start": 34480,
-					"warm_start": 11106,
-					"hot_reload": null
 				}
 			]
 		},
@@ -654,15 +555,6 @@
 					"listed": 568,
 					"cold_start": 46813,
 					"warm_start": 13797,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 203,
-					"listed": 445,
-					"cold_start": 48487,
-					"warm_start": 12921,
 					"hot_reload": null
 				}
 			]
@@ -707,15 +599,6 @@
 					"cold_start": 42503,
 					"warm_start": 8008,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 210,
-					"listed": 458,
-					"cold_start": 56968,
-					"warm_start": 10307,
-					"hot_reload": null
 				}
 			]
 		},
@@ -758,15 +641,6 @@
 					"listed": 600,
 					"cold_start": 43392,
 					"warm_start": 13528,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 325,
-					"listed": 507,
-					"cold_start": 53168,
-					"warm_start": 10653,
 					"hot_reload": null
 				}
 			]
@@ -811,15 +685,6 @@
 					"cold_start": 41752,
 					"warm_start": 10007,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 257,
-					"listed": 637,
-					"cold_start": 32838,
-					"warm_start": 10825,
-					"hot_reload": null
 				}
 			]
 		},
@@ -862,15 +727,6 @@
 					"listed": 493,
 					"cold_start": 42886,
 					"warm_start": 10257,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 198,
-					"listed": 470,
-					"cold_start": 49418,
-					"warm_start": 7664,
 					"hot_reload": null
 				}
 			]
@@ -915,15 +771,6 @@
 					"cold_start": 43740,
 					"warm_start": 9953,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 225,
-					"listed": 495,
-					"cold_start": 48198,
-					"warm_start": 10535,
-					"hot_reload": null
 				}
 			]
 		},
@@ -966,15 +813,6 @@
 					"listed": 758,
 					"cold_start": 38168,
 					"warm_start": 10957,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 174,
-					"listed": 418,
-					"cold_start": 31991,
-					"warm_start": 10038,
 					"hot_reload": null
 				}
 			]
@@ -1019,15 +857,6 @@
 					"cold_start": 43012,
 					"warm_start": 8006,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 251,
-					"listed": 565,
-					"cold_start": 35832,
-					"warm_start": 10996,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1070,15 +899,6 @@
 					"listed": 650,
 					"cold_start": 38005,
 					"warm_start": 11286,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 229,
-					"listed": 544,
-					"cold_start": 38711,
-					"warm_start": 10432,
 					"hot_reload": null
 				}
 			]
@@ -1123,15 +943,6 @@
 					"cold_start": 42610,
 					"warm_start": 10273,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 255,
-					"listed": 564,
-					"cold_start": 35867,
-					"warm_start": 10856,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1174,15 +985,6 @@
 					"listed": 444,
 					"cold_start": 84872,
 					"warm_start": 17985,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 192,
-					"listed": 442,
-					"cold_start": 71042,
-					"warm_start": 15579,
 					"hot_reload": null
 				}
 			]
@@ -1257,15 +1059,6 @@
 					"cold_start": 65560,
 					"warm_start": 8146,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 179,
-					"listed": null,
-					"cold_start": 27024,
-					"warm_start": 6117,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1307,15 +1100,6 @@
 					"scaffold": 286,
 					"listed": null,
 					"cold_start": 64283,
-					"warm_start": null,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 205,
-					"listed": null,
-					"cold_start": 92547,
 					"warm_start": null,
 					"hot_reload": null
 				}
@@ -1361,15 +1145,6 @@
 					"cold_start": 54396,
 					"warm_start": 10558,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 271,
-					"listed": 687,
-					"cold_start": 47933,
-					"warm_start": 11241,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1413,15 +1188,6 @@
 					"cold_start": 45451,
 					"warm_start": 7599,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 195,
-					"listed": 493,
-					"cold_start": 47675,
-					"warm_start": 10310,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1463,15 +1229,6 @@
 					"scaffold": null,
 					"listed": null,
 					"cold_start": 14569,
-					"warm_start": null,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": null,
-					"listed": null,
-					"cold_start": 14375,
 					"warm_start": null,
 					"hot_reload": null
 				}
@@ -1517,15 +1274,6 @@
 					"cold_start": 105358,
 					"warm_start": null,
 					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 262,
-					"listed": 586,
-					"cold_start": 75381,
-					"warm_start": null,
-					"hot_reload": null
 				}
 			]
 		},
@@ -1567,15 +1315,6 @@
 					"scaffold": 184,
 					"listed": 457,
 					"cold_start": 44401,
-					"warm_start": null,
-					"hot_reload": null
-				},
-				{
-					"date": "2026-11-15",
-					"commit": "12ed5d619cbde4b82c05d9839e25d944593d4670",
-					"scaffold": 166,
-					"listed": 388,
-					"cold_start": 52259,
 					"warm_start": null,
 					"hot_reload": null
 				}
