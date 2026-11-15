@@ -234,7 +234,7 @@ describe("openFirstFrontend, in process", () => {
     >);
 
     expect(await open(root)).toBeNull();
-    expect(stdout).toContain("Restart the Docker runtime (Docker Desktop or Colima)");
+    expect(stdout).toContain("Restart the Docker runtime (Docker Desktop, Colima or Kiri)");
   });
 });
 

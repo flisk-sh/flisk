@@ -83,7 +83,7 @@ describe("doctor exact guidance", () => {
   it("keeps prerequisite fixes as the specified copy-paste text", () => {
     expect(DOCTOR_FIXES).toEqual({
       dockerMissing: "See https://docs.docker.com/get-docker/",
-      dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
+      dockerDaemonDown: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
       tiltMissing:
         "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
       bunMissing: "curl -fsSL https://bun.sh/install | bash",

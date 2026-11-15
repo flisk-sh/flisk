@@ -8,7 +8,7 @@ Kod yazmanıza veya cilalı bir hata raporu hazırlamanıza gerek yok. Bu sayfa 
 
 ## 1. Kurulum
 
-Docker'ın (Desktop, OrbStack veya Colima) çalışıyor olması ve Tilt 0.25.0 veya daha yeni bir sürümün kurulu olması gerekir. Ardından Flisk CLI'ı kurun:
+Docker'ın (Desktop, OrbStack, Colima veya Kiri) çalışıyor olması ve Tilt 0.25.0 veya daha yeni bir sürümün kurulu olması gerekir. Ardından Flisk CLI'ı kurun:
 
 ```bash
 curl -fsSL https://flisk.sh/install.sh | sh

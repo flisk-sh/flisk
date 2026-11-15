@@ -24,7 +24,7 @@ Run it from your project folder. Any other command works the same way: put it wh
 **The four rules.** Each one is a flag in the command above:
 
 1. **Mount the Docker socket** (`-v /var/run/docker.sock:/var/run/docker.sock`). Flisk inside the container drives your Docker through it; without it `flisk doctor` reports that no Docker daemon is running.
-2. **Mount the project at the same path** (`-v "$PWD:$PWD" -w "$PWD"`). Your Docker resolves every bind mount Flisk writes against your own disk, so a path inside the container must be the same path outside it. With Docker Desktop or Colima the folder must also be one they share, such as your home folder.
+2. **Mount the project at the same path** (`-v "$PWD:$PWD" -w "$PWD"`). Your Docker resolves every bind mount Flisk writes against your own disk, so a path inside the container must be the same path outside it. With a VM-based engine (Docker Desktop, Colima or Kiri on a Mac) the folder must also be one the VM shares, such as your home folder.
 3. **Services with a top-level `command` run inside the container.** A local-process service (`"command": "node server.js"`) is a process of the Flisk container, not a container of its own, so the program it names must be in the image. The image has Bun and Python; for anything else, build on it (`FROM ghcr.io/flisk-sh/flisk` and install what you need).
 4. **Publish the Tilt UI port** (`-p 10350:10350`). The image sets `TILT_HOST=0.0.0.0` so Tilt listens on the published port. With `TILT_PORT` set, pass it with `-e TILT_PORT` and publish that port instead.
 

@@ -8,7 +8,7 @@
 
 ## 1. インストール
 
-Docker（Desktop、OrbStack、Colima のいずれか）が起動していて、Tilt 0.25.0 以降が必要です。次に Flisk CLI をインストールします。
+Docker（Desktop、OrbStack、Colima、Kiri のいずれか）が起動していて、Tilt 0.25.0 以降が必要です。次に Flisk CLI をインストールします。
 
 ```bash
 curl -fsSL https://flisk.sh/install.sh | sh

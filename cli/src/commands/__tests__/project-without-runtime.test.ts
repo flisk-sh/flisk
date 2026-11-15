@@ -103,7 +103,7 @@ beforeEach(() => {
     name: "Docker Runtime",
     didPass: false,
     message: "Docker daemon is not running",
-    fix: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
+    fix: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
   });
   mocks.checkDockerCompose.mockResolvedValue({
     name: "Docker Compose",
