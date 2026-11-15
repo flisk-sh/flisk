@@ -146,6 +146,9 @@ jobs:
             repo: openathlete
             commit: 96478a75673437d8cca6219304037a3580163a1c
             engine: kiri
+            # Its Compose file has no healthcheck for the API; the image's own HEALTHCHECK probes /health. `flisk import`
+            # assumes "/" without one, the API answers 404 there, and Traefik's load-balancer check then marks it down.
+            health_paths: "api=/health"
             health_check: "http://127.0.0.1:80"
             needs_env: true
             env_file: |
@@ -267,6 +270,27 @@ jobs:
         working-directory: adopter
         run: |
           flisk import . --yes
+
+      # `flisk import` assumes a "/" health path when Compose declares none. A service that answers 404 on "/" gets its
+      # real path here (service=/path, space separated), the way a maintainer would write it in service.json.
+      - name: Set Health Paths
+        if: matrix.health_paths
+        working-directory: adopter
+        env:
+          HEALTH_PATHS: ${{ matrix.health_paths }}
+        run: |
+          for entry in $HEALTH_PATHS; do
+            name="${entry%%=*}"
+            path="${entry#*=}"
+            found=0
+            for file in services/*/"$name"/service.json; do
+              [ -f "$file" ] || continue
+              jq --arg path "$path" '.healthCheckPath = $path' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+              echo "healthCheckPath of $file is now $path"
+              found=1
+            done
+            [ "$found" = 1 ] || { echo "::error::no service.json for $name"; exit 1; }
+          done
 
       # `flisk import` writes only service.json and .flisk/project.json; the
       # generated files under .flisk/.flisk-out come from `config regenerate`,
