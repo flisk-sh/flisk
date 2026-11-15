@@ -157,9 +157,12 @@ def _build_typescript_service(name, context, dockerfile, live_update_rules, deps
         # to the context: the same paths and patterns, spelled the way custom_build takes them.
         paths = [p if p == resource_path or context == '.' else context + '/' + p for p in only_paths]
         ignores = [p[len(resource_path) + 1:] if p.startswith(resource_path + '/') else p for p in ignore_patterns]
+        # An argv list (not a shell string): the command is the prebuild argv followed by the watched paths.
+        build_argv = list(prebuilt['command'])
+        build_argv.extend(paths)
         custom_build(
             name,
-            prebuilt['command'] + paths,
+            build_argv,
             deps=paths,
             live_update=live_update_rules,
             # The build writes its own copy of the Dockerfile next to the original; it must not start another build.
