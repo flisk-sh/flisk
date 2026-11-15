@@ -488,7 +488,7 @@ jobs:
           flisk --version
           mkdir smoke-project && cd smoke-project
           flisk project --yes
-          printf 'y\n' | flisk resource orders-api --type backend --stack shop
+          flisk resource orders-api --type backend --stack shop --yes
           test -f services/shop/orders-api/service.json
           echo "✅ Installed package scaffolds a project and a resource"
 
