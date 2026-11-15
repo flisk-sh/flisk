@@ -13,6 +13,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -140,7 +141,9 @@ function toTypeScriptLiteral(value, indent) {
 // Biome owns the formatting of every .ts file, including generated ones. Format in memory via
 // Node's executable (portable across Windows/macOS/Linux) and write only when content changed so
 // watch mode never loops.
-const biomeBin = join(cliDir, "node_modules", "@biomejs", "biome", "bin", "biome");
+// Resolve through Node so an npm-workspace install (Biome hoisted to the repo root, as on the Windows runner)
+// works the same as a local one under cli/node_modules.
+const biomeBin = createRequire(import.meta.url).resolve("@biomejs/biome/bin/biome");
 // A path relative to cliDir with forward slashes: Biome matches it against `files.includes`, and an absolute
 // Windows path (`D:\a\flisk\...`) is not matched the way the same file is on macOS/Linux.
 const outputRelative = relative(cliDir, output).split(sep).join("/");
