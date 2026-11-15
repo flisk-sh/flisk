@@ -267,6 +267,54 @@ describe("stackCommand", () => {
     expect(output).toContain("already assigned to a stack");
   });
 
+  it("treats a bare `list` positional as --list instead of a stack name", async () => {
+    setupProject([{ name: "gateway", stack: "core" }, { name: "orders-api" }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await stackCommand.parseAsync(["node", "flisk", "list"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("1 resources without a stack:");
+    expect(output).toContain("orders-api");
+  });
+
+  it("returns the --list JSON envelope for `stack list --json`", async () => {
+    setupProject([{ name: "gateway", stack: "core" }, { name: "orders-api" }]);
+    let stdoutData = "";
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdoutData += String(chunk);
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    await stackCommand.parseAsync(["node", "flisk", "list", "--json"], { from: "node" });
+
+    const envelope = parseEnvelope(stdoutData);
+    expect(envelope.data.stack).toBeNull();
+    expect(envelope.data.stacks).toEqual([{ name: "core", resourceCount: 1 }]);
+    expect(envelope.data.unassigned.map((r: { name: string }) => r.name)).toEqual(["orders-api"]);
+  });
+
+  it("rejects creating a stack named list via --resources and points at --list", async () => {
+    const paths = setupProject([{ name: "users-api" }]);
+    const originalManifest = readFileSync(paths["main/users-api"], "utf-8");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    await expect(
+      stackCommand.parseAsync(["node", "flisk", "list", "--resources", "users-api", "--yes"], {
+        from: "node",
+      }),
+    ).rejects.toThrow();
+
+    expect(exit).toHaveBeenCalledWith(1);
+    const errOutput = errorSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(errOutput).toContain('"list" is reserved for listing stacks');
+    expect(errOutput).toContain("flisk stack --list");
+    expect(readFileSync(paths["main/users-api"], "utf-8")).toBe(originalManifest);
+  });
+
   it("assigns resources to a valid stack name and updates service.json", async () => {
     const paths = setupProject([
       { name: "gateway", stack: "core" },

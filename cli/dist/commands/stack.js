@@ -75,8 +75,20 @@ export const stackCommand = addYesOption(new Command("stack"))
                 "Run flisk resources to see the available resource names.",
             ]);
         }
+        // `flisk stack list` reads as the listing verb, but the positional is a
+        // stack name, so the bare word is treated as a stack called "list" and
+        // opens the assignment wizard. Treat it as --list instead; the MCP tool is
+        // already called `stack_list`.
+        const bareListRequested = stackName?.toLowerCase() === "list";
+        if (bareListRequested && options.resources !== undefined) {
+            throw new FliskError('"list" is reserved for listing stacks and cannot be used as a stack name.', [
+                "Use: flisk stack --list",
+                "Pick another stack name, for example: flisk stack core --resources <name...>",
+            ]);
+        }
+        const listRequested = options.list || bareListRequested;
         const discovery = createDiscoveryContext();
-        const report = (updated = [], stack = options.list || options.remove ? null : (stackName ?? null), changedPaths = new Set(updated.map((resource) => resource.configPath))) => {
+        const report = (updated = [], stack = listRequested || options.remove ? null : (stackName ?? null), changedPaths = new Set(updated.map((resource) => resource.configPath))) => {
             const counts = new Map();
             const unassigned = [];
             for (const resource of discovery.resources) {
@@ -114,7 +126,7 @@ export const stackCommand = addYesOption(new Command("stack"))
             }
             console.log();
         }
-        if (options.list) {
+        if (listRequested) {
             if (discovery.unassignedResources.length === 0) {
                 showAllSatisfyCondition("resources", "already assigned to a stack");
                 return report();
