@@ -456,6 +456,12 @@ describe("stackCommand", () => {
     const promptTextSpy = vi.spyOn(promptUtils, "promptText").mockImplementation(async (opts) => {
       expect(opts.validate?.("valid-stack")).toBe(true);
       expect(typeof opts.validate?.("Invalid Stack")).toBe("string");
+      expect(opts.validate?.("list")).toBe(
+        '"list" is reserved for listing stacks. Use: flisk stack --list',
+      );
+      expect(opts.validate?.("LIST")).toBe(
+        '"list" is reserved for listing stacks. Use: flisk stack --list',
+      );
       return "interactive-stack";
     });
     const multiSelectSpy = vi
@@ -475,6 +481,28 @@ describe("stackCommand", () => {
     expect(JSON.parse(readFileSync(paths["main/users-api"], "utf8")).stack).toBe(
       "interactive-stack",
     );
+  });
+
+  it('refuses a reserved "list" stack name coming from the --resources prompt', async () => {
+    const paths = setupProject([{ name: "users-api" }]);
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const promptTextSpy = vi.spyOn(promptUtils, "promptText").mockImplementation(async (opts) => {
+      // `flisk stack --resources users-api` carries no positional, so this
+      // prompt's validator is the only place that can refuse a stack named
+      // "list"; storing one would make it unreachable via `flisk stack --list`.
+      expect(typeof opts.validate?.("list")).toBe("string");
+      expect(opts.validate?.("core")).toBe(true);
+      return "core";
+    });
+
+    await stackCommand.parseAsync(["node", "flisk", "--resources", "users-api", "--yes"], {
+      from: "node",
+    });
+
+    expect(promptTextSpy).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(readFileSync(paths["main/users-api"], "utf8")).stack).toBe("core");
   });
 
   it("exits early without writing when confirmation is declined or no resources are available in a TTY", async () => {

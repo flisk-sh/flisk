@@ -228,6 +228,13 @@ export const stackCommand = addYesOption(new Command("stack"))
         const name = await promptText({
           message: "Stack name (kebab-case recommended):",
           validate: (input: string) => {
+            // The positional check above never sees this value: `--resources`
+            // without a stack name asks for it here, so "list" has to be refused
+            // from the prompt too or the run stores a stack that `flisk stack
+            // --list` can no longer address.
+            if (input.trim().toLowerCase() === "list") {
+              return '"list" is reserved for listing stacks. Use: flisk stack --list';
+            }
             const validation = createKebabCaseValidator("stack")(input);
             return validation === true || validation;
           },
