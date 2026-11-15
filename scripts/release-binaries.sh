@@ -58,6 +58,10 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
   cp -R "$(runtime_src_dir "${ROOT_DIR}" ext)" "${RELEASE_DIR}/flisk-cli/ext"
   mkdir -p "${RELEASE_DIR}/flisk-cli/cli"
   cp -R "${ROOT_DIR}/cli/templates" "${RELEASE_DIR}/flisk-cli/cli/templates"
+  # `flisk project example` copies examples/flisk-example out of the package root; a
+  # compiled binary has none, so ship the example in the engine bundle (#3880).
+  mkdir -p "${RELEASE_DIR}/flisk-cli/examples"
+  cp -R "${ROOT_DIR}/examples/flisk-example" "${RELEASE_DIR}/flisk-cli/examples/flisk-example"
   # `flisk project` copies these into every project; generated Dockerfiles
   # run them.
   mkdir -p "${RELEASE_DIR}/flisk-cli/shared-platform-engineering"
@@ -81,6 +85,19 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
       exit 1
     fi
     echo "Smoke test passed: ${host_binary} project --yes"
+    example_dir="$(mktemp -d)"
+    example_log="$(cd "${example_dir}" && "${RELEASE_DIR}/${host_binary}" project example --yes </dev/null 2>&1)" || {
+      echo "${example_log}" >&2
+      echo "Smoke test failed: ${host_binary} project example exited non-zero (#3880)" >&2
+      exit 1
+    }
+    if [ ! -f "${example_dir}/flisk-example/services/shop/orders-api/service.json" ]; then
+      echo "${example_log}" >&2
+      echo "Smoke test failed: ${host_binary} project example created no example project (#3880)" >&2
+      exit 1
+    fi
+    rm -rf "${example_dir}"
+    echo "Smoke test passed: ${host_binary} project example"
   fi
 
   (

@@ -7,8 +7,10 @@ import { describe, expect, it } from "vitest";
 import { createProgram } from "../../program.js";
 import {
   bareTemplateArg,
+  bundledTemplateRootCandidates,
   listProjectTemplates,
   PROJECT_TEMPLATES,
+  resolveBundledTemplateDir,
   templateGitCommands,
 } from "../project-templates.js";
 
@@ -173,5 +175,77 @@ describe("bareTemplateArg", () => {
     expect(bareTemplateArg(["node", "flisk", "--template", "demo"])).toBeUndefined();
     expect(bareTemplateArg(["node", "flisk", "not-a-template"])).toBeUndefined();
     expect(bareTemplateArg(["node", "flisk"])).toBeUndefined();
+  });
+});
+
+describe("resolveBundledTemplateDir", () => {
+  it("uses the package root when it holds the example", () => {
+    const exists = (path: string) => path === "/pkg/examples/flisk-example";
+    const result = resolveBundledTemplateDir(
+      "examples/flisk-example",
+      {
+        packageRoot: "/pkg",
+        exeDir: "/usr/local/bin",
+        workingDir: "/work",
+      },
+      exists,
+    );
+    expect(result).toBe("/pkg/examples/flisk-example");
+  });
+
+  it("falls back to the engine bundle when the package root has no examples/ (#3880)", () => {
+    const exists = (path: string) => path === "/usr/local/bin/flisk-cli/examples/flisk-example";
+    const result = resolveBundledTemplateDir(
+      "examples/flisk-example",
+      {
+        packageRoot: "/",
+        exeDir: "/usr/local/bin",
+        workingDir: "/work",
+      },
+      exists,
+    );
+    expect(result).toBe("/usr/local/bin/flisk-cli/examples/flisk-example");
+  });
+
+  it("falls back to an installed @flisk-sh/flisk", () => {
+    const exists = (path: string) =>
+      path === "/work/node_modules/@flisk-sh/flisk/examples/flisk-example";
+    const result = resolveBundledTemplateDir(
+      "examples/flisk-example",
+      {
+        packageRoot: "/pkg",
+        exeDir: "/usr/local/bin",
+        workingDir: "/work",
+      },
+      exists,
+    );
+    expect(result).toBe("/work/node_modules/@flisk-sh/flisk/examples/flisk-example");
+  });
+
+  it("returns null when no candidate exists", () => {
+    const exists = () => false;
+    const result = resolveBundledTemplateDir(
+      "examples/flisk-example",
+      {
+        packageRoot: "/pkg",
+        exeDir: "/usr/local/bin",
+        workingDir: "/work",
+      },
+      exists,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("bundledTemplateRootCandidates lists the three roots in order", () => {
+    const result = bundledTemplateRootCandidates({
+      packageRoot: "/pkg",
+      exeDir: "/usr/local/bin",
+      workingDir: "/work",
+    });
+    expect(result).toEqual([
+      "/pkg",
+      "/usr/local/bin/flisk-cli",
+      "/work/node_modules/@flisk-sh/flisk",
+    ]);
   });
 });
