@@ -89,6 +89,23 @@ You can also customize the test directory (defaults to `tests`):
 - **Zero baseline drift:** When `dev.testOnSave` is omitted or false, Flisk registers zero test resources, and generated files remain byte-for-byte identical to baseline.
 - **Pytest requirement:** The container must have `pytest` installed (configured in `pyproject.toml` dev dependencies). If missing, Flisk outputs a clear diagnostic hint.
 
+### Measured: the Python dev loop through `flisk up`
+
+Measured with `tests/e2e/journeys/dev-loop/python-dev-loop.sh` (a throwaway scaffolded `--language python` service, through Traefik, polled every 25 ms)
+on an Apple-silicon Mac with Colima, on a busy machine (load average about 4), 5 one-line edits to `src/main.py`. These are one run on one machine, not a benchmark.
+
+| Step | `flisk up` | plain `uvicorn --reload` |
+|---|---|---|
+| First start to `/health` 200 (image build and dependency install) | 41 s | not measured |
+| Start again with the image already built | 19 s | not measured |
+| Save to new response, median | 0.50 s | 0.24 s |
+| Save to new response, range | 0.42 s to 1.48 s | 0.08 s to 0.27 s |
+| Longest stretch of non-200 answers | 1.03 s (1 of 5 edits) | 0 s |
+
+Edits to `src/` are synced into the running container and uvicorn `--reload` restarts the process: the image was not rebuilt in any of the edits.
+Compared with `uvicorn --reload` on the host, the Flisk loop is slower by roughly 0.3 s at the median and had one edit with a brief outage, the
+cost of the sync into the container and the proxy hop. Changing `pyproject.toml`, `uv.lock` or `requirements.txt` still rebuilds the image.
+
 ## Go
 
 `flisk resource api --type backend --language go --stack shop` scaffolds `go.mod`, `main.go` (standard-library `net/http`, `GET /health`,
