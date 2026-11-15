@@ -74,6 +74,7 @@ interface RunGoldenOptions {
   labelMatches: boolean;
   buildxVersion?: string;
   noBuildx?: boolean;
+  classicBuilder?: boolean;
   rebuild?: boolean;
   missingImages?: string[];
   staleImages?: string[];
@@ -193,6 +194,7 @@ exit 0
       FAKE_LABEL: options.labelMatches ? hash : "stale",
       FAKE_BUILDX_VERSION: options.buildxVersion ?? "v0.37.2",
       FAKE_NO_BUILDX: options.noBuildx ? "1" : "",
+      ...(options.classicBuilder ? { DOCKER_BUILDKIT: "0" } : {}),
       FAKE_MISSING_IMAGES: (options.missingImages ?? []).join(" "),
       FAKE_STALE_IMAGES: (options.staleImages ?? []).join(" "),
       FAKE_RM_SUCCEEDS: options.rmSucceeds ? "1" : "",
@@ -522,6 +524,13 @@ describe.skipIf(!hasTilt)("golden layer build script", () => {
     const run = runGolden(script, { labelMatches: false, buildxVersion: "dev" });
     expect(run.bake).toHaveLength(1);
     expect(run.bake[0]).not.toContain("--allow");
+  });
+
+  it("builds one target at a time with the classic builder when DOCKER_BUILDKIT=0, even with buildx installed (Kiri)", () => {
+    const run = runGolden(script, { labelMatches: false, classicBuilder: true });
+    expect(run.status).toBe(0);
+    expect(run.bake).toEqual([]);
+    expect(run.serialBuilds).toHaveLength(EXPECTED_IMAGES.length);
   });
 
   it("falls back to one docker build per target, labelled with the hash, when buildx is missing", () => {

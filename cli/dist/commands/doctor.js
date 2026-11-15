@@ -325,7 +325,7 @@ export async function checkContainerEngine() {
         return {
             name: "Container Engine",
             didPass: true,
-            message: `${engine.label}. Stacks that run published images work. Image builds from a local base image (golden images) do not yet: Kiri's builder cannot see local images. See docs/troubleshooting.md#kiri`,
+            message: `${engine.label}. Flisk builds with the classic builder here (DOCKER_BUILDKIT=0), one golden image at a time. Experimental: see docs/troubleshooting.md#kiri`,
         };
     }
     return { name: "Container Engine", didPass: true, message: engine.label };

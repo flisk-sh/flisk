@@ -529,12 +529,12 @@ src/index.ts(33,14): error TS2591: Cannot find name 'process'.
 
 What works (tested on Kiri 0.2.1, Apple Silicon): `docker run`, Compose, networks, volumes and published ports.
 
-What does not work yet: `flisk demo` and any stack that builds images. Kiri has no builder of its own, so `docker build` uses a BuildKit container, and that fails two ways:
+`flisk demo` and stacks that build images also run on Kiri (Kiri 0.2.1, Apple Silicon: the 25-service demo reached "25 of 25 services ready" in two of three runs, including a run that met the first run's volumes). Kiri has no BuildKit that can see local images and does not allow `--network host` builds, so on Kiri Flisk sets `DOCKER_BUILDKIT=0` for its own process (the classic builder, which sees local images) and builds the golden images one at a time instead of with `docker buildx bake`. Set `DOCKER_BUILDKIT` yourself to override that. This is the first release with Kiri support, so treat it as experimental:
 
-- `granting entitlement network.host is not allowed by build daemon configuration`: Flisk builds with `--network host`. A builder created with `--buildkitd-flags '--allow-insecure-entitlement network.host'` accepts it.
-- `pull access denied ... flisk-<project>-l4-backend`: the BuildKit container cannot see Flisk's golden images, which exist only in the local image store.
+- One of the three demo runs ended with `Could not find image in Docker ... No such image: ...kitchen-worker:tilt-build-...` for one service, and the next run passed. If you see it, run `flisk up` again. Not understood yet.
+- Builds are serial, so the first start is slower than on Colima.
 
-Until Kiri's builder can use local images, run those stacks on Colima, OrbStack or Docker Desktop (`docker context use colima`).
+If it keeps failing, use another engine (`docker context use colima`).
 
 ## Windows and WSL2
 

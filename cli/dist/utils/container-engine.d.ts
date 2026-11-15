@@ -22,3 +22,12 @@ export type DockerInfo = {
 export declare function detectEngine(info: DockerInfo, env?: NodeJS.ProcessEnv): Engine;
 /** Parses the JSON `docker info` prints; an unreadable answer is an unknown engine. */
 export declare function parseDockerInfo(raw: string): DockerInfo;
+/** The Docker CLI's active context, read from its config file without starting a process. */
+export declare function currentDockerContext(home: string, read: (path: string) => string): string | undefined;
+/**
+ * Kiri has no BuildKit of its own. `docker build` there starts a BuildKit container that rejects
+ * `--network host` and cannot see local images, which breaks every golden-image build. Kiri's classic
+ * builder (`DOCKER_BUILDKIT=0`) accepts both, so Flisk and every command it starts use it unless the
+ * caller already chose.
+ */
+export declare function kiriBuildEnv(env: NodeJS.ProcessEnv, context: string | undefined): Record<string, string>;

@@ -24,6 +24,15 @@ CI: `.github/workflows/shop-bench.yml` runs it on pull requests that touch `runt
 weekly, and by hand. It writes the table to the job summary, updates one pull request comment and uploads the JSON as an
 artifact. For a trend, download the weekly artifact into `docs/benchmarks/results/` (CI never pushes).
 
+## The Kiri lane
+
+`competitors/flisk-kiri/` is the same Flisk shop as `competitors/flisk/` (its `setup.sh` and `wire.mjs` are copies) started
+against [Kiri](https://github.com/libracoder/kiri) instead of the runner's Docker: every command runs with
+`DOCKER_HOST` set from the `kiri` Docker context. It needs the `kiri` command and a `kiri` context, so it is skipped where
+Kiri is not installed. In CI the "Install Kiri" step installs the pinned `kiri-lite` .deb, starts the engine with
+`kiri host-access` and creates the context; if that step fails, only this lane is skipped. On Kiri, Flisk builds with the
+classic builder (`DOCKER_BUILDKIT=0`, set automatically) because Kiri has no BuildKit that can see local images.
+
 ## Add a competitor in five minutes
 
 1. `mkdir bench/competitors/<tool>` (the id: kebab-case, the same as the folder).
