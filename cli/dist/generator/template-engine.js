@@ -1133,7 +1133,7 @@ function createUnifiedDiff(file, actual, expected) {
 const UNSNAPSHOTTED_ENTRIES = new Set([".flisk-contract", "service.yaml"]);
 // `<Dockerfile>.prebuild` and its `.dockerignore` are copies the image-build step writes next to the Dockerfile while Tilt
 // runs (a deferred or parallel image build). They derive from the Dockerfile, which is snapshotted, so they have none.
-const isImageBuildCopy = (name) => /\.prebuild(\.dockerignore|\.built)?$/.test(name);
+const isImageBuildCopy = (name) => /\.prebuild(\.dockerignore|\.built|\.started)?$/.test(name);
 /**
  * Services whose generated files (the app compose, the Dockerfile) were written from an older service.json than the one on disk,
  * as project-relative service.json paths. `flisk config regenerate` rewrites only the master files; these are written by
