@@ -450,6 +450,7 @@ describe("flisk up drift gate", () => {
       errors,
       warnings: [],
       diffs: [],
+      state: "generated" as const,
       handEdited,
     });
 
@@ -1010,6 +1011,7 @@ describe("flisk up --env-file", () => {
       warnings: [],
       diffs: [],
       handEdited: [],
+      state: "generated" as const,
     });
     vi.mocked(findProjectTiltPorts).mockResolvedValue({
       running: [],
@@ -1643,6 +1645,7 @@ describe("flisk up with no resources (#3781)", () => {
       warnings: [],
       diffs: [],
       handEdited: [],
+      state: "generated" as const,
     });
   });
 

@@ -370,6 +370,7 @@ export const configCommand = new Command("config")
                 ],
                 warnings: result.warnings,
                 diffs: result.diffs,
+                state: result.state,
                 sharedPlatformPostgres: sharedPostgres,
             })));
             if (!result.valid || sharedPostgresErrors.length > 0 || !prismaConsistency.didPass)
