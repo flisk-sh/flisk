@@ -59,6 +59,9 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.watch=true"
+      # A service is routed once Docker reports it healthy; with the 2 s default each one waited up to 2 s more
+      # for its route (flisk#4237).
+      - "--providers.providersThrottleDuration=100ms"
       - "--providers.docker.network={network}"
       # Only this project's containers (#2906); see TRAEFIK_PROJECT_CONSTRAINT.
       - "--providers.docker.constraints={project_constraint}"

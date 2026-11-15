@@ -154,12 +154,13 @@ const STACK_FILES: Golden[] = [
   },
   {
     file: ".flisk/.flisk-out/docker-compose.traefik.yml",
-    sha256: "8729bc73c5a222a2bb73ca1448ee910db7f1aea1794adf7a5177992d88a21335",
+    sha256: "6eccf19e5235db3fbd3bbba3a097f769d3e6cf5aae6b2b1d6393ce0a8c416203",
     contains: [
       "SYSTEM-GENERATED - DO NOT EDIT",
       "services:",
       "traefik",
       "--providers.docker.constraints=Label(`flisk.project`,",
+      "--providers.providersThrottleDuration=100ms",
     ],
   },
   {
