@@ -29,6 +29,7 @@ import {
 import type { FrontendFrameworkFile } from "../frontend-frameworks/types.js";
 import { hasDddLicense } from "../generator/extension-fetch.js";
 import {
+  getBackendTestTemplate,
   getDockerfileTemplate,
   getTestTemplate,
   getWorkerIndexTemplate,
@@ -601,7 +602,8 @@ export function createPackageJson(
         : "tsc",
       // Backends and workers run `start` in their production image; doctor checks for it. A server framework brings its own.
       ...startScript,
-      test: "vitest",
+      test: "vitest run",
+      "test:watch": "vitest --watch",
       lint: "biome check .",
       "lint:fix": "biome check . --write",
     },
@@ -2059,7 +2061,12 @@ This file contains the resource configuration for Flisk.
       tasks.push({
         type: "text",
         filename: `tests/${resourceName}.test.ts`,
-        content: (backendFramework?.createTest ?? getTestTemplate)(resourceName),
+        content: (
+          backendFramework?.createTest ??
+          (resourceType === "backend" && !backendFramework
+            ? getBackendTestTemplate
+            : getTestTemplate)
+        )(resourceName),
         description: "Generating test file",
         emoji: "🧪",
       });

@@ -106,6 +106,7 @@ export declare function createPackageJson(name: string, type: string, frameworkI
         dev: string;
         build: string;
         test: string;
+        "test:watch": string;
         lint: string;
         "lint:fix": string;
     };
