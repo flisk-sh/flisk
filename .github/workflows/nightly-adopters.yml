@@ -172,6 +172,7 @@ jobs:
               ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
               API_TOKEN_HMAC_KEY=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
               SESSION_COOKIE_SECURE=false
+              DATABASE_URL=postgresql://healthlog:ci-postgres-not-a-secret@db:5432/healthlog?schema=public
               APP_URL=http://localhost:3000
               NEXT_PUBLIC_APP_URL=http://localhost:3000
     steps:
