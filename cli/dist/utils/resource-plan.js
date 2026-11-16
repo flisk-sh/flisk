@@ -95,7 +95,6 @@ export class ResourceFilePlan {
                 mkdirSync(operation.path, { recursive: true });
             }
             else if (operation.kind === "generated") {
-                continue;
             }
             else if (operation.kind === "text") {
                 writeFileSync(operation.path, operation.content);
