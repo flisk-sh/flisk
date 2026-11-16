@@ -119,6 +119,8 @@ export const errorFactories = {
   stackNotFound: (name: string, stackNames: readonly string[] = []) =>
     new FliskError(`Stack "${name}" not found`, [
       ...closestNameSuggestions([name], stackNames),
+      // Name the stacks the command already knows, as resource errors do.
+      ...(stackNames.length > 0 ? [`Stacks: ${stackNames.join(", ")}`] : []),
       "Run `flisk stacks` to see available stacks",
       "Run `flisk stack` to assign resources to a stack",
     ]),
