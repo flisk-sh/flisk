@@ -234,6 +234,18 @@ export function assertInfraFramework(type: string, framework: string | undefined
  * command creates is never reported invalid. A missing leading slash is added, as the engine does when it routes the frontend
  * (get_frontend_base_path); anything else the pattern rejects is refused before a file is written. Empty means the default.
  */
+/**
+ * Quote a folder path for a printed next step like `cd <path>`: the reader pastes it into a shell, so a path with a space
+ * (`cd a b/c`) would break. Plain paths print exactly as before; anything with characters the shell treats specially gets
+ * double quotes, unless it holds a `"`, backtick, `$` or backslash, which a double-quoted string would expand or break on
+ * (POSIX single quotes are safe for those). isPathSafe already refused `< > : " | ? *` before this runs.
+ */
+export function quoteNextStepsPath(path: string): string {
+  if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(path)) return path;
+  if (!/["`$\\]/.test(path)) return `"${path}"`;
+  return `'${path.replace(/'/g, `'\\''`)}'`;
+}
+
 function suggestBasePath(value: string): string {
   const cleaned = value
     .toLowerCase()
@@ -2193,7 +2205,7 @@ This file contains the resource configuration for Flisk.
         );
       }
       console.log(chalk.gray(`\nNext steps:`));
-      console.log(chalk.gray(`  cd ${finalResourcePath}`));
+      console.log(chalk.gray(`  cd ${quoteNextStepsPath(finalResourcePath)}`));
       // A --local frontend installs with npm (what its dev command and Vite config expect); the container scaffold uses Bun.
       console.log(
         chalk.gray(
