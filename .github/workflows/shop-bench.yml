@@ -84,6 +84,7 @@ jobs:
         if: always()
         run: |
           d="$RUNNER_TEMP/shop-bench-work/flisk-kiri/.flisk/.flisk-out"
+          # shellcheck disable=SC2012
           ls -la "$d" 2>&1 | head -30; stat "$d/traefik-dynamic" 2>&1 | head; id
           exit 0
       - name: Job summary
