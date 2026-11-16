@@ -48,6 +48,14 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
     expect(error.message).toBe("error: unknown option '--bogus'");
   });
 
+  it("an unknown help target fails before parsing still uses the envelope", () => {
+    const { status, stderr, error } = usageError(["help", "nope", "--json"]);
+    expect(status).toBe(1);
+    expect(stderr).toBe("");
+    expect(error.code).toBe("USAGE");
+    expect(error.message).toBe("error: unknown command 'nope'");
+  });
+
   it("an option whose value is missing", () => {
     const { status, error } = usageError(["up", "--json", "--only"]);
     expect(status).toBe(1);

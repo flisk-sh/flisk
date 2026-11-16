@@ -29,8 +29,11 @@ function isJsonRequested(command: Command): boolean {
   let root: Command = command;
   while (root.parent) root = root.parent;
   const raw = (root as Command & { rawArgs?: string[] }).rawArgs ?? [];
-  const end = raw.indexOf("--");
-  return (end === -1 ? raw : raw.slice(0, end)).includes("--json");
+  // Before parseAsync() runs, Commander has no rawArgs yet; an early error (an unknown `help`
+  // target) still has to see --json, so read the real invocation instead (#4246).
+  const args = raw.length > 0 ? raw : process.argv.slice(2);
+  const end = args.indexOf("--");
+  return (end === -1 ? args : args.slice(0, end)).includes("--json");
 }
 
 /** Splits Commander's `(Did you mean x?)` line off a usage error message. */
