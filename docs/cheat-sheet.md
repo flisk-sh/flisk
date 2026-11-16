@@ -706,6 +706,7 @@ stdout holds one JSON document; diagnostics go to stderr. See [machine-readable 
 | `FLISK_UP_READY_TIMEOUT_MS` | How long `flisk up --json` waits for readiness (default 15 minutes) |
 | `FLISK_UP_FAILURE_GRACE_MS` | How long `flisk up` keeps waiting on a container that is running but failing its health check, such as a database on its first start, before reporting it failed (default 2 minutes) |
 | `FLISK_ALLOW_NATIVE_WINDOWS` | Set to `1` to allow `flisk up` on native Windows |
+| `FLISK_DEMO_ON_KIRI` | Set to `1` to run the full `flisk demo` on Kiri. Without it the demo runs as local processes there, because Kiri 0.2.1 cannot build its images |
 | `FLISK_LICENSE_KEY` | Unlocks premium features such as `--ddd` |
 | `FLISK_DEBUG` | Set to `1` with `flisk up --verbose` to include Starlark debug logs |
 | `FLISK_BUILD_COMMIT` | Overrides the commit sha that `flisk version --verbose` prints |
