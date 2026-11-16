@@ -42,4 +42,15 @@ describe("exitUnknownTemplate", () => {
     expect(output).not.toContain("Did you mean");
     expect(output).toContain("Available templates:");
   });
+
+  it.each(["validate", "check", "verify"])(
+    "suggests `flisk project --check` for action word '%s'",
+    (word) => {
+      const output = refuse(word);
+
+      expect(output).toContain('Did you mean "flisk project --check"?');
+      expect(output).toContain(`Unknown template: "${word}"`);
+      expect(output).toContain("Available templates:");
+    },
+  );
 });

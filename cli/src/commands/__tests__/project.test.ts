@@ -88,6 +88,7 @@ const runProject = async (options: Record<string, unknown>, template?: string) =
   projectCommand.setOptionValue("configFile", options.configFile);
   projectCommand.setOptionValue("path", options.path);
   projectCommand.setOptionValue("quiet", Boolean(options.quiet));
+  projectCommand.setOptionValue("json", Boolean(options.json));
   if (options.agentSkills !== undefined) {
     projectCommand.setOptionValue("agentSkills", options.agentSkills);
   } else {
@@ -296,6 +297,56 @@ describe("project command action", () => {
     expect(output).toContain('Unknown template: "shop"');
     expect(output).toContain("Available templates:");
     expect(output).not.toContain("Did you mean");
+  });
+
+  it("suggests `flisk project --check` when given validate", async () => {
+    const lines: string[] = [];
+    logSpy.mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+
+    await expect(runProject({ yes: true }, "validate")).rejects.toMatchObject({ code: 1 });
+
+    const output = lines.join("\n");
+    expect(output).toContain('Did you mean "flisk project --check"?');
+    expect(output).toContain('Unknown template: "validate"');
+    expect(output).toContain("Available templates:");
+  });
+
+  it("suggests `flisk project --check` in --json mode when given validate", async () => {
+    let output = "";
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(((str: string) => {
+      output += str;
+      return true;
+    }) as never);
+
+    await expect(runProject({ json: true }, "validate")).rejects.toBeInstanceOf(ProcessExit);
+
+    writeSpy.mockRestore();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    const envelope = JSON.parse(output);
+    expect(envelope.errors[0].message).toContain('Unknown template: "validate"');
+    expect(envelope.errors[0].suggestions).toContain('Did you mean "flisk project --check"?');
+  });
+
+  it("keeps existing suggestions in --json mode for unknown non-action templates", async () => {
+    let output = "";
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(((str: string) => {
+      output += str;
+      return true;
+    }) as never);
+
+    await expect(runProject({ json: true }, "zzzz")).rejects.toBeInstanceOf(ProcessExit);
+
+    writeSpy.mockRestore();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    const envelope = JSON.parse(output);
+    expect(envelope.errors[0].message).toContain('Unknown template: "zzzz"');
+    expect(envelope.errors[0].suggestions).not.toContain('Did you mean "flisk project --check"?');
+    expect(envelope.errors[0].suggestions).toEqual([
+      expect.stringContaining("Use one of:"),
+      "Or run `flisk project` with no template for a blank project",
+    ]);
   });
 
   it("regenerates master configs and completes an existing .env", async () => {
