@@ -68,7 +68,10 @@ export function runVariables(projectRoot, envFilePath) {
  * DATABASE_URL; a service with no database in dependsOn must read it as empty, or its /health check pings a host
  * that does not exist and never goes healthy (#4456). A service that does depend on the database keeps the value.
  */
-export function localDatabaseEnv(dependsOn, databaseNames = []) {
+export function localDatabaseEnv(dependsOn, databaseNames = [], declaredEnv = {}) {
+    // A DATABASE_URL the service declares in its own service.json env is the author's choice: it is never blanked.
+    if (declaredEnv.DATABASE_URL !== undefined && declaredEnv.DATABASE_URL !== "")
+        return {};
     return dependsOn.some((name) => namesSharedPlatformPostgres(name, databaseNames))
         ? {}
         : { DATABASE_URL: "" };
@@ -101,7 +104,7 @@ export async function runNativeUp(input) {
     const databaseNames = databaseResourceNames(selected);
     for (const service of plan.services) {
         if (!service.container) {
-            Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames));
+            Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames, service.env));
         }
     }
     // A "toolchain" in service.json is binding: a service on the wrong runtime fails later in ways that never name the version.
@@ -196,7 +199,7 @@ export async function runNativeUp(input) {
                 throw new Error(replanned.errors.join("\n"));
             for (const service of replanned.services) {
                 if (!service.container) {
-                    Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames));
+                    Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames, service.env));
                 }
             }
             return { plans: replanned.services, baseEnv: fresh };

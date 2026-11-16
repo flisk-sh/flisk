@@ -44,7 +44,7 @@ export declare function runVariables(projectRoot: string, envFilePath?: string):
  * DATABASE_URL; a service with no database in dependsOn must read it as empty, or its /health check pings a host
  * that does not exist and never goes healthy (#4456). A service that does depend on the database keeps the value.
  */
-export declare function localDatabaseEnv(dependsOn: readonly string[], databaseNames?: readonly string[]): Record<string, string>;
+export declare function localDatabaseEnv(dependsOn: readonly string[], databaseNames?: readonly string[], declaredEnv?: Readonly<Record<string, string>>): Record<string, string>;
 /**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).

@@ -150,6 +150,20 @@ describe("localDatabaseEnv", () => {
     expect(localDatabaseEnv(["postgres"])).toEqual({});
     expect(localDatabaseEnv(["db"], ["db"])).toEqual({});
   });
+
+  it("keeps a DATABASE_URL the service declares itself, even when its database is a plain command service", () => {
+    const declared = { DATABASE_URL: "postgres://u@127.0.0.1:5432/notes" };
+    expect(localDatabaseEnv(["db"], [], declared)).toEqual({});
+    expect(localDatabaseEnv([], [], declared)).toEqual({});
+  });
+
+  it("still clears an empty or absent declaration, and never echoes the value (no secret leak)", () => {
+    expect(localDatabaseEnv(["db"], [], { DATABASE_URL: "" })).toEqual({ DATABASE_URL: "" });
+    expect(localDatabaseEnv(["db"], [], { OTHER: "x" })).toEqual({ DATABASE_URL: "" });
+    expect(
+      JSON.stringify(localDatabaseEnv([], [], { DATABASE_URL: "postgres://u:secret@h/d" })),
+    ).not.toContain("secret");
+  });
 });
 
 describe("runNativeUp failures before anything starts", () => {

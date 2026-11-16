@@ -1,0 +1,1 @@
+{"fault":"G","upExit":1,"e2e":{"ok":false,"steps":[{"name":"web /health","ok":false,"detail":"ECONNREFUSED: Unable to connect. Is the computer able to access the url?"}]},"downExit":0,"leftovers":{"occupiedPorts":[],"postgresPids":[]},"seconds":16.409}

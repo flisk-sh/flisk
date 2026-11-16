@@ -1,0 +1,87 @@
+# Agent recovery benchmark (docs/FLISK_AGENT_RECOVERY_BENCHMARK.md).
+# The agent runs (control vs Flisk, faults A-F) need a model and are recorded in
+# docs/benchmarks/agent-recovery-results.json. This workflow does the part that needs no model:
+#   1. runs the unit tests for the DATABASE_URL fix (defect 1),
+#   2. runs the deterministic scripted experiment for fault G on real PostgreSQL (no Docker, no Tilt),
+#   3. fails if the experiments or the result files are missing,
+#   4. uploads the logs and the JSON.
+name: 🧪 PR | Agent recovery benchmark
+
+on:
+  pull_request:
+    paths:
+      - "cli/src/utils/native-up.ts"
+      - "cli/src/utils/__tests__/native-up-inprocess.test.ts"
+      - "tests/e2e/journeys/agent-recovery/**"
+      - "docs/FLISK_AGENT_RECOVERY_BENCHMARK.md"
+      - "docs/benchmarks/agent-recovery-results.json"
+      - ".github/workflows/agent-recovery-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  recovery:
+    name: 🧪 Scripted recovery experiment and result files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.23.5
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      - name: Build the CLI from this commit
+        run: |
+          bun install --frozen-lockfile
+          (cd cli && npm run build)
+          chmod +x cli/bin/flisk.js
+
+      - name: Install PostgreSQL (server binaries only, not started)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql postgresql-client
+          sudo systemctl stop postgresql || true
+          bindir="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+          echo "$bindir" >> "$GITHUB_PATH"
+
+      - name: Unit tests for the DATABASE_URL fix
+        run: |
+          mkdir -p "$RUNNER_TEMP/recovery-logs"
+          (cd cli && npx vitest run src/utils/__tests__/native-up-inprocess.test.ts) 2>&1 | tee "$RUNNER_TEMP/recovery-logs/unit.log"
+
+      - name: Scripted experiment, fault G (a service named db declares its own DATABASE_URL)
+        run: |
+          node tests/e2e/journeys/agent-recovery/harness.mjs scripted "$RUNNER_TEMP/recovery-g" G 45010 \
+            2>&1 | tee "$RUNNER_TEMP/recovery-logs/scripted-g.log"
+
+      - name: Fail if the experiments or the result files are missing
+        run: |
+          node tests/e2e/journeys/agent-recovery/harness.mjs verify \
+            docs/benchmarks/agent-recovery-results.json docs/FLISK_AGENT_RECOVERY_BENCHMARK.md \
+            2>&1 | tee "$RUNNER_TEMP/recovery-logs/verify.log"
+
+      - name: Collect logs and JSON
+        if: always()
+        run: |
+          mkdir -p recovery-artifacts
+          cp -r "$RUNNER_TEMP/recovery-logs" recovery-artifacts/ || true
+          cp "$RUNNER_TEMP/recovery-g/scripted-result.json" recovery-artifacts/ || true
+          cp "$RUNNER_TEMP/recovery-g/events.log" recovery-artifacts/ || true
+          cp -r "$RUNNER_TEMP/recovery-g/logs" recovery-artifacts/service-logs || true
+          cp docs/benchmarks/agent-recovery-results.json recovery-artifacts/ || true
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: agent-recovery-benchmark
+          path: recovery-artifacts
+          if-no-files-found: error
