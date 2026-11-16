@@ -17,7 +17,7 @@ sync() {
   if [ "$rc" -eq 0 ]; then
     for ref in $(printf '%s\n' "$refs" | sort -u); do
       case "$ref" in *flisk* | *golden* | *bench*) ;; *) continue ;; esac
-      case "$ref" in *'<none>'*) continue ;; esac
+      case "$ref" in *'<none>'* | ghcr.io/* | docker.io/*) continue ;; esac # pulled images are pulled on Kiri too; reloading them costs seconds per image
       # by tag, not by id: two services can build the same image id under different tags
       on_kiri image inspect "$ref" >/dev/null 2>&1 && continue
       missing="$missing $ref"
