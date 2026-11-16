@@ -25,6 +25,7 @@ import {
 } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
+import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 import { attachedUpInCiWarning } from "./up-hints.js";
 
@@ -63,6 +64,20 @@ export function runVariables(projectRoot: string, envFilePath?: string): Record<
 }
 
 /**
+ * Env entries that override the project .env for a local service. The .env can still hold the Docker host's
+ * DATABASE_URL; a service with no database in dependsOn must read it as empty, or its /health check pings a host
+ * that does not exist and never goes healthy (#4456). A service that does depend on the database keeps the value.
+ */
+export function localDatabaseEnv(
+  dependsOn: readonly string[],
+  databaseNames: readonly string[] = [],
+): Record<string, string> {
+  return dependsOn.some((name) => namesSharedPlatformPostgres(name, databaseNames))
+    ? {}
+    : { DATABASE_URL: "" };
+}
+
+/**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).
  */
@@ -91,6 +106,12 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   const vars = runVariables(projectRoot, input.envFilePath);
   const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
   if (plan.errors.length > 0) fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
+  const databaseNames = databaseResourceNames(selected);
+  for (const service of plan.services) {
+    if (!service.container) {
+      Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames));
+    }
+  }
   // A "toolchain" in service.json is binding: a service on the wrong runtime fails later in ways that never name the version.
   const toolchainMismatches = findToolchainMismatches(selected).filter(
     (finding) => !finding.isHint,

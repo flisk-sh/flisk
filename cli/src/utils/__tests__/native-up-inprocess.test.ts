@@ -54,7 +54,7 @@ vi.mock("../errors.js", async (importOriginal) => ({
   showError: errors.showError,
 }));
 
-const { runNativeUp, runVariables } = await import("../native-up.js");
+const { localDatabaseEnv, runNativeUp, runVariables } = await import("../native-up.js");
 
 class ExitCalled extends Error {
   constructor(readonly code: number) {
@@ -135,6 +135,18 @@ describe("runVariables", () => {
     writeFileSync(join(root, "custom.env"), "FLISK_NU_CUSTOM=yes\n");
     expect(runVariables(root, join(root, "custom.env")).FLISK_NU_CUSTOM).toBe("yes");
     expect(runVariables(root, join(root, "absent.env")).FLISK_NU_CUSTOM).toBeUndefined();
+  });
+});
+
+describe("localDatabaseEnv", () => {
+  it("clears the .env DATABASE_URL unless the service depends on a database (#4456)", () => {
+    // A fresh project has no dependsOn, so the Docker host URL must not reach the local process.
+    expect(localDatabaseEnv([])).toEqual({ DATABASE_URL: "" });
+    // Depending on another service is not the same as depending on a database.
+    expect(localDatabaseEnv(["api"])).toEqual({ DATABASE_URL: "" });
+    // The shared Postgres aliases and a database resource's own name keep the URL.
+    expect(localDatabaseEnv(["postgres"])).toEqual({});
+    expect(localDatabaseEnv(["db"], ["db"])).toEqual({});
   });
 });
 
