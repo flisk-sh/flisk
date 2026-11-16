@@ -728,7 +728,15 @@ describe("native supervisor", () => {
 describe("stopping a native run from another process", () => {
   it("stops service processes a killed supervisor left behind", async () => {
     const root = createTempDir();
-    const orphan = spawn("sleep", ["300"], { detached: true, stdio: "ignore" });
+    const orphan = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    await new Promise<void>((resolve, reject) => {
+      orphan.once("spawn", resolve);
+      orphan.once("error", reject);
+    });
     orphan.unref();
     const deadSupervisor = spawn(process.execPath, ["-e", ""]);
     await new Promise((resolve) => deadSupervisor.once("exit", resolve));
