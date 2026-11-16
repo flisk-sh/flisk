@@ -668,7 +668,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "logs",
-            description: 'A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. Use `status` first to find which service is failing, then pass services to narrow the output and source "runtime" to skip image build output and read why it failed.',
+            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. Use `status` first to find which service is failing, then pass services to narrow the output and source \"runtime\" to skip image build output and read why it failed.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 services: {
