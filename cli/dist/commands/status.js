@@ -258,6 +258,15 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     }
                     : null;
             }
+            // Name the follow-up so an agent reads the cause (runtime output, not build steps) instead of guessing.
+            const readinessOut = readiness
+                ? {
+                    ...readiness,
+                    failures: readiness.failures.map((failure) => failure.name === "(Tiltfile)"
+                        ? failure
+                        : { ...failure, next: `logs services=["${failure.name}"] source="runtime"` }),
+                }
+                : readiness;
             const data = {
                 // Only a project of local processes says so; a container project's report keeps its shape.
                 ...(nativeStates ? { runtime: "native" } : {}),
@@ -269,7 +278,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     foreignProject: foreignTilt ? foreignTiltRoot : null,
                     resourcesQueried: options.tilt && tiltAvailable && !foreignTilt,
                     resources: tiltResources,
-                    readiness,
+                    readiness: readinessOut,
                     tiltfileError,
                     staleDisabled,
                 },
