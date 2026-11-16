@@ -67,7 +67,13 @@ case "${1:-}" in
     fi
     exec env DOCKER_HOST="$kiri" "$real" "$@"
     ;;
-  pull | tag)
+  tag)
+    # Tilt looks the tilt-* tag up on Kiri: make sure the source image is there before tagging it on both
+    host "$@" >/dev/null 2>&1 || true
+    sync >&2 || true
+    exec env DOCKER_HOST="$kiri" "$real" "$@"
+    ;;
+  pull)
     # base images the builds start from must exist on both engines
     host "$@" >/dev/null 2>&1 || true
     exec env DOCKER_HOST="$kiri" "$real" "$@"
