@@ -269,6 +269,35 @@ describe("project command action", () => {
     expect(mocks.showDetail).toHaveBeenCalledWith(".flisk/project.json (not found)", 3);
   });
 
+  it("suggests the closest starter for a mistyped template name", async () => {
+    const lines: string[] = [];
+    logSpy.mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+
+    await expect(runProject({ yes: true }, "sas")).rejects.toMatchObject({ code: 1 });
+
+    const output = lines.join("\n");
+    expect(output).toContain('Did you mean "saas"?');
+    expect(output.indexOf('Did you mean "saas"?')).toBeLessThan(
+      output.indexOf("Available templates:"),
+    );
+  });
+
+  it("lists the catalog without inventing a suggestion for an unrelated name", async () => {
+    const lines: string[] = [];
+    logSpy.mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+
+    await expect(runProject({ yes: true }, "shop")).rejects.toMatchObject({ code: 1 });
+
+    const output = lines.join("\n");
+    expect(output).toContain('Unknown template: "shop"');
+    expect(output).toContain("Available templates:");
+    expect(output).not.toContain("Did you mean");
+  });
+
   it("regenerates master configs and completes an existing .env", async () => {
     writeProjectConfig(projectConfig(["platform"]));
     mocks.completeEnvFile.mockReturnValue(["JWT_SECRET"]);
