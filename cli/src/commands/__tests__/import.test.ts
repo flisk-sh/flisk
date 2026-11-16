@@ -20,7 +20,7 @@ vi.mock("../../utils/discovery-context.js", async (importOriginal) => ({
 
 import fs from "node:fs";
 import path from "node:path";
-import { createTempDir, runCommandInProcess } from "../../test-support/index.js";
+import { createTempDir, npxArgs, runCommandInProcess } from "../../test-support/index.js";
 import {
   buildForwardedImportArgs,
   carryOverBuildCommand,
@@ -73,6 +73,7 @@ describe("flisk import", () => {
       command: "npx",
       args: ["--yes", IMPORT_PACKAGE, ".", "--dry-run", "--force"],
       shell: false,
+      windowsVerbatimArguments: false,
     });
   });
 
@@ -87,11 +88,34 @@ describe("flisk import", () => {
     expect(importCommand.description()).not.toMatch(/procfile|dockerfile|package\.json/i);
   });
 
-  it("honours FLISK_IMPORT_PACKAGE and uses npx.cmd on Windows", () => {
-    const inv = importInvocation(["."], { FLISK_IMPORT_PACKAGE: "flisk-import@1" }, "win32");
-    expect(inv.command).toBe("npx.cmd");
-    expect(inv.args).toEqual(["--yes", "flisk-import@1", "."]);
-    expect(inv.shell).toBe(true);
+  it("honours FLISK_IMPORT_PACKAGE and runs npx without a shell on Windows (#4004)", () => {
+    const nodeExe = "C:\\Program Files\\nodejs\\node.exe";
+    const npxCli = "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npx-cli.js";
+    const inv = importInvocation(
+      ["C:\\Users\\Jane Smith\\app", "a&b"],
+      { FLISK_IMPORT_PACKAGE: "flisk-import@1" },
+      "win32",
+      { execPath: nodeExe, exists: (p) => p === npxCli },
+    );
+    expect(inv).toEqual({
+      command: nodeExe,
+      args: [npxCli, "--yes", "flisk-import@1", "C:\\Users\\Jane Smith\\app", "a&b"],
+      shell: false,
+      windowsVerbatimArguments: false,
+    });
+  });
+
+  it("falls back to npx.cmd through cmd.exe with quoted arguments when npx-cli.js is missing", () => {
+    const inv = importInvocation(["a&b"], {}, "win32", {
+      execPath: "C:\\tools\\flisk.exe",
+      comSpec: "cmd.exe",
+    });
+    expect(inv.command).toBe("cmd.exe");
+    expect(inv.shell).toBe(false);
+    expect(inv.windowsVerbatimArguments).toBe(true);
+    expect(inv.args.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
+    expect(inv.args[3]).toContain("npx.cmd");
+    expect(inv.args[3]).toContain("a^^^&b");
   });
 
   it("passes the child's exit code through and inherits stdio", async () => {
@@ -261,7 +285,7 @@ describe("flisk import", () => {
 
           expect(calls).toHaveLength(1);
           const spawnedArgs = calls[0]?.[1] as string[];
-          expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
+          expect(npxArgs(spawnedArgs).slice(2)).toEqual(expectedForwarded);
         } finally {
           mocks.spawn.mockReset();
           process.exitCode = prevExitCode;
@@ -306,7 +330,7 @@ describe("flisk import", () => {
 
         expect(calls).toHaveLength(1);
         const spawnedArgs = calls[0]?.[1] as string[];
-        expect(spawnedArgs.slice(2)).toEqual(["./legacy", "--dry-run"]);
+        expect(npxArgs(spawnedArgs).slice(2)).toEqual(["./legacy", "--dry-run"]);
       } finally {
         mocks.spawn.mockReset();
         process.exitCode = prevExitCode;
@@ -329,7 +353,7 @@ describe("flisk import", () => {
 
         expect(calls).toHaveLength(1);
         const spawnedArgs = calls[0]?.[1] as string[];
-        expect(spawnedArgs.slice(2)).toEqual([]);
+        expect(npxArgs(spawnedArgs).slice(2)).toEqual([]);
       } finally {
         mocks.spawn.mockReset();
         process.exitCode = prevExitCode;
@@ -644,7 +668,10 @@ describe("flisk import --json", () => {
           createTempDir(),
         );
         expect(result.status).toBeUndefined();
-        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["./legacy", "--yes"]);
+        expect(npxArgs(calls[0]?.[1] as string[] | undefined).slice(2)).toEqual([
+          "./legacy",
+          "--yes",
+        ]);
         expect(JSON.parse(result.stdout)).toEqual({
           schemaVersion: 1,
           data: {
@@ -708,7 +735,10 @@ describe("flisk import --json", () => {
           createTempDir(),
         );
         expect(result.status).toBeUndefined();
-        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["./legacy", "--yes"]);
+        expect(npxArgs(calls[0]?.[1] as string[] | undefined).slice(2)).toEqual([
+          "./legacy",
+          "--yes",
+        ]);
         expect(JSON.parse(result.stdout)).toEqual({
           schemaVersion: 1,
           data: {
@@ -741,7 +771,10 @@ describe("flisk import --json", () => {
           createTempDir(),
         );
         expect(result.status).toBeUndefined();
-        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["--dry-run", "--yes"]);
+        expect(npxArgs(calls[0]?.[1] as string[] | undefined).slice(2)).toEqual([
+          "--dry-run",
+          "--yes",
+        ]);
         expect(JSON.parse(result.stdout)).toEqual({
           schemaVersion: 1,
           data: {

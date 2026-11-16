@@ -7,6 +7,7 @@ import { addYesOption } from "../utils/command-helpers.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
+import { type NpxInvocation, type NpxRuntime, npxInvocation } from "../utils/npx-invocation.js";
 import { getPackageVersion } from "../utils/paths.js";
 
 /**
@@ -134,13 +135,10 @@ export function importInvocation(
   args: string[],
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
-): { command: string; args: string[]; shell: boolean } {
+  runtime: Omit<NpxRuntime, "platform"> = {},
+): NpxInvocation {
   const pkg = env.FLISK_IMPORT_PACKAGE || IMPORT_PACKAGE;
-  return {
-    command: platform === "win32" ? "npx.cmd" : "npx",
-    args: ["--yes", pkg, ...args],
-    shell: platform === "win32",
-  };
+  return npxInvocation(["--yes", pkg, ...args], { ...runtime, platform });
 }
 
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
@@ -159,6 +157,7 @@ export function runImport(
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: "inherit",
       shell: invocation.shell,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on("error", (err) => {
       console.error(
@@ -195,6 +194,7 @@ export function runImportCaptured(
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: ["ignore", "pipe", "pipe"],
       shell: invocation.shell,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     let stdout = "";
     let stderr = "";
