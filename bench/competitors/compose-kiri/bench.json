@@ -1,6 +1,7 @@
 {
   "id": "compose-kiri",
   "name": "Docker Compose on Kiri",
+  "optIn": true,
   "tool": {
     "name": "docker compose",
     "version": "docker compose version --short"

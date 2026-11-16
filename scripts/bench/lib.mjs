@@ -55,6 +55,14 @@ export function loadCompetitors(benchDir) {
   return out;
 }
 
+// --only names lanes; without it every lane runs except those marked optIn (known not to finish yet).
+export function selectCompetitors(list, only) {
+  if (!only) return list.filter((c) => !c.optIn);
+  const unknown = only.filter((id) => !list.some((c) => c.id === id));
+  if (unknown.length) throw new Error(`unknown competitor: ${unknown.join(", ")}`);
+  return list.filter((c) => only.includes(c.id));
+}
+
 export function validateContract(c) {
   const errs = [];
   if (!/^[a-z0-9][a-z0-9-]*$/.test(c.id)) errs.push(`id "${c.id}" must be kebab-case`);

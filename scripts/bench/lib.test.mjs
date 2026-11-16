@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  selectCompetitors,
   createMilestoneTracker,
   globToRegex,
   loadCompetitors,
@@ -267,4 +268,11 @@ test("a timed log line carries the seconds since the start and no colour codes",
     "[  12.3s] postgres │ Started",
   );
   assert.equal(timedLogLine("", 0), "[   0.0s] ");
+});
+
+test("an optIn lane runs only when named", () => {
+  const list = [{ id: "a" }, { id: "k", optIn: true }];
+  assert.deepEqual(selectCompetitors(list, null).map((c) => c.id), ["a"]);
+  assert.deepEqual(selectCompetitors(list, ["k"]).map((c) => c.id), ["k"]);
+  assert.throws(() => selectCompetitors(list, ["zz"]), /unknown competitor: zz/);
 });
