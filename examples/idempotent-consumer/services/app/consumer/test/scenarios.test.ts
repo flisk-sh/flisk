@@ -29,8 +29,8 @@ function startConsumer(env: Record<string, string> = {}) {
 async function drained(timeoutMs = 15000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
-    const info = (await redis.send("XINFO", ["GROUPS", STREAM])) as { pending: number; lag: number | null }[];
-    const g = info[0];
+    const info = (await redis.send("XINFO", ["GROUPS", STREAM])) as { name: string; pending: number; lag: number | null }[];
+    const g = info.find((x) => x.name === GROUP);
     if (g && g.pending === 0 && (g.lag === 0 || g.lag === null)) return;
     await sleep(100);
   }

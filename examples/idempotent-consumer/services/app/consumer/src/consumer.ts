@@ -1,4 +1,5 @@
 import { RedisClient, SQL } from "bun";
+import { resolve } from "node:path";
 import { handle, type PaymentEvent } from "./handler";
 
 const STREAM = process.env.STREAM ?? "payments";
@@ -12,7 +13,7 @@ const DIE_BEFORE_ACK = process.env.DIE_BEFORE_ACK === "1";
 const redis = new RedisClient(REDIS_URL);
 const db = new SQL(DATABASE_URL);
 
-await db.file(new URL("./schema.sql", import.meta.url).pathname);
+await db.file(resolve(import.meta.dir, "schema.sql"));
 try {
   await redis.send("XGROUP", ["CREATE", STREAM, GROUP, "0", "MKSTREAM"]);
 } catch (err) {
