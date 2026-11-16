@@ -1,3 +1,5 @@
+import { containerErrors } from "./service-manifest-container.js";
+export { containerErrors };
 export declare const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 /**
@@ -28,8 +30,6 @@ export interface ServiceManifestValidation {
     manifest?: Record<string, unknown>;
 }
 export declare function getInvalidServiceRoutePathFields(value: unknown): ("apiPath" | "basePath")[];
-/** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
-export declare function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /** `webUi` (#2997) is read for bring-your-own resources only: the app serves pages from `/`, so it gets a host name, not a path prefix. */
 export declare function webUiErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /**
@@ -167,4 +167,3 @@ export declare function validateServiceManifest(value: unknown, displayPath: str
  */
 export declare function generatedFieldErrorsForFile(filePath: string, displayPath: string): string[];
 export declare function validateServiceManifestFile(filePath: string, displayPath: string): ServiceManifestValidation;
-export {};
