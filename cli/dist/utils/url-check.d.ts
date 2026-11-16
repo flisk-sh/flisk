@@ -60,6 +60,11 @@ export type UrlProber = (url: string, timeoutMs: number) => Promise<UrlProbe>;
 export declare const URL_PROBE_TIMEOUT_MS = 3000;
 /** How long a failing URL is retried: Traefik can take a moment to pick up a route after the container turns healthy. */
 export declare const URL_CHECK_DEADLINE_MS = 15000;
+/**
+ * How long a URL is retried when its last attempt timed out instead of being refused: something is listening but slow,
+ * typically a dev server compiling on its first request (Vite), which can take longer than the usual deadline.
+ */
+export declare const URL_SLOW_DEADLINE_MS = 60000;
 /** At most this many requests at once, so a large stack does not hit the gateway with every URL in the same instant. */
 export declare const URL_CHECK_CONCURRENCY = 8;
 /**
@@ -112,6 +117,7 @@ export declare function checkPrintedUrls(targets: readonly UrlTarget[], options?
     diagnosis?: UrlDiagnosisDeps;
     timeoutMs?: number;
     deadlineMs?: number;
+    slowDeadlineMs?: number;
     intervalMs?: number;
     concurrency?: number;
     sleep?: (ms: number) => Promise<void>;
