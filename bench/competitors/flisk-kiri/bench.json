@@ -18,7 +18,7 @@
     "TILT_PORT": "${BENCH_PORT4}"
   },
   "setup": "sh setup.sh",
-  "start": "K=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}'); mkdir -p shim && cp \"${BENCH_COMPETITOR_DIR:-.}/docker-shim.sh\" shim/docker 2>/dev/null; SHIM_REAL_DOCKER=$(command -v docker) SHIM_KIRI_HOST=$K PATH=\"$PWD/shim:$PATH\" DOCKER_HOST=$K ${FLISK_CMD:-flisk} up shop",
+  "start": "K=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}'); mkdir -p shim && cp \"$BENCH_SHOP/../competitors/flisk-kiri/docker-shim.sh\" shim/docker 2>/dev/null; SHIM_REAL_DOCKER=$(command -v docker) SHIM_KIRI_HOST=$K PATH=\"$PWD/shim:$PATH\" DOCKER_HOST=$K ${FLISK_CMD:-flisk} up shop",
   "stop": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') ${FLISK_CMD:-flisk} down",
   "purge": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') ${FLISK_CMD:-flisk} down --purge --prune-networks",
   "clean": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') ${FLISK_CMD:-flisk} down --prune-networks",
