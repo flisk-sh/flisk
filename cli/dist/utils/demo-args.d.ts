@@ -6,6 +6,8 @@ export interface DemoRootOptions {
     yes: boolean;
     /** Set when `--project` is present but its value cannot be a directory. */
     projectError?: string;
+    /** The first root option the one-command flow does not know, without any `=value`. */
+    unknownOption?: string;
 }
 /**
  * Reads the root options of the one-command flow: `flisk <template> [options]` and

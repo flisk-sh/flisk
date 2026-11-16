@@ -6,6 +6,23 @@ import { PROJECT_TEMPLATES } from "./project-templates.js";
 /** Root options that take a value, so the value is not mistaken for a subcommand. */
 const VALUE_OPTIONS = new Set(["--template", "--project"]);
 
+/**
+ * Every root option the one-command flow reads (its own flags plus the root program's globals).
+ * Anything else, such as `--dry-run`, is refused so the demo never starts by surprise (#4487).
+ */
+const KNOWN_OPTIONS = new Set([
+  ...VALUE_OPTIONS,
+  "-h",
+  "--help",
+  "--keep",
+  "-y",
+  "--yes",
+  "--no-docker",
+  "--verbose",
+  "-v",
+  "--version",
+]);
+
 export interface DemoRootOptions {
   template?: string;
   project?: string;
@@ -14,6 +31,8 @@ export interface DemoRootOptions {
   yes: boolean;
   /** Set when `--project` is present but its value cannot be a directory. */
   projectError?: string;
+  /** The first root option the one-command flow does not know, without any `=value`. */
+  unknownOption?: string;
 }
 
 /**
@@ -38,6 +57,9 @@ export function parseDemoRootOptions(argv: string[]): DemoRootOptions {
     if (!arg.startsWith("-")) break; // a subcommand: everything after it belongs to that command
     const equals = arg.indexOf("=");
     const name = equals === -1 ? arg : arg.slice(0, equals);
+    if (!KNOWN_OPTIONS.has(name) && result.unknownOption === undefined) {
+      result.unknownOption = name;
+    }
     if (name === "-h" || name === "--help") result.help = true;
     else if (name === "--keep") result.keep = true;
     else if (name === "--yes" || name === "-y") result.yes = true;

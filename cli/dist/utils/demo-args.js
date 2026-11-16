@@ -4,6 +4,22 @@ import { PROJECT_TEMPLATES } from "./project-templates.js";
 /** Root options that take a value, so the value is not mistaken for a subcommand. */
 const VALUE_OPTIONS = new Set(["--template", "--project"]);
 /**
+ * Every root option the one-command flow reads (its own flags plus the root program's globals).
+ * Anything else, such as `--dry-run`, is refused so the demo never starts by surprise (#4487).
+ */
+const KNOWN_OPTIONS = new Set([
+    ...VALUE_OPTIONS,
+    "-h",
+    "--help",
+    "--keep",
+    "-y",
+    "--yes",
+    "--no-docker",
+    "--verbose",
+    "-v",
+    "--version",
+]);
+/**
  * Reads the root options of the one-command flow: `flisk <template> [options]` and
  * `flisk --template <name> [options]`. Scanning stops at the first subcommand or at `--`, so
  * `flisk run x -- tool --template=y` never starts the demo.
@@ -25,6 +41,9 @@ export function parseDemoRootOptions(argv) {
             break; // a subcommand: everything after it belongs to that command
         const equals = arg.indexOf("=");
         const name = equals === -1 ? arg : arg.slice(0, equals);
+        if (!KNOWN_OPTIONS.has(name) && result.unknownOption === undefined) {
+            result.unknownOption = name;
+        }
         if (name === "-h" || name === "--help")
             result.help = true;
         else if (name === "--keep")

@@ -295,6 +295,19 @@ describe("flisk demo fixed directory", () => {
     expect(readdirSync(dirs.cwd)).toEqual([]);
   });
 
+  it("refuses --dry-run as an unknown option and starts nothing (#4487)", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    stackMocks.runStackQuiet.mockClear();
+
+    expect(await runDemoCli("demo", "--dry-run")).toBe(1);
+
+    expect(errors).toHaveBeenCalledWith(expect.stringContaining("unknown option '--dry-run'"));
+    expect(existsSync(demoDir)).toBe(false);
+    expect(stackMocks.runStackQuiet).not.toHaveBeenCalled();
+    expect(stackMocks.stopDemoStack).not.toHaveBeenCalled();
+    expect(readdirSync(dirs.cwd)).toEqual([]);
+  });
+
   it("keeps the checkout and exits when the previous stack cannot be stopped", async () => {
     expect(await runDemoCli("demo")).toBe(0);
     const marker = join(demoDir, "stale-marker.txt");

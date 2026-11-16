@@ -47,6 +47,12 @@ if (templateArg && rootOptions.help) {
     showHelp();
     process.exit(0);
 }
+if (templateArg && rootOptions.unknownOption) {
+    // An option the flow does not read (e.g. --dry-run) is refused like Commander does, before
+    // anything is fetched, written or started (#4487).
+    console.error(chalk.red(`error: unknown option '${rootOptions.unknownOption}'`));
+    process.exit(1);
+}
 if (templateArg && rootOptions.projectError) {
     console.error(chalk.red(`❌ ${rootOptions.projectError}`));
     process.exit(1);
