@@ -9,6 +9,7 @@
 # - LycheeOrg/Lychee@7145b37ff66ea7990cc9b8dbbf779ba1d34c0b64
 # - openathleteorg/openathlete@96478a75673437d8cca6219304037a3580163a1c (runs on the Kiri engine, `engine: kiri`; every
 #   other entry runs on the runner's Docker. No PR or comment goes to that repository.)
+# - MBombeck/HealthLog@d32036b003a7f834eb21e4bfb324036ebbfb07cc (also `engine: kiri`; no PR or comment goes to that repository.)
 #
 # Not adopters: projects whose maintainers closed a Flisk PR. They stay here so `flisk import` keeps working on the
 # Compose files people actually ship, and a later PR to them starts from a stack that is known to come up.
@@ -251,24 +252,6 @@ jobs:
           docker context create kiri --docker host=unix:///run/kiri/docker.sock
           docker context use kiri # Flisk reads the current context to see that this is Kiri
           # Tilt and Compose read DOCKER_HOST, so every later step talks to Kiri and not to the runner's Docker.
-          echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
-          DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
-
-      - name: Install Kiri (stacks that run on the Kiri engine instead of Docker)
-        if: matrix.engine == 'kiri'
-        env:
-          KIRI_VERSION: "0.2.1"
-          KIRI_DEB_SHA256: 5e7b1f6d8239aa590b314fd2ccc8f1472ba1427f414b35efa86ccedd6a6571b2 # kiri-lite_0.2.1_amd64.deb
-        run: |
-          scripts/e2e/retry-infra.sh "download Kiri v${KIRI_VERSION}" -- curl -fsSL -o kiri.deb "https://github.com/libracoder/kiri/releases/download/v${KIRI_VERSION}/kiri-lite_${KIRI_VERSION}_amd64.deb"
-          echo "${KIRI_DEB_SHA256}  kiri.deb" | sha256sum -c -
-          sudo apt-get install -y ./kiri.deb
-          rm -f kiri.deb
-          sudo kiri host-access "$USER"
-          for _ in $(seq 1 30); do [ -S /run/kiri/docker.sock ] && break; sleep 1; done
-          sudo chmod a+rw /run/kiri/docker.sock
-          docker context create kiri --docker host=unix:///run/kiri/docker.sock
-          docker context use kiri
           echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
           DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
 
