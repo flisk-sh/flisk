@@ -1,6 +1,6 @@
 {
   "id": "flisk-kiri",
-  "name": "Flisk on Kiri (images built on Docker)",
+  "name": "Flisk on Kiri (images built on Docker, run on Kiri)",
   "optIn": true,
   "tool": {
     "name": "flisk",
