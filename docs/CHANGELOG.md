@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 2026-11-16 (undefined)
+
 - `flisk project launch`, `fullstack` and `portal` leave the new project on its `main` branch at the pinned starter commit instead of a detached HEAD, so your first commits are on a branch (#4286).
 - `flisk config verify` reports an `appName` used by more than one resource, which `flisk up` already refused, so a green verify no longer hides it (#4190).
 - `flisk project --list --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"templates":[...]},"errors":[]}`) instead of a bare array; `key`/`repo`/`description`/`ref` are unchanged (#4247).

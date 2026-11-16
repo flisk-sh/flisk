@@ -9,8 +9,8 @@ import { pathToFileURL } from "node:url";
 
 export const REGISTRY = "https://registry.npmjs.org";
 
-/** A fresh publish can take several minutes to show on the registry: 1.4.65 still answered 404 after two (#4272). */
-export const FIND_ATTEMPTS = 30;
+/** A fresh publish can take several minutes to show on the registry: 1.4.65 still answered 404 after two (#4272), 1.4.66 after five, 1.4.67 after ten. */
+export const FIND_ATTEMPTS = 90;
 export const FIND_DELAY_MS = 10_000;
 
 /** The registry URL of one published version: scoped names keep "@" and encode the "/". */
