@@ -4,6 +4,7 @@ import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime } from "../utils/doctor-container.js";
 import { type DockerRun } from "../utils/doctor-crashloop.js";
+import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkTypeScriptTypeDependencies } from "../utils/doctor-project.js";
 import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks } from "../utils/doctor-runner.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkBun, checkDockerVersions, checkTilt } from "../utils/doctor-tools.js";
@@ -38,15 +39,7 @@ export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, c
 export declare function checkFliskVersion(currentVersion?: string): CheckResult;
 /** A CLI older than the latest release is a warning, never a failure; an unreachable registry is skipped (#4119). */
 export declare function checkLatestFliskVersion(currentVersion?: string, lookup?: () => Promise<string | null>): Promise<CheckResult>;
-/**
- * Tilt only builds resources under `discovery.paths`, but the CLI finds every service.json,
- * so a resource outside them is listed and given a URL by `flisk up` yet never started.
- */
-export declare function checkResourceDiscovery(): CheckResult;
-export declare function checkGeneratedFiles(strict?: boolean): CheckResult;
-export declare function checkGeneratedProjectRuntimeAssets(): CheckResult;
-export declare function checkTypeScriptTypeDependencies(): CheckResult;
-export declare function checkFrontendDockerPreflight(): CheckResult;
+export { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkTypeScriptTypeDependencies, };
 /**
  * Flags containers pinned near their memory limit while also burning CPU --
  * the signature of a boot-time process stuck in a retry/fetch loop, not a
