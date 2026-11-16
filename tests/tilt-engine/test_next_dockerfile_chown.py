@@ -71,3 +71,14 @@ def test_every_source_copy_in_the_base_stage_sets_its_owner(tmp_path, use_golden
     ]
     assert len(sources) == 5, sources  # .env, next.config.mjs, tsconfig.json, public, src
     assert all(f"--chown={run_user}:{run_user}" in line for line in sources), sources
+
+
+@TILT_REQUIRED
+@pytest.mark.parametrize("use_golden", ["True", "False"])
+def test_install_requires_a_lockfile_and_never_runs_npm_install(tmp_path, use_golden):
+    text = next_dockerfile(tmp_path, use_golden)
+    instructions = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+    assert not [line for line in instructions if "npm install" in line.replace("npm install --package-lock-only", "")], instructions
+    assert any(line.startswith("RUN npm ci --include=dev") for line in instructions), instructions
+    guard = [line for line in instructions if "package-lock.json is missing" in line]
+    assert len(guard) == 1 and "services/main/web" in guard[0] and "exit 1" in guard[0], guard
