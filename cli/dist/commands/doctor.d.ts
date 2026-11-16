@@ -2,12 +2,11 @@ import { Command } from "commander";
 import type { CheckResult } from "../types/index.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
+import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime } from "../utils/doctor-container.js";
 import { type DockerRun } from "../utils/doctor-crashloop.js";
 import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks } from "../utils/doctor-runner.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkBun, checkDockerVersions, checkTilt } from "../utils/doctor-tools.js";
-import { type ExecAsync } from "../utils/exec-async.js";
-import { type HostCommandCache } from "../utils/host-command-cache.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { MIN_BUN_VERSION, MIN_TILT_VERSION, versionMeetsMinimum } from "../utils/tool-versions.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
@@ -31,20 +30,7 @@ export declare function checkWslProjectLocation(projectPath: string, strict: boo
  * network (GHSA-3hj3-f39v-j2x5).
  */
 export declare function checkPublishedBindAddress(env?: NodeJS.ProcessEnv, strict?: boolean): CheckResult;
-export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, };
-/** Which Docker-compatible engine answers `docker` (Docker Desktop, Colima, OrbStack, Kiri, Podman, Docker Engine). */
-export declare function checkContainerEngine(): Promise<CheckResult>;
-/** The Colima VM behind Docker: a stopped VM or a colima CLI that cannot see it. */
-export declare function checkColima(): Promise<CheckResult>;
-export declare function checkDockerRuntime(commandCache?: HostCommandCache): Promise<CheckResult>;
-export declare const checkDockerCompose: DoctorCheckFn;
-export { checkBun, checkDockerVersions, checkTilt };
-export declare function checkDockerOperatingSystem(exec?: ExecAsync): Promise<CheckResult>;
-export declare namespace checkDockerOperatingSystem {
-    var _a: boolean;
-    export { _a as requiresContainerRuntime };
-    export var checkName: string;
-}
+export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, checkDockerVersions, checkTilt, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, };
 /**
  * Checks the project's minimum and exact pinned CLI version.
  * Shared with `flisk up` so both commands report the same message and fix.
