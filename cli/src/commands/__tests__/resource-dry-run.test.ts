@@ -34,6 +34,10 @@ function runResourceCommand(root: string, args: string[], dryRun = true) {
   return envelope.data;
 }
 
+const npmLockfileOnly = (path: string) =>
+  path.endsWith("/package-lock.json") && !previewPaths.has(path);
+let previewPaths = new Set<string>();
+
 describe("resource scaffolding preview", () => {
   it.each([
     ["backend", []],
@@ -74,10 +78,12 @@ describe("resource scaffolding preview", () => {
       // Repeating the preview must not consume a port or change the plan.
       expect(runResourceCommand(root, args)).toEqual(preview);
       expect(snapshot(root)).toEqual(before);
+      previewPaths = new Set(preview.files.map((file: { path: string }) => file.path));
       const applied = runResourceCommand(root, args, false);
       expect(applied).toEqual(preview.resource);
       const added = Object.keys(snapshot(root)).filter(
-        (path) => !(path in before) && !path.endsWith("/"),
+        // package-lock.json is written by npm after the plan (only where npm and a network exist), so it is not in the preview.
+        (path) => !(path in before) && !path.endsWith("/") && !npmLockfileOnly(path),
       );
       expect(added.sort()).toEqual(preview.files.map((file: { path: string }) => file.path).sort());
       for (const directory of preview.directories) {
