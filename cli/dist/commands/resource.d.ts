@@ -34,6 +34,18 @@ export declare function assertInfraPresetOptions(framework: InfraFramework, opti
  * a wrong id gets the type that offers it, because the ids of the types are disjoint.
  */
 export declare function assertInfraFramework(type: string, framework: string | undefined): void;
+/**
+ * `--base-path` of a frontend, checked against the pattern `flisk config verify` applies to service.json, so a resource this
+ * command creates is never reported invalid. A missing leading slash is added, as the engine does when it routes the frontend
+ * (get_frontend_base_path); anything else the pattern rejects is refused before a file is written. Empty means the default.
+ */
+/**
+ * Quote a folder path for a printed next step like `cd <path>`: the reader pastes it into a shell, so a path with a space
+ * (`cd a b/c`) would break. Plain paths print exactly as before; anything with characters the shell treats specially gets
+ * double quotes, unless it holds a `"`, backtick, `$` or backslash, which a double-quoted string would expand or break on
+ * (POSIX single quotes are safe for those). isPathSafe already refused `< > : " | ? *` before this runs.
+ */
+export declare function quoteNextStepsPath(path: string): string;
 export declare function resolveBasePath(value: string | undefined): string | undefined;
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
 export declare function resolveInferencePort(value: string | undefined, resources: Array<{
