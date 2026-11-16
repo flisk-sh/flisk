@@ -127,6 +127,23 @@ export function listProjectTemplates(): ProjectTemplateEntry[] {
 }
 
 /**
+ * The folder a starter lands in: the requested path, or its default folder. A starter that the
+ * CLI writes itself (generated or composed) defaults to its own name; one cloned from a repository
+ * defaults to that repository's name. Those six starters all point at the main `flisk-sh/flisk`
+ * repository, so its name is not a useful folder: two of them would collide as `flisk/`.
+ *
+ * Every caller uses this function, so the printed next steps, the JSON result and the folder on
+ * disk cannot disagree.
+ */
+export function templateTargetDir(templateName: string, targetDir?: string): string {
+  if (targetDir) return targetDir;
+  const template = PROJECT_TEMPLATES[templateName];
+  if (template?.generated || template?.composed) return templateName;
+  const fromRepo = template?.repo.split("/").pop() ?? templateName;
+  return fromRepo.replace(/\.git$/, "");
+}
+
+/**
  * Fetches a repository template into `destination` and keeps its source as `upstream`.
  * Unpinned templates need only the latest commit; pinned templates retain the history needed to
  * check out their exact commit.
