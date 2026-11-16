@@ -90,6 +90,7 @@ import {
 } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { isPortListening } from "../utils/native-runtime.js";
+import { generateNpmLockfile, LOCKFILE_COMMAND } from "../utils/npm-lockfile.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
@@ -2222,11 +2223,27 @@ This file contains the resource configuration for Flisk.
         ]);
       }
 
+      // The Next.js image runs `npm ci`, which needs a lockfile: it is written right after the scaffold, so the preview lists it.
+      if (resourceType === "frontend" && frontendFramework?.kind === "server") {
+        plan.generated(resolve(fullPath, "package-lock.json"));
+      }
+
       if (options.dryRun) return preview();
       plan.write();
       clearDiscoveryCache();
       console.log(chalk.green("\n✅ Resource created successfully!"));
       console.log(chalk.gray(`\nLocation: ${fullPath}`));
+      // The Next.js image runs `npm ci`, which needs a lockfile.
+      if (resourceType === "frontend" && frontendFramework?.kind === "server") {
+        const lock = generateNpmLockfile(fullPath);
+        if (!lock.ok) {
+          console.log(
+            chalk.yellow(
+              `⚠️  No package-lock.json (${lock.reason}). The image build needs one: run \`${LOCKFILE_COMMAND}\` in ${fullPath}.`,
+            ),
+          );
+        }
+      }
 
       const discoveryPaths = readDiscoveryPaths(projectRoot);
       if (pathAdjustedFrom) {

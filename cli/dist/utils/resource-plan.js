@@ -13,6 +13,10 @@ export class ResourceFilePlan {
     text(path, content) {
         this.operations.push({ kind: "text", path, content });
     }
+    /** A file another tool writes right after the scaffold (such as package-lock.json): previewed and validated, never written here. */
+    generated(path) {
+        this.operations.push({ kind: "generated", path });
+    }
     files(path, tasks, options = {}) {
         this.operations.push({ kind: "tasks", path, tasks, exclusive: options.exclusive ?? false });
     }
@@ -46,7 +50,7 @@ export class ResourceFilePlan {
             if (operation.kind === "directory") {
                 directories.add(resolve(operation.path));
             }
-            else if (operation.kind === "text") {
+            else if (operation.kind === "text" || operation.kind === "generated") {
                 addFile(operation.path);
             }
             else {
@@ -89,6 +93,8 @@ export class ResourceFilePlan {
         for (const operation of this.operations) {
             if (operation.kind === "directory") {
                 mkdirSync(operation.path, { recursive: true });
+            }
+            else if (operation.kind === "generated") {
             }
             else if (operation.kind === "text") {
                 writeFileSync(operation.path, operation.content);

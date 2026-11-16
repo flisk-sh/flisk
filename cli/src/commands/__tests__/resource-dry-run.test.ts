@@ -79,7 +79,13 @@ describe("resource scaffolding preview", () => {
       const added = Object.keys(snapshot(root)).filter(
         (path) => !(path in before) && !path.endsWith("/"),
       );
-      expect(added.sort()).toEqual(preview.files.map((file: { path: string }) => file.path).sort());
+      // npm writes package-lock.json after the scaffold, and only where npm and a network exist: the preview lists it, the
+      // run may lack it, but a lockfile the run did write must be one the preview named.
+      const planned: string[] = preview.files.map((file: { path: string }) => file.path);
+      const expected = planned.filter(
+        (path) => !path.endsWith("/package-lock.json") || added.includes(path),
+      );
+      expect(added.sort()).toEqual(expected.sort());
       for (const directory of preview.directories) {
         expect(statSync(join(root, directory)).isDirectory()).toBe(true);
       }

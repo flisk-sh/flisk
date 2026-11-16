@@ -35,13 +35,15 @@ USER root
 WORKDIR /app/{res_path}
 
 {curl}
+# package-lock.jso[n]: the glob lets the COPY succeed when the lockfile is missing, so the RUN below can say what to do about it.
 COPY {res_path}/package.json {res_path}/package-lock.jso[n] ./
 # --legacy-peer-deps: the node:22 image ships npm 10.9.9, whose resolver crashes on vitest 5's optional peers
 # ("Cannot read properties of null (reading 'edgesOut')") since the @vitest 5.1 packages were published on 2026-11-02.
 # Every dependency the scaffold needs (react, react-dom) is listed directly, so peers need not be auto-installed.
 # --include=dev: the golden Node layer sets NODE_ENV=production, and npm then skips devDependencies, so typescript and @types/*
 # were missing and `next dev` tried to install them itself at startup and never served a page (500 on every request).
-RUN if [ -f package-lock.json ]; then npm ci --include=dev --no-audit --no-fund --legacy-peer-deps; else npm install --include=dev --no-audit --no-fund --legacy-peer-deps; fi
+RUN if [ ! -f package-lock.json ]; then echo "package-lock.json is missing in {res_path}. Run: npm install --package-lock-only --ignore-scripts --legacy-peer-deps --workspaces=false" >&2; exit 1; fi
+RUN npm ci --include=dev --no-audit --no-fund --legacy-peer-deps
 
 # The COPYs set the owner themselves (--chown): a `chown -R` over the app folder after the install would store every file of
 # node_modules a second time in a new layer (387 MB and about 16 s for a minimal app, 396 MB image against 178 MB).

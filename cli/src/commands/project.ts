@@ -28,6 +28,7 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { writeLanggraphProject } from "../utils/langgraph-template.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
+import { LOCKFILE_COMMAND } from "../utils/npm-lockfile.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
 import {
@@ -360,7 +361,14 @@ export async function cloneProjectTemplate(
     } else if (template.generated === "tool-loop") {
       writeToolLoopProject(destination);
     } else if (template.composed === "next-postgres") {
-      writeNextPostgresProject(destination);
+      const lock = writeNextPostgresProject(destination);
+      if (!lock.ok) {
+        console.log(
+          chalk.yellow(
+            `⚠️  No package-lock.json for the web resource (${lock.reason}). The image build needs one: run \`${LOCKFILE_COMMAND}\` in ${join(destination, "services/app/web")}.`,
+          ),
+        );
+      }
     } else if (template.bundledPath) {
       const bundledSource = resolveBundledTemplateDir(template.bundledPath, {
         packageRoot: resolve(dirname(fileURLToPath(import.meta.url)), "../../../"),
