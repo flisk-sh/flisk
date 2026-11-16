@@ -76,11 +76,11 @@ $ flisk up
 Cold start blocked. Bun/Prisma/NATS are not the first failure.
 They are generated after `flisk project`. Fix the machine checks below.
 FAIL docker  Docker daemon is not running
-  Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor
+  Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor
 ```
 
 - **Cause:** The Docker daemon is stopped, frozen, or starting up.
-- **Fix:** Launch Docker Desktop, OrbStack, or Colima. Wait until the whale icon or CLI status reports running (`docker info`), then re-run `flisk doctor` or `flisk up`.
+- **Fix:** Launch Docker Desktop, OrbStack, Colima, or Kiri. Wait until the whale icon or CLI status reports running (`docker info`), then re-run `flisk doctor` or `flisk up`.
 
 #### Case 1B: Offline or network DNS lookup failure
 

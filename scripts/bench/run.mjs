@@ -442,6 +442,7 @@ async function main() {
     console.error(
       `${c.id}: ${r.status}${r.error ? ` (${r.error.split("\n")[0]})` : ""} ${JSON.stringify(r.phases)}`,
     );
+    if (r.error?.includes("\n")) console.error(r.error);
     results.push(r);
     writeOut();
   }

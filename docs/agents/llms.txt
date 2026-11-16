@@ -55,7 +55,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - `flisk up <git-url>`: Shallow-clone the repository into `./<repo name>` (an existing checkout there is reused) and start it from that folder.
 - `flisk down [--json]`: Stop services and clean up containers (named volumes survive; remove agent-state volumes with `docker volume rm`).
 - `flisk status [--json]`: Report health, readiness, and active URLs.
-- `flisk doctor [--fix] [--json]`: Verify what the project uses: the container engine (Docker/Podman/Colima), Tilt and ports, or, for a project of `command` services, only that their programs are installed.
+- `flisk doctor [--fix] [--json]`: Verify what the project uses: the container engine (Docker/Podman/Colima/Kiri), Tilt and ports, or, for a project of `command` services, only that their programs are installed.
 - `flisk logs [--service <name>] [--tail <n>] [--json]`: Inspect service output.
 - `flisk mcp`: Launch the Flisk MCP server over stdio for coding assistants.
 - `flisk connect <claude|cursor|codex> [--global] [--dry-run] [--force] [--json]`: Connect a coding agent in one command: merge the `flisk mcp` server entry into the host's MCP config (`.mcp.json`, `.cursor/mcp.json`, `.codex/config.toml`) and write the Flisk skills where it reads them. Idempotent; see [Flisk for AI agents](flisk-for-agents.md).

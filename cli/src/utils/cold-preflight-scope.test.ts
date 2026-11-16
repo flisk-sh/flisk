@@ -42,7 +42,7 @@ const dockerDown = {
   name: "Docker Runtime",
   didPass: false,
   message: "Docker daemon is not running",
-  fix: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
+  fix: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
 };
 const tiltMissing = {
   name: "Tilt",
@@ -126,7 +126,9 @@ describe("cold preflight scope", () => {
     const output = errorOutput();
     expect(output).toContain("Cold start blocked");
     expect(output).toContain("FAIL docker  Docker daemon is not running");
-    expect(output).toContain("Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor");
+    expect(output).toContain(
+      "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
+    );
     expect(output).toContain("FAIL tilt    Tilt CLI not found");
   });
 

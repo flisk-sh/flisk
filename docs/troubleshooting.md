@@ -101,7 +101,7 @@ Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docke
 Cold start blocked. Bun/Prisma/NATS are not the first failure.
 They are generated after `flisk project`. Fix the machine checks below.
 FAIL docker  Docker daemon is not running
-  Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor
+  Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor
 FAIL compose Docker Compose plugin not found
   Install Docker Compose: https://docs.docker.com/compose/install/
 ```
@@ -116,9 +116,9 @@ FAIL tilt    Tilt CLI not found
 ```
 
 - **Cause:** no Docker daemon, no Compose plugin, or no Tilt on `PATH`. The Compose line appears with the daemon line here because the stand-in made every `docker` call fail; with a real stopped daemon, whether it also prints is not checked.
-- **Fix:** start Docker Desktop, OrbStack or Colima, or install Tilt, then `flisk doctor`.
+- **Fix:** start Docker Desktop, OrbStack, Colima or Kiri, or install Tilt, then `flisk doctor`.
 - **Defined in:** [`cold-preflight.ts`](../cli/src/utils/cold-preflight.ts) and `DOCTOR_FIXES` in [`doctor.ts`](../cli/src/commands/doctor.ts).
-- **Checked:** Tilt missing reproduced; Docker down simulated. Other texts in the same family, **read from source, not reproduced**, from [`errors.ts`](../cli/src/utils/errors.ts): `Tilt CLI is not installed`, `Docker (or a compatible container runtime) is not running`, `Docker is running but not responding (`docker ps` hung for 10s)` (fix: quit and reopen Docker Desktop, or `colima restart`), all under `Flisk can't start - missing prerequisites:`.
+- **Checked:** Tilt missing reproduced; Docker down simulated. Other texts in the same family, **read from source, not reproduced**, from [`errors.ts`](../cli/src/utils/errors.ts): `Tilt CLI is not installed`, `Docker (or a compatible container runtime) is not running`, `Docker is running but not responding (`docker ps` hung for 10s)` (fix: quit and reopen Docker Desktop, run `colima restart`, or restart Kiri), all under `Flisk can't start - missing prerequisites:`.
 - **Only `flisk up` is blocked:** `flisk project` writes the project configuration and clones a starter template without a Docker daemon or Tilt, and prints the next step instead. `flisk doctor` remains the explicit readiness check.
 - **See also:** [Troubleshoot Docker layers (L1–L4 overview)](troubleshoot-docker-layers.md) for identifying which layer broke a Docker build and how to rebuild golden layers.
 - **See also:** [Troubleshoot L1 (base image) build failures](troubleshoot-l1.md) for failures pulling the upstream base image, Alpine package installation errors, or missing golden layers.
@@ -157,7 +157,7 @@ All **read from source, not reproduced** except where stated. Defined in [`docto
 
 | Message | Fix as printed |
 | --- | --- |
-| `Docker is not running` / `Docker daemon is not running` (also reproduced through a stand-in, see above) | Start Docker Desktop, OrbStack, or Colima, then retry: `flisk doctor` |
+| `Docker is not running` / `Docker daemon is not running` (also reproduced through a stand-in, see above) | Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: `flisk doctor` |
 | `Docker daemon is not responding` | Same fix text |
 | `Colima is installed but not running` | Same fix text |
 | `Docker is using the <os> engine; Flisk requires Linux containers` | Switch Docker Desktop to Linux containers, enable WSL2 integration, then retry `flisk doctor` |

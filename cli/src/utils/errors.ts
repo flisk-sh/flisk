@@ -113,7 +113,7 @@ export const errorFactories = {
     ]),
   dockerNotResponding: () =>
     new FliskError("Docker is running but not responding (`docker ps` hung for 10s)", [
-      "Quit and reopen Docker Desktop, or run `colima restart`",
+      "Quit and reopen Docker Desktop, run `colima restart`, or restart Kiri",
       "Then verify with: `docker ps`",
     ]),
   stackNotFound: (name: string, stackNames: readonly string[] = []) =>

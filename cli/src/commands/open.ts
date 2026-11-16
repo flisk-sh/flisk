@@ -151,7 +151,7 @@ export async function openFirstFrontend(
       } else {
         console.log(
           chalk.gray(
-            "  Restart the Docker runtime (Docker Desktop or Colima), then run `flisk open` again.",
+            "  Restart the Docker runtime (Docker Desktop, Colima or Kiri), then run `flisk open` again.",
           ),
         );
       }
