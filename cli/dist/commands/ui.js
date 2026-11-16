@@ -10,6 +10,7 @@ import { createTUITheme, sectionTitle, TUIThemeContext, useTUITheme, } from "../
 import { fetchAgentOverview } from "../utils/agent-sessions.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { errorFactories, requireProjectRoot } from "../utils/errors.js";
+import { formatCount } from "../utils/formatting.js";
 import { readSavedHostPortPlan } from "../utils/host-port-config.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
@@ -274,7 +275,7 @@ export const TUIApp = ({ animated = true }) => {
     const getItems = useCallback(() => {
         if (activeTab === "overview") {
             return filteredStacks.map((stack) => ({
-                label: `${stack.name} (${stack.resources.length} resources)`,
+                label: `${stack.name} (${formatCount(stack.resources.length, "resource")})`,
                 value: stack.name,
             }));
         }
@@ -290,7 +291,7 @@ export const TUIApp = ({ animated = true }) => {
                 });
             }
             return filteredStacks.map((stack) => ({
-                label: `${stack.name} (${stack.resources.length} resources)`,
+                label: `${stack.name} (${formatCount(stack.resources.length, "resource")})`,
                 value: stack.name,
             }));
         }

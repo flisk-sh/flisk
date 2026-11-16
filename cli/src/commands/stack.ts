@@ -193,7 +193,9 @@ export const stackCommand = addYesOption(new Command("stack"))
         }
 
         console.log(
-          chalk.bold(`${discovery.unassignedResources.length} resources without a stack:`),
+          chalk.bold(
+            `${formatCount(discovery.unassignedResources.length, "resource")} without a stack:`,
+          ),
         );
         for (const resource of discovery.unassignedResources) {
           showDetail(`${resource.name}`);

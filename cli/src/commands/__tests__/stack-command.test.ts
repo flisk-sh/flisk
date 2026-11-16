@@ -253,8 +253,18 @@ describe("stackCommand", () => {
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(output).toContain("Existing stacks:");
     expect(output).toContain("core");
-    expect(output).toContain("1 resources without a stack:");
+    expect(output).toContain("1 resource without a stack:");
     expect(output).toContain("orders-api");
+  });
+
+  it("keeps plural wording when multiple resources have no stack", async () => {
+    setupProject([{ name: "orders-api" }, { name: "billing-api" }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await stackCommand.parseAsync(["node", "flisk", "--list"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("2 resources without a stack:");
   });
 
   it("reports when all resources are already assigned to a stack with --list", async () => {
@@ -274,7 +284,7 @@ describe("stackCommand", () => {
     await stackCommand.parseAsync(["node", "flisk", "list"], { from: "node" });
 
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(output).toContain("1 resources without a stack:");
+    expect(output).toContain("1 resource without a stack:");
     expect(output).toContain("orders-api");
   });
 
