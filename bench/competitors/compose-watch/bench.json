@@ -1,6 +1,6 @@
 {
   "id": "compose-watch",
-  "name": "Compose + watch",
+  "name": "Docker Compose + watch on Docker",
   "tool": { "name": "docker compose watch", "version": "docker compose version --short" },
   "requires": ["docker"],
   "start": "docker compose up -d --build && (nohup docker compose watch --no-up > watch.log 2>&1 & echo $! > watch.pid)",
