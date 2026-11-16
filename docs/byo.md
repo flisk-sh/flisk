@@ -122,7 +122,7 @@ unknown key or a value with characters Compose would read as YAML is refused bef
 was not part of that test.
 
 `command` replaces the image's default command (Compose `command`), for an image that needs arguments to start, such as
-MinIO's `server /data`. It is a list of non-empty strings without control characters: `["sh", "-c", "..."]` runs a script.
+MinIO's `server /data`. It is a list of non-empty strings without control characters (a newline and a tab are allowed, so a multi-line script works): `["sh", "-c", "..."]` runs a script.
 Compose reads `$` itself, so write `$$VAR` for a variable the container expands when it starts (`$$HOME` reaches the shell
 as `$HOME`), and `${VAR}` for one Compose fills in from the project `.env`. Checked by the same test file, which also runs
 `docker compose config` on the generated file.
