@@ -28,6 +28,12 @@ sync() {
     # shellcheck disable=SC2086 # refs are space separated image names
     host save -o "$tar" $missing && on_kiri load -q -i "$tar" >&2 || rc=1
     rm -f "$tar"
+    # Kiri's loader drops a tag when an image with the same id is already there: tag what is still missing by id
+    for ref in $missing; do
+      on_kiri image inspect "$ref" >/dev/null 2>&1 && continue
+      id=$(host image inspect --format '{{.Id}}' "$ref") || { rc=1; continue; }
+      on_kiri tag "$id" "$ref" || rc=1
+    done
   fi
   rmdir "$lock" 2>/dev/null
   return "$rc"
