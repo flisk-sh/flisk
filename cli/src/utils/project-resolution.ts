@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import chalk from "chalk";
 import { findRunningFliskProjects } from "./down-cleanup.js";
 import { errorFactories, FliskError } from "./errors.js";
 import { writeMachineError } from "./machine-output.js";
+import { shellQuote } from "./native-container.js";
 import { findProjectRoot } from "./paths.js";
 
 export interface ResolveProjectOptions {
@@ -53,6 +55,21 @@ export function resolveCommandProject(options: ResolveProjectOptions): string {
 
   if (project) {
     const targetPath = resolve(project);
+    // findProjectRoot walks up to ancestors, so an explicit path that does not
+    // exist (or is a file) must be rejected before it can match a parent project.
+    let isDirectory = false;
+    try {
+      isDirectory = statSync(targetPath).isDirectory();
+    } catch {
+      isDirectory = false;
+    }
+    if (!isDirectory) {
+      return fail(
+        new FliskError(`No Flisk project at ${targetPath} (not an existing directory)`, [
+          `Pass the folder of a Flisk project: flisk ${commandName} --project <path>`,
+        ]),
+      );
+    }
     const root = findProjectRoot(targetPath);
     if (!root) {
       return fail(
@@ -84,7 +101,7 @@ export function resolveCommandProject(options: ResolveProjectOptions): string {
         return fail(
           new FliskError(
             `Not in a Flisk project, and ${countText}`,
-            running.map((root) => `flisk ${commandName} --project ${root}`),
+            running.map((root) => `flisk ${commandName} --project ${shellQuote(root)}`),
           ),
         );
       } else {

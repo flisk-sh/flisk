@@ -308,6 +308,39 @@ describe("CLI project resolution (Issue #4347)", () => {
     });
   });
 
+  describe("explicit --project path edge cases", () => {
+    it("rejects a nonexistent subpath instead of resolving to the ancestor project", async () => {
+      const missing = join(testProject, "missing");
+
+      const result = await runCommandInProcess(logsCommand, ["--project", missing], outsideDir);
+
+      expect(result.status).toBe(1);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toContain(`No Flisk project at ${missing} (not an existing directory)`);
+    });
+
+    it("rejects a file path under a project", async () => {
+      const file = join(testProject, "a.txt");
+      writeFileSync(file, "x");
+
+      const result = await runCommandInProcess(statusCommand, ["--project", file], outsideDir);
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain("not an existing directory");
+    });
+
+    it("shell-quotes running project paths with spaces in suggestions", async () => {
+      findRunningFliskProjectsMock.mockReturnValue(["/work/my app/it's"]);
+
+      const result = await runCommandInProcess(logsCommand, [], outsideDir);
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        "flisk logs --project '/work/my app/it'\\''s'",
+      );
+    });
+  });
+
   describe("scenario 10: help documents --project", () => {
     it("flisk logs --help documents --project", () => {
       let help = "";
