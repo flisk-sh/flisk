@@ -90,6 +90,7 @@ describe("resource version gate", () => {
         "--path",
         "apps/storefront",
         "--ignore-version",
+        "--yes",
       ],
       projectRoot,
       "y\n",

@@ -120,6 +120,12 @@ Create and manage individual services:
 
 Queues and inference services are saved as `bring-your-own` resources. To list them, use `flisk resources --type bring-your-own`. Passing `--type queue` or `--type inference` to `flisk resources` reports this filter in the error message.
 
+`flisk resource` creates a resource; use `flisk resources` to list them. Command-like names
+such as `list`, `ls`, `status` and `help` are rejected with a command hint. Scripts and agents
+must pass `--yes` or `--json` to create a resource without a terminal, even when `--stack`
+is specified. Otherwise the command exits immediately without prompting or creating files.
+`--json` implies `--yes`; the read-only `--frameworks` inventory needs neither flag.
+
 ```bash
 # 📋 List all resources
 flisk resources
@@ -164,7 +170,7 @@ flisk resource my-api --type backend --stack api --dry-run --json
 
 `--yes` skips resource creation prompts and requires an explicit resource name. A new project uses the
 `main` stack, an existing single-stack project reuses that stack, and a project with multiple stacks
-must pass `--stack`. Without `--yes`, prompt answers can still be supplied on stdin for scripted use.
+must pass `--stack`. Scripts must use `--yes` or `--json`; piping prompt answers alone is not supported.
 
 `--dry-run` resolves the same type, stack, framework/language and port as creation, then lists the
 files it would create or update, including a Prisma migrator when requested. Interactive choices
@@ -204,7 +210,7 @@ Backend creation defaults to Bun + Hono, exactly as it always has: omit `--langu
 
 The selected id is saved as `framework` in `service.json`. `--framework hono` is accepted and saved too, and omitting it changes nothing. `--framework` cannot be combined with `--language python`, and unknown ids fail before a resource is written. Languages without a provider can use `--type bring-your-own`. Python services also support opt-in pytest-on-save via `dev.testOnSave` in `service.json`. See the [backend provider guide](../docs/backend-language-providers.md) and the runnable [Python example](../examples/one-backend-python/README.md).
 
-An interactive terminal asks which backend framework to use and lists Hono first. `--yes`, a piped run and a language that owns its runtime (Python, Go, Rust, Node) never ask, so a script keeps the same output as before.
+An interactive terminal asks which backend framework to use and lists Hono first. `--yes` and `--json` skip this prompt. A language that owns its runtime (Python, Go, Rust, Node) does not use the backend framework picker. Non-terminal creation still requires `--yes` or `--json`.
 
 Run `flisk resource --type backend --frameworks` to list the registered backend frameworks with the language (and runtime) they are scaffolded with, their compatibility with the requested language, and the command that creates them:
 

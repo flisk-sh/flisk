@@ -141,10 +141,17 @@ describe("interactive database and queue framework choice", () => {
     expect(readService(result.projectRoot, "store")).toMatchObject({ framework: "minio" });
   });
 
-  it.each([
-    ["stdin is not a terminal", { stdinTTY: false }],
-    ["stdout is piped", { stdoutTTY: false }],
-  ])("does not ask when %s", async (_label, tty) => {
+  it("requires --yes when stdin is not a terminal", async () => {
+    const result = await runResource(["db", "--type", "database", "--stack", "hqc"], {
+      stdinTTY: false,
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("--yes or a terminal");
+    expect(frameworkPromptCalls()).toHaveLength(0);
+  });
+
+  it("does not ask when stdout is piped", async () => {
+    const tty = { stdoutTTY: false };
     const result = await runResource(["db", "--type", "database", "--stack", "hqc"], tty);
 
     expect(frameworkPromptCalls()).toHaveLength(0);

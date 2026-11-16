@@ -26,6 +26,7 @@ const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 const hasBun = spawnSync("bun", ["--version"], { encoding: "utf-8" }).status === 0;
 
 function flisk(args: string[], cwd: string, input = "y\n") {
+  if (args[0] === "resource") args = [...args, "--yes"];
   return spawnSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",

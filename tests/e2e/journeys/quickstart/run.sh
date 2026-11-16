@@ -27,14 +27,14 @@ Q1() { # scaffold the quickstart project: a backend, a React frontend and a Vue 
   date +%s > "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/quickstart-t0"
   flisk project --yes
   flisk doctor
-  printf 'y\n' | flisk resource orders-api --type backend --stack shop
+  flisk resource orders-api --type backend --stack shop --yes
   # Frontends go through the framework providers and their Starlark Vite templates. Published versions from before --framework existed
   # skip them, so the nightly check of `latest` keeps testing what it can.
   if flisk resource --help | grep -q -- '--framework'; then
     # No --path: this exercises the default folder (which flisk picks so that project.json discovery finds it) and the public/ folder the
     # frontend Docker build copies.
-printf 'y\n' | flisk resource storefront --type frontend --stack shop --base-path /storefront
-  printf 'y\n' | flisk resource vue-app --type frontend --framework vue --stack shop --base-path /vue-app
+  flisk resource storefront --type frontend --stack shop --base-path /storefront --yes
+  flisk resource vue-app --type frontend --framework vue --stack shop --base-path /vue-app --yes
   FRONTENDS="storefront:root vue-app:app"
     export FRONTENDS
     echo "FRONTENDS=storefront:root vue-app:app" >> "${GITHUB_ENV:-/dev/null}"
