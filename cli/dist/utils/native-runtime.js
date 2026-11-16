@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, } from "node:fs";
 import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
@@ -11,6 +11,7 @@ import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
 import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
 import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainerName, removeNativeContainers, } from "./native-container.js";
+import { appendNativeLogLine, readLogTail } from "./native-log.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
@@ -450,20 +451,17 @@ export function readNativeLogLines(projectRoot, services, options) {
     const cutoff = options.sinceMs === undefined ? null : (options.now ?? Date.now()) - options.sinceMs;
     const lines = [];
     for (const resource of services) {
-        let content;
+        let raws;
         try {
-            content = readFileSync(nativeLogPath(projectRoot, resource), "utf-8");
+            // Only the end of the file is read: each service gives at most `tail` lines to the merge (#3720).
+            raws = readLogTail(nativeLogPath(projectRoot, resource), options.tail, cutoff);
         }
         catch {
             continue;
         }
-        for (const raw of content.split("\n")) {
-            if (!raw)
-                continue;
+        for (const raw of raws) {
             const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (.*)$/.exec(raw);
             const time = match?.[1] ?? null;
-            if (cutoff !== null && (!time || Date.parse(time) < cutoff))
-                continue;
             lines.push({ time, resource, level: null, source: null, text: match?.[2] ?? raw });
         }
     }
@@ -546,6 +544,8 @@ export class NativeSupervisor {
     events;
     options;
     services = new Map();
+    /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
+    logSizes = new Map();
     migratorOutputs = new Map();
     redactLine;
     startedAt = new Date().toISOString();
@@ -844,10 +844,9 @@ export class NativeSupervisor {
                 return;
             }
             try {
-                // A timestamp per line lets `flisk logs` merge services in order and honour --since.
-                appendFileSync(logPath, `${new Date().toISOString()} ${safeLine}\n`, { mode: 0o600 });
-                // Also fix permissions on files left by an earlier run (append's mode only applies on creation).
-                chmodSync(logPath, 0o600);
+                // A timestamp per line lets `flisk logs` merge services in order and honour --since. The log is rotated to
+                // <service>.log.1 at NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
+                appendNativeLogLine(logPath, `${new Date().toISOString()} ${safeLine}\n`, this.logSizes);
             }
             catch {
                 // A full disk must not stop the service; the terminal still shows the line.
