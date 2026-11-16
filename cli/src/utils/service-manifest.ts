@@ -175,6 +175,9 @@ export function validateGeneratedStringFields(
  * is a multi-line script. The Compose generator writes the list with `encode_json`, so `\n` and `\t` stay escapes inside one
  * double-quoted YAML string and cannot start a second key. Every other control character, and the Unicode line breaks, stay refused.
  */
+// A control character would break the generated Compose YAML; a tab and a newline are escaped by encode_json.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point
+const COMMAND_WORD = /^[^\u0000-\u0008\u000b-\u001f\u007f\u0085\u2028\u2029]+$/;
 const CONTAINER_WORD_FIELD = /\.container\.(?:command|entrypoint)\[\d+\]$/;
 
 /** Line breaks (including the Unicode ones YAML 1.1 honours) and other control characters. */
@@ -611,12 +614,7 @@ export function containerErrors(manifest: Record<string, unknown>, displayPath: 
       Array.isArray(value) &&
       // An empty entrypoint drops the image's ENTRYPOINT (Compose `entrypoint: []`); an empty command is refused.
       (value.length > 0 || key === "entrypoint") &&
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: a control character would break the generated Compose YAML; a tab and a newline are escaped by encode_json
-      value.every(
-        (part) =>
-          typeof part === "string" &&
-          /^[^\u0000-\u0008\u000b-\u001f\u007f\u0085\u2028\u2029]+$/.test(part),
-      );
+      value.every((part) => typeof part === "string" && COMMAND_WORD.test(part));
     if (!good) {
       errors.push(
         `${field}.${key}: expected a list of non-empty strings without control characters other than a newline or a tab${key === "entrypoint" ? " (an empty list drops the image's ENTRYPOINT)" : ""}`,
