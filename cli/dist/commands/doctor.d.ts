@@ -3,6 +3,7 @@ import type { CheckResult } from "../types/index.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { type DockerRun } from "../utils/doctor-crashloop.js";
+import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks } from "../utils/doctor-runner.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { type ExecAsync } from "../utils/exec-async.js";
 import { type HostCommandCache } from "../utils/host-command-cache.js";
@@ -29,22 +30,7 @@ export declare function checkWslProjectLocation(projectPath: string, strict: boo
  * network (GHSA-3hj3-f39v-j2x5).
  */
 export declare function checkPublishedBindAddress(env?: NodeJS.ProcessEnv, strict?: boolean): CheckResult;
-/** Failures are shown before passing statuses, with a 5432 conflict first. */
-export declare function orderDoctorResults(results: CheckResult[]): CheckResult[];
-export declare function getDoctorOutcomeMessage(inProject: boolean, allPassed: boolean): string;
-export type DoctorCheckFn = ((exec?: ExecAsync) => CheckResult | Promise<CheckResult>) & {
-    requiresContainerRuntime?: boolean;
-    checkName?: string;
-};
-export declare const CONTAINER_CHECK_NAMES_MAP: Record<string, string>;
-export declare const CONTAINER_DEPENDENT_CHECK_NAMES: Set<string>;
-export declare function isContainerDependentCheck(check: DoctorCheckFn): boolean;
-export declare function requiresContainerRuntime(checkName: string, check: () => CheckResult | Promise<CheckResult>): DoctorCheckFn;
-export declare function runChecks(checks: DoctorCheckFn[], options?: {
-    all?: boolean;
-    containerRuntimeFailed?: boolean;
-}): Promise<CheckResult[]>;
-export declare function formatDoctorSummary(results: CheckResult[]): string;
+export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, };
 /** Which Docker-compatible engine answers `docker` (Docker Desktop, Colima, OrbStack, Kiri, Podman, Docker Engine). */
 export declare function checkContainerEngine(): Promise<CheckResult>;
 /** The Colima VM behind Docker: a stopped VM or a colima CLI that cannot see it. */
