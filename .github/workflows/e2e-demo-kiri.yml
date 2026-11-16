@@ -54,6 +54,8 @@ jobs:
           DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
 
       - name: Run the demo journey (D1-D4)
+        env:
+          FLISK_DEMO_ON_KIRI: "1" # flisk demo otherwise uses the local-process demo on Kiri
         run: tests/e2e/journeys/demo/run.sh D1 D2 D3 D4
 
       - name: Collect failure evidence

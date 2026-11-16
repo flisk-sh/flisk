@@ -77,7 +77,7 @@ export function kiriBuildEnv(env, context) {
     return isKiriHost(env, context) ? { DOCKER_BUILDKIT: "0" } : {};
 }
 /** Kiri by its socket (`~/.kiri/run/docker.sock` on a Mac, `/run/kiri/docker.sock` on Linux) or its Docker context. */
-function isKiriHost(env, context) {
+export function isKiriHost(env, context) {
     const host = env.DOCKER_HOST ?? "";
     return host ? /\/\.?kiri\//.test(host) : (env.DOCKER_CONTEXT ?? context) === "kiri";
 }
