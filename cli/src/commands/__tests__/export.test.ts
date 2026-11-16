@@ -12,7 +12,7 @@ vi.mock("node:child_process", async (importOriginal) => ({
   spawn: (...args: unknown[]) => mocks.spawn(...args),
 }));
 
-import { createTempDir, runCommandInProcess } from "../../test-support/index.js";
+import { createTempDir, npxArgs, runCommandInProcess } from "../../test-support/index.js";
 import {
   buildForwardedExportArgs,
   EXPORT_PACKAGE,
@@ -58,9 +58,24 @@ describe("flisk export", () => {
       command: "npx",
       args: ["--yes", EXPORT_PACKAGE, ...args],
       shell: false,
+      windowsVerbatimArguments: false,
       pkg: EXPORT_PACKAGE,
     });
-    expect(exportInvocation(["render"], {}, "win32").command).toBe("npx.cmd");
+  });
+
+  it("on Windows passes a path with a space and an ampersand to npx without a shell (#4004)", () => {
+    const nodeExe = "C:\\Program Files\\nodejs\\node.exe";
+    const npxCli = "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npx-cli.js";
+    const args = ["render", "C:\\Users\\Jane Smith\\shop", "--out", "build&out"];
+    expect(
+      exportInvocation(args, {}, "win32", { execPath: nodeExe, exists: (p) => p === npxCli }),
+    ).toEqual({
+      command: nodeExe,
+      args: [npxCli, "--yes", EXPORT_PACKAGE, ...args],
+      shell: false,
+      windowsVerbatimArguments: false,
+      pkg: EXPORT_PACKAGE,
+    });
   });
 
   it("lets FLISK_EXPORT_PACKAGE override the pinned package", () => {
@@ -91,8 +106,8 @@ describe("flisk export", () => {
       string[],
       { stdio: string },
     ];
-    expect(command).toMatch(/^npx/);
-    expect(args).toContain(EXPORT_PACKAGE);
+    expect(command).toMatch(/npx|node/i);
+    expect(npxArgs(args).slice(0, 2)).toEqual(["--yes", EXPORT_PACKAGE]);
     expect(args).toEqual(expect.arrayContaining(["render", "--resource", "api", "--dry-run"]));
     expect(args.filter((arg) => arg === "--dry-run")).toHaveLength(1);
     expect(options.stdio).toBe("inherit");
@@ -101,7 +116,7 @@ describe("flisk export", () => {
   it("resolves to the exporter's exit code", async () => {
     const ok = fakeSpawn({ code: 0 });
     expect(await runExport(["render"], ok.spawnFn, {})).toBe(0);
-    expect(ok.calls[0][1]).toEqual(["--yes", EXPORT_PACKAGE, "render"]);
+    expect(npxArgs(ok.calls[0][1] as string[])).toEqual(["--yes", EXPORT_PACKAGE, "render"]);
   });
 
   it("says the package may be unavailable when the exporter exits non-zero", async () => {

@@ -5,6 +5,7 @@
  */
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
+import { type NpxInvocation, type NpxRuntime } from "../utils/npx-invocation.js";
 /**
  * The generators live in their own repo (flisk-sh/flisk-export) so they can ship without a CLI release, and are run
  * from npm at a pinned version so a push to its main branch cannot change what `flisk export` does. Move the pin
@@ -12,10 +13,7 @@ import { Command } from "commander";
  */
 export declare const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.10.0";
 type SpawnFn = (command: string, args: string[], options: SpawnOptions) => ReturnType<typeof spawn>;
-export declare function exportInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform): {
-    command: string;
-    args: string[];
-    shell: boolean;
+export declare function exportInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<NpxRuntime, "platform">): NpxInvocation & {
     pkg: string;
 };
 /** The extra line printed when the exporter exits non-zero, in case npx could not fetch it at all. */

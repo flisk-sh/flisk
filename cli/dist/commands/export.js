@@ -7,20 +7,16 @@
  */
 import { spawn } from "node:child_process";
 import { Command } from "commander";
+import { npxInvocation } from "../utils/npx-invocation.js";
 /**
  * The generators live in their own repo (flisk-sh/flisk-export) so they can ship without a CLI release, and are run
  * from npm at a pinned version so a push to its main branch cannot change what `flisk export` does. Move the pin
  * when a new version is published. `FLISK_EXPORT_PACKAGE` overrides the package spec.
  */
 export const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.10.0";
-export function exportInvocation(args, env = process.env, platform = process.platform) {
+export function exportInvocation(args, env = process.env, platform = process.platform, runtime = {}) {
     const pkg = env.FLISK_EXPORT_PACKAGE || EXPORT_PACKAGE;
-    return {
-        command: platform === "win32" ? "npx.cmd" : "npx",
-        args: ["--yes", pkg, ...args],
-        shell: platform === "win32",
-        pkg,
-    };
+    return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
 }
 /** The extra line printed when the exporter exits non-zero, in case npx could not fetch it at all. */
 export function unavailableHint(pkg, exitCode) {
@@ -34,6 +30,7 @@ export function runExport(args, spawnFn = spawn, env = process.env) {
         const child = spawnFn(invocation.command, invocation.args, {
             stdio: "inherit",
             shell: invocation.shell,
+            windowsVerbatimArguments: invocation.windowsVerbatimArguments,
         });
         child.on("error", (err) => {
             spawnFailed = true;

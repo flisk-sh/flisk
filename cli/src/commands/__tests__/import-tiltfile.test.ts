@@ -14,7 +14,7 @@ vi.mock("node:child_process", async (importOriginal) => ({
   spawn: (...args: unknown[]) => mocks.spawn(...args),
 }));
 
-import { createTempDir, runCommandInProcess } from "../../test-support/index.js";
+import { createTempDir, npxArgs, runCommandInProcess } from "../../test-support/index.js";
 import {
   buildForwardedImportArgs,
   IMPORT_PACKAGE,
@@ -46,7 +46,7 @@ function fakeSpawn(outcome: { code?: number | null; stdout?: string; stderr?: st
 
 /** What flisk-import forwards after `npx --yes <package>`. */
 const forwarded = (calls: unknown[][]): string[] | undefined =>
-  (calls[0]?.[1] as string[] | undefined)?.slice(2);
+  npxArgs(calls[0]?.[1] as string[] | undefined).slice(2);
 
 // In-process runs keep Commander's option values, so each case resets them.
 function reset(): void {
@@ -133,7 +133,7 @@ describe("flisk import tiltfile", () => {
       const { calls, result } = await run(args, { code: 0 });
       expect(result.status).toBeUndefined();
       expect(calls).toHaveLength(1);
-      expect((calls[0]?.[1] as string[] | undefined)?.slice(0, 2)).toEqual([
+      expect(npxArgs(calls[0]?.[1] as string[] | undefined).slice(0, 2)).toEqual([
         "--yes",
         IMPORT_PACKAGE,
       ]);

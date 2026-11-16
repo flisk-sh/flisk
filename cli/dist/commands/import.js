@@ -7,6 +7,7 @@ import { addYesOption } from "../utils/command-helpers.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
+import { npxInvocation } from "../utils/npx-invocation.js";
 import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
@@ -110,13 +111,9 @@ export function checkCoreVersion(currentVersion = getPackageVersion(), args = []
     }
     return { ok: true };
 }
-export function importInvocation(args, env = process.env, platform = process.platform) {
+export function importInvocation(args, env = process.env, platform = process.platform, runtime = {}) {
     const pkg = env.FLISK_IMPORT_PACKAGE || IMPORT_PACKAGE;
-    return {
-        command: platform === "win32" ? "npx.cmd" : "npx",
-        args: ["--yes", pkg, ...args],
-        shell: platform === "win32",
-    };
+    return npxInvocation(["--yes", pkg, ...args], { ...runtime, platform });
 }
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersion) {
@@ -130,6 +127,7 @@ export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersio
         const child = spawnFn(invocation.command, invocation.args, {
             stdio: "inherit",
             shell: invocation.shell,
+            windowsVerbatimArguments: invocation.windowsVerbatimArguments,
         });
         child.on("error", (err) => {
             console.error(`flisk import: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`);
@@ -152,6 +150,7 @@ export function runImportCaptured(args, spawnFn = spawn, getVersionFn = getPacka
         const child = spawnFn(invocation.command, invocation.args, {
             stdio: ["ignore", "pipe", "pipe"],
             shell: invocation.shell,
+            windowsVerbatimArguments: invocation.windowsVerbatimArguments,
         });
         let stdout = "";
         let stderr = "";

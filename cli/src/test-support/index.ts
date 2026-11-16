@@ -7,6 +7,7 @@ export { runCompletionCommand } from "./completion.js";
 export { captureExit, type ExitCapture, makeResource } from "./doubles.js";
 export { installFakeContainerTools } from "./fake-container-tools.js";
 export { freePort } from "./free-port.js";
+export { npxArgs } from "./npx-args.js";
 export { type Envelope, parseEnvelope } from "./parse-envelope.js";
 export { type FliskRunOptions, type FliskRunResult, fliskBin, runFlisk } from "./run-flisk.js";
 export { type InProcessRun, runCommandInProcess } from "./run-in-process.js";

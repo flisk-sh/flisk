@@ -1,6 +1,7 @@
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
 import { JsonCommandError } from "../utils/json-command.js";
+import { type NpxInvocation, type NpxRuntime } from "../utils/npx-invocation.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
@@ -41,11 +42,7 @@ export declare function checkCoreVersion(currentVersion?: string, args?: string[
     ok: boolean;
     message?: string;
 };
-export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform): {
-    command: string;
-    args: string[];
-    shell: boolean;
-};
+export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<NpxRuntime, "platform">): NpxInvocation;
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export declare function runImport(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<number>;
 /** What flisk-import printed and how it exited, for `flisk import --json`. */

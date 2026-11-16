@@ -7,6 +7,7 @@
  */
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
+import { type NpxInvocation, type NpxRuntime, npxInvocation } from "../utils/npx-invocation.js";
 
 /**
  * The generators live in their own repo (flisk-sh/flisk-export) so they can ship without a CLI release, and are run
@@ -21,14 +22,10 @@ export function exportInvocation(
   args: string[],
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
-): { command: string; args: string[]; shell: boolean; pkg: string } {
+  runtime: Omit<NpxRuntime, "platform"> = {},
+): NpxInvocation & { pkg: string } {
   const pkg = env.FLISK_EXPORT_PACKAGE || EXPORT_PACKAGE;
-  return {
-    command: platform === "win32" ? "npx.cmd" : "npx",
-    args: ["--yes", pkg, ...args],
-    shell: platform === "win32",
-    pkg,
-  };
+  return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
 }
 
 /** The extra line printed when the exporter exits non-zero, in case npx could not fetch it at all. */
@@ -48,6 +45,7 @@ export function runExport(
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: "inherit",
       shell: invocation.shell,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on("error", (err) => {
       spawnFailed = true;
