@@ -1,7 +1,8 @@
 import { containerErrors } from "./service-manifest-container.js";
 import { dependsOnErrors } from "./service-manifest-depends-on.js";
 import { extraPortsErrors } from "./service-manifest-ports.js";
-export { containerErrors, dependsOnErrors, extraPortsErrors };
+import { volumesErrors } from "./service-manifest-volumes.js";
+export { containerErrors, dependsOnErrors, extraPortsErrors, volumesErrors };
 export declare const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 /**
@@ -44,12 +45,6 @@ export declare function restartErrors(manifest: Record<string, unknown>, display
  * engine/.../compose/byo_sidecar.star. Whether the host exists in the same stack is checked across services (checkSidecars).
  */
 export declare function sidecarErrors(manifest: Record<string, unknown>, displayPath: string): string[];
-/**
- * `volumes` (#1748): named volumes and bind mounts for a bring-your-own resource. Mirrors engine/.../compose/byo_volumes.star,
- * which refuses the same values. A bind mount's `source` is relative to the service directory and must stay inside the project;
- * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
- */
-export declare function volumesErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
 /**
  * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
  * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
