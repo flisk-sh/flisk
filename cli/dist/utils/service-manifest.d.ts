@@ -1,6 +1,7 @@
 import { containerErrors } from "./service-manifest-container.js";
+import { dependsOnErrors } from "./service-manifest-depends-on.js";
 import { extraPortsErrors } from "./service-manifest-ports.js";
-export { containerErrors, extraPortsErrors };
+export { containerErrors, dependsOnErrors, extraPortsErrors };
 export declare const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 /**
@@ -49,12 +50,6 @@ export declare function sidecarErrors(manifest: Record<string, unknown>, display
  * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
  */
 export declare function volumesErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
-/**
- * `dependsOn`: service or stack names, or Compose-style objects `{ "name": "db", "condition": "service_healthy" }`. Flisk orders by
- * name (Tilt resource_deps), so the condition is accepted and kept but does not change the order. Mirrors normalize_depends_on in
- * engine/.../tilt/manifest/parser.star.
- */
-export declare function dependsOnErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /**
  * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
  * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
