@@ -193,6 +193,8 @@ preserved in its manifest, including the defaults for omitted runtime fields.
 - 💻 `src/` — Starter code (Hono, Express, Elysia, Fastify, NestJS, Koa or h3 for backend, React, Vue, Svelte, Preact, Lit, Solid, Qwik, plain TypeScript or Next.js for frontend)
 - 🧪 `tests/` — Vitest test file
 
+For generated Bun resources, use `bun run test` to run tests once, or `bun run test:watch` to watch for changes. The default Hono backend includes a `/health` smoke test.
+
 `service.json` files point to the published [JSON Schema](https://flisk.sh/schema.service.json) for editor autocomplete and validation. The schema source is [`runtime/engine/schemas/service-schema.json`](../runtime/engine/schemas/service-schema.json); it documents supported service fields and known `featuresEnabled` names. For the complete list of code generators controlled by `featuresEnabled`, see the [resource features guide](../docs/resource-features.md). Legacy manifests may use `type` in place of `appType`.
 
 See the complete [`service.json` field reference](../docs/service-json.md) for field defaults, resource applicability, validation behavior, and backend/frontend examples.

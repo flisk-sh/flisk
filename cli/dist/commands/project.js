@@ -99,10 +99,10 @@ export function lastLine(text) {
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
 export function exitUnknownTemplate(templateName) {
     const closest = suggestClosest(templateName, Object.keys(PROJECT_TEMPLATES));
-    console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
     if (closest) {
         console.log(chalk.yellow(`\nDid you mean "${closest}"?`));
     }
+    console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
     console.log(chalk.yellow("\nAvailable templates:"));
     for (const [name, info] of Object.entries(PROJECT_TEMPLATES)) {
         console.log(`  ${chalk.cyan(name)} ${chalk.gray(`- ${info.description}`)}`);

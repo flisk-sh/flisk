@@ -10,7 +10,7 @@ import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate, } from "../bac
 import { DEFAULT_BACKEND_LANGUAGE, resolveBackendLanguage } from "../backend-languages/registry.js";
 import { DEFAULT_FRONTEND_FRAMEWORK, FRONTEND_FRAMEWORKS, listFrontendFrameworks, resolveFrontendFramework, } from "../frontend-frameworks/registry.js";
 import { hasDddLicense } from "../generator/extension-fetch.js";
-import { getDockerfileTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
+import { getBackendTestTemplate, getDockerfileTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 import { areMasterFilesStale, generateMasterConfigs } from "../generator/template-engine.js";
 import { DATABASE_FRAMEWORK, DATABASE_RESOURCE_TYPE, INFERENCE_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, RESOURCE_CREATE_TYPE_VALUES, } from "../types/index.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
@@ -414,7 +414,8 @@ export function createPackageJson(name, type, frameworkId, prismaEnabled = false
                 : "tsc",
             // Backends and workers run `start` in their production image; doctor checks for it. A server framework brings its own.
             ...startScript,
-            test: "vitest",
+            test: "vitest run",
+            "test:watch": "vitest --watch",
             lint: "biome check .",
             "lint:fix": "biome check . --write",
         },
@@ -1547,7 +1548,10 @@ This file contains the resource configuration for Flisk.
         tasks.push({
             type: "text",
             filename: `tests/${resourceName}.test.ts`,
-            content: (backendFramework?.createTest ?? getTestTemplate)(resourceName),
+            content: (backendFramework?.createTest ??
+                (resourceType === "backend" && !backendFramework
+                    ? getBackendTestTemplate
+                    : getTestTemplate))(resourceName),
             description: "Generating test file",
             emoji: "🧪",
         });
