@@ -14,6 +14,22 @@ Every response uses this envelope:
 
 `data` is `null` when a command cannot produce its report. Errors have stable `code` and `message` fields. Diagnostics are written to stderr; stdout contains one JSON document. Exit code 0 means the report succeeded (doctor readiness permits warnings), 1 means a blocking finding or command failure, and 2 means invalid arguments or an unexpected internal error (`flisk up` also exits 2 when hand-edited generated files drift from `service.json`, while native Windows startup refusal exits 1). Consumers should check the exit code and still parse the envelope when one is emitted.
 
+A call the argument parser rejects (an unknown command or option, a missing required argument or option value, extra arguments) also returns the envelope when `--json` appears anywhere before `--`: `data` is `null` and `errors` has one `USAGE` entry with the parser's message. A "Did you mean" hint becomes a `suggestions` entry. Nothing is written to stderr, and the exit code is the parser's, `1`:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": null,
+  "errors": [
+    {
+      "code": "USAGE",
+      "message": "error: unknown command 'nope'",
+      "suggestions": ["Did you mean open?"]
+    }
+  ]
+}
+```
+
 Command data:
 
 - `status`: `tilt.available`, `tilt.resourcesQueried`, `tilt.readiness`, `tilt.tiltfileError`, `tilt.staleDisabled` (resource names the Tiltfile enables that Tilt still reports as `Disabled` until `flisk down && flisk up`), optional live `tilt.resources`, total `resourceCount`, discovered manifest `resources` (`name`, `stack`, `type`, `port`), `stacks` (`name`, `resourceCount`, `resources` containing resource names, `healthyCount`, `healthTotal`: what `healthyCount` is out of, which leaves out a database with no process of its own), `unhealthy` (names of failing or pending services), `unassignedResources` (resource names), and `capabilities` (names of the project capabilities that are on, such as `database`; a project with `capabilities.database: false` in `.flisk/project.json` has no `database` here and `sharedInfra` is `null`). `--tilt` controls the live `tilt.resources` list: without it, `tilt.resourcesQueried` is `false` and `tilt.resources` is `null`. The manifest `resources` array is always available and does not report live health. `tilt.readiness` retains its existing behavior and may be populated whenever Tilt is available. If Tilt is unavailable, `tilt.available` is `false` and no live resource-list query is made.

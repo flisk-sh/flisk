@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Command } from "commander";
 import { createRootProgram } from "../program-root.js";
-import { attachNoPositionalHint, NO_POSITIONAL_HINTS } from "../utils/command-helpers.js";
+import { attachNoPositionalHint, NO_POSITIONAL_HINTS, routeUsageErrorsToJson, } from "../utils/command-helpers.js";
 import { showErrorAndExit } from "../utils/errors.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -88,6 +88,9 @@ function buildCommand(spec, run) {
     if (spec.path.length === 1 && spec.name in NO_POSITIONAL_HINTS) {
         attachNoPositionalHint(command, spec.name);
     }
+    else {
+        routeUsageErrorsToJson(command);
+    }
     for (const option of spec.options) {
         const added = command.createOption(option.flags, option.description);
         if (option.defaultValue !== undefined) {
@@ -140,7 +143,8 @@ function buildCommand(spec, run) {
  * the arguments and reached an action, never for help, version or parse errors.
  */
 export function createSpecProgram(specs, run) {
-    const program = createRootProgram();
+    // `--json` usage errors become the envelope for every command, not only down/status/logs (#4246).
+    const program = routeUsageErrorsToJson(createRootProgram());
     for (const spec of specs) {
         program.addCommand(buildCommand(spec, run));
     }

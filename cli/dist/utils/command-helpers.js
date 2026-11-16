@@ -12,14 +12,70 @@ export const NO_POSITIONAL_HINTS = {
     status: "Service names are not positional: status shows the whole project. Use: flisk status (or flisk logs --service <name>)",
     logs: "Service names are not positional. Use: flisk logs --service <name>",
 };
+/**
+ * True when `--json` was passed to flisk: parsed by this command, or anywhere on the command
+ * line before `--` (an unknown command or option stops parsing before `--json` is read).
+ */
 function isJsonRequested(command) {
     try {
         if (command.opts()?.json === true)
             return true;
     }
     catch { }
-    const raw = command.rawArgs;
-    return raw?.includes("--json") ?? false;
+    let root = command;
+    while (root.parent)
+        root = root.parent;
+    const raw = root.rawArgs ?? [];
+    const end = raw.indexOf("--");
+    return (end === -1 ? raw : raw.slice(0, end)).includes("--json");
+}
+/** Splits Commander's `(Did you mean x?)` line off a usage error message. */
+function splitDidYouMean(message) {
+    const match = /^([\s\S]*?)\n\((Did you mean [^\n]*\?)\)\s*$/.exec(message);
+    if (!match?.[1] || !match[2])
+        return { message };
+    return { message: match[1], didYouMean: match[2] };
+}
+/**
+ * Routes a command's usage errors (unknown option or command, missing argument or option
+ * value, excess arguments) to the `{schemaVersion, data: null, errors}` envelope on stdout when
+ * `--json` is requested, with the same exit code. Without `--json` the output is unchanged.
+ * `hint` is added as a suggestion for excess positional arguments (#4246, #4251).
+ */
+export function routeUsageErrorsToJson(command, hint) {
+    const output = command.configureOutput();
+    const outputError = output.outputError ?? ((str, write) => write(str));
+    const writeErr = output.writeErr ?? ((str) => process.stderr.write(str));
+    command.configureOutput({
+        outputError: (str, write) => {
+            if (isJsonRequested(command))
+                return;
+            outputError(str, write);
+        },
+        writeErr: (str) => {
+            if (isJsonRequested(command))
+                return;
+            writeErr(str);
+        },
+    });
+    command.exitOverride((err) => {
+        if (err.exitCode === 0)
+            process.exit(0);
+        if (isJsonRequested(command)) {
+            const { message, didYouMean } = splitDidYouMean(err.message);
+            const suggestions = [
+                ...(didYouMean ? [didYouMean] : []),
+                ...(err.code === "commander.excessArguments" && hint ? [hint] : []),
+            ];
+            const envelope = createMachineEnvelope(null, [
+                { code: "USAGE", message, ...(suggestions.length > 0 ? { suggestions } : {}) },
+            ]);
+            // Synchronous: a queued pipe write would be lost to process.exit() below.
+            writeSync(1, `${JSON.stringify(envelope)}\n`);
+        }
+        process.exit(err.exitCode ?? 1);
+    });
+    return command;
 }
 /**
  * Attaches positional argument hints and routes parse errors to JSON envelopes when `--json` is requested.
@@ -41,37 +97,7 @@ export function attachNoPositionalHint(command, commandName = command.name()) {
         configurable: true,
         enumerable: true,
     });
-    command.configureOutput({
-        outputError: (str, write) => {
-            if (isJsonRequested(command))
-                return;
-            write(str);
-        },
-        writeErr: (str) => {
-            if (isJsonRequested(command))
-                return;
-            process.stderr.write(str);
-        },
-    });
-    command.exitOverride((err) => {
-        if (err.exitCode === 0)
-            process.exit(0);
-        if (isJsonRequested(command)) {
-            const isExcess = err.code === "commander.excessArguments";
-            const envelope = createMachineEnvelope(null, [
-                {
-                    code: "USAGE",
-                    message: err.message,
-                    ...(isExcess && hint ? { suggestions: [hint] } : {}),
-                },
-            ]);
-            // Synchronous: a queued pipe write would be lost to process.exit() below.
-            writeSync(1, `${JSON.stringify(envelope)}\n`);
-            process.exit(err.exitCode ?? 1);
-        }
-        process.exit(err.exitCode ?? 1);
-    });
-    return command;
+    return routeUsageErrorsToJson(command, hint);
 }
 /**
  * Registers the standard `-y, --yes` flag on a Commander command with shared help text.
