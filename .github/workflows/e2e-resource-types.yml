@@ -298,13 +298,24 @@ jobs:
     if: always()
     runs-on: ubuntu-26.04
     timeout-minutes: 2
-    permissions: {}
+    permissions:
+      pull-requests: read
     steps:
       - name: Report the result
         env:
           PLAN: ${{ needs.plan.result }}
           LEGS: ${{ needs.resource-types.result }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           echo "plan: $PLAN; resource-type legs: $LEGS"
+          # A pull request that merged while this run was in flight loses refs/pull/N/merge, so the plan checkout fails
+          # through no fault of the change. The merge already happened; do not leave a red mark on it.
+          if [ "$PLAN" = "failure" ] && [ "$EVENT" = "pull_request" ] && [ "$(gh pr view "$PR" --json state --jq .state)" = "MERGED" ]; then
+            echo "Pull request #$PR merged while this run was in flight; its merge ref is gone, so the plan could not check it out."
+            exit 0
+          fi
           if [ "$PLAN" != "success" ] && [ "$PLAN" != "skipped" ]; then echo "::error::The plan job did not succeed"; exit 1; fi
           if [ "$LEGS" = "failure" ] || [ "$LEGS" = "cancelled" ]; then echo "::error::A selected suite failed"; exit 1; fi

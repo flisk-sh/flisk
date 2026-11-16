@@ -72,6 +72,10 @@ jobs:
           mkdir b && printf 'FROM alpine:3.20\nRUN nslookup registry.npmjs.org\n' > b/Dockerfile
           probe "classic build: nslookup" env DOCKER_BUILDKIT=0 docker build --network host --no-cache b
           probe "classic build default network: nslookup" env DOCKER_BUILDKIT=0 docker build --no-cache b
+          probe "kiri build-with kiri" sh -c 'kiri build-with kiri 2>&1; kiri build-with 2>&1 | head -3'
+          probe "buildkit build via kiri builder: RUN dns" sh -c 'docker build --no-cache b'
+          probe "buildkit with cache mount + network host" sh -c 'printf "FROM alpine:3.20\nRUN --mount=type=cache,target=/c nslookup registry.npmjs.org\n" > b/Dockerfile && docker build --network host --no-cache b'
+          probe "compose build: digest-pinned local base" sh -c 'mkdir c && cd c && printf "FROM alpine:3.20\nRUN nslookup registry.npmjs.org\n" > Dockerfile && printf "services:\n  a:\n    build:\n      context: .\n      network: host\n" > compose.yaml && DOCKER_BUILDKIT=0 COMPOSE_BAKE=false docker compose build'
           probe "buildx builder logs" sh -c 'docker ps -a --format "{{.Names}}" | grep -i buildx || true'
           probe "host resolv.conf" cat /etc/resolv.conf
 

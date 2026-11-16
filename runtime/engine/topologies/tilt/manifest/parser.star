@@ -261,11 +261,17 @@ def generated_string_error(manifest, resource_path=""):
 # Line breaks (including the Unicode ones YAML 1.1 honours) and other control characters.
 _LINE_BREAK_OR_CONTROL = [chr(i) for i in range(32)] + [chr(127), "\u0085", " ", " "]
 
-def _has_line_break(text):
+# A container command word may hold a newline or a tab (a `sh -c` script); the Compose generator writes it JSON-escaped.
+_COMMAND_WORD_ALLOWED = ["\n", "\t"]
+
+def _has_line_break(text, allowed = []):
     for bad in _LINE_BREAK_OR_CONTROL:
-        if bad in text:
+        if bad in text and bad not in allowed:
             return True
     return False
+
+def _is_command_word(field):
+    return field.endswith("]") and (field.startswith("container.command[") or field.startswith("container.entrypoint["))
 
 def _line_break_error(manifest, resource_path):
     """
@@ -284,7 +290,7 @@ def _line_break_error(manifest, resource_path):
             return None
         value, field = pending.pop()
         if type(value) == "string":
-            if _has_line_break(value):
+            if _has_line_break(value, _COMMAND_WORD_ALLOWED if _is_command_word(field) else []):
                 return "MANIFEST ERROR: '{}' must not contain line breaks or control characters{}".format(field, where)
         elif type(value) == "list":
             for index, item in enumerate(value):
