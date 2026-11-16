@@ -9,6 +9,10 @@ on:
         description: "CLI version to test (local dist if empty)"
         type: string
         default: ""
+      probe:
+        description: "Only probe DNS in containers and builds on Kiri (libracoder/kiri#330), skip the demo"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -53,7 +57,26 @@ jobs:
           echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
           DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
 
+      - name: Probe DNS on Kiri
+        if: inputs.probe
+        run: |
+          docker version --format 'server: {{.Server.Version}}' || true
+          probe() { echo "--- $1"; shift; "$@" 2>&1 | tail -5 || true; }
+          docker pull -q alpine:3.20 >/dev/null
+          probe "default bridge: nslookup" docker run --rm alpine:3.20 nslookup registry-1.docker.io
+          probe "default bridge: resolv.conf" docker run --rm alpine:3.20 cat /etc/resolv.conf
+          probe "default bridge: wget by name" docker run --rm alpine:3.20 wget -q -O- --timeout=15 https://registry.npmjs.org/hono/latest
+          probe "--dns 8.8.8.8: wget by name" docker run --rm --dns 8.8.8.8 alpine:3.20 wget -q -O- --timeout=15 https://registry.npmjs.org/hono/latest
+          probe "--network host: wget by name" docker run --rm --network host alpine:3.20 wget -q -O- --timeout=15 https://registry.npmjs.org/hono/latest
+          probe "user network: nslookup" sh -c 'docker network create probe-net >/dev/null && docker run --rm --network probe-net alpine:3.20 nslookup registry-1.docker.io'
+          mkdir b && printf 'FROM alpine:3.20\nRUN nslookup registry.npmjs.org\n' > b/Dockerfile
+          probe "classic build: nslookup" env DOCKER_BUILDKIT=0 docker build --network host --no-cache b
+          probe "classic build default network: nslookup" env DOCKER_BUILDKIT=0 docker build --no-cache b
+          probe "buildx builder logs" sh -c 'docker ps -a --format "{{.Names}}" | grep -i buildx || true'
+          probe "host resolv.conf" cat /etc/resolv.conf
+
       - name: Run the demo journey (D1-D4)
+        if: ${{ !inputs.probe }}
         env:
           FLISK_DEMO_ON_KIRI: "1" # flisk demo otherwise uses the local-process demo on Kiri
         run: tests/e2e/journeys/demo/run.sh D1 D2 D3 D4
