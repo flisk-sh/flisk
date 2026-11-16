@@ -120,4 +120,10 @@ describe("resource next steps quote the cd path", () => {
     expect(cdLines).toContain("  cd services/main/p4");
     expect(cdLines.some((line) => line.includes('"'))).toBe(false);
   });
+
+  it("single-quotes a path with `!` so history expansion cannot break the cd step", async () => {
+    const { quoteNextStepsPath } = await import("../resource.js");
+    expect(quoteNextStepsPath("a !missing/c")).toBe("'a !missing/c'");
+    expect(quoteNextStepsPath("a b/c")).toBe('"a b/c"');
+  });
 });

@@ -162,7 +162,7 @@ export function assertInfraFramework(type, framework) {
 export function quoteNextStepsPath(path) {
     if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(path))
         return path;
-    if (!/["`$\\]/.test(path))
+    if (!/["`$\\!]/.test(path))
         return `"${path}"`;
     return `'${path.replace(/'/g, `'\\''`)}'`;
 }
