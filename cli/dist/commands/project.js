@@ -102,9 +102,14 @@ export const ACTION_WORD_HINTS = {
     check: "flisk project --check",
     verify: "flisk project --check",
 };
+/** Looks up an action word's hint; own keys only, so `constructor` and `__proto__` never match. */
+export function actionWordHint(word) {
+    const key = word.toLowerCase();
+    return Object.hasOwn(ACTION_WORD_HINTS, key) ? ACTION_WORD_HINTS[key] : undefined;
+}
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
 export function exitUnknownTemplate(templateName) {
-    const actionHint = ACTION_WORD_HINTS[templateName.toLowerCase()];
+    const actionHint = actionWordHint(templateName);
     if (actionHint) {
         console.log(chalk.yellow(`\nDid you mean "${actionHint}"?`));
     }
@@ -527,7 +532,7 @@ export const projectCommand = addYesOption(new Command("project"))
         const runtimeNextSteps = formatRuntimeNextSteps(runtime);
         if (template) {
             if (json && !Object.hasOwn(PROJECT_TEMPLATES, template)) {
-                const actionHint = ACTION_WORD_HINTS[template.toLowerCase()];
+                const actionHint = actionWordHint(template);
                 throw new FliskError(`Unknown template: "${template}"`, [
                     ...(actionHint ? [`Did you mean "${actionHint}"?`] : []),
                     `Use one of: ${Object.keys(PROJECT_TEMPLATES).join(", ")}`,

@@ -8,7 +8,9 @@ import type { DiscoveredResource } from "../types/index.js";
 export declare function enableDiscoveredStacks(projectRoot: string, resources?: DiscoveredResource[]): string[];
 /** The last non-empty line of a child process error, for a one-line failure message. */
 export declare function lastLine(text: string): string;
-export declare const ACTION_WORD_HINTS: Record<string, string>;
+export declare const ACTION_WORD_HINTS: Readonly<Record<string, string>>;
+/** Looks up an action word's hint; own keys only, so `constructor` and `__proto__` never match. */
+export declare function actionWordHint(word: string): string | undefined;
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
 export declare function exitUnknownTemplate(templateName: string): never;
 export type ProjectShell = "auto" | "posix" | "cmd" | "cmd-delayed" | "powershell";
