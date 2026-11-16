@@ -3,17 +3,44 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { type HealthCheckObjectConfig, RESOURCE_CONFIG_APP_TYPES } from "../types/index.js";
-import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { isGenerateName, parseGenerateSpec } from "./generated-secrets.js";
 import { isPlainObject } from "./is-plain-object.js";
-import { declaresCommand, serviceLabel, validateNativeServiceFields } from "./native-service.js";
+import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
+import { buildArgsErrors, envFileErrors, loggingErrors } from "./service-manifest-build-env.js";
 import { CONTAINER_WORD_FIELD, containerErrors } from "./service-manifest-container.js";
 import { dependsOnErrors } from "./service-manifest-depends-on.js";
+import { fieldTypeErrors, isAbsoluteBuildPath } from "./service-manifest-field-types.js";
 import { extraPortsErrors } from "./service-manifest-ports.js";
+import {
+  byoEnvErrors,
+  modelsErrors,
+  type ProviderSpec,
+  providersErrors,
+  providersOf,
+  providesErrors,
+} from "./service-manifest-providers.js";
+import { ENV_NAME_PATTERN, hasLineBreakOrControl } from "./service-manifest-shared.js";
+import { volumesErrors } from "./service-manifest-volumes.js";
 import { validateSmoke } from "./smoke.js";
 
 // The container option checks live in utils/service-manifest-container.ts; re-exported for existing importers.
-export { containerErrors, dependsOnErrors, extraPortsErrors };
+export {
+  buildArgsErrors,
+  byoEnvErrors,
+  containerErrors,
+  dependsOnErrors,
+  envFileErrors,
+  extraPortsErrors,
+  fieldTypeErrors,
+  isAbsoluteBuildPath,
+  loggingErrors,
+  modelsErrors,
+  type ProviderSpec,
+  providersErrors,
+  providersOf,
+  providesErrors,
+  volumesErrors,
+};
 
 export const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
@@ -176,17 +203,6 @@ export function validateGeneratedStringFields(
   return errors;
 }
 
-/** Line breaks (including the Unicode ones YAML 1.1 honours) and other control characters. */
-function hasLineBreakOrControl(text: string): boolean {
-  for (let index = 0; index < text.length; index++) {
-    const code = text.charCodeAt(index);
-    if (code < 0x20 || code === 0x7f || code === 0x85 || code === 0x2028 || code === 0x2029) {
-      return true;
-    }
-  }
-  return false;
-}
-
 /**
  * Many more service.json values than GENERATED_STRING_FIELDS reach the generated YAML (port, appName, dockerfile, buildContext,
  * basePath, envVars, ...). A key can only be added through a line break, so no string key or value may contain one. `smoke` is
@@ -252,206 +268,6 @@ export function dockerNameErrors(manifest: Record<string, unknown>, displayPath:
   return errors;
 }
 
-type FieldKind = "string" | "boolean" | "object" | "string[]";
-
-/**
- * The types the engine reads these fields as (runtime/engine/schemas/service-schema.json). A value of another type is not
- * ignored: the Tiltfile calls `.get` on an object field or `+` on a string field and stops with a Starlark error
- * ("string has no .get field or method"), after `flisk up` has already said yes. `null` reads as unset, as it does there.
- * Only fields whose shape is unambiguous are listed: `syncs`, `secrets`, `playwright`, `runtime` and `dev` are written in forms the
- * published schema does not describe, so they stay as they are. Fields checked in validateServiceManifest (appName, appType,
- * stack, port, schemaVersion, dependsOn, smoke, healthCheckPath, the command-service fields) are not repeated.
- */
-const FIELD_KINDS: Readonly<Record<string, FieldKind>> = {
-  apiBasePath: "string",
-  backendName: "string",
-  buildContext: "string",
-  databaseName: "string",
-  dockerfile: "string",
-  framework: "string",
-  image: "string",
-  language: "string",
-  restart: "string",
-  enabled: "boolean",
-  exposeViaProxy: "boolean",
-  webUi: "boolean",
-  agent: "object",
-  build: "object",
-  nats: "object",
-  params: "object",
-  sablier: "object",
-  traefik: "object",
-  featuresEnabled: "string[]",
-};
-
-const REPLICAS_MAX = 10;
-const DATABASE_NAME_MAX = 63;
-
-/**
- * An absolute path or a Windows drive. Build paths are relative to the service directory (the loader joins them to it), so an
- * absolute one can never resolve. `..` is allowed on purpose: a service.json inside the project may build from a source tree
- * outside it (docs/layout.md, docs/byo.md), and `flisk import` writes exactly that for a Compose service whose Dockerfile stays
- * where it was.
- */
-export function isAbsoluteBuildPath(value: string): boolean {
-  return /^([\\/]|[A-Za-z]:)/.test(value);
-}
-
-/** Errors for a field of the wrong type, an enum value that does not exist, an escaping path, or a conflicting source. */
-export function fieldTypeErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
-  if (declaresCommand(manifest)) return [];
-  const errors: string[] = [];
-  const bad = (field: string, expected: string): void => {
-    errors.push(`${displayPath}.${field}: expected ${expected}`);
-  };
-  for (const [field, kind] of Object.entries(FIELD_KINDS)) {
-    const value = manifest[field];
-    if (value === undefined || value === null) continue;
-    if (kind === "string" && typeof value !== "string") bad(field, "a string");
-    else if (kind === "boolean" && typeof value !== "boolean") bad(field, "true or false");
-    else if (kind === "object" && !isPlainObject(value)) bad(field, "an object");
-    else if (
-      kind === "string[]" &&
-      !(Array.isArray(value) && value.every((entry) => typeof entry === "string"))
-    ) {
-      bad(field, "an array of strings");
-    }
-  }
-  const replicas = manifest.replicas;
-  if (replicas !== undefined && replicas !== null) {
-    if (
-      typeof replicas !== "number" ||
-      !Number.isInteger(replicas) ||
-      replicas < 1 ||
-      replicas > REPLICAS_MAX
-    ) {
-      bad("replicas", `an integer from 1 to ${REPLICAS_MAX}`);
-    }
-  }
-  if (
-    typeof manifest.databaseName === "string" &&
-    manifest.databaseName.length > DATABASE_NAME_MAX
-  ) {
-    errors.push(
-      `${displayPath}.databaseName: at most ${DATABASE_NAME_MAX} characters (a Postgres identifier)`,
-    );
-  }
-  if (
-    manifest.appType === "frontend" &&
-    typeof manifest.framework === "string" &&
-    !(FRONTEND_FRAMEWORK_IDS as readonly string[]).includes(manifest.framework)
-  ) {
-    bad("framework", `one of ${FRONTEND_FRAMEWORK_IDS.join(", ")}`);
-  }
-  if (manifest.appType === "frontend" && typeof replicas === "number" && replicas > 1) {
-    // Compose is generated for one frontend container, so Tilt stops looking for "<name>-1" (backends scale; frontends do not).
-    errors.push(
-      `${displayPath}.replicas: a frontend runs as one container; replicas applies to backend services`,
-    );
-  }
-  if (typeof manifest.language === "string" && !/^[a-z][a-z0-9-]*$/.test(manifest.language)) {
-    bad("language", "a lowercase id such as bun, python or go");
-  }
-  const build = isPlainObject(manifest.build) ? manifest.build : {};
-  const dev = isPlainObject(manifest.dev) ? manifest.dev : {};
-  const paths: Array<[string, unknown]> = [
-    ["dockerfile", manifest.dockerfile],
-    ["buildContext", manifest.buildContext],
-    ["build.dockerfile", build.dockerfile],
-    ["build.context", build.context],
-    ...(Array.isArray(dev.watch)
-      ? dev.watch.map((entry, i): [string, unknown] => [`dev.watch[${i}]`, entry])
-      : []),
-  ];
-  for (const [field, value] of paths) {
-    if (typeof value === "string" && isAbsoluteBuildPath(value)) {
-      errors.push(
-        `${displayPath}.${field}: must be a path relative to the service directory (no leading "/" or drive)`,
-      );
-    }
-  }
-  for (const field of ["dockerfile", "buildContext"] as const) {
-    const nested = field === "dockerfile" ? build.dockerfile : build.context;
-    if (nested !== undefined && nested !== null && typeof nested !== "string") {
-      bad(`build.${field === "dockerfile" ? "dockerfile" : "context"}`, "a string");
-    }
-  }
-  if (
-    typeof dev.command !== "undefined" &&
-    dev.command !== null &&
-    typeof dev.command !== "string"
-  ) {
-    bad("dev.command", "a string");
-  } else if (typeof dev.command === "string" && dev.command.trim() === "") {
-    // Worded like an empty top-level command (validateNativeServiceFields), so both read the same (#4191).
-    errors.push(
-      `${displayPath}: service ${serviceLabel(manifest)}: dev.command must be a non-empty string`,
-    );
-  }
-  if (
-    typeof dev.watch !== "undefined" &&
-    dev.watch !== null &&
-    !(Array.isArray(dev.watch) && dev.watch.every((e) => typeof e === "string"))
-  ) {
-    bad("dev.watch", "an array of strings");
-  }
-  if (
-    typeof dev.liveReload !== "undefined" &&
-    dev.liveReload !== null &&
-    typeof dev.liveReload !== "boolean"
-  ) {
-    bad("dev.liveReload", "true or false");
-  }
-  if (typeof dev.testOnSave !== "undefined") {
-    if (dev.testOnSave === null) {
-      bad(
-        "dev.testOnSave",
-        'true or false, or an object such as { "enabled": true, "path": "tests" }',
-      );
-    } else if (typeof dev.testOnSave === "boolean") {
-      // boolean is valid
-    } else if (isPlainObject(dev.testOnSave)) {
-      const testOnSave = dev.testOnSave as Record<string, unknown>;
-      for (const key of Object.keys(testOnSave)) {
-        if (key !== "enabled" && key !== "path") {
-          errors.push(
-            `${displayPath}.dev.testOnSave: unexpected key "${key}" (expected "enabled" or "path")`,
-          );
-        }
-      }
-      if (typeof testOnSave.enabled !== "undefined" && typeof testOnSave.enabled !== "boolean") {
-        bad("dev.testOnSave.enabled", "true or false");
-      }
-      if (
-        typeof testOnSave.path !== "undefined" &&
-        (typeof testOnSave.path !== "string" || !testOnSave.path.trim())
-      ) {
-        bad("dev.testOnSave.path", "a non-empty string path such as 'tests'");
-      } else if (typeof testOnSave.path === "string" && isAbsoluteBuildPath(testOnSave.path)) {
-        errors.push(
-          `${displayPath}.dev.testOnSave.path: must be a path relative to the service directory (no leading "/" or drive)`,
-        );
-      }
-    } else {
-      bad(
-        "dev.testOnSave",
-        'true or false, or an object such as { "enabled": true, "path": "tests" }',
-      );
-    }
-  }
-  if (
-    typeof manifest.image === "string" &&
-    manifest.image &&
-    typeof manifest.dockerfile === "string" &&
-    manifest.dockerfile
-  ) {
-    errors.push(
-      `${displayPath}: set "image" or "dockerfile", not both; a service runs from one source`,
-    );
-  }
-  return errors;
-}
-
 export interface ServiceManifestValidation {
   errors: string[];
   warnings: string[];
@@ -467,12 +283,6 @@ export function getInvalidServiceRoutePathFields(value: unknown) {
     (field) => field in manifest && typeof manifest[field] !== "string",
   );
 }
-
-/**
- * A name in `secrets.required` / `secrets.optional` that `params` or `env` also sets to a literal: the literal reaches the
- * container, so the secret in `.env` is silently never used (an admin account created with "changeme").
- */
-const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** `webUi` (#2997) is read for bring-your-own resources only: the app serves pages from `/`, so it gets a host name, not a path prefix. */
 export function webUiErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
@@ -530,427 +340,6 @@ export function sidecarErrors(manifest: Record<string, unknown>, displayPath: st
   }
   if (manifest.replicas !== undefined && manifest.replicas !== 1) {
     errors.push(`${field}: needs a single container; remove replicas`);
-  }
-  return errors;
-}
-
-/**
- * `volumes` (#1748): named volumes and bind mounts for a bring-your-own resource. Mirrors engine/.../compose/byo_volumes.star,
- * which refuses the same values. A bind mount's `source` is relative to the service directory and must stay inside the project;
- * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
- */
-export function volumesErrors(
-  manifest: Record<string, unknown>,
-  displayPath: string,
-  serviceDepth?: number,
-): string[] {
-  const volumes = manifest.volumes;
-  if (volumes === undefined || volumes === null) return [];
-  const field = `${displayPath}.volumes`;
-  if (!Array.isArray(volumes))
-    return [`${field}: expected a list such as [{ "source": "data", "target": "/data" }]`];
-  if (manifest.appType !== "bring-your-own") {
-    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
-  }
-  const errors: string[] = [];
-  const targets = new Set<string>();
-  volumes.forEach((entry: unknown, i) => {
-    const at = `${field}[${i}]`;
-    if (!isPlainObject(entry)) {
-      errors.push(`${at}: expected an object such as { "source": "data", "target": "/data" }`);
-      return;
-    }
-    for (const key of Object.keys(entry)) {
-      if (!["source", "target", "readOnly", "name", "selinux"].includes(key)) {
-        errors.push(`${at}.${key}: unknown option (use source, target, readOnly, name, selinux)`);
-      }
-    }
-    const { target, readOnly, name, selinux } = entry;
-    // A bind mount's source may come from the environment: ${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}, ${NAME-./path}, or a bare
-    // ${STORAGE_DIR} (an absolute path from the .env), each optionally followed by /sub/path. A default is checked like any
-    // other bind path; "./" stands in for a bare variable.
-    const variable =
-      typeof entry.source === "string"
-        ? /^\$\{[A-Za-z_][A-Za-z0-9_]*(?::?-(\.{1,2}(?:\/[A-Za-z0-9_.-]+)*\/?))?\}((?:\/[A-Za-z0-9_.-]+)*)$/.exec(
-            entry.source,
-          )
-        : null;
-    const badSuffix = variable?.[2]
-      ?.split("/")
-      .some((segment) => segment === "." || segment === "..");
-    if (
-      typeof entry.source === "string" &&
-      entry.source.startsWith("${") &&
-      (!variable || badSuffix)
-    ) {
-      errors.push(
-        `${at}.source: variables must be \${NAME}, \${NAME:-./path} or \${NAME-./path}, optionally followed by /sub/path, with a default path starting with ./ or ../`,
-      );
-      return;
-    }
-    const source = variable ? (variable[1] ?? "./") : entry.source;
-    if (selinux !== undefined) {
-      if (selinux !== "z" && selinux !== "Z") {
-        errors.push(`${at}.selinux: expected z (shared) or Z (private)`);
-      } else if (typeof source === "string" && !source.startsWith(".")) {
-        errors.push(`${at}.selinux: only applies to a bind mount`);
-      }
-    }
-    if (
-      typeof source !== "string" ||
-      !/^([a-z0-9][a-z0-9_-]*|\.{1,2}(\/[A-Za-z0-9_.-]+)*\/?)$/.test(source)
-    ) {
-      errors.push(
-        `${at}.source: expected a volume name such as data, or a path starting with ./ such as ./config`,
-      );
-    } else if (serviceDepth !== undefined && source.startsWith(".")) {
-      let depth = serviceDepth;
-      for (const segment of source.split("/")) {
-        if (segment === "..") depth -= 1;
-        else if (segment !== "." && segment !== "") depth += 1;
-        if (depth < 0) break;
-      }
-      if (depth < 0) errors.push(`${at}.source: must stay inside the project`);
-    }
-    if (
-      typeof target !== "string" ||
-      !/^\/[A-Za-z0-9_./-]*$/.test(target) ||
-      `${target}/`.includes("/../")
-    ) {
-      errors.push(`${at}.target: expected an absolute path in the container such as /data`);
-    } else if (targets.has(target)) {
-      errors.push(`${at}.target: ${target} is mounted twice`);
-    } else {
-      targets.add(target);
-    }
-    if (readOnly !== undefined && typeof readOnly !== "boolean") {
-      errors.push(`${at}.readOnly: expected true or false`);
-    }
-    // `name` is the Docker volume's own name, such as the one an existing Compose install created (tubehaus_tubehaus-data).
-    if (name !== undefined) {
-      if (typeof name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) {
-        errors.push(
-          `${at}.name: expected a Docker volume name such as myapp_data (letters, digits, '_', '.' and '-')`,
-        );
-      } else if (typeof source === "string" && source.startsWith(".")) {
-        errors.push(`${at}.name: only applies to a named volume, not a bind mount`);
-      }
-    }
-  });
-  return errors;
-}
-
-/** Plain text that is safe inside a JSON (double-quoted YAML) string: no line break or control character. */
-const isPlainText = (value: unknown): value is string =>
-  typeof value === "string" && !hasLineBreakOrControl(value);
-
-/**
- * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
- * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
- * engine/.../compose/byo_build_logging.star.
- */
-export function buildArgsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
-  const args = manifest.buildArgs;
-  if (args === undefined || args === null) return [];
-  const field = `${displayPath}.buildArgs`;
-  if (!isPlainObject(args))
-    return [`${field}: expected an object of string values such as { "NODE_VERSION": "22" }`];
-  if (manifest.appType !== "bring-your-own") {
-    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
-  }
-  if (typeof manifest.image === "string" && manifest.image && !manifest.dockerfile) {
-    return [
-      `${field}: only applies to a resource built from a Dockerfile, not one that runs "image"`,
-    ];
-  }
-  const errors: string[] = [];
-  for (const [name, value] of Object.entries(args)) {
-    if (!ENV_NAME_PATTERN.test(name)) {
-      errors.push(
-        `${field}.${name}: names must be letters, digits or _, not starting with a digit`,
-      );
-    } else if (!isPlainText(value)) {
-      errors.push(`${field}.${name}: expected a string without line breaks or control characters`);
-    }
-  }
-  return errors;
-}
-
-/**
- * `logging` (bring-your-own, #2965): Compose `logging`, such as `{ "driver": "json-file", "options": { "max-size": "5m" } }`.
- * Mirrors byo_logging_section in engine/.../compose/byo_build_logging.star.
- */
-export function loggingErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
-  const logging = manifest.logging;
-  if (logging === undefined || logging === null) return [];
-  const field = `${displayPath}.logging`;
-  if (!isPlainObject(logging)) {
-    return [
-      `${field}: expected an object such as { "driver": "json-file", "options": { "max-size": "5m" } }`,
-    ];
-  }
-  if (manifest.appType !== "bring-your-own") {
-    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
-  }
-  const errors: string[] = [];
-  for (const key of Object.keys(logging)) {
-    if (key !== "driver" && key !== "options")
-      errors.push(`${field}.${key}: unknown option (use driver, options)`);
-  }
-  const { driver, options } = logging;
-  if (
-    driver !== undefined &&
-    !(typeof driver === "string" && /^[a-z0-9][a-z0-9_.-]*$/.test(driver))
-  ) {
-    errors.push(`${field}.driver: expected a driver name such as json-file or local`);
-  }
-  if (options !== undefined) {
-    if (!isPlainObject(options)) {
-      errors.push(
-        `${field}.options: expected an object of string values such as { "max-size": "5m" }`,
-      );
-    } else {
-      for (const [key, value] of Object.entries(options)) {
-        if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(key)) {
-          errors.push(
-            `${field}.options: keys must be letters, digits, '-', '_' and '.', such as max-size`,
-          );
-        } else if (!isPlainText(value)) {
-          errors.push(
-            `${field}.options.${key}: expected a string without line breaks or control characters`,
-          );
-        }
-      }
-    }
-  }
-  return errors;
-}
-
-/**
- * `envFile`: extra env files for a bring-your-own resource, each a path relative to the service directory that must stay inside
- * the project (`serviceDepth` is how many directories the service sits below the project root, unknown when validating a manifest
- * alone). A missing file is not an error. Mirrors engine/.../compose/byo_env_file.star.
- */
-export function envFileErrors(
-  manifest: Record<string, unknown>,
-  displayPath: string,
-  serviceDepth?: number,
-): string[] {
-  const envFile = manifest.envFile;
-  if (envFile === undefined || envFile === null) return [];
-  const field = `${displayPath}.envFile`;
-  if (!Array.isArray(envFile))
-    return [`${field}: expected a list of paths such as ["../../../.env"]`];
-  if (manifest.appType !== "bring-your-own") {
-    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
-  }
-  const errors: string[] = [];
-  envFile.forEach((source: unknown, i) => {
-    const at = `${field}[${i}]`;
-    if (typeof source !== "string" || !/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)*$/.test(source)) {
-      errors.push(`${at}: expected a relative file path such as ../../../.env`);
-      return;
-    }
-    if (serviceDepth === undefined) return;
-    let depth = serviceDepth;
-    for (const segment of source.split("/")) {
-      if (segment === "..") depth -= 1;
-      else if (segment !== ".") depth += 1;
-      if (depth < 0) break;
-    }
-    if (depth < 0) errors.push(`${at}: must stay inside the project`);
-    else if (depth === 0) errors.push(`${at}: expected a file inside the project, not its root`);
-  });
-  return errors;
-}
-
-/** A model reference such as ai/smollm2, ai/qwen3:8B-Q4_K_M or hf.co/org/name. */
-const MODEL_REFERENCE = "[A-Za-z0-9][A-Za-z0-9._/:@-]*";
-/** `models[].model`: a model reference, or a Compose variable `${NAME}`, `${NAME:-<model reference>}` or `${NAME-<model reference>}`. */
-const MODEL_VALUE_PATTERN = new RegExp(
-  `^(${MODEL_REFERENCE}|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-${MODEL_REFERENCE})?\\})$`,
-);
-
-/**
- * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
- * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
- * generated YAML, so only a model reference or a Compose variable is accepted. Mirrors engine/.../compose/byo_models.star.
- */
-export function modelsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
-  const models = manifest.models;
-  if (models === undefined || models === null) return [];
-  const field = `${displayPath}.models`;
-  if (!Array.isArray(models)) {
-    return [`${field}: expected a list such as [{"name": "llm", "model": "ai/smollm2"}]`];
-  }
-  if (manifest.appType !== "bring-your-own") {
-    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
-  }
-  const errors: string[] = [];
-  const names = new Set<string>();
-  models.forEach((entry: unknown, i) => {
-    const at = `${field}[${i}]`;
-    if (!isPlainObject(entry)) {
-      errors.push(`${at}: expected an object such as {"name": "llm", "model": "ai/smollm2"}`);
-      return;
-    }
-    for (const key of Object.keys(entry)) {
-      if (key !== "name" && key !== "model")
-        errors.push(`${at}.${key}: unknown option (use name, model)`);
-    }
-    const { name, model } = entry;
-    if (typeof name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) {
-      errors.push(
-        `${at}.name: expected a model name such as llm (letters, digits, '-', '_' and '.')`,
-      );
-    } else if (names.has(name)) {
-      errors.push(`${at}.name: ${name} is listed twice`);
-    } else {
-      names.add(name);
-    }
-    if (typeof model !== "string" || !MODEL_VALUE_PATTERN.test(model)) {
-      errors.push(
-        `${at}.model: expected a model such as ai/smollm2, or a variable such as \${LLM_MODEL} or \${LLM_MODEL:-ai/smollm2}`,
-      );
-    }
-  });
-  return errors;
-}
-
-/**
- * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
- * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
- * engine/.../compose/byo_env.star.
- */
-export function byoEnvErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
-  const env = manifest.env;
-  if (env === undefined || env === null || manifest.appType !== "bring-your-own") return [];
-  if (declaresCommand(manifest)) return [];
-  const field = `${displayPath}.env`;
-  if (!isPlainObject(env)) return [`${field}: expected an object of string values`];
-  const errors: string[] = [];
-  for (const [name, value] of Object.entries(env)) {
-    if (!ENV_NAME_PATTERN.test(name)) {
-      errors.push(
-        `${field}.${name}: names must be letters, digits or _, not starting with a digit`,
-      );
-    } else if (typeof value !== "string") {
-      errors.push(`${field}.${name}: expected a string`);
-    } else if (hasLineBreakOrControl(value)) {
-      errors.push(`${field}.${name}: must not contain line breaks or control characters`);
-    }
-  }
-  return errors;
-}
-
-/**
- * `provides`: the connection settings a resource gives the services that list it in `dependsOn` (REDIS_URL for a Redis).
- * Each one is written into the dependent's generated env file, which `flisk config verify` checks and which must hold no
- * secret, so the values are plain URLs and names. Mirrors _dependency_provides_lines in
- * engine/.../orchestrator/generators/env.star.
- */
-export function providesErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
-  const provides = manifest.provides;
-  if (provides === undefined || provides === null) return [];
-  const field = `${displayPath}.provides`;
-  if (!isPlainObject(provides)) {
-    return [`${field}: expected an object such as { "REDIS_URL": "redis://cache:6379" }`];
-  }
-  const errors: string[] = [];
-  for (const [key, value] of Object.entries(provides)) {
-    if (!ENV_NAME_PATTERN.test(key)) {
-      errors.push(`${field}.${key}: expected an environment variable name such as REDIS_URL`);
-    }
-    if (typeof value !== "string" || !/^[A-Za-z0-9_\-./:@%+=,]+$/.test(value)) {
-      errors.push(`${field}.${key}: expected a URL or value without spaces, quotes or $`);
-    }
-  }
-  return errors;
-}
-
-const PROVIDER_KEYS = ["url", "tokenSecret", "fallback", "required"];
-const PROVIDER_TYPES = new Set(["backend", "worker", "mcp", "agent", "bring-your-own"]);
-
-/** One entry of `providers`, with `required` resolved: a token is required unless the provider has a local fallback. */
-export interface ProviderSpec {
-  id: string;
-  url: string;
-  tokenSecret?: string;
-  fallback?: string;
-  required: boolean;
-}
-
-/** The well-formed entries of `providers` (malformed ones are reported by {@link providersErrors}). */
-export function providersOf(manifest: Record<string, unknown> | undefined): ProviderSpec[] {
-  const providers = manifest?.providers;
-  if (!isPlainObject(providers)) return [];
-  return Object.entries(providers).flatMap(([id, entry]) => {
-    if (!isPlainObject(entry) || typeof entry.url !== "string") return [];
-    const tokenSecret = typeof entry.tokenSecret === "string" ? entry.tokenSecret : undefined;
-    const fallback = typeof entry.fallback === "string" ? entry.fallback : undefined;
-    const required =
-      typeof entry.required === "boolean"
-        ? entry.required
-        : tokenSecret !== undefined && fallback === undefined;
-    return [{ id, url: entry.url, tokenSecret, fallback, required }];
-  });
-}
-
-/**
- * `providers`: external endpoints a service calls (IBM Quantum, Amazon Braket, a hosted model API) with the secret that holds
- * their token, and optionally a local resource to use while the token is missing. Mirrors
- * engine/.../docker/secrets/providers.star, which refuses the same values.
- */
-export function providersErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
-  const providers = manifest.providers;
-  if (providers === undefined || providers === null) return [];
-  const field = `${displayPath}.providers`;
-  if (!isPlainObject(providers)) {
-    return [`${field}: expected an object such as { "ibm-quantum": { "url": "https://..." } }`];
-  }
-  if (typeof manifest.command === "string" || !PROVIDER_TYPES.has(String(manifest.appType))) {
-    return [
-      `${field}: only applies to container services (backend, worker, mcp, agent, bring-your-own)`,
-    ];
-  }
-  const dependsOn = Array.isArray(manifest.dependsOn) ? manifest.dependsOn : [];
-  const errors: string[] = [];
-  for (const [id, entry] of Object.entries(providers)) {
-    const at = `${field}.${id}`;
-    if (!/^[a-z][a-z0-9-]*$/.test(id)) {
-      errors.push(`${at}: name it in lowercase letters, digits and '-', such as ibm-quantum`);
-    }
-    if (!isPlainObject(entry)) {
-      errors.push(`${at}: expected an object such as { "url": "https://..." }`);
-      continue;
-    }
-    for (const key of Object.keys(entry)) {
-      if (!PROVIDER_KEYS.includes(key)) {
-        errors.push(`${at}.${key}: unknown option (use ${PROVIDER_KEYS.join(", ")})`);
-      }
-    }
-    if (typeof entry.url !== "string" || !/^https?:\/\/[A-Za-z0-9_\-./:@%+=,~]+$/.test(entry.url)) {
-      errors.push(`${at}.url: expected an http(s) URL without spaces, quotes or $`);
-    }
-    const token = entry.tokenSecret;
-    if (token !== undefined && !(typeof token === "string" && ENV_NAME_PATTERN.test(token))) {
-      errors.push(
-        `${at}.tokenSecret: expected an environment variable name such as IBM_QUANTUM_TOKEN`,
-      );
-    }
-    const fallback = entry.fallback;
-    if (fallback !== undefined) {
-      if (!(typeof fallback === "string" && /^[a-z][a-z0-9-]*$/.test(fallback))) {
-        errors.push(`${at}.fallback: expected a resource name such as quantum-sim`);
-      } else if (!dependsOn.includes(fallback)) {
-        errors.push(`${at}.fallback: list ${fallback} in dependsOn too, so it starts first`);
-      }
-    }
-    if (entry.required !== undefined && typeof entry.required !== "boolean") {
-      errors.push(`${at}.required: expected true or false`);
-    } else if (entry.required === true && token === undefined) {
-      errors.push(`${at}.required: needs a tokenSecret`);
-    }
   }
   return errors;
 }
