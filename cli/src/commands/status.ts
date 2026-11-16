@@ -21,6 +21,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { nativeServiceStates, readNativeRunState } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { resolveCommandProject } from "../utils/project-resolution.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { skippedServiceFiles } from "../utils/services.js";
 import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
@@ -77,62 +78,74 @@ export const statusCommand = new Command("status")
   .option("--no-gateway", "Disable gateway status reporting")
   .option("--unhealthy", "Show only services that are failing or still starting", false)
   .option("--strict", "Exit 1 when any service is not ready or nothing is running", false)
+  .option(
+    "--project <path>",
+    "Show status for the Flisk project in this folder (default: the current project)",
+  )
   .addHelpText(
     "after",
     "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict",
   )
-  .action(async (options) => {
+  .action(async (options, command: Command) => {
+    const project: string | undefined = options.project ?? command.optsWithGlobals().project;
     const action = async (): Promise<void> => {
-      // Check for inferred Node project first
-      const inferredProject = inferNodeProject(process.cwd());
-      if (inferredProject) {
-        const stateRoot = inferredStateRoot(process.cwd());
-        const runState = readNativeRunState(stateRoot);
+      // Check for inferred Node project first, only when not explicitly targeting a project
+      if (!project) {
+        const inferredProject = inferNodeProject(process.cwd());
+        if (inferredProject) {
+          const stateRoot = inferredStateRoot(process.cwd());
+          const runState = readNativeRunState(stateRoot);
 
-        if (!options.json) {
-          showStep("Flisk Status\n");
-          console.log(chalk.bold("Runtime:"), "local processes (no Docker, no Tilt)");
-          console.log(
-            `  ${runState ? "✓" : "…"} ${inferredProject.service.name} ${runState ? "ready" : "unknown"}\n`,
-          );
-        }
-        if (options.json) {
-          console.log(
-            JSON.stringify(
-              createMachineEnvelope({
-                runtime: "native",
-                inferred: true,
-                tilt: {
-                  available: false,
-                  resourcesQueried: false,
-                  resources: null,
-                  readiness: null,
-                  tiltfileError: null,
-                  staleDisabled: [],
-                },
-                resourceCount: 1,
-                resources: [
-                  {
-                    name: inferredProject.service.name,
-                    stack: null,
-                    type: "backend",
-                    port: inferredProject.service.config?.port ?? null,
-                    status: runState ? "ready" : "unknown",
+          if (!options.json) {
+            showStep("Flisk Status\n");
+            console.log(chalk.bold("Runtime:"), "local processes (no Docker, no Tilt)");
+            console.log(
+              `  ${runState ? "✓" : "…"} ${inferredProject.service.name} ${runState ? "ready" : "unknown"}\n`,
+            );
+          }
+          if (options.json) {
+            console.log(
+              JSON.stringify(
+                createMachineEnvelope({
+                  runtime: "native",
+                  inferred: true,
+                  tilt: {
+                    available: false,
+                    resourcesQueried: false,
+                    resources: null,
+                    readiness: null,
+                    tiltfileError: null,
+                    staleDisabled: [],
                   },
-                ],
-              }),
-            ),
-          );
+                  resourceCount: 1,
+                  resources: [
+                    {
+                      name: inferredProject.service.name,
+                      stack: null,
+                      type: "backend",
+                      port: inferredProject.service.config?.port ?? null,
+                      status: runState ? "ready" : "unknown",
+                    },
+                  ],
+                }),
+              ),
+            );
+          }
+          if (options.strict) {
+            failStrictStatus(runState ? [] : null);
+          }
+          return;
         }
-        if (options.strict) {
-          failStrictStatus(runState ? [] : null);
-        }
-        return;
       }
+
+      const projectRoot = resolveCommandProject({
+        commandName: "status",
+        project,
+        json: options.json,
+      });
 
       // Discover first: outside a project this fails before any status line is printed.
       const discovery = createDiscoveryContext();
-      const projectRoot = findProjectRoot();
       const projectName = projectRoot ? readProjectName(projectRoot) : null;
       const sharedInfraGroup = projectName
         ? groupSharedPostgres(projectName, discovery.stacks, {
