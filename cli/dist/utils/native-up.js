@@ -188,6 +188,19 @@ export async function runNativeUp(input) {
         readyTimeoutMs: input.readyTimeoutMs,
         baseEnv: vars,
         extraEnvPaths: input.envFilePath ? [input.envFilePath] : [],
+        // A restart (`flisk restart`, the MCP resource_restart) re-reads the .env, so a repaired value takes effect.
+        reload: () => {
+            const fresh = runVariables(projectRoot, input.envFilePath);
+            const replanned = planNativeRun(selected, fresh, projectRoot, readProjectNameOrUndefined(projectRoot));
+            if (replanned.errors.length > 0)
+                throw new Error(replanned.errors.join("\n"));
+            for (const service of replanned.services) {
+                if (!service.container) {
+                    Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames));
+                }
+            }
+            return { plans: replanned.services, baseEnv: fresh };
+        },
     });
     let stopping;
     const stopAndExit = (code) => {
