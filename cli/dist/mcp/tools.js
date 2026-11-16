@@ -317,6 +317,14 @@ export function buildLogsArgs(args) {
         }
         out.push(`--since=${args.since}`);
     }
+    if (args.source !== undefined) {
+        if (args.source !== "runtime" && args.source !== "build") {
+            throw new FliskError("source must be runtime or build", [
+                "Use runtime for what a service printed (crash causes), build for image build steps, or omit source for both",
+            ]);
+        }
+        out.push(`--source=${args.source}`);
+    }
     return out;
 }
 /** `flisk resource <name> ... --yes`: options as `--flag=value`, after the name, so a variadic `--feature` never takes it. */
@@ -660,7 +668,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "logs",
-            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. Use `status` first to find which service is failing, then pass services to narrow the output.",
+            description: 'A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. Use `status` first to find which service is failing, then pass services to narrow the output and source "runtime" to skip image build output and read why it failed.',
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 services: {
@@ -672,6 +680,11 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                 since: {
                     type: "string",
                     description: "Only logs newer than this, for example 30s, 5m, 1h",
+                },
+                source: {
+                    type: "string",
+                    enum: ["runtime", "build"],
+                    description: "runtime: only what the services printed (where a crash cause such as an exception or a missing variable is); build: only image build steps. Omit for both.",
                 },
             }),
             handler: viaCli(buildLogsArgs),

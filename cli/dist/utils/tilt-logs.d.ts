@@ -20,5 +20,15 @@ export { isValidPort } from "./validation.js";
 export declare function isValidTail(value: string): boolean;
 /** Parse `tilt logs --json` (JSON Lines) into normalized lines, keeping at most the last `limit`. Unparseable lines are skipped. */
 export declare function parseTiltLogLines(output: string, limit: number): LogLine[];
+export declare const LOG_SOURCES: readonly ["runtime", "build"];
+export type LogSource = (typeof LOG_SOURCES)[number];
+export declare function isValidLogSource(value: string): value is LogSource;
+/**
+ * Keep only lines from one source. Tilt marks image build output "build" and everything a running service prints
+ * "runtime"; a line with no source (local-process logs, which have no build step) is runtime output.
+ */
+export declare function filterLogSource<T extends {
+    source: string | null;
+}>(lines: readonly T[], source: LogSource): T[];
 /** True when `tilt logs` failed because no Tilt server answered, as opposed to rejecting its arguments. */
 export declare function isTiltConnectionFailure(stderr: string): boolean;

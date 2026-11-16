@@ -67,7 +67,7 @@ flisk resource <name> --type mcp --stack <stack>
   - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
   - `down`: Stop the running stack.
   - `status`: Inspect stacks, resources, ingress URLs, ports, and Tilt readiness.
-  - `logs`: Fetch a bounded snapshot of recent logs from the running stack.
+  - `logs`: Fetch a bounded snapshot of recent logs from the running stack. Pass `source: "runtime"` to read only what services printed (the crash cause) without image build output.
   - `resource_list`: List the project's services with their stack, type, and port.
   - `resource_restart`: Restart a running resource in the stack (Flisk-generated Compose containers restart without rebuilding their image; local processes and imported Tiltfiles use `tilt trigger`); `rebuild: true` rebuilds the image and recreates the container through Tilt.
   - `resource_run`: Run a one-off command with the environment one resource has in the stack; returns the exit code, stdout and stderr. A container resource must be running. Refused unless `confirm: true`; `.env` values in the output are masked.
@@ -163,7 +163,7 @@ All inspection and lifecycle commands support `--json`:
 - `flisk up --json`: Success indicated by `data.ok`; failures reported through `errors` and `data.failures`.
 - `flisk up <git-url>`: Clones the repository (shallow) into `./<repo name>`, reusing an existing checkout there, then starts it like `flisk up` run in that folder. A URL is any `https://`, `ssh://`, `git://`, `file://` or `git@host:org/repo` argument; stack names never contain `:`.
 - `flisk status --json`: Reports detailed container state, URLs, and Tilt readiness.
-- `flisk logs --json --service <name> --tail <n>`: Bounded log snapshots.
+- `flisk logs --json --service <name> --source runtime --tail <n>`: Bounded log snapshots.
 - `flisk down --json`: Confirms clean container shutdown.
 - `flisk project --json`, `flisk resource <name> --json`, `flisk stack <stack-name> --resources <names...> --json`, `flisk import [dir] --json` and `flisk eject --json`: Report what they created, assigned, imported or wrote. `--json` never prompts: it takes the defaults `--yes` takes.
 - `flisk config regenerate --json`, `flisk config migrate --json`, `flisk config enable-infra <service> --json` and `flisk config disable-infra <service> --json`: Report the changed files or setting.

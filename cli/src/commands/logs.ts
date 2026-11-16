@@ -27,9 +27,13 @@ import { unhealthyServiceNames } from "../utils/status-groups.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import {
   DEFAULT_LOG_TAIL,
+  filterLogSource,
   isTiltConnectionFailure,
+  isValidLogSource,
   isValidSince,
   isValidTail,
+  LOG_SOURCES,
+  type LogSource,
   MAX_LOG_TAIL,
   parseTiltLogLines,
   sinceMilliseconds,
@@ -105,6 +109,10 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
   .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
   .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
   .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
+  .option(
+    "--source <source>",
+    "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
+  )
   .option("--unhealthy", "Only services that are failing or still starting", false)
   .option(
     "--port <n>",
@@ -117,7 +125,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json",
+    "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",
   )
   .action(async (options, command: Command) => {
     let secrets: string[] = [];
@@ -155,6 +163,10 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     if (options.since !== undefined && !isValidSince(options.since)) {
       fail("USAGE", "--since must be a duration such as 30s, 5m or 1h", 2);
     }
+    if (options.source !== undefined && !isValidLogSource(options.source)) {
+      fail("USAGE", `--source must be one of: ${LOG_SOURCES.join(", ")}`, 2);
+    }
+    const source: LogSource | undefined = options.source;
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText)) fail("USAGE", "--port must be a valid port number", 2);
     const tail = Number(options.tail);
@@ -168,6 +180,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
               services,
               tail,
               since: options.since ?? null,
+              ...(source ? { source } : {}),
               lines: [],
               unhealthy: [],
             }),
@@ -213,18 +226,25 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         }
         // Lines were masked when written; masking again covers a log from before a secret was added, and the guard masks a
         // private key that spans lines.
+        const read = readNativeLogLines(projectRoot, selected, {
+          tail: source ? MAX_LOG_TAIL : tail,
+          sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
+        });
         const lines = redactLogLines(
-          readNativeLogLines(projectRoot, selected, {
-            tail,
-            sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
-          }),
+          (source ? filterLogSource(read, source) : read).slice(-tail),
           secrets,
         );
         if (options.json) {
           console.log(
             JSON.stringify(
               redactValue(
-                createMachineEnvelope({ services, tail, since: options.since ?? null, lines }),
+                createMachineEnvelope({
+                  services,
+                  tail,
+                  since: options.since ?? null,
+                  ...(source ? { source } : {}),
+                  lines,
+                }),
                 secrets,
               ),
             ),
@@ -278,9 +298,11 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
           services.length > 0 ? services.filter((n) => bad?.includes(n)) : (bad ?? []);
         if (selectedServices.length === 0) return reportAllHealthy();
       }
-      const args = ["--port", activePortText, "--tail", String(tail)];
+      // A source filter needs structured lines, and the tail must count the lines kept, not the build output before them.
+      const structured = Boolean(options.json) || source !== undefined;
+      const args = ["--port", activePortText, "--tail", String(source ? MAX_LOG_TAIL : tail)];
       if (options.since !== undefined) args.push("--since", options.since);
-      if (options.json) args.push("--json");
+      if (structured) args.push("--json");
       // `--` so a service name that starts with "-" is never read as a Tilt flag.
       if (selectedServices.length > 0) args.push("--", ...selectedServices);
 
@@ -293,15 +315,34 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         fail("TILT_LOGS_FAILED", `tilt logs failed: ${detail}`);
       }
 
-      if (!options.json) {
+      if (!structured) {
         process.stdout.write(redactSecrets(result.stdout, secrets));
         return;
       }
-      const lines = redactLogLines(parseTiltLogLines(result.stdout, tail), secrets);
+      const parsed = parseTiltLogLines(result.stdout, source ? MAX_LOG_TAIL : tail);
+      const lines = redactLogLines(
+        (source ? filterLogSource(parsed, source) : parsed).slice(-tail),
+        secrets,
+      );
+      if (!options.json) {
+        const width = Math.max(0, ...lines.map((line) => line.resource?.length ?? 0));
+        for (const line of lines) {
+          console.log(
+            redactSecrets(`${(line.resource ?? "").padEnd(width)} | ${line.text}`, secrets),
+          );
+        }
+        return;
+      }
       console.log(
         JSON.stringify(
           redactValue(
-            createMachineEnvelope({ services, tail, since: options.since ?? null, lines }),
+            createMachineEnvelope({
+              services,
+              tail,
+              since: options.since ?? null,
+              ...(source ? { source } : {}),
+              lines,
+            }),
             secrets,
           ),
         ),

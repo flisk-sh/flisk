@@ -244,6 +244,27 @@ describe("argument building", () => {
     }
   });
 
+  it("passes the logs source filter and rejects any other value", () => {
+    expect(buildLogsArgs({ services: ["api"], source: "runtime" })).toEqual([
+      "logs",
+      "--json",
+      "--service=api",
+      "--source=runtime",
+    ]);
+    expect(buildLogsArgs({ source: "build" })).toContain("--source=build");
+    for (const bad of ["other", "", 1, "--tail=1"]) {
+      expect(() => buildLogsArgs({ source: bad })).toThrow("source must be runtime or build");
+    }
+  });
+
+  it("advertises source as an enum on the logs tool schema", () => {
+    const logs = createFliskTools().find((tool) => tool.name === "logs");
+    const schema = logs?.inputSchema as unknown as {
+      properties: Record<string, { enum?: string[] }>;
+    };
+    expect(schema.properties.source?.enum).toEqual(["runtime", "build"]);
+  });
+
   it("builds resource_create arguments, always non-interactive, with options after the name", () => {
     expect(buildResourceCreateArgs({ name: "api" })).toEqual(["resource", "api", "--yes"]);
   });
