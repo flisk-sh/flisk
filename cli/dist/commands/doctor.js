@@ -16,10 +16,10 @@ import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, } from "../utils/doctor-container.js";
 import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import { applyDoctorFixes, checkDuplicateFliskInstalls, hasFailedActions, planDoctorFixes, projectTiltPids, } from "../utils/doctor-fix.js";
-import { formatFixFirst, rankDoctorFixes } from "../utils/doctor-fix-first.js";
 import { checkDiskSpace } from "../utils/doctor-host.js";
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
 import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkStartupScripts, checkTypeScriptTypeDependencies, } from "../utils/doctor-project.js";
+import { printDoctorResults, printFixActions, renderDoctorOutput } from "../utils/doctor-render.js";
 import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, } from "../utils/doctor-report.js";
 import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, } from "../utils/doctor-runner.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, } from "../utils/doctor-runtime.js";
@@ -253,90 +253,7 @@ export async function checkLatestFliskVersion(currentVersion = getPackageVersion
 }
 // Generated-project checks live in utils/doctor-project.ts; re-exported for existing importers.
 // Running-service checks live in utils/doctor-services.ts; re-exported for existing importers.
-export { checkContainerResourceHealth, checkContainerResourceHealthFor, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTypeScriptTypeDependencies, };
-function printFixActions(actions, dryRun) {
-    if (actions.length === 0) {
-        console.log(`${chalk.green("✓")} Nothing to repair\n`);
-        return;
-    }
-    for (const action of actions) {
-        let label = chalk.gray("skipped");
-        if (action.status === "planned") {
-            label = `${chalk.cyan("would run")}`;
-        }
-        else if (action.status === "applied") {
-            label = chalk.green("ran");
-        }
-        else if (action.status === "failed") {
-            label = chalk.red("failed");
-        }
-        const detail = action.status === "planned" ? "" : ` (${action.reason})`;
-        console.log(`${label}: ${action.command}${detail}`);
-    }
-    if (dryRun)
-        console.log(chalk.gray("\nDry run: nothing was changed."));
-    console.log("");
-}
-function printDoctorResults(list) {
-    for (const result of orderDoctorResults(list)) {
-        if (!result.didPass && !result.isSkipped && !result.isWarning) {
-            console.log(`${chalk.red("✗")} ${result.message}`);
-            if (result.fix)
-                console.log(`${chalk.blue("ℹ")} Fix: ${result.fix}`);
-        }
-        else if (result.isWarning) {
-            console.log(`${chalk.yellow("⚠")} ${chalk.yellow(result.message)}`);
-            if (result.fix)
-                console.log(`${chalk.blue("ℹ")} Fix: ${result.fix}`);
-        }
-        else if (result.isSkipped) {
-            console.log(`${chalk.gray("○")} ${chalk.gray(result.message)}`);
-            if (result.fix)
-                console.log(`${chalk.blue("ℹ")} ${result.fix}`);
-        }
-        else {
-            console.log(`${chalk.green("✓")} ${result.message}`);
-        }
-    }
-}
-export function renderDoctorOutput(machineResults, projectResults, inProject, options = {}, allResults) {
-    const results = allResults ?? [...machineResults, ...projectResults];
-    const printFixFirst = () => {
-        const lines = formatFixFirst(rankDoctorFixes(results));
-        if (lines.length === 0)
-            return;
-        console.log(chalk.bold("Fix first"));
-        for (const line of lines)
-            console.log(line);
-        console.log("");
-    };
-    if (options.all) {
-        console.log(chalk.bold("Machine"));
-        printDoctorResults(machineResults);
-        console.log(`\n${chalk.bold("Project")}`);
-        if (inProject) {
-            if (projectResults.length > 0) {
-                printDoctorResults(projectResults);
-            }
-        }
-        else {
-            console.log(`${chalk.gray("○")} ${chalk.gray("Not in a Flisk project, so project checks were skipped")}`);
-        }
-        console.log("");
-        console.log(formatDoctorSummary(results));
-        printFixFirst();
-    }
-    else {
-        printDoctorResults(results);
-        console.log("");
-        printFixFirst();
-        const allPassed = results.every((check) => check.didPass || check.isSkipped || check.isWarning);
-        if (allPassed && !inProject) {
-            console.log(`${chalk.gray("○")} ${chalk.gray("Not in a Flisk project, so project checks were skipped")}`);
-            console.log("");
-        }
-    }
-}
+export { checkContainerResourceHealth, checkContainerResourceHealthFor, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTypeScriptTypeDependencies, renderDoctorOutput, };
 export const doctorCommand = new Command("doctor")
     .description("Check environment readiness for Flisk")
     .option("--all", "Run every check and show Machine and Project sections with a summary", false)

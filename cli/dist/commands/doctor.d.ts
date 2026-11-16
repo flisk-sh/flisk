@@ -4,6 +4,7 @@ import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime } from "../utils/doctor-container.js";
 import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkTypeScriptTypeDependencies } from "../utils/doctor-project.js";
+import { renderDoctorOutput } from "../utils/doctor-render.js";
 import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks } from "../utils/doctor-runner.js";
 import { checkContainerResourceHealth, checkContainerResourceHealthFor, checkServiceHealth, checkServiceSmoke } from "../utils/doctor-services.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
@@ -39,8 +40,5 @@ export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, c
 export declare function checkFliskVersion(currentVersion?: string): CheckResult;
 /** A CLI older than the latest release is a warning, never a failure; an unreachable registry is skipped (#4119). */
 export declare function checkLatestFliskVersion(currentVersion?: string, lookup?: () => Promise<string | null>): Promise<CheckResult>;
-export { checkContainerResourceHealth, checkContainerResourceHealthFor, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTypeScriptTypeDependencies, };
-export declare function renderDoctorOutput(machineResults: CheckResult[], projectResults: CheckResult[], inProject: boolean, options?: {
-    all?: boolean;
-}, allResults?: CheckResult[]): void;
+export { checkContainerResourceHealth, checkContainerResourceHealthFor, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTypeScriptTypeDependencies, renderDoctorOutput, };
 export declare const doctorCommand: Command;
