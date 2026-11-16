@@ -20,12 +20,14 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { writeLanggraphProject } from "../utils/langgraph-template.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
+import { LOCKFILE_COMMAND } from "../utils/npm-lockfile.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
 import { listProjectTemplates, PROJECT_TEMPLATES, resolveBundledTemplateDir, templateGitCommands, templateTargetDir, } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
@@ -97,6 +99,10 @@ export function lastLine(text) {
 }
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
 export function exitUnknownTemplate(templateName) {
+    const closest = suggestClosest(templateName, Object.keys(PROJECT_TEMPLATES));
+    if (closest) {
+        console.log(chalk.yellow(`\nDid you mean "${closest}"?`));
+    }
     console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
     console.log(chalk.yellow("\nAvailable templates:"));
     for (const [name, info] of Object.entries(PROJECT_TEMPLATES)) {
@@ -291,7 +297,10 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
             writeToolLoopProject(destination);
         }
         else if (template.composed === "next-postgres") {
-            writeNextPostgresProject(destination);
+            const lock = writeNextPostgresProject(destination);
+            if (!lock.ok) {
+                console.log(chalk.yellow(`⚠️  No package-lock.json for the web resource (${lock.reason}). The image build needs one: run \`${LOCKFILE_COMMAND}\` in ${join(destination, "services/app/web")}.`));
+            }
         }
         else if (template.bundledPath) {
             const bundledSource = resolveBundledTemplateDir(template.bundledPath, {

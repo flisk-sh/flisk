@@ -10,7 +10,7 @@ import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate, } from "../bac
 import { DEFAULT_BACKEND_LANGUAGE, resolveBackendLanguage } from "../backend-languages/registry.js";
 import { DEFAULT_FRONTEND_FRAMEWORK, FRONTEND_FRAMEWORKS, listFrontendFrameworks, resolveFrontendFramework, } from "../frontend-frameworks/registry.js";
 import { hasDddLicense } from "../generator/extension-fetch.js";
-import { getDockerfileTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
+import { getBackendTestTemplate, getDockerfileTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 import { areMasterFilesStale, generateMasterConfigs } from "../generator/template-engine.js";
 import { DATABASE_FRAMEWORK, DATABASE_RESOURCE_TYPE, INFERENCE_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, RESOURCE_CREATE_TYPE_VALUES, } from "../types/index.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
@@ -22,6 +22,7 @@ import { showCommandHeader } from "../utils/formatting.js";
 import { createInfraServiceJson, defaultFrameworkOfType, frameworksOfType, INFRA_PRESETS, infraFrameworkFor, isInfraFramework, isInfraResourceType, isPresetResourceType, replacementForRemovedType, } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { isPortListening } from "../utils/native-runtime.js";
+import { generateNpmLockfile, LOCKFILE_COMMAND } from "../utils/npm-lockfile.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
@@ -30,6 +31,7 @@ import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.j
 import { ResourceFilePlan } from "../utils/resource-plan.js";
 import { BASE_PATH_PATTERN, healthCheckPathOf, isHealthCheckDisabled, SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { createKebabCaseValidator, isPathSafe, validateResourceName, validateStackName, } from "../utils/validation.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
@@ -413,7 +415,8 @@ export function createPackageJson(name, type, frameworkId, prismaEnabled = false
                 : "tsc",
             // Backends and workers run `start` in their production image; doctor checks for it. A server framework brings its own.
             ...startScript,
-            test: "vitest",
+            test: "vitest run",
+            "test:watch": "vitest --watch",
             lint: "biome check .",
             "lint:fix": "biome check . --write",
         },
@@ -572,7 +575,12 @@ export function parseResourceType(type) {
     const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
     const validTypes = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
     if (!validTypes.includes(normalized)) {
-        throw new FliskError(`Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`, [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"]);
+        const closest = suggestClosest(normalized, validTypes);
+        throw new FliskError(`Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`, [
+            ...(closest ? [`Did you mean "${closest}"?`] : []),
+            `Use one of: ${validTypes.join(", ")}`,
+            "Omit --type to create a backend",
+        ]);
     }
     return normalized;
 }
@@ -1541,7 +1549,10 @@ This file contains the resource configuration for Flisk.
         tasks.push({
             type: "text",
             filename: `tests/${resourceName}.test.ts`,
-            content: (backendFramework?.createTest ?? getTestTemplate)(resourceName),
+            content: (backendFramework?.createTest ??
+                (resourceType === "backend" && !backendFramework
+                    ? getBackendTestTemplate
+                    : getTestTemplate))(resourceName),
             description: "Generating test file",
             emoji: "🧪",
         });
@@ -1672,12 +1683,23 @@ This file contains the resource configuration for Flisk.
                 },
             ]);
         }
+        // The Next.js image runs `npm ci`, which needs a lockfile: it is written right after the scaffold, so the preview lists it.
+        if (resourceType === "frontend" && frontendFramework?.kind === "server") {
+            plan.generated(resolve(fullPath, "package-lock.json"));
+        }
         if (options.dryRun)
             return preview();
         plan.write();
         clearDiscoveryCache();
         console.log(chalk.green("\n✅ Resource created successfully!"));
         console.log(chalk.gray(`\nLocation: ${fullPath}`));
+        // The Next.js image runs `npm ci`, which needs a lockfile.
+        if (resourceType === "frontend" && frontendFramework?.kind === "server") {
+            const lock = generateNpmLockfile(fullPath);
+            if (!lock.ok) {
+                console.log(chalk.yellow(`⚠️  No package-lock.json (${lock.reason}). The image build needs one: run \`${LOCKFILE_COMMAND}\` in ${fullPath}.`));
+            }
+        }
         const discoveryPaths = readDiscoveryPaths(projectRoot);
         if (pathAdjustedFrom) {
             console.log(chalk.yellow(`\n📁 Placed in ${finalResourcePath} instead of the usual ${pathAdjustedFrom}: ` +

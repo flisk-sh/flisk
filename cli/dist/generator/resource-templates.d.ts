@@ -7,3 +7,5 @@ export declare function getDockerfileTemplate(port: number, healthCheckPath?: st
 export declare function getShutdownHandlerTemplate(signal: string): string;
 export declare function getWorkerIndexTemplate(name: string): string;
 export declare function getTestTemplate(name: string): string;
+/** Creates a smoke test for the generated Hono health handler. */
+export declare function getBackendTestTemplate(name: string): string;

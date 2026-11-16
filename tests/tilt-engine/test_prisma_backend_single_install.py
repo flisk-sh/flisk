@@ -79,12 +79,28 @@ def test_prisma_backend_runtime_takes_the_cli_from_the_purger_stage(tmp_path):
 def test_prisma_cli_stash_is_not_under_tmp_and_matches_the_copy(tmp_path):
     """flisk#4226: the stash and the runtime COPY use one path, and it is not in /tmp."""
     dockerfile = generate(tmp_path, "backend", "orders-api")
-    stash = [l for l in run_lines(dockerfile, "cp -a node_modules/prisma ")]
+    stash = [l for l in run_lines(dockerfile, "cp -aL node_modules/prisma ")]
     assert len(stash) == 1, stash
-    target = stash[0].split("cp -a node_modules/prisma ", 1)[1].split()[0]
+    target = stash[0].split("cp -aL node_modules/prisma ", 1)[1].split()[0]
     assert not target.startswith("/tmp"), target
     copies = [l for l in dockerfile.splitlines() if l.startswith("COPY") and "--from=l3_production_purger" in l and "prisma-cli" in l]
     assert copies and all(f"--from=l3_production_purger {target} " in l for l in copies), (target, copies)
+
+
+@TILT_REQUIRED
+def test_prisma_cli_stash_dereferences_the_isolated_linker_symlink(tmp_path):
+    """With `linker = "isolated"` node_modules/prisma is a symlink; `cp -a` stashed a dangling link and the runtime COPY failed."""
+    dockerfile = generate(tmp_path, "backend", "orders-api")
+    stash = run_lines(dockerfile, "node_modules/prisma ")
+    assert len(stash) == 1, stash
+    assert stash[0].startswith("RUN cp -aL node_modules/prisma /opt/flisk-prisma-cli"), stash
+    assert "cp -a node_modules/prisma" not in dockerfile
+
+
+def test_prisma_cli_stash_source_dereferences_symlink():
+    src = (REPO_ROOT / "runtime/engine/topologies/platform/docker/layers/l3_builder_layers.star").read_text()
+    assert '"RUN cp -aL node_modules/prisma "' in src
+    assert '"RUN cp -a node_modules/prisma "' not in src
 
 
 @TILT_REQUIRED

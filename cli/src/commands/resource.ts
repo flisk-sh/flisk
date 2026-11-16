@@ -29,6 +29,7 @@ import {
 import type { FrontendFrameworkFile } from "../frontend-frameworks/types.js";
 import { hasDddLicense } from "../generator/extension-fetch.js";
 import {
+  getBackendTestTemplate,
   getDockerfileTemplate,
   getTestTemplate,
   getWorkerIndexTemplate,
@@ -89,6 +90,7 @@ import {
 } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { isPortListening } from "../utils/native-runtime.js";
+import { generateNpmLockfile, LOCKFILE_COMMAND } from "../utils/npm-lockfile.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
@@ -103,6 +105,7 @@ import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
 } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import {
   createKebabCaseValidator,
   isPathSafe,
@@ -601,7 +604,8 @@ export function createPackageJson(
         : "tsc",
       // Backends and workers run `start` in their production image; doctor checks for it. A server framework brings its own.
       ...startScript,
-      test: "vitest",
+      test: "vitest run",
+      "test:watch": "vitest --watch",
       lint: "biome check .",
       "lint:fix": "biome check . --write",
     },
@@ -783,9 +787,14 @@ export function parseResourceType(type: string): CreatableResourceType | InfraRe
   const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
   const validTypes: readonly string[] = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
   if (!validTypes.includes(normalized)) {
+    const closest = suggestClosest(normalized, validTypes);
     throw new FliskError(
       `Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`,
-      [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"],
+      [
+        ...(closest ? [`Did you mean "${closest}"?`] : []),
+        `Use one of: ${validTypes.join(", ")}`,
+        "Omit --type to create a backend",
+      ],
     );
   }
   return normalized as CreatableResourceType | InfraResourceType | "sdk";
@@ -2059,7 +2068,12 @@ This file contains the resource configuration for Flisk.
       tasks.push({
         type: "text",
         filename: `tests/${resourceName}.test.ts`,
-        content: (backendFramework?.createTest ?? getTestTemplate)(resourceName),
+        content: (
+          backendFramework?.createTest ??
+          (resourceType === "backend" && !backendFramework
+            ? getBackendTestTemplate
+            : getTestTemplate)
+        )(resourceName),
         description: "Generating test file",
         emoji: "🧪",
       });
@@ -2209,11 +2223,27 @@ This file contains the resource configuration for Flisk.
         ]);
       }
 
+      // The Next.js image runs `npm ci`, which needs a lockfile: it is written right after the scaffold, so the preview lists it.
+      if (resourceType === "frontend" && frontendFramework?.kind === "server") {
+        plan.generated(resolve(fullPath, "package-lock.json"));
+      }
+
       if (options.dryRun) return preview();
       plan.write();
       clearDiscoveryCache();
       console.log(chalk.green("\n✅ Resource created successfully!"));
       console.log(chalk.gray(`\nLocation: ${fullPath}`));
+      // The Next.js image runs `npm ci`, which needs a lockfile.
+      if (resourceType === "frontend" && frontendFramework?.kind === "server") {
+        const lock = generateNpmLockfile(fullPath);
+        if (!lock.ok) {
+          console.log(
+            chalk.yellow(
+              `⚠️  No package-lock.json (${lock.reason}). The image build needs one: run \`${LOCKFILE_COMMAND}\` in ${fullPath}.`,
+            ),
+          );
+        }
+      }
 
       const discoveryPaths = readDiscoveryPaths(projectRoot);
       if (pathAdjustedFrom) {

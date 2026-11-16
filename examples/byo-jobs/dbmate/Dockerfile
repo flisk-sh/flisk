@@ -1,5 +1,5 @@
 # One-shot migration job: dbmate applies db/migrations to Flisk's Postgres and exits 0.
-FROM ghcr.io/amacneil/dbmate:2@sha256:520c740c6e0ad73fde2cd1ea7e2b779aaf789d22aca8858f87a478e7094535fb
+FROM ghcr.io/amacneil/dbmate:2@sha256:b0c8a87bfef4f2819fdb0a68ca357a44d12fb90d23eca695fcfc3b7e159cb1c5
 COPY db /db
 RUN addgroup -g 1000 app && adduser -u 1000 -G app -D -H app
 USER app

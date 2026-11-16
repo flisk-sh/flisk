@@ -1695,10 +1695,17 @@ export const COMMAND_SPECS = [
                 description: "Show what would be upgraded without actually doing it",
                 defaultValue: false,
             },
+            {
+                flags: "--json",
+                description: "Print the dry-run result as a JSON envelope",
+                defaultValue: false,
+            },
         ],
         arguments: [],
         helpTexts: {
-            after: ["\nExamples:\n  flisk upgrade\n  flisk upgrade --dry-run\n  flisk upgrade --all"],
+            after: [
+                "\nExamples:\n  flisk upgrade\n  flisk upgrade --dry-run\n  flisk upgrade --dry-run --json\n  flisk upgrade --all",
+            ],
         },
         subcommands: [],
     },

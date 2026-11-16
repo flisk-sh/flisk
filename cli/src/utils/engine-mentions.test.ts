@@ -19,6 +19,17 @@ const SKIP = [
   /^runtime\/engine\/docs\//,
 ];
 
+// A whole-word, case-insensitive match without building a RegExp from a variable (Semgrep detect-non-literal-regexp).
+function mentions(line: string, name: string): boolean {
+  const text = line.toLowerCase();
+  const needle = name.toLowerCase();
+  const isWord = (ch: string | undefined) => ch !== undefined && /\w/.test(ch);
+  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + 1)) {
+    if (!isWord(text[at - 1]) && !isWord(text[at + needle.length])) return true;
+  }
+  return false;
+}
+
 function trackedFiles(): string[] {
   const out = execFileSync(
     "git",
@@ -46,10 +57,10 @@ describe("engine mentions", () => {
         .forEach((line, index) => {
           // Code comments describe how the code works, and the `colima status` probe is a command, not a list.
           if (/^\s*(\/\/|\/\*|\*)/.test(line) || line.includes('"colima status"')) return;
-          const listed = LISTED.filter((name) => new RegExp(`\\b${name}\\b`, "i").test(line));
+          const listed = LISTED.filter((name) => mentions(line, name));
           if (listed.length < 2) return;
           for (const name of MUST_NAME) {
-            if (!new RegExp(`\\b${name}\\b`, "i").test(line))
+            if (!mentions(line, name))
               missing.push(`${file}:${index + 1} lists ${listed.join(", ")} but not ${name}`);
           }
         });

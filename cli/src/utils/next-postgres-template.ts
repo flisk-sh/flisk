@@ -1,10 +1,12 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { loadTemplate } from "../generator/template-engine.js";
 import { type CliInvocation, cliInvocation } from "./cli-invocation.js";
+import { generateNpmLockfile, type LockfileResult } from "./npm-lockfile.js";
 
 /**
  * The next-postgres starter: a Next.js website, an Express API and a Postgres database, with a migrator that creates and seeds the
@@ -146,8 +148,10 @@ function addApiDependencies(dir: string): void {
 }
 
 /** Writes the whole next-postgres project into the empty folder `dir`. */
-export function writeNextPostgresProject(dir: string): void {
+export function writeNextPostgresProject(dir: string): LockfileResult {
   mkdirSync(dir, { recursive: true });
   runNextPostgresSteps(dir);
   writeNextPostgresFiles(dir);
+  // The web image runs `npm ci`. Make sure the lockfile exists whatever the resource step did; a failure is returned, not thrown.
+  return generateNpmLockfile(join(dir, APP, "web"));
 }
