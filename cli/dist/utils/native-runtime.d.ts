@@ -166,6 +166,8 @@ export declare class NativeSupervisor {
     private readonly events;
     private readonly options;
     private readonly services;
+    /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
+    private readonly logSizes;
     private readonly migratorOutputs;
     private readonly redactLine;
     private readonly startedAt;
