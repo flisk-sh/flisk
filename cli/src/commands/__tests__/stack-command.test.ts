@@ -267,6 +267,54 @@ describe("stackCommand", () => {
     expect(output).toContain("already assigned to a stack");
   });
 
+  it("treats a bare `list` positional as --list instead of a stack name", async () => {
+    setupProject([{ name: "gateway", stack: "core" }, { name: "orders-api" }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await stackCommand.parseAsync(["node", "flisk", "list"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("1 resources without a stack:");
+    expect(output).toContain("orders-api");
+  });
+
+  it("returns the --list JSON envelope for `stack list --json`", async () => {
+    setupProject([{ name: "gateway", stack: "core" }, { name: "orders-api" }]);
+    let stdoutData = "";
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdoutData += String(chunk);
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    await stackCommand.parseAsync(["node", "flisk", "list", "--json"], { from: "node" });
+
+    const envelope = parseEnvelope(stdoutData);
+    expect(envelope.data.stack).toBeNull();
+    expect(envelope.data.stacks).toEqual([{ name: "core", resourceCount: 1 }]);
+    expect(envelope.data.unassigned.map((r: { name: string }) => r.name)).toEqual(["orders-api"]);
+  });
+
+  it("rejects creating a stack named list via --resources and points at --list", async () => {
+    const paths = setupProject([{ name: "users-api" }]);
+    const originalManifest = readFileSync(paths["main/users-api"], "utf-8");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    await expect(
+      stackCommand.parseAsync(["node", "flisk", "list", "--resources", "users-api", "--yes"], {
+        from: "node",
+      }),
+    ).rejects.toThrow();
+
+    expect(exit).toHaveBeenCalledWith(1);
+    const errOutput = errorSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(errOutput).toContain('"list" is reserved for listing stacks');
+    expect(errOutput).toContain("flisk stack --list");
+    expect(readFileSync(paths["main/users-api"], "utf-8")).toBe(originalManifest);
+  });
+
   it("assigns resources to a valid stack name and updates service.json", async () => {
     const paths = setupProject([
       { name: "gateway", stack: "core" },
@@ -408,6 +456,12 @@ describe("stackCommand", () => {
     const promptTextSpy = vi.spyOn(promptUtils, "promptText").mockImplementation(async (opts) => {
       expect(opts.validate?.("valid-stack")).toBe(true);
       expect(typeof opts.validate?.("Invalid Stack")).toBe("string");
+      expect(opts.validate?.("list")).toBe(
+        '"list" is reserved for listing stacks. Use: flisk stack --list',
+      );
+      expect(opts.validate?.("LIST")).toBe(
+        '"list" is reserved for listing stacks. Use: flisk stack --list',
+      );
       return "interactive-stack";
     });
     const multiSelectSpy = vi
@@ -427,6 +481,28 @@ describe("stackCommand", () => {
     expect(JSON.parse(readFileSync(paths["main/users-api"], "utf8")).stack).toBe(
       "interactive-stack",
     );
+  });
+
+  it('refuses a reserved "list" stack name coming from the --resources prompt', async () => {
+    const paths = setupProject([{ name: "users-api" }]);
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const promptTextSpy = vi.spyOn(promptUtils, "promptText").mockImplementation(async (opts) => {
+      // `flisk stack --resources users-api` carries no positional, so this
+      // prompt's validator is the only place that can refuse a stack named
+      // "list"; storing one would make it unreachable via `flisk stack --list`.
+      expect(typeof opts.validate?.("list")).toBe("string");
+      expect(opts.validate?.("core")).toBe(true);
+      return "core";
+    });
+
+    await stackCommand.parseAsync(["node", "flisk", "--resources", "users-api", "--yes"], {
+      from: "node",
+    });
+
+    expect(promptTextSpy).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(readFileSync(paths["main/users-api"], "utf8")).stack).toBe("core");
   });
 
   it("exits early without writing when confirmation is declined or no resources are available in a TTY", async () => {

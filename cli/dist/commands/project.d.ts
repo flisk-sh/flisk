@@ -6,12 +6,17 @@ import type { DiscoveredResource } from "../types/index.js";
  * `flisk up` without re-running `flisk project`. Returns the stacks it enabled.
  */
 export declare function enableDiscoveredStacks(projectRoot: string, resources?: DiscoveredResource[]): string[];
-/** The directory a template lands in: the requested path, or the template's repository name. */
-export declare function templateTargetDir(templateName: string, targetDir?: string): string;
 /** The last non-empty line of a child process error, for a one-line failure message. */
 export declare function lastLine(text: string): string;
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
 export declare function exitUnknownTemplate(templateName: string): never;
+export type ProjectShell = "auto" | "posix" | "cmd" | "cmd-delayed" | "powershell";
+/** Formats the created folder label and shell-safe `cd` next-step command(s) for the current OS and shell. */
+export declare function formatProjectPaths(dirName: string, platform?: NodeJS.Platform, env?: NodeJS.ProcessEnv, shell?: ProjectShell, workingDir?: string): {
+    displayDirWithSlash: string;
+    cdTarget: string;
+    cdCommands: string[];
+};
 /** Clones (or copies) a starter template and resolves to the absolute directory it landed in. */
 export declare function cloneProjectTemplate(templateName: string, targetDir: string | undefined, runtimeNextSteps: string[], options?: {
     quiet?: boolean;

@@ -122,7 +122,7 @@ unknown key or a value with characters Compose would read as YAML is refused bef
 was not part of that test.
 
 `command` replaces the image's default command (Compose `command`), for an image that needs arguments to start, such as
-MinIO's `server /data`. It is a list of non-empty strings without control characters: `["sh", "-c", "..."]` runs a script.
+MinIO's `server /data`. It is a list of non-empty strings without control characters (a newline and a tab are allowed, so a multi-line script works): `["sh", "-c", "..."]` runs a script.
 Compose reads `$` itself, so write `$$VAR` for a variable the container expands when it starts (`$$HOME` reaches the shell
 as `$HOME`), and `${VAR}` for one Compose fills in from the project `.env`. Checked by the same test file, which also runs
 `docker compose config` on the generated file.
@@ -568,9 +568,13 @@ through Compose interpolation and is never written to a generated file. A provid
 `"required": false` to start without it, or `"required": true` to need it even with a fallback. List the fallback in
 `dependsOn` too; `flisk config verify` reports it when it is missing.
 
-To add, rotate or remove a token, edit the project `.env` and run `flisk restart <service>`. The container is recreated with
-the new value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
+To add or rotate a token, edit the project `.env` and run `flisk restart <service> --rebuild`. A plain
+`flisk restart <service>` keeps the container and its environment; `--rebuild` recreates the container with the new
+value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
 the flag still follows the variable.
+
+To remove a token, edit the project `.env`, then run `flisk down` and `flisk up`. `--rebuild` does not clear it: the
+running Tilt process loaded the old value and only sets the keys that are still present in `.env`.
 
 `providers` applies to backend, worker, mcp, agent and bring-your-own services running in containers. It does not start a
 proxy in front of the provider; the service calls the URL itself.
@@ -578,8 +582,8 @@ proxy in front of the provider; the service calls the URL itself.
 Checked by `tests/tilt-engine/test_providers.py` (the generators) and
 `tests/e2e/resource-types/bring-your-own/verify-byo-providers.sh` (e2e BY9): `flisk up --dry-run` refuses a required provider
 token that is missing; without the token the service sees an empty `REMOTE` and reaches the simulator through its fallback
-URL; after the token is added to `.env` and `flisk restart`, it sees `REMOTE=true` and the new token, and no generated file
-holds it.
+URL; after the token is added to `.env` and `flisk restart <service> --rebuild` runs, it sees `REMOTE=true` and the new
+token, and no generated file holds it.
 
 ## Bringing a framework app (Node, Go, Rust, ...)
 

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { rmSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTempProject } from "../../test-support/index.js";
 
 const mocks = vi.hoisted(() => ({
   checkDockerRuntime: vi.fn(),
@@ -9,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   checkTilt: vi.fn(),
   findOnPath: vi.fn(),
   execFileSync: vi.fn(),
+  findProjectRoot: vi.fn<() => string | null>(),
 }));
 
 // The local runtime is missing: Docker is stopped and Tilt is not installed.
@@ -29,7 +32,26 @@ vi.mock("node:child_process", async (importOriginal) => ({
 }));
 vi.mock("../../utils/paths.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/paths.js")>()),
-  findProjectRoot: vi.fn(() => null),
+  findProjectRoot: mocks.findProjectRoot,
+}));
+vi.mock("../../utils/tilt-images.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/tilt-images.js")>()),
+  pruneSupersededTiltImages: vi.fn(async () => ({ removed: [], kept: [], removedBytes: 0 })),
+}));
+vi.mock("../../utils/docker-build-cache.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/docker-build-cache.js")>()),
+  enforceBuildCacheCeiling: vi.fn(async () => ({ pruned: false, ceilingGib: 20 })),
+}));
+vi.mock("../../utils/disk-guard.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/disk-guard.js")>()),
+  enforceDiskGuard: vi.fn(() => ({
+    level: "ok",
+    failBelowGib: 5,
+    warnBelowGib: 15,
+    message: "ok",
+  })),
+  readDockerVmFreeGib: vi.fn(() => null),
+  diskWarningField: vi.fn(() => undefined),
 }));
 vi.mock("../../utils/agent-host.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/agent-host.js")>()),
@@ -38,6 +60,7 @@ vi.mock("../../utils/agent-host.js", async (importOriginal) => ({
 
 import { upCommand } from "../up.js";
 
+let projectRoot: string;
 let exitSpy: ReturnType<typeof vi.spyOn>;
 let errorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -48,11 +71,13 @@ function errorOutput(): string {
 }
 
 beforeEach(() => {
+  projectRoot = createTempProject({});
+  mocks.findProjectRoot.mockReturnValue(projectRoot);
   mocks.checkDockerRuntime.mockResolvedValue({
     name: "Docker Runtime",
     didPass: false,
     message: "Docker daemon is not running",
-    fix: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
+    fix: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
   });
   mocks.checkDockerCompose.mockResolvedValue({
     name: "Docker Compose",
@@ -84,6 +109,7 @@ beforeEach(() => {
 afterEach(() => {
   exitSpy.mockRestore();
   errorSpy.mockRestore();
+  rmSync(projectRoot, { recursive: true, force: true });
   vi.clearAllMocks();
 });
 
@@ -110,7 +136,9 @@ describe("flisk up readiness gate", () => {
     const output = errorOutput();
     expect(output).toContain("Cold start blocked");
     expect(output).toContain("FAIL docker  Docker daemon is not running");
-    expect(output).toContain("Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor");
+    expect(output).toContain(
+      "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
+    );
     expect(output).toContain("FAIL tilt    Tilt CLI not found");
     expect(output).toContain(
       "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh",

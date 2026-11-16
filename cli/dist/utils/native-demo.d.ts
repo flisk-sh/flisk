@@ -30,6 +30,8 @@ export declare function nativeDemoReason(input: {
     platform: string;
     env: NodeJS.ProcessEnv;
     probe?: ContainerProbe;
+    /** The Docker CLI's active context, when it is not in `env`. */
+    kiriContext?: string;
 }): Promise<string | null>;
 /** The first port from `start` that nothing listens on. */
 export declare function findFreePort(start: number, isTaken?: (port: number) => Promise<boolean>, exclude?: readonly number[], attempts?: number): Promise<number>;

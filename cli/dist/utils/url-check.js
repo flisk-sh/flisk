@@ -7,6 +7,11 @@ import { isRoutedBringYourOwn, resolveServiceUrl } from "./service-urls.js";
 export const URL_PROBE_TIMEOUT_MS = 3_000;
 /** How long a failing URL is retried: Traefik can take a moment to pick up a route after the container turns healthy. */
 export const URL_CHECK_DEADLINE_MS = 15_000;
+/**
+ * How long a URL is retried when its last attempt timed out instead of being refused: something is listening but slow,
+ * typically a dev server compiling on its first request (Vite), which can take longer than the usual deadline.
+ */
+export const URL_SLOW_DEADLINE_MS = 60_000;
 const URL_CHECK_INTERVAL_MS = 500;
 /** At most this many requests at once, so a large stack does not hit the gateway with every URL in the same instant. */
 export const URL_CHECK_CONCURRENCY = 8;
@@ -169,7 +174,7 @@ export function describeUrlFailure(target, failure) {
         case "missing-env":
             return {
                 message: `the latest logs of ${service} say the environment variable ${failure.envName ?? "(unnamed)"} is not set`,
-                nextCommand: `add ${failure.envName ?? "it"}=<value> to .env, then run: flisk restart ${service}`,
+                nextCommand: `add ${failure.envName ?? "it"}=<value> to .env, then run: flisk restart ${service} --rebuild`,
             };
         case "container-exited":
             return {
@@ -216,7 +221,9 @@ export async function checkPrintedUrls(targets, options = {}) {
     const intervalMs = options.intervalMs ?? URL_CHECK_INTERVAL_MS;
     const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
     const now = options.now ?? Date.now;
-    const deadline = now() + deadlineMs;
+    const slowDeadlineMs = options.slowDeadlineMs ?? URL_SLOW_DEADLINE_MS;
+    const startedAt = now();
+    let deadline = startedAt + deadlineMs;
     const results = new Map();
     let pending = targets.map((target, index) => ({ target, index }));
     for (let attempt = 0; pending.length > 0; attempt++) {
@@ -231,6 +238,9 @@ export async function checkPrintedUrls(targets, options = {}) {
         pending = probed
             .filter(({ target, result }) => !classifyProbe(result, target.url).didAnswer)
             .map(({ target, index }) => ({ target, index }));
+        if (pending.some(({ index }) => results.get(index)?.error === "timeout")) {
+            deadline = Math.max(deadline, startedAt + slowDeadlineMs);
+        }
         const remaining = deadline - now();
         if (pending.length === 0 || remaining <= 0)
             break;

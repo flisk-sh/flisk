@@ -52,6 +52,37 @@ jobs:
           chmod +x cli/bin/flisk.js
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Kiri (the flisk-kiri lane; a failure here only skips that lane)
+        if: ${{ contains(inputs.only, 'kiri') }}
+        continue-on-error: true
+        env:
+          KIRI_VERSION: "0.2.1"
+          KIRI_DEB_SHA256: 5e7b1f6d8239aa590b314fd2ccc8f1472ba1427f414b35efa86ccedd6a6571b2 # kiri-lite_0.2.1_amd64.deb, from the release's own digest
+        run: |
+          # Engine only (kiri-lite): the runner already has docker, compose and buildx. Kiri runs on the kernel on Linux, no VM.
+          scripts/e2e/retry-infra.sh "download Kiri v${KIRI_VERSION}" -- curl -fsSL -o kiri.deb "https://github.com/libracoder/kiri/releases/download/v${KIRI_VERSION}/kiri-lite_${KIRI_VERSION}_amd64.deb"
+          echo "${KIRI_DEB_SHA256}  kiri.deb" | sha256sum -c -
+          sudo apt-get install -y ./kiri.deb
+          rm -f kiri.deb
+          sudo kiri host-access "$USER" # starts the engine and puts the user in the kiri group
+          for _ in $(seq 1 30); do [ -S /run/kiri/docker.sock ] && break; sleep 1; done
+          sudo chmod a+rw /run/kiri/docker.sock # the group only applies to new logins; this runner is thrown away
+          docker context create kiri --docker host=unix:///run/kiri/docker.sock
+          DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'kiri: {{.Name}} {{.ServerVersion}}'
+      - name: Kiri network check and base image pre-pull (informational)
+        if: ${{ contains(inputs.only, 'kiri') }}
+        continue-on-error: true
+        run: |
+          export DOCKER_HOST=unix:///run/kiri/docker.sock
+          for img in oven/bun:1-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a nginx:alpine@sha256:713fc2ebfd92e8217db451477182ee91944b123d2b1ee9fd5a8c6e91ca6c3a11 postgres:17-alpine redis:7-alpine; do
+            echo "== pull $img"; docker pull "$img" 2>&1 | tail -3 || true
+          done
+          echo "== container egress"; docker run --rm oven/bun:1-alpine sh -c 'wget -q -O- --timeout=15 https://registry.npmjs.org/ | head -c 80' 2>&1 | tail -3 || true
+          echo "== classic build with RUN network"
+          mkdir -p "$RUNNER_TEMP/kiri-net" && printf 'FROM oven/bun:1-alpine\nRUN wget -q -O- --timeout=15 https://registry.npmjs.org/ | head -c 80\n' > "$RUNNER_TEMP/kiri-net/Dockerfile"
+          DOCKER_BUILDKIT=0 docker build --network host "$RUNNER_TEMP/kiri-net" 2>&1 | tail -6 || true
+          docker images --format '{{.Repository}}:{{.Tag}}' | head -20
+          exit 0
       - name: Machine
         run: |
           echo "cpus: $(nproc)"; free -h; df -h / | tail -1
@@ -64,6 +95,13 @@ jobs:
           args=()
           [ -n "${ONLY:-}" ] && args+=(--only "$ONLY")
           node scripts/bench/run.mjs "${args[@]}" --out "$RUNNER_TEMP/shop-bench" --work "$RUNNER_TEMP/shop-bench-work" >/dev/null
+      - name: Kiri lane context diagnostics
+        if: ${{ always() && contains(inputs.only, 'kiri') }}
+        run: |
+          d="$RUNNER_TEMP/shop-bench-work/flisk-kiri/.flisk/.flisk-out"
+          # shellcheck disable=SC2012
+          ls -la "$d" 2>&1 | head -30; stat "$d/traefik-dynamic" 2>&1 | head; id
+          exit 0
       - name: Job summary
         if: always()
         run: |

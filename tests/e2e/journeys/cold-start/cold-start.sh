@@ -10,8 +10,8 @@ export FLISK_PREMIUM_DIAGNOSTICS=1
 
 echo "::group::Scaffold deferred and deliberately slow backends"
 flisk project --yes
-printf 'y\n' | flisk resource cold-api --type backend --stack cold-start
-printf 'y\n' | flisk resource slow-api --type backend --stack cold-start
+flisk resource cold-api --type backend --stack cold-start --yes
+flisk resource slow-api --type backend --stack cold-start --yes
 
 python3 - <<'PY'
 import json

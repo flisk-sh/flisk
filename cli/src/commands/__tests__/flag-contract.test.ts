@@ -15,6 +15,7 @@ import {
   runFlisk,
 } from "../../test-support/index.js";
 import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
+import { agentCommand } from "../agent.js";
 import { configCommand } from "../config.js";
 import { connectCommand } from "../connect.js";
 import { downCommand } from "../down.js";
@@ -42,6 +43,10 @@ const JSON_MATRIX: Array<{ command: string[]; project: Parameters<typeof createT
     {
       command: ["resources"],
       project: { stacks: { api: { gateway: { appType: "backend", port: 3100 } } } },
+    },
+    {
+      command: ["agent", "list"],
+      project: { stacks: { api: { assistant: { appType: "agent", port: 3200 } } } },
     },
     { command: ["projects"], project: { resources: { api: { runtime: "node" } } } },
     {
@@ -279,7 +284,7 @@ const EXEMPT: Record<string, string> = {
   "os --json":
     "starts the host's fliskos command (or FliskOS.app) and keeps running until it stops, so a matrix run would launch a server; os.test.ts covers the envelope with a stub fliskos and spawn doubles",
   "restart --json":
-    "triggers a resource on the host's Tilt UI port, and isTiltAvailable checks the host's tilt binary; needs Tilt and a running stack",
+    "restarts a container through the host's Docker, or triggers a resource on the host's Tilt UI port for local-process resources; needs Tilt and a running stack",
   "run --json":
     "takes a required <service> and a command after --, and runs it in the service's container or as a local process, so the matrix's argument-less run cannot exercise it; run.test.ts covers the envelope with a local-process service",
   "runtime --json":
@@ -289,6 +294,12 @@ const EXEMPT: Record<string, string> = {
     "compares the installed CLI with origin over git on the host, and prints 'Dry run:' rather than 'Dry run -'",
   "upgrade --yes":
     "updates the installed CLI checkout, so a test run would rebuild the repo under test",
+  "version --json":
+    "prints the version envelope and works outside a project, so the matrix's project-required rows do not fit; version.test.ts covers the envelope",
+  "tool list --json":
+    "lists the static tool catalogue and works outside a project, so the matrix's project-required rows do not fit; tool-add.test.ts covers the envelope",
+  "open --json":
+    "polls for a running frontend on a published port, so a matrix run would wait for timeouts; open.test.ts covers the envelope and its error cases",
 };
 
 interface FlagSite {
@@ -371,6 +382,7 @@ async function loadAllCommands(): Promise<Command[]> {
 const IN_PROCESS_TARGETS: Record<string, { command: Command; args: string[] }> = {
   stacks: { command: stacksCommand, args: [] },
   resources: { command: resourcesCommand, args: [] },
+  "agent list": { command: agentCommand, args: ["list"] },
   projects: { command: projectsCommand, args: [] },
   status: { command: statusCommand, args: [] },
   networks: { command: networksCommand, args: [] },

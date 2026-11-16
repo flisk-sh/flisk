@@ -102,12 +102,14 @@ describe("machine output contract: every --json command emits the standard envel
 
   it.each([
     ["projects", ["projects", "--json"]],
+    ["project --list", ["project", "--list", "--json"]],
     ["stacks", ["stacks", "--json"]],
     ["resources", ["resources", "--json"]],
     ["status", ["status", "--json"]],
     ["networks", ["networks", "--json"]],
     ["doctor", ["doctor", "--json", "--no-ping"]],
     ["config verify", ["config", "verify", "--json"]],
+    ["version", ["version", "--json"]],
   ])(
     "command '%s' emits standard machine envelope with schemaVersion, data, errors",
     (_, args) => {

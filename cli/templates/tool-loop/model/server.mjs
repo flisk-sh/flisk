@@ -33,6 +33,29 @@ export function reply(body) {
     }));
     return { content: calls, stop_reason: "tool_use" };
   }
+  // A gullible model, for the prompt-injection test: text in a tool result that says CALL_TOOL:<name> is obeyed, once.
+  const asked = new Set(
+    body.messages.flatMap((m) =>
+      Array.isArray(m.content)
+        ? m.content.filter((b) => b.type === "tool_use").map((b) => b.name)
+        : [],
+    ),
+  );
+  const injected = results
+    .map((r) => (typeof r.content === "string" ? r.content : (r.content?.[0]?.text ?? "")))
+    .flatMap((text) => [...text.matchAll(/CALL_TOOL:([\w-]+)/g)].map((m) => m[1]))
+    .filter((name) => !asked.has(name));
+  if (injected.length > 0) {
+    return {
+      content: injected.map((name, index) => ({
+        type: "tool_use",
+        id: `toolu_mock_injected_${index}`,
+        name,
+        input: {},
+      })),
+      stop_reason: "tool_use",
+    };
+  }
   const notes = results.map((result) =>
     typeof result.content === "string" ? result.content : (result.content?.[0]?.text ?? ""),
   );

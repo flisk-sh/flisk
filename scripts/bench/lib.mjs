@@ -55,6 +55,14 @@ export function loadCompetitors(benchDir) {
   return out;
 }
 
+// --only names lanes; without it every lane runs except those marked optIn (known not to finish yet).
+export function selectCompetitors(list, only) {
+  if (!only) return list.filter((c) => !c.optIn);
+  const unknown = only.filter((id) => !list.some((c) => c.id === id));
+  if (unknown.length) throw new Error(`unknown competitor: ${unknown.join(", ")}`);
+  return list.filter((c) => only.includes(c.id));
+}
+
 export function validateContract(c) {
   const errs = [];
   if (!/^[a-z0-9][a-z0-9-]*$/.test(c.id)) errs.push(`id "${c.id}" must be kebab-case`);
@@ -96,6 +104,14 @@ function isRegex(src) {
 const tenths = (ms) => Math.round(ms / 100) / 10;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: terminal colour codes start with ESC
 const ANSI = /\u001b\[[0-9;?]*[A-Za-z]/g;
+
+/**
+ * One line of a start log with the seconds since the start command ran in front: `[  12.3s] postgres │ Started`.
+ * Colour codes are dropped. The timed copy of the log shows what ran when, between the milestones.
+ */
+export function timedLogLine(text, ms) {
+  return `[${(ms / 1000).toFixed(1).padStart(6)}s] ${text.replace(ANSI, "")}`;
+}
 
 /**
  * Times the `milestones` of a bench.json against the start command's output: feed it every line with the milliseconds

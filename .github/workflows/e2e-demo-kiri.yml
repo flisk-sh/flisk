@@ -1,0 +1,100 @@
+# The one-command demo on the Kiri engine (D1-D4 of tests/e2e/journeys/demo). Manual: Kiri is not the default engine, and the
+# demo's Docker-less cases (N1-N3) do not use an engine. Run it to see whether `flisk demo` still starts on Kiri.
+name: 🎬 E2E | Demo on Kiri
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "CLI version to test (local dist if empty)"
+        type: string
+        default: ""
+      probe:
+        description: "Only probe DNS in containers and builds on Kiri (libracoder/kiri#330), skip the demo"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-demo-kiri
+  cancel-in-progress: false
+
+jobs:
+  demo-kiri:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.23.5
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Flisk
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: ${{ inputs.version || 'local' }}
+
+      - name: Install Kiri
+        env:
+          KIRI_VERSION: "0.2.1"
+          KIRI_DEB_SHA256: 5e7b1f6d8239aa590b314fd2ccc8f1472ba1427f414b35efa86ccedd6a6571b2 # kiri-lite_0.2.1_amd64.deb
+        run: |
+          scripts/e2e/retry-infra.sh "download Kiri v${KIRI_VERSION}" -- curl -fsSL -o kiri.deb "https://github.com/libracoder/kiri/releases/download/v${KIRI_VERSION}/kiri-lite_${KIRI_VERSION}_amd64.deb"
+          echo "${KIRI_DEB_SHA256}  kiri.deb" | sha256sum -c -
+          sudo apt-get install -y ./kiri.deb
+          rm -f kiri.deb
+          sudo kiri host-access "$USER"
+          for _ in $(seq 1 30); do [ -S /run/kiri/docker.sock ] && break; sleep 1; done
+          sudo chmod a+rw /run/kiri/docker.sock
+          docker context create kiri --docker host=unix:///run/kiri/docker.sock
+          docker context use kiri
+          echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
+          DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
+
+      - name: Probe DNS on Kiri
+        if: inputs.probe
+        run: |
+          docker version --format 'server: {{.Server.Version}}' || true
+          probe() { echo "--- $1"; shift; "$@" 2>&1 | tail -5 || true; }
+          docker pull -q alpine:3.20 >/dev/null
+          probe "default bridge: nslookup" docker run --rm alpine:3.20 nslookup registry-1.docker.io
+          probe "default bridge: resolv.conf" docker run --rm alpine:3.20 cat /etc/resolv.conf
+          probe "default bridge: wget by name" docker run --rm alpine:3.20 wget -q -O- --timeout=15 https://registry.npmjs.org/hono/latest
+          probe "--dns 8.8.8.8: wget by name" docker run --rm --dns 8.8.8.8 alpine:3.20 wget -q -O- --timeout=15 https://registry.npmjs.org/hono/latest
+          probe "--network host: wget by name" docker run --rm --network host alpine:3.20 wget -q -O- --timeout=15 https://registry.npmjs.org/hono/latest
+          probe "user network: nslookup" sh -c 'docker network create probe-net >/dev/null && docker run --rm --network probe-net alpine:3.20 nslookup registry-1.docker.io'
+          mkdir b && printf 'FROM alpine:3.20\nRUN nslookup registry.npmjs.org\n' > b/Dockerfile
+          probe "classic build: nslookup" env DOCKER_BUILDKIT=0 docker build --network host --no-cache b
+          probe "classic build default network: nslookup" env DOCKER_BUILDKIT=0 docker build --no-cache b
+          probe "kiri build-with kiri" sh -c 'kiri build-with kiri 2>&1; kiri build-with 2>&1 | head -3'
+          probe "buildkit build via kiri builder: RUN dns" sh -c 'docker build --no-cache b'
+          probe "buildkit with cache mount + network host" sh -c 'printf "FROM alpine:3.20\nRUN --mount=type=cache,target=/c nslookup registry.npmjs.org\n" > b/Dockerfile && docker build --network host --no-cache b'
+          probe "compose build: digest-pinned local base" sh -c 'mkdir c && cd c && printf "FROM alpine:3.20\nRUN nslookup registry.npmjs.org\n" > Dockerfile && printf "services:\n  a:\n    build:\n      context: .\n      network: host\n" > compose.yaml && DOCKER_BUILDKIT=0 COMPOSE_BAKE=false docker compose build'
+          probe "buildx builder logs" sh -c 'docker ps -a --format "{{.Names}}" | grep -i buildx || true'
+          probe "host resolv.conf" cat /etc/resolv.conf
+
+      - name: Run the demo journey (D1-D4)
+        if: ${{ !inputs.probe }}
+        env:
+          FLISK_DEMO_ON_KIRI: "1" # flisk demo otherwise uses the local-process demo on Kiri
+        run: tests/e2e/journeys/demo/run.sh D1 D2 D3 D4
+
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: demo-kiri
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: tests/e2e/journeys/demo/run.sh diagnostics || true
+
+      - name: Tear down
+        if: always()
+        run: tests/e2e/journeys/demo/run.sh cleanup || true

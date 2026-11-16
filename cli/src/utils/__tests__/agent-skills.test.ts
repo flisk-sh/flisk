@@ -57,7 +57,7 @@ describe("agent skills shipped to new projects", () => {
   it("writes every skill for Claude Code and other agents, plus AGENTS.md", () => {
     root = mkdtempSync(join(tmpdir(), "flisk-agent-skills-"));
     const written = installAgentSkills(root);
-    expect(written).toHaveLength(PROJECT_AGENT_SKILLS.length * AGENT_SKILL_DIRS.length + 3);
+    expect(written).toHaveLength(PROJECT_AGENT_SKILLS.length * AGENT_SKILL_DIRS.length + 5);
     for (const dir of AGENT_SKILL_DIRS) {
       for (const name of PROJECT_AGENT_SKILLS) {
         const file = readFileSync(join(root, dir, name, "SKILL.md"), "utf-8");
@@ -70,6 +70,34 @@ describe("agent skills shipped to new projects", () => {
       PROJECT_CLAUDE_SETTINGS,
     );
     expect(existsSync(join(root, GENERATED_GUARD_HOOK))).toBe(true);
+    expect(readFileSync(join(root, "CLAUDE.md"), "utf-8")).toBe("@AGENTS.md\n");
+    const ci = readFileSync(join(root, ".github", "workflows", "flisk.yml"), "utf-8");
+    expect(ci).toContain("config verify --json");
+    expect(ci).toContain("PRIVATE KEY");
+  });
+
+  it("denies reading env files, asks before git push and allows read-only flisk checks (#4052)", () => {
+    const settings = JSON.parse(PROJECT_CLAUDE_SETTINGS);
+    expect(settings.permissions.deny).toEqual(["Read(**/.env)", "Read(**/.env.*)"]);
+    expect(settings.permissions.ask).toEqual(["Bash(git push:*)"]);
+    expect(settings.permissions.allow).toEqual(
+      expect.arrayContaining(["Bash(flisk status:*)", "mcp__flisk__config_verify"]),
+    );
+    // A destructive tool is never pre-approved.
+    expect(settings.permissions.allow.join(" ")).not.toMatch(/resource_run|\bdown\b|project_eject/);
+  });
+
+  it("leaves user-edited settings, CLAUDE.md and workflow alone on a second run (#4052)", () => {
+    root = mkdtempSync(join(tmpdir(), "flisk-agent-skills-"));
+    mkdirSync(join(root, ".github", "workflows"), { recursive: true });
+    writeFileSync(join(root, ".github", "workflows", "flisk.yml"), "mine\n");
+    writeFileSync(join(root, "CLAUDE.md"), "# mine\n");
+    installAgentSkills(root);
+    writeFileSync(join(root, ".claude", "settings.json"), "{}\n");
+    expect(installAgentSkills(root)).toEqual([]);
+    expect(readFileSync(join(root, ".github", "workflows", "flisk.yml"), "utf-8")).toBe("mine\n");
+    expect(readFileSync(join(root, "CLAUDE.md"), "utf-8")).toBe("# mine\n");
+    expect(readFileSync(join(root, ".claude", "settings.json"), "utf-8")).toBe("{}\n");
   });
 
   it("never overwrites a file that already exists", () => {

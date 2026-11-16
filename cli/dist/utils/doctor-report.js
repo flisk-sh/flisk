@@ -27,6 +27,9 @@ function containerRuntimeReachable(checks) {
     const runtime = checks.find((check) => check.name === CONTAINER_RUNTIME_CHECK);
     return runtime ? runtime.didPass : null;
 }
+export function createDoctorUsageReport(errors) {
+    return { schemaVersion: SCHEMA_VERSION, data: null, errors };
+}
 /** Produce the same readiness decision for human and machine consumers. */
 export function createDoctorReport(checks, inProject, errors = [], portPlan, host, capabilities, buildCache, commit) {
     const fixFirst = rankDoctorFixes(checks);

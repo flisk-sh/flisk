@@ -218,6 +218,7 @@ These are the limits for container projects (image builds). A project that runs 
 | --- | --- | --- |
 | `FLISK_DISK_MIN_GIB` | `5` (container projects), `1` (local processes) | Below this, `flisk up` and `flisk doctor` fail; one value overrides the limit of both runtimes |
 | `FLISK_DISK_WARN_GIB` | `15` (container projects), `2` (local processes) | Below this, they warn; one value overrides both runtimes |
+| `FLISK_SHELL` | detected from the platform | Windows only: selects the shell syntax `flisk project` uses when it prints the next-step commands for a new project (other platforms always use POSIX syntax and ignore it): `posix`, `cmd`, `cmd-delayed` or `powershell`. When unset, the shell is guessed from `PROMPT`, `POWERSHELL_DISTRIBUTION_CHANNEL` and `MSYSTEM` |
 | `FLISK_OFFLINE` | unset | When set (and not `0`), `flisk demo` and `flisk doctor` do not ask the npm registry for the latest version. `CI`, `NO_UPDATE_NOTIFIER` and `--offline` skip it too. The answer is cached for a day in `~/.flisk/latest-version.json` |
 | `FLISK_BUILD_CACHE_MAX_GIB` | `20` | `flisk up` trims the shared Docker build cache to this size (`docker builder prune -f --keep-storage`); `0` turns the ceiling off |
 
@@ -233,7 +234,8 @@ behind. If `~/.flisk/flisk-demo` exists but is not a Flisk project, the command 
 To put the demo somewhere else, give a directory: `flisk demo --project my-demo` clones into `my-demo` in the current folder.
 If that folder already has files in it, the next free name is used (`my-demo-2`, `my-demo-3`, and so on). The other templates
 (`flisk restaurant`, `flisk saas` and the rest) always clone into the current folder, under the template's repository name
-unless you pass `--project`.
+unless you pass `--project`. A starter the CLI writes itself (`swarm`, `security`, `super-agent`, `langgraph`, `tool-loop`,
+`next-postgres`) is not cloned from its own repository, so it uses the starter name instead.
 
 ## What was checked, and what was not
 

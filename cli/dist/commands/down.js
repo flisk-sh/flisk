@@ -9,7 +9,7 @@ import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
 import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
-import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
+import { FliskError, handleTiltFailure, requireProjectBeforeDocker, withTiltCheck, } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { writeMachineError } from "../utils/machine-output.js";
@@ -55,29 +55,29 @@ function resolveDownProject(options) {
     };
     if (options.project) {
         const path = resolve(options.project);
-        return (findProjectRoot(path) ??
-            fail(new FliskError(`No Flisk project at ${path} (no .flisk/project.json found)`, [
-                "Pass the folder of a Flisk project: flisk down --project <path>",
-            ])));
+        return requireProjectBeforeDocker(() => findProjectRoot(path), () => fail(new FliskError(`No Flisk project at ${path} (no .flisk/project.json found)`, [
+            "Pass the folder of a Flisk project: flisk down --project <path>",
+        ])));
     }
-    const here = findProjectRoot();
-    if (here)
-        return here;
-    const running = findRunningFliskProjects();
-    if (running.length === 1) {
-        const root = running[0];
-        if (!options.json)
-            console.log(chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`));
-        return root;
-    }
-    if (running.length > 1) {
-        return fail(new FliskError(`Not in a Flisk project, and ${running.length} Flisk projects are running`, running.map((root) => `flisk down --project ${root}`)));
-    }
-    const notInProject = errorFactories.notInProject();
-    return fail(new FliskError(notInProject.message, [
+    return requireProjectBeforeDocker(() => {
+        const here = findProjectRoot();
+        if (here)
+            return here;
+        const running = findRunningFliskProjects();
+        if (running.length === 1) {
+            const root = running[0];
+            if (!options.json)
+                console.log(chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`));
+            return root;
+        }
+        if (running.length > 1) {
+            return fail(new FliskError(`Not in a Flisk project, and ${running.length} Flisk projects are running`, running.map((root) => `flisk down --project ${root}`)));
+        }
+        return null;
+    }, (notInProject) => fail(new FliskError(notInProject.message, [
         ...notInProject.suggestions,
         "Or name the project to stop from anywhere: flisk down --project <path>",
-    ]));
+    ])));
 }
 /**
  * True only when it is certain nothing of this project runs: no `tilt up` for its Tiltfile and no container of its

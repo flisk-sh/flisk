@@ -1,5 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
+
 export interface ProjectTemplate {
   repo: string;
   description: string;
@@ -124,16 +127,35 @@ export function listProjectTemplates(): ProjectTemplateEntry[] {
 }
 
 /**
+ * The folder a starter lands in: the requested path, or its default folder. A starter that the
+ * CLI writes itself (generated or composed) defaults to its own name; one cloned from a repository
+ * defaults to that repository's name. Those six starters all point at the main `flisk-sh/flisk`
+ * repository, so its name is not a useful folder: two of them would collide as `flisk/`.
+ *
+ * Every caller uses this function, so the printed next steps, the JSON result and the folder on
+ * disk cannot disagree.
+ */
+export function templateTargetDir(templateName: string, targetDir?: string): string {
+  if (targetDir) return targetDir;
+  const template = PROJECT_TEMPLATES[templateName];
+  if (template?.generated || template?.composed) return templateName;
+  const fromRepo = template?.repo.split("/").pop() ?? templateName;
+  return fromRepo.replace(/\.git$/, "");
+}
+
+/**
  * Fetches a repository template into `destination` and keeps its source as `upstream`.
  * Unpinned templates need only the latest commit; pinned templates retain the history needed to
- * check out their exact commit.
+ * check out their exact commit. The pinned commit is reached by moving the cloned default branch
+ * onto it, not by a detached checkout: a beginner's first commits on a detached HEAD belong to no
+ * branch and are lost on the next `git switch` (#4286).
  */
 export function templateGitCommands(template: ProjectTemplate, destination: string): string[][] {
   const commands = [
     ["clone", ...(template.ref ? [] : ["--depth", "1"]), template.repo, destination],
   ];
   if (template.ref) {
-    commands.push(["-C", destination, "checkout", "--quiet", "--detach", template.ref]);
+    commands.push(["-C", destination, "reset", "--hard", "--quiet", template.ref]);
   }
   commands.push(["-C", destination, "remote", "rename", "origin", "upstream"]);
   return commands;
@@ -151,4 +173,34 @@ export function bareTemplateArg(args: string[]): string | undefined {
   const first = args[2];
   if (!first || first.startsWith("-")) return undefined;
   return first in PROJECT_TEMPLATES ? first : undefined;
+}
+
+/** Where a bundled example can live: the npm/source package root, the engine bundle next to a compiled binary, an installed dependency. */
+export function bundledTemplateRootCandidates(roots: {
+  packageRoot: string;
+  exeDir: string;
+  workingDir: string;
+}): string[] {
+  return [
+    roots.packageRoot,
+    join(roots.exeDir, "flisk-cli"),
+    join(roots.workingDir, "node_modules", "@flisk-sh", "flisk"),
+  ];
+}
+
+/**
+ * The first candidate that really holds `bundledPath`, or null. A `bun build --compile`
+ * binary has no package root (import.meta.url resolves to /), so the engine bundle
+ * beside the executable is the one that matches there (#3880).
+ */
+export function resolveBundledTemplateDir(
+  bundledPath: string,
+  roots: { packageRoot: string; exeDir: string; workingDir: string },
+  exists: (path: string) => boolean = existsSync,
+): string | null {
+  return (
+    bundledTemplateRootCandidates(roots)
+      .map((root) => resolve(root, bundledPath))
+      .find(exists) ?? null
+  );
 }

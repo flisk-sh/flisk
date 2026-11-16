@@ -593,3 +593,21 @@ test("the release candidate runs at least 15 legs at once", () => {
   const cap = Number(workflow.match(/max-parallel: (\d+)/)?.[1]);
   assert.ok(cap >= 15 && cap < 20, `max-parallel is ${cap}: below 15 the candidate takes 3 waves, 20 starves the shared runner pool`);
 });
+
+test("the engine bundle ships examples/flisk-example and the smoke test clones it (#3880)", () => {
+  assert.match(
+    SCRIPT_SOURCE,
+    /cp -R "\$\{ROOT_DIR\}\/examples\/flisk-example" "\$\{RELEASE_DIR\}\/flisk-cli\/examples\/flisk-example"/,
+    "must copy examples/flisk-example into the engine bundle",
+  );
+  assert.match(
+    SCRIPT_SOURCE,
+    /project example --yes/,
+    "must run project example smoke test",
+  );
+  assert.match(
+    SCRIPT_SOURCE,
+    /example_dir\}\/flisk-example\/services\/shop\/orders-api\/service\.json/,
+    "must check for example project structure",
+  );
+});

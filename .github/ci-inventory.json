@@ -194,6 +194,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "gel.yml",
+			"job": "gel",
+			"tier": "gate",
+			"required": false,
+			"reason": "GEL guards (flisk-sh/gel, pinned by SHA): secret scan, pinned actions, workflow permissions, dead links, done-without-green; report mode, on every PR, main push and weekly so Cilytics keeps a record",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "security-alert-issues.yml",
 			"job": "sync",
 			"tier": "bot",
@@ -389,6 +397,14 @@
 			"tier": "bot",
 			"required": false,
 			"reason": "Refreshes the journey map",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-demo-kiri.yml",
+			"job": "demo-kiri",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Manual run of the one-command demo (D1-D4) on the Kiri engine",
 			"owner": "maintainers"
 		},
 		{

@@ -19,6 +19,13 @@ import { discoverResourcesWithProblems } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
 import { findTool, manualSteps, resourceArgs, TOOL_CATALOG, toolIds, } from "../utils/tool-catalog.js";
 import { validateResourceName, validateStackName } from "../utils/validation.js";
+export function listTools(options = {}) {
+    if (options.json)
+        return { tools: TOOL_CATALOG.map((tool) => describeTool(tool)) };
+    for (const line of formatToolList())
+        console.log(line);
+    return undefined;
+}
 const GROUP_TITLES = {
     frontend: "Frontend",
     backend: "Backend",
@@ -70,7 +77,7 @@ function unknownTool(input) {
     return new FliskError(`Flisk does not know the tool "${input}".`, [
         ...(closest ? [`Did you mean "${closest}"?`] : []),
         `Use one of: ${ids.join(", ")}.`,
-        "See them grouped with: flisk tool add",
+        "See them grouped with: flisk tool list",
     ]);
 }
 function rejectedError(tool) {
@@ -181,11 +188,7 @@ export function runResource(args, json, invocation = cliInvocation(), spawn = sp
 /** The whole action, without the JSON wrapper, so tests can call it. */
 export function addTool(words, options, run = (args, json) => runResource(args, json), project = readProject) {
     if (words.length === 0 || words.every((word) => !word.trim())) {
-        if (options.json)
-            return { tools: TOOL_CATALOG.map((tool) => describeTool(tool)) };
-        for (const line of formatToolList())
-            console.log(line);
-        return undefined;
+        return listTools(options);
     }
     const { tool, name } = resolveWords(words);
     // Docker and a CI workflow are not services, so they have no name to give; say so instead of ignoring it.
@@ -261,8 +264,24 @@ const toolAddCommand = addYesOption(new Command("add"))
         addTool(words, options);
     });
 });
-/** `flisk tool`: tools by their everyday name. `add` is its only subcommand. */
+const toolListCommand = new Command("list")
+    .description("List every tool in the catalogue")
+    .option("--json", "Print one JSON envelope on stdout", false)
+    .addHelpText("after", "\nExamples:\n  flisk tool list\n  flisk tool list --json")
+    .action(async (options) => {
+    if (options.json) {
+        await runJsonCommand("TOOL_LIST_FAILED", "flisk tool list", async () => ({
+            data: listTools(options),
+        }));
+        return;
+    }
+    await runCommand(async () => {
+        listTools(options);
+    });
+});
+/** `flisk tool`: tools by their everyday name. `list` and `add` are its subcommands. */
 export const toolCommand = new Command("tool")
-    .description("Add a tool by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected)")
+    .description("Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected); list with flisk tool list")
+    .addCommand(toolListCommand)
     .addCommand(toolAddCommand)
-    .addHelpText("after", "\nExamples:\n  flisk tool add\n  flisk tool add react");
+    .addHelpText("after", "\nExamples:\n  flisk tool list\n  flisk tool add\n  flisk tool add react");

@@ -185,11 +185,17 @@ def _command_list(container, key = 'command'):
                 ok = False
                 break
             for c in part.elems():
-                if c < " " or c == "\x7f":
+                # A newline and a tab are allowed: encode_json writes them as \n and \t, so a multi-line `sh -c` script
+                # stays one double-quoted YAML string. Other control characters and the Unicode line breaks are refused.
+                if (c < " " and c != "\n" and c != "\t") or c == "\x7f":
                     ok = False
                     break
+            # elems() walks bytes, so the multi-byte Unicode line breaks are looked for in the whole string.
+            for line_break in ["\u0085", "\u2028", "\u2029"]:
+                if line_break in part:
+                    ok = False
     if not ok:
-        fail("MANIFEST ERROR: 'container.{}' must be a list of non-empty strings without control characters{}".format(key, " (an empty list drops the image's ENTRYPOINT)" if key == 'entrypoint' else ""))
+        fail("MANIFEST ERROR: 'container.{}' must be a list of non-empty strings without control characters other than a newline or a tab{}".format(key, " (an empty list drops the image's ENTRYPOINT)" if key == 'entrypoint' else ""))
     return command
 
 

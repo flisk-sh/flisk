@@ -809,6 +809,122 @@ describe("tool list", () => {
       required: ["resource"],
     });
   });
+  it("documents target and transitive sidecarOf scope on resource_restart", () => {
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    const desc = tools.find((t) => t.name === "resource_restart")?.description ?? "";
+    expect(desc).toContain("sidecarOf");
+    expect(desc).not.toContain("the other resources are not touched");
+  });
+
+  it("forwards rebuild to flisk restart --rebuild for resource_restart", async () => {
+    const seen: string[][] = [];
+    const tools = createFliskTools(async (args) => {
+      seen.push(args);
+      return { exitCode: 0, stdout: '{"schemaVersion":1,"data":{},"errors":[]}', stderr: "" };
+    });
+    await tools
+      .find((t) => t.name === "resource_restart")
+      ?.handler({ resource: "api", rebuild: true });
+    await tools
+      .find((t) => t.name === "resource_restart")
+      ?.handler({ resource: "api", rebuild: false });
+    await tools.find((t) => t.name === "resource_restart")?.handler({ resource: "api" });
+    expect(seen).toEqual([
+      ["restart", "api", "--json", "--rebuild"],
+      ["restart", "api", "--json"],
+      ["restart", "api", "--json"],
+    ]);
+    await expect(
+      tools
+        .find((t) => t.name === "resource_restart")
+        ?.handler({ resource: "api", rebuild: "yes" }),
+    ).rejects.toThrow("rebuild must be a boolean");
+  });
+
+  it("extends the CLI subprocess timeout for resource_restart beyond stopGracePeriod", async () => {
+    const tempProject = mkdtempSync(join(tmpdir(), "flisk-mcp-restart-timeout-"));
+    try {
+      mkdirSync(join(tempProject, ".flisk"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "worker"), { recursive: true });
+      writeFileSync(
+        join(tempProject, ".flisk", "project.json"),
+        JSON.stringify({ project: { name: "timeout-test" } }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "worker", "service.json"),
+        JSON.stringify({
+          appName: "worker",
+          appType: "worker",
+          stack: "main",
+          container: { stopGracePeriod: "3m" },
+        }),
+      );
+      const { seen, tools } = recordingTools('{"schemaVersion":1,"data":{},"errors":[]}');
+      await tools
+        .find((t) => t.name === "resource_restart")
+        ?.handler({ projectPath: tempProject, resource: "worker" });
+      expect(seen).toEqual([
+        {
+          args: ["restart", "worker", "--json"],
+          cwd: tempProject,
+          timeoutMs: 310_000,
+        },
+      ]);
+    } finally {
+      rmSync(tempProject, { recursive: true, force: true });
+    }
+  });
+
+  it("accounts for sequential sidecarOf restarts in the resource_restart MCP timeout", async () => {
+    const tempProject = mkdtempSync(join(tmpdir(), "flisk-mcp-sidecar-timeout-"));
+    try {
+      mkdirSync(join(tempProject, ".flisk"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "tubehaus"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "bgutil"), { recursive: true });
+      mkdirSync(join(tempProject, "services", "bgutil-helper"), { recursive: true });
+      writeFileSync(
+        join(tempProject, ".flisk", "project.json"),
+        JSON.stringify({ project: { name: "sidecar-timeout" } }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "tubehaus", "service.json"),
+        JSON.stringify({ appName: "tubehaus", appType: "bring-your-own", stack: "tube" }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "bgutil", "service.json"),
+        JSON.stringify({
+          appName: "bgutil",
+          appType: "bring-your-own",
+          stack: "tube",
+          sidecarOf: "tubehaus",
+        }),
+      );
+      writeFileSync(
+        join(tempProject, "services", "bgutil-helper", "service.json"),
+        JSON.stringify({
+          appName: "bgutil-helper",
+          appType: "bring-your-own",
+          stack: "tube",
+          sidecarOf: "bgutil",
+          container: { stopGracePeriod: "2m" },
+        }),
+      );
+      const { seen, tools } = recordingTools('{"schemaVersion":1,"data":{},"errors":[]}');
+      await tools
+        .find((t) => t.name === "resource_restart")
+        ?.handler({ projectPath: tempProject, resource: "tubehaus" });
+      expect(seen).toEqual([
+        {
+          args: ["restart", "tubehaus", "--json"],
+          cwd: tempProject,
+          timeoutMs: 490_000,
+        },
+      ]);
+    } finally {
+      rmSync(tempProject, { recursive: true, force: true });
+    }
+  });
+
   it("rejects invalid tool arguments before running the CLI", async () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     await expect(
@@ -1057,7 +1173,10 @@ describe("tool list", () => {
       required: ["stack", "resources"],
     });
     expect(tools.find((t) => t.name === "project_init")?.inputSchema).toMatchObject({
-      properties: { template: { enum: Object.keys(PROJECT_TEMPLATES) } },
+      properties: {
+        template: { enum: Object.keys(PROJECT_TEMPLATES) },
+        path: { description: expect.stringContaining("starter name") },
+      },
     });
     expect(JSON.stringify(tools.find((t) => t.name === "project_init")?.inputSchema)).not.toContain(
       "force",
@@ -1388,6 +1507,78 @@ describe("tool annotations", () => {
     }
     for (const tool of tools.filter((t) => !readOnly.includes(t.name))) {
       expect(tool.annotations?.readOnlyHint, tool.name).toBe(false);
+    }
+  });
+
+  it("maps every read-only MCP tool to a registered CLI command or lists it as MCP-only", () => {
+    const commands = loadRegisteredCommandMap();
+    const mcpOnlyReadTools = new Set<string>(["project_templates"]);
+    const readOnlyToolToCli: Record<string, [string] | [string, string]> = {
+      doctor: ["doctor"],
+      status: ["status"],
+      logs: ["logs"],
+      resource_list: ["resources"],
+      agent_list: ["agent", "list"],
+      agent_sessions: ["agent", "sessions"],
+      stack_list: ["stacks"],
+      project_info: ["info"],
+      network_list: ["networks"],
+      config_verify: ["config", "verify"],
+      config_explain: ["config", "explain"],
+      runtime_check: ["runtime"],
+    };
+
+    const readOnlyTools = tools.filter((t) => t.annotations?.readOnlyHint === true);
+    expect(readOnlyTools.length).toBeGreaterThan(0);
+
+    for (const tool of readOnlyTools) {
+      if (mcpOnlyReadTools.has(tool.name)) {
+        expect(
+          readOnlyToolToCli[tool.name],
+          `${tool.name} cannot be both MCP-only and CLI-mapped`,
+        ).toBeUndefined();
+        continue;
+      }
+
+      const cliPath = readOnlyToolToCli[tool.name];
+      expect(
+        cliPath,
+        `Read-only MCP tool "${tool.name}" must be mapped to a CLI command or listed in mcpOnlyReadTools`,
+      ).toBeDefined();
+
+      const [rootName, subName] = cliPath;
+      const rootCmd = commands.get(rootName);
+      expect(rootCmd, `CLI command "flisk ${rootName}" for tool "${tool.name}"`).toBeDefined();
+
+      const targetCmd = subName
+        ? rootCmd?.commands.find((c) => c.name() === subName || c.aliases().includes(subName))
+        : rootCmd;
+      expect(
+        targetCmd,
+        `CLI command "flisk ${cliPath.join(" ")}" for read-only MCP tool "${tool.name}"`,
+      ).toBeDefined();
+
+      const hasJsonOption = targetCmd?.options.some((opt) => opt.long === "--json");
+      expect(hasJsonOption, `CLI command "flisk ${cliPath.join(" ")}" must support --json`).toBe(
+        true,
+      );
+
+      // When a read-only tool is named `<group>_<subcommand>` and `flisk <group>` is a command group with subcommands,
+      // `flisk <group> <subcommand>` must exist so CLI users following MCP naming do not hit "unknown command".
+      const parts = tool.name.split("_");
+      if (parts.length === 2) {
+        const [groupName, actionName] = parts;
+        const groupCmd = commands.get(groupName);
+        if (groupCmd && groupCmd.commands.length > 0) {
+          const matchingSub = groupCmd.commands.find(
+            (c) => c.name() === actionName || c.aliases().includes(actionName),
+          );
+          expect(
+            matchingSub,
+            `Read-only tool "${tool.name}" implies "flisk ${groupName} ${actionName}" on command group "${groupName}"`,
+          ).toBeDefined();
+        }
+      }
     }
   });
 

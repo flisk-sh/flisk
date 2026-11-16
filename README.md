@@ -245,7 +245,7 @@ Get your Mac ready once. Paste each grey box into the [terminal](docs/start/word
 
 **1. [Node.js](docs/start/words.md#nodejs) 22.12+** from [nodejs.org](https://nodejs.org/), plus your app's own language if it is not JavaScript. That is all a small app needs: the [simplest path](docs/start/simplest.md).
 
-**2. Only for bigger apps** (a [database](docs/start/words.md#database), one address in front of every part, or the same [container](docs/start/words.md#container) you deploy): start Docker Desktop, OrbStack or Colima, and install Tilt:
+**2. Only for bigger apps** (a [database](docs/start/words.md#database), one address in front of every part, or the same [container](docs/start/words.md#container) you deploy): start Docker Desktop, OrbStack, Colima or Kiri, and install Tilt:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \
@@ -618,7 +618,7 @@ Runnable examples show Flisk on real stacks. Start with the smallest one:
 
 ## Requirements and support
 
-For the Docker + Tilt path, install Docker (Desktop, OrbStack, or Colima; Engine 25+, Compose 2.20.2+) and [Tilt](https://docs.tilt.dev/install.html). Bun 1.2+ is used by the default generated services. Ports and other settings: [Configuration](#configuration).
+For the Docker + Tilt path, install Docker (Desktop, OrbStack, Colima, or Kiri; Engine 25+, Compose 2.20.2+) and [Tilt](https://docs.tilt.dev/install.html). Bun 1.2+ is used by the default generated services. Ports and other settings: [Configuration](#configuration).
 
 Flisk supports macOS, Linux, and Windows. On native Windows, `flisk demo` and projects whose services each declare a `command` run as local processes; the Docker stack runs through **WSL2 Ubuntu**, and `flisk up` on a Docker project exits 1 with “Landscape startup needs Ubuntu on WSL2.” See the **[Windows & WSL2 guide](docs/wsl2.md)** for the recommended setup, prerequisites, verification steps, and troubleshooting.
 

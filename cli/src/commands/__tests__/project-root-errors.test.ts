@@ -62,3 +62,40 @@ describe("missing project root errors", () => {
     CLI_SPAWN_TIMEOUT_MS,
   );
 });
+
+describe("resource input validation outside a project", () => {
+  it(
+    "reports an invalid name instead of the missing project root",
+    () => {
+      const result = runOutsideProject(["resource", "Bad_Name", "--type", "backend"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).not.toContain("Could not find project root");
+      expect(result.stderr).toContain('Resource name "Bad_Name" is not valid');
+    },
+    CLI_SPAWN_TIMEOUT_MS,
+  );
+
+  it(
+    "lists the supported types for an invalid --type",
+    () => {
+      const result = runOutsideProject(["resource", "api", "--type", "nope"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).not.toContain("Could not find project root");
+      expect(result.stderr).toContain("backend"); // one valid type is enough to show the list is printed
+    },
+    CLI_SPAWN_TIMEOUT_MS,
+  );
+
+  it(
+    "still reports the missing project root for valid input",
+    () => {
+      const result = runOutsideProject(["resource", "api", "--type", "backend"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Could not find project root (no .flisk/project.json found)");
+    },
+    CLI_SPAWN_TIMEOUT_MS,
+  );
+});

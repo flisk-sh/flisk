@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import chalk from "chalk";
 import { loadTemplate } from "../generator/template-engine.js";
 import type { CliInvocation } from "./cli-invocation.js";
+import { isKiriHost } from "./container-engine.js";
 import { createDemoStage, type DemoPhase, type DemoPhaseStatus } from "./demo-stage.js";
 import { FliskError } from "./errors.js";
 import { isPortListening, isProcessAlive, readNativeRunState } from "./native-runtime.js";
@@ -77,10 +78,17 @@ export async function nativeDemoReason(input: {
   platform: string;
   env: NodeJS.ProcessEnv;
   probe?: ContainerProbe;
+  /** The Docker CLI's active context, when it is not in `env`. */
+  kiriContext?: string;
 }): Promise<string | null> {
   if (input.argv.includes(NO_DOCKER_FLAG)) return `${NO_DOCKER_FLAG} was passed`;
   if (input.platform === "win32" && input.env.FLISK_ALLOW_NATIVE_WINDOWS !== "1") {
     return "the full demo on Windows runs in WSL2";
+  }
+  // Kiri 0.2.1 cannot run the demo's image builds (`bun install` inside a build step fails, libracoder/kiri#330), so the first
+  // command a new user runs would stall for 14 minutes. FLISK_DEMO_ON_KIRI=1 runs the full demo there anyway, to test a newer Kiri.
+  if (input.env.FLISK_DEMO_ON_KIRI !== "1" && isKiriHost(input.env, input.kiriContext)) {
+    return "Kiri cannot build the full demo yet";
   }
   return containerDemoProblem(input.probe);
 }

@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { probeHostPort } from "../utils/doctor-runtime.js";
 import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
+import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
@@ -124,7 +125,7 @@ export async function openFirstFrontend(projectRootOverride, options = {}) {
                 console.log(chalk.gray(`  Fix: ${colima.fix ?? "colima start"}`));
             }
             else {
-                console.log(chalk.gray("  Restart the Docker runtime (Docker Desktop or Colima), then run `flisk open` again."));
+                console.log(chalk.gray("  Restart the Docker runtime (Docker Desktop, Colima or Kiri), then run `flisk open` again."));
             }
         }
         else {
@@ -148,7 +149,27 @@ export async function openFirstFrontend(projectRootOverride, options = {}) {
 export const openCommand = new Command("open")
     .description("Open the first ready frontend of the project in your browser")
     .option("--print", "Print the first ready frontend URL without opening a browser")
+    .option("--json", "Print one JSON envelope on stdout; implies --print", false)
+    .addHelpText("after", "\nExamples:\n  flisk open\n  flisk open --print\n  flisk open --print --json\n  flisk open --json")
     .action(async (options) => {
+    if (options.json) {
+        await runJsonCommand("OPEN_FAILED", "flisk open", async () => {
+            const projectRoot = findProjectRoot();
+            if (!projectRoot) {
+                throw new JsonCommandError("NOT_IN_PROJECT", "Not in a Flisk project, so there is no frontend to open.", ["Run `flisk project --yes` first, or `flisk open` inside a project."]);
+            }
+            const targets = await listFrontendTargets(projectRoot);
+            if (targets.length === 0) {
+                throw new JsonCommandError("NO_FRONTEND", "This project has no frontend service to open.", ["Start the stack with `flisk up` and add a frontend with `flisk resource`."]);
+            }
+            const first = await pickReadyFrontend(targets, 120000);
+            if (!first) {
+                throw new JsonCommandError("FRONTEND_NOT_READY", "No frontend answered yet. Start the stack with `flisk up` and try again.", ["Start the stack with `flisk up` and try again."]);
+            }
+            return { data: { url: first.url, resource: first.name } };
+        });
+        return;
+    }
     const url = await openFirstFrontend(undefined, { isPrintOnly: options.print });
     if (options.print && url === null)
         process.exitCode = 1;

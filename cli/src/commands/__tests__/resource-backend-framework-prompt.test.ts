@@ -82,6 +82,16 @@ describe("interactive backend framework choice", () => {
     licenseMock.mockResolvedValue(true);
   });
 
+  it("rejects command-like names in the interactive name prompt", async () => {
+    promptMocks.promptText.mockResolvedValue("api");
+    const result = await runResource(["--type", "backend", "--stack", "shop"]);
+    expect(result.status).toBeUndefined();
+    const validate = promptMocks.promptText.mock.calls[0][0].validate;
+    expect(validate("list")).toContain("flisk resources");
+    expect(validate("help")).toContain("flisk resource --help");
+    expect(validate("api-list")).toBe(true);
+  });
+
   it("asks which backend framework to use and scaffolds the chosen one", async () => {
     const result = await runResource(["api", "--type", "backend", "--stack", "shop"]);
 
@@ -146,18 +156,15 @@ describe("interactive backend framework choice", () => {
     ).toContain("new Hono()");
   });
 
-  it("keeps the historical Hono default when stdin is not a terminal", async () => {
+  it("requires --yes when stdin is not a terminal", async () => {
     const result = await runResource(["api", "--type", "backend", "--stack", "shop"], {
       isTTY: false,
     });
 
-    expect(result.status).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("--yes or a terminal");
     expect(promptMocks.promptSelect).not.toHaveBeenCalled();
-    const service = readJson(result.projectRoot, "services/shop/api/service.json");
-    expect(service).not.toHaveProperty("framework");
-    expect(
-      readJson(result.projectRoot, "services/shop/api/package.json").dependencies,
-    ).toHaveProperty("hono");
+    expect(existsSync(join(result.projectRoot, "services/shop/api/service.json"))).toBe(false);
   });
 
   it("uses an explicit --framework without prompting", async () => {

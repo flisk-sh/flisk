@@ -12,7 +12,15 @@ import {
   toolKey,
 } from "../../utils/tool-catalog.js";
 import { getRegisteredCommands } from "../registry.js";
-import { addTool, checkResource, formatToolList, resolveWords, runResource } from "../tool.js";
+import {
+  addTool,
+  checkResource,
+  formatToolList,
+  listTools,
+  resolveWords,
+  runResource,
+  toolCommand,
+} from "../tool.js";
 
 type Run = (args: string[], json: boolean) => unknown;
 
@@ -226,6 +234,45 @@ describe("flisk tool add", () => {
     };
     expect(suggestions("reakt")).toContain('Did you mean "react"?');
     expect(suggestions("zzzz").some((line) => line.startsWith("Did you mean"))).toBe(false);
+  });
+
+  it("suggests flisk tool list for an unknown tool", () => {
+    let error: unknown;
+    try {
+      add(["cobol"], {});
+    } catch (caught) {
+      error = caught;
+    }
+    expect((error as FliskError).suggestions).toContain("See them grouped with: flisk tool list");
+  });
+});
+
+describe("flisk tool list", () => {
+  it("prints the catalogue and exits 0", () => {
+    const lines = quiet();
+    listTools({});
+    expect(lines.join("\n")).toBe(formatToolList().join("\n"));
+    for (const tool of TOOL_CATALOG) {
+      expect(lines.join("\n")).toContain(tool.id);
+    }
+  });
+
+  it("returns the same data for flisk tool list --json as flisk tool add --json with no name", () => {
+    const listResult = listTools({ json: true });
+    const addResult = add([], { json: true });
+    expect(listResult).toEqual(addResult);
+    expect(listResult).toMatchObject({
+      tools: expect.arrayContaining([
+        expect.objectContaining({ id: "react" }),
+        expect.objectContaining({ id: "postgresql" }),
+      ]),
+    });
+  });
+
+  it("bare flisk tool help mentions flisk tool list", () => {
+    const helpText = toolCommand.helpInformation();
+    expect(helpText).toContain("list");
+    expect(helpText).toContain("flisk tool list");
   });
 });
 

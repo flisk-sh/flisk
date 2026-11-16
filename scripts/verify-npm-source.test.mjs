@@ -3,7 +3,7 @@
 // Unit tests for verify-npm-source: the registry lookup, with fetch and sleep injected.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findTarball, versionUrl } from "./verify-npm-source.mjs";
+import { FIND_ATTEMPTS, FIND_DELAY_MS, findTarball, versionUrl } from "./verify-npm-source.mjs";
 
 const json = (body, status = 200) => ({
 	ok: status < 400,
@@ -79,4 +79,8 @@ test("does not depend on npm config (no npm process, no NODE_AUTH_TOKEN)", async
 	} finally {
 		if (saved !== undefined) process.env.NODE_AUTH_TOKEN = saved;
 	}
+});
+
+test("waits at least fifteen minutes for a fresh publish before giving up (#4272)", () => {
+	assert.ok(FIND_ATTEMPTS * FIND_DELAY_MS >= 15 * 60_000);
 });

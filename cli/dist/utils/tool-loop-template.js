@@ -12,6 +12,7 @@ export const TOOL_LOOP_PORTS = { agent: 4500, tools: 4501, model: 4502 };
 const TEMPLATE_FILES = {
     "agent/package.json": "tool-loop/agent/package.json",
     "agent/server.mjs": "tool-loop/agent/server.mjs",
+    "agent/guard.mjs": "tool-loop/agent/guard.mjs",
     "model/server.mjs": "tool-loop/model/server.mjs",
     "tools/server.mjs": "super-agent/tools/server.mjs",
 };

@@ -27,14 +27,14 @@ Q1() { # scaffold the quickstart project: a backend, a React frontend and a Vue 
   date +%s > "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/quickstart-t0"
   flisk project --yes
   flisk doctor
-  printf 'y\n' | flisk resource orders-api --type backend --stack shop
+  flisk resource orders-api --type backend --stack shop --yes
   # Frontends go through the framework providers and their Starlark Vite templates. Published versions from before --framework existed
   # skip them, so the nightly check of `latest` keeps testing what it can.
   if flisk resource --help | grep -q -- '--framework'; then
     # No --path: this exercises the default folder (which flisk picks so that project.json discovery finds it) and the public/ folder the
     # frontend Docker build copies.
-printf 'y\n' | flisk resource storefront --type frontend --stack shop --base-path /storefront
-  printf 'y\n' | flisk resource vue-app --type frontend --framework vue --stack shop --base-path /vue-app
+  flisk resource storefront --type frontend --stack shop --base-path /storefront --yes
+  flisk resource vue-app --type frontend --framework vue --stack shop --base-path /vue-app --yes
   FRONTENDS="storefront:root vue-app:app"
     export FRONTENDS
     echo "FRONTENDS=storefront:root vue-app:app" >> "${GITHUB_ENV:-/dev/null}"
@@ -180,6 +180,70 @@ Q4() { # nginx answers /health on its own, so also load each frontend's page and
       || die "$name: $origin$script did not load"
     echo "$name: $page serves #$mount and $script"
   done
+}
+
+Q5() { # run the documented quickstart path end to end: flisk project example, cd flisk-example, flisk doctor, flisk up
+  log "Q5 documented quickstart path (flisk project example)"
+  local EXDIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/flisk-example"
+  rm -rf "$EXDIR"
+
+  # Stop the Q1-Q4 stack so the two stacks do not fight over the ingress port.
+  (cd "$DIR" && flisk down >/dev/null 2>&1 || true)
+
+  # Run the whole case in a subshell with a trap, mirroring tests/e2e/examples/default/run.sh.
+  (
+    local flisk_pid=""
+    trap '[ -z "$flisk_pid" ] || kill "$flisk_pid" 2>/dev/null || true' EXIT
+    flisk project example --path "$EXDIR"
+    cd "$EXDIR"
+
+    # Verify that flisk project example left .flisk/project.json.
+    [ -f .flisk/project.json ] || die "flisk project example left no .flisk/project.json"
+
+    # Verify flisk doctor finds the project root in the new folder. Doctor may still report the generated files a
+    # first `flisk up` writes (master configs, .env) as missing, so its exit code is not the check; the root is.
+    local doctor_out
+    doctor_out="$(flisk doctor 2>&1 || true)"
+    echo "$doctor_out" | tail -20
+    if echo "$doctor_out" | grep -q "Could not find project root"; then
+      die "flisk doctor could not find the project root in the example folder"
+    fi
+
+    # Run flisk up.
+    flisk up shop > up.log 2>&1 &
+    flisk_pid=$!
+
+    # Collect the URLs the run prints: poll up to 120s for /health URLs.
+    local urls="" n url
+    for n in $(seq 1 60); do
+      urls="$(grep -oE 'https?://[^ ]*/health' up.log | sort -u || true)"
+      [ -n "$urls" ] && break
+      sleep 2
+    done
+    [ -n "$urls" ] || { tail -200 up.log; die "flisk up never printed a /health URL"; }
+    echo "Waiting for:$urls"
+
+    # Poll every URL, accepting 2?? responses.
+    local pending code n
+    for n in $(seq 1 120); do
+      pending=""
+      for url in $urls; do
+        code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" || true)"
+        case "$code" in
+          2??) ;;
+          *) pending="$pending $url=$code" ;;
+        esac
+      done
+      if [ -z "$pending" ]; then
+        echo "example healthy: $urls"
+        return 0
+      fi
+      echo "poll $n ($((n * 10))s): waiting on$pending"
+      sleep 10
+    done
+    tail -200 up.log
+    die "the example stack was not healthy within 20 minutes"
+  )
 }
 
 e2e_main "$@"

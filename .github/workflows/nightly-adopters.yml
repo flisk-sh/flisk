@@ -7,6 +7,9 @@
 #   services/tubehaus/ Flisk files; a later pin makes `flisk import` write a second copy under services/adopter/)
 # - dilolabs/nosia@42796ffb30b48b5aeece234383b71e3d51badc7e
 # - LycheeOrg/Lychee@7145b37ff66ea7990cc9b8dbbf779ba1d34c0b64
+# - openathleteorg/openathlete@96478a75673437d8cca6219304037a3580163a1c (runs on the Kiri engine, `engine: kiri`; every
+#   other entry runs on the runner's Docker. No PR or comment goes to that repository.)
+# - MBombeck/HealthLog@d32036b003a7f834eb21e4bfb324036ebbfb07cc (also `engine: kiri`; no PR or comment goes to that repository.)
 #
 # Not adopters: projects whose maintainers closed a Flisk PR. They stay here so `flisk import` keeps working on the
 # Compose files people actually ship, and a later PR to them starts from a stack that is known to come up.
@@ -137,6 +140,41 @@ jobs:
               POSTGRES_PASSWORD=haben
               DATABASE_URL=postgres://haben:haben@db:5432/haben
               BETTER_AUTH_URL=http://localhost:3000
+          # Runs on Kiri (libracoder/kiri), the Docker-compatible runtime, not the runner's Docker. Published images, API on
+          # 127.0.0.1:3000 and the web app on port 80. The two secrets are required by its Compose file.
+          - name: OpenAthlete
+            owner: openathleteorg
+            repo: openathlete
+            commit: 96478a75673437d8cca6219304037a3580163a1c
+            engine: kiri
+            # Its Compose file has no healthcheck for the API; the image's own HEALTHCHECK probes /health. `flisk import`
+            # assumes "/" without one, the API answers 404 there, and Traefik's load-balancer check then marks it down.
+            health_paths: "api=/health"
+            health_check: "http://127.0.0.1:80"
+            needs_env: true
+            env_file: |
+              JWT_SECRET_KEY=ci-jwt-secret-not-a-secret-padded-to-48-characters
+              HASH_PEPPER=ci-hash-pepper-not-a-secret-padded-to-48-characters
+              POSTGRES_PASSWORD=ci-postgres-not-a-secret
+              DATABASE_URL=postgresql://openathlete:ci-postgres-not-a-secret@postgres:5432/openathlete
+              APP_URL=http://localhost
+          # Runs on the Kiri engine (engine: kiri) instead of Docker, so the nightly also shows that `flisk up` works on Kiri
+          # with a real Compose stack (prebuilt app image + Postgres 18).
+          - name: HealthLog
+            owner: MBombeck
+            repo: HealthLog
+            commit: d32036b003a7f834eb21e4bfb324036ebbfb07cc
+            engine: kiri
+            health_check: "http://127.0.0.1:3000"
+            needs_env: true
+            env_file: |
+              POSTGRES_PASSWORD=ci-postgres-not-a-secret
+              ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+              API_TOKEN_HMAC_KEY=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+              SESSION_COOKIE_SECURE=false
+              DATABASE_URL=postgresql://healthlog:ci-postgres-not-a-secret@db:5432/healthlog?schema=public
+              APP_URL=http://localhost:3000
+              NEXT_PUBLIC_APP_URL=http://localhost:3000
     steps:
       - name: Checkout Flisk
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -197,6 +235,27 @@ jobs:
         with:
           version: ${{ inputs.version || 'local' }}
 
+      # Only the entries marked `engine: kiri`. A failure here fails that adopter, so a Kiri problem shows up as an issue for it.
+      - name: Install Kiri
+        if: matrix.engine == 'kiri'
+        env:
+          KIRI_VERSION: "0.2.1"
+          KIRI_DEB_SHA256: 5e7b1f6d8239aa590b314fd2ccc8f1472ba1427f414b35efa86ccedd6a6571b2 # kiri-lite_0.2.1_amd64.deb, from the release's own digest
+        run: |
+          # Engine only (kiri-lite): the runner already has docker, compose and buildx. Kiri runs on the kernel on Linux, no VM.
+          scripts/e2e/retry-infra.sh "download Kiri v${KIRI_VERSION}" -- curl -fsSL -o kiri.deb "https://github.com/libracoder/kiri/releases/download/v${KIRI_VERSION}/kiri-lite_${KIRI_VERSION}_amd64.deb"
+          echo "${KIRI_DEB_SHA256}  kiri.deb" | sha256sum -c -
+          sudo apt-get install -y ./kiri.deb
+          rm -f kiri.deb
+          sudo kiri host-access "$USER" # starts the engine and puts the user in the kiri group
+          for _ in $(seq 1 30); do [ -S /run/kiri/docker.sock ] && break; sleep 1; done
+          sudo chmod a+rw /run/kiri/docker.sock # the group only applies to new logins; this runner is thrown away
+          docker context create kiri --docker host=unix:///run/kiri/docker.sock
+          docker context use kiri # Flisk reads the current context to see that this is Kiri
+          # Tilt and Compose read DOCKER_HOST, so every later step talks to Kiri and not to the runner's Docker.
+          echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
+          DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
+
       - name: Checkout Adopter Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -230,6 +289,27 @@ jobs:
         run: |
           flisk import . --yes
 
+      # `flisk import` assumes a "/" health path when Compose declares none. A service that answers 404 on "/" gets its
+      # real path here (service=/path, space separated), the way a maintainer would write it in service.json.
+      - name: Set Health Paths
+        if: matrix.health_paths
+        working-directory: adopter
+        env:
+          HEALTH_PATHS: ${{ matrix.health_paths }}
+        run: |
+          for entry in $HEALTH_PATHS; do
+            name="${entry%%=*}"
+            path="${entry#*=}"
+            found=0
+            for file in services/*/"$name"/service.json; do
+              [ -f "$file" ] || continue
+              jq --arg path "$path" '.healthCheckPath = $path' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+              echo "healthCheckPath of $file is now $path"
+              found=1
+            done
+            [ "$found" = 1 ] || { echo "::error::no service.json for $name"; exit 1; }
+          done
+
       # `flisk import` writes only service.json and .flisk/project.json; the
       # generated files under .flisk/.flisk-out come from `config regenerate`,
       # so verify fails with "Missing file" until it has run.
@@ -242,6 +322,10 @@ jobs:
         working-directory: adopter
         run: |
           flisk config verify
+
+      - name: Show the engine
+        run: |
+          docker info --format 'daemon: {{.Name}} {{.ServerVersion}}'
 
       - name: Flisk Up with Readiness Wait
         working-directory: adopter

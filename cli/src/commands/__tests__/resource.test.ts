@@ -1136,7 +1136,7 @@ describe("resource command non-interactive mode", () => {
     }
   });
 
-  it("accepts confirmation input piped through stdin without --yes", () => {
+  it("requires --yes even when confirmation input is piped through stdin", () => {
     const projectRoot = createResourceProject();
     try {
       const result = runResourceCli(
@@ -1146,9 +1146,9 @@ describe("resource command non-interactive mode", () => {
       );
       const manifestPath = join(projectRoot, "services", "shop", "api", "service.json");
 
-      expect(result.status).toBe(0);
-      expect(existsSync(manifestPath)).toBe(true);
-      expect(JSON.parse(readFileSync(manifestPath, "utf8")).stack).toBe("shop");
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("--yes or a terminal");
+      expect(existsSync(manifestPath)).toBe(false);
     } finally {
       rmSync(projectRoot, { recursive: true, force: true });
     }

@@ -120,6 +120,33 @@ export {
 
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 
+const RESOURCE_COMMAND_HINTS: Record<string, string> = {
+  list: "flisk resources",
+  ls: "flisk resources",
+  status: "flisk status --json",
+  help: "flisk resource --help",
+  create: "flisk resource <name>",
+  add: "flisk resource <name>",
+  get: "flisk resources",
+  show: "flisk resources",
+  remove: "flisk resource --help",
+  rm: "flisk resource --help",
+  delete: "flisk resource --help",
+  update: "flisk resource --help",
+  edit: "flisk resource --help",
+};
+
+/** Reject command-like names only when scaffolding, so existing resources remain discoverable. */
+function validateScaffoldName(name: string): ReturnType<typeof validateResourceName> {
+  const hint = Object.hasOwn(RESOURCE_COMMAND_HINTS, name)
+    ? RESOURCE_COMMAND_HINTS[name]
+    : undefined;
+  if (hint) {
+    return { valid: false, error: `Resource name "${name}" looks like a command. Use ${hint}.` };
+  }
+  return validateResourceName(name);
+}
+
 export const BASE_TEMPLATE = {
   port: 0, // Will be assigned
   // `dependsOn` is the current name; `dependencies` is deprecated and `flisk doctor` warns about it, so a fresh scaffold must not write it.
@@ -1128,15 +1155,20 @@ export const resourceCommand = addYesOption(new Command("resource"))
     // --json never prompts: every question takes the default that --yes takes.
     const assumeYes = Boolean(options.yes || options.json);
     const action = async (): Promise<JsonCommandResult> => {
+      // Checks that need only the user's input run before the project lookup,
+      // so invalid input is reported even outside a Flisk project.
+      const requestedType = parseResourceType(options.type);
+      if (name) assertValid(validateResourceName(name));
+
       const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
       if (!projectRoot) throw errorFactories.notInProject();
       enforceFliskVersionGate(projectRoot, {
         ignoreVersion: options.ignoreVersion,
         json: options.json,
       });
+      if (name) assertValid(validateScaffoldName(name));
       // Support --resource-path as alias for --path
       const resourcePath = options.resourcePath || options.path;
-      const requestedType = parseResourceType(options.type);
       const isInference = options.type === INFERENCE_TYPE;
 
       // Validate explicit --base-path and any existing manifest at a supplied --path before the name,
@@ -1182,6 +1214,14 @@ export const resourceCommand = addYesOption(new Command("resource"))
         );
       }
 
+      if (!assumeYes && !process.stdin.isTTY) {
+        throw new FliskError("Resource creation needs --yes or a terminal.", [
+          "Pass --yes to accept defaults, or --json for machine-readable output (implies --yes).",
+          "For example: flisk resource api --stack main --yes.",
+          "Use flisk resources to list existing resources.",
+        ]);
+      }
+
       showCommandHeader("Resource Creation");
 
       const allResources = discoverResources();
@@ -1197,13 +1237,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
         const inputName = await promptText({
           message: "Resource name (kebab-case):",
           validate: (input: string) => {
-            const validation = createKebabCaseValidator("resource")(input);
-            return validation === true || validation;
+            const validation = validateScaffoldName(input);
+            return validation.valid ? true : (validation.error ?? "Invalid name");
           },
         });
         resourceName = inputName;
       } else {
-        assertValid(validateResourceName(resourceName));
+        assertValid(validateScaffoldName(resourceName));
       }
       if (isInfraResourceType(requestedType)) {
         // Asked on a terminal only; --yes and --json take the default (the shared Postgres, NATS, MinIO).

@@ -41,12 +41,12 @@ Never copy a helper into a suite. Use `tests/e2e/lib/lib.sh`, and add new shared
 - One function per case, named like `A1`. Each case **creates its own preconditions**: check the state it needs (running container, data) and create it.
 - `run <name> <flisk args>` records the output, then you check `$RC` yourself. `run_in <dir> ...` runs in another project.
 - Wait only with `poll_until "<what>" <seconds> <command>`. Never use `sleep`.
-- After `flisk restart`, call `wait_restarted <resource> "$before" "<desc>" <ready command>`. The old container answers until it is replaced.
+- After `flisk restart` on a Flisk-generated Compose resource, the same container is stopped and started (no rebuild), so wait for readiness with `poll_until`; `wait_restarted` only applies to `flisk restart --rebuild`, which replaces the container. A local process or an imported Tiltfile restarts with `tilt trigger`, which may replace the container, so do not assume the container id stays the same there.
 - A request whose result a later assertion uses goes through `traefik_request_ok`. It fails on non-2xx instead of passing an error page on.
 - Error paths: `assert envelope "$OUT/<name>.out" <CODE>`. Other checks: `assert check <file> "<js expr on j>" "<message>"`, `assert equal <a> <b>`.
 - Fake upstreams: `with_stub <port> hang|stall|status <code> <msg>|json <body>`, then `stop_stub`.
 - MCP: `mcp_session <name> '<calls json>' [cwd]`, then `mcp_structured <name> <index>`.
-- A resource-type suite covers: scaffold with `flisk resource`, a bounded wait in `flisk status --json`, the type's observable contract, `flisk restart` with a replaced-container wait, and at least one error envelope. List any case that does not apply, with the reason.
+- A resource-type suite covers: scaffold with `flisk resource`, a bounded wait in `flisk status --json`, the type's observable contract, `flisk restart` with a readiness wait (and a same-container check), and at least one error envelope. List any case that does not apply, with the reason.
 
 ## 5. Run against a real stack
 

@@ -1,0 +1,73 @@
+{
+  "id": "flisk-kiri",
+  "name": "Flisk on Kiri",
+  "optIn": true,
+  "tool": {
+    "name": "flisk",
+    "version": "${FLISK_CMD:-flisk} --version | tail -1"
+  },
+  "requires": [
+    "docker",
+    "tilt",
+    "kiri"
+  ],
+  "env": {
+    "FLISK_HTTP_PORT": "${BENCH_PORT}",
+    "FLISK_HTTPS_PORT": "${BENCH_PORT2}",
+    "FLISK_POSTGRES_PORT": "${BENCH_PORT3}",
+    "TILT_PORT": "${BENCH_PORT4}"
+  },
+  "setup": "sh setup.sh",
+  "start": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') ${FLISK_CMD:-flisk} up shop",
+  "stop": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') ${FLISK_CMD:-flisk} down",
+  "purge": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') ${FLISK_CMD:-flisk} down --purge --prune-networks",
+  "clean": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') ${FLISK_CMD:-flisk} down --prune-networks",
+  "timeoutSeconds": 900,
+  "base": "http://app.flisk.localhost:${BENCH_PORT}",
+  "paths": {
+    "products": "http://api.flisk.localhost:${BENCH_PORT}/api/catalog/api/products",
+    "orders": "http://api.flisk.localhost:${BENCH_PORT}/api/orders/api/orders",
+    "payments": "http://api.flisk.localhost:${BENCH_PORT}/api/payments/api/payments",
+    "notifications": "http://api.flisk.localhost:${BENCH_PORT}/api/notifications/api/notifications",
+    "storefront": "/",
+    "admin": "/admin"
+  },
+  "health": [
+    "http://app.flisk.localhost:${BENCH_PORT}/",
+    "http://app.flisk.localhost:${BENCH_PORT}/admin",
+    "http://api.flisk.localhost:${BENCH_PORT}/api/catalog/health",
+    "http://api.flisk.localhost:${BENCH_PORT}/api/orders/health",
+    "http://api.flisk.localhost:${BENCH_PORT}/api/payments/health",
+    "http://api.flisk.localhost:${BENCH_PORT}/api/notifications/health"
+  ],
+  "milestones": [
+    {
+      "name": "flisk checks done, engine started",
+      "match": "^Running tilt up"
+    },
+    {
+      "name": "engine read the project",
+      "match": "Successfully loaded Tiltfile"
+    },
+    {
+      "name": "database ready",
+      "match": "^postgres: ready \\("
+    },
+    {
+      "name": "migrations done",
+      "match": "^migrator-done: ready \\("
+    },
+    {
+      "name": "last image built",
+      "match": "^[\\w-]+-image: ready \\(",
+      "pick": "last"
+    }
+  ],
+  "wiring": {
+    "configFiles": [
+      "services/**/service.json"
+    ],
+    "waitsOnHealthy": "\"dependsOn\"",
+    "healthChecks": "healthCheck"
+  }
+}

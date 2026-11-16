@@ -51,12 +51,18 @@ function run(root: string, args: string[], flags: { json?: boolean; watch?: bool
 }
 
 const sessionsCommand = agentCommand.commands.find((c) => c.name() === "sessions");
+const listCommand = agentCommand.commands.find((c) => c.name() === "list");
 
 beforeEach(() => {
   clearDiscoveryCache();
   sessionsCommand?.setOptionValue("json", false);
   sessionsCommand?.setOptionValue("watch", false);
   sessionsCommand?.setOptionValue("sessionId", undefined);
+  listCommand?.setOptionValue("json", false);
+  listCommand?.setOptionValue("verbose", false);
+  listCommand?.setOptionValue("stack", undefined);
+  listCommand?.setOptionValue("noStack", undefined);
+  listCommand?.setOptionValue("ports", false);
   vi.mocked(getHostPortPlan).mockResolvedValue({ ingressHttp: 8080 } as never);
 });
 
@@ -180,5 +186,51 @@ describe("flisk agent sessions in-process", () => {
     expect(result.stdout).toContain("Refreshing every 2s. Ctrl+C to stop.");
     expect(result.status).toBe(1);
     expect(result.stderr + result.stdout).toContain("interrupted");
+  });
+});
+
+describe("flisk agent list in-process", () => {
+  it("lists only agent resources in --json and human modes", async () => {
+    const root = createTempProject({
+      stacks: {
+        shop: {
+          assistant: { appType: "agent", port: 3200 },
+          api: { appType: "backend", port: 3100 },
+        },
+      },
+    });
+    const jsonRes = await runCommandInProcess(agentCommand, ["list", "--json"], root);
+    expect(jsonRes.status).toBeUndefined();
+    const envelope = parseEnvelope(jsonRes.stdout);
+    expect(envelope.data).toMatchObject({
+      resources: [
+        {
+          name: "assistant",
+          stack: "shop",
+          type: "agent",
+          port: 3200,
+        },
+      ],
+    });
+
+    listCommand?.setOptionValue("json", false);
+    const humanRes = await runCommandInProcess(agentCommand, ["list"], root);
+    expect(humanRes.status).toBeUndefined();
+    expect(humanRes.stdout).toContain("assistant");
+    expect(humanRes.stdout).not.toContain("api");
+  });
+
+  it("returns an empty list and exits 0 when no agents exist", async () => {
+    const root = createTempProject({
+      stacks: {
+        shop: {
+          api: { appType: "backend", port: 3100 },
+        },
+      },
+    });
+    const jsonRes = await runCommandInProcess(agentCommand, ["list", "--json"], root);
+    expect(jsonRes.status).toBeUndefined();
+    const envelope = parseEnvelope(jsonRes.stdout);
+    expect(envelope.data).toEqual({ resources: [] });
   });
 });

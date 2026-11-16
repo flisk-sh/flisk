@@ -126,8 +126,8 @@ describe("doctor JSON command", () => {
       expect(log).toHaveBeenCalledTimes(1);
       const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
       expect(report.schemaVersion).toBe(1);
-      expect(report.data.ready).toBe(false);
-      expect(report.data.checks).toEqual([]);
+      // A usage error measures nothing, so it must not claim the folder is outside a project.
+      expect(report.data).toBeNull();
       expect(report.errors[0].code).toBe("USAGE");
     },
   );
@@ -377,8 +377,7 @@ describe("doctor JSON command", () => {
         expect(log).toHaveBeenCalledTimes(1);
         const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
         expect(report.schemaVersion).toBe(1);
-        expect(report.data.ready).toBe(false);
-        expect(report.data.checks).toEqual([]);
+        expect(report.data).toBeNull();
         expect(report.errors[0]).toEqual({ code: "USAGE", message: expectedError });
       } finally {
         log.mockRestore();
@@ -402,7 +401,7 @@ describe("doctor JSON command", () => {
       expect(log).toHaveBeenCalledTimes(1);
       const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
       expect(report.schemaVersion).toBe(1);
-      expect(report.data.ready).toBe(false);
+      expect(report.data).toBeNull();
       expect(report.errors[0].code).toBe("USAGE");
       expect(report.errors[0].message).toContain("unknown option '--bogus-flag-123'");
     } finally {

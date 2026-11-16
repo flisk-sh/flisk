@@ -331,6 +331,12 @@ describe("service manifest compatibility", () => {
       [{ build: { dockerfile: "/x" } }, "build.dockerfile: must be a path relative to"],
       [{ dev: { command: "x", watch: ["/etc/**"] } }, "dev.watch[0]: must be a path relative to"],
       [{ dev: { watch: "src" } }, "dev.watch: expected an array of strings"],
+      // Same wording as an empty top-level command (validateNativeServiceFields), #4191.
+      [{ dev: { command: "" } }, 's.json: service "api": dev.command must be a non-empty string'],
+      [
+        { dev: { command: "   " } },
+        's.json: service "api": dev.command must be a non-empty string',
+      ],
       [{ image: "nginx:1", dockerfile: "Dockerfile" }, 'set "image" or "dockerfile", not both'],
     ])("reports %j", (extra, message) => {
       expect(errorsFor(extra).join("\n")).toContain(message);
@@ -350,6 +356,8 @@ describe("service manifest compatibility", () => {
       { build: { context: "../../../api", dockerfile: "Dockerfile" } },
       { build: { dockerfile: "Dockerfile", context: "." } },
       { featuresEnabled: [] },
+      { dev: { command: "bun run dev" } },
+      { dev: { command: null } },
       { restart: "always" },
       { appType: "bring-your-own" },
       { restart: "sometimes" },
@@ -1134,6 +1142,29 @@ describe("containerErrors", () => {
     ).toHaveLength(1);
   });
 
+  it("accepts a newline and a tab in a command or entrypoint word, a multi-line sh -c script", () => {
+    const script = 'set -eu\nlog() { echo "x: $$1"; }\n\tlog done\n';
+    for (const container of [
+      { command: ["sh", "-c", script] },
+      { entrypoint: ["sh", "-c", script, "--"] },
+    ]) {
+      const manifest = { appType: "bring-your-own", container };
+      expect(containerErrors(manifest, file)).toEqual([]);
+      expect(validateGeneratedStringFields(manifest, file)).toEqual([]);
+    }
+  });
+
+  it("still refuses a line break in any other string of the manifest", () => {
+    const manifest = {
+      appType: "bring-your-own",
+      container: { command: ["sh", "-c", "a\nb"] },
+      env: { A: "x\nprivileged: true" },
+    };
+    expect(validateGeneratedStringFields(manifest, file)).toEqual([
+      `${file}.env.A: must not contain line breaks or control characters`,
+    ]);
+  });
+
   it("refuses container on a resource Flisk builds itself", () => {
     expect(containerErrors({ appType: "backend", container: { readOnly: true } }, file)).toEqual([
       `${file}.container: only applies to bring-your-own resources (appType "bring-your-own")`,
@@ -1148,10 +1179,12 @@ describe("containerErrors", () => {
     [byo({ command: "server /data" }), "container.command: expected a list"],
     [byo({ command: [] }), "container.command: expected a list"],
     [byo({ command: ["sh", ""] }), "container.command: expected a list"],
-    [byo({ command: ["sh", "a\nb"] }), "container.command: expected a list"],
+    [byo({ command: ["sh", "a\rb"] }), "container.command: expected a list"],
+    [byo({ command: ["sh", "a\u0000b"] }), "container.command: expected a list"],
+    [byo({ command: ["sh", "a\u2028b"] }), "container.command: expected a list"],
     [byo({ entrypoint: "/entry.sh" }), "container.entrypoint: expected a list"],
     [byo({ entrypoint: [""] }), "container.entrypoint: expected a list"],
-    [byo({ entrypoint: ["sh", "a\nb"] }), "container.entrypoint: expected a list"],
+    [byo({ entrypoint: ["sh", "a\rb"] }), "container.entrypoint: expected a list"],
     [byo({ entrypoint: ["sh", 3] }), "container.entrypoint: expected a list"],
     [byo({ readOnly: "yes" }), "container.readOnly: expected true or false"],
     [byo({ init: 1 }), "container.init: expected true or false"],

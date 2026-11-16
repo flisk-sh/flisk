@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { cwd } from "node:process";
+import { basename, dirname, isAbsolute, join, resolve, win32 } from "node:path";
+import { cwd, execPath } from "node:process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -18,10 +18,11 @@ import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-h
 import { showCancelled, showCommandHeader, showDetail, showStep, showSuccess, } from "../utils/formatting.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { writeLanggraphProject } from "../utils/langgraph-template.js";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
-import { listProjectTemplates, PROJECT_TEMPLATES, templateGitCommands, } from "../utils/project-templates.js";
+import { listProjectTemplates, PROJECT_TEMPLATES, resolveBundledTemplateDir, templateGitCommands, templateTargetDir, } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
@@ -87,14 +88,6 @@ function getDefaultCoreServices() {
         .filter((f) => f.enabled_by_default && f.category === "core")
         .map((f) => f.name);
 }
-/** The directory a template lands in: the requested path, or the template's repository name. */
-export function templateTargetDir(templateName, targetDir) {
-    if (targetDir)
-        return targetDir;
-    const template = PROJECT_TEMPLATES[templateName];
-    const fromRepo = template?.repo.split("/").pop() ?? templateName;
-    return fromRepo.replace(/\.git$/, "");
-}
 /** The last non-empty line of a child process error, for a one-line failure message. */
 export function lastLine(text) {
     const lines = text
@@ -117,6 +110,148 @@ export function exitUnknownTemplate(templateName) {
     console.log(chalk.gray("\nOr run `flisk project` with no template for a blank project."));
     process.exit(1);
 }
+const SAFE_WIN32_CD_RE = /^[A-Za-z0-9_.:\\/][A-Za-z0-9_.:\\/-]*$/;
+const SAFE_POSIX_CD_RE = /^[A-Za-z0-9_./][A-Za-z0-9_./-]*$/;
+function escapeCmdTarget(raw, delayedExpansion) {
+    if (SAFE_WIN32_CD_RE.test(raw))
+        return raw;
+    // In cmd.exe (/v:off), `%` expands even inside quotes so `%` is escaped outside quotes as `^%`,
+    // while `!` and `^` remain literal inside quotes. When delayed expansion (/v:on) is enabled and
+    // `!` is present, cmd parses carets twice: phase 2 consumes one caret outside quotes before phase 3
+    // runs `!` expansion, so `^^^!` (-> `^!` -> `!`) and `^^^^` (-> `^^` -> `^`) stay outside quotes.
+    const useDelayedBangEscaping = delayedExpansion && raw.includes("!");
+    const specialRe = useDelayedBangEscaping ? /([%!^])/ : /([%])/;
+    if (!specialRe.test(raw))
+        return `"${raw.replace(/"/g, '""')}"`;
+    return raw
+        .split(specialRe)
+        .filter((part) => part.length > 0)
+        .map((part) => {
+        if (part === "%")
+            return "^%";
+        if (useDelayedBangEscaping && part === "!")
+            return "^^^!";
+        if (useDelayedBangEscaping && part === "^")
+            return "^^^^";
+        return /^[A-Za-z0-9_.:\\/-]+$/.test(part) ? part : `"${part.replace(/"/g, '""')}"`;
+    })
+        .join("");
+}
+function escapePowerShellCdCommand(raw) {
+    if (SAFE_WIN32_CD_RE.test(raw))
+        return `cd ${raw}`;
+    // Single quotes disable `$` and backtick expansion; `-LiteralPath` disables wildcard globbing (`[ ]`, `*`, `?`).
+    return `Set-Location -LiteralPath '${raw.replace(/'/g, "''")}'`;
+}
+function resolveWindowsShell(env, shell) {
+    const explicit = shell !== "auto"
+        ? shell
+        : env.FLISK_SHELL === "cmd" ||
+            env.FLISK_SHELL === "cmd-delayed" ||
+            env.FLISK_SHELL === "powershell" ||
+            env.FLISK_SHELL === "posix"
+            ? env.FLISK_SHELL
+            : "auto";
+    if (explicit !== "auto")
+        return explicit;
+    const hasPrompt = Boolean(env.PROMPT);
+    const hasPwsh = Boolean(env.POWERSHELL_DISTRIBUTION_CHANNEL);
+    const hasMsystem = Boolean(env.MSYSTEM);
+    // Windows PowerShell 5.1 (`powershell.exe`) inherits `PROMPT` when launched from CMD and never
+    // sets `POWERSHELL_DISTRIBUTION_CHANNEL`, while a nested `cmd.exe` from `pwsh` or Git Bash can
+    // inherit parent shell variables. Only unnested `pwsh` or `MSYSTEM` (Git Bash) is unambiguous.
+    if (hasPwsh && !hasPrompt && !hasMsystem)
+        return "powershell";
+    if (hasMsystem && !hasPrompt && !hasPwsh)
+        return "posix";
+    return "ambiguous";
+}
+/** Formats the created folder label and shell-safe `cd` next-step command(s) for the current OS and shell. */
+export function formatProjectPaths(dirName, platform = process.platform, env = process.env, shell = "auto", workingDir = cwd()) {
+    const trailingSep = platform === "win32" ? /[\\/]+$/ : /\/+$/;
+    const displayDir = platform === "win32" && /^[A-Za-z]:[\\/]+$/.test(dirName)
+        ? `${dirName[0]}:\\`
+        : dirName.length > 1
+            ? dirName.replace(trailingSep, "") || dirName
+            : dirName;
+    const endsWithSep = displayDir.endsWith("/") || (platform === "win32" && displayDir.endsWith("\\"));
+    const displayDirWithSlash = endsWithSep ? displayDir : `${displayDir}/`;
+    const rawCdTarget = displayDir.startsWith("-")
+        ? `${platform === "win32" ? ".\\" : "./"}${displayDir}`
+        : displayDir;
+    const isUncTarget = platform === "win32" && /^(\\\\|\/\/)/.test(rawCdTarget);
+    const hasWinDrive = platform === "win32" && /^[A-Za-z]:/.test(rawCdTarget);
+    const isSlashRooted = platform === "win32" && rawCdTarget.startsWith("/") && !isUncTarget;
+    const isBackslashRooted = platform === "win32" && rawCdTarget.startsWith("\\") && !isUncTarget;
+    const hasWinWorkingDirRoot = platform === "win32" && (/^[A-Za-z]:/.test(workingDir) || /^(\\\\|\/\/)/.test(workingDir));
+    const resolvedWinRooted = (isSlashRooted || isBackslashRooted) && hasWinWorkingDirRoot
+        ? win32.resolve(workingDir.replace(/\//g, "\\"), rawCdTarget)
+        : null;
+    const bashRawTarget = resolvedWinRooted ? resolvedWinRooted.replace(/\\/g, "/") : rawCdTarget;
+    const isSafeBashTarget = resolvedWinRooted
+        ? /^(?:[A-Za-z]:)?[A-Za-z0-9_./][A-Za-z0-9_./-]*$/.test(bashRawTarget)
+        : SAFE_POSIX_CD_RE.test(bashRawTarget);
+    const posixCdTarget = isSafeBashTarget
+        ? bashRawTarget
+        : `'${bashRawTarget.replace(/'/g, "'\\''")}'`;
+    const posixCdCmd = `cd ${posixCdTarget}`;
+    const detectedWinShell = platform === "win32" ? resolveWindowsShell(env, shell) : "posix";
+    if (platform === "win32" && detectedWinShell !== "posix") {
+        const isRelativeWinTarget = !hasWinDrive && !isUncTarget && !isSlashRooted && !isBackslashRooted;
+        let cmdRawTarget = rawCdTarget;
+        if (isUncTarget) {
+            cmdRawTarget = rawCdTarget.replace(/\//g, "\\");
+        }
+        else if (resolvedWinRooted) {
+            cmdRawTarget = resolvedWinRooted;
+        }
+        else if (isSlashRooted) {
+            cmdRawTarget = rawCdTarget.replace(/\//g, "\\");
+        }
+        const isCmdUnc = /^\\\\/.test(cmdRawTarget);
+        const hasCmdDrive = /^[A-Za-z]:/.test(cmdRawTarget);
+        const isCharSafe = SAFE_WIN32_CD_RE.test(rawCdTarget);
+        const hasBang = cmdRawTarget.includes("!");
+        const formatCmd = (target) => isCmdUnc ? `pushd ${target}` : hasCmdDrive ? `cd /d ${target}` : `cd ${target}`;
+        const cmdOffTarget = escapeCmdTarget(cmdRawTarget, false);
+        const cmdOnTarget = escapeCmdTarget(cmdRawTarget, true);
+        const cmdOffCmd = formatCmd(cmdOffTarget);
+        const cmdOnCmd = formatCmd(cmdOnTarget);
+        const psCmd = escapePowerShellCdCommand(rawCdTarget);
+        const psTarget = isCharSafe ? rawCdTarget : `'${rawCdTarget.replace(/'/g, "''")}'`;
+        if (detectedWinShell === "powershell") {
+            return { displayDirWithSlash, cdTarget: psTarget, cdCommands: [psCmd] };
+        }
+        if (detectedWinShell === "cmd-delayed") {
+            return { displayDirWithSlash, cdTarget: cmdOnTarget, cdCommands: [cmdOnCmd] };
+        }
+        if (detectedWinShell === "cmd") {
+            return {
+                displayDirWithSlash,
+                cdTarget: cmdOffTarget,
+                cdCommands: hasBang
+                    ? [`cmd.exe:         ${cmdOffCmd}`, `cmd.exe (/v:on): ${cmdOnCmd}`]
+                    : [cmdOffCmd],
+            };
+        }
+        if (isCharSafe && isRelativeWinTarget && !rawCdTarget.includes("\\")) {
+            return { displayDirWithSlash, cdTarget: rawCdTarget, cdCommands: [`cd ${rawCdTarget}`] };
+        }
+        return {
+            displayDirWithSlash,
+            cdTarget: cmdOffTarget,
+            cdCommands: hasBang
+                ? [
+                    `cmd.exe:         ${cmdOffCmd}`,
+                    `cmd.exe (/v:on): ${cmdOnCmd}`,
+                    `PowerShell:      ${psCmd}`,
+                    `Git Bash:        ${posixCdCmd}`,
+                ]
+                : [`cmd.exe:    ${cmdOffCmd}`, `PowerShell: ${psCmd}`, `Git Bash:   ${posixCdCmd}`],
+        };
+    }
+    return { displayDirWithSlash, cdTarget: posixCdTarget, cdCommands: [posixCdCmd] };
+}
 /** Clones (or copies) a starter template and resolves to the absolute directory it landed in. */
 export async function cloneProjectTemplate(templateName, targetDir, runtimeNextSteps, options = {}) {
     const template = PROJECT_TEMPLATES[templateName];
@@ -130,6 +265,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
     // If targetDir is an absolute path, use it directly as the destination
     // Otherwise resolve it relative to cwd()
     const destination = isAbsolute(dirName) ? dirName : resolve(cwd(), dirName);
+    const { displayDirWithSlash, cdCommands } = formatProjectPaths(dirName);
     if (existsSync(destination) && readdirSync(destination).length > 0) {
         errorFactories.directoryExists(destination).exit();
     }
@@ -142,6 +278,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         showDetail(`Destination: ${destination}\n`, 0);
     }
     let gitStep = "clone";
+    let bundledCopyUsed = false;
     try {
         if (template.generated === "swarm") {
             writeSwarmProject(destination);
@@ -162,8 +299,23 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
             writeNextPostgresProject(destination);
         }
         else if (template.bundledPath) {
-            const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
-            cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });
+            const bundledSource = resolveBundledTemplateDir(template.bundledPath, {
+                packageRoot: resolve(dirname(fileURLToPath(import.meta.url)), "../../../"),
+                exeDir: dirname(execPath),
+                workingDir: cwd(),
+            });
+            if (bundledSource) {
+                bundledCopyUsed = true;
+                cpSync(bundledSource, destination, { recursive: true });
+            }
+            else {
+                // No bundled copy (standalone binary whose engine bundle predates #3880): clone the same example.
+                for (const gitArgs of templateGitCommands(template, destination)) {
+                    gitStep =
+                        gitArgs[0] === "clone" ? "clone" : gitArgs[2] === "remote" ? "remote" : "checkout";
+                    execFileSync("git", gitArgs, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf-8" });
+                }
+            }
             const projectSlug = basename(destination).replace(/-/g, "_");
             for (const file of [
                 "services/platform/messaging/docker-compose.yml",
@@ -173,6 +325,8 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
                 "services/shop/orders-worker/src/index.ts",
             ]) {
                 const copiedPath = join(destination, file);
+                if (!existsSync(copiedPath))
+                    continue;
                 const contents = readFileSync(copiedPath, "utf-8");
                 writeFileSync(copiedPath, contents.replaceAll("flisk_example", projectSlug));
             }
@@ -192,7 +346,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
     }
     catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
-        const message = template.bundledPath
+        const message = template.bundledPath && bundledCopyUsed
             ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
             : gitStep === "remote"
                 ? `git remote rename origin upstream failed: ${lastLine(detail)}. The cloned repository is left in ${destination}; inspect its remotes before trying again.`
@@ -203,36 +357,48 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         // failure itself instead of having the process die mid-paint.
         if (options.quiet) {
             throw new FliskError(message, [
-                template.bundledPath
+                template.bundledPath && bundledCopyUsed
                     ? "Reinstall the Flisk CLI package, then run the command again"
                     : "Check that git is installed and that you are online, then run the command again",
             ]);
         }
         showErrorAndExit(message);
     }
+    // A copied or cloned starter ships service.json files but no .flisk/project.json, and every command that needs a
+    // project root refuses without one: `flisk doctor`, `flisk status` and `flisk resources` in the new folder failed
+    // with "Could not find project root". Generated local-process starters get it too (#4292).
+    if (!existsSync(join(destination, ".flisk", PROJECT_JSON))) {
+        writeDefaultProjectConfig(destination);
+    }
     clearDiscoveryCache();
     if (options.quiet)
         return destination;
+    const printCdStep = () => {
+        const [first, ...rest] = cdCommands;
+        showDetail(`1. ${first}`);
+        for (const alt of rest)
+            showDetail(`   ${alt}`);
+    };
     if (template.generated) {
         // Every service of a generated starter declares `command`: it runs as local processes, with no Docker or Tilt.
-        console.log(chalk.green(`\n✅ Created "${templateName}" in ${dirName}/`));
+        console.log(chalk.green(`\n✅ Created "${templateName}" in ${displayDirWithSlash}`));
         showDetail("\nNext steps:", 0);
-        showDetail(`1. cd ${dirName}`);
+        printCdStep();
         showDetail("2. flisk up       # start it as local processes (no Docker needed)");
         showDetail("3. cat README.md  # what to send it");
         return destination;
     }
     if (template.composed) {
-        console.log(chalk.green(`\n✅ Created "${templateName}" in ${dirName}/`));
+        console.log(chalk.green(`\n✅ Created "${templateName}" in ${displayDirWithSlash}`));
         showDetail("\nNext steps:", 0);
-        showDetail(`1. cd ${dirName}`);
+        printCdStep();
         showDetail("2. flisk up       # Postgres, the migrator, the API and the website (needs Docker)");
         showDetail("3. cat README.md  # what each part does");
         return destination;
     }
-    console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${dirName}/`));
+    console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${displayDirWithSlash}`));
     showDetail("\nNext steps:", 0);
-    showDetail(`1. cd ${dirName}`);
+    printCdStep();
     showDetail("2. flisk doctor   # check Docker/Tilt are ready");
     showDetail("3. flisk up       # start the stack");
     if (!template.bundledPath) {
@@ -304,7 +470,7 @@ export function writeDefaultProjectConfig(projectRoot) {
 export function printTemplateCatalog(json) {
     const templates = listProjectTemplates();
     if (json) {
-        process.stdout.write(`${JSON.stringify(templates, null, 2)}\n`);
+        console.log(JSON.stringify(createMachineEnvelope({ templates })));
         return;
     }
     console.log(chalk.bold("Starter templates (flisk project <key>):\n"));
@@ -319,7 +485,7 @@ export const projectCommand = addYesOption(new Command("project"))
     .alias("init")
     .description("Initialize or validate project-level master configuration")
     .argument("[template]", `Clone a starter example instead of a blank project (${Object.keys(PROJECT_TEMPLATES).join(", ")})`)
-    .option("--path <dir>", "Directory to clone the template into (default: the template's repo name)")
+    .option("--path <dir>", "Directory to clone the template into (default: the starter name, or its repository name)")
     .option("--check", "Check if master configs exist and are in sync")
     .option("--force", "Overwrite existing configuration (dangerous)")
     .option("--config-file <path>", "Load project config from existing JSON file")

@@ -35,7 +35,7 @@ When building, adding, or modifying services in this workspace, **do not hand-wr
    - Start the stack: `flisk up --json` (or tool `up`)
    - Inspect status: `flisk status --json` (or tool `status`)
    - Check logs: `flisk logs --tail 200 --json` (or tool `logs`)
-   - Restart a service: `flisk restart <resource> --json` (or tool `resource_restart`)
+   - Restart a service: `flisk restart <resource> --json` (or tool `resource_restart`); add `--rebuild` (tool: `rebuild: true`) when the image or the project `.env` changed
    - List agents: `flisk resources --type agent --json` (or tool `agent_list`)
    - List agent sessions: `flisk agent sessions <resource> --json` (or tool `agent_sessions` with `resource`); add `--session-id <id>` (tool: `sessionId`) to read one session's checkpoint
    - Stop services: `flisk down --json` (or tool `down`)

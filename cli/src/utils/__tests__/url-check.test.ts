@@ -147,7 +147,9 @@ describe("describeUrlFailure: service, cause and next command per cause", () => 
     const d = describeUrlFailure(target, { cause: "missing-env", envName: "DATABASE_URL" });
     expect(d.message).toContain("DATABASE_URL");
     expect(d.message).toContain("api");
-    expect(d.nextCommand).toBe("add DATABASE_URL=<value> to .env, then run: flisk restart api");
+    expect(d.nextCommand).toBe(
+      "add DATABASE_URL=<value> to .env, then run: flisk restart api --rebuild",
+    );
   });
 
   it("container-exited points at the service's logs", () => {
@@ -276,6 +278,46 @@ describe("checkPrintedUrls", () => {
     );
   });
 
+  it("keeps retrying a URL that times out, past the usual deadline, until it answers", async () => {
+    let clock = 0;
+    let calls = 0;
+    const probe = async (_url: string, timeoutMs: number): Promise<UrlProbe> => {
+      calls++;
+      if (clock < 40_000) {
+        clock += timeoutMs; // a dev server compiling its first page: accepts, then stays silent
+        return { error: "timeout" };
+      }
+      return { status: 200 };
+    };
+    const checks = await checkPrintedUrls([targets[0] as (typeof targets)[number]], {
+      probe,
+      timeoutMs: 3_000,
+      deadlineMs: 15_000,
+      intervalMs: 500,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      now: () => clock,
+    });
+    expect(checks[0]?.didAnswer).toBe(true);
+    expect(clock).toBeGreaterThan(15_000);
+  });
+
+  it("does not extend the deadline for a refused connection", async () => {
+    let clock = 0;
+    const probe = async (): Promise<UrlProbe> => ({ error: "ECONNREFUSED" });
+    await checkPrintedUrls([targets[0] as (typeof targets)[number]], {
+      probe,
+      deadlineMs: 15_000,
+      intervalMs: 500,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      now: () => clock,
+    });
+    expect(clock).toBeLessThanOrEqual(15_000);
+  });
+
   it("never lets a request run past the deadline", async () => {
     let clock = 0;
     const budgets: number[] = [];
@@ -289,6 +331,7 @@ describe("checkPrintedUrls", () => {
       probe,
       timeoutMs: 3_000,
       deadlineMs: 7_000,
+      slowDeadlineMs: 0,
       intervalMs: 500,
       sleep: async (ms) => {
         sleeps.push(ms);
@@ -313,6 +356,7 @@ describe("checkPrintedUrls", () => {
       probe,
       timeoutMs: 3_000,
       deadlineMs: 5_000,
+      slowDeadlineMs: 0,
       intervalMs: 500,
       sleep: async (ms) => {
         clock += ms;
@@ -363,7 +407,7 @@ describe("checkPrintedUrls", () => {
       status: 502,
       cause: "missing-env",
       envName: "DATABASE_URL",
-      nextCommand: "add DATABASE_URL=<value> to .env, then run: flisk restart api",
+      nextCommand: "add DATABASE_URL=<value> to .env, then run: flisk restart api --rebuild",
     });
   });
 
