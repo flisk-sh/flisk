@@ -1,6 +1,6 @@
 {
   "id": "compose-kiri-plain",
-  "name": "Docker Compose on Kiri (plain, images built by Kiri)",
+  "name": "Docker Compose on Kiri (plain, images built by Kiri, host-network builder)",
   "optIn": true,
   "tool": {
     "name": "docker compose",
@@ -10,7 +10,7 @@
     "docker",
     "kiri"
   ],
-  "start": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose up -d --build",
+  "start": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') BUILDX_BUILDER=kiri-host docker compose up -d --build",
   "stop": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down --remove-orphans",
   "purge": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans --rmi local",
   "clean": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans",

@@ -83,6 +83,16 @@ jobs:
           DOCKER_BUILDKIT=0 docker build --network host "$RUNNER_TEMP/kiri-net" 2>&1 | tail -6 || true
           docker images --format '{{.Repository}}:{{.Tag}}' | head -20
           exit 0
+      - name: Kiri host-network builder (plain Compose on Kiri)
+        if: ${{ contains(inputs.only, 'kiri') }}
+        continue-on-error: true
+        run: |
+          # Kiri 0.2.1 (kiri#330): a BuildKit container on Kiri's bridge has no DNS, so a digest-pinned base can't resolve.
+          # A builder on Kiri with host networking uses the host resolver. Images are still built by Kiri, not by the runner's Docker.
+          export DOCKER_HOST=unix:///run/kiri/docker.sock
+          docker buildx create --name kiri-host --driver docker-container --driver-opt network=host --bootstrap 2>&1 | tail -5
+          docker buildx ls 2>&1 | head
+          exit 0
       - name: Machine
         run: |
           echo "cpus: $(nproc)"; free -h; df -h / | tail -1
