@@ -144,9 +144,9 @@ export function localRequirements(parts: { frontend: boolean; language?: string 
   if (parts.frontend) for (const program of LOCAL_FRONTEND_REQUIRES) programs.add(program);
   if (parts.language) {
     const provider = BACKEND_LANGUAGES[parts.language];
-    const hasPackageJson = provider?.createFiles?.("app").some(
-      (file) => file.filename === "package.json",
-    );
+    const hasPackageJson = provider
+      ?.createFiles?.("app")
+      .some((file) => file.filename === "package.json");
     // A generated package.json runs `npm run dev` — from the language or the shared scaffold (#4459).
     // Only a scaffold without one runs the provider's dev command directly.
     if (!provider) programs.add(parts.language);
