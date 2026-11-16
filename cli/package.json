@@ -1,7 +1,7 @@
 {
   "name": "flisk-cli-internal",
   "private": true,
-  "version": "1.4.67",
+  "version": "1.4.68",
   "description": "Flisk: local development for multi-service apps, started with one command.",
   "keywords": [
     "flisk",
@@ -10,7 +10,7 @@
     "local-dev",
     "microservices"
   ],
-  "homepage": "https://github.com/flisk-sh/flisk#readme",
+  "homepage": "https://flisk.sh",
   "bugs": {
     "url": "https://github.com/flisk-sh/flisk/issues"
   },

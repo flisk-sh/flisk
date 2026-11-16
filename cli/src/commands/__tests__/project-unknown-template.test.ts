@@ -42,4 +42,27 @@ describe("exitUnknownTemplate", () => {
     expect(output).not.toContain("Did you mean");
     expect(output).toContain("Available templates:");
   });
+
+  it.each(["validate", "check", "verify"])(
+    "suggests `flisk project --check` for action word '%s'",
+    (word) => {
+      const output = refuse(word);
+
+      expect(output).toContain('Did you mean "flisk project --check"?');
+      expect(output).toContain(`Unknown template: "${word}"`);
+      expect(output).toContain("Available templates:");
+    },
+  );
+
+  it.each(["constructor", "__proto__", "toString", "hasOwnProperty"])(
+    "does not treat prototype key '%s' as an action word",
+    (word) => {
+      const output = refuse(word);
+
+      expect(output).not.toContain("flisk project --check");
+      expect(output).not.toContain("[object Object]");
+      expect(output).not.toContain("native code");
+      expect(output).toContain(`Unknown template: "${word}"`);
+    },
+  );
 });
