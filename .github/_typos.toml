@@ -28,6 +28,8 @@ mirrord = "mirrord"
 postgress = "postgress"
 # Name of the CA bundle package the BYO examples pin.
 certifi = "certifi"
+# Deliberate misspelling in the resource-type suggestion test.
+bakend = "bakend"
 # in-toto attestation filename (checksums.txt.intoto.jsonl).
 intoto = "intoto"
 # Jest/Mocha function names that scripts/scores/skipped-tests.mjs searches for.
