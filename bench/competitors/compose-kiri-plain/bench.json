@@ -10,7 +10,7 @@
     "docker",
     "kiri"
   ],
-  "start": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') BUILDX_BUILDER=kiri-host COMPOSE_BAKE=false COMPOSE_PARALLEL_LIMIT=1 docker compose up -d --build",
+  "start": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') BUILDX_BUILDER=kiri-host BUILDX_NO_DEFAULT_ATTESTATIONS=1 COMPOSE_BAKE=false COMPOSE_PARALLEL_LIMIT=1 docker compose up -d --build",
   "stop": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down --remove-orphans",
   "purge": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans --rmi local",
   "clean": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans",
