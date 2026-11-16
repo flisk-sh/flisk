@@ -3,6 +3,7 @@
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { uptime } from "node:os";
+import { win32 } from "node:path";
 function runQuiet(file, args) {
     return new Promise((resolve, reject) => {
         execFile(file, args, {
@@ -37,7 +38,8 @@ export async function processStartTime(pid, deps = {}) {
     const run = deps.run ?? runQuiet;
     try {
         if (platform === "win32") {
-            const out = await run("powershell.exe", [
+            const powershell = win32.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+            const out = await run(powershell, [
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
@@ -56,7 +58,7 @@ export async function processStartTime(pid, deps = {}) {
                 // No /proc (a container without it): ask ps below.
             }
         }
-        const out = await run("ps", ["-o", "lstart=", "-p", String(pid)]);
+        const out = await run("/bin/ps", ["-o", "lstart=", "-p", String(pid)]);
         return out.trim() || undefined;
     }
     catch {

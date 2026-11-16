@@ -742,6 +742,8 @@ interface RunningService {
   waitingFor?: string[];
   /** When the current process started, once read; saved so a later stop can prove the pid is still this process. */
   startTime?: string;
+  /** Resolves once the current process identity has been saved. Readiness waits for it. */
+  identityReady?: Promise<void>;
   restartTimer?: NodeJS.Timeout;
   /** Resolves with the exit code of the current process (null when a signal ended it). */
   exited?: Promise<number | null>;
@@ -820,12 +822,10 @@ export class NativeSupervisor {
    */
   async start(): Promise<Array<{ name: string; reason: string }>> {
     this.saveState();
-    // Read in the background: on Windows the lookup starts PowerShell, which must not hold up the services.
-    void this.readStartTime(process.pid).then((startTime) => {
-      if (this.stopping || startTime === undefined) return;
-      this.pidStartTime = startTime;
-      this.saveState();
-    });
+    // Persist the supervisor identity before startup can report success; otherwise an immediate `down` cannot verify it.
+    this.pidStartTime = await this.readStartTime(process.pid);
+    if (this.stopping) return [];
+    this.saveState();
     const plans = [...this.services.values()].map((service) => service.plan);
     const ready = new Map<string, Promise<boolean>>();
     const failures: Array<{ name: string; reason: string }> = [];
@@ -856,6 +856,7 @@ export class NativeSupervisor {
                 isAlive: () => !this.stopping && !service.gaveUp,
                 timeoutMs: this.options.readyTimeoutMs,
               });
+          await service.identityReady;
           if (isReady) {
             service.isReady = true;
             this.saveState();
@@ -956,9 +957,10 @@ export class NativeSupervisor {
     });
     service.child = child;
     service.startTime = undefined;
+    service.identityReady = undefined;
     const pid = child.pid;
     if (pid !== undefined) {
-      void this.readStartTime(pid).then((startTime) => {
+      service.identityReady = this.readStartTime(pid).then((startTime) => {
         // Saved only while this is still the service's process: a restart in the meantime reads its own.
         if (this.stopping || service.child !== child || startTime === undefined) return;
         service.startTime = startTime;
@@ -1060,7 +1062,8 @@ export class NativeSupervisor {
     void waitForServiceReady(service.plan, {
       isAlive: () => !this.stopping && isChildRunning(service.child),
       timeoutMs: this.options.readyTimeoutMs,
-    }).then((isReady) => {
+    }).then(async (isReady) => {
+      await service.identityReady;
       if (!isReady || this.stopping) return;
       service.isReady = true;
       this.saveState();

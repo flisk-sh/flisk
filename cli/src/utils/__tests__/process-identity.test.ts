@@ -24,7 +24,7 @@ describe("processStartTime (#3960)", () => {
       "2026-11-17T05:00:00.1234567Z",
     );
     const [file, args] = run.mock.calls[0] as unknown as [string, string[]];
-    expect(file).toBe("powershell.exe");
+    expect(file).toMatch(/\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe$/);
     expect(args.join(" ")).toContain("Get-Process -Id 4242");
   });
 
@@ -48,7 +48,7 @@ describe("processStartTime (#3960)", () => {
     expect(await processStartTime(4242, { platform: "darwin", run })).toBe(
       "Tue Nov 17 05:00:00 2026",
     );
-    expect(run).toHaveBeenCalledWith("ps", ["-o", "lstart=", "-p", "4242"]);
+    expect(run).toHaveBeenCalledWith("/bin/ps", ["-o", "lstart=", "-p", "4242"]);
   });
 
   it("returns undefined when the lookup fails or prints nothing", async () => {

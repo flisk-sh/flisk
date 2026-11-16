@@ -764,6 +764,39 @@ describe("stopping a native run from another process", () => {
 });
 
 describe("run.json records who flisk started (#3960)", () => {
+  it("waits for service identities before reporting startup complete", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "loop.mjs"), "setInterval(() => {}, 1000);\n");
+    const plan = planNativeRun([nativeService(root, "api", { command: `${NODE} loop.mjs` })]);
+    let releaseIdentity!: (value: string) => void;
+    const serviceIdentity = new Promise<string>((resolve) => {
+      releaseIdentity = resolve;
+    });
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      {},
+      {
+        startTimeOf: (pid) =>
+          pid === process.pid ? Promise.resolve("supervisor") : serviceIdentity,
+      },
+    );
+    supervisors.push(supervisor);
+    let completed = false;
+    const starting = supervisor.start().then(() => {
+      completed = true;
+    });
+    try {
+      await waitFor(() => supervisor.pidOf("api") !== undefined);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      expect(completed).toBe(false);
+    } finally {
+      releaseIdentity("service");
+      await starting;
+    }
+    expect(readNativeRunState(root)?.services.api?.startTime).toBe("service");
+  });
+
   it("saves the start time of the supervisor and of each service process", async () => {
     const root = createTempDir();
     const plan = planNativeRun([

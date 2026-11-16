@@ -4,6 +4,7 @@
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { uptime } from "node:os";
+import { win32 } from "node:path";
 
 /**
  * A process id alone does not identify a process: the OS hands the number to another process once the first one exits, and
@@ -60,7 +61,14 @@ export async function processStartTime(
   const run = deps.run ?? runQuiet;
   try {
     if (platform === "win32") {
-      const out = await run("powershell.exe", [
+      const powershell = win32.join(
+        process.env.SystemRoot || "C:\\Windows",
+        "System32",
+        "WindowsPowerShell",
+        "v1.0",
+        "powershell.exe",
+      );
+      const out = await run(powershell, [
         "-NoProfile",
         "-NonInteractive",
         "-Command",
@@ -77,7 +85,7 @@ export async function processStartTime(
         // No /proc (a container without it): ask ps below.
       }
     }
-    const out = await run("ps", ["-o", "lstart=", "-p", String(pid)]);
+    const out = await run("/bin/ps", ["-o", "lstart=", "-p", String(pid)]);
     return out.trim() || undefined;
   } catch {
     return undefined;
