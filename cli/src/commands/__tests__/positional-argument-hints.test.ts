@@ -1,10 +1,26 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { describe, expect, it } from "vitest";
+import { writeSync } from "node:fs";
+import { describe, expect, it, vi } from "vitest";
 import { captureExit, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { downCommand } from "../down.js";
 import { logsCommand } from "../logs.js";
 import { statusCommand } from "../status.js";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  // The JSON envelope is written with writeSync(1, ...); capture it instead of hitting stdout.
+  const writeSyncMock = vi.fn();
+  const mockedFs = { ...actual, default: actual, writeSync: writeSyncMock };
+  return { ...mockedFs, default: mockedFs };
+});
+
+function captureEnvelopeWrites(): string[] {
+  return vi
+    .mocked(writeSync)
+    .mock.calls.filter((call) => call[0] === 1)
+    .map((call) => String(call[1]));
+}
 
 describe("positional argument hints and --json error routing (#4251)", () => {
   describe("text mode: commands with no positionals explain that they take no service name", () => {
@@ -60,22 +76,19 @@ describe("positional argument hints and --json error routing (#4251)", () => {
 
   describe("json mode: excess positional arguments emit a JSON envelope, not plain text", () => {
     it("down ok1 --json prints a versioned JSON error on stdout and suppresses stderr", async () => {
-      const stdout: string[] = [];
       const stderr: string[] = [];
-      const origLog = console.log;
-      console.log = (line) => stdout.push(String(line));
+      vi.mocked(writeSync).mockClear();
       downCommand.configureOutput({ writeErr: (text) => stderr.push(text) });
       const { exit } = captureExit();
       try {
         await expect(downCommand.parseAsync(["ok1", "--json"], { from: "user" })).rejects.toThrow();
       } finally {
-        console.log = origLog;
         downCommand.configureOutput({ writeErr: (text) => process.stderr.write(text) });
         exit.mockRestore();
       }
 
       expect(stderr.join("")).toBe("");
-      const envelope = parseEnvelope(stdout.join("\n"));
+      const envelope = parseEnvelope(captureEnvelopeWrites().join(""));
       expect(envelope.schemaVersion).toBe(1);
       expect(envelope.data).toBeNull();
       expect(envelope.errors).toHaveLength(1);
@@ -87,10 +100,8 @@ describe("positional argument hints and --json error routing (#4251)", () => {
     });
 
     it("status ok1 --json prints a versioned JSON error on stdout and suppresses stderr", async () => {
-      const stdout: string[] = [];
       const stderr: string[] = [];
-      const origLog = console.log;
-      console.log = (line) => stdout.push(String(line));
+      vi.mocked(writeSync).mockClear();
       statusCommand.configureOutput({ writeErr: (text) => stderr.push(text) });
       const { exit } = captureExit();
       try {
@@ -98,13 +109,12 @@ describe("positional argument hints and --json error routing (#4251)", () => {
           statusCommand.parseAsync(["ok1", "--json"], { from: "user" }),
         ).rejects.toThrow();
       } finally {
-        console.log = origLog;
         statusCommand.configureOutput({ writeErr: (text) => process.stderr.write(text) });
         exit.mockRestore();
       }
 
       expect(stderr.join("")).toBe("");
-      const envelope = parseEnvelope(stdout.join("\n"));
+      const envelope = parseEnvelope(captureEnvelopeWrites().join(""));
       expect(envelope.schemaVersion).toBe(1);
       expect(envelope.data).toBeNull();
       expect(envelope.errors).toHaveLength(1);
@@ -116,22 +126,19 @@ describe("positional argument hints and --json error routing (#4251)", () => {
     });
 
     it("logs ok1 --json prints a versioned JSON error on stdout and suppresses stderr", async () => {
-      const stdout: string[] = [];
       const stderr: string[] = [];
-      const origLog = console.log;
-      console.log = (line) => stdout.push(String(line));
+      vi.mocked(writeSync).mockClear();
       logsCommand.configureOutput({ writeErr: (text) => stderr.push(text) });
       const { exit } = captureExit();
       try {
         await expect(logsCommand.parseAsync(["ok1", "--json"], { from: "user" })).rejects.toThrow();
       } finally {
-        console.log = origLog;
         logsCommand.configureOutput({ writeErr: (text) => process.stderr.write(text) });
         exit.mockRestore();
       }
 
       expect(stderr.join("")).toBe("");
-      const envelope = parseEnvelope(stdout.join("\n"));
+      const envelope = parseEnvelope(captureEnvelopeWrites().join(""));
       expect(envelope.schemaVersion).toBe(1);
       expect(envelope.data).toBeNull();
       expect(envelope.errors).toHaveLength(1);
@@ -164,6 +171,12 @@ describe("positional argument hints and --json error routing (#4251)", () => {
       expect(envelope.data).toBeNull();
       expect(envelope.errors[0]?.code).toBe("USAGE");
       expect(envelope.errors[0]?.message).toContain("too many arguments");
+    });
+
+    it("flisk distribute status ok1 does not get the top-level status hint", () => {
+      const result = runFlisk(["distribute", "status", "ok1"], { cwd: process.cwd() });
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).not.toContain("status shows the whole project");
     });
 
     it("flisk down --help --json exits 0 without appending a USAGE error envelope", () => {

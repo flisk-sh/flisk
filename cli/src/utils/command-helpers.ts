@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { writeSync } from "node:fs";
 import type { Command } from "commander";
 import type { ValidationResult } from "../types/index.js";
 import { showErrorAndExit } from "./errors.js";
@@ -70,7 +71,8 @@ export function attachNoPositionalHint<T extends Command>(
           ...(isExcess && hint ? { suggestions: [hint] } : {}),
         },
       ]);
-      console.log(JSON.stringify(envelope));
+      // Synchronous: a queued pipe write would be lost to process.exit() below.
+      writeSync(1, `${JSON.stringify(envelope)}\n`);
       process.exit(err.exitCode ?? 1);
     }
     process.exit(err.exitCode ?? 1);

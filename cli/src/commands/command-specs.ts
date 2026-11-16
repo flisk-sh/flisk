@@ -126,7 +126,7 @@ function buildCommand(spec: CommandSpec, run: RunRealCommand): Command {
   if (spec.positionalOptions) command.enablePositionalOptions();
   if (!spec.allowExcessArguments) command.allowExcessArguments(false);
   if (spec.showHelpAfterError) command.showHelpAfterError(spec.showHelpAfterError);
-  if (spec.name in NO_POSITIONAL_HINTS) {
+  if (spec.path.length === 1 && spec.name in NO_POSITIONAL_HINTS) {
     attachNoPositionalHint(command, spec.name);
   }
 
