@@ -4,6 +4,13 @@ export declare const YES_OPTION_FLAGS = "-y, --yes";
 export declare const YES_OPTION_DESCRIPTION = "Skip prompts and confirmations; use defaults";
 export declare const NO_POSITIONAL_HINTS: Readonly<Record<string, string>>;
 /**
+ * Routes a command's usage errors (unknown option or command, missing argument or option
+ * value, excess arguments) to the `{schemaVersion, data: null, errors}` envelope on stdout when
+ * `--json` is requested, with the same exit code. Without `--json` the output is unchanged.
+ * `hint` is added as a suggestion for excess positional arguments (#4246, #4251).
+ */
+export declare function routeUsageErrorsToJson<T extends Command>(command: T, hint?: string): T;
+/**
  * Attaches positional argument hints and routes parse errors to JSON envelopes when `--json` is requested.
  */
 export declare function attachNoPositionalHint<T extends Command>(command: T, commandName?: string): T;
