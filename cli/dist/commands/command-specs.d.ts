@@ -33,6 +33,8 @@ export interface CommandSpec {
         flags: string;
         description: string;
     };
+    /** Suffix to append to error messages. */
+    showHelpAfterError?: string;
     allowUnknown: boolean;
     passThrough: boolean;
     positionalOptions: boolean;

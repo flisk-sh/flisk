@@ -1,8 +1,74 @@
 import { showErrorAndExit } from "./errors.js";
 import { showCancelled } from "./formatting.js";
+import { createMachineEnvelope } from "./machine-output.js";
 import { promptConfirm } from "./prompt.js";
 export const YES_OPTION_FLAGS = "-y, --yes";
 export const YES_OPTION_DESCRIPTION = "Skip prompts and confirmations; use defaults";
+export const NO_POSITIONAL_HINTS = {
+    down: "Service names are not positional: down stops the whole project. Use: flisk down (or flisk down --project <path>)",
+    status: "Service names are not positional: status shows the whole project. Use: flisk status (or flisk logs --service <name>)",
+    logs: "Service names are not positional. Use: flisk logs --service <name>",
+};
+function isJsonRequested(command) {
+    try {
+        if (command.opts()?.json === true)
+            return true;
+    }
+    catch { }
+    const raw = command.rawArgs;
+    return raw?.includes("--json") ?? false;
+}
+/**
+ * Attaches positional argument hints and routes parse errors to JSON envelopes when `--json` is requested.
+ */
+export function attachNoPositionalHint(command, commandName = command.name()) {
+    const hint = NO_POSITIONAL_HINTS[commandName];
+    if (!hint)
+        return command;
+    let originalShowHelp = `\n${hint}`;
+    Object.defineProperty(command, "_showHelpAfterError", {
+        get() {
+            if (isJsonRequested(command))
+                return false;
+            return originalShowHelp;
+        },
+        set(val) {
+            originalShowHelp = val;
+        },
+        configurable: true,
+        enumerable: true,
+    });
+    command.configureOutput({
+        outputError: (str, write) => {
+            if (isJsonRequested(command))
+                return;
+            write(str);
+        },
+        writeErr: (str) => {
+            if (isJsonRequested(command))
+                return;
+            process.stderr.write(str);
+        },
+    });
+    command.exitOverride((err) => {
+        if (err.exitCode === 0)
+            process.exit(0);
+        if (isJsonRequested(command)) {
+            const isExcess = err.code === "commander.excessArguments";
+            const envelope = createMachineEnvelope(null, [
+                {
+                    code: "USAGE",
+                    message: err.message,
+                    ...(isExcess && hint ? { suggestions: [hint] } : {}),
+                },
+            ]);
+            console.log(JSON.stringify(envelope));
+            process.exit(err.exitCode ?? 1);
+        }
+        process.exit(err.exitCode ?? 1);
+    });
+    return command;
+}
 /**
  * Registers the standard `-y, --yes` flag on a Commander command with shared help text.
  */

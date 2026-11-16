@@ -4,6 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
+import { attachNoPositionalHint } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -99,9 +100,8 @@ function nativeResources(projectRoot: string): DiscoveredResource[] | null {
   }
 }
 
-export const logsCommand = new Command("logs")
+export const logsCommand = attachNoPositionalHint(new Command("logs"))
   .description("Print a bounded snapshot of recent logs from the running stack")
-  .showHelpAfterError("\nService names are not positional. Use: flisk logs --service <name>")
   .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
   .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
   .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")

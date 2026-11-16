@@ -5,7 +5,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { formatBytes, trimColimaAndMeasure } from "../utils/colima-disk.js";
-import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
+import { addYesOption, attachNoPositionalHint, handleDryRun } from "../utils/command-helpers.js";
 import {
   normalizeCacheUntil,
   pruneDockerBuildCache,
@@ -244,7 +244,7 @@ function purgeOrWarn(projectRoot: string, json: boolean): PurgeResult | undefine
   return result;
 }
 
-export const downCommand = addYesOption(new Command("down"))
+export const downCommand = attachNoPositionalHint(addYesOption(new Command("down")))
   .description("Stop every running service of this project (local processes or Docker/Tilt)")
   .option("-v, --verbose", "Enable verbose output", false)
   .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)

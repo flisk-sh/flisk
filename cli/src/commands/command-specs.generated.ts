@@ -247,6 +247,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     description: "Stop every running service of this project (local processes or Docker/Tilt)",
     aliases: [],
     hidden: false,
+    showHelpAfterError:
+      "\nService names are not positional: down stops the whole project. Use: flisk down (or flisk down --project <path>)",
     hasAction: true,
     allowUnknown: false,
     passThrough: false,
@@ -447,6 +449,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     description: "Print a bounded snapshot of recent logs from the running stack",
     aliases: [],
     hidden: false,
+    showHelpAfterError: "\nService names are not positional. Use: flisk logs --service <name>",
     hasAction: true,
     allowUnknown: false,
     passThrough: false,
@@ -737,6 +740,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     description: "Show status of resources and stacks",
     aliases: [],
     hidden: false,
+    showHelpAfterError:
+      "\nService names are not positional: status shows the whole project. Use: flisk status (or flisk logs --service <name>)",
     hasAction: true,
     allowUnknown: false,
     passThrough: false,

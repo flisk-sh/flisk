@@ -9,6 +9,7 @@ import {
   getEnabledCapabilities,
   isGatewayEnabled,
 } from "../utils/capabilities.js";
+import { attachNoPositionalHint } from "../utils/command-helpers.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -67,7 +68,7 @@ function failStrictStatus(notReady: string[] | null): void {
   }
 }
 
-export const statusCommand = new Command("status")
+export const statusCommand = attachNoPositionalHint(new Command("status"))
   .description("Show status of resources and stacks")
   .option("--json", "Output a versioned JSON status report", false)
   .option("-v, --verbose", "Show detailed information", false)
