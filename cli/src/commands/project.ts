@@ -26,6 +26,7 @@ import {
 } from "../utils/formatting.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { writeLanggraphProject } from "../utils/langgraph-template.js";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
@@ -379,7 +380,7 @@ export function writeDefaultProjectConfig(projectRoot: string): void {
 export function printTemplateCatalog(json: boolean): void {
   const templates = listProjectTemplates();
   if (json) {
-    process.stdout.write(`${JSON.stringify(templates, null, 2)}\n`);
+    console.log(JSON.stringify(createMachineEnvelope({ templates })));
     return;
   }
   console.log(chalk.bold("Starter templates (flisk project <key>):\n"));

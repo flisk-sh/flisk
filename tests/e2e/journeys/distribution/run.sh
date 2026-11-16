@@ -37,10 +37,10 @@ DS1() {
   [ "$RC" -eq 0 ] || die "flisk project --list --json exited $RC"
   local key
   for key in launch portal fullstack; do
-    jq -e --arg k "$key" '.[] | select(.key == $k) | (.repo | startswith("https://github.com/")) and (.ref | test("^[0-9a-f]{40}$")) and (.description | length > 0)' \
+    jq -e --arg k "$key" '.data.templates[] | select(.key == $k) | (.repo | startswith("https://github.com/")) and (.ref | test("^[0-9a-f]{40}$")) and (.description | length > 0)' \
       "$OUT/project-list.out" >/dev/null || die "flisk project --list --json has no $key entry with a repo, a 40-character ref and a description"
   done
-  jq -e 'type == "array" and all(.[]; (.key | type) == "string" and (.repo | type) == "string")' "$OUT/project-list.out" >/dev/null \
+  jq -e '.data.templates | type == "array" and all(.[]; (.key | type) == "string" and (.repo | type) == "string")' "$OUT/project-list.out" >/dev/null \
     || die "flisk project --list --json is not an array of {key, repo, ...}"
 }
 
