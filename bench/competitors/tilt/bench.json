@@ -1,6 +1,6 @@
 {
   "id": "tilt",
-  "name": "Tilt",
+  "name": "Tilt on Docker",
   "tool": { "name": "tilt", "version": "tilt version | sed 's/,.*//'" },
   "requires": ["docker", "tilt"],
   "start": "tilt up --stream=false --web-mode=prod --host 127.0.0.1 --port $BENCH_PORT2",
