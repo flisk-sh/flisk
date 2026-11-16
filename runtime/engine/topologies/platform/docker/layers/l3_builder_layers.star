@@ -218,7 +218,8 @@ def L3_generate_production_purger(res_path, use_golden = True, pin_prisma_cli = 
     prisma_cli = (
         prisma_cli_pin_step()
         + "# Keep the pinned CLI aside: the prune below would strip it, and the runtime image copies it from here.\n"
-        + "RUN cp -a node_modules/prisma " + PRISMA_CLI_STASH_DIR + "\n"
+        + "# -L: with the isolated linker node_modules/prisma is a symlink; copying it as-is leaves a dangling link in the stash.\n"
+        + "RUN cp -aL node_modules/prisma " + PRISMA_CLI_STASH_DIR + "\n"
     ) if pin_prisma_cli else ""
 
     return (
