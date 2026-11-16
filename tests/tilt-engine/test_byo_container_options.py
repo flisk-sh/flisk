@@ -299,3 +299,27 @@ def test_a_bad_entrypoint_stops_generation(tmp_path, entrypoint):
 
     assert FAIL_MARKER in output and "'container.entrypoint' must be" in output, output[-2000:]
     assert RESULT_MARKER not in output
+
+
+PARSER_BODY = """
+load('@ENGINE/topologies/tilt/manifest/parser.star', 'generated_string_error')
+script = {'container': {'command': ['sh', '-c', 'set -eu\\n\\techo done\\n'], 'entrypoint': ['sh', '-c', 'a\\nb']}}
+r = {
+    'script': generated_string_error(script, 'services/ml/upgrade'),
+    'bell': generated_string_error({'container': {'command': ['sh', '-c', 'a\\x07b']}}, 'services/ml/upgrade'),
+    'name': generated_string_error({'appName': 'a\\nb'}, 'services/ml/upgrade'),
+    'user': generated_string_error({'container': {'user': 'a\\nb', 'command': ['x']}}, 'services/ml/upgrade'),
+}
+"""
+
+
+@TILT_REQUIRED
+def test_the_tilt_manifest_check_lets_a_script_through_but_nothing_else(tmp_path):
+    output = run_tilt(tmp_path, PARSER_BODY)
+    assert RESULT_MARKER in output, output[-3000:]
+    result = json.loads(output.split(RESULT_MARKER, 1)[1].strip())
+
+    assert result["script"] is None
+    assert "container.command[2]" in result["bell"] and "control characters" in result["bell"]
+    assert "appName" in result["name"]
+    assert "container.user" in result["user"]
