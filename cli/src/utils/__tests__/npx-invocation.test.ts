@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
@@ -97,7 +97,7 @@ describe("quoteCmdArgument", () => {
   it.runIf(process.platform === "win32")(
     "survives cmd.exe and a batch file unchanged on Windows",
     () => {
-      const dir = createTempDir("flisk-npx-quote-");
+      const dir = join(createTempDir("flisk-npx-quote-"), "fixture & space");
       mkdirSync(dir, { recursive: true });
       writeFileSync(
         join(dir, "echo.js"),
@@ -105,14 +105,16 @@ describe("quoteCmdArgument", () => {
       );
       writeFileSync(join(dir, "echo.cmd"), '@node "%~dp0echo.js" %*\r\n');
       const marker = join(dir, "marker.txt");
-      const args = [...HOSTILE_ARGS, `x&echo PWNED>"${marker}"`];
-      const line = `"${join(dir, "echo.cmd")} ${args.map(quoteCmdArgument).join(" ")}"`;
-      const result = spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", line], {
+      const args = [...HOSTILE_ARGS, "x&echo PWNED>marker.txt"];
+      const line = `".\\echo.cmd ${args.map(quoteCmdArgument).join(" ")}"`;
+      const result = spawnSync("cmd.exe", ["/d", "/s", "/c", line], {
+        cwd: dir,
         windowsVerbatimArguments: true,
         encoding: "utf8",
       });
+      expect(result.status, result.stderr).toBe(0);
       expect(JSON.parse(result.stdout)).toEqual(args);
-      expect(spawnSync("cmd.exe", ["/d", "/c", `if exist "${marker}" exit 1`]).status).toBe(0);
+      expect(existsSync(marker)).toBe(false);
     },
   );
 });
