@@ -656,7 +656,7 @@ describe("enforceVersionFloor", () => {
     mkdirSync(join(dir, ".flisk"), { recursive: true });
   });
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     vi.restoreAllMocks();
   });
 
@@ -1033,7 +1033,7 @@ describe("flisk up --env-file", () => {
 
   afterEach(() => {
     process.chdir(originalCwd);
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     delete process.env[PROJECT_ENV_FILE_VAR];
     delete process.env.TILT_PORT;
     vi.unstubAllEnvs();
@@ -1706,7 +1706,7 @@ describe("flisk up with no resources (#3781)", () => {
         error.mockRestore();
       }
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
 
@@ -1767,7 +1767,7 @@ describe("flisk up with no resources (#3781)", () => {
       warn.mockRestore();
       error.mockRestore();
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
 
@@ -1873,7 +1873,7 @@ describe("flisk up with no resources (#3781)", () => {
       expect(envelope.errors[0]?.code).toBe("UP_URL_UNREACHABLE");
       expect(readFastNoopState(dir)).toBeNull();
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
 });
