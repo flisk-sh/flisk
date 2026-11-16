@@ -9,6 +9,7 @@ const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://postgres:postgres@1
 setDefaultTimeout(30000);
 // Its own stream, so the test never competes with a consumer that `flisk up` is running.
 const STREAM = "payments.test";
+const GROUP = "ledger"; // the consumer's default group
 const redis = new RedisClient(REDIS_URL);
 const db = new SQL(DATABASE_URL);
 const consumerPath = resolve(import.meta.dir, "../src/consumer.ts");
