@@ -20,6 +20,7 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { checkDuplicateResourceNames } from "../utils/doctor-wiring.js";
 import { checkCircularDependencies, checkDependsOnShape, checkServicePorts, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
@@ -348,8 +349,10 @@ export const configCommand = new Command("config")
         // Same predicate as flisk doctor's Shared platform Postgres check.
         const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
         const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
-        // A wrong-typed dependsOn, a circular dependsOn and an invalid port are what `flisk up` refuses, so verify says the same.
+        // A duplicate appName, a wrong-typed dependsOn, a circular dependsOn and an invalid port are what `flisk up` refuses,
+        // so verify says the same.
         const graphErrors = [
+            checkDuplicateResourceNames(projectRoot, resources),
             checkDependsOnShape(projectRoot, resources),
             checkCircularDependencies(projectRoot, resources),
             checkServicePorts(projectRoot, resources),

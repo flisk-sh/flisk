@@ -83,6 +83,61 @@ describe("flisk config verify --json", () => {
       expect.stringMatching(/^services\/shop\/api\/service\.json: invalid JSON \(/),
     );
   }, 120_000);
+  it.each([0, -5, 65536, 99999])(
+    "reports port %d, which flisk up refuses",
+    (port) => {
+      const backend = { appType: "backend", type: "backend", dependsOn: [] };
+      const projectRoot = createTempProject({
+        projectJson: verifyProject("verify-port-range"),
+        stacks: {
+          shop: {
+            api: { ...backend, port },
+            edge: { ...backend, port: 1 },
+            top: { ...backend, port: 65535 },
+          },
+        },
+      });
+
+      const result = runVerify(projectRoot);
+
+      expect(result.status).toBe(1);
+      const report = parseEnvelope(result.stdout);
+      expect(report.data.valid).toBe(false);
+      const portErrors = report.data.errors.filter((error: string) =>
+        /not an integer from 1 to 65535/.test(error),
+      );
+      expect(portErrors).toHaveLength(1);
+      expect(portErrors[0]).toContain(
+        `services/shop/api/service.json port ${port}: not an integer from 1 to 65535`,
+      );
+    },
+    120_000,
+  );
+
+  it("reports an appName used by two resources, which flisk up refuses", () => {
+    const backend = { appType: "backend", type: "backend", dependsOn: [] };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-app-names"),
+      stacks: {
+        shop: {
+          api: { ...backend, port: 4000, appName: "web" },
+          web: { appType: "frontend", type: "frontend", dependsOn: [], port: 3000, appName: "web" },
+        },
+      },
+    });
+
+    const result = runVerify(projectRoot);
+
+    expect(result.status).toBe(1);
+    const report = parseEnvelope(result.stdout);
+    expect(report.data.valid).toBe(false);
+    expect(report.data.errors).toContainEqual(
+      expect.stringMatching(
+        /appName used by more than one resource:\n {4}"web" in services\/shop\/(api|web)\/service\.json and/,
+      ),
+    );
+  }, 120_000);
+
   it("reports a port flisk up refuses and warns about two backends on one port", () => {
     const backend = { appType: "backend", type: "backend", dependsOn: [] };
     const projectRoot = createTempProject({
