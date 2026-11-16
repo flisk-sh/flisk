@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk project --list --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"templates":[...]},"errors":[]}`) instead of a bare array; `key`/`repo`/`description`/`ref` are unchanged (#4247).
+
 ## 1.4.65 (2026-11-15)
 
 - `flisk doctor --json` on a usage error now returns `data: null` instead of a placeholder report claiming `inProject: false`, matching `logs` (#4252).

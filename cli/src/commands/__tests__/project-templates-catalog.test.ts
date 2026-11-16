@@ -5,7 +5,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTempDir, runFlisk } from "../../test-support/index.js";
+import { createTempDir, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { FliskError } from "../../utils/errors.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../../utils/project-templates.js";
 import { cloneProjectTemplate, printTemplateCatalog } from "../project.js";
@@ -36,10 +36,13 @@ afterEach(() => {
 });
 
 describe("flisk project --list", () => {
-  it("prints the catalog as a stable JSON array with --json", () => {
+  it("prints the catalog as a standard envelope with --json", () => {
     const result = runFlisk(["project", "--list", "--json"], { cwd: createTempDir() });
     expect(result.status, result.stderr).toBe(0);
-    const rows = JSON.parse(result.stdout);
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.errors).toEqual([]);
+    const rows = envelope.data.templates;
     expect(rows).toEqual(listProjectTemplates());
     expect(rows.map((row: { key: string }) => row.key)).toEqual(Object.keys(PROJECT_TEMPLATES));
     for (const row of rows) {
