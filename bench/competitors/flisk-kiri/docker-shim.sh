@@ -12,17 +12,27 @@ sync() {
   lock="${TMPDIR:-/tmp}/flisk-kiri-sync.lock"
   until mkdir "$lock" 2>/dev/null; do sleep 0.5; done
   rc=0
-  ids=$(host images -q --no-trunc) || rc=1
+  refs=$(host images --format '{{.Repository}}:{{.Tag}}') || rc=1
+  missing=""
   if [ "$rc" -eq 0 ]; then
-    for id in $(printf '%s\n' "$ids" | sort -u); do
-      on_kiri image inspect "$id" >/dev/null 2>&1 && continue
-      tags=$(host image inspect --format '{{range .RepoTags}}{{.}} {{end}}' "$id") || { rc=1; break; }
-      case "$tags" in *flisk* | *golden* | *bench*) ;; *) continue ;; esac
-      tar="${TMPDIR:-/tmp}/kiri-shim-$$.tar"
-      # shellcheck disable=SC2086 # tags are space separated image names
-      host save -o "$tar" $tags && on_kiri load -q -i "$tar" >&2 || rc=1
-      rm -f "$tar"
-      [ "$rc" -eq 0 ] || break
+    for ref in $(printf '%s\n' "$refs" | sort -u); do
+      case "$ref" in *flisk* | *golden* | *bench*) ;; *) continue ;; esac
+      case "$ref" in *'<none>'*) continue ;; esac
+      # by tag, not by id: two services can build the same image id under different tags
+      on_kiri image inspect "$ref" >/dev/null 2>&1 && continue
+      missing="$missing $ref"
+    done
+  fi
+  if [ "$rc" -eq 0 ] && [ -n "$missing" ]; then
+    tar="${TMPDIR:-/tmp}/kiri-shim-$$.tar"
+    # shellcheck disable=SC2086 # refs are space separated image names
+    host save -o "$tar" $missing && on_kiri load -q -i "$tar" >&2 || rc=1
+    rm -f "$tar"
+    # Kiri's loader drops a tag when an image with the same id is already there: tag what is still missing by id
+    for ref in $missing; do
+      on_kiri image inspect "$ref" >/dev/null 2>&1 && continue
+      id=$(host image inspect --format '{{.Id}}' "$ref") || { rc=1; continue; }
+      on_kiri tag "$id" "$ref" || rc=1
     done
   fi
   rmdir "$lock" 2>/dev/null
@@ -57,7 +67,13 @@ case "${1:-}" in
     fi
     exec env DOCKER_HOST="$kiri" "$real" "$@"
     ;;
-  pull | tag)
+  tag)
+    # Tilt looks the tilt-* tag up on Kiri: make sure the source image is there before tagging it on both
+    host "$@" >/dev/null 2>&1 || true
+    sync >&2 || true
+    exec env DOCKER_HOST="$kiri" "$real" "$@"
+    ;;
+  pull)
     # base images the builds start from must exist on both engines
     host "$@" >/dev/null 2>&1 || true
     exec env DOCKER_HOST="$kiri" "$real" "$@"
