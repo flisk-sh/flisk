@@ -7,20 +7,24 @@ kiri="${SHIM_KIRI_HOST:?}"
 host() { env -u DOCKER_HOST -u DOCKER_CONTEXT DOCKER_BUILDKIT=1 "$real" "$@"; }
 on_kiri() { DOCKER_HOST="$kiri" "$real" "$@"; }
 sync() {
-    for id in $(host images -q --no-trunc | sort -u); do
-      on_kiri image inspect "$id" >/dev/null 2>&1 && continue
-      tags=$(host image inspect --format '{{range .RepoTags}}{{.}} {{end}}' "$id")
-      [ -n "$tags" ] || continue
-      # shellcheck disable=SC2086 # tags are space separated image names
-      host save $tags | on_kiri load -q >&2
-    done
+  ids=$(host images -q --no-trunc) || return 1
+  for id in $(printf '%s\n' "$ids" | sort -u); do
+    on_kiri image inspect "$id" >/dev/null 2>&1 && continue
+    tags=$(host image inspect --format '{{range .RepoTags}}{{.}} {{end}}' "$id") || return 1
+    [ -n "$tags" ] || continue
+    tar="${TMPDIR:-/tmp}/kiri-shim-$$.tar"
+    # shellcheck disable=SC2086 # tags are space separated image names
+    host save -o "$tar" $tags || { rm -f "$tar"; return 1; }
+    on_kiri load -q -i "$tar" >&2 || { rm -f "$tar"; return 1; }
+    rm -f "$tar"
+  done
 }
 # the compose sub-command: the first word that is not a global option or an option's value
 compose_sub() {
   shift
   while [ $# -gt 0 ]; do
     case "$1" in
-      --project-name | -p | --project-directory | --env-file | -f | --file | --profile) shift 2 ;;
+      --project-name | -p | --project-directory | --env-file | -f | --file | --profile | --ansi | --progress | --parallel | --context | --host | -H) shift 2 ;;
       -*) shift ;;
       *) echo "$1"; return ;;
     esac
@@ -31,7 +35,7 @@ case "${1:-}" in
     host "$@"
     rc=$?
     [ "$rc" -eq 0 ] || exit "$rc"
-    sync
+    sync || exit 1
     exit 0
     ;;
   compose)
@@ -39,7 +43,7 @@ case "${1:-}" in
       host "$@"
       rc=$?
       [ "$rc" -eq 0 ] || exit "$rc"
-      sync
+      sync || exit 1
       exit 0
     fi
     exec env DOCKER_HOST="$kiri" "$real" "$@"
