@@ -1,4 +1,5 @@
 import { type CliInvocation } from "./cli-invocation.js";
+import { type LockfileResult } from "./npm-lockfile.js";
 /**
  * The next-postgres starter: a Next.js website, an Express API and a Postgres database, with a migrator that creates and seeds the
  * `items` table and a working create, tick and delete page. It is composed from the real commands, not copied from a repository:
@@ -13,4 +14,4 @@ export declare function runNextPostgresSteps(dir: string, invocation?: CliInvoca
 /** Writes the files that replace the stubs, and removes the stub the page no longer uses. */
 export declare function writeNextPostgresFiles(dir: string, readTemplate?: (name: string) => string): void;
 /** Writes the whole next-postgres project into the empty folder `dir`. */
-export declare function writeNextPostgresProject(dir: string): void;
+export declare function writeNextPostgresProject(dir: string): LockfileResult;

@@ -1,5 +1,5 @@
 # A minimal Sinatra 4 app (Sinatra has no project generator, so the app is the files next to this Dockerfile).
-FROM ruby:3.4-slim@sha256:976f45719573889b0ef02fcff5fd7a486cb09a56ad11c472d51d49604c31d6ab
+FROM ruby:3.4-slim@sha256:65680693964528b522a38d85ec5065538c7ab9e75268802aab9770f39ee56de0
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends build-essential >/dev/null && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY Gemfile ./

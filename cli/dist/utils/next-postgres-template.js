@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { basename, dirname, join } from "node:path";
 import { loadTemplate } from "../generator/template-engine.js";
 import { cliInvocation } from "./cli-invocation.js";
+import { generateNpmLockfile } from "./npm-lockfile.js";
 /**
  * The next-postgres starter: a Next.js website, an Express API and a Postgres database, with a migrator that creates and seeds the
  * `items` table and a working create, tick and delete page. It is composed from the real commands, not copied from a repository:
@@ -131,4 +132,6 @@ export function writeNextPostgresProject(dir) {
     mkdirSync(dir, { recursive: true });
     runNextPostgresSteps(dir);
     writeNextPostgresFiles(dir);
+    // The web image runs `npm ci`. Make sure the lockfile exists whatever the resource step did; a failure is returned, not thrown.
+    return generateNpmLockfile(join(dir, APP, "web"));
 }

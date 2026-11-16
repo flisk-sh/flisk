@@ -23,6 +23,7 @@ import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { PACKAGE_JSON } from "../utils/constants.js";
 import { FliskError, getErrorMessage, logVerbose, showErrorAndExit } from "../utils/errors.js";
 import { showCancelled } from "../utils/formatting.js";
+import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { getPackageVersion } from "../utils/paths.js";
 import { binaryAssetName, executableName, isWindows } from "../utils/platform.js";
 import { promptConfirm } from "../utils/prompt.js";
@@ -559,8 +560,9 @@ export function getCurrentVersion(): string {
 }
 
 /** @internal Exported for unit tests only; not part of the package API. */
-export async function getLatestVersion(): Promise<string | null> {
-  const spinner = startSpinner("Checking for latest version...");
+export async function getLatestVersion(options: { quiet?: boolean } = {}): Promise<string | null> {
+  const quiet = options.quiet === true;
+  const spinner = quiet ? null : startSpinner("Checking for latest version...");
 
   try {
     let result: string;
@@ -585,14 +587,16 @@ export async function getLatestVersion(): Promise<string | null> {
         timeout: 10000,
       }).trim();
     }
-    spinner.succeed(`Latest version: ${chalk.green(result)}`);
+    spinner?.succeed(`Latest version: ${chalk.green(result)}`);
     return result;
   } catch (err: unknown) {
     logVerbose("npm registry check failed", err);
-    spinner.warn("Could not check the npm registry");
-    console.log(chalk.yellow("\nInstall the latest published release manually:"));
-    console.log(chalk.cyan("   npm install -g @flisk-sh/flisk@latest"));
-    console.log(chalk.cyan("   bun install -g @flisk-sh/flisk@latest"));
+    if (!quiet) {
+      spinner?.warn("Could not check the npm registry");
+      console.log(chalk.yellow("\nInstall the latest published release manually:"));
+      console.log(chalk.cyan("   npm install -g @flisk-sh/flisk@latest"));
+      console.log(chalk.cyan("   bun install -g @flisk-sh/flisk@latest"));
+    }
     return null;
   }
 }
@@ -756,6 +760,37 @@ export async function upgradeAllInstallations(dryRun: boolean): Promise<boolean>
   return success;
 }
 
+/** Resolve origin's default branch ref (origin/HEAD, then origin/main, then origin/master). */
+function resolveGitDefaultRef(path: string): string {
+  let defaultRef = "";
+  try {
+    defaultRef = execFileSync(
+      "git",
+      ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"],
+      {
+        cwd: path,
+        encoding: "utf-8",
+        stdio: "pipe",
+      },
+    ).trim();
+  } catch {
+    for (const candidate of ["origin/main", "origin/master"]) {
+      try {
+        execFileSync("git", ["rev-parse", "--verify", candidate], { cwd: path, stdio: "pipe" });
+        defaultRef = candidate;
+        break;
+      } catch {}
+    }
+  }
+  if (!defaultRef?.startsWith("origin/")) {
+    throw new FliskError(
+      "Could not find the default branch for origin (expected origin/HEAD, origin/main, or origin/master).",
+      ["git remote set-head origin --auto", "flisk upgrade"],
+    );
+  }
+  return defaultRef;
+}
+
 /** @internal Exported for unit tests only; not part of the package API. */
 export async function upgradeViaGit(path: string): Promise<boolean> {
   const spinner = startSpinner("Updating the git installation from the default branch...");
@@ -790,32 +825,7 @@ export async function upgradeViaGit(path: string): Promise<boolean> {
       encoding: "utf-8",
     }).trim();
 
-    let defaultRef = "";
-    try {
-      defaultRef = execFileSync(
-        "git",
-        ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"],
-        {
-          cwd: path,
-          encoding: "utf-8",
-          stdio: "pipe",
-        },
-      ).trim();
-    } catch {
-      for (const candidate of ["origin/main", "origin/master"]) {
-        try {
-          execFileSync("git", ["rev-parse", "--verify", candidate], { cwd: path, stdio: "pipe" });
-          defaultRef = candidate;
-          break;
-        } catch {}
-      }
-    }
-    if (!defaultRef?.startsWith("origin/")) {
-      throw new FliskError(
-        "Could not find the default branch for origin (expected origin/HEAD, origin/main, or origin/master).",
-        ["git remote set-head origin --auto", "flisk upgrade"],
-      );
-    }
+    const defaultRef = resolveGitDefaultRef(path);
     const defaultBranch = defaultRef.slice("origin/".length);
 
     if (branch === defaultBranch) {
@@ -870,6 +880,159 @@ export async function upgradeViaGit(path: string): Promise<boolean> {
   }
 }
 
+interface UpgradeDryRunOptions {
+  force?: boolean;
+  all?: boolean;
+  dryRun?: boolean;
+  yes?: boolean;
+  json?: boolean;
+}
+
+async function resolveUpgradeDryRunVersion(
+  installInfo: InstallInfo,
+  currentVersion: string,
+): Promise<{ latestVersion: string; upgradeAvailable: boolean }> {
+  if (installInfo.method === "binary" && installInfo.path) {
+    const release = await getLatestBinaryRelease();
+    if (!release) {
+      if (binaryAssetName()) {
+        throw new FliskError("Could not look up the latest Flisk binary release.", [
+          "Check your network connection and retry: flisk upgrade --dry-run --json",
+          "Or install manually: npm install -g @flisk-sh/flisk@latest",
+        ]);
+      }
+      if (process.platform === "win32" && process.arch === "arm64") {
+        throw new FliskError(
+          "Flisk Windows v1 supports AMD64 only. Use WSL2 Ubuntu or a 64-bit Intel/AMD PC.",
+          ["Run flisk upgrade inside WSL2 Ubuntu or on a 64-bit Intel/AMD PC"],
+        );
+      }
+      if (process.platform === "win32") {
+        throw new FliskError(
+          "No Windows AMD64 binary in this Flisk release. Need asset flisk-windows-amd64.exe.",
+          ["Run: irm https://flisk.sh/install.ps1 | iex"],
+        );
+      }
+      throw new FliskError(
+        `Unsupported OS: Flisk does not support this OS: ${process.platform}. Supported: linux, darwin, win32.`,
+        ["Install via npm install -g @flisk-sh/flisk@latest"],
+      );
+    }
+    const latestVersion = release.tag.replace(/^v/, "").split("-")[0] ?? release.tag;
+    return { latestVersion, upgradeAvailable: latestVersion !== currentVersion };
+  }
+
+  if (installInfo.method === "git" && installInfo.path) {
+    const gitPath = installInfo.path;
+    try {
+      execFileSync("git", ["fetch", "origin"], { cwd: gitPath, stdio: "pipe", timeout: 30000 });
+      const defaultRef = resolveGitDefaultRef(gitPath);
+      const localHash = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: gitPath,
+        encoding: "utf-8",
+      }).trim();
+      const remoteHash = execFileSync("git", ["rev-parse", defaultRef], {
+        cwd: gitPath,
+        encoding: "utf-8",
+      }).trim();
+      const latestVersion = remoteHash.substring(0, 7);
+      return { latestVersion, upgradeAvailable: localHash !== remoteHash };
+    } catch (err: unknown) {
+      logVerbose("Git remote check failed", err);
+      if (err instanceof FliskError) throw err;
+      throw new FliskError(
+        `Could not check the git installation for updates: ${getErrorMessage(err)}`,
+        [
+          "Check your network connection and retry: flisk upgrade --dry-run --json",
+          "Or check the checkout manually: git fetch origin",
+        ],
+      );
+    }
+  }
+
+  const latestVersion = await getLatestVersion({ quiet: true });
+  if (!latestVersion) {
+    throw new FliskError("Could not determine latest version", [
+      "Check your network connection and retry: flisk upgrade --dry-run --json",
+      "Or install manually: npm install -g @flisk-sh/flisk@latest",
+    ]);
+  }
+  return { latestVersion, upgradeAvailable: latestVersion !== currentVersion };
+}
+
+async function runUpgradeJson(options: UpgradeDryRunOptions): Promise<void> {
+  if (!options.dryRun) {
+    writeMachineError(
+      new FliskError(
+        "`flisk upgrade --json` requires `--dry-run` so an upgrade never runs silently",
+        ["Run: flisk upgrade --dry-run --json", "Or run without --json: flisk upgrade"],
+      ),
+    );
+  }
+
+  const currentVersion = getCurrentVersion();
+
+  let effective: InstallInfo;
+  let installations: Array<{ method: InstallInfo["method"]; path: string }>;
+  if (options.all) {
+    const allDetected = detectAllInstallations();
+    if (allDetected.length === 0) {
+      writeMachineError(
+        new FliskError("Could not find any Flisk installations on PATH.", [
+          "Install with: npm install -g @flisk-sh/flisk@latest",
+          "Or install with: bun install -g @flisk-sh/flisk@latest",
+        ]),
+      );
+    }
+    installations = allDetected.map((item) => ({
+      method: item.method,
+      path: item.path ?? "",
+    }));
+    const primary = detectInstallation();
+    effective = primary.method !== "unknown" ? primary : (allDetected[0] as InstallInfo);
+  } else {
+    const installInfo = detectInstallation();
+    if (installInfo.method === "unknown") {
+      writeMachineError(
+        new FliskError("Could not detect installation method", [
+          "npm install -g @flisk-sh/flisk@latest",
+          "bun install -g @flisk-sh/flisk@latest",
+        ]),
+      );
+    }
+    effective = installInfo;
+    installations = installInfo.path
+      ? [{ method: installInfo.method, path: installInfo.path }]
+      : [];
+  }
+
+  let latestVersion: string | null = null;
+  let upgradeAvailable = false;
+  try {
+    const resolved = await resolveUpgradeDryRunVersion(effective, currentVersion);
+    latestVersion = resolved.latestVersion;
+    upgradeAvailable = resolved.upgradeAvailable;
+  } catch (err: unknown) {
+    if (!options.all) writeMachineError(err);
+    logVerbose("Version check failed during --all --dry-run --json", err);
+  }
+
+  console.log(
+    JSON.stringify(
+      createMachineEnvelope({
+        dryRun: true,
+        currentVersion,
+        latestVersion,
+        upgradeAvailable,
+        method: effective.method,
+        path: effective.path ?? null,
+        installations,
+      }),
+    ),
+  );
+  process.exit(0);
+}
+
 /** @internal Exported for unit tests only; not part of the package API. */
 export function createUpgradeCommand(): Command {
   return addYesOption(new Command("upgrade"))
@@ -878,11 +1041,17 @@ export function createUpgradeCommand(): Command {
     .option("-f, --force", "Upgrade even if already on the latest version", false)
     .option("--all", "Upgrade every Flisk installation found on PATH", false)
     .option("--dry-run", "Show what would be upgraded without actually doing it", false)
+    .option("--json", "Print the dry-run result as a JSON envelope", false)
     .addHelpText(
       "after",
-      "\nExamples:\n  flisk upgrade\n  flisk upgrade --dry-run\n  flisk upgrade --all",
+      "\nExamples:\n  flisk upgrade\n  flisk upgrade --dry-run\n  flisk upgrade --dry-run --json\n  flisk upgrade --all",
     )
     .action(async (options) => {
+      if (options.json) {
+        await runUpgradeJson(options);
+        return;
+      }
+
       console.log(chalk.cyan("🚀 Flisk CLI Upgrade\n"));
 
       const currentVersion = getCurrentVersion();

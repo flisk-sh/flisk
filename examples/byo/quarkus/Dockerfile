@@ -1,6 +1,6 @@
 # A real Quarkus project from the Quarkus generator (code.quarkus.io: Maven, REST + SmallRye Health, no database),
 # downloaded at build time.
-FROM maven:3-eclipse-temurin-21@sha256:9b4877723dadf350b452dd97d9a6401e7b56f98fa9dfe420c32ad909989c7e4c AS build
+FROM maven:3-eclipse-temurin-21@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3 AS build
 WORKDIR /work
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends curl unzip >/dev/null \
  && curl -fsSL "https://code.quarkus.io/d?g=dev.flisk&a=app&b=MAVEN&e=rest&e=smallrye-health&nc=true" -o starter.zip \
@@ -8,7 +8,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends curl un
 WORKDIR /work/app
 RUN mvn -q -B -DskipTests package && ls target/quarkus-app
 
-FROM eclipse-temurin:21-jre@sha256:cff19e6215689161eb6162c11b86b0c60ddf802164f2eaf48d570f8fb79a36c5
+FROM eclipse-temurin:21-jre@sha256:18bb4a91a3dea3f03ee31d3755af34dfb40f904fc77ab56cdc2f092e32fff9c2
 WORKDIR /app
 COPY --from=build /work/app/target/quarkus-app/ /app/
 # Ubuntu-based Temurin images already have an `ubuntu` user at uid 1000, so use 1001.

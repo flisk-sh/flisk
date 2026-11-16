@@ -4,6 +4,8 @@ export declare class ResourceFilePlan {
     private operations;
     directory(path: string): void;
     text(path: string, content: string): void;
+    /** A file another tool writes right after the scaffold (such as package-lock.json): previewed and validated, never written here. */
+    generated(path: string): void;
     files(path: string, tasks: FileGenerationTask[], options?: {
         exclusive?: boolean;
     }): void;

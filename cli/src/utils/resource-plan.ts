@@ -9,6 +9,7 @@ import { writeFilesWithProgress } from "./file-helpers.js";
 type ResourceOperation =
   | { kind: "directory"; path: string }
   | { kind: "text"; path: string; content: string }
+  | { kind: "generated"; path: string }
   | { kind: "tasks"; path: string; tasks: FileGenerationTask[]; exclusive: boolean };
 
 /** Collects the scaffold before any writes, so preview and creation use the same files. */
@@ -21,6 +22,11 @@ export class ResourceFilePlan {
 
   text(path: string, content: string): void {
     this.operations.push({ kind: "text", path, content });
+  }
+
+  /** A file another tool writes right after the scaffold (such as package-lock.json): previewed and validated, never written here. */
+  generated(path: string): void {
+    this.operations.push({ kind: "generated", path });
   }
 
   files(path: string, tasks: FileGenerationTask[], options: { exclusive?: boolean } = {}): void {
@@ -60,7 +66,7 @@ export class ResourceFilePlan {
     for (const operation of this.operations) {
       if (operation.kind === "directory") {
         directories.add(resolve(operation.path));
-      } else if (operation.kind === "text") {
+      } else if (operation.kind === "text" || operation.kind === "generated") {
         addFile(operation.path);
       } else {
         for (const task of operation.tasks) addFile(resolve(operation.path, task.filename));
@@ -102,6 +108,7 @@ export class ResourceFilePlan {
     for (const operation of this.operations) {
       if (operation.kind === "directory") {
         mkdirSync(operation.path, { recursive: true });
+      } else if (operation.kind === "generated") {
       } else if (operation.kind === "text") {
         writeFileSync(operation.path, operation.content);
       } else {
