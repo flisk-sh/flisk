@@ -1,5 +1,6 @@
 import { containerErrors } from "./service-manifest-container.js";
-export { containerErrors };
+import { extraPortsErrors } from "./service-manifest-ports.js";
+export { containerErrors, extraPortsErrors };
 export declare const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 /**
@@ -37,11 +38,6 @@ export declare function webUiErrors(manifest: Record<string, unknown>, displayPa
  * byo_restart_policy in engine/.../compose/byo_container.star.
  */
 export declare function restartErrors(manifest: Record<string, unknown>, displayPath: string): string[];
-/**
- * `extraPorts` (#2909): plain host ports on 127.0.0.1 for a bring-your-own resource, next to the routed `port`. Mirrors
- * engine/.../compose/byo_ports.star, which refuses the same values.
- */
-export declare function extraPortsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /**
  * `sidecarOf` (#2908): a bring-your-own resource that shares another resource's network namespace. Mirrors
  * engine/.../compose/byo_sidecar.star. Whether the host exists in the same stack is checked across services (checkSidecars).
