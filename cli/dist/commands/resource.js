@@ -29,6 +29,7 @@ import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
 import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.js";
 import { ResourceFilePlan } from "../utils/resource-plan.js";
+import { reserveResourcePort, resourcePortReservation, } from "../utils/resource-port-reservation.js";
 import { BASE_PATH_PATTERN, healthCheckPathOf, isHealthCheckDisabled, SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
@@ -831,6 +832,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
     }
     // --json never prompts: every question takes the default that --yes takes.
     const assumeYes = Boolean(options.yes || options.json);
+    // Set once a port is claimed; called when the create ends, after service.json is written or the create failed.
+    let releasePortReservation;
     const action = async () => {
         // Checks that need only the user's input run before the project lookup,
         // so invalid input is reported even outside a Flisk project.
@@ -1182,6 +1185,25 @@ export const resourceCommand = addYesOption(new Command("resource"))
                 .filter((port) => typeof port === "number"), isPortListening);
         }
         const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
+        // The port above comes from the scan at the start. Another create running at the same time may have taken it since,
+        // so claim it and read the project's ports again; a taken port moves to the next free one, a taken --port is refused (#4023).
+        if (assignedPort > 0 &&
+            !infraPreset &&
+            !isInference &&
+            resourceType !== "sdk" &&
+            !isDatabase) {
+            const reserved = await reserveResourcePort(assignedPort, {
+                explicit: Boolean(options.port),
+                max: PORT_RANGES[resourceType].max,
+                subject: resourceType === BRING_YOUR_OWN_TYPE ? "BYO port" : "Port",
+                ...(options.local &&
+                    !shouldRegisterExisting && {
+                    isFree: async (port) => !(await isPortListening(port)),
+                }),
+            }, resourcePortReservation(projectRoot, { ignorePath: existingServiceJsonPath }));
+            assignedPort = reserved.port;
+            releasePortReservation = reserved.release;
+        }
         // Builds the registered manifest from `existingServiceJson`. Run again from a fresh read after the confirmation
         // prompt, so an edit made to service.json while the prompt was open is not overwritten.
         const buildRegisteredServiceJson = (existingServiceJson) => {
@@ -1749,11 +1771,19 @@ This file contains the resource configuration for Flisk.
             // The resource exists; `flisk up` regenerates a stale spec.master on its own.
         }
     };
+    const createWithPortClaim = async () => {
+        try {
+            return await action();
+        }
+        finally {
+            releasePortReservation?.();
+        }
+    };
     if (options.json) {
-        await runJsonCommand("RESOURCE_FAILED", "flisk resource", action);
+        await runJsonCommand("RESOURCE_FAILED", "flisk resource", createWithPortClaim);
         await refreshGenerated();
         return;
     }
-    await runCommand(action);
+    await runCommand(createWithPortClaim);
     await refreshGenerated();
 });
