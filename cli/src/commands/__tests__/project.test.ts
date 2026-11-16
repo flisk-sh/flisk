@@ -329,6 +329,22 @@ describe("project command action", () => {
     expect(envelope.errors[0].suggestions).toContain('Did you mean "flisk project --check"?');
   });
 
+  it("does not suggest a function-derived hint in --json mode for prototype keys", async () => {
+    let output = "";
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(((str: string) => {
+      output += str;
+      return true;
+    }) as never);
+
+    await expect(runProject({ json: true }, "constructor")).rejects.toBeInstanceOf(ProcessExit);
+
+    writeSpy.mockRestore();
+    const envelope = JSON.parse(output);
+    expect(envelope.errors[0].message).toContain('Unknown template: "constructor"');
+    expect(JSON.stringify(envelope.errors[0].suggestions)).not.toContain("native code");
+    expect(JSON.stringify(envelope.errors[0].suggestions)).not.toContain("Did you mean");
+  });
+
   it("keeps existing suggestions in --json mode for unknown non-action templates", async () => {
     let output = "";
     const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(((str: string) => {
