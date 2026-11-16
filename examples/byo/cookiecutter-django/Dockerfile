@@ -1,5 +1,5 @@
 # A real cookiecutter-django project (no Docker, no Celery, no mail catcher): the generator runs at build time.
-FROM python:3.12@sha256:63828510c8b5ccce3bf0d6fabd6f3d17d4effa1ffe690f80a67c8e2d394e03ee
+FROM python:3.12@sha256:cad37dd20c7cac861af9003af8796d03ea7a998ec1e3a664429740fc9d7d2691
 ENV PYTHONUNBUFFERED=1
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 COPY requirements.txt ./

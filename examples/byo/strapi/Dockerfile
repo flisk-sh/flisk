@@ -1,5 +1,5 @@
 # A real Strapi app (`create-strapi-app`, TypeScript, SQLite): the scaffolder runs at build time.
-FROM node:22-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+FROM node:22-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends python3 make g++ git >/dev/null && rm -rf /var/lib/apt/lists/*
 ENV STRAPI_TELEMETRY_DISABLED=true CI=true
 WORKDIR /work
