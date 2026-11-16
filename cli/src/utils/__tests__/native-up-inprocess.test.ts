@@ -54,9 +54,8 @@ vi.mock("../errors.js", async (importOriginal) => ({
   showError: errors.showError,
 }));
 
-const { localDatabaseEnv, runNativeUp, runVariables, withFailureLogs } = await import(
-  "../native-up.js"
-);
+const { localDatabaseEnv, runNativeUp, runVariables, shadowedEnvKeys, withFailureLogs } =
+  await import("../native-up.js");
 
 class ExitCalled extends Error {
   constructor(readonly code: number) {
@@ -137,6 +136,31 @@ describe("runVariables", () => {
     writeFileSync(join(root, "custom.env"), "FLISK_NU_CUSTOM=yes\n");
     expect(runVariables(root, join(root, "custom.env")).FLISK_NU_CUSTOM).toBe("yes");
     expect(runVariables(root, join(root, "absent.env")).FLISK_NU_CUSTOM).toBeUndefined();
+  });
+});
+
+describe("shadowedEnvKeys", () => {
+  it("names the .env keys the shell overrides with another value, never the values", () => {
+    const dir = createTempDir();
+    writeFileSync(
+      join(dir, ".env"),
+      "NOTES_LIMIT=100\nAPI_TOKEN=secret-token\nSAME=1\nONLY_ENV=x\n",
+    );
+    const keys = shadowedEnvKeys(dir, undefined, {
+      NOTES_LIMIT: "0",
+      SAME: "1",
+      API_TOKEN: "other",
+    });
+    expect(keys).toEqual(["API_TOKEN", "NOTES_LIMIT"]);
+    expect(JSON.stringify(keys)).not.toContain("secret-token");
+  });
+
+  it("is empty with no .env or no override", () => {
+    const dir = createTempDir();
+    expect(shadowedEnvKeys(dir, undefined, { A: "1" })).toEqual([]);
+    writeFileSync(join(dir, ".env"), "A=1\n");
+    expect(shadowedEnvKeys(dir, undefined, {})).toEqual([]);
+    expect(shadowedEnvKeys(dir, undefined, { A: "1" })).toEqual([]);
   });
 });
 

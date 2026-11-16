@@ -165,16 +165,17 @@ another name (`NOTES_DB_URL`) and exporting it inside the command.
    service declared explicitly in its own `service.json` `env` was overwritten with an empty string, with no message.
    The service then died on startup and the whole stack was torn down. Cost to the agent: 4 failed startups and about
    4 minutes. It affects `up` and `restart` (both call the function).
-2. **Not fixed (by design, but costly): a restart does not override the supervisor's shell environment.** In Flisk E
+2. **Fixed (warning only): a restart does not override the supervisor's shell environment.** In Flisk E
    the agent set `NOTES_LIMIT=100` in `.env`, `flisk restart api` said ready, but the value stayed `0` because the
    environment of the running `flisk up` process wins over `.env`. The agent needed a full `down` and `up` (5 restarts,
-   all services bounced). The order is documented behaviour ("shell overrides .env"), so I did not change it. A
-   warning from `restart` when a shell variable shadows `.env` would help; I left that as follow-up work.
+   all services bounced). The order is documented behaviour ("shell overrides .env"), so it is unchanged. `restart` now prints a warning naming (never
+   printing the value of) every `.env` key the shell overrides, via `shadowedEnvKeys` in `native-up.ts`, with two unit tests. It was added after the
+   measured runs, so no agent run covers it.
 3. **Observation, not investigated: crash-loop retries.** With a missing `API_TOKEN` (A) the api booted 6 times and in
    G 32 times before the agent acted. This is the supervisor retrying a crashing service. I did not check whether the
    retry limit or backoff is right.
 
-I fixed at most two defects as allowed, and only fixed the one with a clear, evidence-backed cause.
+Two defects are fixed (1 fully, 2 as a warning), the maximum allowed. Defect 3 is left open.
 
 ## 10. Fix and tests
 

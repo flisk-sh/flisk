@@ -40,6 +40,11 @@ export interface NativeUpInput {
 /** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
 export declare function runVariables(projectRoot: string, envFilePath?: string): Record<string, string>;
 /**
+ * Names (never values) of variables the .env sets that the shell overrides with a different value. A restart
+ * re-reads the .env but the shell of the running `flisk up` still wins, so an edit to these has no effect.
+ */
+export declare function shadowedEnvKeys(projectRoot: string, envFilePath?: string, shell?: NodeJS.ProcessEnv): string[];
+/**
  * Env entries that override the project .env for a local service. The .env can still hold the Docker host's
  * DATABASE_URL; a service with no database in dependsOn must read it as empty, or its /health check pings a host
  * that does not exist and never goes healthy (#4456). A service that does depend on the database keeps the value.

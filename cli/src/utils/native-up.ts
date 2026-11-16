@@ -121,6 +121,23 @@ export function runVariables(projectRoot: string, envFilePath?: string): Record<
 }
 
 /**
+ * Names (never values) of variables the .env sets that the shell overrides with a different value. A restart
+ * re-reads the .env but the shell of the running `flisk up` still wins, so an edit to these has no effect.
+ */
+export function shadowedEnvKeys(
+  projectRoot: string,
+  envFilePath?: string,
+  shell: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const path = envFilePath ?? join(projectRoot, ".env");
+  if (!existsSync(path)) return [];
+  return [...readEnvFileValues(path)]
+    .filter(([key, value]) => shell[key] !== undefined && shell[key] !== value)
+    .map(([key]) => key)
+    .sort();
+}
+
+/**
  * Env entries that override the project .env for a local service. The .env can still hold the Docker host's
  * DATABASE_URL; a service with no database in dependsOn must read it as empty, or its /health check pings a host
  * that does not exist and never goes healthy (#4456). A service that does depend on the database keeps the value.
@@ -292,6 +309,14 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       // A restart (`flisk restart`, the MCP resource_restart) re-reads the .env, so a repaired value takes effect.
       reload: () => {
         const fresh = runVariables(projectRoot, input.envFilePath);
+        const shadowed = shadowedEnvKeys(projectRoot, input.envFilePath);
+        if (shadowed.length > 0 && !quiet) {
+          console.log(
+            chalk.yellow(
+              `[flisk] ${shadowed.join(", ")} set in .env but overridden by the shell that started \`flisk up\`; a restart keeps the shell value. Unset it and run \`flisk down\` then \`flisk up\`.`,
+            ),
+          );
+        }
         const replanned = planNativeRun(
           selected,
           fresh,
