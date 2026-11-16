@@ -57,6 +57,16 @@ export declare function collectDoctorChecks(machineChecks: DoctorCheck[], projec
     checks: CheckResult[];
     errors: DoctorError[];
 }>;
+/**
+ * Usage errors are raised before any probe runs, so there is no report to describe. `data: null` keeps a consumer
+ * from reading placeholder values (`inProject: false`, `checks: []`) as measurements, the same shape `logs` uses.
+ */
+export interface DoctorUsageReport {
+    schemaVersion: typeof SCHEMA_VERSION;
+    data: null;
+    errors: DoctorError[];
+}
+export declare function createDoctorUsageReport(errors: DoctorError[]): DoctorUsageReport;
 /** Produce the same readiness decision for human and machine consumers. */
 export declare function createDoctorReport(checks: CheckResult[], inProject: boolean, errors?: DoctorError[], portPlan?: HostPortPlan | null, host?: HostInfo, capabilities?: string[], buildCache?: DockerBuildCacheReport, commit?: string): DoctorReport;
 /** 0: ready (warnings permitted), 1: blocking findings, 2: usage/internal failure. */

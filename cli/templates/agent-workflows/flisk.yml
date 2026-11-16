@@ -1,0 +1,31 @@
+# Written by `flisk project`. Yours to edit: Flisk never overwrites it.
+name: Flisk
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # The generated files must match service.json.
+      - name: Check the generated Flisk files
+        run: npx -y @flisk-sh/flisk config verify --json
+
+      # Generated env files hold values; a tracked one is almost always a mistake.
+      - name: No env files or private keys in git
+        run: |
+          set -eu
+          tracked=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -vE '\.env\.example$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::Env files are tracked by git:"; echo "$tracked"; exit 1
+          fi
+          if git grep -nE -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' -e 'AKIA[0-9A-Z]{16}' -e 'gh[pousr]_[A-Za-z0-9]{36,}' -e 'sk-[A-Za-z0-9]{32,}' -- . ':!*.md'; then
+            echo "::error::A secret-looking value is committed (see the lines above)"; exit 1
+          fi

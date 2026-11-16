@@ -72,7 +72,8 @@ export function validateNativeServiceFields(manifest: Record<string, unknown>): 
   return errors;
 }
 
-function serviceLabel(manifest: Record<string, unknown>): string {
+/** How an error names a service: its quoted appName, or "(unnamed)". */
+export function serviceLabel(manifest: Record<string, unknown>): string {
   const name = manifest.appName;
   return typeof name === "string" && name ? `"${name}"` : "(unnamed)";
 }

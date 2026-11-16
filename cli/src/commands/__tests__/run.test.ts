@@ -56,13 +56,18 @@ describe("flisk run (#2872)", () => {
     expect(() => runningContainer("p", "api", docker("", 1))).toThrow(FliskError);
   });
 
-  it("refuses an unknown service with the names it knows, and a missing command", () => {
+  it("refuses an unknown resource with the names it knows, and a missing command", () => {
     const root = nativeProject();
-    expect(() => resolveRunTarget(root, "web", ["true"])).toThrow(/No service named "web"/);
+    expect(() => resolveRunTarget(root, "web", ["true"])).toThrow(
+      'Resource "web" not found in project.',
+    );
     try {
       resolveRunTarget(root, "web", ["true"]);
     } catch (error) {
-      expect((error as FliskError).suggestions).toContain("Services: api");
+      expect((error as FliskError).suggestions).toEqual([
+        "Resources: api",
+        "See the names with: flisk resources",
+      ]);
     }
     expect(() => resolveRunTarget(root, "api", [])).toThrow(/Give the command to run after --/);
   });
@@ -109,12 +114,28 @@ describe("flisk run (#2872)", () => {
     });
   });
 
-  it("reports an unknown service as RUN_FAILED in --json", () => {
+  it("reports an unknown resource as UNKNOWN_RESOURCE in --json, matching restart", () => {
     const root = nativeProject();
-    const result = flisk(root, ["nope", "--json", "--", "true"]);
-    expect(result.status).toBe(1);
-    const envelope = JSON.parse(result.stdout.trim().split("\n").at(-1) as string);
-    expect(envelope.errors[0]).toMatchObject({ code: "RUN_FAILED" });
-    expect(envelope.errors[0].message).toContain('No service named "nope"');
+    const runResult = flisk(root, ["nope", "--json", "--", "true"]);
+    const restartResult = spawnSync(process.execPath, [CLI, "restart", "nope", "--json"], {
+      cwd: root,
+      encoding: "utf-8",
+    });
+    expect(runResult.status).toBe(1);
+    expect(restartResult.status).toBe(1);
+    const runEnvelope = JSON.parse(runResult.stdout.trim().split("\n").at(-1) as string);
+    const restartEnvelope = JSON.parse(restartResult.stdout.trim().split("\n").at(-1) as string);
+    expect(runEnvelope).toEqual({
+      schemaVersion: 1,
+      data: null,
+      errors: [
+        {
+          code: "UNKNOWN_RESOURCE",
+          message: 'Resource "nope" not found in project.',
+          suggestions: ["Resources: api", "See the names with: flisk resources"],
+        },
+      ],
+    });
+    expect(runEnvelope).toEqual(restartEnvelope);
   });
 });

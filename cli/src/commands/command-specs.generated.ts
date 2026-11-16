@@ -1,0 +1,2164 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+/**
+ * The CLI command tree as plain data, generated from `commands/registry.ts` by
+ * `cli/scripts/generate-command-specs.mjs`. Do not edit by hand.
+ *
+ * `cli.ts` builds its Commander program from this table instead of importing every
+ * command module. A heavy command file (generator, discovery, TUI, ...) is imported only
+ * when that command actually runs, so `flisk <command> --help` and cheap argument
+ * validation do not pay for the whole module graph (#4212).
+ *
+ * The parity test in `src/commands/__tests__/command-specs.test.ts` fails if this table
+ * and `createProgram()` disagree about any command, option, argument or help text.
+ */
+import type { CommandSpec } from "./command-specs.js";
+
+export const COMMAND_SPECS: readonly CommandSpec[] = [
+  {
+    name: "stacks",
+    path: ["stacks"],
+    description: "List all stacks and their resources",
+    aliases: ["ls"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-v, --verbose",
+        description: "Show detailed information about each stack",
+        defaultValue: false,
+      },
+      {
+        flags: "--services",
+        description: "Include list of services in each stack",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Output a versioned JSON stack report",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: ["\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json"],
+    },
+    subcommands: [],
+  },
+  {
+    name: "resources",
+    path: ["resources"],
+    description: "List all resources (services) in the project",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-v, --verbose",
+        description: "Show detailed information about each resource",
+        defaultValue: false,
+      },
+      {
+        flags: "-s, --stack <stack>",
+        description: "Filter resources by stack name",
+      },
+      {
+        flags: "-t, --type <type>",
+        description: "Filter resources by type",
+      },
+      {
+        flags: "--no-stack",
+        description: "Show only resources without a stack",
+      },
+      {
+        flags: "--ports",
+        description: "Show port assignments",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Output a versioned JSON resource report",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk resources\n  flisk resources --type database\n  flisk resources --ports",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "projects",
+    path: ["projects"],
+    description: "Show project information and configuration status",
+    aliases: ["info"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "--check",
+        description: "Check if project is properly configured",
+        defaultValue: false,
+      },
+      {
+        flags: "--stale",
+        description: "List stale projects whose directory is gone but Docker resources remain",
+        defaultValue: false,
+      },
+      {
+        flags: "--prune",
+        description:
+          "With --stale: delete the containers, volumes (database data), networks and images those projects left",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Output a versioned JSON response",
+      },
+    ],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [],
+  },
+  {
+    name: "up",
+    path: ["up"],
+    description:
+      "Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster",
+    aliases: ["deploy"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-v, --verbose",
+        description: "Enable verbose output",
+        defaultValue: false,
+      },
+      {
+        flags: "-q, --quiet",
+        description: "Suppress non-essential output",
+        defaultValue: false,
+      },
+      {
+        flags: "--dry-run",
+        description: "Show what would be started without starting",
+        defaultValue: false,
+      },
+      {
+        flags: "-f, --force",
+        description: "Kill existing Tilt process before starting",
+        defaultValue: false,
+      },
+      {
+        flags: "--ignore-drift",
+        description: "Start even if generated files differ from service.json",
+        defaultValue: false,
+      },
+      {
+        flags: "--ignore-version",
+        description:
+          "Start even if this flisk does not satisfy pinnedFliskVersion or minFliskVersion in .flisk/project.json",
+        defaultValue: false,
+      },
+      {
+        flags: "--no-database",
+        description:
+          "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)",
+      },
+      {
+        flags: "--only <services...>",
+        description:
+          "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks",
+      },
+      {
+        flags: "--profile <names...>",
+        description:
+          'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)',
+      },
+      {
+        flags: "--env-file <path>",
+        description:
+          "Use this project env file for the run instead of .env (for example: --env-file .env.integration)",
+      },
+      {
+        flags: "--no-gateway",
+        description:
+          'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it',
+      },
+      {
+        flags: "--json",
+        description:
+          "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet",
+        defaultValue: false,
+      },
+      {
+        flags: "--wait",
+        description:
+          "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it",
+        defaultValue: false,
+      },
+      {
+        flags: "--wait-timeout <seconds>",
+        description: "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)",
+      },
+    ],
+    arguments: [
+      {
+        name: "stack-name",
+        description:
+          "Name of the stack to start (optional - runs all if omitted), or a git repository URL to clone and start",
+        required: false,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "down",
+    path: ["down"],
+    description: "Stop every running service of this project (local processes or Docker/Tilt)",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "-v, --verbose",
+        description: "Enable verbose output",
+        defaultValue: false,
+      },
+      {
+        flags: "-f, --force",
+        description: "Deprecated alias for --yes; accepted for script compatibility",
+        defaultValue: false,
+      },
+      {
+        flags: "--prune-networks",
+        description:
+          "Remove this project's Docker networks that no container is attached to (the default; kept for scripts)",
+      },
+      {
+        flags: "--no-prune-networks",
+        description:
+          "Keep this project's Docker networks (by default the unused ones are removed, so Docker does not run out of address pools)",
+      },
+      {
+        flags: "--prune-cache [age]",
+        description:
+          "Also prune Docker build cache (shared across all projects on this machine; default age: 24h)",
+        defaultValue: false,
+      },
+      {
+        flags: "--cache-until <age>",
+        description: "With --prune-cache: age filter for prune (e.g. 24h, 168h, 7d; default: 24h)",
+      },
+      {
+        flags: "--purge",
+        description:
+          "Also delete this project's Docker volumes (database data), networks and images, so nothing of it is left in Docker",
+        defaultValue: false,
+      },
+      {
+        flags: "--dry-run",
+        description: "Show what would be stopped without stopping",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Print one JSON object on stdout; implies quiet human output",
+        defaultValue: false,
+      },
+      {
+        flags: "--project <path>",
+        description:
+          "Stop the Flisk project in this folder (default: the current project, or the only running one)",
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "mcp",
+    path: ["mcp"],
+    description: "Run a Model Context Protocol server over stdio for coding agents",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--read-only",
+        description:
+          "List and allow only the tools that change nothing (env FLISK_MCP_READ_ONLY=1)",
+      },
+      {
+        flags: "--tools <names>",
+        description: "List and allow only these comma-separated tools (env FLISK_MCP_TOOLS)",
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        '\nThe server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.\nAdd it to an MCP client instead:\n  { "command": "flisk", "args": ["mcp"] }\n\nExamples:\n  flisk mcp                # started by an MCP client\n  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only\n  flisk mcp --tools status,logs,doctor\n  flisk mcp check tools    # check the MCP resource named tools',
+      ],
+    },
+    subcommands: [
+      {
+        name: "check",
+        path: ["mcp", "check"],
+        description:
+          "Check an MCP server's protocol (initialize, tools, prompts, errors, HTTP rules, icon); read-only unless --call",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--call",
+            description:
+              "Also call each tool once with sample arguments (a call can reach the network)",
+            defaultValue: false,
+          },
+          {
+            flags: "--no-icon",
+            description: "Skip the icon-512.png check",
+          },
+          {
+            flags: "--json",
+            description: "Print the report as a JSON envelope",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "target",
+            description:
+              "An https URL of the MCP endpoint, or the name of a resource in this project",
+            required: true,
+            variadic: false,
+          },
+        ],
+        helpTexts: {},
+        subcommands: [],
+      },
+    ],
+  },
+  {
+    name: "connect",
+    path: ["connect"],
+    description:
+      "Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--project",
+        description: "Write into this project (default)",
+      },
+      {
+        flags: "--global",
+        description: "Write the MCP entry to the host's user config instead (no skills)",
+      },
+      {
+        flags: "--dry-run",
+        description: "Print what would be written, without changing any file",
+        defaultValue: false,
+      },
+      {
+        flags: "--force",
+        description: "Replace an existing, different flisk entry or edited Flisk skill",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Print the result as a JSON envelope",
+      },
+    ],
+    arguments: [
+      {
+        name: "host",
+        description: "Agent host: claude, cursor, codex",
+        required: true,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "logs",
+    path: ["logs"],
+    description: "Print a bounded snapshot of recent logs from the running stack",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-s, --service <names...>",
+        description: "Only these services (names as in flisk resources)",
+      },
+      {
+        flags: "--tail <n>",
+        description: "Number of most recent lines to return",
+        defaultValue: "200",
+      },
+      {
+        flags: "--since <duration>",
+        description: "Only logs newer than this duration, for example 30s, 5m, 1h",
+      },
+      {
+        flags: "--unhealthy",
+        description: "Only services that are failing or still starting",
+        defaultValue: false,
+      },
+      {
+        flags: "--port <n>",
+        description:
+          "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
+      },
+      {
+        flags: "--json",
+        description: "Output one JSON object and exit",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "eject",
+    path: ["eject"],
+    description:
+      "Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "--dry-run",
+        description:
+          "List the generated files and what would be written, without changing the project",
+        defaultValue: false,
+      },
+      {
+        flags: "--ignore-version",
+        description: "Continue even if the CLI does not match the project's version requirements",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Print one JSON envelope on stdout; implies --yes",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [],
+  },
+  {
+    name: "export",
+    path: ["export"],
+    description:
+      "Write render.yaml, wrangler.toml or a standalone docker-compose.yml from service.json; never deploys or calls a cloud API (runs flisk-export)",
+    aliases: [],
+    hidden: false,
+    helpOptionDisabled: true,
+    hasAction: true,
+    allowUnknown: true,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--dry-run",
+        description: "Print the file and write nothing",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "args",
+        description:
+          "Passed to flisk-export: render [dir] [--resource <name>] [--out <dir>] [--force] | wrangler [dir] --resource <name> [--route <host>] [--out <dir>] [--allow-non-worker] [--force] | compose [dir] [--out <dir>] [--force] [--check]",
+        required: false,
+        variadic: true,
+      },
+    ],
+    helpTexts: {},
+    subcommands: [],
+  },
+  {
+    name: "import",
+    path: ["import"],
+    description: "Import the services in a directory's root docker-compose.yml (runs flisk-import)",
+    aliases: [],
+    hidden: false,
+    helpOptionDisabled: true,
+    hasAction: true,
+    allowUnknown: true,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "-f, --force",
+        description: "Overwrite an existing service.json",
+        defaultValue: false,
+      },
+      {
+        flags: "--dry-run",
+        description: "Print the plan and write nothing",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Print one JSON envelope on stdout with the importer's output; implies --yes",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "args",
+        description: "Passed to flisk-import: [dir] --dry-run --yes --force",
+        required: false,
+        variadic: true,
+      },
+    ],
+    helpTexts: {},
+    subcommands: [
+      {
+        name: "compose",
+        path: ["import", "compose"],
+        description:
+          "Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)",
+        aliases: [],
+        hidden: false,
+        helpOptionDisabled: true,
+        hasAction: true,
+        allowUnknown: true,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "-y, --yes",
+            description: "Skip prompts and confirmations; use defaults",
+            defaultValue: false,
+          },
+          {
+            flags: "-f, --force",
+            description: "Overwrite an existing service.json",
+            defaultValue: false,
+          },
+          {
+            flags: "--dry-run",
+            description: "Print the plan and write nothing",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description:
+              "Print one JSON envelope on stdout with the importer's output; implies --yes",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "args",
+            description: "Passed to flisk-import: [dir] --dry-run --yes --force",
+            required: false,
+            variadic: true,
+          },
+        ],
+        helpTexts: {},
+        subcommands: [],
+      },
+      {
+        name: "tiltfile",
+        path: ["import", "tiltfile"],
+        description:
+          "Register an existing Tiltfile so flisk up runs it unchanged (writes .flisk/project.json)",
+        aliases: [],
+        hidden: false,
+        helpOptionDisabled: true,
+        hasAction: true,
+        allowUnknown: true,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "-y, --yes",
+            description: "Skip prompts and confirmations; use defaults",
+            defaultValue: false,
+          },
+          {
+            flags: "-f, --force",
+            description: "Overwrite existing orchestration configuration",
+            defaultValue: false,
+          },
+          {
+            flags: "--dry-run",
+            description: "Print the plan and write nothing",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description:
+              "Print one JSON envelope on stdout with the importer's output; implies --yes",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "args",
+            description: "Passed to flisk-import tiltfile: [path] --dry-run --yes --force",
+            required: false,
+            variadic: true,
+          },
+        ],
+        helpTexts: {},
+        subcommands: [],
+      },
+    ],
+  },
+  {
+    name: "open",
+    path: ["open"],
+    description: "Open the first ready frontend of the project in your browser",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--print",
+        description: "Print the first ready frontend URL without opening a browser",
+      },
+      {
+        flags: "--json",
+        description: "Print one JSON envelope on stdout; implies --print",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk open\n  flisk open --print\n  flisk open --print --json\n  flisk open --json",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "status",
+    path: ["status"],
+    description: "Show status of resources and stacks",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--json",
+        description: "Output a versioned JSON status report",
+        defaultValue: false,
+      },
+      {
+        flags: "-v, --verbose",
+        description: "Show detailed information",
+        defaultValue: false,
+      },
+      {
+        flags: "--stacks",
+        description: "Show stack information (default)",
+        defaultValue: true,
+      },
+      {
+        flags: "--resources",
+        description: "Show all discovered resources",
+        defaultValue: false,
+      },
+      {
+        flags: "--tilt",
+        description: "Show Tilt resource status (Docker/Tilt stacks only)",
+        defaultValue: false,
+      },
+      {
+        flags: "--no-gateway",
+        description: "Disable gateway status reporting",
+      },
+      {
+        flags: "--unhealthy",
+        description: "Show only services that are failing or still starting",
+        defaultValue: false,
+      },
+      {
+        flags: "--strict",
+        description: "Exit 1 when any service is not ready or nothing is running",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "stack",
+    path: ["stack"],
+    description: "Organize resources into stacks (groups)",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "--list",
+        description: "List resources without a stack",
+        defaultValue: false,
+      },
+      {
+        flags: "--resources <names...>",
+        description: "Resource names to update (comma- or space-separated)",
+      },
+      {
+        flags: "--move",
+        description: "Allow moving named resources from another stack",
+        defaultValue: false,
+      },
+      {
+        flags: "--remove",
+        description: "Remove the stack field from named resources",
+        defaultValue: false,
+      },
+      {
+        flags: "--ignore-version",
+        description: "Continue even if the CLI does not match the project's version requirements",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description:
+          "Print one JSON envelope on stdout; implies --yes and needs --list, <stack-name> --resources, or --remove --resources",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "stack-name",
+        description: "Stack name to assign to resources",
+        required: false,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk stack --list\n  flisk stack shop --resources orders-api web\n  flisk stack shop --move --resources orders-api --yes\n  flisk stack --remove --resources orders-api --yes",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "resource",
+    path: ["resource"],
+    description: "Create a new resource (service) from scratch, or register an existing one",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "-t, --type <type>",
+        description:
+          "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, storage, mail, payment, sdk",
+        defaultValue: "backend",
+      },
+      {
+        flags: "--framework <id>",
+        description:
+          "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks); database postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow, mysql, mongodb, clickhouse; queue nats (default), rabbitmq",
+      },
+      {
+        flags: "--frameworks",
+        description:
+          "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage, --type mail, --type payment)",
+      },
+      {
+        flags: "--language <id>",
+        description: "Backend language: bun (default), python, go, rust, node",
+      },
+      {
+        flags: "-s, --stack <stack>",
+        description: 'Stack to assign resource to (default: "main" for a new project)',
+      },
+      {
+        flags: "-p, --path <path>",
+        description: "Custom path for resource directory",
+      },
+      {
+        flags: "--resource-path <path>",
+        description: "Alias for --path (for backward compatibility)",
+      },
+      {
+        flags: "--register-existing",
+        description: "Register an existing resource without creating templates",
+      },
+      {
+        flags: "--ddd",
+        description:
+          "Scaffold DDD (domain-driven design) folders + path aliases (Premium - requires FLISK_LICENSE_KEY)",
+      },
+      {
+        flags: "--dockerfile <path>",
+        description: "Path to Dockerfile relative to resource dir (for bring-your-own)",
+      },
+      {
+        flags: "--health-path <path>",
+        description:
+          "HTTP health check path (for bring-your-own; inference defaults to /v1/models)",
+        defaultValue: "/health",
+      },
+      {
+        flags: "--no-proxy",
+        description: "Disable the Traefik route (bring-your-own only)",
+      },
+      {
+        flags: "--restart <policy>",
+        description:
+          "Compose restart policy: no, on-failure, unless-stopped, always (bring-your-own only; use no for one-shot jobs)",
+      },
+      {
+        flags: "--image <name>",
+        description:
+          "Docker image name instead of building from Dockerfile (for bring-your-own; inference defaults to ollama/ollama)",
+      },
+      {
+        flags: "--port <port>",
+        description:
+          "Port for the resource, within its type's range (default: next free port in that range; inference defaults to 11434)",
+      },
+      {
+        flags: "--base-path <path>",
+        description:
+          "Base path for frontend routing (e.g., /storefront). Default is /{stack}s. Frontend only.",
+      },
+      {
+        flags: "--feature <feature...>",
+        description: "Enable a resource feature (for example: prisma, drizzle)",
+      },
+      {
+        flags: "--runtime <id>",
+        description: "Agent runtime (for agent only): custom (default)",
+      },
+      {
+        flags: "--durability <kind>",
+        description:
+          "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres",
+      },
+      {
+        flags: "--ignore-version",
+        description: "Continue even if the CLI does not match the project's version requirements",
+        defaultValue: false,
+      },
+      {
+        flags: "--local",
+        description:
+          "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)",
+        defaultValue: false,
+      },
+      {
+        flags: "--dry-run",
+        description: "Preview the resource and files without writing or reserving a port",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Print one JSON envelope on stdout; implies --yes",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "name",
+        description: "Resource name (kebab-case)",
+        required: false,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker\n  flisk resource api --dry-run",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "runtime",
+    path: ["runtime"],
+    description: "Inspect the packaged Flisk runtime assets",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--check-assets",
+        description: "Check bundled engine and template assets",
+      },
+      {
+        flags: "--json",
+        description: "Print the check result as JSON",
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: ["\nExamples:\n  flisk runtime --check-assets\n  flisk runtime --check-assets --json"],
+    },
+    subcommands: [],
+  },
+  {
+    name: "project",
+    path: ["project"],
+    description: "Initialize or validate project-level master configuration",
+    aliases: ["init"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "--path <dir>",
+        description: "Directory to clone the template into (default: the template's repo name)",
+      },
+      {
+        flags: "--check",
+        description: "Check if master configs exist and are in sync",
+      },
+      {
+        flags: "--force",
+        description: "Overwrite existing configuration (dangerous)",
+      },
+      {
+        flags: "--config-file <path>",
+        description: "Load project config from existing JSON file",
+      },
+      {
+        flags: "-q, --quiet",
+        description: "Only print what fails; used by `flisk demo`",
+        defaultValue: false,
+      },
+      {
+        flags: "--no-agent-skills",
+        description:
+          "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md",
+      },
+      {
+        flags: "--list",
+        description:
+          "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Print one JSON envelope on stdout; implies --yes and --quiet",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "template",
+        description:
+          "Clone a starter example instead of a blank project (demo, restaurant, saas, erp, user-management, ecommerce, example, agent-stack, swarm, security, super-agent, langgraph, tool-loop, next-postgres, launch, portal, fullstack)",
+        required: false,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: ["\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check"],
+    },
+    subcommands: [],
+  },
+  {
+    name: "create",
+    path: ["create"],
+    description: "Pick what you are building with a few key presses and get a project that runs",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "--starter <name>",
+        description: "A ready-made starter project (see flisk project --list)",
+      },
+      {
+        flags: "--runtime <runtime>",
+        description:
+          "local (plain processes on your computer; default) or docker (Docker and Tilt)",
+      },
+      {
+        flags: "--frontend <id>",
+        description: "Website framework (see flisk resource --frameworks --type frontend), or none",
+      },
+      {
+        flags: "--backend <id>",
+        description: "API framework (see flisk resource --frameworks --type backend), or none",
+      },
+      {
+        flags: "--language <id>",
+        description: "API language (see flisk resource --help)",
+      },
+      {
+        flags: "--extras <list>",
+        description:
+          "Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none",
+      },
+      {
+        flags: "--dry-run",
+        description: "Print the commands that would run, and stop",
+        defaultValue: false,
+      },
+      {
+        flags: "--start",
+        description:
+          "Install dependencies and start what was written (the local app route; a starter is never started here)",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "name",
+        description: "Project folder to create (default: my-app)",
+        required: false,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk create\n  flisk create my-app --yes --start\n  flisk create shop --frontend react --backend hono\n  flisk create api --runtime docker --extras worker,queue:nats\n  flisk create --dry-run",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "tool",
+    path: ["tool"],
+    description:
+      "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected); list with flisk tool list",
+    aliases: [],
+    hidden: false,
+    hasAction: false,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [],
+    arguments: [],
+    helpTexts: {
+      after: ["\nExamples:\n  flisk tool list\n  flisk tool add\n  flisk tool add react"],
+    },
+    subcommands: [
+      {
+        name: "list",
+        path: ["tool", "list"],
+        description: "List every tool in the catalogue",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--json",
+            description: "Print one JSON envelope on stdout",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {
+          after: ["\nExamples:\n  flisk tool list\n  flisk tool list --json"],
+        },
+        subcommands: [],
+      },
+      {
+        name: "add",
+        path: ["tool", "add"],
+        description:
+          "Add a tool by name (react, postgresql, fastapi, rag…); cloud providers are rejected",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "-y, --yes",
+            description: "Skip prompts and confirmations; use defaults",
+            defaultValue: false,
+          },
+          {
+            flags: "-s, --stack <stack>",
+            description: "Stack to assign the resource to (default: as flisk resource picks it)",
+          },
+          {
+            flags: "--dry-run",
+            description: "Preview the resource without writing files or reserving a port",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description: "Print one JSON envelope on stdout; implies --yes",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "tool-and-name",
+            description:
+              "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); leave it out to list every tool",
+            required: false,
+            variadic: true,
+          },
+        ],
+        helpTexts: {
+          after: [
+            "\nExamples:\n  flisk tool add\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add spring boot\n  flisk tool add rag --dry-run",
+          ],
+        },
+        subcommands: [],
+      },
+    ],
+  },
+  {
+    name: "config",
+    path: ["config"],
+    description: "Manage project configuration and regenerate master files",
+    aliases: [],
+    hidden: false,
+    hasAction: false,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [
+      {
+        name: "regenerate",
+        path: ["config", "regenerate"],
+        description: "Regenerate all 4 master config files from .flisk/project.json",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--dry-run",
+            description: "Show what would change without writing files",
+          },
+          {
+            flags: "--ignore-version",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description:
+              "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {},
+        subcommands: [],
+      },
+      {
+        name: "migrate",
+        path: ["config", "migrate"],
+        description: "Migrate service.json files to the current schema version",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--ignore-version",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description: "Print one JSON envelope on stdout with the migrated files",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {
+          after: ["\nExamples:\n  flisk config migrate\n  flisk config migrate --json"],
+        },
+        subcommands: [],
+      },
+      {
+        name: "verify",
+        path: ["config", "verify"],
+        description: "Verify that generated files match .flisk/project.json",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--ignore-version",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description: "Emit a machine-readable verification report",
+          },
+        ],
+        arguments: [],
+        helpTexts: {
+          after: ["\nExamples:\n  flisk config verify\n  flisk config verify --json"],
+        },
+        subcommands: [],
+      },
+      {
+        name: "explain",
+        path: ["config", "explain"],
+        description:
+          "Explain whether a project file is Flisk-generated and what editing it does on flisk up",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--json",
+            description: "Emit a machine-readable explanation",
+          },
+        ],
+        arguments: [
+          {
+            name: "file",
+            description: "Project file to explain, relative to the current directory or absolute",
+            required: true,
+            variadic: false,
+          },
+        ],
+        helpTexts: {
+          after: [
+            "\nExamples:\n  flisk config explain Tiltfile\n  flisk config explain services/orders-api/service.json\n  flisk config explain Tiltfile --json",
+          ],
+        },
+        subcommands: [],
+      },
+      {
+        name: "edit",
+        path: ["config", "edit"],
+        description: "Open .flisk/project.json in your $EDITOR",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [],
+        arguments: [],
+        helpTexts: {},
+        subcommands: [],
+      },
+      {
+        name: "enable-infra",
+        path: ["config", "enable-infra"],
+        description: "Enable optional infrastructure service",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--ignore-version",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description:
+              "Print one JSON envelope on stdout with the service and its previous state",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "service",
+            description: "Service name (monitoring, elk, debezium, golden_image, verdaccio)",
+            required: true,
+            variadic: false,
+          },
+        ],
+        helpTexts: {},
+        subcommands: [],
+      },
+      {
+        name: "disable-infra",
+        path: ["config", "disable-infra"],
+        description: "Disable optional infrastructure service",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--ignore-version",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description:
+              "Print one JSON envelope on stdout with the service and its previous state",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "service",
+            description: "Service name (monitoring, elk, debezium, golden_image, verdaccio)",
+            required: true,
+            variadic: false,
+          },
+        ],
+        helpTexts: {},
+        subcommands: [],
+      },
+    ],
+  },
+  {
+    name: "ui",
+    path: ["ui"],
+    description: "Terminal dashboard to watch and manage your stacks and services",
+    aliases: ["interactive"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-v, --verbose",
+        description: "Enable verbose output",
+        defaultValue: false,
+      },
+      {
+        flags: "--no-animations",
+        description: "Disable animations",
+      },
+      {
+        flags: "--high-contrast",
+        description: "Enable high contrast mode",
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: ["\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations"],
+    },
+    subcommands: [],
+  },
+  {
+    name: "os",
+    path: ["os"],
+    description:
+      "Start FliskOS, the local desktop app for your Flisk projects, coding agents and Flisk apps",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--project <dir>",
+        description: "Open this Flisk project (default: the project around the current folder)",
+      },
+      {
+        flags: "--port <port>",
+        description: "Port FliskOS listens on (default: a free one)",
+      },
+      {
+        flags: "--no-open",
+        description: "Start the server without opening a window or browser",
+      },
+      {
+        flags: "--scan-root <dir>",
+        description: "Also look for Flisk projects under this folder (repeatable)",
+      },
+      {
+        flags: "--json",
+        description:
+          "Print one JSON envelope on stdout once FliskOS is up; FliskOS keeps running until it stops",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nRuns the `fliskos` command when it is on PATH, otherwise opens FliskOS.app (macOS). Flisk never\ninstalls it: @flisk-sh/fliskos (npm install --global @flisk-sh/fliskos) or https://github.com/flisk-sh/fliskos.\nFliskOS.app takes none of the options. For a terminal dashboard of the running stack use `flisk ui`.\n",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "version",
+    path: ["version"],
+    description: "Display version number",
+    aliases: ["v"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-v, --verbose",
+        description: "Display verbose version with build commit SHA",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Output a versioned JSON envelope",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [],
+  },
+  {
+    name: "maintainers",
+    path: ["maintainers"],
+    description: "Maintainer file checks",
+    aliases: [],
+    hidden: false,
+    hasAction: false,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [
+      {
+        name: "check",
+        path: ["maintainers", "check"],
+        description:
+          "Check MAINTAINERS.md lists 3 maintainers from 2 companies (a gate, not a claim of eligibility)",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [],
+        arguments: [
+          {
+            name: "file",
+            description: "maintainers file",
+            required: false,
+            variadic: false,
+            defaultValue: "MAINTAINERS.md",
+          },
+        ],
+        helpTexts: {},
+        subcommands: [],
+      },
+    ],
+  },
+  {
+    name: "doctor",
+    path: ["doctor"],
+    description: "Check environment readiness for Flisk",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--all",
+        description: "Run every check and show Machine and Project sections with a summary",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Output a versioned JSON readiness report",
+        defaultValue: false,
+      },
+      {
+        flags: "--no-ping",
+        description: "Skip pinging running services' /health endpoints",
+      },
+      {
+        flags: "--no-gateway",
+        description: "Skip gateway checks (ports 80/443)",
+      },
+      {
+        flags: "--no-database",
+        description: "Skip database capability checks",
+      },
+      {
+        flags: "--strict",
+        description: "Fail warnings such as a WSL project under /mnt/c",
+      },
+      {
+        flags: "--fix",
+        description: "Repair this project's unused Docker networks and leftover doctor probes",
+        defaultValue: false,
+      },
+      {
+        flags: "--dry-run",
+        description: "With --fix: list the repairs without changing anything",
+        defaultValue: false,
+      },
+      {
+        flags: "--scope <scope>",
+        description:
+          "With --fix: project (default) or machine, which also removes unused networks of other Flisk projects",
+        defaultValue: "project",
+      },
+      {
+        flags: "-y, --yes",
+        description: "With --fix: apply every repair without asking",
+        defaultValue: false,
+      },
+      {
+        flags: "--ping-timeout <ms>",
+        description: "Per-service ping timeout in milliseconds",
+        defaultValue: "5000",
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --fix --dry-run\n  flisk doctor --json",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "completion",
+    path: ["completion"],
+    description: "Generate shell completion scripts",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-s, --shell <shell>",
+        description: "Target shell (bash, zsh, fish, powershell)",
+      },
+      {
+        flags: "-o, --output <path>",
+        description: "Output file path (default: stdout)",
+      },
+      {
+        flags: "--install",
+        description: "Install completion; prints any shell configuration steps still needed",
+      },
+    ],
+    arguments: [
+      {
+        name: "shell",
+        description: "Target shell (bash, zsh, fish, powershell)",
+        required: false,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk completion zsh --install\n  flisk completion bash --install\n  flisk completion fish --install",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "upgrade",
+    path: ["upgrade"],
+    description: "Upgrade Flisk CLI to the latest version",
+    aliases: ["update"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-y, --yes",
+        description: "Skip prompts and confirmations; use defaults",
+        defaultValue: false,
+      },
+      {
+        flags: "-f, --force",
+        description: "Upgrade even if already on the latest version",
+        defaultValue: false,
+      },
+      {
+        flags: "--all",
+        description: "Upgrade every Flisk installation found on PATH",
+        defaultValue: false,
+      },
+      {
+        flags: "--dry-run",
+        description: "Show what would be upgraded without actually doing it",
+        defaultValue: false,
+      },
+    ],
+    arguments: [],
+    helpTexts: {
+      after: ["\nExamples:\n  flisk upgrade\n  flisk upgrade --dry-run\n  flisk upgrade --all"],
+    },
+    subcommands: [],
+  },
+  {
+    name: "networks",
+    path: ["networks"],
+    description: "Show Traefik-routed URLs for all services",
+    aliases: ["urls", "traefik"],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "-s, --stack <stack>",
+        description: "Filter by stack name",
+      },
+      {
+        flags: "--json",
+        description: "Output a versioned JSON response",
+      },
+      {
+        flags: "--json-legacy",
+        description: "Output the legacy JSON array (deprecated)",
+      },
+      {
+        flags: "--raw",
+        description: "Output raw URLs only",
+      },
+    ],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [],
+  },
+  {
+    name: "agent",
+    path: ["agent"],
+    description: "Inspect and operate AI agent resources",
+    aliases: [],
+    hidden: false,
+    hasAction: false,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [],
+    arguments: [],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk agent list\n  flisk agent list --json\n  flisk agent sessions <resource>",
+      ],
+    },
+    subcommands: [
+      {
+        name: "list",
+        path: ["agent", "list"],
+        description: "List AI agent resources in the project",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "-v, --verbose",
+            description: "Show detailed information about each agent resource",
+            defaultValue: false,
+          },
+          {
+            flags: "-s, --stack <stack>",
+            description: "Filter agent resources by stack name",
+          },
+          {
+            flags: "--no-stack",
+            description: "Show only agent resources without a stack",
+          },
+          {
+            flags: "--ports",
+            description: "Show port assignments",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description: "Output one JSON object and exit",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {
+          after: [
+            "\nExamples:\n  flisk agent list\n  flisk agent list --stack shop\n  flisk agent list --json",
+          ],
+        },
+        subcommands: [],
+      },
+      {
+        name: "sessions",
+        path: ["agent", "sessions"],
+        description:
+          "List the sessions of a running AI agent resource, or inspect one session's checkpoint",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--session-id <id>",
+            description: "Session ID to fetch; without it, list all sessions",
+          },
+          {
+            flags: "--watch",
+            description: "Refresh the output every 2 seconds until interrupted",
+            defaultValue: false,
+          },
+          {
+            flags: "--json",
+            description: "Output one JSON object and exit",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "resource",
+            description: "",
+            required: true,
+            variadic: false,
+          },
+        ],
+        helpTexts: {},
+        subcommands: [],
+      },
+    ],
+  },
+  {
+    name: "restart",
+    path: ["restart"],
+    description: "Restart a running resource in the stack",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--port <n>",
+        description: "Tilt UI port (default: TILT_PORT or 10350)",
+      },
+      {
+        flags: "--rebuild",
+        description: "Rebuild the image through Tilt instead of restarting the container",
+        defaultValue: false,
+      },
+      {
+        flags: "--json",
+        description: "Output one JSON object and exit",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "resource",
+        description: "Name of the resource (service) to restart",
+        required: true,
+        variadic: false,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "run",
+    path: ["run"],
+    description: "Run a one-off command with the environment a service has in the stack",
+    aliases: [],
+    hidden: false,
+    hasAction: true,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [
+      {
+        flags: "--json",
+        description:
+          "Run without input and print one JSON object with the exit code and the output",
+        defaultValue: false,
+      },
+    ],
+    arguments: [
+      {
+        name: "service",
+        description: "Name of the service whose environment the command gets",
+        required: true,
+        variadic: false,
+      },
+      {
+        name: "command",
+        description: "The command and its arguments, after --",
+        required: false,
+        variadic: true,
+      },
+    ],
+    helpTexts: {
+      after: [
+        "\nExamples:\n  flisk run orders-api -- printenv DATABASE_URL\n  flisk run orders-api -- bun run seed\n  flisk run orders-api -- sh",
+      ],
+    },
+    subcommands: [],
+  },
+  {
+    name: "distribute",
+    path: ["distribute"],
+    description:
+      "How an app gets to its users: board, listing kit and channel status (local files only)",
+    aliases: [],
+    hidden: false,
+    hasAction: false,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [
+      {
+        name: "board",
+        path: ["distribute", "board"],
+        description:
+          "Print the Zachman board: six perspectives (Planner to User) by six questions, each cell read from service.json or distribution.json",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--json",
+            description: "Output the board as a versioned JSON envelope",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {},
+        subcommands: [],
+      },
+      {
+        name: "kit",
+        path: ["distribute", "kit"],
+        description:
+          "Write a listing kit for one resource (plugin.json, .mcp.json, server.json, listing.md)",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--out <dir>",
+            description: "Folder to write the kit to (default: distribution/<resource>)",
+          },
+          {
+            flags: "--dry-run",
+            description: "Print the kit and write nothing",
+            defaultValue: false,
+          },
+          {
+            flags: "--force",
+            description: "Overwrite an existing kit",
+            defaultValue: false,
+          },
+        ],
+        arguments: [
+          {
+            name: "resource",
+            description: "Resource name",
+            required: true,
+            variadic: false,
+          },
+        ],
+        helpTexts: {
+          after: [
+            "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force",
+          ],
+        },
+        subcommands: [],
+      },
+      {
+        name: "status",
+        path: ["distribute", "status"],
+        description: "Print the channel grid from distribution.json",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--json",
+            description: "Output the grid as a versioned JSON envelope",
+            defaultValue: false,
+          },
+          {
+            flags: "--init",
+            description: "Write an empty distribution.json for the project's resources",
+            defaultValue: false,
+          },
+          {
+            flags: "--force",
+            description:
+              "With --init, add missing apps and channels to an existing distribution.json, keeping its entries",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {},
+        subcommands: [],
+      },
+    ],
+  },
+  {
+    name: "repos",
+    path: ["repos"],
+    description: "Clone the Git repositories listed in .flisk/project.json",
+    aliases: [],
+    hidden: false,
+    hasAction: false,
+    allowUnknown: false,
+    passThrough: false,
+    positionalOptions: false,
+    allowExcessArguments: false,
+    options: [],
+    arguments: [],
+    helpTexts: {},
+    subcommands: [
+      {
+        name: "clone",
+        path: ["repos", "clone"],
+        description: "Clone missing service repositories configured in .flisk/project.json",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--json",
+            description: "Output JSON result",
+            defaultValue: false,
+          },
+        ],
+        arguments: [],
+        helpTexts: {
+          after: [
+            '\nEach entry of "repos" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md',
+          ],
+        },
+        subcommands: [],
+      },
+    ],
+  },
+];

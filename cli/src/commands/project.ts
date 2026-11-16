@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { cwd } from "node:process";
+import { cwd, execPath } from "node:process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -32,6 +32,7 @@ import { PROJECT_FEATURES } from "../utils/project-features.js";
 import {
   listProjectTemplates,
   PROJECT_TEMPLATES,
+  resolveBundledTemplateDir,
   templateGitCommands,
 } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
@@ -190,6 +191,7 @@ export async function cloneProjectTemplate(
   }
 
   let gitStep: "clone" | "checkout" | "remote" = "clone";
+  let bundledCopyUsed = false;
   try {
     if (template.generated === "swarm") {
       writeSwarmProject(destination);
@@ -204,8 +206,22 @@ export async function cloneProjectTemplate(
     } else if (template.composed === "next-postgres") {
       writeNextPostgresProject(destination);
     } else if (template.bundledPath) {
-      const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
-      cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });
+      const bundledSource = resolveBundledTemplateDir(template.bundledPath, {
+        packageRoot: resolve(dirname(fileURLToPath(import.meta.url)), "../../../"),
+        exeDir: dirname(execPath),
+        workingDir: cwd(),
+      });
+      if (bundledSource) {
+        bundledCopyUsed = true;
+        cpSync(bundledSource, destination, { recursive: true });
+      } else {
+        // No bundled copy (standalone binary whose engine bundle predates #3880): clone the same example.
+        for (const gitArgs of templateGitCommands(template, destination)) {
+          gitStep =
+            gitArgs[0] === "clone" ? "clone" : gitArgs[2] === "remote" ? "remote" : "checkout";
+          execFileSync("git", gitArgs, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf-8" });
+        }
+      }
       const projectSlug = basename(destination).replace(/-/g, "_");
       for (const file of [
         "services/platform/messaging/docker-compose.yml",
@@ -215,6 +231,7 @@ export async function cloneProjectTemplate(
         "services/shop/orders-worker/src/index.ts",
       ]) {
         const copiedPath = join(destination, file);
+        if (!existsSync(copiedPath)) continue;
         const contents = readFileSync(copiedPath, "utf-8");
         writeFileSync(copiedPath, contents.replaceAll("flisk_example", projectSlug));
       }
@@ -232,23 +249,31 @@ export async function cloneProjectTemplate(
     }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    const message = template.bundledPath
-      ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
-      : gitStep === "remote"
-        ? `git remote rename origin upstream failed: ${lastLine(detail)}. The cloned repository is left in ${destination}; inspect its remotes before trying again.`
-        : gitStep === "checkout"
-          ? `git checkout of the pinned commit ${template.ref} failed: ${lastLine(detail)}. ${destination} is left at the default branch; delete it before trying again.`
-          : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
+    const message =
+      template.bundledPath && bundledCopyUsed
+        ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
+        : gitStep === "remote"
+          ? `git remote rename origin upstream failed: ${lastLine(detail)}. The cloned repository is left in ${destination}; inspect its remotes before trying again.`
+          : gitStep === "checkout"
+            ? `git checkout of the pinned commit ${template.ref} failed: ${lastLine(detail)}. ${destination} is left at the default branch; delete it before trying again.`
+            : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
     // A caller that paints its own surface (the one-command flow) needs to report the
     // failure itself instead of having the process die mid-paint.
     if (options.quiet) {
       throw new FliskError(message, [
-        template.bundledPath
+        template.bundledPath && bundledCopyUsed
           ? "Reinstall the Flisk CLI package, then run the command again"
           : "Check that git is installed and that you are online, then run the command again",
       ]);
     }
     showErrorAndExit(message);
+  }
+
+  // A copied or cloned starter ships service.json files but no .flisk/project.json, and every command that needs a
+  // project root refuses without one: `flisk doctor`, `flisk status` and `flisk resources` in the new folder failed
+  // with "Could not find project root". Generated local-process starters get it too (#4292).
+  if (!existsSync(join(destination, ".flisk", PROJECT_JSON))) {
+    writeDefaultProjectConfig(destination);
   }
 
   clearDiscoveryCache();

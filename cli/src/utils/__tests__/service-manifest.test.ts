@@ -331,6 +331,12 @@ describe("service manifest compatibility", () => {
       [{ build: { dockerfile: "/x" } }, "build.dockerfile: must be a path relative to"],
       [{ dev: { command: "x", watch: ["/etc/**"] } }, "dev.watch[0]: must be a path relative to"],
       [{ dev: { watch: "src" } }, "dev.watch: expected an array of strings"],
+      // Same wording as an empty top-level command (validateNativeServiceFields), #4191.
+      [{ dev: { command: "" } }, 's.json: service "api": dev.command must be a non-empty string'],
+      [
+        { dev: { command: "   " } },
+        's.json: service "api": dev.command must be a non-empty string',
+      ],
       [{ image: "nginx:1", dockerfile: "Dockerfile" }, 'set "image" or "dockerfile", not both'],
     ])("reports %j", (extra, message) => {
       expect(errorsFor(extra).join("\n")).toContain(message);
@@ -350,6 +356,8 @@ describe("service manifest compatibility", () => {
       { build: { context: "../../../api", dockerfile: "Dockerfile" } },
       { build: { dockerfile: "Dockerfile", context: "." } },
       { featuresEnabled: [] },
+      { dev: { command: "bun run dev" } },
+      { dev: { command: null } },
       { restart: "always" },
       { appType: "bring-your-own" },
       { restart: "sometimes" },

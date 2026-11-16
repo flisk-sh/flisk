@@ -11,7 +11,7 @@ export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, su
 export { checkDockerBuildCache, checkDockerFileSharing, checkPublicEnvSecrets, checkStarlarkLoadExports, };
 export declare const DOCTOR_FIXES: {
     readonly dockerMissing: "See https://docs.docker.com/get-docker/";
-    readonly dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor";
+    readonly dockerDaemonDown: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor";
     readonly tiltMissing: "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash";
     readonly bunMissing: "curl -fsSL https://bun.sh/install | bash";
     readonly port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: flisk doctor";
@@ -46,6 +46,8 @@ export declare function runChecks(checks: DoctorCheckFn[], options?: {
     containerRuntimeFailed?: boolean;
 }): Promise<CheckResult[]>;
 export declare function formatDoctorSummary(results: CheckResult[]): string;
+/** Which Docker-compatible engine answers `docker` (Docker Desktop, Colima, OrbStack, Kiri, Podman, Docker Engine). */
+export declare function checkContainerEngine(): Promise<CheckResult>;
 /** The Colima VM behind Docker: a stopped VM or a colima CLI that cannot see it. */
 export declare function checkColima(): Promise<CheckResult>;
 export declare function checkDockerRuntime(commandCache?: HostCommandCache): Promise<CheckResult>;

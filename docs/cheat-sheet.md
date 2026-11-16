@@ -96,7 +96,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk status` | | Show stack and service state |
 | `flisk logs` | | Print recent logs from the running stack |
 | `flisk run <service> -- <command>` | | Run a one-off command with the service environment (native runs use project `.env`, not `up --env-file`) |
-| `flisk restart <resource>` | | Restart a running Tilt resource; for native services use `flisk down` then `flisk up` |
+| `flisk restart <resource>` | | Restart one Flisk-generated Compose container without rebuilding its image, or fall back to `tilt trigger` for local-process resources and imported Tiltfiles; `--rebuild` rebuilds; native services use `flisk down` then `flisk up` |
 | `flisk networks` | `urls`, `traefik` | Show Traefik-routed URLs |
 | `flisk open` | | Open the first frontend of the project in your browser |
 | `flisk open --print` | | Print the first ready frontend URL without launching a browser |
@@ -426,16 +426,18 @@ flisk run orders-api --json -- bun run migrate:status
 
 ### `flisk restart <resource>`
 
-Requires Tilt; it cannot restart native services. For those, use `flisk down` then `flisk up`.
+Requires Tilt. A Flisk-generated Compose container resource keeps its image: the existing container is stopped and started again, with no rebuild. Local-process resources, projects using an imported Tiltfile, and `--rebuild` keep the `tilt trigger` path; `--rebuild` rebuilds the image and recreates the container (also re-reading the project `.env`). Native command services use `flisk down` then `flisk up`.
 
 ```bash
 flisk restart orders-api
 flisk restart orders-api --json
+flisk restart orders-api --rebuild
 ```
 
 | Flag | Effect |
 | --- | --- |
 | `--port <n>` | Tilt UI port (default: TILT_PORT or 10350) |
+| `--rebuild` | Rebuild the image and recreate the container through Tilt, instead of restarting the existing container |
 | `--json` | Output one JSON object and exit |
 
 ### `flisk networks` (aliases `urls`, `traefik`)

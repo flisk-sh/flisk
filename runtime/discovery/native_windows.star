@@ -83,6 +83,13 @@ def file_exists(path, cwd = ""):
         if cwd and not (path.startswith("/") or (len(path) > 1 and path[1] == ":")):
             full = cwd + "/" + path
         return _is_file(full)
+    # A shell-out costs 10-15 ms and os.path.exists microseconds (no file watch), so only a path that exists goes to `test -f`,
+    # which tells a file from a directory: 38 of a load's 72 checks were for files that do not exist (flisk#4237).
+    full = path
+    if cwd and not path.startswith("/"):
+        full = cwd + "/" + path
+    if not os.path.exists(full):
+        return False
     if cwd:
         cmd = ["sh", "-c", 'cd "$1" && test -f "$2" && echo yes || echo no', "sh", cwd, path]
     else:
@@ -94,6 +101,8 @@ def dir_exists(path):
     if IS_NATIVE_WINDOWS:
         # os.path.exists is also true for files; listdir reports files only, so ask _is_file.
         return os.path.exists(path) and not _is_file(path)
+    if not os.path.exists(path):
+        return False
     return str(local(["sh", "-c", 'test -d "$1" && echo yes || echo no', "sh", path], quiet = True, echo_off = True)).strip() == "yes"
 
 def exists(path):

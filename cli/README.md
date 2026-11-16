@@ -34,7 +34,7 @@ Cloned starters keep their source remote as `upstream`, leaving `origin` availab
 
 Every command and flag: [mega cheat sheet](../docs/cheat-sheet.md).
 
-`flisk open --print` waits for a frontend to answer, like `flisk open`, then writes only its URL and a newline to stdout. Local-process projects use the frontend's localhost port. If no frontend is available, it reports the problem on stderr and exits with status 1.
+`flisk open --print` waits for a frontend to answer, like `flisk open`, then writes only its URL and a newline to stdout. Local-process projects use the frontend's localhost port. If no frontend is available, it reports the problem on stderr and exits with status 1. `flisk open --json` (or `flisk open --print --json`) outputs the standard machine envelope with `{ url, resource }` on stdout.
 
 ---
 
@@ -267,7 +267,7 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk doctor` | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports); a project of `command` services is checked only for what its processes need |
 | `flisk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#flisk-completion-shell) |
 | `flisk upgrade` | ⬆️ Self-update to the latest version (`--dry-run`, `--force`, `--all`) |
-| `flisk version` | ℹ️ Show version |
+| `flisk version` | ℹ️ Show version (`--verbose`, `--json`) |
 | `flisk --help` | ❓ Show help |
 
 Shell completion for `flisk resource --type` includes the `inference` preset and `sdk` registration.

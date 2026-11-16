@@ -6,15 +6,15 @@
 #
 #   common_scaffold <appType> <resource> [<extra flisk resource args>...]  scaffold the project and the resource (A1 pattern)
 #   common_wait_status <resource> <type>    bounded wait until `flisk status --json` lists the resource with that type (A2 pattern)
-#   common_restart <resource> <id before> [<ready command...>]  flisk restart, wait for a different running container, then for the
-#                                                             ready command when one is given (A6 pattern)
+#   common_restart <resource> <id before> [<ready command...>]  flisk restart, verify the same container started again,
+#                                                             then wait for the ready command when one is given (A6 pattern)
 #   common_warm_start <stack> <description> <ready command...>  flisk down, flisk up again, time it to ready (stacklytics warm start)
 #   common_error_envelope <code> <cmd...>   the command exits 1 and prints one error envelope with that code
 #
 # The agent suite still has its own copies of these cases; it moves onto this file in a later change (3b.4). Nothing here runs
 # on its own, so it is only checked for syntax by `make test-shell`.
 
-# Assumes lib.sh is loaded: run, RC, OUT, DIR, assert, die, log, poll_until, wait_restarted, status_json.
+# Assumes lib.sh is loaded: run, RC, OUT, DIR, assert, die, log, poll_until, status_json.
 
 common_scaffold() { # <appType> <resource> [<extra flisk resource args>...]
   local type="$1" name="$2"; shift 2
@@ -50,12 +50,20 @@ common_wait_status() { # <resource> <type>
 
 common_restart() { # <resource> <container id from before the restart> [<ready command...>]
   local name="$1" before="$2"; shift 2
+  local started_before after started_after
+  [ -n "$before" ] || die "no running container for $name before restart"
+  started_before="$(docker inspect -f '{{.State.StartedAt}}' "$before")" || die "could not inspect $name before restart"
+  [ -n "$started_before" ] || die "missing StartedAt for $name before restart"
   run "restart-$name" restart "$name" --json
   [ "$RC" -eq 0 ] || die "flisk restart $name exited $RC"
   assert envelope "$OUT/restart-$name.out"
   assert check "$OUT/restart-$name.out" "j.errors.length === 0 && j.data.resource === '$name' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
-  # Tilt replaces the container; wait for a different running one before the next case reads it.
-  wait_restarted "$name" "$before" "$@"
+  # #4192: an unchanged id alone would also pass for a no-op. StartedAt must change on that same container.
+  after="$(running_container "$name")"
+  [ "$after" = "$before" ] || die "$name container changed after restart: expected $before, got ${after:-none}"
+  started_after="$(docker inspect -f '{{.State.StartedAt}}' "$before")" || die "could not inspect $name after restart"
+  [ -n "$started_after" ] && [ "$started_after" != "$started_before" ] || die "$name did not restart: StartedAt is unchanged or missing"
+  [ "$#" -eq 0 ] || { local desc="$1"; shift; poll_until "$desc" "$READY_TIMEOUT" "$@"; }
 }
 
 common_error_envelope() { # <code> <command...>

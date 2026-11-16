@@ -840,8 +840,34 @@ def _image_target(config):
 image_target = _image_target
 
 
-def _register_docker_build(config, live_update_rules):
-    """Register docker_build with live_update for hot-reload support."""
+# Runs instead of a second image build once `<name>-image` built the image. `<prebuild Dockerfile>.built` is stamped when
+# that build started; while no watched file is newer, the image is current and is only given the tag Tilt expects. A
+# cached rebuild of it took 1 to 3 s per service on every start (#4237). Anything newer, or no stamp, builds as before.
+_REUSE_PREBUILT_IMAGE_SCRIPT = (
+    'df="$1"; pre="$2"; ign="$3"; target="$4"; img="$5"; ctx="$6"; shift 6; '
+    + 'if [ -f "$pre.built" ]'
+    + ' && [ -z "$(find "$@" \\( -name node_modules -o -name .git \\) -prune -o -type f ! -name "*.prebuild*" -newer "$pre.built" -print 2>/dev/null | head -n 1)" ]'
+    + ' && docker tag "$img" "$EXPECTED_REF" 2>/dev/null; then'
+    + ' echo "[flisk] nothing changed since $img was built, using it as is"; exit 0; fi; '
+    + 'cp "$df" "$pre" && printf "%s" "$ign" > "$pre.dockerignore"'
+    + ' && docker build --network host --target "$target" -f "$pre" -t "$EXPECTED_REF" "$ctx"'
+)
+
+
+def _register_docker_build(config, live_update_rules, reuse_prebuilt=False):
+    """Register docker_build with live_update for hot-reload support.
+
+    `reuse_prebuilt`: the resource has a `<name>-image` step, so its first build uses that image instead of building it again.
+    """
+    prebuilt = None
+    if reuse_prebuilt:
+        args = _prebuild_args(config)
+        prebuilt = {
+            'command': ['sh', '-c', _REUSE_PREBUILT_IMAGE_SCRIPT, 'sh'] + args,
+            # Windows builds again, as before: the same build as the `-image` step, under the tag Tilt expects.
+            'command_bat': POWERSHELL + ['$env:FLISK_TAG = $env:EXPECTED_REF; ' + prebuild_image_script()],
+            'env': _prebuild_env(args),
+        }
     TypescriptBuilders.build_typescript_service(
         _app_image_name(config['resource_name'], config['res_name']),
         config.get('project_root', '') or '.',
@@ -849,7 +875,35 @@ def _register_docker_build(config, live_update_rules):
         live_update_rules,
         config['res_deps'],
         target = _image_target(config),
+        prebuilt = prebuilt,
     )
+
+
+def _prebuild_args(config):
+    """[Dockerfile, its `.prebuild` copy, allowlist .dockerignore content, target, image tag, build context] of a plain `docker build`."""
+    project_root = config.get('project_root', '')
+    dockerfile = _resolve_dockerfile(config)
+    return [
+        dockerfile,
+        dockerfile + '.prebuild',
+        TypescriptBuilders.prebuild_dockerignore(dockerfile, project_root, config['res_path']),
+        # The same target _register_docker_build picks: a service that reloads (Go with `dev.liveReload`, Bun with a watching `dev` script) runs
+        # the development image, so prebuilding `production` under the same tag would start the compiled build with no reload.
+        _image_target(config),
+        _app_image_name(config['resource_name'], config['res_name']),
+        project_root or '.',
+    ]
+
+
+def _prebuild_env(args):
+    return {
+        'FLISK_DOCKERFILE': args[0],
+        'FLISK_PREBUILD': args[1],
+        'FLISK_IGNORE': args[2],
+        'FLISK_TARGET': args[3],
+        'FLISK_TAG': args[4],
+        'FLISK_BUILD_CONTEXT': args[5],
+    }
 
 
 def _register_deferred_image_prebuild(config, auto_init_apps, deps=None):
@@ -863,42 +917,26 @@ def _register_deferred_image_prebuild(config, auto_init_apps, deps=None):
     .dockerignore equivalent to docker_build's only=/ignore=) under the tag the
     compose service declares, so the gateway can start it directly.
     """
-    project_root = config.get('project_root', '')
-    dockerfile = _resolve_dockerfile(config)
-    prebuild_dockerfile = dockerfile + '.prebuild'
-    # The same target _register_docker_build picks: a service that reloads (Go with `dev.liveReload`, Bun with a watching `dev` script) runs
-    # the development image, so prebuilding `production` under the same tag would start the compiled build with no reload.
-    target = _image_target(config)
-    ignore_content = TypescriptBuilders.prebuild_dockerignore(dockerfile, project_root, config['res_path'])
     # BuildKit reads `<dockerfile>.dockerignore` for `-f <dockerfile>`; the
     # original Dockerfile already has a (denylist) one, hence the copy.
+    # `.started` is stamped before the build reads the files and becomes `.built` only when the build passed, so a file
+    # edited while it ran is newer than the stamp and _REUSE_PREBUILT_IMAGE_SCRIPT builds again.
+    args = _prebuild_args(config)
     cmd = [
         "sh", "-c",
-        'cp "$1" "$2" && printf "%s" "$3" > "$2.dockerignore"' +
+        'rm -f "$2.built"; cp "$1" "$2" && printf "%s" "$3" > "$2.dockerignore" && touch "$2.started"' +
         # One retry: a build that dies on a shared-cache hiccup (flisk#4226) usually passes when run again.
         ' && { docker build --network host --target "$4" -f "$2" -t "$5" "$6"' +
         ' || { echo "[flisk] image build failed, retrying once (often a transient BuildKit cache error)";' +
-        ' docker build --network host --target "$4" -f "$2" -t "$5" "$6"; }; }',
+        ' docker build --network host --target "$4" -f "$2" -t "$5" "$6"; }; }' +
+        ' && mv "$2.started" "$2.built"',
         "sh",
-        dockerfile,
-        prebuild_dockerfile,
-        ignore_content,
-        target,
-        _app_image_name(config['resource_name'], config['res_name']),
-        project_root or '.',
-    ]
+    ] + args
     local_resource(
         name=config['res_name'] + '-image',
         cmd=cmd,
         cmd_bat=POWERSHELL + [prebuild_image_script()],
-        env={
-            'FLISK_DOCKERFILE': dockerfile,
-            'FLISK_PREBUILD': prebuild_dockerfile,
-            'FLISK_IGNORE': ignore_content,
-            'FLISK_TARGET': target,
-            'FLISK_TAG': _app_image_name(config['resource_name'], config['res_name']),
-            'FLISK_BUILD_CONTEXT': project_root or '.',
-        },
+        env=_prebuild_env(args),
         labels=config['labels'],
         resource_deps=config['res_deps'] if deps == None else deps,
         auto_init=auto_init_apps,
@@ -984,7 +1022,8 @@ def register_python_test_resource(config, resource_path, compose_project_name, a
         env_file = project_env_file(root)
 
     compose_files = ['-f', compose_file]
-    if file_exists(port_override):
+    # os.path.exists, as in the wake-gateway files above: no shell-out per check (flisk#4237).
+    if os.path.exists(port_override):
         compose_files = compose_files + ['-f', port_override]
 
     test_dir = service_dir + '/' + test_path if test_path != '.' else service_dir
@@ -1067,12 +1106,13 @@ def _compose_project_argv(config, resource_path, compose_project_name):
         port_override = root + '/' + port_override
         env_file = project_env_file(root)
     compose_files = ['-f', compose_file]
-    if file_exists(port_override):
+    # os.path.exists, as in the wake-gateway files above: no shell-out per check (flisk#4237).
+    if os.path.exists(port_override):
         compose_files = compose_files + ['-f', port_override]
     # .env is gitignored (no .env.example shipped) across every Flisk example repo, so a
     # fresh clone must not hard-require it: only pass --env-file when it actually exists.
     env_file_flag = []
-    if file_exists(env_file):
+    if os.path.exists(env_file):
         env_file_flag = ['--env-file', env_file]
     # Built as an argv list (extend, not `+`) so no argument is ever joined into shell text.
     argv = ['docker', 'compose', '-p', compose_project_name]
@@ -1137,12 +1177,13 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
             go_live_reload=Docker.go_live_reload(config.get('manifest', {})),
             bun_backend_entry=_bun_backend_entry(config),
         )
-        _register_docker_build(config, live_update_rules)
+        reuse_prebuilt = not defers_start and needs_image_prebuild(config['res_deps'])
+        _register_docker_build(config, live_update_rules, reuse_prebuilt)
         if defers_start:
             _register_deferred_image_prebuild(config, auto_init_apps)
-        elif needs_image_prebuild(config['res_deps']):
+        elif reuse_prebuilt:
             # Build the image as soon as its inputs exist, in parallel with the services it must wait for; the
-            # docker_build that follows the wait then finds every layer cached.
+            # service's own build that follows the wait then uses that image as is.
             _register_deferred_image_prebuild(config, auto_init_apps, image_prebuild_deps(config['res_deps']))
             prebuilt_image = config['res_name'] + '-image'
     else:
@@ -1233,10 +1274,12 @@ _HEALTHY_SCRIPT = (
     + '      bad_since=""; '
     + '    fi; '
     + '  fi; '
-    + '  sleep 1; '
+    # A container that is still starting is checked four times a second for the first 12 checks: Docker runs the first probes
+    # every start_interval (0.5 s), and a once-a-second check held each wave of dependents about a second (#4237).
+    + '  if [ "$i" -le 12 ] && [ "$state" = "running" ] && [ "$health" = "starting" ]; then sleep 0.25 2>/dev/null || sleep 1; else sleep 1; fi; '
     + 'done; '
     + 'if [ -n "$bad_since" ]; then echo "ERROR: $job is unhealthy: its health check still failed ${grace}s after it first failed"; exit 1; fi; '
-    + 'echo "ERROR: timed out waiting for $job to become healthy (waited ${max_polls}s)"; exit 1'
+    + 'echo "ERROR: timed out waiting for $job to become healthy (gave up after ${max_polls} checks)"; exit 1'
 )
 
 

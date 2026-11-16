@@ -5,8 +5,10 @@ import { QUICKSTART_DOCS_URL } from "./constants.js";
 import { getContainerRuntimeStatus } from "./docker.js";
 import { rememberShownError } from "./last-error.js";
 import { findProjectRoot } from "./paths.js";
-import { suggestClosest } from "./suggestions.js";
+import { rankByDistance, suggestClosest } from "./suggestions.js";
 import { isTiltAvailable } from "./tilt.js";
+
+export const UNKNOWN_RESOURCE_CODE = "UNKNOWN_RESOURCE" as const;
 
 export function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -38,6 +40,28 @@ export class FliskError extends Error {
   exit(): never {
     this.display();
     process.exit(this.exitCode);
+  }
+}
+
+export function unknownResourceSuggestions(
+  name: string,
+  validNames: readonly string[] = [],
+): string[] {
+  const ranked = rankByDistance(name, validNames);
+  const closest = suggestClosest(name, ranked);
+  return [
+    ...(closest ? [`Did you mean "${closest}"?`] : []),
+    ranked.length > 0 ? `Resources: ${ranked.join(", ")}` : "This project has no resources yet",
+    "See the names with: flisk resources",
+  ];
+}
+
+export class UnknownResourceError extends FliskError {
+  public readonly code = UNKNOWN_RESOURCE_CODE;
+
+  constructor(name: string, suggestions: string[]) {
+    super(`Resource "${name}" not found in project.`, suggestions, 1);
+    this.name = "UnknownResourceError";
   }
 }
 
@@ -89,7 +113,7 @@ export const errorFactories = {
     ]),
   dockerNotResponding: () =>
     new FliskError("Docker is running but not responding (`docker ps` hung for 10s)", [
-      "Quit and reopen Docker Desktop, or run `colima restart`",
+      "Quit and reopen Docker Desktop, run `colima restart`, or restart Kiri",
       "Then verify with: `docker ps`",
     ]),
   stackNotFound: (name: string, stackNames: readonly string[] = []) =>
@@ -104,11 +128,17 @@ export const errorFactories = {
       "Run `flisk resources` to list all resources",
       "Check the resource name spelling",
     ]),
+  unknownResource: (name: string, validNames: readonly string[] = []): UnknownResourceError =>
+    new UnknownResourceError(name, unknownResourceSuggestions(name, validNames)),
   unknownServices: (names: readonly string[], validNames: readonly string[]) => {
     // Service selectors are Tilt resource names, so share the resource suggestion path.
-    const suggestions = closestNameSuggestions(names, validNames, names.length > 1);
+    const orderedValid =
+      names.length === 1 && names[0] !== undefined
+        ? rankByDistance(names[0], validNames)
+        : validNames;
+    const suggestions = closestNameSuggestions(names, orderedValid, names.length > 1);
     return new FliskError(
-      `Unknown service ${names.join(", ")}. Valid names: ${validNames.join(", ")}`,
+      `Unknown service ${names.join(", ")}. Valid names: ${orderedValid.join(", ")}`,
       suggestions,
       2,
     );
@@ -144,6 +174,25 @@ export function requireProjectRoot(): string {
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
     return errorFactories.notInProject().exit();
+  }
+  return projectRoot;
+}
+
+/**
+ * Resolves the project root before a command mutates or probes Docker on the machine (#4282).
+ * Exits with the not-in-project error when `resolveRoot` returns null.
+ */
+export function requireProjectBeforeDocker(
+  resolveRoot: () => string | null = findProjectRoot,
+  onNotInProject?: (error: FliskError) => never,
+): string {
+  const projectRoot = resolveRoot();
+  if (!projectRoot) {
+    const error = errorFactories.notInProject();
+    if (onNotInProject) {
+      return onNotInProject(error);
+    }
+    return error.exit();
   }
   return projectRoot;
 }

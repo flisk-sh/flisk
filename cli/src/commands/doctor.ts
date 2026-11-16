@@ -32,6 +32,7 @@ import {
   PACKAGE_JSON,
   REQUIRED_PACKAGE_SCRIPTS,
 } from "../utils/constants.js";
+import { detectEngine, parseDockerInfo } from "../utils/container-engine.js";
 import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
@@ -59,6 +60,7 @@ import {
 import {
   collectDoctorChecks,
   createDoctorReport,
+  createDoctorUsageReport,
   type DoctorError,
   getDoctorExitCode,
 } from "../utils/doctor-report.js";
@@ -184,7 +186,7 @@ const DOCKER_COMPOSE_VERSION_COMMAND = "docker compose version --short";
 
 export const DOCTOR_FIXES = {
   dockerMissing: "See https://docs.docker.com/get-docker/",
-  dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
+  dockerDaemonDown: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
   tiltMissing:
     "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
   bunMissing: "curl -fsSL https://bun.sh/install | bash",
@@ -465,6 +467,25 @@ async function succeeds(command: string): Promise<boolean> {
   }
 }
 
+/** Which Docker-compatible engine answers `docker` (Docker Desktop, Colima, OrbStack, Kiri, Podman, Docker Engine). */
+export async function checkContainerEngine(): Promise<CheckResult> {
+  let raw = "";
+  try {
+    raw = String(await execAsync("docker info --format '{{json .}}'", EXEC_TIMEOUT_MS));
+  } catch {
+    return { name: "Container Engine", didPass: true, message: "No Docker daemon answered" };
+  }
+  const engine = detectEngine(parseDockerInfo(raw));
+  if (engine.id === "kiri") {
+    return {
+      name: "Container Engine",
+      didPass: true,
+      message: `${engine.label}. Flisk builds with the classic builder here (DOCKER_BUILDKIT=0), one golden image at a time. Experimental: see docs/troubleshooting.md#kiri`,
+    };
+  }
+  return { name: "Container Engine", didPass: true, message: engine.label };
+}
+
 /** The Colima VM behind Docker: a stopped VM or a colima CLI that cannot see it. */
 export async function checkColima(): Promise<CheckResult> {
   const status = checkColimaState();
@@ -523,7 +544,7 @@ export async function checkDockerRuntime(commandCache?: HostCommandCache): Promi
         name: CONTAINER_RUNTIME_CHECK,
         didPass: false,
         message: "Docker daemon is not responding (timeout)",
-        fix: "Restart Docker daemon: systemctl restart docker (Linux) or restart Docker Desktop/Colima\n  Verify: docker ps\n  Docs: https://docs.docker.com/config/daemon/",
+        fix: "Restart Docker daemon: systemctl restart docker (Linux) or restart Docker Desktop/Colima/Kiri\n  Verify: docker ps\n  Docs: https://docs.docker.com/config/daemon/",
       };
     }
   }
@@ -1683,7 +1704,7 @@ export const doctorCommand = new Command("doctor")
     if (error.exitCode === 0) process.exit(0);
     if (doctorCommand.opts().json) {
       console.log(
-        JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message: error.message }])),
+        JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message: error.message }])),
       );
     }
     process.exit(2);
@@ -1719,7 +1740,7 @@ export const doctorCommand = new Command("doctor")
     ) {
       const message = "--ping-timeout must be a positive integer number of milliseconds";
       if (options.json)
-        console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
+        console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
       console.error(message);
       process.exit(2);
       return;
@@ -1737,7 +1758,7 @@ export const doctorCommand = new Command("doctor")
         message = `${options.dryRun ? "--dry-run" : "--yes"} only applies with --fix`;
       }
       if (options.json)
-        console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
+        console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
       console.error(message);
       process.exit(2);
       return;
@@ -1954,6 +1975,7 @@ export const doctorCommand = new Command("doctor")
           ]
         : []),
       checkColima,
+      checkContainerEngine,
       () => checkDockerRuntime(hostCommandCache),
       () => checkDiskSpace(),
       requiresContainerRuntime("Docker Build Cache", () => checkDockerBuildCache()),

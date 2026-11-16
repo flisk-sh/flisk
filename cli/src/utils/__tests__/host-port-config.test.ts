@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -126,6 +126,19 @@ describe("saved host port plan", () => {
     };
     writeSavedHostPortPlan(projectRoot, plan);
     expect(readSavedHostPortPlan(projectRoot)).toEqual(plan);
+  });
+
+  it("creates traefik-dynamic as the user so a daemon never makes it root-owned", () => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-dynamic-"));
+    writeSavedHostPortPlan(projectRoot, {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 15432,
+      requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "x", ingressHttps: "x", postgres: "x" },
+    });
+    expect(existsSync(join(projectRoot, ".flisk", ".flisk-out", "traefik-dynamic"))).toBe(true);
   });
 
   it("exports the selected ports for Tilt and Compose child processes", () => {

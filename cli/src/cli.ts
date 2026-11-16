@@ -3,38 +3,35 @@
 // SPDX-License-Identifier: MIT
 
 import "./utils/env-compat-init.js";
+import "./utils/engine-env-init.js";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { cwd } from "node:process";
 import chalk from "chalk";
 import pkg from "../package.json" with { type: "json" };
+import { COMMAND_SPECS } from "./commands/command-specs.generated.js";
+import { createSpecProgram } from "./commands/command-specs.js";
 import { showHelp } from "./commands/help.js";
-import { createProgram } from "./program.js";
-import { ensureGlobalInstall } from "./utils/cli-command.js";
-import { cliInvocation } from "./utils/cli-invocation.js";
-import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
-import {
-  foldersSharingProjectName,
-  markDemoFolder,
-  readProjectName,
-  removeProjectVolumes,
-  sharedNameRefusal,
-  sharedNameUnreadableRefusal,
-  shouldMarkDemoFolder,
-  stopDemoStack,
-  tryListStaleProjectVolumes,
-} from "./utils/demo-reset.js";
 import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
-import { getAllStacks } from "./utils/services.js";
 
-const program = createProgram();
+/**
+ * The program the CLI parses is built from plain command specs, so `--help`, `--version`
+ * and parse errors never import the generator, discovery, native-runtime or TUI graphs.
+ * Only a command that actually runs loads its module: `createProgram()` imports the real
+ * command tree, and its `parseAsync` sees the original argv with every option source intact.
+ */
+const program = createSpecProgram(COMMAND_SPECS, async (spec) => {
+  const { runLazyCommand } = await import("./commands/lazy-command.js");
+  await runLazyCommand(spec, process.argv.slice(2));
+});
 
 // Default: show help if no command provided
 if (process.argv.length === 2) {
+  const { formatColdPreflight, runColdPreflight } = await import("./utils/cold-preflight.js");
   const result = await runColdPreflight();
   console.log(formatColdPreflight(result));
   console.log("\nCommands: flisk doctor | flisk project --yes | flisk --help");
@@ -71,6 +68,7 @@ if (templateArg === "demo") {
   const { NATIVE_DEMO_DIR, nativeDemoReason, runNativeDemo } = await import(
     "./utils/native-demo.js"
   );
+  const { cliInvocation } = await import("./utils/cli-invocation.js");
   const reason = await nativeDemoReason({
     argv: process.argv,
     platform: process.platform,
@@ -128,6 +126,17 @@ if (templateArg) {
   const { discoverResourcesWithProblems } = await import("./utils/services.js");
   const { openUrl } = await import("./utils/url-actions.js");
   const { createDemoStage } = await import("./utils/demo-stage.js");
+  const {
+    foldersSharingProjectName,
+    markDemoFolder,
+    readProjectName,
+    removeProjectVolumes,
+    sharedNameRefusal,
+    sharedNameUnreadableRefusal,
+    shouldMarkDemoFolder,
+    stopDemoStack,
+    tryListStaleProjectVolumes,
+  } = await import("./utils/demo-reset.js");
 
   const baseName = templateTargetDir(templateArg, projectArg);
   const fixedDir = projectArg ? undefined : PROJECT_TEMPLATES[templateArg]?.fixedDir;
@@ -256,6 +265,8 @@ if (templateArg) {
     stage.stop();
     process.exit(1);
   }
+  const { ensureGlobalInstall } = await import("./utils/cli-command.js");
+  const { cliInvocation } = await import("./utils/cli-invocation.js");
   const install = ensureGlobalInstall();
   setPhase("fetch", "done", Date.now() - fetchStarted);
 
@@ -300,6 +311,7 @@ if (templateArg) {
     const projectName = readProjectName(destination);
     if (projectName) {
       // Only the Compose projects of this checkout's own stacks: another checkout may share the name prefix.
+      const { getAllStacks } = await import("./utils/services.js");
       const stacks = getAllStacks(discoverResourcesWithProblems(destination).resources);
       // The demo and `flisk project restaurant` are one repository, so another folder can hold this project name and
       // its database volume. Deleting that volume would delete its data: stop instead (#3963). One listing decides the

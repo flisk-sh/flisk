@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { FliskError } from "./errors.js";
+import { FliskError, UnknownResourceError } from "./errors.js";
 export const SCHEMA_VERSION = 1;
 export function createMachineEnvelope(data, errors = []) {
     return { schemaVersion: SCHEMA_VERSION, data, errors };
@@ -36,7 +36,7 @@ export function toMachineError(error) {
     if (error instanceof FliskError) {
         return {
             error: {
-                code: "COMMAND_FAILED",
+                code: error instanceof UnknownResourceError ? error.code : "COMMAND_FAILED",
                 message: error.message,
                 ...(error.suggestions.length > 0 ? { suggestions: error.suggestions } : {}),
             },

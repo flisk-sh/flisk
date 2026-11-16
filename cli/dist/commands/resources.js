@@ -10,16 +10,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { findProjectRoot } from "../utils/paths.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
-export const resourcesCommand = new Command("resources")
-    .description("List all resources (services) in the project")
-    .option("-v, --verbose", "Show detailed information about each resource", false)
-    .option("-s, --stack <stack>", "Filter resources by stack name")
-    .option("-t, --type <type>", "Filter resources by type")
-    .option("--no-stack", "Show only resources without a stack")
-    .option("--ports", "Show port assignments", false)
-    .option("--json", "Output a versioned JSON resource report", false)
-    .addHelpText("after", "\nExamples:\n  flisk resources\n  flisk resources --type database\n  flisk resources --ports")
-    .action(async (options) => {
+export async function runResourcesList(options) {
     const action = async () => {
         if (options.json) {
             if (!findProjectRoot()) {
@@ -37,18 +28,19 @@ export const resourcesCommand = new Command("resources")
             ]);
         }
         const discovery = createDiscoveryContext();
-        if (options.stack && !stackExists(options.stack, discovery.resources)) {
+        if (typeof options.stack === "string" && !stackExists(options.stack, discovery.resources)) {
             const error = errorFactories.stackNotFound(options.stack, discovery.stackNames);
             if (options.json)
                 writeMachineError(error);
             error.exit();
         }
         const withoutStackFilter = options.noStack || options.stack === false;
+        const stackName = typeof options.stack === "string" ? options.stack : undefined;
         let resources = discovery.resources;
-        if (options.stack) {
-            resources = discovery.resourcesByStack.get(options.stack) || [];
+        if (stackName) {
+            resources = discovery.resourcesByStack.get(stackName) || [];
             if (resources.length === 0 && !options.json && options.type === undefined) {
-                showEmptyState("stack-services", ` in stack "${options.stack}"`);
+                showEmptyState("stack-services", ` in stack "${stackName}"`);
                 return;
             }
         }
@@ -74,10 +66,10 @@ export const resourcesCommand = new Command("resources")
             return;
         }
         if (resources.length === 0) {
-            const stackContext = options.stack ? ` in stack "${options.stack}"` : "";
-            const noStackContext = withoutStackFilter && !options.stack ? " without a stack" : "";
+            const stackContext = stackName ? ` in stack "${stackName}"` : "";
+            const noStackContext = withoutStackFilter && !stackName ? " without a stack" : "";
             const typeContext = options.type !== undefined ? ` with type "${options.type}"` : "";
-            showEmptyState(options.stack ? "stack-services" : "resources", stackContext + noStackContext + typeContext);
+            showEmptyState(stackName ? "stack-services" : "resources", stackContext + noStackContext + typeContext);
             return;
         }
         showStep(`Found ${formatCount(resources.length, "resource")}:\n`);
@@ -109,10 +101,10 @@ export const resourcesCommand = new Command("resources")
             }
             showDetail("\nRun with --verbose for more details or --ports to see port assignments.", 0);
         }
-        const withoutStackCount = options.stack || options.type !== undefined
+        const withoutStackCount = stackName || options.type !== undefined
             ? resources.filter((r) => !r.stack).length
             : discovery.unassignedResources.length;
-        if (withoutStackCount > 0 && !withoutStackFilter && !options.stack) {
+        if (withoutStackCount > 0 && !withoutStackFilter && !stackName) {
             console.log(chalk.yellow(`\n${formatCount(withoutStackCount, "resource")} not assigned to any stack.`));
             showDetail('Run "flisk resources --no-stack" to see them, or "flisk stack" to assign them.');
         }
@@ -127,4 +119,16 @@ export const resourcesCommand = new Command("resources")
         return;
     }
     await runCommand(action);
+}
+export const resourcesCommand = new Command("resources")
+    .description("List all resources (services) in the project")
+    .option("-v, --verbose", "Show detailed information about each resource", false)
+    .option("-s, --stack <stack>", "Filter resources by stack name")
+    .option("-t, --type <type>", "Filter resources by type")
+    .option("--no-stack", "Show only resources without a stack")
+    .option("--ports", "Show port assignments", false)
+    .option("--json", "Output a versioned JSON resource report", false)
+    .addHelpText("after", "\nExamples:\n  flisk resources\n  flisk resources --type database\n  flisk resources --ports")
+    .action(async (options) => {
+    await runResourcesList(options);
 });

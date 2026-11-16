@@ -6,7 +6,7 @@ You do not need to write code or a polished bug report. This page shows how to i
 
 ## 1. Install
 
-You need Docker (Desktop, OrbStack or Colima) running, and Tilt 0.25.0 or newer. Then install the Flisk CLI:
+You need Docker (Desktop, OrbStack, Colima or Kiri) running, and Tilt 0.25.0 or newer. Then install the Flisk CLI:
 
 ```bash
 curl -fsSL https://flisk.sh/install.sh | sh

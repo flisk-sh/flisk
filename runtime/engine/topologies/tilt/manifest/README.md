@@ -675,5 +675,5 @@ When adding new features:
 
 ## See Also
 
-- [Refactoring Plan](../../../REFACTORING_MANIFEST_SYSTEM.md) - Full refactoring roadmap
+- [Refactoring Plan](../../../../../docs/REFACTORING_MANIFEST_SYSTEM.md) - Full refactoring roadmap
 - [AGENTS.md](../../../AGENTS.md) - Agent ecosystem documentation

@@ -16,7 +16,7 @@ Get your Mac ready for Flisk. You do this once. Every grey box below is a [comma
 
 **2. Only for bigger apps: Docker and Tilt.** You need these when your app has a [database](../start/words.md#database), one web address in front of all its parts (a gateway URL), or must run in the same [container](../start/words.md#container) you deploy. Then also start a container runtime and install Tilt 0.25+:
 
-- [Docker](../start/words.md#docker): install and start Docker Desktop, OrbStack or Colima (Docker Engine 25+, Compose 2.20.2+)
+- [Docker](../start/words.md#docker): install and start Docker Desktop, OrbStack, Colima or Kiri (Docker Engine 25+, Compose 2.20.2+)
 - [Tilt](../start/words.md#tilt): paste this command, which downloads and installs it:
 
 ```bash

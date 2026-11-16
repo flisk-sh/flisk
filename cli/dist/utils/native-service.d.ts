@@ -11,6 +11,8 @@ export declare function isNativeService(resource: DiscoveredResource): boolean;
  * A manifest without `command` returns no errors: the container contract is validated elsewhere and is unchanged.
  */
 export declare function validateNativeServiceFields(manifest: Record<string, unknown>): string[];
+/** How an error names a service: its quoted appName, or "(unnamed)". */
+export declare function serviceLabel(manifest: Record<string, unknown>): string;
 /**
  * How `flisk up` runs a selection: natively when every selected service declares `command`, or declares `command` or a
  * ready-made `image` with at least one `command` (a mixed run: the images start with `docker run` next to the local processes),

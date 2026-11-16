@@ -5,7 +5,7 @@ import { RESOURCE_CONFIG_APP_TYPES } from "../types/index.js";
 import { parseHostMapping, publishVariables, substitutePublish } from "./extra-port-publish.js";
 import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { isGenerateName, parseGenerateSpec } from "./generated-secrets.js";
-import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
+import { declaresCommand, serviceLabel, validateNativeServiceFields } from "./native-service.js";
 import { validateSmoke } from "./smoke.js";
 export const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
@@ -344,6 +344,10 @@ export function fieldTypeErrors(manifest, displayPath) {
         dev.command !== null &&
         typeof dev.command !== "string") {
         bad("dev.command", "a string");
+    }
+    else if (typeof dev.command === "string" && dev.command.trim() === "") {
+        // Worded like an empty top-level command (validateNativeServiceFields), so both read the same (#4191).
+        errors.push(`${displayPath}: service ${serviceLabel(manifest)}: dev.command must be a non-empty string`);
     }
     if (typeof dev.watch !== "undefined" &&
         dev.watch !== null &&

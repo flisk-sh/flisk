@@ -30,6 +30,32 @@ function isAdjacentTransposition(left, right) {
     }
     return false;
 }
+function typoDistance(normalizedLeft, normalizedRight) {
+    return isAdjacentTransposition(normalizedLeft, normalizedRight)
+        ? 1
+        : levenshteinDistance(normalizedLeft, normalizedRight);
+}
+/**
+ * Deduplicates non-empty candidate names and orders them by edit distance to `input`
+ * (adjacent transpositions count as one edit; ties use deterministic code-unit order).
+ */
+export function rankByDistance(input, candidates) {
+    const unique = [...new Set(candidates.filter((candidate) => candidate.length > 0))];
+    if (input.length === 0) {
+        return unique.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    }
+    const normalizedInput = input.toLowerCase();
+    const distances = new Map();
+    for (const candidate of unique) {
+        distances.set(candidate, typoDistance(normalizedInput, candidate.toLowerCase()));
+    }
+    return unique.sort((a, b) => {
+        const diff = (distances.get(a) ?? 0) - (distances.get(b) ?? 0);
+        if (diff !== 0)
+            return diff;
+        return a < b ? -1 : a > b ? 1 : 0;
+    });
+}
 /**
  * Bases the threshold on the longer name and caps it at two edits.
  * An adjacent transposition counts as one typo; ties use deterministic code-unit order.
@@ -47,9 +73,7 @@ export function suggestClosest(input, candidates) {
         if (candidate.length === 0)
             continue;
         const normalizedCandidate = candidate.toLowerCase();
-        const distance = isAdjacentTransposition(normalizedInput, normalizedCandidate)
-            ? 1
-            : levenshteinDistance(normalizedInput, normalizedCandidate);
+        const distance = typoDistance(normalizedInput, normalizedCandidate);
         const threshold = Math.max(1, Math.min(2, Math.floor(Math.max(normalizedInput.length, normalizedCandidate.length) / 3)));
         if (distance > threshold)
             continue;

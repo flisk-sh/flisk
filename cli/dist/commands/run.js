@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { spawn, spawnSync } from "node:child_process";
 import { Command } from "commander";
-import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
+import { errorFactories, FliskError, runCommand, UnknownResourceError, unknownResourceSuggestions, } from "../utils/errors.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { planNativeRun } from "../utils/native-runtime.js";
 import { isNativeService } from "../utils/native-service.js";
@@ -53,10 +53,7 @@ export function resolveRunTarget(projectRoot, serviceName, command, options = { 
     const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
     const resource = resources.find((candidate) => candidate.name === serviceName);
     if (!resource) {
-        const names = resources.map((candidate) => candidate.name).sort();
-        throw new FliskError(`No service named "${serviceName}" in this project.`, [
-            names.length > 0 ? `Services: ${names.join(", ")}` : "This project has no services yet",
-        ]);
+        throw new UnknownResourceError(serviceName, unknownResourceSuggestions(serviceName, resources.map((candidate) => candidate.name)));
     }
     const [file, ...args] = command;
     if (!file) {
@@ -130,7 +127,7 @@ export const runServiceCommand = new Command("run")
             catch (error) {
                 if (!(error instanceof FliskError))
                     throw error;
-                throw new JsonCommandError("RUN_FAILED", error.message, error.suggestions, error.exitCode);
+                throw new JsonCommandError(error instanceof UnknownResourceError ? error.code : "RUN_FAILED", error.message, error.suggestions, error.exitCode);
             }
             const result = spawnSync(target.file, target.args, {
                 cwd: target.cwd,

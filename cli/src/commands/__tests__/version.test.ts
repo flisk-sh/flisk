@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isMachineOutputEnvelope } from "../../utils/machine-output.js";
 import { clearBuildInfoCache, getPackageVersion } from "../../utils/paths.js";
 import { versionCommand } from "../version.js";
 
@@ -118,6 +119,36 @@ describe("flisk version", () => {
 
     const output = await runCli(["version", "--verbose"]);
     expect(output).toBe(`${getPackageVersion()} (githubsha1234567890123456789012345678901)`);
+  });
+
+  it("prints a machine-readable JSON envelope with --json", async () => {
+    const output = await runCli(["version", "--json"]);
+
+    const envelope = JSON.parse(output);
+    expect(isMachineOutputEnvelope(envelope)).toBe(true);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.data.version).toBe(getPackageVersion());
+    expect(envelope.errors).toEqual([]);
+  });
+
+  it("prints a machine-readable JSON envelope through the `v` alias with --json", async () => {
+    const output = await runCli(["v", "--json"]);
+
+    const envelope = JSON.parse(output);
+    expect(isMachineOutputEnvelope(envelope)).toBe(true);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.data.version).toBe(getPackageVersion());
+    expect(envelope.errors).toEqual([]);
+  });
+
+  it("includes commit sha in JSON envelope data", async () => {
+    process.env.FLISK_BUILD_COMMIT = "0123456789abcdef0123456789abcdef01234567";
+    const output = await runCli(["version", "--json"]);
+
+    const envelope = JSON.parse(output);
+    expect(isMachineOutputEnvelope(envelope)).toBe(true);
+    expect(envelope.data.version).toBe(getPackageVersion());
+    expect(envelope.data.commit).toBe("0123456789abcdef0123456789abcdef01234567");
   });
 
   it("falls back to unknown when no commit info is available", async () => {

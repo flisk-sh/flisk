@@ -98,6 +98,14 @@ const tenths = (ms) => Math.round(ms / 100) / 10;
 const ANSI = /\u001b\[[0-9;?]*[A-Za-z]/g;
 
 /**
+ * One line of a start log with the seconds since the start command ran in front: `[  12.3s] postgres │ Started`.
+ * Colour codes are dropped. The timed copy of the log shows what ran when, between the milestones.
+ */
+export function timedLogLine(text, ms) {
+  return `[${(ms / 1000).toFixed(1).padStart(6)}s] ${text.replace(ANSI, "")}`;
+}
+
+/**
  * Times the `milestones` of a bench.json against the start command's output: feed it every line with the milliseconds
  * since the start command ran, then take a snapshot when the stack is healthy. A milestone is the first line its `match`
  * regex finds, or the last one with `pick: "last"` ("the last image was built"). Not printed: `seconds` is null.

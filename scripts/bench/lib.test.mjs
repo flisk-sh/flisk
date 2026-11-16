@@ -10,6 +10,7 @@ import {
   loadCompetitors,
   renderReport,
   scanWiring,
+  timedLogLine,
   validateContract,
   writeResults,
 } from "./lib.mjs";
@@ -258,4 +259,12 @@ test("a report of results without any breakdown has no breakdown section", () =>
     results: [{ id: "a", name: "A", status: "ok", phases: {}, checks: {}, wiring: null }],
   });
   assert.doesNotMatch(md, /Where a start spends its time/);
+});
+
+test("a timed log line carries the seconds since the start and no colour codes", () => {
+  assert.equal(
+    timedLogLine("\u001b[32mpostgres │ Started\u001b[0m", 12345),
+    "[  12.3s] postgres │ Started",
+  );
+  assert.equal(timedLogLine("", 0), "[   0.0s] ");
 });
