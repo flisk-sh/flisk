@@ -312,6 +312,30 @@ describe("flisk down (in-process)", () => {
       expect(run.stdout).toContain("Nothing is running for this project.");
     });
 
+    it("says the run record was stale and signals nothing when its pids are not Flisk's (#3960)", async () => {
+      nativeService.isNativeProject.mockReturnValue(true);
+      native.stopNativeRun.mockResolvedValue({ wasRunning: false, stale: true, services: [] });
+
+      const run = await runDown([]);
+
+      expect(run.stdout).toContain("Stale run record, nothing to stop");
+      expect(run.stdout).not.toContain("Stopped local processes");
+    });
+
+    it("names live processes it could not prove it started, with their pids (#3960)", async () => {
+      nativeService.isNativeProject.mockReturnValue(true);
+      native.stopNativeRun.mockResolvedValue({
+        wasRunning: true,
+        services: ["api"],
+        unverified: [{ name: "api", pid: 4242 }],
+      });
+
+      const run = await runDown([]);
+
+      expect(run.stdout).toContain("api (pid 4242)");
+      expect(run.stdout).toContain("not stopped");
+    });
+
     it("--json reports the stopped services in one envelope", async () => {
       nativeService.isNativeProject.mockReturnValue(true);
       native.stopNativeRun.mockResolvedValue({ wasRunning: true, services: ["api"] });

@@ -1,4 +1,5 @@
 import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
+import { type ProcessStartTimeReader } from "./process-identity.js";
 import { type ReadinessProbe } from "./service-manifest.js";
 /**
  * The native runtime (#2229): `flisk up` starts every selected `command` service as a local process and supervises it, with no
@@ -84,10 +85,14 @@ export declare function waitForServiceReady(plan: Pick<NativeServicePlan, "healt
 export interface NativeRunState {
     /** The `flisk up` process supervising the services. */
     pid: number;
+    /** When that process started (see process-identity.ts), so a later stop can tell it from a process given the same pid. */
+    pidStartTime?: string;
     startedAt: string;
     /** `job`: a one-shot job (a migrator, or `"restart": "no"` with no port); once it exits 0 it stays `ready` with no process. */
     services: Record<string, {
         pid?: number;
+        /** When the service process started; a stop signals `pid` only while it still has this start time. */
+        startTime?: string;
         port?: number;
         url?: string;
         ready?: boolean;
@@ -110,17 +115,39 @@ export declare function isProcessAlive(pid: number): boolean;
  * kill reaches only the shell (cmd.exe) and leaves the service it started running, so the whole process tree is ended instead.
  */
 export declare function signalGroup(pid: number, signal: NodeJS.Signals, platform?: NodeJS.Platform, killTree?: (pid: number) => void): void;
-/**
- * Stops the native run recorded for this project: asks the supervising `flisk up` to stop its services, then stops any service
- * process still alive (a supervisor killed with SIGKILL cannot stop them itself). Returns the services that were stopped.
- */
-export declare function stopNativeRun(projectRoot: string, options?: {
-    timeoutMs?: number;
-}): Promise<{
+/** What `stopNativeRun` uses to look at and stop processes; tests pass a fake process table. */
+export interface NativeStopDeps {
+    isAlive: (pid: number) => boolean;
+    startTimeOf: ProcessStartTimeReader;
+    bootTimeMs: () => number;
+    /** SIGTERM to the supervising `flisk up`, then wait for it to stop its services. */
+    terminateSupervisor: (pid: number, timeoutMs: number) => Promise<void>;
+    /** SIGTERM, then SIGKILL, to a service's process group (its process tree on Windows). */
+    stopGroup: (pid: number, startTime: string) => Promise<void>;
+}
+export interface NativeStopResult {
     wasRunning: boolean;
     services: string[];
     supervisorPid?: number;
-}>;
+    /** The record named only processes that are gone or are no longer Flisk's (a reboot, or pids reused since): nothing was signalled. */
+    stale?: boolean;
+    /** Live processes on record that could not be proven to be Flisk's (a run.json from before start times were saved): not signalled. */
+    unverified?: Array<{
+        name: string;
+        pid: number;
+    }>;
+}
+/**
+ * Stops the native run recorded for this project: asks the supervising `flisk up` to stop its services, then stops any service
+ * process still alive (a supervisor killed with SIGKILL cannot stop them itself). Returns the services that were stopped.
+ *
+ * A pid is signalled only while it still has the start time recorded when Flisk started it. After a reboot, a power loss or a
+ * `kill -9` the record outlives its processes and the OS gives their pids to unrelated ones, which must never be killed (#3960).
+ */
+export declare function stopNativeRun(projectRoot: string, options?: {
+    timeoutMs?: number;
+    deps?: Partial<NativeStopDeps>;
+}): Promise<NativeStopResult>;
 /**
  * Each service's state from the run on record, in the shape `flisk status` reports Tilt's: ready once it passed its readiness
  * check, pending while it starts or the supervisor restarts it, unknown when nothing runs.
@@ -194,6 +221,7 @@ export declare class NativeSupervisor {
     private readonly migratorOutputs;
     private readonly redactLine;
     private readonly startedAt;
+    private pidStartTime?;
     private stopping;
     private baseEnv;
     private controlTimer?;
@@ -206,6 +234,8 @@ export declare class NativeSupervisor {
         baseEnv?: Readonly<Record<string, string | undefined>>;
         /** Extra env files selected by --env-file; their values must be redacted too. */
         extraEnvPaths?: readonly string[];
+        /** Reads a process start time for run.json. Defaults to processStartTime. */
+        startTimeOf?: ProcessStartTimeReader;
         /** Plans and base env as they are now (the .env may have changed since start); a restart starts from these. */
         reload?: () => {
             plans: readonly NativeServicePlan[];
@@ -247,6 +277,7 @@ export declare class NativeSupervisor {
      */
     private resumeDependents;
     private pipeLines;
+    private readStartTime;
     /** Looks for restart requests from `flisk restart` (a separate process) a few times a second while the run is up. */
     private startControlLoop;
     private handleControlRequests;

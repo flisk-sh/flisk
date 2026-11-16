@@ -14,6 +14,7 @@ import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainer
 import { appendNativeLogLine, readLogTail } from "./native-log.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
+import { bootTimeMs, processStartTime } from "./process-identity.js";
 import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
 import { healthCheckPathOf, isHealthCheckDisabled, readinessProbeOf, } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
@@ -373,41 +374,103 @@ async function waitForExit(pid, timeoutMs) {
     return !isProcessAlive(pid);
 }
 /** SIGTERM to the process group, SIGKILL after the timeout. */
-async function stopProcessGroup(pid, timeoutMs = STOP_TIMEOUT_MS) {
+async function stopProcessGroup(pid, timeoutMs = STOP_TIMEOUT_MS, canSignal = async () => true) {
+    if (!(await canSignal()))
+        return;
     signalGroup(pid, "SIGTERM");
-    if (!(await waitForExit(pid, timeoutMs)))
+    if (!(await waitForExit(pid, timeoutMs)) && (await canSignal()))
         signalGroup(pid, "SIGKILL");
 }
+const defaultStopDeps = {
+    isAlive: isProcessAlive,
+    startTimeOf: (pid) => processStartTime(pid),
+    bootTimeMs,
+    terminateSupervisor: async (pid, timeoutMs) => {
+        try {
+            process.kill(pid, "SIGTERM");
+        }
+        catch {
+            // Gone between the check and the signal.
+        }
+        await waitForExit(pid, timeoutMs);
+    },
+    stopGroup: (pid, startTime) => stopProcessGroup(pid, STOP_TIMEOUT_MS, async () => (await processStartTime(pid)) === startTime),
+};
 /**
  * Stops the native run recorded for this project: asks the supervising `flisk up` to stop its services, then stops any service
  * process still alive (a supervisor killed with SIGKILL cannot stop them itself). Returns the services that were stopped.
+ *
+ * A pid is signalled only while it still has the start time recorded when Flisk started it. After a reboot, a power loss or a
+ * `kill -9` the record outlives its processes and the OS gives their pids to unrelated ones, which must never be killed (#3960).
  */
 export async function stopNativeRun(projectRoot, options = {}) {
     const state = readNativeRunState(projectRoot);
     if (!state)
         return { wasRunning: false, services: [] };
+    const deps = { ...defaultStopDeps, ...options.deps };
     const timeoutMs = options.timeoutMs ?? STOP_TIMEOUT_MS * 2;
-    if (state.pid !== process.pid && isProcessAlive(state.pid)) {
-        try {
-            process.kill(state.pid, "SIGTERM");
+    const forget = () => {
+        // A `docker run` killed before it passed the stop on leaves its container running; containers are found by name, not pid.
+        if (Object.values(state.services).some((service) => service.container)) {
+            removeNativeContainers(projectRoot);
         }
-        catch {
-            // Gone between the check and the signal.
+        rmSync(nativeRunStatePath(projectRoot), { force: true });
+        clearMigratorOutputs(projectRoot);
+    };
+    // Every process of a run recorded before the last boot is gone, whatever now holds its pids.
+    const startedAt = Date.parse(state.startedAt);
+    if (Number.isFinite(startedAt) && startedAt < deps.bootTimeMs()) {
+        forget();
+        return { wasRunning: false, stale: true, services: [] };
+    }
+    const unverified = [];
+    let ours = 0;
+    let reused = 0;
+    /** True only for a live pid whose start time still equals the one recorded when Flisk started it. */
+    const isOurs = async (name, pid, recorded) => {
+        if (!deps.isAlive(pid))
+            return false;
+        if (recorded === undefined) {
+            unverified.push({ name, pid });
+            return false;
         }
-        await waitForExit(state.pid, timeoutMs);
+        const current = await deps.startTimeOf(pid);
+        if (current === undefined) {
+            unverified.push({ name, pid });
+            return false;
+        }
+        if (current !== undefined && current === recorded) {
+            ours += 1;
+            return true;
+        }
+        reused += 1;
+        return false;
+    };
+    // Identify the services before asking the supervisor to stop them, so the result also includes those it stops itself.
+    const checks = await Promise.all(Object.entries(state.services).map(async ([name, service]) => service.pid !== undefined && (await isOurs(name, service.pid, service.startTime))
+        ? { name, pid: service.pid, startTime: service.startTime }
+        : undefined));
+    if (state.pid !== process.pid && (await isOurs("flisk up", state.pid, state.pidStartTime))) {
+        await deps.terminateSupervisor(state.pid, timeoutMs);
     }
     // The supervisor already stopped dependents first when it could; what is left has no order on record, so stop it together.
-    await Promise.all(Object.values(state.services).map(async (service) => {
-        if (service.pid && isProcessAlive(service.pid))
-            await stopProcessGroup(service.pid);
+    await Promise.all(checks.map(async (service) => {
+        if (service &&
+            deps.isAlive(service.pid) &&
+            (await deps.startTimeOf(service.pid)) === service.startTime) {
+            await deps.stopGroup(service.pid, service.startTime);
+        }
     }));
-    // A `docker run` killed before it passed the stop on leaves its container running.
-    if (Object.values(state.services).some((service) => service.container)) {
-        removeNativeContainers(projectRoot);
+    forget();
+    if (ours === 0 && reused > 0 && unverified.length === 0) {
+        return { wasRunning: false, stale: true, services: [] };
     }
-    rmSync(nativeRunStatePath(projectRoot), { force: true });
-    clearMigratorOutputs(projectRoot);
-    return { wasRunning: true, services: Object.keys(state.services), supervisorPid: state.pid };
+    return {
+        wasRunning: ours > 0,
+        services: checks.filter((service) => service !== undefined).map((service) => service.name),
+        supervisorPid: state.pid,
+        ...(unverified.length > 0 ? { unverified } : {}),
+    };
 }
 /**
  * Each service's state from the run on record, in the shape `flisk status` reports Tilt's: ready once it passed its readiness
@@ -549,6 +612,7 @@ export class NativeSupervisor {
     migratorOutputs = new Map();
     redactLine;
     startedAt = new Date().toISOString();
+    pidStartTime;
     stopping = false;
     baseEnv;
     controlTimer;
@@ -577,6 +641,11 @@ export class NativeSupervisor {
      * whole selection is up); a service whose dependency failed is reported as blocked and never started.
      */
     async start() {
+        this.saveState();
+        // Persist the supervisor identity before startup can report success; otherwise an immediate `down` cannot verify it.
+        this.pidStartTime = await this.readStartTime(process.pid);
+        if (this.stopping)
+            return [];
         this.saveState();
         this.startControlLoop();
         const plans = [...this.services.values()].map((service) => service.plan);
@@ -609,6 +678,7 @@ export class NativeSupervisor {
                         isAlive: () => !this.stopping && !service.gaveUp,
                         timeoutMs: this.options.readyTimeoutMs,
                     });
+                await service.identityReady;
                 if (isReady) {
                     service.isReady = true;
                     this.saveState();
@@ -703,6 +773,18 @@ export class NativeSupervisor {
             stdio: ["ignore", "pipe", "pipe"],
         });
         service.child = child;
+        service.startTime = undefined;
+        service.identityReady = undefined;
+        const pid = child.pid;
+        if (pid !== undefined) {
+            service.identityReady = this.readStartTime(pid).then((startTime) => {
+                // Saved only while this is still the service's process: a restart in the meantime reads its own.
+                if (this.stopping || service.child !== child || startTime === undefined)
+                    return;
+                service.startTime = startTime;
+                this.saveState();
+            });
+        }
         service.exited = new Promise((resolve) => {
             child.once("exit", (code) => resolve(code));
             child.once("error", () => resolve(null));
@@ -780,7 +862,8 @@ export class NativeSupervisor {
         void waitForServiceReady(service.plan, {
             isAlive: () => !this.stopping && isChildRunning(service.child),
             timeoutMs: this.options.readyTimeoutMs,
-        }).then((isReady) => {
+        }).then(async (isReady) => {
+            await service.identityReady;
             if (!isReady || this.stopping)
                 return;
             service.isReady = true;
@@ -865,6 +948,9 @@ export class NativeSupervisor {
                 emit(pending);
             pending = "";
         });
+    }
+    readStartTime(pid) {
+        return (this.options.startTimeOf ?? processStartTime)(pid).catch(() => undefined);
     }
     /** Looks for restart requests from `flisk restart` (a separate process) a few times a second while the run is up. */
     startControlLoop() {
@@ -1001,6 +1087,9 @@ export class NativeSupervisor {
         for (const [name, service] of this.services) {
             services[name] = {
                 pid: service.child?.pid,
+                ...(service.child?.pid !== undefined && service.startTime
+                    ? { startTime: service.startTime }
+                    : {}),
                 port: service.plan.port,
                 url: service.plan.url,
                 ready: service.isReady,
@@ -1012,6 +1101,7 @@ export class NativeSupervisor {
         }
         writeNativeRunState(this.projectRoot, {
             pid: process.pid,
+            ...(this.pidStartTime ? { pidStartTime: this.pidStartTime } : {}),
             startedAt: this.startedAt,
             services,
         });

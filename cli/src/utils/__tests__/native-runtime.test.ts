@@ -23,6 +23,7 @@ import {
   signalGroup,
   stopNativeRun,
 } from "../native-runtime.js";
+import { processStartTime } from "../process-identity.js";
 
 const NODE = JSON.stringify(process.execPath);
 
@@ -727,7 +728,15 @@ describe("native supervisor", () => {
 describe("stopping a native run from another process", () => {
   it("stops service processes a killed supervisor left behind", async () => {
     const root = createTempDir();
-    const orphan = spawn("sleep", ["300"], { detached: true, stdio: "ignore" });
+    const orphan = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    await new Promise<void>((resolve, reject) => {
+      orphan.once("spawn", resolve);
+      orphan.once("error", reject);
+    });
     orphan.unref();
     const deadSupervisor = spawn(process.execPath, ["-e", ""]);
     await new Promise((resolve) => deadSupervisor.once("exit", resolve));
@@ -737,7 +746,9 @@ describe("stopping a native run from another process", () => {
       JSON.stringify({
         pid: deadSupervisor.pid,
         startedAt: new Date().toISOString(),
-        services: { api: { pid: orphan.pid } },
+        services: {
+          api: { pid: orphan.pid, startTime: await processStartTime(orphan.pid as number) },
+        },
       }),
     );
 
@@ -749,6 +760,180 @@ describe("stopping a native run from another process", () => {
     await waitFor(() => !isProcessAlive(orphan.pid as number));
     expect(existsSync(nativeRunStatePath(root))).toBe(false);
     expect(await stopNativeRun(root)).toEqual({ wasRunning: false, services: [] });
+  });
+});
+
+describe("run.json records who flisk started (#3960)", () => {
+  it("waits for service identities before reporting startup complete", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "loop.mjs"), "setInterval(() => {}, 1000);\n");
+    const plan = planNativeRun([nativeService(root, "api", { command: `${NODE} loop.mjs` })]);
+    let releaseIdentity!: (value: string) => void;
+    const serviceIdentity = new Promise<string>((resolve) => {
+      releaseIdentity = resolve;
+    });
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      {},
+      {
+        startTimeOf: (pid) =>
+          pid === process.pid ? Promise.resolve("supervisor") : serviceIdentity,
+      },
+    );
+    supervisors.push(supervisor);
+    let completed = false;
+    const starting = supervisor.start().then(() => {
+      completed = true;
+    });
+    try {
+      await waitFor(() => supervisor.pidOf("api") !== undefined);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      expect(completed).toBe(false);
+    } finally {
+      releaseIdentity("service");
+      await starting;
+    }
+    expect(readNativeRunState(root)?.services.api?.startTime).toBe("service");
+  });
+
+  it("saves the start time of the supervisor and of each service process", async () => {
+    const root = createTempDir();
+    const plan = planNativeRun([
+      nativeService(root, "api", { command: `${NODE} -e "setInterval(() => {}, 1000)"` }),
+    ]);
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    await supervisor.start();
+    const pid = supervisor.pidOf("api") as number;
+    const expected = await processStartTime(pid);
+    expect(expected).toBeTruthy();
+
+    await waitFor(() => readNativeRunState(root)?.services.api?.startTime === expected);
+    await waitFor(() => Boolean(readNativeRunState(root)?.pidStartTime));
+    expect(readNativeRunState(root)?.pidStartTime).toBe(await processStartTime(process.pid));
+  }, 60_000);
+});
+
+describe("stopNativeRun only signals processes it can prove it started (#3960)", () => {
+  const NOW = Date.parse("2026-11-17T10:00:00Z");
+
+  /** A fake process table: pid -> start time. A pid missing from it is not running. */
+  function harness(table: Record<number, string | undefined>, bootTime = NOW - 3_600_000) {
+    const signalled: number[] = [];
+    const terminated: number[] = [];
+    const deps = {
+      isAlive: (pid: number) => pid in table,
+      startTimeOf: async (pid: number) => table[pid],
+      bootTimeMs: () => bootTime,
+      stopGroup: async (pid: number) => {
+        signalled.push(pid);
+      },
+      terminateSupervisor: async (pid: number) => {
+        terminated.push(pid);
+      },
+    };
+    return { deps, signalled, terminated };
+  }
+
+  function writeState(root: string, state: Record<string, unknown>): void {
+    mkdirSync(join(root, ".flisk", "native"), { recursive: true });
+    writeFileSync(nativeRunStatePath(root), JSON.stringify(state));
+  }
+
+  it("does not signal a recycled pid whose start time differs, and calls the record stale", async () => {
+    const root = createTempDir();
+    writeState(root, {
+      pid: 100,
+      pidStartTime: "sup-T1",
+      startedAt: new Date(NOW - 60_000).toISOString(),
+      services: { api: { pid: 200, startTime: "api-T1" } },
+    });
+    const { deps, signalled, terminated } = harness({ 100: "other-T9", 200: "other-T8" });
+
+    const result = await stopNativeRun(root, { deps });
+
+    expect(signalled).toEqual([]);
+    expect(terminated).toEqual([]);
+    expect(result).toMatchObject({ wasRunning: false, stale: true, services: [] });
+    expect(existsSync(nativeRunStatePath(root))).toBe(false);
+  });
+
+  it("signals the supervisor and a service whose start times still match", async () => {
+    const root = createTempDir();
+    writeState(root, {
+      pid: 100,
+      pidStartTime: "sup-T1",
+      startedAt: new Date(NOW - 60_000).toISOString(),
+      services: { api: { pid: 200, startTime: "api-T1" }, web: { pid: 300, startTime: "web-T1" } },
+    });
+    const { deps, signalled, terminated } = harness({
+      100: "sup-T1",
+      200: "api-T1",
+      300: "someone-else",
+    });
+
+    const result = await stopNativeRun(root, { deps });
+
+    expect(terminated).toEqual([100]);
+    expect(signalled).toEqual([200]);
+    expect(result).toMatchObject({ wasRunning: true, services: ["api"], supervisorPid: 100 });
+    expect(result.stale).toBeUndefined();
+  });
+
+  it("signals nothing for a run recorded before the last boot", async () => {
+    const root = createTempDir();
+    writeState(root, {
+      pid: 100,
+      pidStartTime: "sup-T1",
+      startedAt: new Date(NOW - 7_200_000).toISOString(),
+      services: { api: { pid: 200, startTime: "api-T1" } },
+    });
+    // Even matching start times are not trusted: a reboot resets them.
+    const { deps, signalled, terminated } = harness({ 100: "sup-T1", 200: "api-T1" });
+
+    const result = await stopNativeRun(root, { deps });
+
+    expect(signalled).toEqual([]);
+    expect(terminated).toEqual([]);
+    expect(result).toMatchObject({ wasRunning: false, stale: true });
+    expect(existsSync(nativeRunStatePath(root))).toBe(false);
+  });
+
+  it("does not signal a live pid from an older run.json with no start time, and reports it", async () => {
+    const root = createTempDir();
+    writeState(root, {
+      pid: 100,
+      startedAt: new Date(NOW - 60_000).toISOString(),
+      services: { api: { pid: 200 }, done: { pid: 400 } },
+    });
+    const { deps, signalled, terminated } = harness({ 100: "sup-T1", 200: "api-T1" });
+
+    const result = await stopNativeRun(root, { deps });
+
+    expect(signalled).toEqual([]);
+    expect(terminated).toEqual([]);
+    expect(result.unverified).toEqual([
+      { name: "api", pid: 200 },
+      { name: "flisk up", pid: 100 },
+    ]);
+  });
+
+  it("does not signal a live pid whose start time cannot be read (another user's process)", async () => {
+    const root = createTempDir();
+    writeState(root, {
+      pid: 100,
+      pidStartTime: "sup-T1",
+      startedAt: new Date(NOW - 60_000).toISOString(),
+      services: { api: { pid: 200, startTime: "api-T1" } },
+    });
+    const { deps, signalled } = harness({ 200: undefined });
+
+    const result = await stopNativeRun(root, { deps });
+
+    expect(signalled).toEqual([]);
+    expect(result.unverified).toEqual([{ name: "api", pid: 200 }]);
+    expect(result.services).toEqual([]);
   });
 });
 
