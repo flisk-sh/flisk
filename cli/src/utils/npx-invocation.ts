@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { existsSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { win32 } from "node:path";
 
 /** How to spawn `npx <args>` so every argument reaches npx exactly as given. */
 export interface NpxInvocation {
@@ -38,8 +38,8 @@ export function npxInvocation(npxArgs: string[], runtime: NpxRuntime = {}): NpxI
 
   const execPath = runtime.execPath ?? process.execPath;
   const exists = runtime.exists ?? existsSync;
-  if (/^node(\.exe)?$/i.test(basename(execPath))) {
-    const npxCli = join(dirname(execPath), "node_modules", "npm", "bin", "npx-cli.js");
+  if (/^node(\.exe)?$/i.test(win32.basename(execPath))) {
+    const npxCli = win32.join(win32.dirname(execPath), "node_modules", "npm", "bin", "npx-cli.js");
     if (exists(npxCli)) {
       return {
         command: execPath,
