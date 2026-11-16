@@ -1,0 +1,13 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "postgres",
+  "appType": "bring-your-own",
+  "image": "postgres:16-alpine",
+  "port": 5432,
+  "exposeViaProxy": false,
+  "env": {
+    "POSTGRES_PASSWORD": "postgres"
+  },
+  "healthCheck": { "command": ["pg_isready", "-U", "postgres"], "startPeriod": 10 }
+}

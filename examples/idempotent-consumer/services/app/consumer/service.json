@@ -1,0 +1,15 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "consumer",
+  "appType": "worker",
+  "command": "bun run src/consumer.ts",
+  "dependsOn": [
+    "redis",
+    "postgres"
+  ],
+  "env": {
+    "REDIS_URL": "redis://127.0.0.1:6379",
+    "DATABASE_URL": "postgres://postgres:postgres@127.0.0.1:5432/postgres"
+  }
+}
