@@ -32,7 +32,11 @@ import {
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { writeMachineError } from "../utils/machine-output.js";
-import { readNativeRunState, stopNativeRun } from "../utils/native-runtime.js";
+import {
+  type NativeStopResult,
+  readNativeRunState,
+  stopNativeRun,
+} from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import {
@@ -59,6 +63,30 @@ function allStackNames(): string[] | undefined {
     return names.length > 0 ? names : undefined;
   } catch {
     return undefined;
+  }
+}
+
+/** The human summary of a native stop: what stopped, a stale record, and live processes left alone because they were not proven Flisk's. */
+function printNativeStop(stopped: NativeStopResult, scope: "folder" | "project"): void {
+  if (stopped.stale) {
+    console.log(
+      chalk.gray(
+        "Stale run record, nothing to stop: its processes are gone or their pids now belong to other programs.",
+      ),
+    );
+  } else if (stopped.wasRunning) {
+    console.log(chalk.blue(`Stopped local processes: ${stopped.services.join(", ")}`));
+  } else {
+    console.log(chalk.gray(`Nothing is running for this ${scope}.`));
+  }
+  if (stopped.unverified?.length) {
+    const list = stopped.unverified.map(({ name, pid }) => `${name} (pid ${pid})`).join(", ");
+    console.log(
+      chalk.yellow(
+        `These processes were not stopped because the run record cannot prove Flisk started them: ${list}. ` +
+          "Check them and stop them yourself if they are this project's.",
+      ),
+    );
   }
 }
 
@@ -295,14 +323,15 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
         return;
       }
       const stopped = await stopNativeRun(stateRoot);
-      emitInferred?.({ ok: true, runtime: "native", inferred: true, stopped: stopped.services });
-      if (!options.json) {
-        console.log(
-          stopped.wasRunning
-            ? chalk.blue(`Stopped local processes: ${stopped.services.join(", ")}`)
-            : chalk.gray("Nothing is running for this folder."),
-        );
-      }
+      emitInferred?.({
+        ok: true,
+        runtime: "native",
+        inferred: true,
+        stopped: stopped.services,
+        ...(stopped.stale ? { stale: true } : {}),
+        ...(stopped.unverified?.length ? { unverified: stopped.unverified } : {}),
+      });
+      if (!options.json) printNativeStop(stopped, "folder");
       return;
     }
 
@@ -367,14 +396,14 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
         return;
       }
       const stopped = await stopNativeRun(projectRoot);
-      if (!options.json) {
-        console.log(
-          stopped.wasRunning
-            ? chalk.blue(`Stopped local processes: ${stopped.services.join(", ")}`)
-            : chalk.gray("Nothing is running for this project."),
-        );
-      }
-      emit?.({ ok: true, runtime: "native", stopped: stopped.services });
+      if (!options.json) printNativeStop(stopped, "project");
+      emit?.({
+        ok: true,
+        runtime: "native",
+        stopped: stopped.services,
+        ...(stopped.stale ? { stale: true } : {}),
+        ...(stopped.unverified?.length ? { unverified: stopped.unverified } : {}),
+      });
       return;
     }
     // `--purge` deletes the volume, networks and images of the project NAME. Another folder with the same name uses them too

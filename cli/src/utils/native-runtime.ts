@@ -35,6 +35,7 @@ import {
 } from "./native-container.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
+import { bootTimeMs, type ProcessStartTimeReader, processStartTime } from "./process-identity.js";
 import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
 import {
   healthCheckPathOf,
@@ -399,12 +400,16 @@ function sleep(milliseconds: number): Promise<void> {
 export interface NativeRunState {
   /** The `flisk up` process supervising the services. */
   pid: number;
+  /** When that process started (see process-identity.ts), so a later stop can tell it from a process given the same pid. */
+  pidStartTime?: string;
   startedAt: string;
   /** `job`: a one-shot job (a migrator, or `"restart": "no"` with no port); once it exits 0 it stays `ready` with no process. */
   services: Record<
     string,
     {
       pid?: number;
+      /** When the service process started; a stop signals `pid` only while it still has this start time. */
+      startTime?: string;
       port?: number;
       url?: string;
       ready?: boolean;
@@ -502,43 +507,140 @@ async function waitForExit(pid: number, timeoutMs: number): Promise<boolean> {
 }
 
 /** SIGTERM to the process group, SIGKILL after the timeout. */
-async function stopProcessGroup(pid: number, timeoutMs = STOP_TIMEOUT_MS): Promise<void> {
+async function stopProcessGroup(
+  pid: number,
+  timeoutMs = STOP_TIMEOUT_MS,
+  canSignal: () => Promise<boolean> = async () => true,
+): Promise<void> {
+  if (!(await canSignal())) return;
   signalGroup(pid, "SIGTERM");
-  if (!(await waitForExit(pid, timeoutMs))) signalGroup(pid, "SIGKILL");
+  if (!(await waitForExit(pid, timeoutMs)) && (await canSignal())) signalGroup(pid, "SIGKILL");
+}
+
+/** What `stopNativeRun` uses to look at and stop processes; tests pass a fake process table. */
+export interface NativeStopDeps {
+  isAlive: (pid: number) => boolean;
+  startTimeOf: ProcessStartTimeReader;
+  bootTimeMs: () => number;
+  /** SIGTERM to the supervising `flisk up`, then wait for it to stop its services. */
+  terminateSupervisor: (pid: number, timeoutMs: number) => Promise<void>;
+  /** SIGTERM, then SIGKILL, to a service's process group (its process tree on Windows). */
+  stopGroup: (pid: number, startTime: string) => Promise<void>;
+}
+
+const defaultStopDeps: NativeStopDeps = {
+  isAlive: isProcessAlive,
+  startTimeOf: (pid) => processStartTime(pid),
+  bootTimeMs,
+  terminateSupervisor: async (pid, timeoutMs) => {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // Gone between the check and the signal.
+    }
+    await waitForExit(pid, timeoutMs);
+  },
+  stopGroup: (pid, startTime) =>
+    stopProcessGroup(pid, STOP_TIMEOUT_MS, async () => (await processStartTime(pid)) === startTime),
+};
+
+export interface NativeStopResult {
+  wasRunning: boolean;
+  services: string[];
+  supervisorPid?: number;
+  /** The record named only processes that are gone or are no longer Flisk's (a reboot, or pids reused since): nothing was signalled. */
+  stale?: boolean;
+  /** Live processes on record that could not be proven to be Flisk's (a run.json from before start times were saved): not signalled. */
+  unverified?: Array<{ name: string; pid: number }>;
 }
 
 /**
  * Stops the native run recorded for this project: asks the supervising `flisk up` to stop its services, then stops any service
  * process still alive (a supervisor killed with SIGKILL cannot stop them itself). Returns the services that were stopped.
+ *
+ * A pid is signalled only while it still has the start time recorded when Flisk started it. After a reboot, a power loss or a
+ * `kill -9` the record outlives its processes and the OS gives their pids to unrelated ones, which must never be killed (#3960).
  */
 export async function stopNativeRun(
   projectRoot: string,
-  options: { timeoutMs?: number } = {},
-): Promise<{ wasRunning: boolean; services: string[]; supervisorPid?: number }> {
+  options: { timeoutMs?: number; deps?: Partial<NativeStopDeps> } = {},
+): Promise<NativeStopResult> {
   const state = readNativeRunState(projectRoot);
   if (!state) return { wasRunning: false, services: [] };
+  const deps = { ...defaultStopDeps, ...options.deps };
   const timeoutMs = options.timeoutMs ?? STOP_TIMEOUT_MS * 2;
-  if (state.pid !== process.pid && isProcessAlive(state.pid)) {
-    try {
-      process.kill(state.pid, "SIGTERM");
-    } catch {
-      // Gone between the check and the signal.
+  const forget = () => {
+    // A `docker run` killed before it passed the stop on leaves its container running; containers are found by name, not pid.
+    if (Object.values(state.services).some((service) => service.container)) {
+      removeNativeContainers(projectRoot);
     }
-    await waitForExit(state.pid, timeoutMs);
+    rmSync(nativeRunStatePath(projectRoot), { force: true });
+    clearMigratorOutputs(projectRoot);
+  };
+
+  // Every process of a run recorded before the last boot is gone, whatever now holds its pids.
+  const startedAt = Date.parse(state.startedAt);
+  if (Number.isFinite(startedAt) && startedAt < deps.bootTimeMs()) {
+    forget();
+    return { wasRunning: false, stale: true, services: [] };
+  }
+
+  const unverified: Array<{ name: string; pid: number }> = [];
+  let ours = 0;
+  let reused = 0;
+  /** True only for a live pid whose start time still equals the one recorded when Flisk started it. */
+  const isOurs = async (name: string, pid: number, recorded: string | undefined) => {
+    if (!deps.isAlive(pid)) return false;
+    if (recorded === undefined) {
+      unverified.push({ name, pid });
+      return false;
+    }
+    const current = await deps.startTimeOf(pid);
+    if (current === undefined) {
+      unverified.push({ name, pid });
+      return false;
+    }
+    if (current !== undefined && current === recorded) {
+      ours += 1;
+      return true;
+    }
+    reused += 1;
+    return false;
+  };
+
+  // Identify the services before asking the supervisor to stop them, so the result also includes those it stops itself.
+  const checks = await Promise.all(
+    Object.entries(state.services).map(async ([name, service]) =>
+      service.pid !== undefined && (await isOurs(name, service.pid, service.startTime))
+        ? { name, pid: service.pid, startTime: service.startTime as string }
+        : undefined,
+    ),
+  );
+  if (state.pid !== process.pid && (await isOurs("flisk up", state.pid, state.pidStartTime))) {
+    await deps.terminateSupervisor(state.pid, timeoutMs);
   }
   // The supervisor already stopped dependents first when it could; what is left has no order on record, so stop it together.
   await Promise.all(
-    Object.values(state.services).map(async (service) => {
-      if (service.pid && isProcessAlive(service.pid)) await stopProcessGroup(service.pid);
+    checks.map(async (service) => {
+      if (
+        service &&
+        deps.isAlive(service.pid) &&
+        (await deps.startTimeOf(service.pid)) === service.startTime
+      ) {
+        await deps.stopGroup(service.pid, service.startTime);
+      }
     }),
   );
-  // A `docker run` killed before it passed the stop on leaves its container running.
-  if (Object.values(state.services).some((service) => service.container)) {
-    removeNativeContainers(projectRoot);
+  forget();
+  if (ours === 0 && reused > 0 && unverified.length === 0) {
+    return { wasRunning: false, stale: true, services: [] };
   }
-  rmSync(nativeRunStatePath(projectRoot), { force: true });
-  clearMigratorOutputs(projectRoot);
-  return { wasRunning: true, services: Object.keys(state.services), supervisorPid: state.pid };
+  return {
+    wasRunning: ours > 0,
+    services: checks.filter((service) => service !== undefined).map((service) => service.name),
+    supervisorPid: state.pid,
+    ...(unverified.length > 0 ? { unverified } : {}),
+  };
 }
 
 /**
@@ -638,6 +740,8 @@ interface RunningService {
   gaveUp: boolean;
   /** Exited while these dependencies were down; it starts again once they are all ready. */
   waitingFor?: string[];
+  /** When the current process started, once read; saved so a later stop can prove the pid is still this process. */
+  startTime?: string;
   restartTimer?: NodeJS.Timeout;
   /** Resolves with the exit code of the current process (null when a signal ended it). */
   exited?: Promise<number | null>;
@@ -673,6 +777,7 @@ export class NativeSupervisor {
   private readonly migratorOutputs = new Map<string, Record<string, string>>();
   private readonly redactLine: (line: string) => string;
   private readonly startedAt = new Date().toISOString();
+  private pidStartTime?: string;
   private stopping = false;
 
   constructor(
@@ -688,6 +793,8 @@ export class NativeSupervisor {
       baseEnv?: Readonly<Record<string, string | undefined>>;
       /** Extra env files selected by --env-file; their values must be redacted too. */
       extraEnvPaths?: readonly string[];
+      /** Reads a process start time for run.json. Defaults to processStartTime. */
+      startTimeOf?: ProcessStartTimeReader;
     } = {},
   ) {
     this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
@@ -713,6 +820,12 @@ export class NativeSupervisor {
    */
   async start(): Promise<Array<{ name: string; reason: string }>> {
     this.saveState();
+    // Read in the background: on Windows the lookup starts PowerShell, which must not hold up the services.
+    void this.readStartTime(process.pid).then((startTime) => {
+      if (this.stopping || startTime === undefined) return;
+      this.pidStartTime = startTime;
+      this.saveState();
+    });
     const plans = [...this.services.values()].map((service) => service.plan);
     const ready = new Map<string, Promise<boolean>>();
     const failures: Array<{ name: string; reason: string }> = [];
@@ -842,6 +955,16 @@ export class NativeSupervisor {
       stdio: ["ignore", "pipe", "pipe"],
     });
     service.child = child;
+    service.startTime = undefined;
+    const pid = child.pid;
+    if (pid !== undefined) {
+      void this.readStartTime(pid).then((startTime) => {
+        // Saved only while this is still the service's process: a restart in the meantime reads its own.
+        if (this.stopping || service.child !== child || startTime === undefined) return;
+        service.startTime = startTime;
+        this.saveState();
+      });
+    }
     service.exited = new Promise((resolve) => {
       child.once("exit", (code) => resolve(code));
       child.once("error", () => resolve(null));
@@ -1024,11 +1147,18 @@ export class NativeSupervisor {
     });
   }
 
+  private readStartTime(pid: number): Promise<string | undefined> {
+    return (this.options.startTimeOf ?? processStartTime)(pid).catch(() => undefined);
+  }
+
   private saveState(): void {
     const services: NativeRunState["services"] = {};
     for (const [name, service] of this.services) {
       services[name] = {
         pid: service.child?.pid,
+        ...(service.child?.pid !== undefined && service.startTime
+          ? { startTime: service.startTime }
+          : {}),
         port: service.plan.port,
         url: service.plan.url,
         ready: service.isReady,
@@ -1039,6 +1169,7 @@ export class NativeSupervisor {
     }
     writeNativeRunState(this.projectRoot, {
       pid: process.pid,
+      ...(this.pidStartTime ? { pidStartTime: this.pidStartTime } : {}),
       startedAt: this.startedAt,
       services,
     });
