@@ -37,3 +37,5 @@ xit = "xit"
 aer = "aer"
 # Amazon Braket, the quantum computing service in the provider examples (AWS_BRAKET_TOKEN).
 braket = "braket"
+# Intentional mistyped starter name in the "did you mean" test.
+resturant = "resturant"
