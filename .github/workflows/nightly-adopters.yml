@@ -157,6 +157,22 @@ jobs:
               POSTGRES_PASSWORD=ci-postgres-not-a-secret
               DATABASE_URL=postgresql://openathlete:ci-postgres-not-a-secret@postgres:5432/openathlete
               APP_URL=http://localhost
+          # Runs on the Kiri engine (engine: kiri) instead of Docker, so the nightly also shows that `flisk up` works on Kiri
+          # with a real Compose stack (prebuilt app image + Postgres 18).
+          - name: HealthLog
+            owner: MBombeck
+            repo: HealthLog
+            commit: d32036b003a7f834eb21e4bfb324036ebbfb07cc
+            engine: kiri
+            health_check: "http://127.0.0.1:3000"
+            needs_env: true
+            env_file: |
+              POSTGRES_PASSWORD=ci-postgres-not-a-secret
+              ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+              API_TOKEN_HMAC_KEY=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+              SESSION_COOKIE_SECURE=false
+              APP_URL=http://localhost:3000
+              NEXT_PUBLIC_APP_URL=http://localhost:3000
     steps:
       - name: Checkout Flisk
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -235,6 +251,24 @@ jobs:
           docker context create kiri --docker host=unix:///run/kiri/docker.sock
           docker context use kiri # Flisk reads the current context to see that this is Kiri
           # Tilt and Compose read DOCKER_HOST, so every later step talks to Kiri and not to the runner's Docker.
+          echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
+          DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
+
+      - name: Install Kiri (stacks that run on the Kiri engine instead of Docker)
+        if: matrix.engine == 'kiri'
+        env:
+          KIRI_VERSION: "0.2.1"
+          KIRI_DEB_SHA256: 5e7b1f6d8239aa590b314fd2ccc8f1472ba1427f414b35efa86ccedd6a6571b2 # kiri-lite_0.2.1_amd64.deb
+        run: |
+          scripts/e2e/retry-infra.sh "download Kiri v${KIRI_VERSION}" -- curl -fsSL -o kiri.deb "https://github.com/libracoder/kiri/releases/download/v${KIRI_VERSION}/kiri-lite_${KIRI_VERSION}_amd64.deb"
+          echo "${KIRI_DEB_SHA256}  kiri.deb" | sha256sum -c -
+          sudo apt-get install -y ./kiri.deb
+          rm -f kiri.deb
+          sudo kiri host-access "$USER"
+          for _ in $(seq 1 30); do [ -S /run/kiri/docker.sock ] && break; sleep 1; done
+          sudo chmod a+rw /run/kiri/docker.sock
+          docker context create kiri --docker host=unix:///run/kiri/docker.sock
+          docker context use kiri
           echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
           DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
 
