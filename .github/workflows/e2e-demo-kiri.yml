@@ -1,0 +1,71 @@
+# The one-command demo on the Kiri engine (D1-D4 of tests/e2e/journeys/demo). Manual: Kiri is not the default engine, and the
+# demo's Docker-less cases (N1-N3) do not use an engine. Run it to see whether `flisk demo` still starts on Kiri.
+name: 🎬 E2E | Demo on Kiri
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "CLI version to test (local dist if empty)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-demo-kiri
+  cancel-in-progress: false
+
+jobs:
+  demo-kiri:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.23.5
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Flisk
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: ${{ inputs.version || 'local' }}
+
+      - name: Install Kiri
+        env:
+          KIRI_VERSION: "0.2.1"
+          KIRI_DEB_SHA256: 5e7b1f6d8239aa590b314fd2ccc8f1472ba1427f414b35efa86ccedd6a6571b2 # kiri-lite_0.2.1_amd64.deb
+        run: |
+          scripts/e2e/retry-infra.sh "download Kiri v${KIRI_VERSION}" -- curl -fsSL -o kiri.deb "https://github.com/libracoder/kiri/releases/download/v${KIRI_VERSION}/kiri-lite_${KIRI_VERSION}_amd64.deb"
+          echo "${KIRI_DEB_SHA256}  kiri.deb" | sha256sum -c -
+          sudo apt-get install -y ./kiri.deb
+          rm -f kiri.deb
+          sudo kiri host-access "$USER"
+          for _ in $(seq 1 30); do [ -S /run/kiri/docker.sock ] && break; sleep 1; done
+          sudo chmod a+rw /run/kiri/docker.sock
+          docker context create kiri --docker host=unix:///run/kiri/docker.sock
+          docker context use kiri
+          echo "DOCKER_HOST=unix:///run/kiri/docker.sock" >> "$GITHUB_ENV"
+          DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'engine: {{.Name}} {{.ServerVersion}}'
+
+      - name: Run the demo journey (D1-D4)
+        run: tests/e2e/journeys/demo/run.sh D1 D2 D3 D4
+
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: demo-kiri
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: tests/e2e/journeys/demo/run.sh diagnostics || true
+
+      - name: Tear down
+        if: always()
+        run: tests/e2e/journeys/demo/run.sh cleanup || true
