@@ -392,6 +392,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-demo-kiri.yml",
+			"job": "demo-kiri",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Manual run of the one-command demo (D1-D4) on the Kiri engine",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "nightly-adopters.yml",
 			"job": "adopter",
 			"tier": "e2e",
