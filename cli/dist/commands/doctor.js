@@ -48,6 +48,7 @@ import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkM
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
+import { isAtLeast, MIN_BUN_VERSION, MIN_TILT_VERSION, parseVersion, versionMeetsMinimum, } from "../utils/tool-versions.js";
 import { checkToolchains } from "../utils/toolchain.js";
 import { findOnPath } from "../utils/which.js";
 import { checkWindowsDockerMode, checkWindowsHostConfiguration, checkWindowsRuntimeTools, } from "../utils/windows-doctor.js";
@@ -73,14 +74,8 @@ export const DOCTOR_FIXES = {
 };
 export const WSL2_DOCTOR_MESSAGE = "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
 export const NATIVE_WINDOWS_DOCTOR_MESSAGE = `Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/start-here-on-windows.md (reference: docs/wsl2.md)`;
-export const MIN_TILT_VERSION = [0, 25, 0];
-export const MIN_BUN_VERSION = [1, 2, 0];
-export function versionMeetsMinimum(raw, minimum) {
-    const version = parseVersion(raw);
-    if (!version)
-        return false;
-    return isAtLeast(version, minimum);
-}
+// Re-exported for existing importers; the definitions live in utils/tool-versions.ts.
+export { MIN_BUN_VERSION, MIN_TILT_VERSION, versionMeetsMinimum };
 export function checkWslProjectLocation(projectPath, strict, isWsl = detectWsl()) {
     if (!isWsl) {
         return {
@@ -441,22 +436,6 @@ checkDockerCompose.checkName = "Docker Compose";
 // Generated healthchecks use `start_interval`, which older engines/compose reject.
 const MIN_DOCKER_ENGINE_VERSION = [25, 0, 0];
 const MIN_DOCKER_COMPOSE_VERSION = [2, 20, 2];
-function parseVersion(raw) {
-    const match = raw.trim().match(/(\d+)\.(\d+)(?:\.(\d+))?/);
-    if (!match) {
-        return null;
-    }
-    return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)];
-}
-function isAtLeast(version, minimum) {
-    for (const [index, required] of minimum.entries()) {
-        const actual = version[index] ?? 0;
-        if (actual !== required) {
-            return actual > required;
-        }
-    }
-    return true;
-}
 export async function checkDockerVersions(exec = execAsync) {
     const run = async (command, timeoutMs = EXEC_TIMEOUT_MS) => String(await exec(command, timeoutMs)).trim();
     let engineRaw;
