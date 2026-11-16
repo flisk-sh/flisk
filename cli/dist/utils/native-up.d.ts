@@ -1,5 +1,18 @@
 import type { DiscoveredResource } from "../types/index.js";
 import type { JsonEmitter } from "./json-output.js";
+export interface NativeFailure {
+    name: string;
+    reason: string;
+    logs?: string[];
+}
+/**
+ * Each failure with the last lines its service wrote (`logs`). The reason alone ("kept exiting; see its output above")
+ * points at output that a `--json` or MCP caller never saw, so the cause (a missing variable, a stack trace) travels with
+ * the failure. Lines come from `.flisk/native/logs`, which the supervisor masked when it wrote them; a service that
+ * wrote nothing, or was never started, keeps its failure as it was. With `sinceEpochMs`, lines from earlier runs (the logs
+ * are appended to) are left out.
+ */
+export declare function withFailureLogs(projectRoot: string, failures: NativeFailure[], sinceEpochMs?: number): NativeFailure[];
 export interface NativeUpInput {
     projectRoot: string;
     /** The services to start (the selection plus its dependsOn closure); every one declares `command`. */

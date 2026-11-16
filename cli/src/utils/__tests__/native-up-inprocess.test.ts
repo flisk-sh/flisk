@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
@@ -54,7 +54,9 @@ vi.mock("../errors.js", async (importOriginal) => ({
   showError: errors.showError,
 }));
 
-const { localDatabaseEnv, runNativeUp, runVariables } = await import("../native-up.js");
+const { localDatabaseEnv, runNativeUp, runVariables, withFailureLogs } = await import(
+  "../native-up.js"
+);
 
 class ExitCalled extends Error {
   constructor(readonly code: number) {
@@ -369,6 +371,78 @@ describe("runNativeUp with an existing run", () => {
   });
 });
 
+function writeServiceLog(root: string, service: string, lines: string[]): void {
+  const dir = join(root, ".flisk", "native", "logs");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, `${service}.log`),
+    lines.map((line, i) => `${new Date(Date.now() + i).toISOString()} ${line}`).join("\n") + "\n",
+  );
+}
+
+describe("withFailureLogs", () => {
+  it("adds the last five lines the failed service wrote and leaves a silent one alone", () => {
+    const root = createTempDir();
+    writeServiceLog(root, "api", [
+      "one",
+      "two",
+      "FATAL: DATABASE_URL is not set",
+      "four",
+      "five",
+      "six",
+      "seven",
+    ]);
+    const failures = withFailureLogs(root, [
+      { name: "api", reason: "kept exiting; see its output above" },
+      { name: "web", reason: "not started: api did not start" },
+    ]);
+    expect(failures[0]).toEqual({
+      name: "api",
+      reason: "kept exiting; see its output above",
+      logs: ["FATAL: DATABASE_URL is not set", "four", "five", "six", "seven"],
+    });
+    // No log file: the failure is exactly what the supervisor reported.
+    expect(failures[1]).toEqual({ name: "web", reason: "not started: api did not start" });
+  });
+
+  it("folds a crash loop's repeated line so the cause and what came before both show", () => {
+    const root = createTempDir();
+    writeServiceLog(root, "api", [
+      "listening soon",
+      ...Array.from({ length: 6 }, () => "FATAL: DATABASE_URL is not set"),
+    ]);
+    const [failure] = withFailureLogs(root, [{ name: "api", reason: "kept exiting" }]);
+    expect(failure?.logs).toEqual(["listening soon", "FATAL: DATABASE_URL is not set (x6)"]);
+  });
+
+  it("leaves out lines an earlier run wrote when given the time this run started", () => {
+    const root = createTempDir();
+    const dir = join(root, ".flisk", "native", "logs");
+    mkdirSync(dir, { recursive: true });
+    const old = new Date(Date.now() - 3_600_000).toISOString();
+    const fresh = new Date().toISOString();
+    writeFileSync(
+      join(dir, "api.log"),
+      `${old} FATAL: DATABASE_URL is not set\n${fresh} FATAL: STRIPE_KEY is not set\n`,
+    );
+    const [failure] = withFailureLogs(
+      root,
+      [{ name: "api", reason: "kept exiting" }],
+      Date.now() - 60_000,
+    );
+    expect(failure?.logs).toEqual(["FATAL: STRIPE_KEY is not set"]);
+  });
+
+  it("cuts a very long line and skips blank ones", () => {
+    const root = createTempDir();
+    writeServiceLog(root, "api", ["   ", "x".repeat(900)]);
+    const [failure] = withFailureLogs(root, [{ name: "api", reason: "boom" }]);
+    expect(failure?.logs).toHaveLength(1);
+    expect(failure?.logs?.[0]).toHaveLength(400);
+    expect(failure?.logs?.[0]?.endsWith("…")).toBe(true);
+  });
+});
+
 describe("runNativeUp start", () => {
   it("reports services that did not start, stops the rest and exits 1", async () => {
     runtime.supervisorStart.mockResolvedValue([{ name: "api", reason: "health check timed out" }]);
@@ -393,6 +467,54 @@ describe("runNativeUp start", () => {
     expect(issues[0].message).toContain(join(".flisk", "native", "logs"));
     expect(runtime.supervisorStop).toHaveBeenCalledTimes(1);
     expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("carries the failed service's own last lines in the JSON result and its message", async () => {
+    const root = createTempDir();
+    writeServiceLog(root, "api", [
+      "booting",
+      "FATAL: DATABASE_URL is not set; the api cannot start",
+    ]);
+    runtime.supervisorStart.mockResolvedValue([
+      { name: "api", reason: "kept exiting; see its output above" },
+      { name: "web", reason: "not started: api did not start" },
+    ]);
+    const emit = vi.fn();
+    await runNativeUp({
+      projectRoot: root,
+      selected: [api],
+      dependencies: [],
+      emit,
+      quiet: true,
+      exit: vi.fn() as unknown as (code: number) => never,
+    });
+    const [data, issues] = emit.mock.calls[0];
+    expect(data.failures[0].logs).toEqual([
+      "booting",
+      "FATAL: DATABASE_URL is not set; the api cannot start",
+    ]);
+    expect(data.failures[1]).not.toHaveProperty("logs");
+    expect(issues[0].message).toContain("✗ api: kept exiting; see its output above");
+    expect(issues[0].message).toContain(
+      "      FATAL: DATABASE_URL is not set; the api cannot start",
+    );
+  });
+
+  it("does not repeat the lines in the message when they were printed live", async () => {
+    const root = createTempDir();
+    writeServiceLog(root, "api", ["FATAL: DATABASE_URL is not set"]);
+    runtime.supervisorStart.mockResolvedValue([{ name: "api", reason: "kept exiting" }]);
+    const emit = vi.fn();
+    await runNativeUp({
+      projectRoot: root,
+      selected: [api],
+      dependencies: [],
+      emit,
+      exit: vi.fn() as unknown as (code: number) => never,
+    });
+    const [data, issues] = emit.mock.calls[0];
+    expect(data.failures[0].logs).toEqual(["FATAL: DATABASE_URL is not set"]);
+    expect(issues[0].message).not.toContain("FATAL");
   });
 
   it("prints the URLs once every service is up, then stays running", async () => {
