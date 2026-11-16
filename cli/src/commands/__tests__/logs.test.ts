@@ -75,7 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  for (const option of ["service", "since", "port", "tail", "unhealthy"])
+  for (const option of ["service", "since", "port", "tail", "unhealthy", "source"])
     logsCommand.setOptionValue(option, undefined);
   logsCommand.setOptionValue("tail", "200");
   logsCommand.setOptionValue("json", false);
@@ -265,6 +265,8 @@ describe("flisk logs --json", () => {
     [["--since", ""]],
     [["--since", "5"]],
     [["--port", "65536"]],
+    [["--source", "other"]],
+    [["--source", ""]],
   ])("rejects %j as USAGE (exit 2) without calling Tilt", async (args) => {
     const { envelope, code } = await run(...args);
     expect(code).toBe(2);
@@ -430,5 +432,64 @@ describe("flisk logs --unhealthy", () => {
     const { envelope, code } = await run("--unhealthy");
     expect(code).toBe(1);
     expect(envelope.errors[0]?.code).toBe("TILT_NOT_RUNNING");
+  });
+});
+
+describe("flisk logs --source", () => {
+  const entry = (source: string, message: string) =>
+    JSON.stringify({ time: "t", resource: "api", level: "info", source, message });
+  const mixed = `${[
+    entry("build", "STEP 1/9 : FROM node"),
+    entry("build", "STEP 2/9 : COPY . ."),
+    entry("runtime", "listening"),
+    entry("runtime", "BOOM: DATABASE_URL missing"),
+  ].join("\n")}\n`;
+
+  it("returns only runtime lines and counts --tail against the lines kept", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(mixed));
+    const { envelope, code } = await run("--source", "runtime", "--tail", "1");
+    expect(code).toBeNull();
+    expect(envelope.data).toMatchObject({
+      source: "runtime",
+      tail: 1,
+      lines: [{ source: "runtime", text: "BOOM: DATABASE_URL missing" }],
+    });
+    // Tilt is asked for its whole buffer: the build output before the runtime lines must not eat the tail.
+    const args = tilt.runTilt.mock.calls[0]?.[1] as string[];
+    expect(args).toEqual(expect.arrayContaining(["--tail", "10000", "--json"]));
+  });
+
+  it("returns only build lines for --source build", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(mixed));
+    const { envelope } = await run("--source", "build");
+    const lines = (envelope.data as { lines: Array<{ source: string }> }).lines;
+    expect(lines).toHaveLength(2);
+    expect(lines.every((line) => line.source === "build")).toBe(true);
+  });
+
+  it("keeps every line and the old envelope shape when --source is omitted", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(mixed));
+    const { envelope } = await run();
+    expect(envelope.data).not.toHaveProperty("source");
+    expect((envelope.data as { lines: unknown[] }).lines).toHaveLength(4);
+  });
+
+  it("still redacts secrets in the lines it returns", async () => {
+    secretMock.envSecretValues.mockReturnValue(["hunter2-secret"]);
+    tilt.runTilt.mockResolvedValueOnce(
+      ok(`${entry("runtime", "connect postgres://u:hunter2-secret@db failed")}\n`),
+    );
+    const { envelope } = await run("--source", "runtime");
+    const text = JSON.stringify(envelope);
+    expect(text).not.toContain("hunter2-secret");
+    expect(text).toContain("failed");
+  });
+
+  it("prints filtered lines as text without a --json flag from the user", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(mixed));
+    logsCommand.setOptionValue("json", false);
+    await logsCommand.parseAsync(["--source", "runtime", "--tail", "1"], { from: "user" });
+    expect(out.join("\n")).toContain("api | BOOM: DATABASE_URL missing");
+    expect(out.join("\n")).not.toContain("STEP 1/9");
   });
 });

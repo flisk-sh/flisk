@@ -76,6 +76,24 @@ export function parseTiltLogLines(output: string, limit: number): LogLine[] {
   return lines.slice(-limit);
 }
 
+export const LOG_SOURCES = ["runtime", "build"] as const;
+export type LogSource = (typeof LOG_SOURCES)[number];
+
+export function isValidLogSource(value: string): value is LogSource {
+  return (LOG_SOURCES as readonly string[]).includes(value);
+}
+
+/**
+ * Keep only lines from one source. Tilt marks image build output "build" and everything a running service prints
+ * "runtime"; a line with no source (local-process logs, which have no build step) is runtime output.
+ */
+export function filterLogSource<T extends { source: string | null }>(
+  lines: readonly T[],
+  source: LogSource,
+): T[] {
+  return lines.filter((line) => (line.source === "build") === (source === "build"));
+}
+
 /** True when `tilt logs` failed because no Tilt server answered, as opposed to rejecting its arguments. */
 export function isTiltConnectionFailure(stderr: string): boolean {
   return /connection refused|connecting to Tilt|no such host|dial tcp|websocket_token/i.test(

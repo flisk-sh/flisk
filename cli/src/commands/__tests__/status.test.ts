@@ -349,6 +349,17 @@ describe("flisk status", () => {
       ["invoices", "ok", "ok"],
     );
 
+    it("names the logs call to read in each readiness failure, in JSON", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const output = await runStatus(["--json"]);
+      const failures = JSON.parse(output).data.tilt.readiness.failures as Array<{
+        name: string;
+        next?: string;
+      }>;
+      const api = failures.find((failure) => failure.name === "orders-api");
+      expect(api?.next).toBe('logs services=["orders-api"] source="runtime"');
+    });
+
     it("does not call a service ready when a dependency has failed, in JSON", async () => {
       vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
       const output = await runStatus(["--json"]);

@@ -31,7 +31,7 @@ The `flisk mcp` server gives the agent 24 tools. Each runs the matching Flisk co
 - **Build:** `project_templates` lists the starters `project_init` can clone, `project_init` creates a project or clones a starter, `resource_create` scaffolds a backend, frontend, worker, MCP server or agent, `tool_add` adds a tool by name (react, postgresql, rag…) and rejects cloud providers, `stack_assign` puts resources in a stack, `config_regenerate` rewrites the generated master files (a dry run unless `dryRun` is `false`).
 - **Run:** `up` starts the stack (or `only` some services and their dependencies), `status` reports readiness and URLs, `down` stops it, `resource_restart` restarts one service, and `resource_run` runs a one-off command (a seed script, `printenv`) with one service's environment.
 - **Inspect:** `project_info`, `resource_list`, `stack_list` and `network_list` report the project, its services, its stacks and their URLs; `runtime_check` checks that the installed CLI has its bundled engine.
-- **Debug:** `logs` returns recent output, `config_verify` and `config_explain` check the generated files, `agent_list` and `agent_sessions` list agent resources and read their sessions. `project_import` adopts an existing Compose project and `project_eject` hands the generated Tilt files over (it needs `confirm: true`).
+- **Debug:** `logs` returns recent output (pass `source: "runtime"` to see only what a service printed, which is where a crash cause is, instead of image build steps), `config_verify` and `config_explain` check the generated files, `agent_list` and `agent_sessions` list agent resources and read their sessions. `project_import` adopts an existing Compose project and `project_eject` hands the generated Tilt files over (it needs `confirm: true`).
 
 The skills tell the agent when to use which: `flisk-build` turns "build me a shop" into Flisk steps, `flisk-up`, `flisk-status`, `flisk-doctor` and `flisk-troubleshoot` cover the run-check-fix loop, and the recipes (`flisk-recipe-shop`, `flisk-recipe-saas`, `flisk-recipe-ai-agent`, `flisk-recipe-blog`) start from a working shape.
 
@@ -52,7 +52,7 @@ Build me a small online shop with a storefront and an orders API.
 Run Flisk doctor first, then start the stack and give me the URLs.
 ```
 
-With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, then poll `status` until the stack is ready. A first build pulls images and can take minutes. When a service fails, it has `logs` and `config_verify` to find out why, instead of guessing at Docker. What it builds, and whether every fix lands, still depends on the agent and the model.
+With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, then poll `status` until the stack is ready. A first build pulls images and can take minutes. When a service fails, each `data.tilt.readiness.failures` entry names the `logs` call to make in `next`, and it has `logs` (with `source: "runtime"`) and `config_verify` to find out why, instead of guessing at Docker. What it builds, and whether every fix lands, still depends on the agent and the model.
 
 For Cursor, run `flisk connect cursor` and open the folder in Cursor. For Codex, run `flisk connect codex` and start `codex` in the folder; Codex loads a project `.codex/config.toml` only for trusted projects.
 

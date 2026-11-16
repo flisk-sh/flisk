@@ -432,6 +432,10 @@ export const COMMAND_SPECS = [
                 description: "Only logs newer than this duration, for example 30s, 5m, 1h",
             },
             {
+                flags: "--source <source>",
+                description: "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
+            },
+            {
                 flags: "--unhealthy",
                 description: "Only services that are failing or still starting",
                 defaultValue: false,
@@ -453,7 +457,7 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json",
+                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",
             ],
         },
         subcommands: [],

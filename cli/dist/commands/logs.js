@@ -17,7 +17,7 @@ import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { unhealthyServiceNames } from "../utils/status-groups.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
-import { DEFAULT_LOG_TAIL, isTiltConnectionFailure, isValidSince, isValidTail, MAX_LOG_TAIL, parseTiltLogLines, sinceMilliseconds, } from "../utils/tilt-logs.js";
+import { DEFAULT_LOG_TAIL, filterLogSource, isTiltConnectionFailure, isValidLogSource, isValidSince, isValidTail, LOG_SOURCES, MAX_LOG_TAIL, parseTiltLogLines, sinceMilliseconds, } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
 import { isValidPort } from "../utils/validation.js";
 /** Resource names Tilt knows about, or null when they cannot be listed (the logs call then reports the real error). */
@@ -84,11 +84,12 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
+    .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
     .option("--unhealthy", "Only services that are failing or still starting", false)
     .option("--port <n>", "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)")
     .option("--project <path>", "View logs for the Flisk project in this folder (default: the current project)")
     .option("--json", "Output one JSON object and exit", false)
-    .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json")
+    .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json")
     .action(async (options, command) => {
     let secrets = [];
     const fail = (code, rawMessage, exitCode = 1, suggestions = []) => {
@@ -115,6 +116,10 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     if (options.since !== undefined && !isValidSince(options.since)) {
         fail("USAGE", "--since must be a duration such as 30s, 5m or 1h", 2);
     }
+    if (options.source !== undefined && !isValidLogSource(options.source)) {
+        fail("USAGE", `--source must be one of: ${LOG_SOURCES.join(", ")}`, 2);
+    }
+    const source = options.source;
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText))
         fail("USAGE", "--port must be a valid port number", 2);
@@ -126,6 +131,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 services,
                 tail,
                 since: options.since ?? null,
+                ...(source ? { source } : {}),
                 lines: [],
                 unhealthy: [],
             })));
@@ -169,12 +175,19 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             }
             // Lines were masked when written; masking again covers a log from before a secret was added, and the guard masks a
             // private key that spans lines.
-            const lines = redactLogLines(readNativeLogLines(projectRoot, selected, {
-                tail,
+            const read = readNativeLogLines(projectRoot, selected, {
+                tail: source ? MAX_LOG_TAIL : tail,
                 sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
-            }), secrets);
+            });
+            const lines = redactLogLines((source ? filterLogSource(read, source) : read).slice(-tail), secrets);
             if (options.json) {
-                console.log(JSON.stringify(redactValue(createMachineEnvelope({ services, tail, since: options.since ?? null, lines }), secrets)));
+                console.log(JSON.stringify(redactValue(createMachineEnvelope({
+                    services,
+                    tail,
+                    since: options.since ?? null,
+                    ...(source ? { source } : {}),
+                    lines,
+                }), secrets)));
                 return;
             }
             if (lines.length === 0) {
@@ -218,10 +231,12 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             if (selectedServices.length === 0)
                 return reportAllHealthy();
         }
-        const args = ["--port", activePortText, "--tail", String(tail)];
+        // A source filter needs structured lines, and the tail must count the lines kept, not the build output before them.
+        const structured = Boolean(options.json) || source !== undefined;
+        const args = ["--port", activePortText, "--tail", String(source ? MAX_LOG_TAIL : tail)];
         if (options.since !== undefined)
             args.push("--since", options.since);
-        if (options.json)
+        if (structured)
             args.push("--json");
         // `--` so a service name that starts with "-" is never read as a Tilt flag.
         if (selectedServices.length > 0)
@@ -234,12 +249,26 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             }
             fail("TILT_LOGS_FAILED", `tilt logs failed: ${detail}`);
         }
-        if (!options.json) {
+        if (!structured) {
             process.stdout.write(redactSecrets(result.stdout, secrets));
             return;
         }
-        const lines = redactLogLines(parseTiltLogLines(result.stdout, tail), secrets);
-        console.log(JSON.stringify(redactValue(createMachineEnvelope({ services, tail, since: options.since ?? null, lines }), secrets)));
+        const parsed = parseTiltLogLines(result.stdout, source ? MAX_LOG_TAIL : tail);
+        const lines = redactLogLines((source ? filterLogSource(parsed, source) : parsed).slice(-tail), secrets);
+        if (!options.json) {
+            const width = Math.max(0, ...lines.map((line) => line.resource?.length ?? 0));
+            for (const line of lines) {
+                console.log(redactSecrets(`${(line.resource ?? "").padEnd(width)} | ${line.text}`, secrets));
+            }
+            return;
+        }
+        console.log(JSON.stringify(redactValue(createMachineEnvelope({
+            services,
+            tail,
+            since: options.since ?? null,
+            ...(source ? { source } : {}),
+            lines,
+        }), secrets)));
     };
     await runCommand(action);
 });
