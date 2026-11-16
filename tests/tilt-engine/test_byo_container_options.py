@@ -189,7 +189,7 @@ def test_compose_reads_command_and_keeps_the_escaped_dollar(tmp_path):
 @TILT_REQUIRED
 @pytest.mark.parametrize(
     "command",
-    ["'server'", "[]", "['']", "['a', 3]", "['a\\nb']"],
+    ["'server'", "[]", "['']", "['a', 3]", "['a\\x01b']", "['a\\rb']", "['a\\u2028b']"],
 )
 def test_a_bad_command_stops_generation(tmp_path, command):
     body = LOAD + (
@@ -200,6 +200,32 @@ def test_a_bad_command_stops_generation(tmp_path, command):
 
     assert FAIL_MARKER in output and "'container.command' must be" in output, output[-2000:]
     assert RESULT_MARKER not in output
+
+
+MULTILINE_BODY = (
+    "load('@ENGINE/topologies/platform/docker/compose/compose.star', 'generate_backend_compose_entry', 'generate_app_compose_from_entries')\n"
+    + """
+app = {
+    'appType': 'bring-your-own', 'stack': 'ml', 'port': 5000, 'image': 'postgres:18-alpine',
+    'container': {'command': ['sh', '-c', 'set -eu\\nlog() { echo "x: $$1"; }\\n\\tlog done\\n']},
+}
+entries = [generate_backend_compose_entry('services/ml', 'ml', {'name': 'upgrade'}, app)]
+r = {'entry': entries[0], 'yaml': generate_app_compose_from_entries('services/ml', entries)}
+"""
+)
+
+
+@TILT_REQUIRED
+def test_a_multi_line_script_stays_one_escaped_yaml_string(tmp_path):
+    output = run_tilt(tmp_path, MULTILINE_BODY)
+    assert RESULT_MARKER in output, output[-3000:]
+    entry = json.loads(output.split(RESULT_MARKER, 1)[1].strip())["entry"]
+
+    # A real line break inside the string would let a script line start a second Compose key.
+    script_line = next(line for line in entry.split("\n") if line.strip().startswith('"set -eu'))
+    assert script_line.strip() == '"set -eu\\nlog() { echo \\"x: $$1\\"; }\\n\\tlog done\\n"'
+    # No script line may start a line of its own in the Compose file.
+    assert [line for line in entry.split("\n") if line.startswith(("log()", "\tlog"))] == []
 
 
 ENTRYPOINT_BODY = (
@@ -263,7 +289,7 @@ def test_compose_reads_entrypoint_and_keeps_the_escaped_dollar(tmp_path):
 
 
 @TILT_REQUIRED
-@pytest.mark.parametrize("entrypoint", ["'/entry.sh'", "['']", "['a', 3]", "['a\\nb']"])
+@pytest.mark.parametrize("entrypoint", ["'/entry.sh'", "['']", "['a', 3]", "['a\\rb']"])
 def test_a_bad_entrypoint_stops_generation(tmp_path, entrypoint):
     body = LOAD + (
         "m = {{'appType': 'bring-your-own', 'stack': 'tube', 'port': 9000, 'image': 'nginx:alpine', 'container': {{'entrypoint': {}}}}}\n"

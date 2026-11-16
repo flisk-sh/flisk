@@ -7,7 +7,7 @@ import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { isGenerateName, parseGenerateSpec } from "./generated-secrets.js";
 import { isPlainObject } from "./is-plain-object.js";
 import { declaresCommand, serviceLabel, validateNativeServiceFields } from "./native-service.js";
-import { containerErrors } from "./service-manifest-container.js";
+import { CONTAINER_WORD_FIELD, containerErrors } from "./service-manifest-container.js";
 import { extraPortsErrors } from "./service-manifest-ports.js";
 import { validateSmoke } from "./smoke.js";
 
@@ -205,7 +205,7 @@ function lineBreakErrors(
   while (pending.length > 0) {
     const [value, field] = pending.pop() as [unknown, string];
     if (typeof value === "string") {
-      if (hasLineBreakOrControl(value)) {
+      if (hasLineBreakOrControl(value) && !CONTAINER_WORD_FIELD.test(field)) {
         errors.push([field, "must not contain line breaks or control characters"]);
       }
     } else if (Array.isArray(value)) {
