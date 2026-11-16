@@ -1,5 +1,5 @@
 # A real Deno Fresh 2 app (Vite, no Tailwind): the scaffolder runs at build time.
-FROM denoland/deno:latest@sha256:fa335acdf6b72106eda2cb6a8cb5f4187e7630e357467489db4b2e7352d5e432
+FROM denoland/deno:latest@sha256:a0d88a7fcbd44f062cba2748e19df67d30290ad12aa203c7c1e0b12462c483f0
 ENV DENO_NO_PROMPT=1
 WORKDIR /work
 RUN deno run -A jsr:@fresh/init app --force --tailwind=false --vscode=false --docker=false </dev/null
