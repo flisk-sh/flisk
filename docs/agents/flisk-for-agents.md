@@ -30,6 +30,21 @@ The `flisk mcp` server gives the agent 24 tools. Each runs the matching Flisk co
 - **Check the machine:** `doctor` reports what would stop a stack from starting, with a fix for each problem.
 - **Build:** `project_templates` lists the starters `project_init` can clone, `project_init` creates a project or clones a starter, `resource_create` scaffolds a backend, frontend, worker, MCP server or agent, `tool_add` adds a tool by name (react, postgresql, rag…) and rejects cloud providers, `stack_assign` puts resources in a stack, `config_regenerate` rewrites the generated master files (a dry run unless `dryRun` is `false`).
 - **Run:** `up` starts the stack (or `only` some services and their dependencies), `status` reports readiness and URLs, `down` stops it, `resource_restart` restarts one service, and `resource_run` runs a one-off command (a seed script, `printenv`) with one service's environment.
+
+### Is it ready? The `state` field
+
+For services that run as local processes (those that declare a `command`), `up` and `resource_restart` say where the start stands in `data.state`, with `data.ready` as its boolean:
+
+| `state` | Meaning | What to do |
+| --- | --- | --- |
+| `ready` | Every service passed its readiness check. | Use the URLs. |
+| `starting` | The wait window ended; the run keeps going. `data.services` shows each service and `data.logs` its latest output. | Poll `status`; do not call `up` again. |
+| `failed` | A service exited or never became ready. `data.failures[].logs` holds its last lines (secrets masked, repeats folded, old runs left out). | Fix the cause (usually `.env` or `service.json`), then call `up` again. |
+| `timeout` | `waitForReady` ran out before every service was ready (an error, code `UP_NOT_READY_IN_TIME`). | Poll `status`, or call again with a longer `waitSeconds`. |
+
+Pass `waitForReady: true` to make `up` wait for readiness itself (default 120 s, up to 600 s through `waitSeconds`). Without it, `up` waits up to 15 s and only watches for an early failure. A Tilt run does not report `state`: use `status`.
+
+`resource_restart` restarts only the service you name. It reloads `.env` first, so a repaired value takes effect, and waits for its readiness check (`waitSeconds`, default 60). Dependents keep running. A change to `service.json` needs `down` and `up`. It fails with `NATIVE_NOT_RUNNING` when nothing is running and, for a service started with `docker run`, asks you to restart the whole run.
 - **Inspect:** `project_info`, `resource_list`, `stack_list` and `network_list` report the project, its services, its stacks and their URLs; `runtime_check` checks that the installed CLI has its bundled engine.
 - **Debug:** `logs` returns recent output (pass `source: "runtime"` to see only what a service printed, which is where a crash cause is, instead of image build steps), `config_verify` and `config_explain` check the generated files, `agent_list` and `agent_sessions` list agent resources and read their sessions. `project_import` adopts an existing Compose project and `project_eject` hands the generated Tilt files over (it needs `confirm: true`).
 
@@ -52,7 +67,7 @@ Build me a small online shop with a storefront and an orders API.
 Run Flisk doctor first, then start the stack and give me the URLs.
 ```
 
-With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, then poll `status` until the stack is ready. A first build pulls images and can take minutes. When a service fails, each `data.tilt.readiness.failures` entry names the `logs` call to make in `next`, and it has `logs` (with `source: "runtime"`) and `config_verify` to find out why, instead of guessing at Docker. What it builds, and whether every fix lands, still depends on the agent and the model.
+With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, then poll `status` until the stack is ready. A first build pulls images and can take minutes. When a service fails, each `data.tilt.readiness.failures` entry names the `logs` call to make in `next`, and it has `logs` (with `source: "runtime"`) and `config_verify` to find out why, instead of guessing at Docker. For a stack of local processes (services with a `command`), a failed `up` result carries each failed service's last output lines in `failures[].logs`, so the cause (a missing variable, a crash) is in the tool result itself. What it builds, and whether every fix lands, still depends on the agent and the model.
 
 For Cursor, run `flisk connect cursor` and open the folder in Cursor. For Codex, run `flisk connect codex` and start `codex` in the folder; Codex loads a project `.codex/config.toml` only for trusted projects.
 

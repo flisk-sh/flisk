@@ -6,6 +6,7 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -418,6 +419,8 @@ export interface NativeRunState {
       container?: string;
       /** The dependencies a service exited without is waiting for before it starts again. */
       waitingFor?: string[];
+      /** The supervisor stopped restarting it (it kept crashing, or a job exited non-zero); only a restart or a new `up` revives it. */
+      failed?: boolean;
     }
   >;
 }
@@ -650,13 +653,16 @@ export async function stopNativeRun(
 export function nativeServiceStates(
   projectRoot: string,
   services: readonly string[],
-): Record<string, { status: "ready" | "pending" | "unknown"; reason?: string }> {
+): Record<string, { status: "ready" | "pending" | "error" | "unknown"; reason?: string }> {
   const state = readNativeRunState(projectRoot);
   const isUp = state !== null && isProcessAlive(state.pid);
   return Object.fromEntries(
     services.map((name) => {
       const service = state?.services[name];
       if (!isUp || !service) return [name, { status: "unknown", reason: "not running" }];
+      if (service.failed) {
+        return [name, { status: "error", reason: "exited repeatedly; the supervisor gave up" }];
+      }
       if (!service.pid || !isProcessAlive(service.pid)) {
         // A one-shot job is not restarted: one that exited 0 is done, one that did not has failed.
         if (service.job) {
@@ -730,6 +736,69 @@ export interface SupervisorEvents {
   onNote?: (service: string, message: string) => void;
 }
 
+/** Where restart requests and their answers are exchanged between `flisk restart` and the supervising `flisk up`. */
+export function nativeControlDir(projectRoot: string): string {
+  return join(projectRoot, NATIVE_DIR, "control");
+}
+
+const CONTROL_POLL_MS = 250;
+
+export interface NativeRestartResult {
+  /** `restarting`: accepted, not decided yet. */
+  state: "restarting" | "ready" | "failed" | "timeout";
+  pid?: number;
+  reason?: string;
+  /** Epoch ms before which log lines belong to an earlier start (set with a failure, for its log tail). */
+  logsSince?: number;
+}
+
+/**
+ * Asks the `flisk up` that supervises this project's local processes to restart one service, and waits for the outcome:
+ * `ready`, `failed`, `timeout` (the service is still starting when `waitMs` passes), or `not-running` (no supervisor).
+ * `waitMs: 0` returns as soon as the supervisor has accepted the request (`restarting`).
+ */
+export async function requestNativeRestart(
+  projectRoot: string,
+  service: string,
+  options: { waitMs: number },
+): Promise<NativeRestartResult | { state: "not-running"; reason: string }> {
+  const run = readNativeRunState(projectRoot);
+  if (!run || !isProcessAlive(run.pid)) {
+    return { state: "not-running", reason: "no local processes of this project are running" };
+  }
+  const id = `${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+  const dir = nativeControlDir(projectRoot);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  writeFileSync(join(dir, `${id}.req.json`), JSON.stringify({ id, service }));
+  const resultPath = join(dir, `${id}.res.json`);
+  // Accepting a request takes a poll interval; deciding it takes the readiness check, which has its own timeout.
+  const deadline = Date.now() + Math.max(options.waitMs, 0) + 5_000;
+  let last: NativeRestartResult | undefined;
+  try {
+    while (Date.now() < deadline) {
+      try {
+        last = JSON.parse(readFileSync(resultPath, "utf-8")) as NativeRestartResult;
+      } catch {
+        last = undefined;
+      }
+      if (last && (last.state !== "restarting" || options.waitMs === 0)) return last;
+      if (last && Date.now() >= deadline - 5_000) {
+        return { state: "timeout", reason: "still starting when the wait ended" };
+      }
+      await sleep(100);
+    }
+    if (last) return { state: "timeout", reason: "still starting when the wait ended" };
+    return {
+      state: "failed",
+      reason:
+        "the supervisor did not answer; it may be busy or not a version that supports restart",
+    };
+  } finally {
+    rmSync(join(dir, `${id}.req.json`), { force: true });
+    rmSync(resultPath, { force: true });
+  }
+}
+
 interface RunningService {
   plan: NativeServicePlan;
   child?: ChildProcess;
@@ -745,6 +814,8 @@ interface RunningService {
   /** Resolves once the current process identity has been saved. Readiness waits for it. */
   identityReady?: Promise<void>;
   restartTimer?: NodeJS.Timeout;
+  /** A restart requested through the control channel is stopping and starting it: the exit of the old process is expected. */
+  restarting?: boolean;
   /** Resolves with the exit code of the current process (null when a signal ended it). */
   exited?: Promise<number | null>;
 }
@@ -781,6 +852,8 @@ export class NativeSupervisor {
   private readonly startedAt = new Date().toISOString();
   private pidStartTime?: string;
   private stopping = false;
+  private baseEnv: Readonly<Record<string, string | undefined>> | undefined;
+  private controlTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly projectRoot: string,
@@ -797,8 +870,14 @@ export class NativeSupervisor {
       extraEnvPaths?: readonly string[];
       /** Reads a process start time for run.json. Defaults to processStartTime. */
       startTimeOf?: ProcessStartTimeReader;
+      /** Plans and base env as they are now (the .env may have changed since start); a restart starts from these. */
+      reload?: () => {
+        plans: readonly NativeServicePlan[];
+        baseEnv: Readonly<Record<string, string | undefined>>;
+      };
     } = {},
   ) {
+    this.baseEnv = options.baseEnv;
     this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
     for (const plan of plans) {
       this.services.set(plan.name, {
@@ -826,6 +905,7 @@ export class NativeSupervisor {
     this.pidStartTime = await this.readStartTime(process.pid);
     if (this.stopping) return [];
     this.saveState();
+    this.startControlLoop();
     const plans = [...this.services.values()].map((service) => service.plan);
     const ready = new Map<string, Promise<boolean>>();
     const failures: Array<{ name: string; reason: string }> = [];
@@ -887,6 +967,8 @@ export class NativeSupervisor {
   async stop(): Promise<void> {
     if (this.stopping) return;
     this.stopping = true;
+    if (this.controlTimer) clearInterval(this.controlTimer);
+    rmSync(nativeControlDir(this.projectRoot), { recursive: true, force: true });
     const waves = dependencyWaves([...this.services.values()].map((s) => s.plan)).reverse();
     for (const wave of waves) {
       await Promise.all(
@@ -948,7 +1030,7 @@ export class NativeSupervisor {
     const shell = shellInvocation(plan.command);
     const child = spawn(shell.file, shell.args, {
       cwd: plan.cwd,
-      env: { ...(this.options.baseEnv ?? process.env), ...plan.env },
+      env: { ...(this.baseEnv ?? process.env), ...plan.env },
       windowsVerbatimArguments: shell.windowsVerbatimArguments,
       // Its own process group, so a stop reaches what the shell started too, and a Ctrl+C in the terminal reaches only
       // `flisk up`, which then stops the services in order.
@@ -990,7 +1072,7 @@ export class NativeSupervisor {
     code: number | null,
     signal: NodeJS.Signals | null,
   ): void {
-    if (this.stopping || service.child !== child) return;
+    if (this.stopping || service.child !== child || service.restarting) return;
     service.isReady = false;
     this.saveState();
     const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
@@ -1154,6 +1236,130 @@ export class NativeSupervisor {
     return (this.options.startTimeOf ?? processStartTime)(pid).catch(() => undefined);
   }
 
+  /** Looks for restart requests from `flisk restart` (a separate process) a few times a second while the run is up. */
+  private startControlLoop(): void {
+    if (this.controlTimer) return;
+    this.controlTimer = setInterval(() => this.handleControlRequests(), CONTROL_POLL_MS);
+    this.controlTimer.unref();
+  }
+
+  private handleControlRequests(): void {
+    if (this.stopping) return;
+    const dir = nativeControlDir(this.projectRoot);
+    let files: string[];
+    try {
+      files = readdirSync(dir).filter((file) => file.endsWith(".req.json"));
+    } catch {
+      return;
+    }
+    for (const file of files) {
+      const path = join(dir, file);
+      let request: { id?: unknown; service?: unknown };
+      try {
+        request = JSON.parse(readFileSync(path, "utf-8"));
+      } catch {
+        continue;
+      }
+      rmSync(path, { force: true });
+      if (typeof request.id !== "string" || typeof request.service !== "string") continue;
+      void this.restartService(request.service, request.id);
+    }
+  }
+
+  private writeControlResult(id: string, result: NativeRestartResult): void {
+    try {
+      const dir = nativeControlDir(this.projectRoot);
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      writeFileSync(join(dir, `${id}.res.json`), JSON.stringify(result));
+    } catch {
+      // The requester times out and reports it; the restart itself still ran.
+    }
+  }
+
+  /**
+   * Stops one service and starts it again from its current plan, then waits for its readiness check. Only this service is
+   * touched; dependents keep running and are started again by the usual rules if they exit while it is down. The result is
+   * written for the requester: `ready`, `failed` (it exited before it was ready), or `timeout`.
+   */
+  async restartService(name: string, id: string): Promise<NativeRestartResult> {
+    const finish = (result: NativeRestartResult): NativeRestartResult => {
+      this.writeControlResult(id, result);
+      return result;
+    };
+    const service = this.services.get(name);
+    if (!service) {
+      return finish({ state: "failed", reason: `"${name}" is not part of this run` });
+    }
+    if (service.plan.container) {
+      return finish({
+        state: "failed",
+        reason: `"${name}" runs as a container (docker run); restart the whole run with up and force`,
+      });
+    }
+    if (service.restarting) {
+      return finish({ state: "failed", reason: `"${name}" is already being restarted` });
+    }
+    service.restarting = true;
+    this.writeControlResult(id, { state: "restarting" });
+    const startedAt = Date.now() - 1000;
+    try {
+      if (service.restartTimer) clearTimeout(service.restartTimer);
+      service.restartTimer = undefined;
+      const pid = service.child?.pid;
+      if (pid && isChildRunning(service.child)) {
+        await stopProcessGroup(pid, this.options.stopTimeoutMs);
+      }
+      this.refreshPlans(service);
+      service.isReady = false;
+      service.gaveUp = false;
+      service.quickCrashes = 0;
+      service.waitingFor = undefined;
+      this.events.onNote?.(name, "restarting (requested)");
+      this.spawn(service);
+    } finally {
+      // From here the normal exit handling applies again: a process that dies is retried by the usual policy.
+      service.restarting = false;
+    }
+    const ready = service.plan.job
+      ? (await service.exited) === 0 && !this.stopping
+      : await waitForServiceReady(service.plan, {
+          isAlive: () => !this.stopping && isChildRunning(service.child),
+          timeoutMs: this.options.readyTimeoutMs,
+        });
+    if (ready) {
+      service.isReady = true;
+      this.saveState();
+      this.events.onNote?.(name, "ready again");
+      this.resumeDependents(name);
+      return finish({ state: "ready", pid: service.child?.pid });
+    }
+    const exited = !isChildRunning(service.child);
+    return finish({
+      state: exited ? "failed" : "timeout",
+      reason: exited
+        ? service.plan.job
+          ? "the job did not exit 0"
+          : "exited before it was ready"
+        : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
+      logsSince: startedAt,
+    });
+  }
+
+  /** A restart starts from the .env and plan as they are now, so a repaired value takes effect. */
+  private refreshPlans(service: RunningService): void {
+    const reload = this.options.reload;
+    if (!reload) return;
+    try {
+      const { plans, baseEnv } = reload();
+      const fresh = plans.find((plan) => plan.name === service.plan.name);
+      if (!fresh) return;
+      service.plan = fresh;
+      this.baseEnv = baseEnv;
+    } catch {
+      // An unreadable env file keeps the plan the run started with.
+    }
+  }
+
   private saveState(): void {
     const services: NativeRunState["services"] = {};
     for (const [name, service] of this.services) {
@@ -1168,6 +1374,7 @@ export class NativeSupervisor {
         ...(service.plan.job ? { job: true } : {}),
         ...(service.plan.container ? { container: service.plan.container } : {}),
         ...(service.waitingFor ? { waitingFor: service.waitingFor } : {}),
+        ...(service.gaveUp ? { failed: true } : {}),
       };
     }
     writeNativeRunState(this.projectRoot, {
