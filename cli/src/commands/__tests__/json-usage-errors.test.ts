@@ -26,10 +26,10 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
   });
 
   it("an unknown subcommand of a command group does the same", () => {
-    const { status, error } = usageError(["config", "verfy", "--json"]);
+    const { status, error } = usageError(["config", "verifyx", "--json"]);
     expect(status).toBe(1);
     expect(error.code).toBe("USAGE");
-    expect(error.message).toBe("error: unknown command 'verfy'");
+    expect(error.message).toBe("error: unknown command 'verifyx'");
     expect(error.suggestions).toEqual(["Did you mean verify?"]);
   });
 
