@@ -132,3 +132,18 @@ describe('${name}', () => {
 });
 `;
 }
+
+/** Creates a smoke test for the generated Hono health handler. */
+export function getBackendTestTemplate(name: string): string {
+  return `import { describe, expect, it } from 'vitest';
+import server from '../src/index.js';
+
+describe('${name}', () => {
+  it('answers the health check', async () => {
+    const response = await server.fetch(new Request('http://localhost/health'));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'ok', service: '${name}' });
+  });
+});
+`;
+}

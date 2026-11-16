@@ -3,6 +3,7 @@
 import { resolveAgentRuntime } from "../agent-runtimes/registry.js";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
 import { BACKEND_LANGUAGES, getBackendLanguage } from "../backend-languages/registry.js";
+import { getBackendTestTemplate } from "../generator/resource-templates.js";
 import { FliskError } from "../utils/errors.js";
 import { elysiaBackendProvider } from "./elysia.js";
 import { expressBackendProvider } from "./express.js";
@@ -19,6 +20,7 @@ export const honoBackendProvider = {
     dependencies: { hono: "^4.0.0" },
     devDependencies: {},
     createIndex: getBackendIndexTemplate,
+    createTest: getBackendTestTemplate,
 };
 export const BACKEND_FRAMEWORKS = {
     hono: honoBackendProvider,

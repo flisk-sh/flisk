@@ -69,10 +69,10 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // 3000 when PORT is unset, so the source, the Dockerfile and `flisk networks` agree. That is the only file that differs.
 const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "ab9eccc0e49b03ed292bcffeb84e59dcc1a35d7e54170a489242df549fa7d11e",
-  "package.json": "d1614a133b3f74c3829c8d55ade1f125dfb11873c9f4a7ea7545e6bf16e47b8b",
+  "package.json": "9ca5439e9cbffc9e806d8c153ba54bf300102cd3e7012e3e07a7cf85d0699a48",
   "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "8e92eeeb5f62315b2a3753963f71d948ac8b39dc31696177b5cbd7ac995536f9",
-  "tests/orders-api.test.ts": "acbe72a5661b26a5f26a3a3cd3372a7139b90daab19da88f587fe0e5bd815620",
+  "tests/orders-api.test.ts": "01bd607ddaed0147fb67dc8993c6d61e19ccc368bce95b48141d2e7e0c3bc0d4",
   "tsconfig.json": "c0503e8c2d9e7cb0b77a1e0eaea674f4ee03f3182ff9f5429b9bb7ba0fabee41",
 };
 
