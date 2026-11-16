@@ -1,6 +1,6 @@
 {
   "id": "compose-kiri",
-  "name": "Docker Compose on Kiri",
+  "name": "Docker Compose on Kiri (images built on Docker)",
   "optIn": true,
   "tool": {
     "name": "docker compose",
@@ -10,7 +10,7 @@
     "docker",
     "kiri"
   ],
-  "start": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') DOCKER_BUILDKIT=0 docker compose up -d --build",
+  "start": "K=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}'); docker compose build && for i in $(docker compose config --images); do docker image inspect \"$i\" >/dev/null 2>&1 && docker save \"$i\" | DOCKER_HOST=$K docker load; done; DOCKER_HOST=$K docker compose up -d --no-build",
   "stop": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down --remove-orphans",
   "purge": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans --rmi local",
   "clean": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans",
