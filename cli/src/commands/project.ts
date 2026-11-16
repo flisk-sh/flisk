@@ -136,11 +136,28 @@ export function lastLine(text: string): string {
   return lines.pop() ?? "unknown error";
 }
 
+export const ACTION_WORD_HINTS: Readonly<Record<string, string>> = {
+  validate: "flisk project --check",
+  check: "flisk project --check",
+  verify: "flisk project --check",
+};
+
+/** Looks up an action word's hint; own keys only, so `constructor` and `__proto__` never match. */
+export function actionWordHint(word: string): string | undefined {
+  const key = word.toLowerCase();
+  return Object.hasOwn(ACTION_WORD_HINTS, key) ? ACTION_WORD_HINTS[key] : undefined;
+}
+
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
 export function exitUnknownTemplate(templateName: string): never {
-  const closest = suggestClosest(templateName, Object.keys(PROJECT_TEMPLATES));
-  if (closest) {
-    console.log(chalk.yellow(`\nDid you mean "${closest}"?`));
+  const actionHint = actionWordHint(templateName);
+  if (actionHint) {
+    console.log(chalk.yellow(`\nDid you mean "${actionHint}"?`));
+  } else {
+    const closest = suggestClosest(templateName, Object.keys(PROJECT_TEMPLATES));
+    if (closest) {
+      console.log(chalk.yellow(`\nDid you mean "${closest}"?`));
+    }
   }
   console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
   console.log(chalk.yellow("\nAvailable templates:"));
@@ -609,7 +626,9 @@ export const projectCommand = addYesOption(new Command("project"))
       const runtimeNextSteps = formatRuntimeNextSteps(runtime);
       if (template) {
         if (json && !Object.hasOwn(PROJECT_TEMPLATES, template)) {
+          const actionHint = actionWordHint(template);
           throw new FliskError(`Unknown template: "${template}"`, [
+            ...(actionHint ? [`Did you mean "${actionHint}"?`] : []),
             `Use one of: ${Object.keys(PROJECT_TEMPLATES).join(", ")}`,
             "Or run `flisk project` with no template for a blank project",
           ]);

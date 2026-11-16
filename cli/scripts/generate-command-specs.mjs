@@ -62,6 +62,7 @@ function specOf(command, path) {
     aliases: command.aliases(),
     hidden: command._hidden === true,
     ...(command._helpOption === null ? { helpOptionDisabled: true } : {}),
+    ...(command._showHelpAfterError ? { showHelpAfterError: command._showHelpAfterError } : {}),
     ...(command._helpOption && command._helpOption.flags !== "-h, --help"
       ? {
           helpOption: {
