@@ -47,6 +47,7 @@ describe("not-found error suggestions", () => {
     expect(error.message).toBe('Stack "shp" not found');
     expect(error.suggestions).toEqual([
       'Did you mean "shop"?',
+      "Stacks: shop, api",
       "Run `flisk stacks` to see available stacks",
       "Run `flisk stack` to assign resources to a stack",
     ]);
@@ -63,8 +64,18 @@ describe("not-found error suggestions", () => {
     ]);
   });
 
-  it("keeps the current suggestions when no candidate is close", () => {
+  it("lists the existing stacks when no candidate is close", () => {
     const error = errorFactories.stackNotFound("missing", ["api", "web"]);
+
+    expect(error.suggestions).toEqual([
+      "Stacks: api, web",
+      "Run `flisk stacks` to see available stacks",
+      "Run `flisk stack` to assign resources to a stack",
+    ]);
+  });
+
+  it("keeps the current suggestions when the project has no stacks", () => {
+    const error = errorFactories.stackNotFound("missing", []);
 
     expect(error.suggestions).toEqual([
       "Run `flisk stacks` to see available stacks",
