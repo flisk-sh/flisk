@@ -52,7 +52,7 @@ Build me a small online shop with a storefront and an orders API.
 Run Flisk doctor first, then start the stack and give me the URLs.
 ```
 
-With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, then poll `status` until the stack is ready. A first build pulls images and can take minutes. When a service fails, each `data.tilt.readiness.failures` entry names the `logs` call to make in `next`, and it has `logs` (with `source: "runtime"`) and `config_verify` to find out why, instead of guessing at Docker. What it builds, and whether every fix lands, still depends on the agent and the model.
+With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, then poll `status` until the stack is ready. A first build pulls images and can take minutes. When a service fails, each `data.tilt.readiness.failures` entry names the `logs` call to make in `next`, and it has `logs` (with `source: "runtime"`) and `config_verify` to find out why, instead of guessing at Docker. For a stack of local processes (services with a `command`), a failed `up` result carries each failed service's last output lines in `failures[].logs`, so the cause (a missing variable, a crash) is in the tool result itself. What it builds, and whether every fix lands, still depends on the agent and the model.
 
 For Cursor, run `flisk connect cursor` and open the folder in Cursor. For Codex, run `flisk connect codex` and start `codex` in the folder; Codex loads a project `.codex/config.toml` only for trusted projects.
 
