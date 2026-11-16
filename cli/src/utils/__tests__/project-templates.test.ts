@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createProgram } from "../../program.js";
@@ -168,12 +170,65 @@ describe("listProjectTemplates", () => {
 });
 
 describe("templateGitCommands", () => {
-  it("clones and then checks out the pinned commit", () => {
+  it("clones and then moves the default branch to the pinned commit", () => {
     expect(templateGitCommands({ repo: "r.git", description: "", ref: "abc" }, "/tmp/x")).toEqual([
       ["clone", "r.git", "/tmp/x"],
-      ["-C", "/tmp/x", "checkout", "--quiet", "--detach", "abc"],
+      ["-C", "/tmp/x", "reset", "--hard", "--quiet", "abc"],
       ["-C", "/tmp/x", "remote", "rename", "origin", "upstream"],
     ]);
+  });
+
+  it("leaves a pinned starter on a named branch whose tip is the pinned commit (#4286)", () => {
+    const work = mkdtempSync(join(tmpdir(), "flisk-template-git-"));
+    try {
+      const git = (cwd: string, ...args: string[]) =>
+        execFileSync(
+          "git",
+          [
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "commit.gpgsign=false",
+            ...args,
+          ],
+          {
+            cwd,
+            encoding: "utf-8",
+            stdio: ["ignore", "pipe", "pipe"],
+          },
+        ).trim();
+      const source = join(work, "starter");
+      mkdirSync(source);
+      git(source, "init", "--quiet", "--initial-branch=main");
+      writeFileSync(join(source, "a.txt"), "1\n");
+      git(source, "add", ".");
+      git(source, "commit", "--quiet", "-m", "pinned");
+      const pinned = git(source, "rev-parse", "HEAD");
+      writeFileSync(join(source, "a.txt"), "2\n");
+      git(source, "commit", "--quiet", "-am", "newer");
+
+      const destination = join(work, "project");
+      for (const args of templateGitCommands(
+        { repo: source, description: "", ref: pinned },
+        destination,
+      )) {
+        git(work, ...args);
+      }
+
+      expect(git(destination, "symbolic-ref", "--short", "HEAD")).toBe("main");
+      expect(git(destination, "rev-parse", "HEAD")).toBe(pinned);
+      expect(readFileSync(join(destination, "a.txt"), "utf-8")).toBe("1\n");
+      expect(git(destination, "status", "--porcelain")).toBe("");
+      writeFileSync(join(destination, "a.txt"), "mine\n");
+      git(destination, "commit", "--quiet", "-am", "first edit");
+      expect(git(destination, "branch", "--contains", "HEAD", "--format=%(refname:short)")).toBe(
+        "main",
+      );
+    } finally {
+      rmSync(work, { recursive: true, force: true });
+    }
   });
 
   it("shallow-clones an unpinned template and keeps its source as upstream", () => {

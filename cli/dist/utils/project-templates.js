@@ -115,14 +115,16 @@ export function templateTargetDir(templateName, targetDir) {
 /**
  * Fetches a repository template into `destination` and keeps its source as `upstream`.
  * Unpinned templates need only the latest commit; pinned templates retain the history needed to
- * check out their exact commit.
+ * check out their exact commit. The pinned commit is reached by moving the cloned default branch
+ * onto it, not by a detached checkout: a beginner's first commits on a detached HEAD belong to no
+ * branch and are lost on the next `git switch` (#4286).
  */
 export function templateGitCommands(template, destination) {
     const commands = [
         ["clone", ...(template.ref ? [] : ["--depth", "1"]), template.repo, destination],
     ];
     if (template.ref) {
-        commands.push(["-C", destination, "checkout", "--quiet", "--detach", template.ref]);
+        commands.push(["-C", destination, "reset", "--hard", "--quiet", template.ref]);
     }
     commands.push(["-C", destination, "remote", "rename", "origin", "upstream"]);
     return commands;

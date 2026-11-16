@@ -34,7 +34,9 @@ export declare function templateTargetDir(templateName: string, targetDir?: stri
 /**
  * Fetches a repository template into `destination` and keeps its source as `upstream`.
  * Unpinned templates need only the latest commit; pinned templates retain the history needed to
- * check out their exact commit.
+ * check out their exact commit. The pinned commit is reached by moving the cloned default branch
+ * onto it, not by a detached checkout: a beginner's first commits on a detached HEAD belong to no
+ * branch and are lost on the next `git switch` (#4286).
  */
 export declare function templateGitCommands(template: ProjectTemplate, destination: string): string[][];
 /**
