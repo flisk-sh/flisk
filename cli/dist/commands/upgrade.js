@@ -661,6 +661,31 @@ export async function upgradeAllInstallations(dryRun) {
         console.error(chalk.red("\nAt least one Flisk installation could not be updated."));
     return success;
 }
+/** Resolve origin's default branch ref (origin/HEAD, then origin/main, then origin/master). */
+function resolveGitDefaultRef(path) {
+    let defaultRef = "";
+    try {
+        defaultRef = execFileSync("git", ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"], {
+            cwd: path,
+            encoding: "utf-8",
+            stdio: "pipe",
+        }).trim();
+    }
+    catch {
+        for (const candidate of ["origin/main", "origin/master"]) {
+            try {
+                execFileSync("git", ["rev-parse", "--verify", candidate], { cwd: path, stdio: "pipe" });
+                defaultRef = candidate;
+                break;
+            }
+            catch { }
+        }
+    }
+    if (!defaultRef?.startsWith("origin/")) {
+        throw new FliskError("Could not find the default branch for origin (expected origin/HEAD, origin/main, or origin/master).", ["git remote set-head origin --auto", "flisk upgrade"]);
+    }
+    return defaultRef;
+}
 /** @internal Exported for unit tests only; not part of the package API. */
 export async function upgradeViaGit(path) {
     const spinner = startSpinner("Updating the git installation from the default branch...");
@@ -687,27 +712,7 @@ export async function upgradeViaGit(path) {
             cwd: path,
             encoding: "utf-8",
         }).trim();
-        let defaultRef = "";
-        try {
-            defaultRef = execFileSync("git", ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"], {
-                cwd: path,
-                encoding: "utf-8",
-                stdio: "pipe",
-            }).trim();
-        }
-        catch {
-            for (const candidate of ["origin/main", "origin/master"]) {
-                try {
-                    execFileSync("git", ["rev-parse", "--verify", candidate], { cwd: path, stdio: "pipe" });
-                    defaultRef = candidate;
-                    break;
-                }
-                catch { }
-            }
-        }
-        if (!defaultRef?.startsWith("origin/")) {
-            throw new FliskError("Could not find the default branch for origin (expected origin/HEAD, origin/main, or origin/master).", ["git remote set-head origin --auto", "flisk upgrade"]);
-        }
+        const defaultRef = resolveGitDefaultRef(path);
         const defaultBranch = defaultRef.slice("origin/".length);
         if (branch === defaultBranch) {
             spinner.text = `Fast-forwarding ${branch} from origin/${defaultBranch}...`;
@@ -764,6 +769,12 @@ async function resolveUpgradeDryRunVersion(installInfo, currentVersion) {
     if (installInfo.method === "binary" && installInfo.path) {
         const release = await getLatestBinaryRelease();
         if (!release) {
+            if (binaryAssetName()) {
+                throw new FliskError("Could not look up the latest Flisk binary release.", [
+                    "Check your network connection and retry: flisk upgrade --dry-run --json",
+                    "Or install manually: npm install -g @flisk-sh/flisk@latest",
+                ]);
+            }
             if (process.platform === "win32" && process.arch === "arm64") {
                 throw new FliskError("Flisk Windows v1 supports AMD64 only. Use WSL2 Ubuntu or a 64-bit Intel/AMD PC.", ["Run flisk upgrade inside WSL2 Ubuntu or on a 64-bit Intel/AMD PC"]);
             }
@@ -776,14 +787,16 @@ async function resolveUpgradeDryRunVersion(installInfo, currentVersion) {
         return { latestVersion, upgradeAvailable: latestVersion !== currentVersion };
     }
     if (installInfo.method === "git" && installInfo.path) {
+        const gitPath = installInfo.path;
         try {
-            execFileSync("git", ["fetch", "origin"], { cwd: installInfo.path, stdio: "pipe" });
+            execFileSync("git", ["fetch", "origin"], { cwd: gitPath, stdio: "pipe", timeout: 30000 });
+            const defaultRef = resolveGitDefaultRef(gitPath);
             const localHash = execFileSync("git", ["rev-parse", "HEAD"], {
-                cwd: installInfo.path,
+                cwd: gitPath,
                 encoding: "utf-8",
             }).trim();
-            const remoteHash = execFileSync("git", ["rev-parse", "origin/main"], {
-                cwd: installInfo.path,
+            const remoteHash = execFileSync("git", ["rev-parse", defaultRef], {
+                cwd: gitPath,
                 encoding: "utf-8",
             }).trim();
             const latestVersion = remoteHash.substring(0, 7);
@@ -791,7 +804,12 @@ async function resolveUpgradeDryRunVersion(installInfo, currentVersion) {
         }
         catch (err) {
             logVerbose("Git remote check failed", err);
-            return { latestVersion: "latest", upgradeAvailable: false };
+            if (err instanceof FliskError)
+                throw err;
+            throw new FliskError(`Could not check the git installation for updates: ${getErrorMessage(err)}`, [
+                "Check your network connection and retry: flisk upgrade --dry-run --json",
+                "Or check the checkout manually: git fetch origin",
+            ]);
         }
     }
     const latestVersion = await getLatestVersion({ quiet: true });

@@ -2004,6 +2004,74 @@ describe("upgradeCommand action handler", () => {
       });
     });
 
+    function setupGitCheckout(): string {
+      const gitDir = join(tmp, "json-repo");
+      const binDir = join(gitDir, "flisk-cli", "bin");
+      mkdirSync(join(gitDir, ".git"), { recursive: true });
+      mkdirSync(binDir, { recursive: true });
+      const bin = join(binDir, "flisk");
+      writeFileSync(bin, "#!/bin/sh");
+      findOnPathMock.mockReturnValue(bin);
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      return bin;
+    }
+
+    it("reports a release lookup failure, not an unsupported OS, on a supported platform", async () => {
+      const binaryPath = join(realpathSync(tmp), "flisk");
+      writeFileSync(binaryPath, "ELF");
+      findOnPathMock.mockReturnValue(binaryPath);
+      Object.defineProperty(process, "execPath", { value: binaryPath, configurable: true });
+      execFileSyncMock.mockReturnValue("ELF 64-bit executable");
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+      expect(res.status).toBe(1);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0].message).toContain(
+        "Could not look up the latest Flisk binary release",
+      );
+      expect(envelope.errors[0].message).not.toContain("Unsupported OS");
+      expect(envelope.errors[0].suggestions.join(" ")).toContain("retry");
+    });
+
+    it("compares against origin/master when origin/main does not exist in --dry-run --json", async () => {
+      setupGitCheckout();
+      execFileSyncMock.mockImplementation((_cmd: string, args: string[]) => {
+        if (args[0] === "symbolic-ref") return "origin/master\n";
+        if (args[0] === "rev-parse" && args[1] === "HEAD") return "aaaaaaa1111111\n";
+        if (args[0] === "rev-parse" && args[1] === "origin/master") return "bbbbbbb2222222\n";
+        if (args[0] === "rev-parse" && args[1] === "origin/main") {
+          throw new Error("fatal: ambiguous argument 'origin/main'");
+        }
+        return "";
+      });
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+      expect(res.status).toBe(0);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope.data).toMatchObject({
+        method: "git",
+        latestVersion: "bbbbbbb",
+        upgradeAvailable: true,
+      });
+    });
+
+    it("exits 1 with an error envelope when git fetch fails in --dry-run --json", async () => {
+      setupGitCheckout();
+      execFileSyncMock.mockImplementation((_cmd: string, args: string[]) => {
+        if (args[0] === "fetch") throw new Error("fatal: unable to access remote");
+        return "";
+      });
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+      expect(res.status).toBe(1);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0].message).toContain("Could not check the git installation");
+    });
+
     it("refuses --json without --dry-run using an error envelope that names --dry-run", async () => {
       const npmBin = join(tmp, "node_modules", ".bin", "flisk");
       mkdirSync(dirname(npmBin), { recursive: true });
