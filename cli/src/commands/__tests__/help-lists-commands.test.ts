@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import pkg from "../../../package.json" with { type: "json" };
 import { createTempDir, runFlisk } from "../../test-support/index.js";
-import { listedCommandNames, showHelp } from "../help.js";
+import { listedCommandNames, showDemoHelp, showHelp } from "../help.js";
 import { openCommand } from "../open.js";
 import { getRegisteredCommands } from "../registry.js";
 
@@ -81,6 +81,25 @@ describe("flisk --help", () => {
       expect(output).toContain("Quick start:");
       expect(output).toContain("Examples:");
       expect(output).toContain("https://github.com/flisk-sh/flisk");
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it("lists the demo flags for flisk demo --help", () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
+      logs.push(args.map(String).join(" "));
+    });
+    try {
+      showDemoHelp();
+      const output = logs.join("\n");
+      expect(output).toContain("Usage: flisk demo [options]");
+      expect(output).toContain("--project <dir>");
+      expect(output).toContain("--keep");
+      expect(output).toContain("--no-docker");
+      expect(output).toContain("-y, --yes");
+      expect(output).not.toContain("Project Level");
     } finally {
       logSpy.mockRestore();
     }

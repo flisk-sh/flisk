@@ -171,6 +171,36 @@ function formatCommand(
   return `  ${nameFormatted} ${descFormatted}${aliasFormatted}`;
 }
 
+/** Help for the one-command demo flow, so `flisk demo --help` lists the flags it reads (#4487). */
+export function showDemoHelp(): void {
+  console.log(FLISK_BANNER);
+  console.log(chalk.gray("\n  Run the demo stack on your computer with one command.\n"));
+  console.log(chalk.gray("  Usage: flisk demo [options]\n"));
+  console.log(chalk.bold.yellow("  Options:"));
+  console.log(
+    `  ${chalk.cyan("--project <dir>".padEnd(20))} ${chalk.white("Clone the demo into this directory")}`,
+  );
+  console.log(
+    `  ${chalk.cyan("--template <name>".padEnd(20))} ${chalk.white("Name the starter to run (same as flisk <name>)")}`,
+  );
+  console.log(
+    `  ${chalk.cyan("--keep".padEnd(20))} ${chalk.white("Keep the cloned directory after the demo")}`,
+  );
+  console.log(
+    `  ${chalk.cyan("--no-docker".padEnd(20))} ${chalk.white("Run the demo as local processes")}`,
+  );
+  console.log(`  ${chalk.cyan("-y, --yes".padEnd(20))} ${chalk.white("Skip confirmation prompts")}`);
+  console.log(
+    `  ${chalk.cyan("--verbose".padEnd(20))} ${chalk.white("Enable verbose output")}`,
+  );
+  console.log(`  ${chalk.cyan("-h, --help".padEnd(20))} ${chalk.white("Show this help")}`);
+  console.log(`  ${chalk.cyan("-v, --version".padEnd(20))} ${chalk.white("Display version number")}`);
+  console.log();
+  console.log(chalk.gray(`  For every command: ${chalk.cyan("flisk --help")}`));
+  console.log(chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/flisk-sh/flisk")}`));
+  console.log();
+}
+
 export function showHelp(): void {
   console.log(FLISK_BANNER);
 
