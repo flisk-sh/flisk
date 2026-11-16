@@ -446,9 +446,9 @@ describe("the review, the recovery message and the folder guard", () => {
   it("--start needs npm even when Bun is installed, because the services run npm run dev", () => {
     expect(startBlockers(local, () => true)).toEqual([]);
     expect(startBlockers(local, (p) => p !== "npm")).toEqual(["npm"]);
-    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(
-      expect.arrayContaining(["npm", "bun"]),
-    );
+    // the services start with npm run dev, so a missing Bun alone does not block --start (#4459)
+    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(["npm"]);
+    expect(startBlockers(local, (p) => p !== "bun")).toEqual([]);
     expect(startBlockers({ ...local, starter: "x" }, () => false)).toEqual([]);
   });
 
