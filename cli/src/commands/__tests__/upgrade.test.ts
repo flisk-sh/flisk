@@ -1881,4 +1881,151 @@ describe("upgradeCommand action handler", () => {
       expect(res.stdout).toContain("Upgrade complete!");
     });
   });
+
+  describe("--json flag (#4262)", () => {
+    it("exits 0 and emits a versioned JSON envelope with current and latest versions on --dry-run --json", async () => {
+      const npmBin = join(tmp, "node_modules", ".bin", "flisk");
+      mkdirSync(dirname(npmBin), { recursive: true });
+      writeFileSync(npmBin, "#!/bin/sh");
+      findOnPathMock.mockReturnValue(npmBin);
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      execSyncMock.mockReturnValue("1.4.0\n");
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+      expect(res.status).toBe(0);
+      expect(res.stderr).toBe("");
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope).toEqual({
+        schemaVersion: 1,
+        data: {
+          dryRun: true,
+          currentVersion: "1.3.0",
+          latestVersion: "1.4.0",
+          upgradeAvailable: true,
+          method: "npm",
+          path: npmBin,
+          installations: [{ method: "npm", path: npmBin }],
+        },
+        errors: [],
+      });
+    });
+
+    it("emits upgradeAvailable: false when already on the latest version with --dry-run --json", async () => {
+      const npmBin = join(tmp, "node_modules", ".bin", "flisk");
+      mkdirSync(dirname(npmBin), { recursive: true });
+      writeFileSync(npmBin, "#!/bin/sh");
+      findOnPathMock.mockReturnValue(npmBin);
+      getPackageVersionMock.mockReturnValue("1.4.0");
+      execSyncMock.mockReturnValue("1.4.0\n");
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+      expect(res.status).toBe(0);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope).toEqual({
+        schemaVersion: 1,
+        data: {
+          dryRun: true,
+          currentVersion: "1.4.0",
+          latestVersion: "1.4.0",
+          upgradeAvailable: false,
+          method: "npm",
+          path: npmBin,
+          installations: [{ method: "npm", path: npmBin }],
+        },
+        errors: [],
+      });
+    });
+
+    it("reports binary release versions in --dry-run --json", async () => {
+      const fakeBin = realpathSync(tmp);
+      const binaryPath = join(fakeBin, "flisk");
+      writeFileSync(binaryPath, "ELF");
+      findOnPathMock.mockReturnValue(binaryPath);
+      Object.defineProperty(process, "execPath", { value: binaryPath, configurable: true });
+      execFileSyncMock.mockReturnValue("ELF 64-bit executable");
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ tag_name: "v1.4.0" }),
+        }),
+      );
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+      expect(res.status).toBe(0);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope).toEqual({
+        schemaVersion: 1,
+        data: {
+          dryRun: true,
+          currentVersion: "1.3.0",
+          latestVersion: "1.4.0",
+          upgradeAvailable: true,
+          method: "binary",
+          path: binaryPath,
+          installations: [{ method: "binary", path: binaryPath }],
+        },
+        errors: [],
+      });
+    });
+
+    it("lists every installation found on PATH when --dry-run --json --all is passed", async () => {
+      const npmBin = join(tmp, "node_modules", ".bin", "flisk");
+      const bunBin = join(tmp, ".bun", "bin", "flisk");
+      mkdirSync(dirname(npmBin), { recursive: true });
+      mkdirSync(dirname(bunBin), { recursive: true });
+      writeFileSync(npmBin, "#!/bin/sh");
+      writeFileSync(bunBin, "#!/bin/sh");
+      findOnPathMock.mockReturnValue(npmBin);
+      findAllOnPathMock.mockReturnValue([npmBin, bunBin]);
+      getPackageVersionMock.mockReturnValue("1.3.0");
+      execSyncMock.mockReturnValue("1.4.0\n");
+
+      const res = await runUpgrade(["--dry-run", "--json", "--all"]);
+      expect(res.status).toBe(0);
+      expect(res.stderr).toBe("");
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope).toEqual({
+        schemaVersion: 1,
+        data: {
+          dryRun: true,
+          currentVersion: "1.3.0",
+          latestVersion: "1.4.0",
+          upgradeAvailable: true,
+          method: "npm",
+          path: npmBin,
+          installations: [
+            { method: "npm", path: npmBin },
+            { method: "bun", path: bunBin },
+          ],
+        },
+        errors: [],
+      });
+    });
+
+    it("refuses --json without --dry-run using an error envelope that names --dry-run", async () => {
+      const npmBin = join(tmp, "node_modules", ".bin", "flisk");
+      mkdirSync(dirname(npmBin), { recursive: true });
+      writeFileSync(npmBin, "#!/bin/sh");
+      findOnPathMock.mockReturnValue(npmBin);
+      getPackageVersionMock.mockReturnValue("1.3.0");
+
+      const res = await runUpgrade(["--json", "--yes"]);
+      expect(res.status).toBe(1);
+      expect(execSyncMock).not.toHaveBeenCalled();
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope).toEqual({
+        schemaVersion: 1,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: "COMMAND_FAILED",
+            message: expect.stringContaining("--dry-run"),
+            suggestions: expect.arrayContaining([expect.stringContaining("--dry-run")]),
+          }),
+        ],
+      });
+    });
+  });
 });

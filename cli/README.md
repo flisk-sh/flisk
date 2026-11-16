@@ -272,7 +272,7 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk config enable-infra <service>` | ➕ Enable an optional infrastructure service (`disable-infra` to turn it off) |
 | `flisk doctor` | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports); a project of `command` services is checked only for what its processes need |
 | `flisk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#flisk-completion-shell) |
-| `flisk upgrade` | ⬆️ Self-update to the latest version (`--dry-run`, `--force`, `--all`) |
+| `flisk upgrade` | ⬆️ Self-update to the latest version (`--dry-run`, `--dry-run --json`, `--force`, `--all`) |
 | `flisk version` | ℹ️ Show version (`--verbose`, `--json`) |
 | `flisk --help` | ❓ Show help |
 
