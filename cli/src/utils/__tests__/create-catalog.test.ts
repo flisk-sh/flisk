@@ -98,12 +98,19 @@ describe("the catalog is read from the registries, not kept here", () => {
 
   it("reads what a local project needs from the generators", () => {
     expect(localRequirements({ frontend: true })).toEqual(["node", "npm"]);
+    // A generated package.json runs `npm run dev`, from the language or the shared scaffold (#4459).
+    expect(localRequirements({ frontend: false, language: "node" })).toEqual(["npm"]);
     expect(localRequirements({ frontend: false, language: DEFAULT_BACKEND_LANGUAGE })).toEqual([
-      DEFAULT_BACKEND_LANGUAGE,
+      "npm",
     ]);
-    // A language that owns its runtime names its program in its dev command.
+    // A language without a package.json runs its own dev command.
     for (const [id, provider] of Object.entries(BACKEND_LANGUAGES)) {
-      if (!provider.devCommand) continue;
+      if (
+        !provider.devCommand ||
+        provider.createFiles?.("app").some((f) => f.filename === "package.json")
+      ) {
+        continue;
+      }
       expect(localRequirements({ frontend: false, language: id })).toEqual([
         provider.devCommand.split(" ")[0],
       ]);
