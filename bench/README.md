@@ -24,18 +24,21 @@ CI: `.github/workflows/shop-bench.yml` runs it on pull requests that touch `runt
 weekly, and by hand. It writes the table to the job summary, updates one pull request comment and uploads the JSON as an
 artifact. For a trend, download the weekly artifact into `docs/benchmarks/results/` (CI never pushes).
 
-## The Kiri lane
+## The Kiri lanes
 
-Both Kiri lanes are `optIn`: they run only when named (`--only flisk-kiri,compose-kiri`, or the `only` input of the workflow). On Kiri 0.2.1 neither finishes yet: a container on Kiri's default network has no DNS, BuildKit-based builds (Compose's builder) cannot resolve digest-pinned base images, and `bun install` inside a `--network host` build gets `ConnectionRefused`, while a plain `docker build --network host` with `wget` works. The nightly adopter run (OpenAthlete on Kiri) is the Kiri proof today.
+All Kiri lanes are `optIn`: they run only when named (`--only flisk-kiri,compose-kiri,compose-kiri-plain`, or the `only` input of the workflow). In CI the "Install Kiri" step installs the pinned `kiri-lite` .deb, starts the engine with `kiri host-access` and creates a `kiri` Docker context; if that step fails, only the Kiri lanes are skipped. Every command runs with `DOCKER_HOST` set from that context. The report names the engine on every row ("on Docker", "on Kiri").
 
-`competitors/flisk-kiri/` is the same Flisk shop as `competitors/flisk/` (its `setup.sh` and `wire.mjs` are copies) started
-against [Kiri](https://github.com/libracoder/kiri) instead of the runner's Docker: every command runs with
-`DOCKER_HOST` set from the `kiri` Docker context. It needs the `kiri` command and a `kiri` context, so it is skipped where
-Kiri is not installed. In CI the "Install Kiri" step installs the pinned `kiri-lite` .deb, starts the engine with
-`kiri host-access` and creates the context; if that step fails, only this lane is skipped. On Kiri, Flisk builds with the
-classic builder (`DOCKER_BUILDKIT=0`, set automatically) because Kiri has no BuildKit that can see local images.
+Kiri 0.2.1 cannot build images on Linux CI ([kiri#330](https://github.com/libracoder/kiri/issues/330)): the build container has no DNS, and with a host-network builder Kiri's image load rejects the BuildKit export. Pulls, prebuilt images and the Docker API work. So there are three lanes, and one of them is expected to fail:
 
-`competitors/compose-kiri/` is the plain Docker Compose shop on Kiri (same `compose.yaml`, classic builder), so Flisk on Kiri is compared with Compose on the same engine, not only with Compose on Docker.
+| Lane | What it does | State (CI, Kiri 0.2.1) |
+| --- | --- | --- |
+| `compose-kiri-plain` | plain `docker compose up -d --build` on Kiri | ❌ build fails ([#4426](https://github.com/flisk-sh/flisk/issues/4426)) |
+| `compose-kiri` | same Compose shop, images built on the runner's Docker and loaded into Kiri | ✅ |
+| `flisk-kiri` | the Flisk shop on Kiri, images built on Docker and loaded into Kiri by `docker-shim.sh` | ✅, slower first start ([#4427](https://github.com/flisk-sh/flisk/issues/4427)) |
+
+`competitors/flisk-kiri/` is the same Flisk shop as `competitors/flisk/` (its `setup.sh` and `wire.mjs` are copies). Its probe hosts are `*.flisk-kiri.localhost`, because Traefik derives them from the project name. Flisk mounts Kiri's socket into Traefik with `FLISK_DOCKER_SOCKET=/run/kiri/docker.sock`. `docker-shim.sh` is bench-only: it builds on the host, loads missing images into Kiri under a lock (skipping `ghcr.io/` and `docker.io/` refs) and forwards everything else to Kiri.
+
+Re-run after each Kiri release: `gh workflow run shop-bench.yml -f only=compose,flisk,compose-kiri-plain,compose-kiri,flisk-kiri`. The nightly adopter run (OpenAthlete on Kiri) is the other Kiri proof.
 
 ## Add a competitor in five minutes
 
