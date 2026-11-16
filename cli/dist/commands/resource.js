@@ -811,6 +811,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
     // --json never prompts: every question takes the default that --yes takes.
     const assumeYes = Boolean(options.yes || options.json);
     const action = async () => {
+        // Checks that need only the user's input run before the project lookup,
+        // so invalid input is reported even outside a Flisk project.
+        const requestedType = parseResourceType(options.type);
+        if (name)
+            assertValid(validateResourceName(name));
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
         if (!projectRoot)
             throw errorFactories.notInProject();
@@ -822,7 +827,6 @@ export const resourceCommand = addYesOption(new Command("resource"))
             assertValid(validateScaffoldName(name));
         // Support --resource-path as alias for --path
         const resourcePath = options.resourcePath || options.path;
-        const requestedType = parseResourceType(options.type);
         const isInference = options.type === INFERENCE_TYPE;
         // Validate explicit --base-path and any existing manifest at a supplied --path before the name,
         // framework, or stack prompts run, so invalid configurations fail without prompting (#4162).
