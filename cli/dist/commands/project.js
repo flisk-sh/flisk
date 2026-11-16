@@ -26,6 +26,7 @@ import { listProjectTemplates, PROJECT_TEMPLATES, resolveBundledTemplateDir, tem
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
@@ -97,6 +98,10 @@ export function lastLine(text) {
 }
 /** Refuses an unknown starter name: prints the error and the catalog, then exits non-zero. */
 export function exitUnknownTemplate(templateName) {
+    const closest = suggestClosest(templateName, Object.keys(PROJECT_TEMPLATES));
+    if (closest) {
+        console.log(chalk.yellow(`\nDid you mean "${closest}"?`));
+    }
     console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
     console.log(chalk.yellow("\nAvailable templates:"));
     for (const [name, info] of Object.entries(PROJECT_TEMPLATES)) {
