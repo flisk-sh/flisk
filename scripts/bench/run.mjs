@@ -21,6 +21,7 @@ import {
   loadCompetitors,
   renderReport,
   scanWiring,
+  selectCompetitors,
   timedLogLine,
   validateContract,
   writeResults,
@@ -396,11 +397,7 @@ async function main() {
     }
     return;
   }
-  if (opts.only) {
-    const unknown = opts.only.filter((id) => !competitors.some((c) => c.id === id));
-    if (unknown.length) throw new Error(`unknown competitor: ${unknown.join(", ")}`);
-    competitors = competitors.filter((c) => opts.only.includes(c.id));
-  }
+  competitors = selectCompetitors(competitors, opts.only);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const outDir = path.resolve(opts.out ?? path.join(root, "bench-results", stamp));
   fs.mkdirSync(outDir, { recursive: true });

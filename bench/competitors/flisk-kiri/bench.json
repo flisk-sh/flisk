@@ -1,6 +1,7 @@
 {
   "id": "flisk-kiri",
   "name": "Flisk on Kiri",
+  "optIn": true,
   "tool": {
     "name": "flisk",
     "version": "${FLISK_CMD:-flisk} --version | tail -1"

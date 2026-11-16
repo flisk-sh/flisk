@@ -53,6 +53,7 @@ jobs:
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
       - name: Install Kiri (the flisk-kiri lane; a failure here only skips that lane)
+        if: ${{ contains(inputs.only, 'kiri') }}
         continue-on-error: true
         env:
           KIRI_VERSION: "0.2.1"
@@ -69,6 +70,7 @@ jobs:
           docker context create kiri --docker host=unix:///run/kiri/docker.sock
           DOCKER_HOST=unix:///run/kiri/docker.sock docker info --format 'kiri: {{.Name}} {{.ServerVersion}}'
       - name: Kiri network check and base image pre-pull (informational)
+        if: ${{ contains(inputs.only, 'kiri') }}
         continue-on-error: true
         run: |
           export DOCKER_HOST=unix:///run/kiri/docker.sock
@@ -94,7 +96,7 @@ jobs:
           [ -n "${ONLY:-}" ] && args+=(--only "$ONLY")
           node scripts/bench/run.mjs "${args[@]}" --out "$RUNNER_TEMP/shop-bench" --work "$RUNNER_TEMP/shop-bench-work" >/dev/null
       - name: Kiri lane context diagnostics
-        if: always()
+        if: ${{ always() && contains(inputs.only, 'kiri') }}
         run: |
           d="$RUNNER_TEMP/shop-bench-work/flisk-kiri/.flisk/.flisk-out"
           ls -la "$d" 2>&1 | head -30; stat "$d/traefik-dynamic" 2>&1 | head; id
