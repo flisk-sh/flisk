@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk project launch`, `fullstack` and `portal` leave the new project on its `main` branch at the pinned starter commit instead of a detached HEAD, so your first commits are on a branch (#4286).
 - `flisk project --list --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"templates":[...]},"errors":[]}`) instead of a bare array; `key`/`repo`/`description`/`ref` are unchanged (#4247).
 
 ## 1.4.65 (2026-11-15)
