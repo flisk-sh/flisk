@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk config verify` reports an `appName` used by more than one resource, which `flisk up` already refused, so a green verify no longer hides it (#4190).
 - `flisk project --list --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"templates":[...]},"errors":[]}`) instead of a bare array; `key`/`repo`/`description`/`ref` are unchanged (#4247).
 
 ## 1.4.65 (2026-11-15)

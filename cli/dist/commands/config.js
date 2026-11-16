@@ -12,7 +12,7 @@ import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { explainConfigFile } from "../utils/config-explain.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON, RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE, } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
-import { checkDuplicateResourcePorts, checkPrismaConsistency } from "../utils/doctor-wiring.js";
+import { checkDuplicateResourceNames, checkDuplicateResourcePorts, checkPrismaConsistency, } from "../utils/doctor-wiring.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand, showError, } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
@@ -348,8 +348,10 @@ export const configCommand = new Command("config")
         // Same predicate as flisk doctor's Shared platform Postgres check.
         const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
         const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
-        // A wrong-typed dependsOn, a circular dependsOn and an invalid port are what `flisk up` refuses, so verify says the same.
+        // A duplicate appName, a wrong-typed dependsOn, a circular dependsOn and an invalid port are what `flisk up` refuses,
+        // so verify says the same.
         const graphErrors = [
+            checkDuplicateResourceNames(projectRoot, resources),
             checkDependsOnShape(projectRoot, resources),
             checkCircularDependencies(projectRoot, resources),
             checkServicePorts(projectRoot, resources),
