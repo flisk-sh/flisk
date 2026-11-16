@@ -30,6 +30,7 @@ import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.j
 import { ResourceFilePlan } from "../utils/resource-plan.js";
 import { BASE_PATH_PATTERN, healthCheckPathOf, isHealthCheckDisabled, SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { createKebabCaseValidator, isPathSafe, validateResourceName, validateStackName, } from "../utils/validation.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
@@ -547,7 +548,12 @@ export function parseResourceType(type) {
     const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
     const validTypes = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
     if (!validTypes.includes(normalized)) {
-        throw new FliskError(`Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`, [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"]);
+        const closest = suggestClosest(normalized, validTypes);
+        throw new FliskError(`Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`, [
+            ...(closest ? [`Did you mean "${closest}"?`] : []),
+            `Use one of: ${validTypes.join(", ")}`,
+            "Omit --type to create a backend",
+        ]);
     }
     return normalized;
 }

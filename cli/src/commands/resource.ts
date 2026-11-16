@@ -103,6 +103,7 @@ import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
 } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import {
   createKebabCaseValidator,
   isPathSafe,
@@ -756,9 +757,14 @@ export function parseResourceType(type: string): CreatableResourceType | InfraRe
   const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
   const validTypes: readonly string[] = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
   if (!validTypes.includes(normalized)) {
+    const closest = suggestClosest(normalized, validTypes);
     throw new FliskError(
       `Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`,
-      [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"],
+      [
+        ...(closest ? [`Did you mean "${closest}"?`] : []),
+        `Use one of: ${validTypes.join(", ")}`,
+        "Omit --type to create a backend",
+      ],
     );
   }
   return normalized as CreatableResourceType | InfraResourceType | "sdk";

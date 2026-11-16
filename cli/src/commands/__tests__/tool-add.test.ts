@@ -214,6 +214,19 @@ describe("flisk tool add", () => {
   it("names the known tools for an unknown one", () => {
     expect(() => add(["cobol"], {})).toThrow(/does not know the tool "cobol"/);
   });
+
+  it("suggests the closest known tool for a near miss and nothing for a random name", () => {
+    const suggestions = (tool: string): string[] => {
+      try {
+        add([tool], {});
+      } catch (error) {
+        return (error as FliskError).suggestions;
+      }
+      throw new Error(`${tool} should have been rejected`);
+    };
+    expect(suggestions("reakt")).toContain('Did you mean "react"?');
+    expect(suggestions("zzzz").some((line) => line.startsWith("Did you mean"))).toBe(false);
+  });
 });
 
 describe("runResource", () => {

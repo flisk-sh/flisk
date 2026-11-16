@@ -18,6 +18,7 @@ import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import {
   findTool,
   manualSteps,
@@ -86,8 +87,11 @@ export function describeTool(tool: ToolEntry, options: { name?: string; stack?: 
 }
 
 function unknownTool(input: string): FliskError {
+  const ids = toolIds();
+  const closest = suggestClosest(input, ids);
   return new FliskError(`Flisk does not know the tool "${input}".`, [
-    `Use one of: ${toolIds().join(", ")}.`,
+    ...(closest ? [`Did you mean "${closest}"?`] : []),
+    `Use one of: ${ids.join(", ")}.`,
     "See them grouped with: flisk tool add",
   ]);
 }
