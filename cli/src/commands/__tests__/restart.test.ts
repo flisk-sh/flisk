@@ -52,6 +52,27 @@ describe("flisk restart", () => {
     }
   });
 
+  it("never touches Tilt for a native project: reports NATIVE_NOT_RUNNING when nothing is running", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-native-idle-"));
+    fs.mkdirSync(path.join(tmp, ".flisk"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, ".flisk", "project.json"), "{}\n");
+    fs.mkdirSync(path.join(tmp, "services", "api"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, "services", "api", "service.json"),
+      JSON.stringify({ appName: "api", appType: "backend", port: 4000, command: "node server.js" }),
+    );
+    try {
+      const res = runFlisk(["restart", "api", "--json", "--port=59999"], tmp);
+      expect(res.status).not.toBe(0);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope.errors[0].code).toBe("NATIVE_NOT_RUNNING");
+      expect(envelope.data).toMatchObject({ ok: false, resource: "api", restarted: false });
+      expect(res.stdout).not.toContain("TILT_NOT_RUNNING");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it("reports UNKNOWN_RESOURCE for a name not in the project, before probing Tilt", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-unknown-"));
     fs.mkdirSync(path.join(tmp, ".flisk"), { recursive: true });

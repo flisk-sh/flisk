@@ -96,6 +96,8 @@ export interface NativeRunState {
         container?: string;
         /** The dependencies a service exited without is waiting for before it starts again. */
         waitingFor?: string[];
+        /** The supervisor stopped restarting it (it kept crashing, or a job exited non-zero); only a restart or a new `up` revives it. */
+        failed?: boolean;
     }>;
 }
 export declare function nativeRunStatePath(projectRoot: string): string;
@@ -124,7 +126,7 @@ export declare function stopNativeRun(projectRoot: string, options?: {
  * check, pending while it starts or the supervisor restarts it, unknown when nothing runs.
  */
 export declare function nativeServiceStates(projectRoot: string, services: readonly string[]): Record<string, {
-    status: "ready" | "pending" | "unknown";
+    status: "ready" | "pending" | "error" | "unknown";
     reason?: string;
 }>;
 /** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
@@ -151,6 +153,27 @@ export interface SupervisorEvents {
     /** A lifecycle note: started, ready, exited, restarting, gave up. */
     onNote?: (service: string, message: string) => void;
 }
+/** Where restart requests and their answers are exchanged between `flisk restart` and the supervising `flisk up`. */
+export declare function nativeControlDir(projectRoot: string): string;
+export interface NativeRestartResult {
+    /** `restarting`: accepted, not decided yet. */
+    state: "restarting" | "ready" | "failed" | "timeout";
+    pid?: number;
+    reason?: string;
+    /** Epoch ms before which log lines belong to an earlier start (set with a failure, for its log tail). */
+    logsSince?: number;
+}
+/**
+ * Asks the `flisk up` that supervises this project's local processes to restart one service, and waits for the outcome:
+ * `ready`, `failed`, `timeout` (the service is still starting when `waitMs` passes), or `not-running` (no supervisor).
+ * `waitMs: 0` returns as soon as the supervisor has accepted the request (`restarting`).
+ */
+export declare function requestNativeRestart(projectRoot: string, service: string, options: {
+    waitMs: number;
+}): Promise<NativeRestartResult | {
+    state: "not-running";
+    reason: string;
+}>;
 /** Starts and supervises the planned services. One instance per `flisk up`. */
 /**
  * How a service.json `command` line is run: the platform shell, invoked the way Node's `shell: true` does it (`/bin/sh -c`,
@@ -172,6 +195,8 @@ export declare class NativeSupervisor {
     private readonly redactLine;
     private readonly startedAt;
     private stopping;
+    private baseEnv;
+    private controlTimer?;
     constructor(projectRoot: string, plans: readonly NativeServicePlan[], events?: SupervisorEvents, options?: {
         readyTimeoutMs?: number;
         restartDelayMs?: number;
@@ -181,6 +206,11 @@ export declare class NativeSupervisor {
         baseEnv?: Readonly<Record<string, string | undefined>>;
         /** Extra env files selected by --env-file; their values must be redacted too. */
         extraEnvPaths?: readonly string[];
+        /** Plans and base env as they are now (the .env may have changed since start); a restart starts from these. */
+        reload?: () => {
+            plans: readonly NativeServicePlan[];
+            baseEnv: Readonly<Record<string, string | undefined>>;
+        };
     });
     /** The width service names are padded to in prefixed output. */
     get prefixWidth(): number;
@@ -217,6 +247,18 @@ export declare class NativeSupervisor {
      */
     private resumeDependents;
     private pipeLines;
+    /** Looks for restart requests from `flisk restart` (a separate process) a few times a second while the run is up. */
+    private startControlLoop;
+    private handleControlRequests;
+    private writeControlResult;
+    /**
+     * Stops one service and starts it again from its current plan, then waits for its readiness check. Only this service is
+     * touched; dependents keep running and are started again by the usual rules if they exit while it is down. The result is
+     * written for the requester: `ready`, `failed` (it exited before it was ready), or `timeout`.
+     */
+    restartService(name: string, id: string): Promise<NativeRestartResult>;
+    /** A restart starts from the .env and plan as they are now, so a repaired value takes effect. */
+    private refreshPlans;
     private saveState;
 }
 /** `name | ` in the service's color, padded so the output of several services lines up. */

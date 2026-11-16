@@ -8,12 +8,53 @@ import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { ensureGeneratedSecrets } from "./generated-secrets.js";
 import { isDockerRunning } from "./native-container.js";
-import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
+import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeLogLines, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 import { attachedUpInCiWarning } from "./up-hints.js";
+/** Lines of a failed service's own output a failed `up` carries, and the most characters of one line. */
+const FAILURE_LOG_LINES = 5;
+const FAILURE_LOG_LINE_CHARS = 400;
+const FAILURE_LOG_SCAN_LINES = 200;
+/** Consecutive identical lines folded into one, with how many times it came ("line (x3)"). */
+function collapseRepeats(lines) {
+    const out = [];
+    let count = 0;
+    for (const [i, line] of lines.entries()) {
+        count += 1;
+        if (line !== lines[i + 1]) {
+            out.push(count > 1 ? `${line} (x${count})` : line);
+            count = 0;
+        }
+    }
+    return out;
+}
+/**
+ * Each failure with the last lines its service wrote (`logs`). The reason alone ("kept exiting; see its output above")
+ * points at output that a `--json` or MCP caller never saw, so the cause (a missing variable, a stack trace) travels with
+ * the failure. Lines come from `.flisk/native/logs`, which the supervisor masked when it wrote them; a service that
+ * wrote nothing, or was never started, keeps its failure as it was. With `sinceEpochMs`, lines from earlier runs (the logs
+ * are appended to) are left out.
+ */
+export function withFailureLogs(projectRoot, failures, sinceEpochMs) {
+    return failures.map((failure) => {
+        // A crash loop repeats one line on every restart; reading further back and folding repeats shows what came before it.
+        const lines = readNativeLogLines(projectRoot, [failure.name], {
+            tail: FAILURE_LOG_SCAN_LINES,
+            ...(sinceEpochMs === undefined ? {} : { sinceMs: Date.now() - sinceEpochMs }),
+        })
+            .map((line) => line.text.trimEnd())
+            .filter((text) => text.trim());
+        const logs = collapseRepeats(lines)
+            .slice(-FAILURE_LOG_LINES)
+            .map((text) => text.length > FAILURE_LOG_LINE_CHARS
+            ? `${text.slice(0, FAILURE_LOG_LINE_CHARS - 1)}…`
+            : text);
+        return logs.length > 0 ? { ...failure, logs } : failure;
+    });
+}
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
 /** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
 export function runVariables(projectRoot, envFilePath) {
@@ -147,6 +188,19 @@ export async function runNativeUp(input) {
         readyTimeoutMs: input.readyTimeoutMs,
         baseEnv: vars,
         extraEnvPaths: input.envFilePath ? [input.envFilePath] : [],
+        // A restart (`flisk restart`, the MCP resource_restart) re-reads the .env, so a repaired value takes effect.
+        reload: () => {
+            const fresh = runVariables(projectRoot, input.envFilePath);
+            const replanned = planNativeRun(selected, fresh, projectRoot, readProjectNameOrUndefined(projectRoot));
+            if (replanned.errors.length > 0)
+                throw new Error(replanned.errors.join("\n"));
+            for (const service of replanned.services) {
+                if (!service.container) {
+                    Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames));
+                }
+            }
+            return { plans: replanned.services, baseEnv: fresh };
+        },
     });
     let stopping;
     const stopAndExit = (code) => {
@@ -166,13 +220,20 @@ export async function runNativeUp(input) {
             rmSync(nativeRunStatePath(projectRoot), { force: true });
         }
     });
-    const failures = await supervisor.start();
+    // The service logs are appended to across runs: only lines written since this start can explain this failure.
+    const startedAt = Date.now() - 1000;
+    const started = await supervisor.start();
     if (stopping)
         return;
-    if (failures.length > 0) {
+    if (started.length > 0) {
+        const failures = withFailureLogs(projectRoot, started, startedAt);
         const message = [
             "Local processes did not start:",
-            ...failures.map((failure) => `  ✗ ${failure.name}: ${failure.reason}`),
+            // Quiet (--json, MCP): nothing was printed above, so each failure carries its service's last lines.
+            ...failures.flatMap((failure) => [
+                `  ✗ ${failure.name}: ${failure.reason}`,
+                ...(quiet ? (failure.logs ?? []).map((line) => `      ${line}`) : []),
+            ]),
             `Output of every service: ${join(NATIVE_DIR, "logs")}/<service>.log`,
         ].join("\n");
         emit?.({ ok: false, runtime: "native", failures }, [{ code: "UP_RESOURCE_FAILED", message }]);

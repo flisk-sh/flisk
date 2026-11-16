@@ -15,6 +15,12 @@ import {
 } from "../utils/container-restart.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
+import {
+  isProcessAlive,
+  nativeServiceStates,
+  readNativeRunState,
+} from "../utils/native-runtime.js";
+import { withFailureLogs } from "../utils/native-up.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import {
@@ -220,10 +226,57 @@ export function toTextResult(run: FliskRun): McpToolResult {
   };
 }
 
+/** What the supervising `flisk up` has on record while it is still starting the local processes of a project. */
+export interface NativeUpSnapshot {
+  services: Record<string, { status: "ready" | "pending" | "error" | "unknown"; reason?: string }>;
+  /** The last lines (own output, secrets masked) of each service that is not ready. */
+  logs: Record<string, string[]>;
+}
+
+export function readNativeUpSnapshot(projectDir: string, since: number): NativeUpSnapshot | null {
+  const root = findProjectRoot(projectDir) ?? projectDir;
+  const run = readNativeRunState(root);
+  // A run on record from before this start (or whose supervisor is gone) says nothing about it.
+  if (!run || !isProcessAlive(run.pid) || Date.parse(run.startedAt) < since - 1000) return null;
+  const services = nativeServiceStates(root, Object.keys(run.services));
+  const logs: Record<string, string[]> = {};
+  for (const [name, state] of Object.entries(services)) {
+    if (state.status === "ready") continue;
+    const [withLogs] = withFailureLogs(
+      root,
+      [{ name, reason: state.reason ?? state.status }],
+      since,
+    );
+    if (withLogs?.logs?.length) logs[name] = withLogs.logs;
+  }
+  return { services, logs };
+}
+
+/**
+ * The state of a start, in one word. `starting`: launched, readiness not confirmed yet. `ready`: every local process passed its
+ * readiness check. `failed`: a process exited or gave up, or `flisk up` ended. `timeout`: readiness was not established within
+ * the wait the caller asked for with waitForReady (the stack keeps starting).
+ */
+export type UpState = "starting" | "ready" | "failed" | "timeout";
+
+function withUpState(result: McpToolResult, state: UpState): McpToolResult {
+  const envelope = result.data as { data?: Record<string, unknown> | null } | undefined;
+  if (!envelope || typeof envelope !== "object") return result;
+  return {
+    ...result,
+    data: {
+      ...envelope,
+      data: { ...(envelope.data ?? {}), state, ready: state === "ready" },
+    },
+  };
+}
+
 export interface UpDeps {
   /** Starts `flisk up` detached, with output going to a log file. */
   spawnUp: (args: string[], logFile: string, cwd?: string) => ChildProcess;
   readLog: (logFile: string) => string;
+  /** What the supervising `flisk up` has on record for the local processes of the project at this path (native runs only). */
+  nativeSnapshot?: (projectDir: string, since: number) => NativeUpSnapshot | null;
   sleep: (ms: number) => Promise<void>;
   now: () => number;
   logFile: () => string;
@@ -249,6 +302,7 @@ export const defaultUpDeps: UpDeps = {
       return "";
     }
   },
+  nativeSnapshot: readNativeUpSnapshot,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   now: () => Date.now(),
   logFile: () => join(tmpdir(), `flisk-mcp-up-${Date.now()}.log`),
@@ -288,10 +342,14 @@ export async function startUp(
   child.once("error", (error) => {
     spawnError = error;
   });
+  // Without waitForReady the wait only watches for an early failure; with it, the wait is for readiness itself.
+  const waitForReady = flag(args.waitForReady, "waitForReady");
+  const [defaultWait, maxWait] = waitForReady ? [120, 600] : [15, 60];
   const waitMs =
     typeof args.waitSeconds === "number"
-      ? Math.min(Math.max(args.waitSeconds, 0), 60) * 1000
-      : 15_000;
+      ? Math.min(Math.max(args.waitSeconds, 0), maxWait) * 1000
+      : defaultWait * 1000;
+  const launchedAt = Date.now();
   const deadline = deps.now() + waitMs;
   for (;;) {
     if (spawnError) {
@@ -319,15 +377,43 @@ export async function startUp(
           // The startup result remains valid if log cleanup is unavailable.
         }
       }
-      return { ...result };
+      // A local-process run prints its result only once every service passed its readiness check, so a success is `ready`.
+      // The Tilt path prints it at launch: say nothing about readiness there (poll `status`).
+      const reported = (
+        result.data as {
+          data?: { runtime?: string; alreadyRunning?: boolean; dryRun?: boolean } | null;
+        }
+      ).data;
+      if (result.isError) return withUpState(result, "failed");
+      if (reported?.runtime !== "native" || reported.dryRun) return { ...result };
+      if (!reported.alreadyRunning) return withUpState(result, "ready");
+      // The run was already up before this call: what it is doing now is on record, not in this result.
+      const current = deps.nativeSnapshot?.(projectPath(args.projectPath) ?? process.cwd(), 0);
+      const allReady =
+        current !== null &&
+        current !== undefined &&
+        Object.values(current.services).every((service) => service.status === "ready");
+      if (allReady || !current) return withUpState(result, allReady ? "ready" : "starting");
+      const starting = withUpState(result, "starting");
+      const envelope = starting.data as { data: Record<string, unknown> };
+      return {
+        ...starting,
+        data: {
+          ...envelope,
+          data: { ...envelope.data, services: current.services, logs: current.logs },
+        },
+      };
     }
     if (exited !== undefined) {
-      return toToolResult({
-        exitCode: exited,
-        stdout: "",
-        // Masked before it is cut, so the cut cannot shorten a secret out of recognition.
-        stderr: redactProjectText(log, projectPath(args.projectPath)).slice(-2000),
-      });
+      return withUpState(
+        toToolResult({
+          exitCode: exited,
+          stdout: "",
+          // Masked before it is cut, so the cut cannot shorten a secret out of recognition.
+          stderr: redactProjectText(log, projectPath(args.projectPath)).slice(-2000),
+        }),
+        "failed",
+      );
     }
     if (deps.now() >= deadline) {
       // A zero window would otherwise return before a failed spawn has emitted its "error" event.
@@ -338,13 +424,49 @@ export async function startUp(
     await deps.sleep(250);
   }
   child.unref();
+  const snapshot = deps.nativeSnapshot?.(
+    projectPath(args.projectPath) ?? process.cwd(),
+    launchedAt,
+  );
+  const progress = snapshot ? { services: snapshot.services, logs: snapshot.logs } : {};
+  if (waitForReady) {
+    const pending = snapshot
+      ? Object.entries(snapshot.services)
+          .filter(([, service]) => service.status !== "ready")
+          .map(([name, service]) => `${name} (${service.reason ?? service.status})`)
+      : [];
+    return {
+      data: createMachineEnvelope(
+        {
+          ok: false,
+          started: true,
+          state: "timeout" satisfies UpState,
+          ready: false,
+          pid: child.pid ?? null,
+          logFile,
+          ...progress,
+          next: "It is still starting and keeps running. Poll status until every service is ready, or call down to stop it. Next time pass a longer waitSeconds with waitForReady.",
+        },
+        [
+          {
+            code: "UP_NOT_READY_IN_TIME",
+            message: `Not ready after ${Math.round(waitMs / 1000)}s${pending.length > 0 ? `: ${pending.join(", ")}` : ""}.`,
+          },
+        ],
+      ),
+      isError: true,
+    };
+  }
   return {
     data: createMachineEnvelope({
       ok: true,
       started: true,
+      state: "starting" satisfies UpState,
+      ready: false,
       pid: child.pid ?? null,
       logFile,
-      next: "Poll the status tool until data.tilt.readiness.ready is true. Call down to stop it.",
+      ...progress,
+      next: "Started, not confirmed ready. Poll the status tool until every service is ready (data.tilt.readiness.ready for Tilt), or pass waitForReady next time to wait for it. Call down to stop it.",
     }),
     isError: false,
   };
@@ -696,7 +818,7 @@ export function createFliskTools(
     {
       name: "up",
       description:
-        "Start the stack (or part of it) detached from the optional projectPath and return without waiting for it to be ready. Poll `status` for data.tilt.readiness.ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
+        "Start the stack (or part of it) detached from the optional projectPath. The result carries `state`: `ready` (every local-process service passed its readiness check), `starting` (launched, readiness not confirmed: the default after a short wait; poll `status`, or pass waitForReady), `failed` (a service exited or gave up; the error carries its own output) or `timeout` (waitForReady was set and readiness was not reached in waitSeconds; it keeps starting). `started: true` never means ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         stack: { type: "string", description: "Only this stack" },
@@ -714,10 +836,15 @@ export function createFliskTools(
           type: "boolean",
           description: "Show what would be started without starting",
         },
+        waitForReady: {
+          type: "boolean",
+          description:
+            "Wait until every service passed its readiness check (local-process stacks), instead of only watching for an early failure",
+        },
         waitSeconds: {
           type: "number",
           description:
-            "How long to watch for an early failure before returning (default 15, max 60)",
+            "How long to wait before returning (default 15, max 60; with waitForReady default 120, max 600)",
         },
       }),
       handler: (args) => startUp(args, up),
@@ -788,7 +915,7 @@ export function createFliskTools(
       name: "resource_restart",
       aliases: ["restart_resource"],
       description:
-        "Restart one running resource in the stack along with any active container resources that transitively declare `sidecarOf` on it (Flisk-generated Compose containers restart without rebuilding their image; local-process or non-container resources and projects using an imported Tiltfile fall back to `tilt trigger`); unrelated resources are not touched. It needs a running stack: start one with `up`. Set rebuild to true for a full Tilt update (rebuild the image and recreate the container, which re-reads the project .env). Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
+        "Restart one running resource in the stack along with any active container resources that transitively declare `sidecarOf` on it (Flisk-generated Compose containers restart without rebuilding their image; local-process resources of a project that runs without Tilt are restarted by the run that supervises them (its .env is re-read, only that service is stopped and started, and the result says whether it is `ready`, `failed` with its own output, or still starting); other non-container resources and projects using an imported Tiltfile fall back to `tilt trigger`); unrelated resources are not touched. It needs a running stack: start one with `up`. Set rebuild to true for a full Tilt update (rebuild the image and recreate the container, which re-reads the project .env). Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         resource: {
@@ -798,6 +925,11 @@ export function createFliskTools(
         rebuild: {
           type: "boolean",
           description: "Rebuild the image and recreate the container through Tilt",
+        },
+        waitSeconds: {
+          type: "number",
+          description:
+            "Local-process stacks: how long to wait for the service to be ready again (default 60, max 300; 0 returns once the restart has begun)",
         },
       }),
       handler: async (args: Record<string, unknown>) => {
@@ -809,11 +941,23 @@ export function createFliskTools(
         }
         const cwd = projectPath(args.projectPath);
         const rebuild = flag(args.rebuild, "rebuild");
-        const cliArgs = ["restart", resource, "--json", ...(rebuild ? ["--rebuild"] : [])];
+        const waitSeconds =
+          typeof args.waitSeconds === "number" ? Math.min(Math.max(args.waitSeconds, 0), 300) : 60;
+        const cliArgs = [
+          "restart",
+          resource,
+          "--json",
+          `--wait=${waitSeconds}`,
+          ...(rebuild ? ["--rebuild"] : []),
+        ];
         return toToolResult(
           await run(cliArgs, {
             cwd,
-            timeoutMs: restartCliTimeoutMs(cwd, resource, rebuild),
+            // A local-process restart waits for readiness inside the command: allow for that wait.
+            timeoutMs: Math.max(
+              restartCliTimeoutMs(cwd, resource, rebuild),
+              waitSeconds * 1000 + 30_000,
+            ),
           }),
         );
       },
