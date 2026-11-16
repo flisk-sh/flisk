@@ -6,18 +6,27 @@ real="${SHIM_REAL_DOCKER:?}"
 kiri="${SHIM_KIRI_HOST:?}"
 host() { env -u DOCKER_HOST -u DOCKER_CONTEXT DOCKER_BUILDKIT=1 "$real" "$@"; }
 on_kiri() { DOCKER_HOST="$kiri" "$real" "$@"; }
+# one sync at a time (Tilt builds in parallel and Kiri's loader fails on concurrent loads); only images the stack
+# itself builds or pulls (flisk / golden / bench names), not the runner's own images
 sync() {
-  ids=$(host images -q --no-trunc) || return 1
-  for id in $(printf '%s\n' "$ids" | sort -u); do
-    on_kiri image inspect "$id" >/dev/null 2>&1 && continue
-    tags=$(host image inspect --format '{{range .RepoTags}}{{.}} {{end}}' "$id") || return 1
-    [ -n "$tags" ] || continue
-    tar="${TMPDIR:-/tmp}/kiri-shim-$$.tar"
-    # shellcheck disable=SC2086 # tags are space separated image names
-    host save -o "$tar" $tags || { rm -f "$tar"; return 1; }
-    on_kiri load -q -i "$tar" >&2 || { rm -f "$tar"; return 1; }
-    rm -f "$tar"
-  done
+  lock="${TMPDIR:-/tmp}/flisk-kiri-sync.lock"
+  until mkdir "$lock" 2>/dev/null; do sleep 0.5; done
+  rc=0
+  ids=$(host images -q --no-trunc) || rc=1
+  if [ "$rc" -eq 0 ]; then
+    for id in $(printf '%s\n' "$ids" | sort -u); do
+      on_kiri image inspect "$id" >/dev/null 2>&1 && continue
+      tags=$(host image inspect --format '{{range .RepoTags}}{{.}} {{end}}' "$id") || { rc=1; break; }
+      case "$tags" in *flisk* | *golden* | *bench*) ;; *) continue ;; esac
+      tar="${TMPDIR:-/tmp}/kiri-shim-$$.tar"
+      # shellcheck disable=SC2086 # tags are space separated image names
+      host save -o "$tar" $tags && on_kiri load -q -i "$tar" >&2 || rc=1
+      rm -f "$tar"
+      [ "$rc" -eq 0 ] || break
+    done
+  fi
+  rmdir "$lock" 2>/dev/null
+  return "$rc"
 }
 # the compose sub-command: the first word that is not a global option or an option's value
 compose_sub() {
