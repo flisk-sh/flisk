@@ -27,6 +27,7 @@ import { resourcesCommand } from "../resources.js";
 import { stacksCommand } from "../stacks.js";
 import { statusCommand } from "../status.js";
 import { upCommand } from "../up.js";
+import { upgradeCommand } from "../upgrade.js";
 
 const commandsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -215,6 +216,14 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
 };
 
 /**
+ * `upgrade --json` refuses to run without `--dry-run` so an upgrade cannot execute silently.
+ */
+const UPGRADE_JSON: { site: string; command: string[] } = {
+  site: "upgrade --json",
+  command: ["upgrade"],
+};
+
+/**
  * Commands and subcommands that register one of the three flags but have no matrix row yet. Each entry says why.
  * Shrinking this list is the work; a new entry needs a reason.
  */
@@ -359,6 +368,7 @@ function coveredSites(): Set<string> {
     ...YES_MATRIX.map((row) => row.site),
     AGENT_SESSIONS_JSON.site,
     DOCTOR_JSON.site,
+    UPGRADE_JSON.site,
   ]);
 }
 
@@ -460,6 +470,28 @@ describe("flag contract: --json for doctor", () => {
     expect(envelope.schemaVersion).toBe(1);
     expect(Array.isArray(envelope.errors)).toBe(true);
   }, 60_000);
+});
+
+describe("flag contract: --json for upgrade", () => {
+  it(`${UPGRADE_JSON.site} requires --dry-run and fails with a null-data envelope`, async () => {
+    const dir = createTempDir("flisk-upgrade-json-");
+    try {
+      const result = await runCommandInProcess(upgradeCommand, ["--json"], dir);
+      expect(result.status).toBe(1);
+      expect(result.stderr).not.toMatch(/^\{/m);
+      const envelope = parseOneEnvelope(result.stdout);
+      expect(envelope.schemaVersion).toBe(1);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors).toEqual([
+        expect.objectContaining({
+          code: "COMMAND_FAILED",
+          message: expect.stringContaining("--dry-run"),
+        }),
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("flag contract: --json error envelope for agent sessions", () => {
