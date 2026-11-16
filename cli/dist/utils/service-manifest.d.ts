@@ -1,8 +1,9 @@
+import { buildArgsErrors, envFileErrors, loggingErrors } from "./service-manifest-build-env.js";
 import { containerErrors } from "./service-manifest-container.js";
 import { dependsOnErrors } from "./service-manifest-depends-on.js";
 import { extraPortsErrors } from "./service-manifest-ports.js";
 import { volumesErrors } from "./service-manifest-volumes.js";
-export { containerErrors, dependsOnErrors, extraPortsErrors, volumesErrors };
+export { buildArgsErrors, containerErrors, dependsOnErrors, envFileErrors, extraPortsErrors, loggingErrors, volumesErrors, };
 export declare const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
 export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 /**
@@ -45,23 +46,6 @@ export declare function restartErrors(manifest: Record<string, unknown>, display
  * engine/.../compose/byo_sidecar.star. Whether the host exists in the same stack is checked across services (checkSidecars).
  */
 export declare function sidecarErrors(manifest: Record<string, unknown>, displayPath: string): string[];
-/**
- * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
- * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
- * engine/.../compose/byo_build_logging.star.
- */
-export declare function buildArgsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
-/**
- * `logging` (bring-your-own, #2965): Compose `logging`, such as `{ "driver": "json-file", "options": { "max-size": "5m" } }`.
- * Mirrors byo_logging_section in engine/.../compose/byo_build_logging.star.
- */
-export declare function loggingErrors(manifest: Record<string, unknown>, displayPath: string): string[];
-/**
- * `envFile`: extra env files for a bring-your-own resource, each a path relative to the service directory that must stay inside
- * the project (`serviceDepth` is how many directories the service sits below the project root, unknown when validating a manifest
- * alone). A missing file is not an error. Mirrors engine/.../compose/byo_env_file.star.
- */
-export declare function envFileErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
 /**
  * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
  * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
