@@ -110,7 +110,7 @@ export function kiriBuildEnv(
 }
 
 /** Kiri by its socket (`~/.kiri/run/docker.sock` on a Mac, `/run/kiri/docker.sock` on Linux) or its Docker context. */
-function isKiriHost(env: NodeJS.ProcessEnv, context: string | undefined): boolean {
+export function isKiriHost(env: NodeJS.ProcessEnv, context: string | undefined): boolean {
   const host = env.DOCKER_HOST ?? "";
   return host ? /\/\.?kiri\//.test(host) : (env.DOCKER_CONTEXT ?? context) === "kiri";
 }

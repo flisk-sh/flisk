@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 import "./utils/env-compat-init.js";
 import "./utils/engine-env-init.js";
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { cwd } from "node:process";
@@ -61,10 +61,12 @@ if (templateArg === "demo") {
     // decided before the Windows refusal and the Bun preflight below.
     const { NATIVE_DEMO_DIR, nativeDemoReason, runNativeDemo } = await import("./utils/native-demo.js");
     const { cliInvocation } = await import("./utils/cli-invocation.js");
+    const { currentDockerContext } = await import("./utils/container-engine.js");
     const reason = await nativeDemoReason({
         argv: process.argv,
         platform: process.platform,
         env: process.env,
+        kiriContext: currentDockerContext(homedir(), (path) => readFileSync(path, "utf8")),
     });
     if (reason) {
         const destination = projectArg

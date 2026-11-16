@@ -31,6 +31,8 @@ export declare function currentDockerContext(home: string, read: (path: string) 
  * caller already chose.
  */
 export declare function kiriBuildEnv(env: NodeJS.ProcessEnv, context: string | undefined): Record<string, string>;
+/** Kiri by its socket (`~/.kiri/run/docker.sock` on a Mac, `/run/kiri/docker.sock` on Linux) or its Docker context. */
+export declare function isKiriHost(env: NodeJS.ProcessEnv, context: string | undefined): boolean;
 /**
  * The Docker socket path containers mount to reach the daemon. Containers get `/var/run/docker.sock`, which is
  * Kiri's inside its Mac VM but is the host's own Docker on Linux, where Kiri runs without a VM and listens on

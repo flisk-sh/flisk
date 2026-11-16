@@ -57,6 +57,21 @@ describe("nativeDemoReason", () => {
     expect(await nativeDemoReason({ ...base, probe: probe() })).toBeNull();
   });
 
+  it("falls back on Kiri, which cannot build the full demo yet", async () => {
+    const env = { DOCKER_HOST: "unix:///run/kiri/docker.sock" };
+    expect(await nativeDemoReason({ ...base, env, probe: probe() })).toBe(
+      "Kiri cannot build the full demo yet",
+    );
+    expect(await nativeDemoReason({ ...base, probe: probe(), kiriContext: "kiri" })).toBe(
+      "Kiri cannot build the full demo yet",
+    );
+  });
+
+  it("runs the full demo on Kiri when FLISK_DEMO_ON_KIRI=1", async () => {
+    const env = { DOCKER_HOST: "unix:///run/kiri/docker.sock", FLISK_DEMO_ON_KIRI: "1" };
+    expect(await nativeDemoReason({ ...base, env, probe: probe() })).toBeNull();
+  });
+
   it("falls back when Docker is installed but not running", async () => {
     expect(await nativeDemoReason({ ...base, probe: probe({ failing: ["docker info"] }) })).toBe(
       "Docker is not running",
