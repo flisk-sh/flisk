@@ -189,12 +189,14 @@ export function showDemoHelp(): void {
   console.log(
     `  ${chalk.cyan("--no-docker".padEnd(20))} ${chalk.white("Run the demo as local processes")}`,
   );
-  console.log(`  ${chalk.cyan("-y, --yes".padEnd(20))} ${chalk.white("Skip confirmation prompts")}`);
   console.log(
-    `  ${chalk.cyan("--verbose".padEnd(20))} ${chalk.white("Enable verbose output")}`,
+    `  ${chalk.cyan("-y, --yes".padEnd(20))} ${chalk.white("Skip confirmation prompts")}`,
   );
+  console.log(`  ${chalk.cyan("--verbose".padEnd(20))} ${chalk.white("Enable verbose output")}`);
   console.log(`  ${chalk.cyan("-h, --help".padEnd(20))} ${chalk.white("Show this help")}`);
-  console.log(`  ${chalk.cyan("-v, --version".padEnd(20))} ${chalk.white("Display version number")}`);
+  console.log(
+    `  ${chalk.cyan("-v, --version".padEnd(20))} ${chalk.white("Display version number")}`,
+  );
   console.log();
   console.log(chalk.gray(`  For every command: ${chalk.cyan("flisk --help")}`));
   console.log(chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/flisk-sh/flisk")}`));
