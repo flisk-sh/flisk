@@ -77,7 +77,7 @@ beforeEach(() => {
     name: "Docker Runtime",
     didPass: false,
     message: "Docker daemon is not running",
-    fix: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
+    fix: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
   });
   mocks.checkDockerCompose.mockResolvedValue({
     name: "Docker Compose",
@@ -136,7 +136,9 @@ describe("flisk up readiness gate", () => {
     const output = errorOutput();
     expect(output).toContain("Cold start blocked");
     expect(output).toContain("FAIL docker  Docker daemon is not running");
-    expect(output).toContain("Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor");
+    expect(output).toContain(
+      "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
+    );
     expect(output).toContain("FAIL tilt    Tilt CLI not found");
     expect(output).toContain(
       "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh",

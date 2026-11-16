@@ -80,6 +80,12 @@ jobs:
           args=()
           [ -n "${ONLY:-}" ] && args+=(--only "$ONLY")
           node scripts/bench/run.mjs "${args[@]}" --out "$RUNNER_TEMP/shop-bench" --work "$RUNNER_TEMP/shop-bench-work" >/dev/null
+      - name: Kiri lane context diagnostics
+        if: always()
+        run: |
+          d="$RUNNER_TEMP/shop-bench-work/flisk-kiri/.flisk/.flisk-out"
+          ls -la "$d" 2>&1 | head -30; stat "$d/traefik-dynamic" 2>&1 | head; id
+          exit 0
       - name: Job summary
         if: always()
         run: |

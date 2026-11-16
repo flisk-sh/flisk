@@ -28,5 +28,6 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.version }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCORD_RELEASES_CHANNEL_ID: "1569404328081358938"
         run: node scripts/post-discord-release.mjs

@@ -147,7 +147,9 @@ describe("describeUrlFailure: service, cause and next command per cause", () => 
     const d = describeUrlFailure(target, { cause: "missing-env", envName: "DATABASE_URL" });
     expect(d.message).toContain("DATABASE_URL");
     expect(d.message).toContain("api");
-    expect(d.nextCommand).toBe("add DATABASE_URL=<value> to .env, then run: flisk restart api");
+    expect(d.nextCommand).toBe(
+      "add DATABASE_URL=<value> to .env, then run: flisk restart api --rebuild",
+    );
   });
 
   it("container-exited points at the service's logs", () => {
@@ -363,7 +365,7 @@ describe("checkPrintedUrls", () => {
       status: 502,
       cause: "missing-env",
       envName: "DATABASE_URL",
-      nextCommand: "add DATABASE_URL=<value> to .env, then run: flisk restart api",
+      nextCommand: "add DATABASE_URL=<value> to .env, then run: flisk restart api --rebuild",
     });
   });
 

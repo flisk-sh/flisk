@@ -8,7 +8,7 @@
 
 ## 1. 安裝
 
-你需要執行中的 Docker（Desktop、OrbStack 或 Colima），以及 Tilt 0.25.0 或更新版本。然後安裝 Flisk CLI：
+你需要執行中的 Docker（Desktop、OrbStack、Colima 或 Kiri），以及 Tilt 0.25.0 或更新版本。然後安裝 Flisk CLI：
 
 ```bash
 curl -fsSL https://flisk.sh/install.sh | sh

@@ -106,6 +106,28 @@ export function kiriBuildEnv(
 ): Record<string, string> {
   if (env.DOCKER_BUILDKIT !== undefined) return {};
   const host = env.DOCKER_HOST ?? "";
-  const onKiri = host ? host.includes("/.kiri/") : (env.DOCKER_CONTEXT ?? context) === "kiri";
-  return onKiri ? { DOCKER_BUILDKIT: "0" } : {};
+  return isKiriHost(env, context) ? { DOCKER_BUILDKIT: "0" } : {};
+}
+
+/** Kiri by its socket (`~/.kiri/run/docker.sock` on a Mac, `/run/kiri/docker.sock` on Linux) or its Docker context. */
+function isKiriHost(env: NodeJS.ProcessEnv, context: string | undefined): boolean {
+  const host = env.DOCKER_HOST ?? "";
+  return host ? /\/\.?kiri\//.test(host) : (env.DOCKER_CONTEXT ?? context) === "kiri";
+}
+
+/**
+ * The Docker socket path containers mount to reach the daemon. Containers get `/var/run/docker.sock`, which is
+ * Kiri's inside its Mac VM but is the host's own Docker on Linux, where Kiri runs without a VM and listens on
+ * `/run/kiri/docker.sock`. Without this Traefik watches the wrong daemon and routes nothing. A value the caller
+ * set is kept.
+ */
+export function kiriSocketEnv(
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+  context: string | undefined,
+): Record<string, string> {
+  if (env.FLISK_DOCKER_SOCKET !== undefined || platform !== "linux") return {};
+  const match = /^unix:\/\/(\/run\/kiri\/[^\s]+)$/.exec(env.DOCKER_HOST ?? "");
+  if (match?.[1] && isKiriHost(env, context)) return { FLISK_DOCKER_SOCKET: match[1] };
+  return {};
 }

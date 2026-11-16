@@ -34,10 +34,10 @@ turn_via_traefik() { # <session id> <input> -> body on stdout; fails on anything
 agent_ready() { [ "$(via_traefik /ready -o /dev/null -w '%{http_code}')" = "200" ]; }
 wait_agent_ready() { poll_until "agent $AGENT answers /ready 200 through Traefik" "$READY_TIMEOUT" agent_ready; }
 session_answers() { (cd "$DIR" && flisk agent sessions "$AGENT" --session-id s1 --json) >/dev/null 2>&1; }
-# Wait for a replaced container, then /ready, then the CLI path itself, so the next case never lands in the gap while the
-# route has no live backend.
+# #4192: `flisk restart` stops and starts the SAME container (no rebuild), so wait for /ready and the
+# session route instead of a replaced container id.
 agent_restarted() { # <container id from before the restart>
-  wait_restarted "$AGENT" "$1" "agent $AGENT answers /ready 200 through Traefik" agent_ready
+  poll_until "agent $AGENT answers /ready 200 through Traefik" "$READY_TIMEOUT" agent_ready
   poll_until "flisk agent sessions answers again after restart" "$READY_TIMEOUT" session_answers
 }
 start_up() { start_stack "$STACK"; }
@@ -132,7 +132,7 @@ A5() { # sticky routing: same session id -> same instance
 A6() { # flisk restart, healthy again, checkpoint intact
   log "A6 flisk restart $AGENT"
   local before; before="$(agent_container)"
-  # Tilt rebuilds and recreates the container; common_restart waits for a different container, then for /ready.
+  # A fast restart starts the same container again, then /ready answers; common_restart waits for readiness.
   common_restart "$AGENT" "$before" "agent $AGENT answers /ready 200 through Traefik" agent_ready
   poll_until "flisk agent sessions answers again after restart" "$READY_TIMEOUT" session_answers
   run a6-sessions agent sessions "$AGENT" --session-id s1 --json

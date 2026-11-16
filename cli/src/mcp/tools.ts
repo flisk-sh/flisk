@@ -6,8 +6,16 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { RESOURCE_CREATE_TYPE_VALUES } from "../types/index.js";
 import { cliInvocation } from "../utils/cli-invocation.js";
+import {
+  collectSidecarDependents,
+  DEFAULT_MCP_CLI_TIMEOUT_MS,
+  isGeneratedComposeContainer,
+  resolveRestartCliTimeoutMs,
+  resolveRestartSequenceCliTimeoutMs,
+} from "../utils/container-restart.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
+import { findProjectRoot } from "../utils/paths.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import {
   OUTPUT_WITHHELD,
@@ -15,6 +23,7 @@ import {
   redactProjectText,
   redactValue,
 } from "../utils/secret-redaction.js";
+import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
@@ -54,7 +63,10 @@ export const runFliskCli: RunFlisk = (args, options = {}) =>
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
-    const timer = setTimeout(() => child.kill("SIGTERM"), options.timeoutMs ?? 120_000);
+    const timer = setTimeout(
+      () => child.kill("SIGTERM"),
+      options.timeoutMs ?? DEFAULT_MCP_CLI_TIMEOUT_MS,
+    );
     child.once("error", (error) => {
       clearTimeout(timer);
       reject(error);
@@ -136,7 +148,11 @@ function optionalPort(value: unknown, field: string): number | undefined {
   return value as number;
 }
 
-type Envelope = { data?: { ok?: boolean } | null; errors?: unknown[]; ok?: boolean };
+type Envelope = {
+  data?: { ok?: boolean } | null;
+  errors?: unknown[];
+  ok?: boolean;
+};
 
 function parseObject(text: string): Envelope | undefined {
   try {
@@ -195,7 +211,11 @@ export function toToolResult(run: FliskRun): McpToolResult {
 export function toTextResult(run: FliskRun): McpToolResult {
   const stderr = run.stderr.trim();
   return {
-    data: { exitCode: run.exitCode, output: run.stdout.trim(), ...(stderr ? { stderr } : {}) },
+    data: {
+      exitCode: run.exitCode,
+      output: run.stdout.trim(),
+      ...(stderr ? { stderr } : {}),
+    },
     isError: run.exitCode !== 0,
   };
 }
@@ -287,7 +307,11 @@ export async function startUp(
       .filter((l) => l.startsWith('{"schemaVersion"'))
       .pop();
     if (line) {
-      const result = toToolResult({ exitCode: exited ?? null, stdout: line, stderr: "" });
+      const result = toToolResult({
+        exitCode: exited ?? null,
+        stdout: line,
+        stderr: "",
+      });
       if (!result.isError) {
         try {
           rmSync(logFile, { force: true });
@@ -541,7 +565,10 @@ function projectPath(value: unknown): string | undefined {
 }
 
 /** Local-only reads: they inspect the project or the running stack and change nothing. */
-const READ_ONLY: McpToolAnnotations = { readOnlyHint: true, openWorldHint: false };
+const READ_ONLY: McpToolAnnotations = {
+  readOnlyHint: true,
+  openWorldHint: false,
+};
 const WRITES_LOCALLY: McpToolAnnotations = {
   readOnlyHint: false,
   destructiveHint: false,
@@ -566,9 +593,17 @@ const TOOL_ANNOTATIONS: Record<string, McpToolAnnotations> = {
   down: { ...WRITES_LOCALLY, destructiveHint: true, idempotentHint: true },
   resource_restart: WRITES_LOCALLY,
   // An arbitrary command in the resource's environment: it may change data or reach the network.
-  resource_run: { ...WRITES_LOCALLY, destructiveHint: true, openWorldHint: true },
+  resource_run: {
+    ...WRITES_LOCALLY,
+    destructiveHint: true,
+    openWorldHint: true,
+  },
   // dryRun is the default; dryRun: false overwrites the generated files and discards hand edits in them.
-  config_regenerate: { ...WRITES_LOCALLY, destructiveHint: true, idempotentHint: true },
+  config_regenerate: {
+    ...WRITES_LOCALLY,
+    destructiveHint: true,
+    idempotentHint: true,
+  },
   // Running it again on an existing resource rewrites its service.json.
   resource_create: { ...WRITES_LOCALLY, destructiveHint: true },
   // Runs resource_create's command, so adding a tool whose resource exists rewrites its service.json too.
@@ -577,8 +612,36 @@ const TOOL_ANNOTATIONS: Record<string, McpToolAnnotations> = {
   project_init: { ...WRITES_LOCALLY, openWorldHint: true },
   project_eject: { ...WRITES_LOCALLY, idempotentHint: true },
   // force overwrites an existing service.json; the importer is fetched from npm.
-  project_import: { ...WRITES_LOCALLY, destructiveHint: true, openWorldHint: true },
+  project_import: {
+    ...WRITES_LOCALLY,
+    destructiveHint: true,
+    openWorldHint: true,
+  },
 };
+
+function restartCliTimeoutMs(
+  cwd: string | undefined,
+  resourceName: string,
+  rebuild = false,
+): number {
+  const root = findProjectRoot(cwd);
+  if (!root) return resolveRestartCliTimeoutMs();
+  try {
+    clearDiscoveryResultCache(root);
+    const { resources } = discoverResourcesWithProblems(root);
+    const resource = resources.find((candidate) => candidate.name === resourceName);
+    if (!resource) return resolveRestartCliTimeoutMs();
+    if (!rebuild && isGeneratedComposeContainer(resource)) {
+      const targets = [resource, ...collectSidecarDependents(resources, resourceName)];
+      return resolveRestartSequenceCliTimeoutMs(
+        targets.map((target) => target.config?.container?.stopGracePeriod),
+      );
+    }
+    return resolveRestartCliTimeoutMs(resource.config?.container?.stopGracePeriod);
+  } catch {
+    return resolveRestartCliTimeoutMs();
+  }
+}
 
 export function createFliskTools(
   run: RunFlisk = runFliskCli,
@@ -587,12 +650,22 @@ export function createFliskTools(
   const viaCli =
     (build: (args: Record<string, unknown>) => string[], options: { timeoutMs?: number } = {}) =>
     async (args: Record<string, unknown>) =>
-      toToolResult(await run(build(args), { cwd: projectPath(args.projectPath), ...options }));
+      toToolResult(
+        await run(build(args), {
+          cwd: projectPath(args.projectPath),
+          ...options,
+        }),
+      );
   /** For a command without `--json`: returns its text output. */
   const viaCliText =
     (build: (args: Record<string, unknown>) => string[], options: { timeoutMs?: number } = {}) =>
     async (args: Record<string, unknown>) =>
-      toTextResult(await run(build(args), { cwd: projectPath(args.projectPath), ...options }));
+      toTextResult(
+        await run(build(args), {
+          cwd: projectPath(args.projectPath),
+          ...options,
+        }),
+      );
 
   const tools: McpTool[] = [
     {
@@ -601,7 +674,10 @@ export function createFliskTools(
         "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        noPing: { type: "boolean", description: "Skip pinging running services' health endpoints" },
+        noPing: {
+          type: "boolean",
+          description: "Skip pinging running services' health endpoints",
+        },
       }),
       handler: viaCli((args) => [
         "doctor",
@@ -622,8 +698,14 @@ export function createFliskTools(
           description:
             "Start only these services plus what they depend on and shared infrastructure",
         },
-        force: { type: "boolean", description: "Replace a Tilt that is already running" },
-        dryRun: { type: "boolean", description: "Show what would be started without starting" },
+        force: {
+          type: "boolean",
+          description: "Replace a Tilt that is already running",
+        },
+        dryRun: {
+          type: "boolean",
+          description: "Show what would be started without starting",
+        },
         waitSeconds: {
           type: "number",
           description:
@@ -638,7 +720,10 @@ export function createFliskTools(
         "Stop the running stack, optionally selecting its project with projectPath. It stops the running services and does not edit the project's files. Use `status` first to see whether a stack is running, set dryRun to preview, and start it again with `up`.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        dryRun: { type: "boolean", description: "Show what would be stopped without stopping" },
+        dryRun: {
+          type: "boolean",
+          description: "Show what would be stopped without stopping",
+        },
       }),
       handler: viaCli((args) => [
         "down",
@@ -659,7 +744,11 @@ export function createFliskTools(
         "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. Use `status` first to find which service is failing, then pass services to narrow the output.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        services: { type: "array", items: { type: "string" }, description: "Only these services" },
+        services: {
+          type: "array",
+          items: { type: "string" },
+          description: "Only these services",
+        },
         tail: { type: "integer", minimum: 1, maximum: 10000 },
         since: {
           type: "string",
@@ -685,20 +774,35 @@ export function createFliskTools(
       name: "resource_restart",
       aliases: ["restart_resource"],
       description:
-        "Restart one running resource in the stack (or trigger its rebuild); the other resources are not touched. It needs a running stack: start one with `up`. Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
+        "Restart one running resource in the stack along with any active container resources that transitively declare `sidecarOf` on it (Flisk-generated Compose containers restart without rebuilding their image; local-process or non-container resources and projects using an imported Tiltfile fall back to `tilt trigger`); unrelated resources are not touched. It needs a running stack: start one with `up`. Set rebuild to true for a full Tilt update (rebuild the image and recreate the container, which re-reads the project .env). Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        resource: { type: "string", description: "Name of the resource to restart" },
+        resource: {
+          type: "string",
+          description: "Name of the resource to restart",
+        },
+        rebuild: {
+          type: "boolean",
+          description: "Rebuild the image and recreate the container through Tilt",
+        },
       }),
-      handler: viaCli((args) => {
+      handler: async (args: Record<string, unknown>) => {
         const resource = optionalName(args.resource, "resource");
         if (!resource) {
           throw new FliskError("resource is required", [
             "Pass the resource name; resource_list shows them",
           ]);
         }
-        return ["restart", resource, "--json"];
-      }),
+        const cwd = projectPath(args.projectPath);
+        const rebuild = flag(args.rebuild, "rebuild");
+        const cliArgs = ["restart", resource, "--json", ...(rebuild ? ["--rebuild"] : [])];
+        return toToolResult(
+          await run(cliArgs, {
+            cwd,
+            timeoutMs: restartCliTimeoutMs(cwd, resource, rebuild),
+          }),
+        );
+      },
     },
     {
       name: "resource_run",
@@ -773,7 +877,10 @@ export function createFliskTools(
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
-          resource: { type: "string", description: "Name of the agent resource" },
+          resource: {
+            type: "string",
+            description: "Name of the agent resource",
+          },
           sessionId: {
             type: "string",
             description: "Session ID to read; omit it to list all sessions",
@@ -800,8 +907,14 @@ export function createFliskTools(
         "List the project's stacks with their resource counts. Read-only. Use `resource_list` for the resources themselves. Set services to include each stack's service names, and verbose for its description. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        services: { type: "boolean", description: "Include the service names in each stack" },
-        verbose: { type: "boolean", description: "Include each stack's description" },
+        services: {
+          type: "boolean",
+          description: "Include the service names in each stack",
+        },
+        verbose: {
+          type: "boolean",
+          description: "Include each stack's description",
+        },
       }),
       handler: viaCli((args) => [
         "stacks",
@@ -822,7 +935,10 @@ export function createFliskTools(
       description:
         "List the starter templates project_init can clone (data.templates): each one's key, repo, description and, for a template pinned to a commit, the ref it checks out. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
       inputSchema: OBJECT({}),
-      handler: async () => ({ data: { templates: listProjectTemplates() }, isError: false }),
+      handler: async () => ({
+        data: { templates: listProjectTemplates() },
+        isError: false,
+      }),
     },
     {
       name: "network_list",
@@ -904,7 +1020,10 @@ export function createFliskTools(
             description:
               "Resource type (default backend). Redis, Qdrant, MinIO, MLflow, MySQL, MongoDB, ClickHouse, NATS, RabbitMQ, Mailpit and stripe-mock are frameworks: type database, queue, storage, mail or payment plus framework",
           },
-          stack: { type: "string", description: "Stack to assign the resource to" },
+          stack: {
+            type: "string",
+            description: "Stack to assign the resource to",
+          },
           framework: {
             type: "string",
             description:
@@ -925,7 +1044,10 @@ export function createFliskTools(
             items: { type: "string" },
             description: "Resource features to enable, for example prisma or drizzle",
           },
-          runtime: { type: "string", description: "Agent runtime (type agent only): custom" },
+          runtime: {
+            type: "string",
+            description: "Agent runtime (type agent only): custom",
+          },
           durability: {
             type: "string",
             description:
@@ -957,7 +1079,10 @@ export function createFliskTools(
             description:
               "Resource name (default per tool, for example web, server, db); a name already in use is refused",
           },
-          stack: { type: "string", description: "Stack to assign the resource to" },
+          stack: {
+            type: "string",
+            description: "Stack to assign the resource to",
+          },
           dryRun: {
             type: "boolean",
             description: "Preview the resource without writing files or reserving a port",
@@ -1016,7 +1141,9 @@ export function createFliskTools(
             "Blank project only: write the Flisk agent skills and AGENTS.md (default true)",
         },
       }),
-      handler: viaCliText(buildProjectInitArgs, { timeoutMs: PROJECT_INIT_TIMEOUT_MS }),
+      handler: viaCliText(buildProjectInitArgs, {
+        timeoutMs: PROJECT_INIT_TIMEOUT_MS,
+      }),
     },
     {
       name: "project_eject",
@@ -1046,8 +1173,14 @@ export function createFliskTools(
           description:
             "Directory with the docker-compose.yml, relative to projectPath or absolute (default: projectPath)",
         },
-        dryRun: { type: "boolean", description: "Print the plan and write nothing" },
-        force: { type: "boolean", description: "Overwrite an existing service.json" },
+        dryRun: {
+          type: "boolean",
+          description: "Print the plan and write nothing",
+        },
+        force: {
+          type: "boolean",
+          description: "Overwrite an existing service.json",
+        },
         confirm: {
           type: "boolean",
           description: "Must be true together with force (unless dryRun) to overwrite files",

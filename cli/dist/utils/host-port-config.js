@@ -72,6 +72,9 @@ export function readSavedTiltPort(projectRoot) {
 export function writeSavedHostPortPlan(projectRoot, plan) {
     const path = join(projectRoot, CONFIG_PATH);
     mkdirSync(join(projectRoot, ".flisk", ".flisk-out"), { recursive: true });
+    // Traefik bind-mounts this directory. If it is missing the daemon creates it as root:root 0750 (Kiri does), and the classic
+    // builder then cannot stat it while reading the build context. Creating it here keeps it owned by the user.
+    mkdirSync(join(projectRoot, ".flisk", ".flisk-out", "traefik-dynamic"), { recursive: true });
     writeFileSync(path, `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf-8", mode: 0o600 });
 }
 export function exportHostPortPlan(plan) {

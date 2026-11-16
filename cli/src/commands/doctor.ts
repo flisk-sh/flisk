@@ -186,7 +186,7 @@ const DOCKER_COMPOSE_VERSION_COMMAND = "docker compose version --short";
 
 export const DOCTOR_FIXES = {
   dockerMissing: "See https://docs.docker.com/get-docker/",
-  dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
+  dockerDaemonDown: "Start Docker Desktop, OrbStack, Colima, or Kiri, then retry: flisk doctor",
   tiltMissing:
     "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
   bunMissing: "curl -fsSL https://bun.sh/install | bash",
@@ -544,7 +544,7 @@ export async function checkDockerRuntime(commandCache?: HostCommandCache): Promi
         name: CONTAINER_RUNTIME_CHECK,
         didPass: false,
         message: "Docker daemon is not responding (timeout)",
-        fix: "Restart Docker daemon: systemctl restart docker (Linux) or restart Docker Desktop/Colima\n  Verify: docker ps\n  Docs: https://docs.docker.com/config/daemon/",
+        fix: "Restart Docker daemon: systemctl restart docker (Linux) or restart Docker Desktop/Colima/Kiri\n  Verify: docker ps\n  Docs: https://docs.docker.com/config/daemon/",
       };
     }
   }

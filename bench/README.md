@@ -33,6 +33,8 @@ Kiri is not installed. In CI the "Install Kiri" step installs the pinned `kiri-l
 `kiri host-access` and creates the context; if that step fails, only this lane is skipped. On Kiri, Flisk builds with the
 classic builder (`DOCKER_BUILDKIT=0`, set automatically) because Kiri has no BuildKit that can see local images.
 
+`competitors/compose-kiri/` is the plain Docker Compose shop on Kiri (same `compose.yaml`, classic builder), so Flisk on Kiri is compared with Compose on the same engine, not only with Compose on Docker.
+
 ## Add a competitor in five minutes
 
 1. `mkdir bench/competitors/<tool>` (the id: kebab-case, the same as the folder).

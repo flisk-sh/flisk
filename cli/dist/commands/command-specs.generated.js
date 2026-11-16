@@ -1855,6 +1855,11 @@ export const COMMAND_SPECS = [
                 description: "Tilt UI port (default: TILT_PORT or 10350)",
             },
             {
+                flags: "--rebuild",
+                description: "Rebuild the image through Tilt instead of restarting the container",
+                defaultValue: false,
+            },
+            {
                 flags: "--json",
                 description: "Output one JSON object and exit",
                 defaultValue: false,
@@ -1869,7 +1874,9 @@ export const COMMAND_SPECS = [
             },
         ],
         helpTexts: {
-            after: ["\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json"],
+            after: [
+                "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
+            ],
         },
         subcommands: [],
     },

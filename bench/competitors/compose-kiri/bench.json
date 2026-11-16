@@ -1,0 +1,31 @@
+{
+  "id": "compose-kiri",
+  "name": "Docker Compose on Kiri",
+  "tool": {
+    "name": "docker compose",
+    "version": "docker compose version --short"
+  },
+  "requires": [
+    "docker",
+    "kiri"
+  ],
+  "start": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') DOCKER_BUILDKIT=0 docker compose up -d --build",
+  "stop": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down --remove-orphans",
+  "purge": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans --rmi local",
+  "clean": "DOCKER_HOST=$(docker context inspect kiri --format '{{.Endpoints.docker.Host}}') docker compose down -v --remove-orphans",
+  "base": "http://localhost:${BENCH_PORT}",
+  "health": [
+    "http://localhost:${BENCH_PORT}/health",
+    "http://localhost:${BENCH_PORT}/health/storefront",
+    "http://localhost:${BENCH_PORT}/health/admin",
+    "http://localhost:${BENCH_PORT}/api/products/health",
+    "http://localhost:${BENCH_PORT}/api/orders/health",
+    "http://localhost:${BENCH_PORT}/api/payments/health",
+    "http://localhost:${BENCH_PORT}/api/notifications/health"
+  ],
+  "wiring": {
+    "configFiles": [
+      "compose.yaml"
+    ]
+  }
+}
