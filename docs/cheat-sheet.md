@@ -397,12 +397,14 @@ A bounded snapshot of recent logs. It does not follow new output; for live logs,
 ```bash
 flisk logs
 flisk logs -s orders-api users-api --tail 50
+flisk logs --source runtime --tail 50   # crash cause without build output
 flisk logs --since 5m --json
 ```
 
 | Flag | Effect |
 | --- | --- |
 | `-s`, `--service <names...>` | Only these services (Tilt resource names) |
+| `--source <runtime|build>` | Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime |
 | `--unhealthy` | Only services that are failing or still starting |
 | `--tail <n>` | Most recent lines (default 200) |
 | `--since <duration>` | Only logs newer than this, for example `30s`, `5m`, `1h` |
