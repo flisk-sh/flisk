@@ -18,6 +18,7 @@ import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-h
 import { showCancelled, showCommandHeader, showDetail, showStep, showSuccess, } from "../utils/formatting.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { writeLanggraphProject } from "../utils/langgraph-template.js";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
@@ -29,7 +30,6 @@ import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
 import { isTargetDirSafe } from "../utils/validation.js";
-import { createMachineEnvelope } from "../utils/machine-output.js";
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
  * cloned starter template). Tilt's discovery groups app resources by this
