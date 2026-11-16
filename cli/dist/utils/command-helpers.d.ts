@@ -2,6 +2,11 @@ import type { Command } from "commander";
 import type { ValidationResult } from "../types/index.js";
 export declare const YES_OPTION_FLAGS = "-y, --yes";
 export declare const YES_OPTION_DESCRIPTION = "Skip prompts and confirmations; use defaults";
+export declare const NO_POSITIONAL_HINTS: Readonly<Record<string, string>>;
+/**
+ * Attaches positional argument hints and routes parse errors to JSON envelopes when `--json` is requested.
+ */
+export declare function attachNoPositionalHint<T extends Command>(command: T, commandName?: string): T;
 /**
  * Registers the standard `-y, --yes` flag on a Commander command with shared help text.
  */
