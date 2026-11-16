@@ -5,6 +5,7 @@ import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { type DockerRun } from "../utils/doctor-crashloop.js";
 import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks } from "../utils/doctor-runner.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
+import { checkBun, checkDockerVersions, checkTilt } from "../utils/doctor-tools.js";
 import { type ExecAsync } from "../utils/exec-async.js";
 import { type HostCommandCache } from "../utils/host-command-cache.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
@@ -37,20 +38,13 @@ export declare function checkContainerEngine(): Promise<CheckResult>;
 export declare function checkColima(): Promise<CheckResult>;
 export declare function checkDockerRuntime(commandCache?: HostCommandCache): Promise<CheckResult>;
 export declare const checkDockerCompose: DoctorCheckFn;
-export declare function checkDockerVersions(exec?: ExecAsync): Promise<CheckResult>;
-export declare namespace checkDockerVersions {
+export { checkBun, checkDockerVersions, checkTilt };
+export declare function checkDockerOperatingSystem(exec?: ExecAsync): Promise<CheckResult>;
+export declare namespace checkDockerOperatingSystem {
     var _a: boolean;
     export { _a as requiresContainerRuntime };
     export var checkName: string;
 }
-export declare function checkTilt(exec?: ExecAsync): Promise<CheckResult>;
-export declare function checkDockerOperatingSystem(exec?: ExecAsync): Promise<CheckResult>;
-export declare namespace checkDockerOperatingSystem {
-    var _b: boolean;
-    export { _b as requiresContainerRuntime };
-    export var checkName: string;
-}
-export declare function checkBun(exec?: ExecAsync): Promise<CheckResult>;
 /**
  * Checks the project's minimum and exact pinned CLI version.
  * Shared with `flisk up` so both commands report the same message and fix.
