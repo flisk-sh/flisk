@@ -2223,6 +2223,11 @@ This file contains the resource configuration for Flisk.
         ]);
       }
 
+      // The Next.js image runs `npm ci`, which needs a lockfile: it is written right after the scaffold, so the preview lists it.
+      if (resourceType === "frontend" && frontendFramework?.kind === "server") {
+        plan.generated(resolve(fullPath, "package-lock.json"));
+      }
+
       if (options.dryRun) return preview();
       plan.write();
       clearDiscoveryCache();

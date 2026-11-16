@@ -22,6 +22,8 @@ describe("generateNpmLockfile", () => {
 
   it("writes the lockfile only, with no install and no scripts", () => {
     expect(LOCKFILE_COMMAND).toContain("--package-lock-only");
+    // A project root with `workspaces` would otherwise get the lockfile instead of the resource folder.
+    expect(LOCKFILE_COMMAND).toContain("--workspaces=false");
     expect(LOCKFILE_COMMAND).toContain("--ignore-scripts");
   });
 });

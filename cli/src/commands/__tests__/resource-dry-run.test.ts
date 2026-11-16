@@ -34,10 +34,6 @@ function runResourceCommand(root: string, args: string[], dryRun = true) {
   return envelope.data;
 }
 
-const npmLockfileOnly = (path: string) =>
-  path.endsWith("/package-lock.json") && !previewPaths.has(path);
-let previewPaths = new Set<string>();
-
 describe("resource scaffolding preview", () => {
   it.each([
     ["backend", []],
@@ -78,14 +74,18 @@ describe("resource scaffolding preview", () => {
       // Repeating the preview must not consume a port or change the plan.
       expect(runResourceCommand(root, args)).toEqual(preview);
       expect(snapshot(root)).toEqual(before);
-      previewPaths = new Set(preview.files.map((file: { path: string }) => file.path));
       const applied = runResourceCommand(root, args, false);
       expect(applied).toEqual(preview.resource);
       const added = Object.keys(snapshot(root)).filter(
-        // package-lock.json is written by npm after the plan (only where npm and a network exist), so it is not in the preview.
-        (path) => !(path in before) && !path.endsWith("/") && !npmLockfileOnly(path),
+        (path) => !(path in before) && !path.endsWith("/"),
       );
-      expect(added.sort()).toEqual(preview.files.map((file: { path: string }) => file.path).sort());
+      // npm writes package-lock.json after the scaffold, and only where npm and a network exist: the preview lists it, the
+      // run may lack it, but a lockfile the run did write must be one the preview named.
+      const planned: string[] = preview.files.map((file: { path: string }) => file.path);
+      const expected = planned.filter(
+        (path) => !path.endsWith("/package-lock.json") || added.includes(path),
+      );
+      expect(added.sort()).toEqual(expected.sort());
       for (const directory of preview.directories) {
         expect(statSync(join(root, directory)).isDirectory()).toBe(true);
       }
