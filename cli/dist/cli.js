@@ -14,7 +14,7 @@ import { createSpecProgram } from "./commands/command-specs.js";
 import { showHelp } from "./commands/help.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
 import { handleCommandError } from "./utils/errors.js";
-import { unknownHelpTarget } from "./utils/help-command.js";
+import { resolveHelpTarget } from "./utils/help-command.js";
 /**
  * The program the CLI parses is built from plain command specs, so `--help`, `--version`
  * and parse errors never import the generator, discovery, native-runtime or TUI graphs.
@@ -388,12 +388,15 @@ if (process.argv.length === 3 && helpArg && ["-h", "--help", "help"].includes(he
     showHelp();
     process.exit(0);
 }
-const unknownHelp = unknownHelpTarget(process.argv.slice(2), program.commands);
-if (unknownHelp) {
-    program.error(`error: unknown command '${unknownHelp}'`, {
+const helpResolved = resolveHelpTarget(process.argv.slice(2), program.commands);
+if (helpResolved.unknown) {
+    program.error(`error: unknown command '${helpResolved.unknown}'`, {
         exitCode: 1,
         code: "commander.unknownCommand",
     });
+}
+if (helpResolved.depth >= 2 && helpResolved.command) {
+    helpResolved.command.help();
 }
 // An async action that throws (a corrupt project.json read deep inside a command) used to end as an unhandled rejection with a
 // raw runtime stack trace; every command now fails with one error line.
