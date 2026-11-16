@@ -12,7 +12,7 @@ import chalk from "chalk";
 import pkg from "../package.json" with { type: "json" };
 import { COMMAND_SPECS } from "./commands/command-specs.generated.js";
 import { createSpecProgram } from "./commands/command-specs.js";
-import { showHelp } from "./commands/help.js";
+import { showDemoHelp, showHelp } from "./commands/help.js";
 import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
 import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { handleCommandError } from "./utils/errors.js";
@@ -51,8 +51,16 @@ const templateArg = rootOptions.template;
 const projectArg = rootOptions.project;
 if (templateArg && rootOptions.help) {
   // Help is answered before any setup: nothing may be stopped or deleted for `flisk --template=demo --help`.
-  showHelp();
+  // The demo flow has its own flags, so `flisk demo --help` lists them instead of the global command table.
+  if (templateArg === "demo") showDemoHelp();
+  else showHelp();
   process.exit(0);
+}
+if (templateArg && rootOptions.unknownOption) {
+  // An option the flow does not read (e.g. --dry-run) is refused like Commander does, before
+  // anything is fetched, written or started (#4487).
+  console.error(chalk.red(`error: unknown option '${rootOptions.unknownOption}'`));
+  process.exit(1);
 }
 if (templateArg && rootOptions.projectError) {
   console.error(chalk.red(`❌ ${rootOptions.projectError}`));

@@ -42,6 +42,38 @@ describe("parseDemoRootOptions", () => {
     expect(parseDemoRootOptions(argv("demo", "--project=my-stack")).projectError).toBeUndefined();
     expect(parseDemoRootOptions(argv("demo", "--project", "out")).project).toBe("out");
   });
+
+  it("reports an option the one-command flow does not know, such as --dry-run (#4487)", () => {
+    expect(parseDemoRootOptions(argv("demo", "--dry-run")).unknownOption).toBe("--dry-run");
+    expect(parseDemoRootOptions(argv("--template=demo", "--dry-run=1")).unknownOption).toBe(
+      "--dry-run",
+    );
+    expect(parseDemoRootOptions(argv("restaurant", "--keep", "--bogus")).unknownOption).toBe(
+      "--bogus",
+    );
+  });
+
+  it("accepts every option the one-command flow reads", () => {
+    const options = parseDemoRootOptions(
+      argv(
+        "demo",
+        "--keep",
+        "--yes",
+        "-y",
+        "--no-docker",
+        "--verbose",
+        "--project=out",
+        "--template",
+        "demo",
+      ),
+    );
+    expect(options.unknownOption).toBeUndefined();
+  });
+
+  it("leaves options after a subcommand or -- to that command", () => {
+    expect(parseDemoRootOptions(argv("up", "--dry-run")).unknownOption).toBeUndefined();
+    expect(parseDemoRootOptions(argv("demo", "--", "--dry-run")).unknownOption).toBeUndefined();
+  });
 });
 
 describe("projectDestinationError", () => {
