@@ -21,7 +21,7 @@ An agent that cannot see the cause guesses, or has to know to call `logs`. The d
 `cli/src/utils/native-up.ts`, `cli/src/utils/__tests__/native-up-inprocess.test.ts` (+7 tests), `cli/dist/utils/native-up.{js,d.ts}`, `docs/agents/flisk-for-agents.md`, this report.
 
 ## 7. Commits and PR
-See the PR description (hashes and URL are added there after push).
+Commit 2d09e94d36d on `feat/mcp-up-readiness`; PR URL is in the PR itself.
 
 ## 8. Commands run
 `bun run typecheck`, `bun run lint`, `bunx vitest run` (full CLI), `bun run build`, `bun run check:dist`, and the MCP journey through a stdio client (`mcp-call.mjs`: initialize, then `tools/call`).
