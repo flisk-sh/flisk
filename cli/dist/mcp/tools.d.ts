@@ -21,10 +21,28 @@ export declare function toToolResult(run: FliskRun): McpToolResult;
  * error result when it exits non-zero. Failures are printed to stderr, so it is returned too.
  */
 export declare function toTextResult(run: FliskRun): McpToolResult;
+/** What the supervising `flisk up` has on record while it is still starting the local processes of a project. */
+export interface NativeUpSnapshot {
+    services: Record<string, {
+        status: "ready" | "pending" | "error" | "unknown";
+        reason?: string;
+    }>;
+    /** The last lines (own output, secrets masked) of each service that is not ready. */
+    logs: Record<string, string[]>;
+}
+export declare function readNativeUpSnapshot(projectDir: string, since: number): NativeUpSnapshot | null;
+/**
+ * The state of a start, in one word. `starting`: launched, readiness not confirmed yet. `ready`: every local process passed its
+ * readiness check. `failed`: a process exited or gave up, or `flisk up` ended. `timeout`: readiness was not established within
+ * the wait the caller asked for with waitForReady (the stack keeps starting).
+ */
+export type UpState = "starting" | "ready" | "failed" | "timeout";
 export interface UpDeps {
     /** Starts `flisk up` detached, with output going to a log file. */
     spawnUp: (args: string[], logFile: string, cwd?: string) => ChildProcess;
     readLog: (logFile: string) => string;
+    /** What the supervising `flisk up` has on record for the local processes of the project at this path (native runs only). */
+    nativeSnapshot?: (projectDir: string, since: number) => NativeUpSnapshot | null;
     sleep: (ms: number) => Promise<void>;
     now: () => number;
     logFile: () => string;

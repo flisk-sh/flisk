@@ -9,6 +9,9 @@ import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { FliskError, ProcessExitError, runCommand, showErrorAndExit, UnknownResourceError, unknownResourceSuggestions, } from "../utils/errors.js";
 import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope, toMachineError, writeMachineError, } from "../utils/machine-output.js";
+import { requestNativeRestart } from "../utils/native-runtime.js";
+import { isNativeProject } from "../utils/native-service.js";
+import { withFailureLogs } from "../utils/native-up.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
@@ -20,6 +23,7 @@ export const restartCommand = new Command("restart")
     .option("--port <n>", "Tilt UI port (default: TILT_PORT or 10350)")
     .option("--rebuild", "Rebuild the image through Tilt instead of restarting the container", false)
     .option("--project <path>", "Restart resources for the Flisk project in this folder (default: the current project)")
+    .option("--wait <seconds>", "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)", "60")
     .option("--json", "Output one JSON object and exit", false)
     .addHelpText("after", "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild")
     .action(async (resourceName, options, command) => {
@@ -52,6 +56,56 @@ export const restartCommand = new Command("restart")
                 process.exit(1);
             }
             throw new UnknownResourceError(resourceName, suggestions);
+        }
+        // A project of `command` services runs as local processes under `flisk up`, with no Tilt to trigger: ask that run to
+        // restart the one service and report what happened to it.
+        if (isNativeProject(discovery.resources)) {
+            const waitSeconds = Number(options.wait);
+            if (!Number.isFinite(waitSeconds) || waitSeconds < 0) {
+                throw new FliskError("--wait must be a number of seconds, 0 or more", [
+                    "Pass --wait 60, or --wait 0 to return once the restart has begun",
+                ]);
+            }
+            const outcome = await requestNativeRestart(root, resourceName, {
+                waitMs: waitSeconds * 1000,
+            });
+            const fail = (code, message, logs = []) => {
+                if (options.json) {
+                    console.log(JSON.stringify(createMachineEnvelope({
+                        ok: false,
+                        resource: resourceName,
+                        restarted: false,
+                        state: outcome.state,
+                        logs,
+                    }, [{ code, message }])));
+                    process.exit(1);
+                }
+                throw new FliskError(message, [
+                    ...logs,
+                    `Read the output with: flisk logs --service ${resourceName}`,
+                ]);
+            };
+            if (outcome.state === "not-running") {
+                return fail("NATIVE_NOT_RUNNING", `Cannot restart ${resourceName}: ${outcome.reason}. Start it with: flisk up`);
+            }
+            if (outcome.state === "failed" || outcome.state === "timeout") {
+                const [withLogs] = withFailureLogs(root, [{ name: resourceName, reason: outcome.reason ?? outcome.state }], outcome.logsSince);
+                return fail(outcome.state === "failed" ? "RESTART_FAILED" : "RESTART_NOT_READY", `${resourceName} ${outcome.state === "failed" ? "did not come back" : "is not ready yet"}: ${outcome.reason ?? outcome.state}`, withLogs?.logs ?? []);
+            }
+            if (options.json) {
+                console.log(JSON.stringify(createMachineEnvelope({
+                    resource: resourceName,
+                    restarted: true,
+                    state: outcome.state,
+                    ready: outcome.state === "ready",
+                    ...(outcome.pid ? { pid: outcome.pid } : {}),
+                })));
+                return;
+            }
+            console.log(chalk.green(outcome.state === "ready"
+                ? `✓ Restarted ${resourceName} (ready)`
+                : `✓ Restarting ${resourceName}`));
+            return;
         }
         let tiltAvailable = false;
         try {

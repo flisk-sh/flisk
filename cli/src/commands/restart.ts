@@ -25,6 +25,9 @@ import {
   toMachineError,
   writeMachineError,
 } from "../utils/machine-output.js";
+import { requestNativeRestart } from "../utils/native-runtime.js";
+import { isNativeProject } from "../utils/native-service.js";
+import { withFailureLogs } from "../utils/native-up.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
@@ -39,6 +42,11 @@ export const restartCommand = new Command("restart")
   .option(
     "--project <path>",
     "Restart resources for the Flisk project in this folder (default: the current project)",
+  )
+  .option(
+    "--wait <seconds>",
+    "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)",
+    "60",
   )
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(
@@ -80,6 +88,83 @@ export const restartCommand = new Command("restart")
           process.exit(1);
         }
         throw new UnknownResourceError(resourceName, suggestions);
+      }
+
+      // A project of `command` services runs as local processes under `flisk up`, with no Tilt to trigger: ask that run to
+      // restart the one service and report what happened to it.
+      if (isNativeProject(discovery.resources)) {
+        const waitSeconds = Number(options.wait);
+        if (!Number.isFinite(waitSeconds) || waitSeconds < 0) {
+          throw new FliskError("--wait must be a number of seconds, 0 or more", [
+            "Pass --wait 60, or --wait 0 to return once the restart has begun",
+          ]);
+        }
+        const outcome = await requestNativeRestart(root, resourceName, {
+          waitMs: waitSeconds * 1000,
+        });
+        const fail = (code: string, message: string, logs: string[] = []): never => {
+          if (options.json) {
+            console.log(
+              JSON.stringify(
+                createMachineEnvelope(
+                  {
+                    ok: false,
+                    resource: resourceName,
+                    restarted: false,
+                    state: outcome.state,
+                    logs,
+                  },
+                  [{ code, message }],
+                ),
+              ),
+            );
+            process.exit(1);
+          }
+          throw new FliskError(message, [
+            ...logs,
+            `Read the output with: flisk logs --service ${resourceName}`,
+          ]);
+        };
+        if (outcome.state === "not-running") {
+          return fail(
+            "NATIVE_NOT_RUNNING",
+            `Cannot restart ${resourceName}: ${outcome.reason}. Start it with: flisk up`,
+          );
+        }
+        if (outcome.state === "failed" || outcome.state === "timeout") {
+          const [withLogs] = withFailureLogs(
+            root,
+            [{ name: resourceName, reason: outcome.reason ?? outcome.state }],
+            outcome.logsSince,
+          );
+          return fail(
+            outcome.state === "failed" ? "RESTART_FAILED" : "RESTART_NOT_READY",
+            `${resourceName} ${outcome.state === "failed" ? "did not come back" : "is not ready yet"}: ${outcome.reason ?? outcome.state}`,
+            withLogs?.logs ?? [],
+          );
+        }
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              createMachineEnvelope({
+                resource: resourceName,
+                restarted: true,
+                state: outcome.state,
+                ready: outcome.state === "ready",
+                ...(outcome.pid ? { pid: outcome.pid } : {}),
+              }),
+            ),
+          );
+          return;
+        }
+        console.log(
+          chalk.green(
+            outcome.state === "ready"
+              ? `✓ Restarted ${resourceName} (ready)`
+              : `✓ Restarting ${resourceName}`,
+          ),
+        );
+        return;
       }
 
       let tiltAvailable = false;

@@ -732,6 +732,145 @@ describe("startUp", () => {
   });
 });
 
+describe("startUp states (native)", () => {
+  const nativeLine = (extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      schemaVersion: 1,
+      data: { ok: true, runtime: "native", services: ["api", "web"], ...extra },
+      errors: [],
+    });
+  const data = (r: { data: unknown }) =>
+    (r.data as { data: Record<string, unknown> }).data as Record<string, any>;
+  const snapshot = (
+    services: Record<string, { status: string; reason?: string }>,
+    logs: Record<string, string[]> = {},
+  ) => ({ services, logs }) as never;
+
+  it("reports ready at once for a fast startup", async () => {
+    const { deps } = fakeUp({ logs: [nativeLine()] });
+    const r = await startUp({}, deps);
+    expect(r.isError).toBe(false);
+    expect(data(r)).toMatchObject({ state: "ready", ready: true });
+  });
+
+  it("reports ready after a slow startup that prints its result several polls later", async () => {
+    const { deps } = fakeUp({ logs: ["", "", "", "", nativeLine()] });
+    const r = await startUp({ waitForReady: true }, deps);
+    expect(r.isError).toBe(false);
+    expect(data(r)).toMatchObject({ state: "ready", ready: true });
+  });
+
+  it("never reports ready for a Tilt run: it says nothing about readiness", async () => {
+    const line = JSON.stringify({
+      schemaVersion: 1,
+      data: { ok: true, runtime: "tilt" },
+      errors: [],
+    });
+    const { deps } = fakeUp({ logs: [line] });
+    const r = await startUp({}, deps);
+    expect(data(r).ready).toBeUndefined();
+    expect(data(r).state).toBeUndefined();
+  });
+
+  it("reports failed with the cause when a service fails immediately", async () => {
+    const line = JSON.stringify({
+      schemaVersion: 1,
+      data: {
+        ok: false,
+        runtime: "native",
+        failures: [
+          { name: "api", reason: "exited with code 1", logs: ["FATAL: API_TOKEN is not set"] },
+        ],
+      },
+      errors: [{ code: "UP_RESOURCE_FAILED", message: "api failed" }],
+    });
+    const { deps } = fakeUp({ logs: [line], exitAfter: { atRead: 1, code: 1 } });
+    const r = await startUp({}, deps);
+    expect(r.isError).toBe(true);
+    expect(data(r)).toMatchObject({ state: "failed", ready: false });
+    expect(JSON.stringify(r.data)).toContain("API_TOKEN is not set");
+  });
+
+  it("reports failed again for a repeated failure, not stale readiness", async () => {
+    const line = JSON.stringify({
+      schemaVersion: 1,
+      data: {
+        ok: false,
+        runtime: "native",
+        failures: [{ name: "api", reason: "kept exiting", logs: ["boom (x5)"] }],
+      },
+      errors: [{ code: "UP_RESOURCE_FAILED", message: "api failed" }],
+    });
+    for (let i = 0; i < 2; i++) {
+      const { deps } = fakeUp({ logs: [line] });
+      const r = await startUp({}, deps);
+      expect(r.isError).toBe(true);
+      expect(data(r).state).toBe("failed");
+      expect(JSON.stringify(r.data)).toContain("boom (x5)");
+    }
+  });
+
+  it("marks a child that dies without a result as failed", async () => {
+    const { deps } = fakeUp({ logs: ["", "Error: it broke"], exitAfter: { atRead: 2, code: 1 } });
+    const r = await startUp({}, deps);
+    expect(r.isError).toBe(true);
+    expect(data(r).state).toBe("failed");
+  });
+
+  it("returns STARTING, not ready, when the window ends and the run is still coming up", async () => {
+    const { deps } = fakeUp({ logs: [""] });
+    deps.nativeSnapshot = () => snapshot({ api: { status: "starting" } }, { api: ["warming up"] });
+    const r = await startUp({ waitSeconds: 2 }, deps);
+    expect(r.isError).toBe(false);
+    expect(data(r)).toMatchObject({ state: "starting", ready: false, started: true });
+    expect(data(r).services).toEqual({ api: { status: "starting" } });
+    expect(data(r).logs).toEqual({ api: ["warming up"] });
+  });
+
+  it("returns TIMEOUT as an error when waitForReady runs out, naming what is pending", async () => {
+    const { deps } = fakeUp({ logs: [""] });
+    deps.nativeSnapshot = () =>
+      snapshot({
+        base: { status: "ready" },
+        api: { status: "starting", reason: "waiting for base" },
+        web: { status: "starting" },
+      });
+    const r = await startUp({ waitForReady: true, waitSeconds: 3 }, deps);
+    expect(r.isError).toBe(true);
+    expect(data(r)).toMatchObject({ state: "timeout", ready: false, started: true });
+    const text = JSON.stringify(r.data);
+    expect(text).toContain("UP_NOT_READY_IN_TIME");
+    expect(text).toContain("api (waiting for base)");
+    expect(text).toContain("web (starting)");
+    expect(text).not.toContain("base (");
+  });
+
+  it("does not call an already-running stack ready while one dependant is still starting", async () => {
+    const { deps } = fakeUp({ logs: [nativeLine({ alreadyRunning: true })] });
+    deps.nativeSnapshot = () => snapshot({ api: { status: "ready" }, web: { status: "starting" } });
+    const r = await startUp({}, deps);
+    expect(data(r)).toMatchObject({ state: "starting", ready: false });
+    expect(data(r).services).toMatchObject({ web: { status: "starting" } });
+  });
+
+  it("reports an already-running stack as ready when every service is ready", async () => {
+    const { deps } = fakeUp({ logs: [nativeLine({ alreadyRunning: true })] });
+    deps.nativeSnapshot = () => snapshot({ api: { status: "ready" }, web: { status: "ready" } });
+    const r = await startUp({}, deps);
+    expect(data(r)).toMatchObject({ state: "ready", ready: true });
+  });
+
+  it("keeps waiting past the quick window when waitForReady is set", async () => {
+    // 20 polls of 1s each: beyond the 15s default but inside the 120s waitForReady default.
+    const { deps } = fakeUp({ logs: [...Array(20).fill(""), nativeLine()] });
+    const quick = await startUp({}, deps);
+    expect(data(quick).state).toBe("starting");
+    const { deps: deps2 } = fakeUp({ logs: [...Array(20).fill(""), nativeLine()] });
+    const patient = await startUp({ waitForReady: true }, deps2);
+    expect(data(patient).state).toBe("ready");
+  });
+});
+
 describe("tool list", () => {
   it("exposes tools with object schemas and no streaming logs", () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
@@ -811,7 +950,7 @@ describe("tool list", () => {
       { args: ["resources", "--json", "--stack=store"], cwd: undefined },
       { args: ["status", "--json"], cwd: undefined },
       { args: ["down", "--json", "--dry-run"], cwd: undefined },
-      { args: ["restart", "api", "--json"], cwd: undefined },
+      { args: ["restart", "api", "--json", "--wait=60"], cwd: undefined },
       { args: ["run", "api", "--json", "--", "printenv", "DATABASE_URL"], cwd: undefined },
       { args: ["resources", "--type=agent", "--json", "--stack=shop"], cwd: undefined },
       { args: ["agent", "sessions", "bot", "--session-id=sess-1", "--json"], cwd: undefined },
@@ -851,9 +990,9 @@ describe("tool list", () => {
       ?.handler({ resource: "api", rebuild: false });
     await tools.find((t) => t.name === "resource_restart")?.handler({ resource: "api" });
     expect(seen).toEqual([
-      ["restart", "api", "--json", "--rebuild"],
-      ["restart", "api", "--json"],
-      ["restart", "api", "--json"],
+      ["restart", "api", "--json", "--wait=60", "--rebuild"],
+      ["restart", "api", "--json", "--wait=60"],
+      ["restart", "api", "--json", "--wait=60"],
     ]);
     await expect(
       tools
@@ -886,7 +1025,7 @@ describe("tool list", () => {
         ?.handler({ projectPath: tempProject, resource: "worker" });
       expect(seen).toEqual([
         {
-          args: ["restart", "worker", "--json"],
+          args: ["restart", "worker", "--json", "--wait=60"],
           cwd: tempProject,
           timeoutMs: 310_000,
         },
@@ -936,7 +1075,7 @@ describe("tool list", () => {
         ?.handler({ projectPath: tempProject, resource: "tubehaus" });
       expect(seen).toEqual([
         {
-          args: ["restart", "tubehaus", "--json"],
+          args: ["restart", "tubehaus", "--json", "--wait=60"],
           cwd: tempProject,
           timeoutMs: 490_000,
         },

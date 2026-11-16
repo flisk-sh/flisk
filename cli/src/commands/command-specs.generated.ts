@@ -1974,6 +1974,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           "Restart resources for the Flisk project in this folder (default: the current project)",
       },
       {
+        flags: "--wait <seconds>",
+        description:
+          "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)",
+        defaultValue: "60",
+      },
+      {
         flags: "--json",
         description: "Output one JSON object and exit",
         defaultValue: false,
