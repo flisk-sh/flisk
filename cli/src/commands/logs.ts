@@ -12,7 +12,7 @@ import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
-import { findProjectRoot } from "../utils/paths.js";
+import { resolveCommandProject } from "../utils/project-resolution.js";
 import {
   EnvUnreadableError,
   envSecretValues,
@@ -110,12 +110,16 @@ export const logsCommand = new Command("logs")
     "--port <n>",
     "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
   )
+  .option(
+    "--project <path>",
+    "View logs for the Flisk project in this folder (default: the current project)",
+  )
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(
     "after",
     "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json",
   )
-  .action(async (options) => {
+  .action(async (options, command: Command) => {
     let secrets: string[] = [];
     const fail = (
       code: string,
@@ -175,12 +179,12 @@ export const logsCommand = new Command("logs")
     };
 
     const action = async (): Promise<void> => {
-      const projectRoot = findProjectRoot();
-      if (!projectRoot) {
-        // Same code `writeMachineError` gives this error in `down`, `stacks` and `resources`.
-        const error = errorFactories.notInProject();
-        return fail("COMMAND_FAILED", error.message, error.exitCode, error.suggestions);
-      }
+      const projectRoot = resolveCommandProject({
+        commandName: "logs",
+        project: options.project ?? command.optsWithGlobals().project,
+        json: options.json,
+        onFail: (error) => fail("COMMAND_FAILED", error.message, error.exitCode, error.suggestions),
+      });
 
       try {
         secrets = envSecretValues(projectRoot);

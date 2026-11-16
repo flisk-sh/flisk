@@ -12,7 +12,6 @@ import {
 } from "../utils/container-restart.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import {
-  errorFactories,
   FliskError,
   ProcessExitError,
   runCommand,
@@ -26,7 +25,7 @@ import {
   toMachineError,
   writeMachineError,
 } from "../utils/machine-output.js";
-import { findProjectRoot } from "../utils/paths.js";
+import { resolveCommandProject } from "../utils/project-resolution.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
@@ -37,12 +36,16 @@ export const restartCommand = new Command("restart")
   .argument("<resource>", "Name of the resource (service) to restart")
   .option("--port <n>", "Tilt UI port (default: TILT_PORT or 10350)")
   .option("--rebuild", "Rebuild the image through Tilt instead of restarting the container", false)
+  .option(
+    "--project <path>",
+    "Restart resources for the Flisk project in this folder (default: the current project)",
+  )
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(
     "after",
     "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
   )
-  .action(async (resourceName: string, options) => {
+  .action(async (resourceName: string, options, command: Command) => {
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText)) {
       const portSource = options.port !== undefined ? "--port" : "TILT_PORT";
@@ -56,12 +59,11 @@ export const restartCommand = new Command("restart")
     }
 
     const action = async (): Promise<void> => {
-      const root = findProjectRoot();
-      if (!root) {
-        const error = errorFactories.notInProject();
-        if (options.json) writeMachineError(error);
-        return error.exit();
-      }
+      const root = resolveCommandProject({
+        commandName: "restart",
+        project: options.project ?? command.optsWithGlobals().project,
+        json: options.json,
+      });
 
       // Check the name against the project's resources before probing Tilt, so a
       // typo reports UNKNOWN_RESOURCE instead of a misleading "Could not reach Tilt".

@@ -477,6 +477,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
       },
       {
+        flags: "--project <path>",
+        description:
+          "View logs for the Flisk project in this folder (default: the current project)",
+      },
+      {
         flags: "--json",
         description: "Output one JSON object and exit",
         defaultValue: false,
@@ -781,6 +786,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         flags: "--strict",
         description: "Exit 1 when any service is not ready or nothing is running",
         defaultValue: false,
+      },
+      {
+        flags: "--project <path>",
+        description:
+          "Show status for the Flisk project in this folder (default: the current project)",
       },
     ],
     arguments: [],
@@ -1947,6 +1957,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         flags: "--rebuild",
         description: "Rebuild the image through Tilt instead of restarting the container",
         defaultValue: false,
+      },
+      {
+        flags: "--project <path>",
+        description:
+          "Restart resources for the Flisk project in this folder (default: the current project)",
       },
       {
         flags: "--json",
