@@ -1,0 +1,9 @@
+{
+  "name": "idempotent-consumer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/consumer.ts",
+    "test": "bun test"
+  }
+}

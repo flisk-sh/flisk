@@ -51,6 +51,7 @@ Assert the resulting state, not just that the endpoint returned `200`.
 - A unique constraint on the event ID, scoped to the provider and account, can arbitrate concurrent admission. The durable inbox or queue and the worker's retry rules still need their own tests.
 - For effects outside your database, such as charging a card, keep a stable downstream idempotency key and test the ambiguous outcome (you do not know whether it happened) and reconciliation. A local database transaction does not make an external payment atomic.
 - Deduplicate on the event or business identity, never on the delivery signature or arrival time.
+- For a consumer reading from a broker rather than an HTTP endpoint, see [Idempotent consumer](recipes/idempotent-consumer.md).
 
 ## Reset state together, before the scenario
 
