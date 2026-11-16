@@ -23,6 +23,7 @@ import { formatFixFirst, rankDoctorFixes } from "../utils/doctor-fix-first.js";
 import { checkDiskSpace, dockerDesktopStuck } from "../utils/doctor-host.js";
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
 import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, } from "../utils/doctor-report.js";
+import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, } from "../utils/doctor-runner.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, summarizeAdvertisedProbes, summarizeServiceProbes, summarizeSmokeResults, } from "../utils/doctor-runtime.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkInfraFrameworks, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
@@ -48,6 +49,7 @@ import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkM
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
+import { isAtLeast, MIN_BUN_VERSION, MIN_TILT_VERSION, parseVersion, versionMeetsMinimum, } from "../utils/tool-versions.js";
 import { checkToolchains } from "../utils/toolchain.js";
 import { findOnPath } from "../utils/which.js";
 import { checkWindowsDockerMode, checkWindowsHostConfiguration, checkWindowsRuntimeTools, } from "../utils/windows-doctor.js";
@@ -73,14 +75,8 @@ export const DOCTOR_FIXES = {
 };
 export const WSL2_DOCTOR_MESSAGE = "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
 export const NATIVE_WINDOWS_DOCTOR_MESSAGE = `Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/start-here-on-windows.md (reference: docs/wsl2.md)`;
-export const MIN_TILT_VERSION = [0, 25, 0];
-export const MIN_BUN_VERSION = [1, 2, 0];
-export function versionMeetsMinimum(raw, minimum) {
-    const version = parseVersion(raw);
-    if (!version)
-        return false;
-    return isAtLeast(version, minimum);
-}
+// Re-exported for existing importers; the definitions live in utils/tool-versions.ts.
+export { MIN_BUN_VERSION, MIN_TILT_VERSION, versionMeetsMinimum };
 export function checkWslProjectLocation(projectPath, strict, isWsl = detectWsl()) {
     if (!isWsl) {
         return {
@@ -141,135 +137,8 @@ export function checkPublishedBindAddress(env = process.env, strict = false) {
         fix: "Unset FLISK_BIND_ADDRESS to keep dev ports on 127.0.0.1. Keep it only when you test from another device on purpose.",
     };
 }
-/** Failures are shown before passing statuses, with a 5432 conflict first. */
-export function orderDoctorResults(results) {
-    const failures = results.filter((result) => !result.didPass && !result.isSkipped && !result.isWarning);
-    const remaining = results.filter((result) => result.didPass || result.isSkipped || result.isWarning);
-    failures.sort((left, right) => {
-        const rank = (result) => {
-            if (result.name === "Host Ports" && /\b5432\b/.test(result.message))
-                return 0;
-            if (result.name === "Host Ports")
-                return 1;
-            if (result.name === "Ingress Ports")
-                return 2;
-            return 3;
-        };
-        return rank(left) - rank(right);
-    });
-    return [...failures, ...remaining];
-}
-export function getDoctorOutcomeMessage(inProject, allPassed) {
-    if (!allPassed)
-        return "Doctor failed. Fix the items above, then run: flisk doctor";
-    return inProject ? "Doctor passed. Next: flisk up" : "Doctor passed. Next: flisk project example";
-}
-export const CONTAINER_CHECK_NAMES_MAP = {
-    checkDockerOperatingSystem: "Docker OS",
-    checkDockerCompose: "Docker Compose",
-    checkDockerVersions: "Docker Versions",
-    checkDockerNetworkCapacity: "Docker Network Pool",
-    checkContainerResourceHealth: "Container Resource Health",
-    checkCrashLoopingContainers: "Crash-looping containers",
-    checkTiltResourceHealth: "Tilt Resources",
-    checkServiceHealth: "Service Health",
-    checkServiceSmoke: "Service Smoke",
-    checkAdvertisedEndpoints: "Advertised Endpoints",
-    checkDockerBuildCache: "Docker Build Cache",
-    checkDockerFileSharing: "Docker File Sharing",
-};
-export const CONTAINER_DEPENDENT_CHECK_NAMES = new Set([
-    "Docker OS",
-    "Docker Compose",
-    "Docker Versions",
-    "Docker Network Pool",
-    "Container Resource Health",
-    "Crash-looping containers",
-    "Tilt Resources",
-    "Service Health",
-    "Service Smoke",
-    "Advertised Endpoints",
-    "Docker Build Cache",
-    "Colima Disk",
-    "Docker File Sharing",
-    ...Object.keys(CONTAINER_CHECK_NAMES_MAP),
-]);
-export function isContainerDependentCheck(check) {
-    if (check.requiresContainerRuntime)
-        return true;
-    if (check.checkName && CONTAINER_DEPENDENT_CHECK_NAMES.has(check.checkName))
-        return true;
-    if (check.name && CONTAINER_DEPENDENT_CHECK_NAMES.has(check.name))
-        return true;
-    return false;
-}
-export function requiresContainerRuntime(checkName, check) {
-    const wrapped = () => check();
-    wrapped.requiresContainerRuntime = true;
-    wrapped.checkName = checkName;
-    return wrapped;
-}
-export async function runChecks(checks, options = {}) {
-    const results = [];
-    let containerRuntimeFailed = Boolean(options.containerRuntimeFailed);
-    for (const check of checks) {
-        if (containerRuntimeFailed && isContainerDependentCheck(check)) {
-            let checkName = check.checkName;
-            if (checkName === undefined) {
-                const mappedName = check.name ? CONTAINER_CHECK_NAMES_MAP[check.name] : undefined;
-                if (mappedName) {
-                    checkName = mappedName;
-                }
-                else if (check.name && check.name !== "check" && check.name !== "fn") {
-                    checkName = check.name;
-                }
-                else {
-                    checkName = "Container check";
-                }
-            }
-            results.push({
-                name: checkName,
-                didPass: true,
-                isSkipped: true,
-                message: `Docker not running - skipped ${checkName} check`,
-            });
-            continue;
-        }
-        const result = await check();
-        results.push(result);
-        if (result.name === CONTAINER_RUNTIME_CHECK && !result.didPass) {
-            containerRuntimeFailed = true;
-        }
-        if (!options.all && !result.didPass && !result.isSkipped && !result.isWarning) {
-            break;
-        }
-    }
-    return results;
-}
-export function formatDoctorSummary(results) {
-    let passed = 0;
-    let failed = 0;
-    let skipped = 0;
-    let warned = 0;
-    for (const result of results) {
-        if (result.isSkipped) {
-            skipped++;
-        }
-        else if (result.isWarning) {
-            warned++;
-        }
-        else if (result.didPass) {
-            passed++;
-        }
-        else {
-            failed++;
-        }
-    }
-    if (warned > 0) {
-        return `${passed} passed, ${warned} warned, ${failed} failed, ${skipped} skipped`;
-    }
-    return `${passed} passed, ${failed} failed, ${skipped} skipped`;
-}
+// The check runner lives in utils/doctor-runner.ts; re-exported for existing importers.
+export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, };
 function isTimeout(err) {
     return isExecTimeout(err);
 }
@@ -441,22 +310,6 @@ checkDockerCompose.checkName = "Docker Compose";
 // Generated healthchecks use `start_interval`, which older engines/compose reject.
 const MIN_DOCKER_ENGINE_VERSION = [25, 0, 0];
 const MIN_DOCKER_COMPOSE_VERSION = [2, 20, 2];
-function parseVersion(raw) {
-    const match = raw.trim().match(/(\d+)\.(\d+)(?:\.(\d+))?/);
-    if (!match) {
-        return null;
-    }
-    return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)];
-}
-function isAtLeast(version, minimum) {
-    for (const [index, required] of minimum.entries()) {
-        const actual = version[index] ?? 0;
-        if (actual !== required) {
-            return actual > required;
-        }
-    }
-    return true;
-}
 export async function checkDockerVersions(exec = execAsync) {
     const run = async (command, timeoutMs = EXEC_TIMEOUT_MS) => String(await exec(command, timeoutMs)).trim();
     let engineRaw;
