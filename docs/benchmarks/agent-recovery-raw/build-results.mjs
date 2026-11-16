@@ -35,5 +35,5 @@ const out = runs.map(([round, name, toolCalls, rep, note]) => {
   };
 });
 out.push({ round: "round-1", run: "r1-*", verdict: "NOT COMPARABLE", notes: "Briefs listed the wrong ports; agents collided and rewrote .env. All 8 runs were stopped and discarded; no metrics are used." });
-writeFileSync("docs/benchmarks/agent-recovery-results.json", `${JSON.stringify({ schema: 1, base: "ac3b1539ba9", model: "claude sonnet (subagent), one run per cell", runs: out }, null, 2)}\n`);
+writeFileSync("docs/benchmarks/agent-recovery-results.json", `${JSON.stringify({ schema: 1, base: "ac3b153", model: "claude sonnet (subagent), one run per cell", runs: out }, null, 2)}\n`);
 console.log(out.length, "records");

@@ -12,7 +12,7 @@ covered by tests. See section 12.
 
 | | |
 |---|---|
-| Base commit | `ac3b1539ba9` (`fix(resource): reserve ports across concurrent creates (#4023) (#4502)`) |
+| Base commit | `ac3b153` (`fix(resource): reserve ports across concurrent creates (#4023) (#4502)`) |
 | Branch | `bench/agent-recovery` |
 | Final commit | the head of the draft PR |
 | Machine | macOS (Darwin 25.5.0), Apple silicon, local PostgreSQL binaries (`initdb`, `postgres`, `psql`) |
