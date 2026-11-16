@@ -81,6 +81,6 @@ test("does not depend on npm config (no npm process, no NODE_AUTH_TOKEN)", async
 	}
 });
 
-test("waits at least five minutes for a fresh publish before giving up (#4272)", () => {
-	assert.ok(FIND_ATTEMPTS * FIND_DELAY_MS >= 5 * 60_000);
+test("waits at least fifteen minutes for a fresh publish before giving up (#4272)", () => {
+	assert.ok(FIND_ATTEMPTS * FIND_DELAY_MS >= 15 * 60_000);
 });
