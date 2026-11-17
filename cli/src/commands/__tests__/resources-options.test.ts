@@ -16,7 +16,7 @@ describe("resources --no-stack option wiring", () => {
     const option = resourcesCommand.options.find((o) => o.long === "--no-stack");
     expect(option?.negate).toBe(false);
     expect(option?.attributeName()).toBe("noStack");
-    expect(option?.conflictsWith).toContain("stack");
+    expect((option as unknown as { conflictsWith?: string[] } | undefined)?.conflictsWith).toContain("stack");
   });
 });
 
