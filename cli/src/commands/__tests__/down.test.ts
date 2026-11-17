@@ -243,6 +243,20 @@ describe("flisk down", () => {
     }
   }
 
+  it("outside a project refuses to stop a foreign project without consent", async () => {
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    const project = scratchProject("foreign");
+    findRunningFliskProjectsMock.mockReturnValue([project]);
+    try {
+      const output = await downFails(elsewhere, []);
+      expect(output).toContain(`a different project is running: ${project}`);
+      expect(output).toContain("flisk down --project");
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
   it("outside a project stops the only Flisk project that is running, from its folder", async () => {
     const project = scratchProject("running");
     const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));

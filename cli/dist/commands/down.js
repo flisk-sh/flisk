@@ -83,6 +83,11 @@ function resolveDownProject(options) {
         const running = findRunningFliskProjects();
         if (running.length === 1) {
             const root = running[0];
+            if (!options.yes && !options.force) {
+                return fail(new FliskError(`Not in a Flisk project; a different project is running: ${root}`, [
+                    `Run flisk down --project "${root}" to stop it explicitly, or pass --yes.`,
+                ]));
+            }
             if (!options.json)
                 console.log(chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`));
             return root;

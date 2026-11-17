@@ -104,7 +104,12 @@ function isNativeRun(projectRoot: string): boolean {
  * The project to stop: the one at `--project`, else the one around the current folder, else the only Flisk project with
  * a `tilt up` running. Exits with the project-root error when none is found, and lists them when several are running.
  */
-function resolveDownProject(options: { project?: string; json?: boolean }): string {
+function resolveDownProject(options: {
+  project?: string;
+  json?: boolean;
+  yes?: boolean;
+  force?: boolean;
+}): string {
   const fail = (error: FliskError): never => {
     if (options.json) writeMachineError(error);
     return error.exit();
@@ -129,6 +134,13 @@ function resolveDownProject(options: { project?: string; json?: boolean }): stri
       const running = findRunningFliskProjects();
       if (running.length === 1) {
         const root = running[0] as string;
+        if (!options.yes && !options.force) {
+          return fail(
+            new FliskError(`Not in a Flisk project; a different project is running: ${root}`, [
+              `Run flisk down --project "${root}" to stop it explicitly, or pass --yes.`,
+            ]),
+          );
+        }
         if (!options.json)
           console.log(
             chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`),
