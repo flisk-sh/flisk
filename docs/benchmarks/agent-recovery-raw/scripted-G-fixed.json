@@ -1,0 +1,1 @@
+{"fault":"G","upExit":0,"e2e":{"ok":true,"steps":[{"name":"web /health","ok":true},{"name":"web serves the page","ok":true},{"name":"POST note through web->api->db","ok":true},{"name":"GET note back through web->api","ok":true},{"name":"row exists in PostgreSQL itself","ok":true}]},"downExit":0,"leftovers":{"occupiedPorts":[],"postgresPids":[]},"seconds":2.21}

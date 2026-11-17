@@ -1,0 +1,27 @@
+{
+  "arm": "control",
+  "fault": "B",
+  "base": 43030,
+  "preppedAt": 1794872306538,
+  "finalE2E": {
+    "ok": false,
+    "steps": [
+      {
+        "name": "web /health",
+        "ok": false,
+        "detail": "ECONNREFUSED: Unable to connect. Is the computer able to access the url?"
+      }
+    ]
+  },
+  "bootsPerService": {
+    "db": 1,
+    "migrate": 1,
+    "api": 2,
+    "web": 1
+  },
+  "secondsToFirstHealthy": 52.8,
+  "leftovers": {
+    "occupiedPorts": [],
+    "postgresPids": []
+  }
+}

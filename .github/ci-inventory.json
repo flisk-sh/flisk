@@ -1014,6 +1014,14 @@
 			"required": false,
 			"reason": "Wolf (inference.flisk.si) comments a suggested service.json on PRs that change one; never blocks a merge",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "agent-recovery-benchmark.yml",
+			"job": "recovery",
+			"tier": "test",
+			"required": false,
+			"reason": "Scripted agent recovery experiment (fault G) on real PostgreSQL, plus the result-file gate",
+			"owner": "maintainers"
 		}
 	]
 }

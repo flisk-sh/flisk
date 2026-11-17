@@ -1,0 +1,27 @@
+{
+  "arm": "flisk",
+  "fault": "G",
+  "base": 44030,
+  "preppedAt": 1794872694092,
+  "finalE2E": {
+    "ok": false,
+    "steps": [
+      {
+        "name": "web /health",
+        "ok": false,
+        "detail": "ECONNREFUSED: Unable to connect. Is the computer able to access the url?"
+      }
+    ]
+  },
+  "bootsPerService": {
+    "db": 1,
+    "migrate": 1,
+    "api": 1,
+    "web": 1
+  },
+  "secondsToFirstHealthy": 19.4,
+  "leftovers": {
+    "occupiedPorts": [],
+    "postgresPids": []
+  }
+}

@@ -54,9 +54,8 @@ vi.mock("../errors.js", async (importOriginal) => ({
   showError: errors.showError,
 }));
 
-const { localDatabaseEnv, runNativeUp, runVariables, withFailureLogs } = await import(
-  "../native-up.js"
-);
+const { localDatabaseEnv, runNativeUp, runVariables, shadowedEnvKeys, withFailureLogs } =
+  await import("../native-up.js");
 
 class ExitCalled extends Error {
   constructor(readonly code: number) {
@@ -140,6 +139,31 @@ describe("runVariables", () => {
   });
 });
 
+describe("shadowedEnvKeys", () => {
+  it("names the .env keys the shell overrides with another value, never the values", () => {
+    const dir = createTempDir();
+    writeFileSync(
+      join(dir, ".env"),
+      "NOTES_LIMIT=100\nAPI_TOKEN=secret-token\nSAME=1\nONLY_ENV=x\n",
+    );
+    const keys = shadowedEnvKeys(dir, undefined, {
+      NOTES_LIMIT: "0",
+      SAME: "1",
+      API_TOKEN: "other",
+    });
+    expect(keys).toEqual(["API_TOKEN", "NOTES_LIMIT"]);
+    expect(JSON.stringify(keys)).not.toContain("secret-token");
+  });
+
+  it("is empty with no .env or no override", () => {
+    const dir = createTempDir();
+    expect(shadowedEnvKeys(dir, undefined, { A: "1" })).toEqual([]);
+    writeFileSync(join(dir, ".env"), "A=1\n");
+    expect(shadowedEnvKeys(dir, undefined, {})).toEqual([]);
+    expect(shadowedEnvKeys(dir, undefined, { A: "1" })).toEqual([]);
+  });
+});
+
 describe("localDatabaseEnv", () => {
   it("clears the .env DATABASE_URL unless the service depends on a database (#4456)", () => {
     // A fresh project has no dependsOn, so the Docker host URL must not reach the local process.
@@ -149,6 +173,20 @@ describe("localDatabaseEnv", () => {
     // The shared Postgres aliases and a database resource's own name keep the URL.
     expect(localDatabaseEnv(["postgres"])).toEqual({});
     expect(localDatabaseEnv(["db"], ["db"])).toEqual({});
+  });
+
+  it("keeps a DATABASE_URL the service declares itself, even when its database is a plain command service", () => {
+    const declared = { DATABASE_URL: "postgres://u@127.0.0.1:5432/notes" };
+    expect(localDatabaseEnv(["db"], [], declared)).toEqual({});
+    expect(localDatabaseEnv([], [], declared)).toEqual({});
+  });
+
+  it("still clears an empty or absent declaration, and never echoes the value (no secret leak)", () => {
+    expect(localDatabaseEnv(["db"], [], { DATABASE_URL: "" })).toEqual({ DATABASE_URL: "" });
+    expect(localDatabaseEnv(["db"], [], { OTHER: "x" })).toEqual({ DATABASE_URL: "" });
+    expect(
+      JSON.stringify(localDatabaseEnv([], [], { DATABASE_URL: "postgres://u:secret@h/d" })),
+    ).not.toContain("secret");
   });
 });
 
