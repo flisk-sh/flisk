@@ -249,5 +249,8 @@ export interface ResourceReport {
     framework: string | null;
     language: string | null;
     discovered: boolean;
+    requestedType?: string;
+    ignoredType?: string;
+    preservedPort?: number;
 }
 export declare const resourceCommand: Command;
