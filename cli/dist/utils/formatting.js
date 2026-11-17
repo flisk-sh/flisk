@@ -82,7 +82,7 @@ const EMPTY_STATE_CONFIG = {
         context: "\nTo add services to this stack:",
     },
 };
-export function showEmptyState(itemType, filterContext) {
+export function showEmptyState(itemType, filterContext, typeFilter) {
     const config = EMPTY_STATE_CONFIG[itemType];
     if (filterContext) {
         console.log(chalk.yellow(`No ${config.singular}s found${filterContext}.`));
@@ -90,8 +90,9 @@ export function showEmptyState(itemType, filterContext) {
     else {
         console.log(chalk.yellow(`No ${config.singular}s found.`));
     }
+    const command = typeFilter ? `${config.command} --type ${typeFilter}` : config.command;
     console.log(chalk.gray(config.context));
-    console.log(chalk.gray(`  ${config.command}`));
+    console.log(chalk.gray(`  ${command}`));
     if (itemType === "stacks") {
         console.log(chalk.gray("\nOr create a new resource with a stack:"));
         console.log(chalk.gray("  flisk resource <name> --stack <stack-name>"));
