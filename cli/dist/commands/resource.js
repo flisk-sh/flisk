@@ -655,13 +655,14 @@ export function parseExistingServiceJson(content, configPath) {
 /**
  * Prints the framework inventory for the requested resource type.
  *
- * Without an explicit `--type` the listing stays the historical frontend one, byte for byte, so
- * `flisk resource --frameworks` keeps working exactly as before: `--language` is a backend option and
- * never applies to it. `--type frontend` and `--type backend` list that type's frameworks, and the
- * backend listing carries the language (and runtime) each framework is scaffolded with.
+ * The default is backend, matching the resource type default. Explicit types keep their
+ * own column formats, and the backend listing shows each framework's compatible language.
  */
 function printFrameworkInventory(options, isTypeExplicit) {
-    const listing = frameworkListing(options, isTypeExplicit);
+    const listing = frameworkListing(options);
+    if (!isTypeExplicit && listing.type === "backend") {
+        console.error("Listing backend frameworks (the default). Other types: --type frontend|database|queue|storage|mail|payment.");
+    }
     if (listing.type === "frontend") {
         printFrontendFrameworks();
         return;
@@ -713,11 +714,7 @@ export function infraFrameworkListing(type) {
     ];
 }
 /** Which framework inventory `--frameworks` lists, and for a backend the language it is judged against. */
-function frameworkListing(options, isTypeExplicit) {
-    // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
-    // it is a backend option, and the frontend listing has never carried one.
-    if (!isTypeExplicit)
-        return { type: "frontend" };
+function frameworkListing(options) {
     const resourceType = parseResourceType(options.type ?? "backend");
     if (isInfraResourceType(resourceType)) {
         return { type: resourceType };
@@ -735,8 +732,8 @@ function frameworkListing(options, isTypeExplicit) {
         : { type: "backend", language: language?.id };
 }
 /** What `flisk resource --frameworks --json` reports: the same inventory the text listing prints. */
-export function frameworkInventoryReport(options, isTypeExplicit) {
-    const listing = frameworkListing(options, isTypeExplicit);
+export function frameworkInventoryReport(options) {
+    const listing = frameworkListing(options);
     if (isInfraResourceType(listing.type)) {
         return {
             type: listing.type,
@@ -820,7 +817,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
     const isTypeExplicit = command.getOptionValueSource("type") === "cli";
     if (options.frameworks && options.json) {
         await runJsonCommand("RESOURCE_FAILED", "flisk resource", async () => ({
-            data: frameworkInventoryReport(options, isTypeExplicit),
+            data: frameworkInventoryReport(options),
         }));
         return;
     }

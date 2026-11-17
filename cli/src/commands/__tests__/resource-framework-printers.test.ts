@@ -176,12 +176,12 @@ describe("printFrameworkInventory for database and queue", () => {
     expect(envelope.data.frameworks.map((f: { id: string }) => f.id)).toContain("clickhouse");
   });
 
-  it("keeps the frontend inventory in --json when no --type is given", async () => {
+  it("reports a backend inventory in JSON when no type is given", async () => {
+    listMocks.listBackendFrameworks.mockReturnValue([]);
     const result = await runFrameworkListing(["--frameworks", "--json"]);
 
     const envelope = JSON.parse(result.stdout);
-    expect(envelope.data.type).toBe("frontend");
-    expect(envelope.data.frameworks.length).toBeGreaterThan(0);
+    expect(envelope.data.type).toBe("backend");
   });
 
   it("reports the queue frameworks in --json", async () => {
