@@ -731,6 +731,10 @@ export const COMMAND_SPECS = [
                 defaultValue: true,
             },
             {
+                flags: "--stack <name>",
+                description: "Only report services in this stack",
+            },
+            {
                 flags: "--resources",
                 description: "Show all discovered resources",
                 defaultValue: false,
