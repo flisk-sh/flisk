@@ -273,6 +273,30 @@ describe("resource scaffolding preview", () => {
     });
   });
 
+  it("does not give a portless existing sdk a port when worker is requested", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "sdk",
+          stack: "shop",
+        }),
+      },
+    });
+    const args = ["--type", "worker", "--path", "existing", "--port", "6100"];
+    const preview = runResourceCommand(root, args);
+    expect(preview.resource).toMatchObject({
+      type: "sdk",
+      requestedType: "worker",
+      ignoredType: "worker",
+    });
+    expect(preview.resource.port ?? null).toBeNull();
+    runResourceCommand(root, args, false);
+    const manifest = JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"));
+    expect(manifest.appType).toBe("sdk");
+    expect(manifest.port).toBeUndefined();
+  });
+
   it("refuses to keep a port that another resource already uses", () => {
     const root = createTempProject({
       files: {

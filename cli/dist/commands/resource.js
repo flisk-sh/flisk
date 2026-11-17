@@ -1203,15 +1203,18 @@ export const resourceCommand = addYesOption(new Command("resource"))
         }
         if (infraPreset)
             assertInfraPresetOptions(infraPreset, options);
+        // A conflicting type must not allocate a port the existing manifest never had (a portless sdk or database).
         let assignedPort = preserveExistingPort
             ? existingRegistrationPort
-            : infraPreset
-                ? INFRA_PRESETS[infraPreset].port
-                : isInference
-                    ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
-                    : resourceType === "sdk" || isDatabase
-                        ? 0
-                        : resolveResourcePort(resourceType, options.port, nextPort, allResources);
+            : hasTypeConflict && existingRegistration
+                ? 0
+                : infraPreset
+                    ? INFRA_PRESETS[infraPreset].port
+                    : isInference
+                        ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
+                        : resourceType === "sdk" || isDatabase
+                            ? 0
+                            : resolveResourcePort(resourceType, options.port, nextPort, allResources);
         // --local: on your own computer the port has to be free right now, not only unassigned in this project (another
         // program may already listen on 3000). Picked here so the details, the confirmation and the JSON report all show
         // the port the service really gets. An explicit --port is kept as it is.
