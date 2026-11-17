@@ -105,22 +105,22 @@ describe("flisk --help", () => {
     }
   });
 
-  it("rejects unknown commands with exit code 1", () => {
+  it("rejects unknown commands with exit code 2", () => {
     const dir = createTempDir("flisk-unknown-cmd-");
     try {
       const res = runFlisk(["unknown-command-xyz"], { cwd: dir });
-      expect(res.status).toBe(1);
+      expect(res.status).toBe(2);
       expect(res.stderr).toContain("error: unknown command 'unknown-command-xyz'");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it("rejects unknown command target passed to help with exit code 1", () => {
+  it("rejects unknown command target passed to help with exit code 2", () => {
     const dir = createTempDir("flisk-unknown-help-");
     try {
       const res = runFlisk(["help", "unknown-target-xyz"], { cwd: dir });
-      expect(res.status).toBe(1);
+      expect(res.status).toBe(2);
       expect(res.stderr).toContain("error: unknown command 'unknown-target-xyz'");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

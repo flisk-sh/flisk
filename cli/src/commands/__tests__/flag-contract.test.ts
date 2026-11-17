@@ -671,7 +671,7 @@ describe("flag contract: unknown flag handling", () => {
     const dir = createTempDir("flisk-unknown-flag-");
     try {
       const res = runFlisk(["status", "--nonexistent-flag-test"], { cwd: dir });
-      expect(res.status).toBe(1);
+      expect(res.status).toBe(2);
       expect(res.stderr).toContain("error: unknown option");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
