@@ -15,9 +15,13 @@ export function resolveHelpTarget(
   args: readonly string[],
   commands: readonly Command[],
 ): HelpTargetResolution {
-  if (args[0] !== "help") return { depth: 0 };
+  // Root flags such as `--verbose` may come before `help` (`flisk --verbose help mcp check`).
+  const rest = args.slice(args.findIndex((arg) => !arg.startsWith("-")));
+  if (args.length === 0 || args.every((arg) => arg.startsWith("-")) || rest[0] !== "help") {
+    return { depth: 0 };
+  }
   const targets: string[] = [];
-  for (const arg of args.slice(1)) {
+  for (const arg of rest.slice(1)) {
     if (arg.startsWith("-")) break;
     targets.push(arg);
   }

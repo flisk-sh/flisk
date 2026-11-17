@@ -61,6 +61,14 @@ describe("resolveHelpTarget (#4486)", () => {
     expect(resolved.command?.name()).toBe("check");
   });
 
+  it("resolves nested help after a leading root flag", () => {
+    const resolved = resolveHelpTarget(["--verbose", "help", "mcp", "check"], makeCommands());
+    expect(resolved.depth).toBe(2);
+    expect(resolved.command?.name()).toBe("check");
+    expect(resolveHelpTarget(["--verbose"], makeCommands()).depth).toBe(0);
+    expect(resolveHelpTarget([], makeCommands()).depth).toBe(0);
+  });
+
   it("stops collecting path words at flags like --json", () => {
     const commands = makeCommands();
     const resolved = resolveHelpTarget(["help", "mcp", "check", "--json"], commands);
