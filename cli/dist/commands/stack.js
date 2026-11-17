@@ -6,6 +6,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { generateMasterConfigs } from "../generator/template-engine.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
+import { JsonCommandError } from "../utils/json-command.js";
 import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
@@ -189,10 +190,8 @@ export const stackCommand = addYesOption(new Command("stack"))
         const moveTargets = new Map();
         if (options.resources !== undefined) {
             const requestedNames = normalizeResourceNames(options.resources);
-            if (requestedNames.length === 0) {
-                throw new FliskError("Pass at least one resource name to --resources.", [
-                    "Example: `flisk stack api --resources users-api orders-api --yes`",
-                ]);
+            if (requestedNames.length === 0 || requestedNames.some((name) => name.startsWith("-"))) {
+                throw new JsonCommandError("USAGE", "--resources needs at least one resource name", ["Example: `flisk stack api --resources users-api orders-api --yes`"], 2);
             }
             const configPathsByName = new Map();
             for (const resource of discovery.resources) {
