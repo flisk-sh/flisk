@@ -489,6 +489,167 @@ function isCapabilityMap(value) {
         return false;
     return Object.values(value).every((flag) => typeof flag === "boolean");
 }
+function echoConfigValue(value) {
+    const text = JSON.stringify(value);
+    return text !== undefined && /^[\w".:+-]{1,40}$/.test(text) ? `, got ${text}` : "";
+}
+function validateProjectConfigShape(value, displayPath) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return [`${displayPath}: expected a JSON object`];
+    }
+    const config = value;
+    const errors = [];
+    if (config.version === undefined) {
+        errors.push(`${displayPath}.version: required field is missing`);
+    }
+    else if (typeof config.version !== "string") {
+        errors.push(`${displayPath}.version: expected a string${echoConfigValue(config.version)}`);
+    }
+    if (config.project === undefined) {
+        errors.push(`${displayPath}.project: required field is missing`);
+    }
+    else if (!config.project ||
+        typeof config.project !== "object" ||
+        Array.isArray(config.project)) {
+        errors.push(`${displayPath}.project: expected an object${echoConfigValue(config.project)}`);
+    }
+    else {
+        const project = config.project;
+        if (project.name === undefined) {
+            errors.push(`${displayPath}.project.name: required field is missing`);
+        }
+        else if (typeof project.name !== "string") {
+            errors.push(`${displayPath}.project.name: expected a string${echoConfigValue(project.name)}`);
+        }
+        if (project.version === undefined) {
+            errors.push(`${displayPath}.project.version: required field is missing`);
+        }
+        else if (typeof project.version !== "string") {
+            errors.push(`${displayPath}.project.version: expected a string${echoConfigValue(project.version)}`);
+        }
+    }
+    if (config.phases === undefined && config.stacks === undefined) {
+        errors.push(`${displayPath}.phases: required field is missing`);
+    }
+    else if (config.phases !== undefined) {
+        if (!config.phases || typeof config.phases !== "object" || Array.isArray(config.phases)) {
+            errors.push(`${displayPath}.phases: expected an object${echoConfigValue(config.phases)}`);
+        }
+        else {
+            const phases = config.phases;
+            for (const phaseName of ["pre_alpha", "alpha", "beta", "out_of_scope"]) {
+                const phase = phases[phaseName];
+                if (phase === undefined) {
+                    errors.push(`${displayPath}.phases.${phaseName}: required phase is missing`);
+                }
+                else if (!phase || typeof phase !== "object" || Array.isArray(phase)) {
+                    errors.push(`${displayPath}.phases.${phaseName}: expected an object${echoConfigValue(phase)}`);
+                }
+                else {
+                    const enabledStacks = phase.enabledStacks;
+                    if (enabledStacks === undefined) {
+                        errors.push(`${displayPath}.phases.${phaseName}.enabledStacks: required field is missing`);
+                    }
+                    else if (!Array.isArray(enabledStacks) ||
+                        !enabledStacks.every((item) => typeof item === "string")) {
+                        errors.push(`${displayPath}.phases.${phaseName}.enabledStacks: expected an array of strings${echoConfigValue(enabledStacks)}`);
+                    }
+                }
+            }
+        }
+    }
+    else if (config.stacks !== undefined) {
+        if (!config.stacks || typeof config.stacks !== "object" || Array.isArray(config.stacks)) {
+            errors.push(`${displayPath}.stacks: expected an object${echoConfigValue(config.stacks)}`);
+        }
+        else {
+            const stacks = config.stacks;
+            for (const phaseName of ["pre_alpha", "alpha", "beta", "out_of_scope"]) {
+                const phase = stacks[phaseName];
+                if (phase === undefined) {
+                    errors.push(`${displayPath}.stacks.${phaseName}: required phase is missing`);
+                }
+                else if (!phase || typeof phase !== "object" || Array.isArray(phase)) {
+                    errors.push(`${displayPath}.stacks.${phaseName}: expected an object${echoConfigValue(phase)}`);
+                }
+                else {
+                    const services = phase.services;
+                    if (services === undefined) {
+                        errors.push(`${displayPath}.stacks.${phaseName}.services: required field is missing`);
+                    }
+                    else if (!Array.isArray(services) ||
+                        !services.every((item) => typeof item === "string")) {
+                        errors.push(`${displayPath}.stacks.${phaseName}.services: expected an array of strings${echoConfigValue(services)}`);
+                    }
+                }
+            }
+        }
+    }
+    if (config.optional_infra === undefined) {
+        errors.push(`${displayPath}.optional_infra: required field is missing`);
+    }
+    else if (!config.optional_infra ||
+        typeof config.optional_infra !== "object" ||
+        Array.isArray(config.optional_infra)) {
+        errors.push(`${displayPath}.optional_infra: expected an object${echoConfigValue(config.optional_infra)}`);
+    }
+    else {
+        const optionalInfra = config.optional_infra;
+        for (const flag of ["monitoring", "elk", "debezium", "golden_image", "verdaccio"]) {
+            if (optionalInfra[flag] === undefined) {
+                errors.push(`${displayPath}.optional_infra.${flag}: required field is missing`);
+            }
+            else if (typeof optionalInfra[flag] !== "boolean") {
+                errors.push(`${displayPath}.optional_infra.${flag}: expected true or false${echoConfigValue(optionalInfra[flag])}`);
+            }
+        }
+    }
+    if (config.discovery === undefined) {
+        errors.push(`${displayPath}.discovery: required field is missing`);
+    }
+    else if (!config.discovery ||
+        typeof config.discovery !== "object" ||
+        Array.isArray(config.discovery)) {
+        errors.push(`${displayPath}.discovery: expected an object${echoConfigValue(config.discovery)}`);
+    }
+    else {
+        const discovery = config.discovery;
+        if (discovery.paths === undefined) {
+            errors.push(`${displayPath}.discovery.paths: required field is missing`);
+        }
+        else if (!Array.isArray(discovery.paths) ||
+            !discovery.paths.every((item) => typeof item === "string")) {
+            errors.push(`${displayPath}.discovery.paths: expected an array of strings${echoConfigValue(discovery.paths)}`);
+        }
+    }
+    if (config.capabilities !== undefined && !isCapabilityMap(config.capabilities)) {
+        errors.push(`${displayPath}.capabilities: expected an object of booleans${echoConfigValue(config.capabilities)}`);
+    }
+    if (config.repos !== undefined) {
+        if (!Array.isArray(config.repos)) {
+            errors.push(`${displayPath}.repos: expected an array${echoConfigValue(config.repos)}`);
+        }
+        else {
+            config.repos.forEach((item, index) => {
+                if (!item || typeof item !== "object" || Array.isArray(item)) {
+                    errors.push(`${displayPath}.repos[${index}]: expected an object${echoConfigValue(item)}`);
+                    return;
+                }
+                const repo = item;
+                if (typeof repo.url !== "string" || !repo.url.trim()) {
+                    errors.push(`${displayPath}.repos[${index}].url: expected a non-empty string`);
+                }
+                if (typeof repo.dir !== "string" || !repo.dir.trim()) {
+                    errors.push(`${displayPath}.repos[${index}].dir: expected a non-empty string`);
+                }
+                if (repo.branch !== undefined && typeof repo.branch !== "string") {
+                    errors.push(`${displayPath}.repos[${index}].branch: expected a string${echoConfigValue(repo.branch)}`);
+                }
+            });
+        }
+    }
+    return errors;
+}
 function normalizeProjectConfig(value) {
     if (!value || typeof value !== "object") {
         return null;
@@ -636,13 +797,21 @@ export function readProjectConfig(projectRoot) {
     }
     const projectConfig = normalizeProjectConfig(parsed);
     if (!projectConfig) {
-        throw new Error("Invalid project.json: missing or invalid required fields. " +
+        const displayPath = path.relative(projectRoot, projectJsonPath).split(path.sep).join("/") ||
+            ".flisk/project.json";
+        const errors = validateProjectConfigShape(parsed, displayPath);
+        if (errors.length > 0) {
+            throw new FliskError(`Invalid project.json:\n${errors.map((e) => `  ${e}`).join("\n")}`, [
+                "Fix the reported fields in .flisk/project.json, or run `flisk project --yes` to reset",
+            ]);
+        }
+        throw new FliskError("Invalid project.json: missing or invalid required fields. " +
             "Expected: version (string), project (object with name/version), " +
             "phases (object with pre_alpha/alpha/beta/out_of_scope enabledStacks), " +
             "optional_infra (object with boolean flags), " +
             "discovery (object with paths array), " +
             "capabilities (optional object of booleans), " +
-            "repos (optional array of { url, dir, branch? } with non-empty url and dir)");
+            "repos (optional array of { url, dir, branch? } with non-empty url and dir)", ["Fix the reported fields in .flisk/project.json, or run `flisk project --yes` to reset"]);
     }
     return projectConfig;
 }

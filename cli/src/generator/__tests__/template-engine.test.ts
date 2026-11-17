@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectConfig } from "../../types/index.js";
+import { FliskError } from "../../utils/errors.js";
 import { compileTemplate } from "../mini-template.js";
 import {
   ensureProjectRuntimeAssets,
@@ -819,7 +820,13 @@ describe("template-engine", () => {
             beta: { enabledStacks: [] },
             out_of_scope: { enabledStacks: [] },
           },
-          optional_infra: {},
+          optional_infra: {
+            monitoring: true,
+            elk: false,
+            debezium: false,
+            golden_image: false,
+            verdaccio: false,
+          },
           discovery: { paths: ["services"] },
           repos: [{ url: "https://github.com/acme/orders.git", dir: "services/orders", branch: 7 }],
         };
@@ -827,7 +834,7 @@ describe("template-engine", () => {
 
         const message = (catchFromReadProjectConfig(projectRoot) as Error).message;
 
-        expect(message).toContain("repos (optional array of { url, dir, branch? }");
+        expect(message).toContain(".flisk/project.json.repos[0].branch: expected a string, got 7");
       } finally {
         fs.rmSync(projectRoot, { recursive: true, force: true });
       }
@@ -1031,16 +1038,31 @@ describe("template-engine", () => {
 
           const caught = catchFromReadProjectConfig(projectRoot);
 
-          expect(caught).toBeInstanceOf(Error);
-          expect((caught as Error).message).toContain(
-            "Invalid project.json: missing or invalid required fields",
-          );
+          expect(caught).toBeInstanceOf(FliskError);
+          expect((caught as Error).message).toContain("Invalid project.json:");
+          expect((caught as Error).message).toContain(".flisk/project.json");
           expect(caught).not.toBeInstanceOf(ProjectConfigNotFoundError);
         } finally {
           fs.rmSync(projectRoot, { recursive: true, force: true });
         }
       });
     }
+
+    it("reports the exact failing field path and expected shape when discovery.paths is a string", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-string-discovery-paths-"));
+      try {
+        writeProjectJson(projectRoot, { ...projectConfig(), discovery: { paths: "services" } });
+
+        const caught = catchFromReadProjectConfig(projectRoot);
+
+        expect(caught).toBeInstanceOf(FliskError);
+        expect((caught as Error).message).toContain(
+          '.flisk/project.json.discovery.paths: expected an array of strings, got "services"',
+        );
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
 
     it("returns every field of a valid config, including the optional ones", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-valid-project-json-"));
