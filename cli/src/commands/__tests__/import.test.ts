@@ -98,7 +98,7 @@ describe("flisk import", () => {
       { execPath: nodeExe, exists: (p) => p === npxCli },
     );
     expect(inv).toEqual({
-      command: "node",
+      command: nodeExe,
       args: [npxCli, "--yes", "flisk-import@1", "C:\\Users\\Jane Smith\\app", "a&b"],
       shell: false,
       windowsVerbatimArguments: false,
