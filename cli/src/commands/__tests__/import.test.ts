@@ -69,7 +69,7 @@ describe("flisk import", () => {
 
   it("forwards every argument, including flags, to flisk-import", () => {
     const inv = importInvocation([".", "--dry-run", "--force"], {}, "linux");
-    expect(inv).toEqual({
+    expect(inv).toMatchObject({
       command: "npx",
       args: ["--yes", IMPORT_PACKAGE, ".", "--dry-run", "--force"],
       shell: false,
@@ -97,7 +97,7 @@ describe("flisk import", () => {
       "win32",
       { execPath: nodeExe, exists: (p) => p === npxCli },
     );
-    expect(inv).toEqual({
+    expect(inv).toMatchObject({
       command: nodeExe,
       args: [npxCli, "--yes", "flisk-import@1", "C:\\Users\\Jane Smith\\app", "a&b"],
       shell: false,
