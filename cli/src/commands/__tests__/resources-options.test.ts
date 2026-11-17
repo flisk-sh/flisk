@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { createTempProject, parseEnvelope, runFlisk } from "../../test-support/index.js";
 
-function createProject(): string {
+function createStackProject(): string {
   return createTempProject({
     stacks: { app: { api: { appType: "backend", port: 4000 } } },
     resources: { worker: { appType: "worker", port: 6000 } },
@@ -19,7 +19,7 @@ describe("resources stack filter options", () => {
       ["--stack=app", "--no-stack"],
     ])("rejects conflicting filters %j as usage errors", (...args) => {
       const result = runFlisk(["resources", ...args, ...(json ? ["--json"] : [])], {
-        cwd: createProject(),
+        cwd: createStackProject(),
       });
 
       expect(result.status).toBe(2);
@@ -43,7 +43,7 @@ describe("resources stack filter options", () => {
       { args: ["--no-stack"], included: "worker", excluded: "api" },
     ])("keeps the $args filter working alone", ({ args, included, excluded }) => {
       const result = runFlisk(["resources", ...args, ...(json ? ["--json"] : [])], {
-        cwd: createProject(),
+        cwd: createStackProject(),
       });
 
       expect(result.status, result.stderr).toBe(0);
@@ -61,7 +61,7 @@ describe("resources stack filter options", () => {
   });
 
   it.each(["--ports", "--verbose"])("documents %s as a text view option", (flag) => {
-    const result = runFlisk(["resources", "--help"], { cwd: createProject() });
+    const result = runFlisk(["resources", "--help"], { cwd: createStackProject() });
 
     expect(result.status).toBe(0);
     expect(result.stdout).toMatch(new RegExp(`${flag}[^\\n]*text view`));
@@ -71,7 +71,7 @@ describe("resources stack filter options", () => {
   it.each([["--ports"], ["--verbose"], ["--ports", "--verbose"]])(
     "keeps JSON resource data unchanged with %j",
     (...args) => {
-      const cwd = createProject();
+      const cwd = createStackProject();
       const baseline = runFlisk(["resources", "--json"], { cwd });
       const result = runFlisk(["resources", "--json", ...args], { cwd });
 
