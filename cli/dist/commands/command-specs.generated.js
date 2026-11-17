@@ -368,8 +368,8 @@ export const COMMAND_SPECS = [
         allowExcessArguments: false,
         options: [
             {
-                flags: "--project",
-                description: "Write into this project (default)",
+                flags: "--project [path]",
+                description: "Write into the specified Flisk project (default: current project)",
             },
             {
                 flags: "--global",
