@@ -169,9 +169,7 @@ describe("resource scaffolding preview", () => {
       { cwd: root, input: "" },
     );
     expect(text.status, text.stderr).toBe(0);
-    expect(text.stdout).toContain(
-      'Requested type "worker" conflicts with existing type "backend"',
-    );
+    expect(text.stdout).toContain('Requested type "worker" conflicts with existing type "backend"');
     expect(text.stdout).toContain("Keeping existing type and port 4100");
   });
 
@@ -186,11 +184,7 @@ describe("resource scaffolding preview", () => {
         }),
       },
     });
-    const applied = runResourceCommand(
-      root,
-      ["--type", "sdk", "--path", "existing"],
-      false,
-    );
+    const applied = runResourceCommand(root, ["--type", "sdk", "--path", "existing"], false);
     expect(applied).toMatchObject({ type: "backend", port: 4100, ignoredType: "sdk" });
     expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject({
       appType: "backend",

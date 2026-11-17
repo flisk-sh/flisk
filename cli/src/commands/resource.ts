@@ -1587,9 +1587,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
           : undefined;
       const existingRegistration =
         shouldRegisterExisting && hasServiceJson
-          ? (suppliedExistingManifest?.path === resolve(fullPath, SERVICE_JSON)
-              ? suppliedExistingManifest
-              : readExistingManifest(projectRoot, finalResourcePath))
+          ? suppliedExistingManifest?.path === resolve(fullPath, SERVICE_JSON)
+            ? suppliedExistingManifest
+            : readExistingManifest(projectRoot, finalResourcePath)
           : undefined;
       const existingRegistrationManifest = existingRegistration?.config;
       const existingAppType =
@@ -1606,8 +1606,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
           ? existingRegistrationManifest.port
           : undefined;
       const preserveExistingPort =
-        existingRegistrationPort !== undefined &&
-        (hasTypeConflict || options.port === undefined);
+        existingRegistrationPort !== undefined && (hasTypeConflict || options.port === undefined);
       if (infraPreset) assertInfraPresetOptions(infraPreset, options);
       let assignedPort = preserveExistingPort
         ? existingRegistrationPort
