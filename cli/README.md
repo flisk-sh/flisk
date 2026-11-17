@@ -28,13 +28,14 @@ Cloned starters keep their source remote as `upstream`, leaving `origin` availab
 | `flisk up api` | Start services in the `api` stack. |
 | `flisk status` | Check the current stack and service state. |
 | `flisk open --print` | Print the first ready frontend URL without opening a browser. |
+| `flisk open web2` | Open the `web2` frontend instead of the first ready one. |
 | `flisk down --force` | Stop all services. `--force` is accepted for script compatibility and has no effect. |
 | `flisk doctor --no-ping` | Check readiness without pinging service health endpoints. |
 | `flisk projects --check` | Validate project configuration before CI. |
 
 Every command and flag: [mega cheat sheet](../docs/cheat-sheet.md).
 
-`flisk open --print` waits for a frontend to answer, like `flisk open`, then writes only its URL and a newline to stdout. Local-process projects use the frontend's localhost port. If no frontend is available, it reports the problem on stderr and exits with status 1. `flisk open --json` (or `flisk open --print --json`) outputs the standard machine envelope with `{ url, resource }` on stdout.
+`flisk open --print` waits for a frontend to answer, like `flisk open`, then writes only its URL and a newline to stdout. Local-process projects use the frontend's localhost port. If no frontend is available, it reports the problem on stderr and exits with status 1. `flisk open --json` (or `flisk open --print --json`) outputs the standard machine envelope with `{ url, resource }` on stdout. `flisk open <name>` acts on that frontend instead of the first ready one, and works with `--print` and `--json`; a name that is not a frontend of the project fails with `Resource "<name>" not found` and lists the frontends.
 
 ---
 

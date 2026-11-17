@@ -4,6 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { probeHostPort } from "../utils/doctor-runtime.js";
+import { FliskError } from "../utils/errors.js";
 import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
@@ -14,6 +15,7 @@ import { discoverResourcesWithProblems } from "../utils/services.js";
 import { readProjectName } from "../utils/shared-infra.js";
 import { startSpinner } from "../utils/spinner.js";
 import { buildServicePorts } from "../utils/status-ports.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { openUrl } from "../utils/url-actions.js";
 
 export interface FrontendTarget {
@@ -40,6 +42,22 @@ export async function listFrontendTargets(projectRoot: string): Promise<Frontend
       name: resource.name,
       url: `${appBase}${resolveServicePath(resource)}`,
     }));
+}
+
+/** The frontends to act on: the named one, or every frontend when no name is given. */
+export function selectFrontends(targets: FrontendTarget[], name?: string): FrontendTarget[] {
+  return name === undefined ? targets : targets.filter((target) => target.name === name);
+}
+
+/** Says which frontends exist, the way `resource not found` names the project's resources. */
+export function unknownFrontendSuggestions(name: string, targets: FrontendTarget[]): string[] {
+  const names = targets.map((target) => target.name);
+  const closest = suggestClosest(name, names);
+  return [
+    ...(closest ? [`Did you mean "${closest}"?`] : []),
+    `Frontends: ${names.join(", ")}`,
+    "Run `flisk resources` to list all resources",
+  ];
 }
 
 /** True when the URL answers. A booting frontend needs a moment, so this is asked more than once. */
@@ -93,7 +111,7 @@ export async function findReadyFrontend(
  */
 export async function openFirstFrontend(
   projectRootOverride?: string,
-  options: { isPrintOnly?: boolean } = {},
+  options: { isPrintOnly?: boolean; resource?: string } = {},
 ): Promise<string | null> {
   const report = options.isPrintOnly ? console.error : console.log;
   const projectRoot = projectRootOverride ?? findProjectRoot();
@@ -110,8 +128,17 @@ export async function openFirstFrontend(
     return null;
   }
 
+  const selected = selectFrontends(targets, options.resource);
+  if (options.resource !== undefined && selected.length === 0) {
+    new FliskError(
+      `Resource "${options.resource}" not found`,
+      unknownFrontendSuggestions(options.resource, targets),
+    ).display();
+    return null;
+  }
+
   if (options.isPrintOnly) {
-    const first = await pickReadyFrontend(targets, 120000);
+    const first = await pickReadyFrontend(selected, 120000);
     if (!first) {
       console.error("No frontend answered yet. Start the stack with `flisk up` and try again.");
       return null;
@@ -121,13 +148,17 @@ export async function openFirstFrontend(
   }
 
   const projectName = readProjectName(projectRoot);
-  showStep(`Opening the first frontend of ${projectName ?? "this project"}`);
-  for (const target of targets) {
+  showStep(
+    options.resource === undefined
+      ? `Opening the first frontend of ${projectName ?? "this project"}`
+      : `Opening ${options.resource} of ${projectName ?? "this project"}`,
+  );
+  for (const target of selected) {
     console.log(chalk.gray(`  - ${target.name}: ${target.url}`));
   }
 
   const spinner = startSpinner("Waiting for the frontend to answer...");
-  const first = await pickReadyFrontend(targets, 120000, (elapsed) => {
+  const first = await pickReadyFrontend(selected, 120000, (elapsed) => {
     spinner.text = `Waiting for the frontend to answer... ${Math.round(elapsed / 1000)}s`;
   });
 
@@ -160,7 +191,7 @@ export async function openFirstFrontend(
       console.log(chalk.gray("  - Start the stack in another terminal: flisk up"));
       console.log(chalk.gray("  - Then run this again: flisk open"));
     }
-    for (const target of targets) {
+    for (const target of selected) {
       console.log(chalk.gray(`  - ${target.name}: ${target.url}`));
     }
     return null;
@@ -173,19 +204,20 @@ export async function openFirstFrontend(
       ? chalk.green(`\nOpened ${first.url}`)
       : chalk.yellow(`\nCould not open a browser. Open ${first.url} yourself.`),
   );
-  showDetail("Run `flisk open` again to open the next frontend.");
+  showDetail("Run `flisk open <name>` to open another frontend.");
   return first.url;
 }
 
 export const openCommand = new Command("open")
-  .description("Open the first ready frontend of the project in your browser")
-  .option("--print", "Print the first ready frontend URL without opening a browser")
+  .description("Open the first ready frontend in your browser, or the frontend you name")
+  .argument("[resource]", "Frontend to open; defaults to the first ready one")
+  .option("--print", "Print the frontend URL without opening a browser")
   .option("--json", "Print one JSON envelope on stdout; implies --print", false)
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk open\n  flisk open --print\n  flisk open --print --json\n  flisk open --json",
+    "\nExamples:\n  flisk open\n  flisk open web2\n  flisk open --print\n  flisk open web2 --print\n  flisk open --print --json\n  flisk open --json",
   )
-  .action(async (options: { print?: boolean; json?: boolean }) => {
+  .action(async (resource: string | undefined, options: { print?: boolean; json?: boolean }) => {
     if (options.json) {
       await runJsonCommand("OPEN_FAILED", "flisk open", async () => {
         const projectRoot = findProjectRoot();
@@ -204,7 +236,15 @@ export const openCommand = new Command("open")
             ["Start the stack with `flisk up` and add a frontend with `flisk resource`."],
           );
         }
-        const first = await pickReadyFrontend(targets, 120000);
+        const selected = selectFrontends(targets, resource);
+        if (resource !== undefined && selected.length === 0) {
+          throw new JsonCommandError(
+            "UNKNOWN_FRONTEND",
+            `Resource "${resource}" not found`,
+            unknownFrontendSuggestions(resource, targets),
+          );
+        }
+        const first = await pickReadyFrontend(selected, 120000);
         if (!first) {
           throw new JsonCommandError(
             "FRONTEND_NOT_READY",
@@ -216,6 +256,9 @@ export const openCommand = new Command("open")
       });
       return;
     }
-    const url = await openFirstFrontend(undefined, { isPrintOnly: options.print });
-    if (options.print && url === null) process.exitCode = 1;
+    const url = await openFirstFrontend(undefined, {
+      isPrintOnly: options.print,
+      ...(resource === undefined ? {} : { resource }),
+    });
+    if (url === null && (options.print || resource !== undefined)) process.exitCode = 1;
   });

@@ -5,6 +5,10 @@ export interface FrontendTarget {
 }
 /** The frontends of the current project, with the URL each one is published under. */
 export declare function listFrontendTargets(projectRoot: string): Promise<FrontendTarget[]>;
+/** The frontends to act on: the named one, or every frontend when no name is given. */
+export declare function selectFrontends(targets: FrontendTarget[], name?: string): FrontendTarget[];
+/** Says which frontends exist, the way `resource not found` names the project's resources. */
+export declare function unknownFrontendSuggestions(name: string, targets: FrontendTarget[]): string[];
 /** True when the URL answers. A booting frontend needs a moment, so this is asked more than once. */
 export declare function isFrontendReady(url: string, timeoutMs?: number): Promise<boolean>;
 /**
@@ -23,5 +27,6 @@ export declare function findReadyFrontend(projectRoot: string, waitMs?: number, 
  */
 export declare function openFirstFrontend(projectRootOverride?: string, options?: {
     isPrintOnly?: boolean;
+    resource?: string;
 }): Promise<string | null>;
 export declare const openCommand: Command;

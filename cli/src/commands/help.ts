@@ -88,7 +88,11 @@ const COMMAND_GROUPS = [
         alias: "<service> -- <command>",
       },
       { name: "status", desc: "Show status of resources and stacks", alias: "" },
-      { name: "open", desc: "Open the first ready frontend in your browser", alias: "" },
+      {
+        name: "open",
+        desc: "Open the first ready frontend in your browser, or the frontend you name",
+        alias: "",
+      },
       { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },
     ],
   },

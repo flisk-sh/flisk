@@ -717,7 +717,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   {
     name: "open",
     path: ["open"],
-    description: "Open the first ready frontend of the project in your browser",
+    description: "Open the first ready frontend in your browser, or the frontend you name",
     aliases: [],
     hidden: false,
     hasAction: true,
@@ -728,7 +728,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     options: [
       {
         flags: "--print",
-        description: "Print the first ready frontend URL without opening a browser",
+        description: "Print the frontend URL without opening a browser",
       },
       {
         flags: "--json",
@@ -736,10 +736,17 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         defaultValue: false,
       },
     ],
-    arguments: [],
+    arguments: [
+      {
+        name: "resource",
+        description: "Frontend to open; defaults to the first ready one",
+        required: false,
+        variadic: false,
+      },
+    ],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk open\n  flisk open --print\n  flisk open --print --json\n  flisk open --json",
+        "\nExamples:\n  flisk open\n  flisk open web2\n  flisk open --print\n  flisk open web2 --print\n  flisk open --print --json\n  flisk open --json",
       ],
     },
     subcommands: [],
