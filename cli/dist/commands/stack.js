@@ -131,7 +131,7 @@ export const stackCommand = addYesOption(new Command("stack"))
                 showAllSatisfyCondition("resources", "already assigned to a stack");
                 return report();
             }
-            console.log(chalk.bold(`${discovery.unassignedResources.length} resources without a stack:`));
+            console.log(chalk.bold(`${formatCount(discovery.unassignedResources.length, "resource")} without a stack:`));
             for (const resource of discovery.unassignedResources) {
                 showDetail(`${resource.name}`);
                 showDetail(`${resource.configPath}`, 4);

@@ -261,8 +261,8 @@ describe("ui TUI render and interaction", () => {
       expect(rendered).toContain("CONFIG");
 
       // Fixture stack items in overview
-      expect(rendered).toContain("frontend (1 resources)");
-      expect(rendered).toContain("backend (1 resources)");
+      expect(rendered).toContain("frontend (1 resource)");
+      expect(rendered).toContain("backend (1 resource)");
 
       // Status footer summary
       expect(rendered).toContain("Stacks: 2");

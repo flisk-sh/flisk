@@ -9,6 +9,7 @@ import path from "node:path";
 import { Command } from "commander";
 import { buildBoard, buildKit, buildStatusGrid, createInitialDistribution, DISTRIBUTION_FILE, distributionWarnings, formatBoard, formatStatusGrid, mergeDistribution, readDistributionFile, writeKit, } from "../utils/distribution.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
+import { formatCount } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
@@ -73,7 +74,7 @@ const kitCommand = new Command("kit")
         const kit = buildKit(resource, readDistribution(root));
         const outDir = path.resolve(options.out ?? path.join(root, "distribution", resource.name));
         if (options.dryRun) {
-            console.log(`Dry run - would write ${kit.files.length} files to ${outDir}:`);
+            console.log(`Dry run - would write ${formatCount(kit.files.length, "file")} to ${outDir}:`);
             for (const file of kit.files) {
                 console.log(`\n--- ${file.path} ---\n${file.content}`);
             }
