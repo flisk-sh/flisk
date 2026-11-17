@@ -618,6 +618,17 @@ function inTempDir() {
 describe("flisk create (the real CLI, no terminal)", () => {
   const dirOf = inTempDir();
 
+  it("shows install and start commands after the scaffolding plan with --start", () => {
+    const run = runFlisk(["create", "shop", "--dry-run", "--start"], { cwd: dirOf() });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toContain("cd ./shop/web && npm install");
+    expect(run.stdout).toContain("cd ./shop && flisk up");
+    expect(run.stdout.indexOf("After scaffolding:")).toBeGreaterThan(
+      run.stdout.indexOf("flisk resource shop-web"),
+    );
+    expect(existsSync(join(dirOf(), "shop"))).toBe(false);
+  });
+
   it("--dry-run prints the real flisk commands and writes nothing", () => {
     const run = runFlisk(["create", "shop", "--dry-run"], { cwd: dirOf(), timeout: 60_000 });
     expect(run.status).toBe(0);
