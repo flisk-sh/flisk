@@ -105,9 +105,11 @@ export const ejectCommand = addYesOption(new Command("eject"))
         }
       });
       if (!existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
+        // Same state `flisk config verify` reports as "Not generated yet", so give the same fix:
+        // `flisk project` already ran when the starter was cloned; regenerate writes .flisk-out.
         throw new FliskError(
-          "Generated Tilt files are missing. Run `flisk project --yes` before ejecting.",
-          ["flisk project --yes", "flisk eject"],
+          "Generated Tilt files are not created yet. Run `flisk config regenerate` (or `flisk up`), then `flisk eject`.",
+          ["flisk config regenerate", "flisk up"],
         );
       }
       const rootTiltfile = join(projectRoot, "Tiltfile");
