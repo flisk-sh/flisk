@@ -81,7 +81,7 @@ body:
     id: acceptance
     attributes:
       label: Acceptance check
-      description: How the matrix row becomes `covered`: which evidence file, command or MCP tool proves it.
+      description: "How the matrix row becomes `covered`: which evidence file, command or MCP tool proves it."
     validations:
       required: true
   - type: textarea
