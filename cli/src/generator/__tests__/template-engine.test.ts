@@ -1064,6 +1064,35 @@ describe("template-engine", () => {
       }
     });
 
+    it("does not report phases when valid legacy stacks satisfy the normalizer", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-legacy-stacks-version-"));
+      try {
+        const { phases: _phases, ...rest } = projectConfig() as unknown as Record<string, unknown>;
+        const legacyPhase = { name: "P", description: "", services: ["proxy"] };
+        writeProjectJson(projectRoot, {
+          ...rest,
+          version: 7,
+          phases: null,
+          stacks: {
+            pre_alpha: legacyPhase,
+            alpha: legacyPhase,
+            beta: legacyPhase,
+            out_of_scope: legacyPhase,
+          },
+        });
+
+        const caught = catchFromReadProjectConfig(projectRoot);
+
+        expect(caught).toBeInstanceOf(FliskError);
+        expect((caught as Error).message).toContain(
+          ".flisk/project.json.version: expected a string",
+        );
+        expect((caught as Error).message).not.toContain(".phases");
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+
     it("returns every field of a valid config, including the optional ones", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-valid-project-json-"));
       try {

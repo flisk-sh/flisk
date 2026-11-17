@@ -640,6 +640,12 @@ function validateProjectConfigShape(value: unknown, displayPath: string): string
 
   if (config.phases === undefined && config.stacks === undefined) {
     errors.push(`${displayPath}.phases: required field is missing`);
+  } else if (
+    hasPhaseShape(config.phases, "enabledStacks") ||
+    hasPhaseShape(config.stacks, "services")
+  ) {
+    // Same representation selection as normalizeProjectConfig: a valid `phases` or a valid legacy `stacks` satisfies the
+    // requirement, so neither is reported even if the other is null or malformed.
   } else if (config.phases !== undefined) {
     if (!config.phases || typeof config.phases !== "object" || Array.isArray(config.phases)) {
       errors.push(`${displayPath}.phases: expected an object${echoConfigValue(config.phases)}`);
@@ -918,8 +924,9 @@ export class ProjectConfigNotFoundError extends FliskError {}
 export function readProjectConfig(projectRoot: string): ProjectConfig {
   const projectJsonPath = path.join(projectRoot, ".flisk", PROJECT_JSON);
 
-  // A project.json that exists but cannot be read, parsed or validated stays a plain Error: `flisk config verify --json`
-  // documents it as a structured INTERNAL error with exit code 2 (docs/reference/machine-readable-cli.md).
+  // A project.json that exists but cannot be read or parsed stays a plain Error: `flisk config verify --json` documents it
+  // as a structured INTERNAL error with exit code 2. A file that parses but fails shape validation throws a FliskError
+  // instead (COMMAND_FAILED, exit 1). See docs/reference/machine-readable-cli.md.
   let jsonContent: string;
   try {
     jsonContent = fs.readFileSync(projectJsonPath, "utf-8");
