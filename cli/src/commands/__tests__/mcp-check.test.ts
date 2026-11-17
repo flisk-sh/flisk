@@ -118,7 +118,7 @@ describe("flisk mcp check", () => {
     });
     const missing = await runFliskAsync(["mcp", "check", "nope", "--json"], { cwd: root });
     expect(missing.status).not.toBe(0);
-    expect(parseEnvelope(missing.stdout).errors[0]?.message).toContain('Resource "nope" not found');
+    expect(parseEnvelope(missing.stdout).errors[0]?.message).toContain('No resource named "nope"');
 
     const insecure = await runFliskAsync(["mcp", "check", "http://example.com/mcp", "--json"], {
       cwd: root,
