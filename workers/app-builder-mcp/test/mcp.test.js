@@ -220,7 +220,11 @@ test("prompts/get pick_a_starter needs no arguments", async () => {
   assert.match(body.result.messages[0].content.text, /list_app_starters/);
 });
 
-test("the home page starts with the product name and what it does", async () => {
+test("the home page has a plain headline, a short lead and a button", async () => {
   const res = await worker.fetch(new Request("https://build.flisk.si/"), env, { waitUntil() {} });
-  assert.match((await res.text()).split("\n")[0], /^Build Me an App: /);
+  assert.match(res.headers.get("content-type"), /^text\/html/);
+  const html = await res.text();
+  assert.match(html, /<h1>Plan an app in plain words<\/h1>/);
+  assert.match(html, /<\/h1>\s*<p>For anyone with an AI assistant[^<]{0,200}<\/p>\s*<p><a class="btn" href="https:\/\/github\.com\//);
+  assert.match(html, /https:\/\/build\.flisk\.si\/mcp/);
 });
