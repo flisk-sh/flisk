@@ -501,7 +501,10 @@ export const doctorCommand = new Command("doctor")
     if (fixActions)
         report.data.actions = fixActions;
     const failedCheckCount = results.filter((check) => !check.didPass && !check.isSkipped && !check.isWarning).length;
-    const repairableCount = fixActions ? fixActions.filter((action) => action.status === "applied" || action.status === "planned").length : 0;
+    const repairableCount = fixActions
+        ? fixActions.filter((action) => action.status === "applied" || action.status === "planned")
+            .length
+        : 0;
     if (fixActions) {
         report.data.repairableCount = repairableCount;
         report.data.needsActionCount = failedCheckCount;
