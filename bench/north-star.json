@@ -1,9 +1,7 @@
 {
-  "value": 0.678,
-  "baseline": 1.842,
-  "unit": "s",
-  "runs": 3,
-  "measuredAt": "2026-11-10T00:00:00Z",
-  "run": "docs/benchmarks/compose-comparison.md#2-backend--postgres-stack",
-  "note": "Flisk v1.4.45, Docker Compose v5.5.1, Apple M4. Median of 3 warm runs. Re-measure with `gel north-star --measure` (needs Docker, a built CLI and ports 13001-15432 free)."
+ "value": 1.486,
+ "baseline": 3.322,
+ "unit": "s",
+ "runs": 5,
+ "measuredAt": "2026-11-17T14:14:31.010Z"
 }
