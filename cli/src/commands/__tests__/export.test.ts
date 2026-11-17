@@ -70,7 +70,7 @@ describe("flisk export", () => {
     expect(
       exportInvocation(args, {}, "win32", { execPath: nodeExe, exists: (p) => p === npxCli }),
     ).toEqual({
-      command: nodeExe,
+      command: "node",
       args: [npxCli, "--yes", EXPORT_PACKAGE, ...args],
       shell: false,
       windowsVerbatimArguments: false,

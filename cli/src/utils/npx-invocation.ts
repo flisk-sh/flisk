@@ -42,7 +42,8 @@ export function npxInvocation(npxArgs: string[], runtime: NpxRuntime = {}): NpxI
     const npxCli = win32.join(win32.dirname(execPath), "node_modules", "npm", "bin", "npx-cli.js");
     if (exists(npxCli)) {
       return {
-        command: execPath,
+        // The bare name, not process.execPath: the program that is spawned is found on PATH, never taken from a path value.
+        command: "node",
         args: [npxCli, ...npxArgs],
         shell: false,
         windowsVerbatimArguments: false,
