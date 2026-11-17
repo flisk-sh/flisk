@@ -1108,6 +1108,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
         // Check if resource already exists
         const isExistingResource = existsSync(fullPath);
         const hasServiceJson = existsSync(resolve(fullPath, SERVICE_JSON));
+        if (options.registerExisting && !isExistingResource) {
+            throw new FliskError(`No existing resource folder at ${finalResourcePath}`, [
+                "Create the folder and its service contents first, then run with --register-existing",
+                "Or drop --register-existing to scaffold a new resource",
+            ]);
+        }
         if (options.port !== undefined && resourceType === "sdk") {
             throw new FliskError("--port does not apply to --type sdk.", [
                 "Drop --port, or use a service type",
