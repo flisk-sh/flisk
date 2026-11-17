@@ -1670,7 +1670,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
         existingServiceJson: ExistingServiceConfig,
       ): ExistingServiceConfig => {
         const updatedAppType =
-          resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType;
+          hasTypeConflict && existingServiceJson.appType
+            ? existingServiceJson.appType
+            : resourceType === "sdk"
+              ? "sdk"
+              : existingServiceJson.appType || resourceType;
 
         // Update with new values while preserving existing fields
         const updatedServiceJson: ExistingServiceConfig = {
@@ -1797,6 +1801,15 @@ export const resourceCommand = addYesOption(new Command("resource"))
       if (updatedServiceJson) {
         const fresh = readExistingManifest(projectRoot, finalResourcePath)?.config;
         if (!fresh) throw errorFactories.invalidPath(finalResourcePath);
+        // The port was kept, not reserved, so an edit during the prompt could leave it free for another resource.
+        if (
+          preserveExistingPort &&
+          (fresh.port !== existingRegistrationPort || fresh.appType !== existingAppType)
+        ) {
+          throw new FliskError(
+            `${finalResourcePath}/service.json changed while waiting for confirmation. Run the command again.`,
+          );
+        }
         updatedServiceJson = buildRegisteredServiceJson(fresh);
       }
 

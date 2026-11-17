@@ -175,6 +175,29 @@ describe("resource scaffolding preview", () => {
     expect(text.stdout).toContain("Keeping existing type and port 4100");
   });
 
+  it("keeps an existing backend type and port when sdk is requested", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const applied = runResourceCommand(
+      root,
+      ["--type", "sdk", "--path", "existing"],
+      false,
+    );
+    expect(applied).toMatchObject({ type: "backend", port: 4100, ignoredType: "sdk" });
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject({
+      appType: "backend",
+      port: 4100,
+    });
+  });
+
   it.each(["backend", "sdk"])(
     "previews registration of an existing %s without overwriting its manifest",
     (type) => {
