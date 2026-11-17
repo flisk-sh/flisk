@@ -7,7 +7,7 @@
  */
 import { spawn } from "node:child_process";
 import { Command } from "commander";
-import { npxInvocation } from "../utils/npx-invocation.js";
+import { npxInvocation, safePackageSpec, } from "../utils/npx-invocation.js";
 /**
  * The generators live in their own repo (flisk-sh/flisk-export) so they can ship without a CLI release, and are run
  * from npm at a pinned version so a push to its main branch cannot change what `flisk export` does. Move the pin
@@ -15,7 +15,7 @@ import { npxInvocation } from "../utils/npx-invocation.js";
  */
 export const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.10.0";
 export function exportInvocation(args, env = process.env, platform = process.platform, runtime = {}) {
-    const pkg = env.FLISK_EXPORT_PACKAGE || EXPORT_PACKAGE;
+    const pkg = safePackageSpec(env.FLISK_EXPORT_PACKAGE, EXPORT_PACKAGE);
     return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
 }
 /** The extra line printed when the exporter exits non-zero, in case npx could not fetch it at all. */

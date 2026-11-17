@@ -7,7 +7,12 @@ import { addYesOption } from "../utils/command-helpers.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
-import { type NpxInvocation, type NpxRuntime, npxInvocation } from "../utils/npx-invocation.js";
+import {
+  type NpxInvocation,
+  type NpxRuntime,
+  npxInvocation,
+  safePackageSpec,
+} from "../utils/npx-invocation.js";
 import { getPackageVersion } from "../utils/paths.js";
 
 /**
@@ -137,7 +142,7 @@ export function importInvocation(
   platform: NodeJS.Platform = process.platform,
   runtime: Omit<NpxRuntime, "platform"> = {},
 ): NpxInvocation {
-  const pkg = env.FLISK_IMPORT_PACKAGE || IMPORT_PACKAGE;
+  const pkg = safePackageSpec(env.FLISK_IMPORT_PACKAGE, IMPORT_PACKAGE);
   return npxInvocation(["--yes", pkg, ...args], { ...runtime, platform });
 }
 

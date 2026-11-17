@@ -53,3 +53,14 @@ export function quoteCmdArgument(arg) {
     quoted = quoted.replace(CMD_META_CHARS, "^$1");
     return quoted.replace(CMD_META_CHARS, "^$1");
 }
+const SAFE_PACKAGE_SPEC = /^[A-Za-z0-9@._/:~+=^\\-]+$/;
+/**
+ * The npm package spec to run: the `FLISK_*_PACKAGE` override when it is a plain spec (name, version, path or URL),
+ * else the pinned default. An override that starts with `-` (an npx option) or holds a space, quote or shell
+ * metacharacter is ignored, so an environment value can never add options or commands to the npx call.
+ */
+export function safePackageSpec(override, fallback) {
+    if (override && !override.startsWith("-") && SAFE_PACKAGE_SPEC.test(override))
+        return override;
+    return fallback;
+}

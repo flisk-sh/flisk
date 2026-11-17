@@ -7,7 +7,12 @@
  */
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
-import { type NpxInvocation, type NpxRuntime, npxInvocation } from "../utils/npx-invocation.js";
+import {
+  type NpxInvocation,
+  type NpxRuntime,
+  npxInvocation,
+  safePackageSpec,
+} from "../utils/npx-invocation.js";
 
 /**
  * The generators live in their own repo (flisk-sh/flisk-export) so they can ship without a CLI release, and are run
@@ -24,7 +29,7 @@ export function exportInvocation(
   platform: NodeJS.Platform = process.platform,
   runtime: Omit<NpxRuntime, "platform"> = {},
 ): NpxInvocation & { pkg: string } {
-  const pkg = env.FLISK_EXPORT_PACKAGE || EXPORT_PACKAGE;
+  const pkg = safePackageSpec(env.FLISK_EXPORT_PACKAGE, EXPORT_PACKAGE);
   return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
 }
 

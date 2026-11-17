@@ -7,7 +7,7 @@ import { addYesOption } from "../utils/command-helpers.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
-import { npxInvocation } from "../utils/npx-invocation.js";
+import { npxInvocation, safePackageSpec, } from "../utils/npx-invocation.js";
 import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
@@ -112,7 +112,7 @@ export function checkCoreVersion(currentVersion = getPackageVersion(), args = []
     return { ok: true };
 }
 export function importInvocation(args, env = process.env, platform = process.platform, runtime = {}) {
-    const pkg = env.FLISK_IMPORT_PACKAGE || IMPORT_PACKAGE;
+    const pkg = safePackageSpec(env.FLISK_IMPORT_PACKAGE, IMPORT_PACKAGE);
     return npxInvocation(["--yes", pkg, ...args], { ...runtime, platform });
 }
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
