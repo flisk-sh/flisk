@@ -1,12 +1,52 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { existsSync } from "node:fs";
+import { basename, join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
-import { requireProjectRoot } from "../utils/errors.js";
+import { errorFactories, FliskError, requireProjectRoot } from "../utils/errors.js";
 import { createMachineEnvelope, toMachineError } from "../utils/machine-output.js";
-import { cloneMissingRepos } from "../utils/project-repos.js";
-export const reposCommand = new Command("repos").description("Clone the Git repositories listed in .flisk/project.json");
+import { findProjectRoot } from "../utils/paths.js";
+import { cloneMissingRepos, redactRepoUrl, validateRepoDir } from "../utils/project-repos.js";
+export const reposCommand = new Command("repos").description("List or clone the Git repositories configured in .flisk/project.json");
+reposCommand
+    .command("list")
+    .description("List configured repositories without cloning")
+    .option("--json", "Print one JSON report")
+    .action((options) => {
+    try {
+        const root = findProjectRoot();
+        if (!root)
+            throw errorFactories.notInProject();
+        const repos = (readProjectConfig(root).repos ?? []).map((repo) => {
+            const destination = validateRepoDir(repo.dir, root);
+            if (!destination.valid || !destination.targetPath) {
+                throw new FliskError(`Invalid repository destination "${repo.dir}": ${destination.reason}`);
+            }
+            return {
+                name: basename(destination.targetPath),
+                url: redactRepoUrl(repo.url),
+                path: repo.dir,
+                cloned: existsSync(join(destination.targetPath, ".git")),
+            };
+        });
+        if (options.json)
+            console.log(JSON.stringify(createMachineEnvelope({ repos }, [])));
+        else {
+            console.log("Name\tPath\tCloned");
+            for (const repo of repos)
+                console.log(`${repo.name}\t${repo.path}\t${repo.cloned ? "yes" : "no"}`);
+        }
+    }
+    catch (error) {
+        if (!options.json)
+            throw error;
+        const { error: failure, exitCode } = toMachineError(error);
+        console.log(JSON.stringify(createMachineEnvelope(null, [failure])));
+        process.exitCode = exitCode;
+    }
+});
 reposCommand
     .command("clone")
     .description("Clone missing service repositories configured in .flisk/project.json")
