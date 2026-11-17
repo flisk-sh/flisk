@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { resourcesCommand } from "../resources.js";
 import { createTempProject, parseEnvelope, runFlisk } from "../../test-support/index.js";
+import { resourcesCommand } from "../resources.js";
 
 function createStackProject(): string {
   return createTempProject({
