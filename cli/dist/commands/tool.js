@@ -281,7 +281,7 @@ const toolListCommand = new Command("list")
 });
 /** `flisk tool`: tools by their everyday name. `list` and `add` are its subcommands. */
 export const toolCommand = new Command("tool")
-    .description("Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected); list with flisk tool list")
+    .description("Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list")
     .addCommand(toolListCommand)
     .addCommand(toolAddCommand)
     .addHelpText("after", "\nExamples:\n  flisk tool list\n  flisk tool add\n  flisk tool add react");
