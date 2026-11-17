@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk runtime --check-assets --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"ok":...},"errors":[]}`) instead of a bare object; on failure `errors` carries a `RUNTIME_CHECK_FAILED` entry and the exit code is `1` (#4467).
+
 ## 2026-11-16 (undefined)
 
 - `flisk project launch`, `fullstack` and `portal` leave the new project on its `main` branch at the pinned starter commit instead of a detached HEAD, so your first commits are on a branch (#4286).
