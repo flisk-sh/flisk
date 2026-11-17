@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { resourcesCommand } from "../resources.js";
 import { createTempProject, parseEnvelope, runFlisk } from "../../test-support/index.js";
 
 function createStackProject(): string {
@@ -9,6 +10,15 @@ function createStackProject(): string {
     resources: { worker: { appType: "worker", port: 6000 } },
   });
 }
+
+describe("resources --no-stack option wiring", () => {
+  it("is a non-negated option with its own noStack key", () => {
+    const option = resourcesCommand.options.find((o) => o.long === "--no-stack");
+    expect(option?.negate).toBe(false);
+    expect(option?.attributeName()).toBe("noStack");
+    expect(option?.conflictsWith).toContain("stack");
+  });
+});
 
 describe("resources stack filter options", () => {
   describe.each([false, true])("with json=%s", (json) => {

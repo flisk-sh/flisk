@@ -163,7 +163,11 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
   await runCommand(action);
 }
 
-// Keep a distinct value so Commander can detect conflicts with --stack.
+// Commander marks every `--no-` option as negated, which would make it share the `stack` key with
+// `--stack <stack>` and conflict with itself. `Option.negate` is a public, typed field (commander
+// typings, ^15), so it is cleared here to give `--no-stack` its own `noStack` key and let
+// `.conflicts("stack")` work. `resources-options.test.ts` pins this coupling: a Commander change
+// that breaks it fails the tests instead of silently dropping the conflict check.
 const noStackOption = new Option("--no-stack", "Show only resources without a stack").conflicts(
   "stack",
 );
