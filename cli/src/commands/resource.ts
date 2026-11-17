@@ -1172,7 +1172,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
       return;
     }
     // --json never prompts: every question takes the default that --yes takes.
-    const assumeYes = Boolean(options.yes || options.json);
+    const assumeYes = Boolean(
+      options.yes || options.json || (options.dryRun && !process.stdin.isTTY),
+    );
     // Set once a port is claimed; called when the create ends, after service.json is written or the create failed.
     let releasePortReservation: (() => void) | undefined;
     const action = async (): Promise<JsonCommandResult> => {
