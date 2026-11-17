@@ -107,7 +107,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     allowUnknown: false,
     passThrough: false,
     positionalOptions: false,
-    allowExcessArguments: false,
+    allowExcessArguments: true,
     options: [
       {
         flags: "-y, --yes",
@@ -1827,7 +1827,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     allowUnknown: false,
     passThrough: false,
     positionalOptions: false,
-    allowExcessArguments: false,
+    allowExcessArguments: true,
     options: [
       {
         flags: "-s, --stack <stack>",
