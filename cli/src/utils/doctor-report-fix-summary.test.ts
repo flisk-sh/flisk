@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { CheckResult, DoctorAction } from "../types/index.js";
 import { summarizeDoctorFix } from "./doctor-report.js";
 
-const failed = (name: string): CheckResult => ({ name, didPass: false, isSkipped: false });
+const failed = (name: string): CheckResult => ({ name, message: "failed", didPass: false, isSkipped: false });
 const action = (check: string, status: DoctorAction["status"]): DoctorAction => ({
   id: check,
   check,
