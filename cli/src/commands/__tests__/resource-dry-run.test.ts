@@ -220,6 +220,85 @@ describe("resource scaffolding preview", () => {
     },
   );
 
+  it("keeps the existing port for the same type and reports the ignored --port", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const args = ["--type", "backend", "--path", "existing", "--port", "6100"];
+    const preview = runResourceCommand(root, args);
+    expect(preview.resource).toMatchObject({ port: 4100, preservedPort: 4100, ignoredPort: 6100 });
+    runResourceCommand(root, args, false);
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8")).port).toBe(4100);
+    const text = runFlisk(
+      [
+        "resource",
+        "sample",
+        "--path",
+        "existing",
+        "--stack",
+        "shop",
+        "--port",
+        "6100",
+        "--dry-run",
+        "--yes",
+      ],
+      { cwd: root, input: "" },
+    );
+    expect(text.stdout).toContain("Requested port 6100 ignored. Keeping existing port 4100");
+  });
+
+  it("names the requested type, not the infrastructure type, when --type queue hits a backend", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, ["--type", "queue", "--path", "existing"]);
+    expect(preview.resource).toMatchObject({
+      type: "backend",
+      requestedType: "queue",
+      ignoredType: "queue",
+    });
+  });
+
+  it("refuses to keep a port that another resource already uses", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+        "other/service.json": JSON.stringify({
+          appName: "other",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const result = runFlisk(
+      ["resource", "sample", "--path", "existing", "--stack", "shop", "--dry-run", "--yes"],
+      { cwd: root, input: "" },
+    );
+    expect(result.status).not.toBe(0);
+    expect(result.stderr + result.stdout).toContain("already used by other/service.json");
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8")).port).toBe(4100);
+  });
+
   it("leaves existing BYO Dockerfiles and instructions out of the write plan", () => {
     const root = createTempProject({
       files: { "custom/Dockerfile": "FROM scratch\n", "custom/AGENTS.md": "User instructions\n" },

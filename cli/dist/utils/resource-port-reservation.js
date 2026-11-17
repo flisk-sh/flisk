@@ -36,6 +36,23 @@ export function readAssignedPorts(projectRoot, ignorePath) {
     }
     return ports;
 }
+/** The path of another service.json in the project that uses `port`, or undefined. */
+export function findPortOwner(projectRoot, port, ignorePath) {
+    const ignored = path.resolve(ignorePath);
+    for (const file of discoverServiceManifestPaths(projectRoot)) {
+        if (path.resolve(file) === ignored)
+            continue;
+        try {
+            if (JSON.parse(readFileSync(file, "utf-8")).port === port) {
+                return path.relative(projectRoot, file);
+            }
+        }
+        catch {
+            // Unreadable manifests hold no port here.
+        }
+    }
+    return undefined;
+}
 export function resourcePortReservation(projectRoot, options = {}) {
     const owner = options.owner ?? `resource:${process.pid}:${randomUUID()}`;
     const dir = options.dir ?? resourcePortClaimDir(projectRoot);

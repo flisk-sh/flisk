@@ -98,6 +98,7 @@ import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js
 import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.js";
 import { ResourceFilePlan } from "../utils/resource-plan.js";
 import {
+  findPortOwner,
   reserveResourcePort,
   resourcePortReservation,
 } from "../utils/resource-port-reservation.js";
@@ -1036,6 +1037,7 @@ export interface ResourceReport {
   discovered: boolean;
   requestedType?: string;
   ignoredType?: string;
+  ignoredPort?: number;
   preservedPort?: number;
 }
 
@@ -1596,17 +1598,34 @@ export const resourceCommand = addYesOption(new Command("resource"))
         typeof existingRegistrationManifest?.appType === "string"
           ? existingRegistrationManifest.appType
           : undefined;
-      const hasTypeConflict =
-        existingAppType !== undefined &&
-        (resourceType === "sdk" ? "sdk" : resourceType) !== existingAppType;
+      const hasTypeConflict = existingAppType !== undefined && requestedType !== existingAppType;
       const existingRegistrationPort =
         typeof existingRegistrationManifest?.port === "number" &&
         Number.isInteger(existingRegistrationManifest.port) &&
         existingRegistrationManifest.port > 0
           ? existingRegistrationManifest.port
           : undefined;
-      const preserveExistingPort =
-        existingRegistrationPort !== undefined && (hasTypeConflict || options.port === undefined);
+      // The registered port stays authoritative, even for the same type, so a --port that differs is reported and ignored.
+      const preserveExistingPort = existingRegistrationPort !== undefined;
+      const ignoredPort =
+        preserveExistingPort &&
+        options.port !== undefined &&
+        Number(options.port) !== existingRegistrationPort
+          ? Number(options.port)
+          : undefined;
+      if (existingRegistrationPort !== undefined && existingRegistration) {
+        const owner = findPortOwner(
+          projectRoot,
+          existingRegistrationPort,
+          existingRegistration.path,
+        );
+        if (owner) {
+          throw new FliskError(
+            `Port ${existingRegistrationPort} of ${finalResourcePath} is already used by ${owner}.`,
+            ["Change one of the two ports in its service.json, then run this again."],
+          );
+        }
+      }
       if (infraPreset) assertInfraPresetOptions(infraPreset, options);
       let assignedPort = preserveExistingPort
         ? existingRegistrationPort
@@ -1751,10 +1770,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
           ),
           ...(hasTypeConflict &&
             existingAppType && {
-              requestedType: resourceType,
-              ignoredType: resourceType,
-              preservedPort: existingRegistrationPort,
+              requestedType,
+              ignoredType: requestedType,
             }),
+          ...((hasTypeConflict || ignoredPort !== undefined) && {
+            preservedPort: existingRegistrationPort,
+          }),
+          ...(ignoredPort !== undefined && { ignoredPort }),
         };
         return {
           data: updatedServiceJson ? registrationReport(data, updatedServiceJson) : data,
@@ -1777,6 +1799,14 @@ export const resourceCommand = addYesOption(new Command("resource"))
         console.log(
           chalk.yellow(
             `\n⚠️  Requested type "${resource.ignoredType}" conflicts with existing type "${existingAppType}". Keeping existing type and port ${resource.port ?? "N/A"}; requested type ignored.`,
+          ),
+        );
+      }
+
+      if (resource.ignoredPort !== undefined) {
+        console.log(
+          chalk.yellow(
+            `\n⚠️  Requested port ${resource.ignoredPort} ignored. Keeping existing port ${resource.preservedPort}.`,
           ),
         );
       }

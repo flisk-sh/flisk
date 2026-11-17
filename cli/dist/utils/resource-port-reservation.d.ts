@@ -9,6 +9,8 @@
 export declare function resourcePortClaimDir(projectRoot: string): string;
 /** The ports every service.json in the project has on disk now, except the one at `ignorePath`. */
 export declare function readAssignedPorts(projectRoot: string, ignorePath?: string): Set<number>;
+/** The path of another service.json in the project that uses `port`, or undefined. */
+export declare function findPortOwner(projectRoot: string, port: number, ignorePath: string): string | undefined;
 export interface ResourcePortReservation {
     claim: (port: number) => boolean;
     release: (port: number) => void;

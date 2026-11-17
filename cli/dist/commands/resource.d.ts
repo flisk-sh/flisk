@@ -251,6 +251,7 @@ export interface ResourceReport {
     discovered: boolean;
     requestedType?: string;
     ignoredType?: string;
+    ignoredPort?: number;
     preservedPort?: number;
 }
 export declare const resourceCommand: Command;
