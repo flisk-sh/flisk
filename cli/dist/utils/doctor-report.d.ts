@@ -21,6 +21,12 @@ export interface DoctorReport {
         fixFirst?: RankedFix[];
         /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
         actions?: DoctorAction[];
+        /** Number of repair actions that are repairable (planned or applied). */
+        repairableCount?: number;
+        /** Number of failed checks that need manual action. */
+        needsActionCount?: number;
+        repairable?: number;
+        needsAction?: number;
         host?: HostInfo & {
             containerRuntimeReachable: boolean | null;
         };

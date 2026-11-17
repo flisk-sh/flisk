@@ -228,8 +228,9 @@ export const doctorCommand = new Command("doctor")
                 },
             ];
         }
-        if (!options.json)
+        if (!options.json && fixActions && fixActions.length > 0) {
             printFixActions(fixActions, options.dryRun);
+        }
     }
     // `.flisk/project.json` and the --no-gateway / --no-database flags decide which shared containers are checked.
     const dbEnabled = isDatabaseCapabilityEnabled(projectRoot, options);
@@ -499,6 +500,14 @@ export const doctorCommand = new Command("doctor")
     const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCapabilities, undefined, buildCommit);
     if (fixActions)
         report.data.actions = fixActions;
+    const failedCheckCount = results.filter((check) => !check.didPass && !check.isSkipped && !check.isWarning).length;
+    const repairableCount = fixActions ? fixActions.filter((action) => action.status === "applied" || action.status === "planned").length : 0;
+    if (fixActions) {
+        report.data.repairableCount = repairableCount;
+        report.data.needsActionCount = failedCheckCount;
+        report.data.repairable = repairableCount;
+        report.data.needsAction = failedCheckCount;
+    }
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
     if (fixFailed)
         report.data.ready = false;
@@ -535,6 +544,11 @@ export const doctorCommand = new Command("doctor")
     for (const error of errors)
         console.error(`${chalk.red("✗")} Doctor check failed: ${redactSecrets(error.message, textSecrets)}`);
     renderDoctorOutput(redactValue(machineResults, textSecrets), redactValue(projectResults, textSecrets), inProject, options, redactValue(results, textSecrets));
+    if (fixActions && fixActions.length === 0) {
+        const failedCount = results.filter((check) => !check.didPass && !check.isSkipped && !check.isWarning).length;
+        if (!options.json)
+            printFixActions(fixActions, options.dryRun, failedCount);
+    }
     const outcome = getDoctorOutcomeMessage(inProject, allPassed);
     console.log(`${allPassed ? chalk.green(chalk.bold("✓")) : chalk.red(chalk.bold("✗"))} ${outcome}`);
     if (exitCode !== 0)
