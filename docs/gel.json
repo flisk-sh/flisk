@@ -15,7 +15,7 @@
       "ratio": 2,
       "better": "lower"
     },
-    "result": "bench/north-star.json",
+    "result": "docs/north-star/result.json",
     "evidence": "https://github.com/flisk-sh/flisk/blob/main/docs/benchmarks/compose-comparison.md",
     "measure": "node scripts/benchmark/north-star.mjs",
     "max_age_days": 90
