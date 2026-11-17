@@ -477,3 +477,12 @@ describe("flisk tool add: dogfood pass 3 fix", () => {
     expect(run).toHaveBeenCalledWith(expect.arrayContaining(["--stack", "shop"]), false);
   });
 });
+
+it("scaffolds FastAPI as a local service when the project already runs local processes", () => {
+  const run = vi.fn();
+  addTool(["fastapi"], { json: true, dryRun: true }, run, () => ({
+    native: true,
+    resources: [{ name: "web", stack: "app", type: "frontend" }],
+  }));
+  expect(run.mock.calls[0][0]).toEqual(expect.arrayContaining(["--local", "--language", "python"]));
+});
