@@ -1,6 +1,11 @@
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
 import { rankDoctorFixes } from "./doctor-fix-first.js";
 import { SCHEMA_VERSION } from "./machine-output.js";
+export async function timeDoctorCheck(check) {
+    const start = performance.now();
+    const result = await check();
+    return { ...result, durationMs: Math.round(performance.now() - start) };
+}
 /** Wait for concurrent probes to finish even if one throws, so they can release resources. */
 export async function collectDoctorChecks(machineChecks, projectChecks) {
     const checks = [];
@@ -14,11 +19,11 @@ export async function collectDoctorChecks(machineChecks, projectChecks) {
                 message: result.reason instanceof Error ? result.reason.message : String(result.reason),
             });
     };
-    for (const result of await Promise.allSettled(machineChecks.map((check) => Promise.resolve().then(check)))) {
+    for (const result of await Promise.allSettled(machineChecks.map(timeDoctorCheck))) {
         append(result);
     }
     for (const check of projectChecks) {
-        for (const result of await Promise.allSettled([Promise.resolve().then(check)]))
+        for (const result of await Promise.allSettled([timeDoctorCheck(check)]))
             append(result);
     }
     return { checks, errors };
@@ -43,7 +48,7 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
             ready: errors.length === 0 &&
                 checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
             inProject,
-            checks,
+            checks: checks.map((check) => ({ durationMs: 0, ...check })),
             ...(capabilities ? { capabilities } : {}),
             ...(observedOwner ? { observed: observedOwner } : {}),
             ...(fixFirst.length > 0 ? { fixFirst } : {}),

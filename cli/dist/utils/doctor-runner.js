@@ -1,4 +1,5 @@
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
+import { timeDoctorCheck } from "./doctor-report.js";
 /** Failures are shown before passing statuses, with a 5432 conflict first. */
 export function orderDoctorResults(results) {
     const failures = results.filter((result) => !result.didPass && !result.isSkipped && !result.isWarning);
@@ -93,7 +94,7 @@ export async function runChecks(checks, options = {}) {
             });
             continue;
         }
-        const result = await check();
+        const result = await timeDoctorCheck(check);
         results.push(result);
         if (result.name === CONTAINER_RUNTIME_CHECK && !result.didPass) {
             containerRuntimeFailed = true;

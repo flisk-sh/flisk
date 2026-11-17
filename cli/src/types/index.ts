@@ -519,6 +519,7 @@ export interface PortOwnerDetails {
 
 export interface CheckResult {
   name: string;
+  durationMs?: number;
   didPass: boolean;
   message: string;
   fix?: string;
