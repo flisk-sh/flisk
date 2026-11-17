@@ -1196,14 +1196,14 @@ export const COMMAND_SPECS = [
                 arguments: [
                     {
                         name: "tool-and-name",
-                        description: "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); leave it out to list every tool",
+                        description: "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); use flisk tool list to browse the catalogue",
                         required: false,
                         variadic: true,
                     },
                 ],
                 helpTexts: {
                     after: [
-                        "\nExamples:\n  flisk tool add\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add spring boot\n  flisk tool add rag --dry-run",
+                        "\nExamples:\n  flisk tool list\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add spring boot\n  flisk tool add rag --dry-run",
                     ],
                 },
                 subcommands: [],

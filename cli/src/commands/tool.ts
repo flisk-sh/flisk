@@ -16,6 +16,7 @@ import { type CliInvocation, cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
@@ -249,7 +250,9 @@ export function addTool(
   project: () => ProjectView | undefined = readProject,
 ): unknown {
   if (words.length === 0 || words.every((word) => !word.trim())) {
-    return listTools(options);
+    throw new FliskError("Missing tool name. Choose a tool from the catalogue.", [
+      "Run flisk tool list.",
+    ]);
   }
   const { tool, name } = resolveWords(words);
   // Docker and a CI workflow are not services, so they have no name to give; say so instead of ignoring it.
@@ -312,7 +315,7 @@ const toolAddCommand = addYesOption(new Command("add"))
   )
   .argument(
     "[tool-and-name...]",
-    "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); leave it out to list every tool",
+    "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); use flisk tool list to browse the catalogue",
   )
   .option(
     "-s, --stack <stack>",
@@ -322,9 +325,26 @@ const toolAddCommand = addYesOption(new Command("add"))
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk tool add\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add spring boot\n  flisk tool add rag --dry-run",
+    "\nExamples:\n  flisk tool list\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add spring boot\n  flisk tool add rag --dry-run",
   )
   .action(async (words: string[], options: AddOptions) => {
+    if (words.length === 0 || words.every((word) => !word.trim())) {
+      const message = "Missing tool name. Choose a tool from the catalogue.";
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            createMachineEnvelope(listTools({ json: true }), [
+              { code: "TOOL_NAME_REQUIRED", message },
+            ]),
+          ),
+        );
+      } else {
+        console.error(message);
+        listTools({});
+      }
+      process.exitCode = 1;
+      return;
+    }
     if (options.json) {
       await runJsonCommand("TOOL_ADD_FAILED", "flisk tool add", async () => ({
         data: addTool(words, options),

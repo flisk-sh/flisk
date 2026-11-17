@@ -141,11 +141,8 @@ describe("flisk tool add", () => {
     expect(getRegisteredCommands().map((command) => command.name())).toContain("tool");
   });
 
-  it("lists every tool when no tool is given", () => {
-    const lines = quiet();
-    add([], {});
-    expect(lines.join("\n")).toBe(formatToolList().join("\n"));
-    for (const tool of TOOL_CATALOG) expect(lines.join("\n")).toContain(tool.id);
+  it("rejects a missing tool name through the action helper", () => {
+    expect(() => add([], {})).toThrow("Missing tool name");
   });
 
   it("runs flisk resource for a tool Flisk generates", () => {
@@ -257,15 +254,10 @@ describe("flisk tool list", () => {
     }
   });
 
-  it("returns the same data for flisk tool list --json as flisk tool add --json with no name", () => {
-    const listResult = listTools({ json: true });
-    const addResult = add([], { json: true });
-    expect(listResult).toEqual(addResult);
-    expect(listResult).toMatchObject({
-      tools: expect.arrayContaining([
-        expect.objectContaining({ id: "react" }),
-        expect.objectContaining({ id: "postgresql" }),
-      ]),
+  it("refuses an empty add request without changing the list command", () => {
+    expect(() => add([], { json: true })).toThrow("Missing tool name");
+    expect(listTools({ json: true })).toMatchObject({
+      tools: expect.arrayContaining([expect.objectContaining({ id: "react" })]),
     });
   });
 
