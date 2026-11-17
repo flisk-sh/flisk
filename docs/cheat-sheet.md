@@ -262,6 +262,8 @@ flisk resource old-api --path services/old-api --register-existing
 | `-s`, `--stack <stack>` | Stack to assign the resource to |
 | `-p`, `--path <path>` | Custom resource directory. `--resource-path` is an older alias |
 | `--register-existing` | Register an existing resource without creating templates |
+| `--local` | Scaffold a frontend or backend as a host process without Docker or Tilt |
+| `--durability <kind>` | Agent session checkpoint storage. Choose `files` (default, named volume) or `postgres`. Applies to `--type agent` |
 | `-y`, `--yes` | No prompts, use defaults |
 | `--port <port>` | Port (default: next free in 4000-5999) |
 | `--feature <feature...>` | Enable a resource feature, for example `prisma` |
@@ -307,11 +309,15 @@ flisk stack api                                         # pick resources interac
 flisk stack api --resources orders-api users-api --yes  # scriptable
 flisk stack api --resources orders-api,users-api --yes
 flisk stack --list                                      # resources without a stack
+flisk stack api --move --resources orders-api --yes
+flisk stack --remove --resources orders-api --yes
 ```
 
 | Flag | Effect |
 | --- | --- |
 | `--resources <names...>` | Resources to add (comma- or space-separated) |
+| `--move` | Allow moving the named resources from another stack to the specified stack. Requires `--resources` |
+| `--remove` | Clear the stack assignment for the named resources. Requires `--resources` and omits the stack name |
 | `--list` | List resources without a stack |
 | `--yes` | Skip the confirmation prompt |
 | `--json` | One JSON object on stdout. Implies `--yes`; needs `--list` or a stack name with `--resources` |
