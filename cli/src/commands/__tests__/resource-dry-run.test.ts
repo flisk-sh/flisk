@@ -353,3 +353,17 @@ describe("resource scaffolding preview", () => {
     );
   });
 });
+
+it("prints a noninteractive text preview while real creation still requires consent", () => {
+  const root = createTempProject({ stacks: { shop: {} } });
+  const before = snapshot(root);
+  const args = ["resource", "api", "--stack", "shop"];
+  const dry = runFlisk([...args, "--dry-run"], { cwd: root, input: "" });
+  expect(dry.status, dry.stdout + dry.stderr).toBe(0);
+  expect(dry.stdout).toContain("service.json");
+  expect(snapshot(root)).toEqual(before);
+  const real = runFlisk(args, { cwd: root, input: "" });
+  expect(real.status).not.toBe(0);
+  expect(real.stdout + real.stderr).toContain("needs --yes or a terminal");
+  expect(snapshot(root)).toEqual(before);
+});

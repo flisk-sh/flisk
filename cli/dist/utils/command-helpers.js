@@ -79,6 +79,8 @@ export function routeUsageErrorsToJson(command, hint) {
     command.exitOverride((err) => {
         if (err.exitCode === 0)
             process.exit(0);
+        if (err.code === "commander.conflictingOption")
+            err.exitCode = 2;
         if (isJsonRequested(command)) {
             const { message, didYouMean } = splitDidYouMean(rewriteMessage(err.message));
             const suggestions = [
