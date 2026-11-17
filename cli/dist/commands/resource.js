@@ -1341,7 +1341,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
             // The port was kept, not reserved, so an edit during the prompt could leave it free for another resource.
             if (preserveExistingPort &&
                 (fresh.port !== existingRegistrationPort || fresh.appType !== existingAppType)) {
-                throw new FliskError(`${finalResourcePath}/service.json changed while waiting for confirmation. Run the command again.`);
+                throw new FliskError(`${finalResourcePath}/service.json changed while waiting for confirmation. Run the command again.`, ["Run the same flisk resource command again to register against the new manifest"]);
             }
             updatedServiceJson = buildRegisteredServiceJson(fresh);
         }
