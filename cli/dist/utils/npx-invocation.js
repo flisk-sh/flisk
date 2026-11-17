@@ -30,7 +30,8 @@ export function npxInvocation(npxArgs, runtime = {}) {
             };
         }
     }
-    const comSpec = runtime.comSpec ?? process.env.ComSpec ?? "cmd.exe";
+    // Never the ComSpec environment value: an environment variable must not choose the program that is spawned.
+    const comSpec = runtime.comSpec ?? "cmd.exe";
     const line = ["npx.cmd", ...npxArgs.map(quoteCmdArgument)].join(" ");
     return {
         command: comSpec,

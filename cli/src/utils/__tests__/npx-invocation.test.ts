@@ -62,6 +62,18 @@ describe("npxInvocation", () => {
     }
   });
 
+  it("ignores the ComSpec environment value when choosing the shell", () => {
+    const before = process.env.ComSpec;
+    process.env.ComSpec = "C:\\evil\\cmd.exe";
+    try {
+      const invocation = npxInvocation(["--yes", "pkg"], { platform: "win32", execPath: "C:\\bun\\bun.exe" });
+      expect(invocation.command).toBe("cmd.exe");
+    } finally {
+      if (before === undefined) delete process.env.ComSpec;
+      else process.env.ComSpec = before;
+    }
+  });
+
   it("falls back to npx.cmd through cmd.exe with every argument quoted", () => {
     const invocation = npxInvocation(["--yes", "pkg", "C:\\Users\\Jane Smith\\shop", "a&b"], {
       platform: "win32",
