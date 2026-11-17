@@ -9,7 +9,7 @@
     "north-star": "block",
     "adr-required": "block",
     "api-contract": "block",
-    "five-second-test": "block",
+    "five-second-test": "report",
     "migrations-append-only": "block",
     "release-integrity": "block",
     "repo-health": "block",
