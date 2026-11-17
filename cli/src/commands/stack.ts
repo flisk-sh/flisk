@@ -8,7 +8,6 @@ import { Command } from "commander";
 import { generateMasterConfigs } from "../generator/template-engine.js";
 import type { JsonCommandResult } from "../types/index.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
-import { JsonCommandError } from "../utils/json-command.js";
 import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
@@ -20,7 +19,7 @@ import {
   showDetail,
   showSuccess,
 } from "../utils/formatting.js";
-import { runJsonCommand } from "../utils/json-command.js";
+import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { promptMultiSelect, promptText } from "../utils/prompt.js";
 import { createKebabCaseValidator, validateStackName } from "../utils/validation.js";
