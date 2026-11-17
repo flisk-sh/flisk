@@ -66,7 +66,10 @@ describe("npxInvocation", () => {
     const before = process.env.ComSpec;
     process.env.ComSpec = "C:\\evil\\cmd.exe";
     try {
-      const invocation = npxInvocation(["--yes", "pkg"], { platform: "win32", execPath: "C:\\bun\\bun.exe" });
+      const invocation = npxInvocation(["--yes", "pkg"], {
+        platform: "win32",
+        execPath: "C:\\bun\\bun.exe",
+      });
       expect(invocation.command).toBe("cmd.exe");
     } finally {
       if (before === undefined) delete process.env.ComSpec;
