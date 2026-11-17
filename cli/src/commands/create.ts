@@ -10,7 +10,15 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmdirSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -827,6 +835,33 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
         .join("\n")}\n`,
     );
     return;
+  }
+
+  const readme = join(projectDir, "README.md");
+  const runtimeHint =
+    answers.runtime === "docker"
+      ? "Start Docker before running this project."
+      : "This project runs as local processes. It does not need Docker.";
+  const commands = nextSteps(projectDir, answers, services)
+    .slice(1)
+    .filter((line) => !/^Open /i.test(line));
+  const contents = [
+    `# ${answers.name}`,
+    "",
+    runtimeHint,
+    "",
+    "## Run the project",
+    "",
+    "```sh",
+    ...commands,
+    "flisk status",
+    "```",
+    "",
+  ].join("\n");
+  try {
+    writeFileSync(readme, contents, { flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
   }
 
   let start = Boolean(options.start);
