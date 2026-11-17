@@ -161,7 +161,7 @@ export function runImport(
   return new Promise((resolve) => {
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: "inherit",
-      shell: invocation.shell,
+      shell: false,
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on("error", (err) => {
@@ -198,7 +198,7 @@ export function runImportCaptured(
   return new Promise((resolve) => {
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: ["ignore", "pipe", "pipe"],
-      shell: invocation.shell,
+      shell: false,
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     let stdout = "";
