@@ -31,6 +31,19 @@ function collapseRepeats(lines) {
     }
     return out;
 }
+/** Per-URL readiness entries for `flisk up --json` in a local-process run, matching the container `data.urls` shape. */
+export function nativeUrlChecks(services, statuses) {
+    return services.flatMap((service) => service.url
+        ? [
+            {
+                service: service.name,
+                url: service.url,
+                didAnswer: true,
+                status: statuses?.get(service.name) ?? 200,
+            },
+        ]
+        : []);
+}
 /**
  * Each failure with the last lines its service wrote (`logs`). The reason alone ("kept exiting; see its output above")
  * points at output that a `--json` or MCP caller never saw, so the cause (a missing variable, a stack trace) travels with
@@ -269,7 +282,9 @@ export async function runNativeUp(input) {
         stack: input.stackName ?? null,
         services: serviceNames,
         ...(input.only ? { requested: input.only, dependencies: input.dependencies } : {}),
-        urls: Object.fromEntries(plan.services.flatMap((service) => (service.url ? [[service.name, service.url]] : []))),
+        urls: nativeUrlChecks(plan.services, "readyStatuses" in supervisor && typeof supervisor.readyStatuses === "function"
+            ? supervisor.readyStatuses()
+            : undefined),
     });
     if (!quiet) {
         const lines = [

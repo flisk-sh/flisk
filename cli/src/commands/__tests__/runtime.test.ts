@@ -92,7 +92,7 @@ describe("flisk runtime", () => {
     templateEngine.loadTemplate.mockReturnValue("");
 
     const { stdout } = await runRuntime(["--check-assets", "--json"]);
-    const result = JSON.parse(stdout) as CheckAssetsResult;
+    const result = JSON.parse(stdout).data as CheckAssetsResult;
 
     expect(Object.keys(result).sort()).toEqual(JSON_KEYS);
     expect(result).toEqual({
@@ -122,7 +122,7 @@ describe("flisk runtime", () => {
     templateEngine.loadTemplate.mockReturnValue("");
 
     const { stdout } = await runRuntime(["--check-assets", "--json"]);
-    const result = JSON.parse(stdout) as CheckAssetsResult;
+    const result = JSON.parse(stdout).data as CheckAssetsResult;
 
     expect(result).toEqual({
       ok: true,
@@ -145,7 +145,7 @@ describe("flisk runtime", () => {
     templateEngine.findCliAssetRoot.mockReturnValue(cliDir);
 
     const { stdout } = await runRuntime(["--check-assets", "--json"]);
-    const result = JSON.parse(stdout) as CheckAssetsResult;
+    const result = JSON.parse(stdout).data as CheckAssetsResult;
 
     expect(result.ok).toBe(false);
     expect(result.assetRoot).toBe(resolve(tempDir));
@@ -157,7 +157,7 @@ describe("flisk runtime", () => {
     templateEngine.findCliAssetRoot.mockReturnValue(tempDir);
 
     const { stdout } = await runRuntime(["--check-assets", "--json"]);
-    const result = JSON.parse(stdout) as CheckAssetsResult;
+    const result = JSON.parse(stdout).data as CheckAssetsResult;
 
     expect(Object.keys(result).sort()).toEqual(JSON_KEYS);
     expect(result.ok).toBe(false);
@@ -210,7 +210,7 @@ describe("flisk runtime", () => {
     });
 
     const { stdout } = await runRuntime(["--check-assets", "--json"]);
-    const result = JSON.parse(stdout) as CheckAssetsResult;
+    const result = JSON.parse(stdout).data as CheckAssetsResult;
 
     expect(result.ok).toBe(false);
     expect(result.templateErrors).toEqual(["corrupted template syntax"]);
@@ -228,7 +228,7 @@ describe("flisk runtime", () => {
     templateEngine.findCliAssetRoot.mockReturnValue(tempDir);
 
     const { stdout } = await runRuntime(["--check-assets", "--json"]);
-    const result = JSON.parse(stdout) as CheckAssetsResult;
+    const result = JSON.parse(stdout).data as CheckAssetsResult;
 
     expect(result.ok).toBe(false);
     expect(result.missing).toContain("Tiltfile");

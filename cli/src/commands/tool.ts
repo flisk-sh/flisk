@@ -16,6 +16,7 @@ import { type CliInvocation, cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
@@ -146,13 +147,15 @@ export function resolveWords(words: string[]): { tool: ToolEntry; name?: string 
 
 /** What `flisk tool add` needs from the project before it runs `flisk resource`: its resources and their stacks. */
 export interface ProjectView {
+  native?: boolean;
   resources: Array<{ name: string; stack?: string; type?: string }>;
 }
 
 function readProject(): ProjectView | undefined {
   const root = findProjectRoot();
   if (!root) return undefined;
-  return { resources: discoverResourcesWithProblems(root).resources };
+  const { resources } = discoverResourcesWithProblems(root);
+  return { native: isNativeProject(resources), resources };
 }
 
 /**
@@ -297,11 +300,16 @@ export function addTool(
         stack: options.stack,
         dryRun: options.dryRun,
         json: options.json,
+        local: view.native && (tool.group === "backend" || tool.group === "frontend"),
       });
       if (!options.json) console.log(chalk.gray(`$ flisk ${args.join(" ")}`));
       const resource = run(args, Boolean(options.json));
       if (!options.json && tool.next) console.log(`\nNext: ${tool.next}`);
-      return { ...described, ...(options.json ? { resource } : {}) };
+      return {
+        ...described,
+        command: ["flisk", ...args].join(" "),
+        ...(options.json ? { resource } : {}),
+      };
     }
   }
 }
