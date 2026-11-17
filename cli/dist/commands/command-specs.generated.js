@@ -91,7 +91,7 @@ export const COMMAND_SPECS = [
         allowUnknown: false,
         passThrough: false,
         positionalOptions: false,
-        allowExcessArguments: false,
+        allowExcessArguments: true,
         options: [
             {
                 flags: "-y, --yes",
@@ -1741,7 +1741,7 @@ export const COMMAND_SPECS = [
         allowUnknown: false,
         passThrough: false,
         positionalOptions: false,
-        allowExcessArguments: false,
+        allowExcessArguments: true,
         options: [
             {
                 flags: "-s, --stack <stack>",
