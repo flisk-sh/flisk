@@ -108,6 +108,73 @@ describe("resource scaffolding preview", () => {
     expect(snapshot(root)).toEqual(before);
   });
 
+  it("preserves an existing backend type and port when worker is requested", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, [
+      "--type",
+      "worker",
+      "--path",
+      "existing",
+      "--port",
+      "6100",
+    ]);
+    expect(preview.resource).toMatchObject({
+      action: "registered",
+      type: "backend",
+      port: 4100,
+      requestedType: "worker",
+      ignoredType: "worker",
+      preservedPort: 4100,
+    });
+    const applied = runResourceCommand(
+      root,
+      ["--type", "worker", "--path", "existing", "--port", "6100"],
+      false,
+    );
+    expect(applied).toMatchObject({
+      action: "registered",
+      type: "backend",
+      port: 4100,
+      ignoredType: "worker",
+    });
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject({
+      appType: "backend",
+      port: 4100,
+    });
+
+    const text = runFlisk(
+      [
+        "resource",
+        "sample",
+        "--type",
+        "worker",
+        "--path",
+        "existing",
+        "--stack",
+        "shop",
+        "--port",
+        "6100",
+        "--dry-run",
+        "--yes",
+      ],
+      { cwd: root, input: "" },
+    );
+    expect(text.status, text.stderr).toBe(0);
+    expect(text.stdout).toContain(
+      'Requested type "worker" conflicts with existing type "backend"',
+    );
+    expect(text.stdout).toContain("Keeping existing type and port 4100");
+  });
+
   it.each(["backend", "sdk"])(
     "previews registration of an existing %s without overwriting its manifest",
     (type) => {

@@ -1034,6 +1034,9 @@ export interface ResourceReport {
   framework: string | null;
   language: string | null;
   discovered: boolean;
+  requestedType?: string;
+  ignoredType?: string;
+  preservedPort?: number;
 }
 
 /** Registration keeps runtime fields, even when the creation flags would select another scaffold. */
@@ -1582,19 +1585,44 @@ export const resourceCommand = addYesOption(new Command("resource"))
         isInference && !options.port && shouldRegisterExisting && hasServiceJson
           ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
           : undefined;
+      const existingRegistration =
+        shouldRegisterExisting && hasServiceJson
+          ? (suppliedExistingManifest?.path === resolve(fullPath, SERVICE_JSON)
+              ? suppliedExistingManifest
+              : readExistingManifest(projectRoot, finalResourcePath))
+          : undefined;
+      const existingRegistrationManifest = existingRegistration?.config;
+      const existingAppType =
+        typeof existingRegistrationManifest?.appType === "string"
+          ? existingRegistrationManifest.appType
+          : undefined;
+      const hasTypeConflict =
+        existingAppType !== undefined &&
+        (resourceType === "sdk" ? "sdk" : resourceType) !== existingAppType;
+      const existingRegistrationPort =
+        typeof existingRegistrationManifest?.port === "number" &&
+        Number.isInteger(existingRegistrationManifest.port) &&
+        existingRegistrationManifest.port > 0
+          ? existingRegistrationManifest.port
+          : undefined;
+      const preserveExistingPort =
+        existingRegistrationPort !== undefined &&
+        (hasTypeConflict || options.port === undefined);
       if (infraPreset) assertInfraPresetOptions(infraPreset, options);
-      let assignedPort = infraPreset
-        ? INFRA_PRESETS[infraPreset].port
-        : isInference
-          ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
-          : resourceType === "sdk" || isDatabase
-            ? 0
-            : resolveResourcePort(
-                resourceType as PortAssignableResourceType,
-                options.port,
-                nextPort,
-                allResources,
-              );
+      let assignedPort = preserveExistingPort
+        ? existingRegistrationPort
+        : infraPreset
+          ? INFRA_PRESETS[infraPreset].port
+          : isInference
+            ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
+            : resourceType === "sdk" || isDatabase
+              ? 0
+              : resolveResourcePort(
+                  resourceType as PortAssignableResourceType,
+                  options.port,
+                  nextPort,
+                  allResources,
+                );
       // --local: on your own computer the port has to be free right now, not only unassigned in this project (another
       // program may already listen on 3000). Picked here so the details, the confirmation and the JSON report all show
       // the port the service really gets. An explicit --port is kept as it is.
@@ -1617,7 +1645,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
         !infraPreset &&
         !isInference &&
         resourceType !== "sdk" &&
-        !isDatabase
+        !isDatabase &&
+        !(preserveExistingPort && shouldRegisterExisting)
       ) {
         const reserved = await reserveResourcePort(
           assignedPort,
@@ -1717,6 +1746,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
             finalResourcePath,
             readDiscoveryPaths(projectRoot),
           ),
+          ...(hasTypeConflict &&
+            existingAppType && {
+              requestedType: resourceType,
+              ignoredType: resourceType,
+              preservedPort: existingRegistrationPort,
+            }),
         };
         return {
           data: updatedServiceJson ? registrationReport(data, updatedServiceJson) : data,
@@ -1734,6 +1769,14 @@ export const resourceCommand = addYesOption(new Command("resource"))
         ),
       );
       console.log(chalk.gray(`  Path:  ${finalResourcePath}`));
+
+      if (resource.ignoredType && existingAppType) {
+        console.log(
+          chalk.yellow(
+            `\n⚠️  Requested type "${resource.ignoredType}" conflicts with existing type "${existingAppType}". Keeping existing type and port ${resource.port ?? "N/A"}; requested type ignored.`,
+          ),
+        );
+      }
 
       if (shouldRegisterExisting && hasServiceJson) {
         console.log(
