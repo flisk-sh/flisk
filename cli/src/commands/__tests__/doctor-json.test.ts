@@ -95,12 +95,14 @@ function captureOutput(): { log: ReturnType<typeof vi.spyOn>; exit: ExitCapture[
 }
 
 const PASSING_CHECK: CheckResult = {
+  durationMs: 0,
   name: "Container Runtime",
   didPass: true,
   message: "Docker daemon is running",
 };
 
 const FAILING_CHECK: CheckResult = {
+  durationMs: 0,
   name: "Tilt CLI",
   didPass: false,
   message: "Tilt CLI not found",
@@ -108,6 +110,7 @@ const FAILING_CHECK: CheckResult = {
 };
 
 const SKIPPED_CHECK: CheckResult = {
+  durationMs: 0,
   name: "Service Health",
   didPass: true,
   isSkipped: true,
@@ -186,17 +189,20 @@ describe("doctor JSON command", () => {
     expect(parsedFailing.data.ready).toBe(false);
     expect(parsedFailing.data.checks).toEqual([
       {
+        durationMs: 0,
         name: "Container Runtime",
         didPass: true,
         message: "Docker daemon is running",
       },
       {
+        durationMs: 0,
         name: "Tilt CLI",
         didPass: false,
         message: "Tilt CLI not found",
         fix: "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
       },
       {
+        durationMs: 0,
         name: "Service Health",
         didPass: true,
         isSkipped: true,
@@ -718,17 +724,20 @@ describe("doctor JSON command", () => {
     });
 
     const runtimeCheck: CheckResult = {
+      durationMs: 0,
       name: "Container Runtime",
       didPass: true,
       message: "Docker daemon is running",
     };
     const probeFailingCheck: CheckResult = {
+      durationMs: 0,
       name: "Service Health",
       didPass: false,
       message: "http://api.flisk.localhost:8080/health returned 503 Service Unavailable",
       fix: "flisk logs to inspect container health",
     };
     const probePassingCheck: CheckResult = {
+      durationMs: 0,
       name: "Advertised Endpoints",
       didPass: true,
       message: "All 2 advertised routes responded with expected HTTP status",
