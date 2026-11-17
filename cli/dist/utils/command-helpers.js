@@ -102,6 +102,20 @@ export function attachNoPositionalHint(command, commandName = command.name()) {
         configurable: true,
         enumerable: true,
     });
+    if (commandName === "logs") {
+        const originalError = command.error.bind(command);
+        command.error = (message, options) => {
+            const previous = originalShowHelp;
+            if (options?.code !== "commander.excessArguments")
+                originalShowHelp = false;
+            try {
+                return originalError(message, options);
+            }
+            finally {
+                originalShowHelp = previous;
+            }
+        };
+    }
     return routeUsageErrorsToJson(command, hint);
 }
 /**
