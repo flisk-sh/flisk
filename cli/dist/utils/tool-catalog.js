@@ -309,6 +309,7 @@ export function resourceArgs(tool, options) {
         "resource",
         options.name ?? tool.defaultName,
         ...tool.args,
+        ...(options.local ? ["--local"] : []),
         ...(options.stack ? ["--stack", options.stack] : []),
         "--yes",
         ...(options.dryRun ? ["--dry-run"] : []),
