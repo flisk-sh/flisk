@@ -315,13 +315,13 @@ export function isPortListening(port: number, timeoutMs = 1_000): Promise<boolea
   });
 }
 
-async function healthAnswers(url: string): Promise<boolean> {
+async function healthCheckStatus(url: string): Promise<number | null> {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(2_000), redirect: "manual" });
     await response.body?.cancel();
-    return response.status < 400;
+    return response.status < 400 ? response.status : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -329,7 +329,12 @@ async function healthAnswers(url: string): Promise<boolean> {
 export async function waitForServiceReady(
   plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled"> &
     Partial<Pick<NativeServicePlan, "readiness" | "cwd" | "env">>,
-  options: { isAlive: () => boolean; timeoutMs?: number; intervalMs?: number },
+  options: {
+    isAlive: () => boolean;
+    timeoutMs?: number;
+    intervalMs?: number;
+    onStatus?: (status: number) => void;
+  },
 ): Promise<boolean> {
   const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS);
   const interval = options.intervalMs ?? 250;
@@ -346,7 +351,10 @@ export async function waitForServiceReady(
         : readiness?.kind === "command"
           ? await readinessCommandPasses(readiness.command, plan)
           : plan.healthUrl
-            ? await healthAnswers(plan.healthUrl)
+            ? await healthCheckStatus(plan.healthUrl).then((status) => {
+                if (status !== null) options.onStatus?.(status);
+                return status !== null;
+              })
             : await isPortListening(plan.port as number);
     if (ready) return true;
     await sleep(interval);
@@ -817,6 +825,8 @@ interface RunningService {
   restarting?: boolean;
   /** Resolves with the exit code of the current process (null when a signal ended it). */
   exited?: Promise<number | null>;
+  /** HTTP status code returned by the service's health check when it became ready. */
+  readyStatus?: number;
 }
 
 /** Starts and supervises the planned services. One instance per `flisk up`. */
@@ -936,6 +946,9 @@ export class NativeSupervisor {
             : await waitForServiceReady(service.plan, {
                 isAlive: () => !this.stopping && !service.gaveUp,
                 timeoutMs: this.options.readyTimeoutMs,
+                onStatus: (status) => {
+                  service.readyStatus = status;
+                },
               });
           await service.identityReady;
           if (isReady) {
@@ -993,6 +1006,17 @@ export class NativeSupervisor {
   /** The current process id of a service, for tests and diagnostics. */
   pidOf(name: string): number | undefined {
     return this.services.get(name)?.child?.pid;
+  }
+
+  /** HTTP readiness status codes recorded per service during startup. */
+  readyStatuses(): ReadonlyMap<string, number> {
+    const statuses = new Map<string, number>();
+    for (const [name, service] of this.services) {
+      if (service.readyStatus !== undefined) {
+        statuses.set(name, service.readyStatus);
+      }
+    }
+    return statuses;
   }
 
   /** Parsed outputs produced by finished migrators (for inspection and tests). */
