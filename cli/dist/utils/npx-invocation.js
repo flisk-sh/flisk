@@ -23,6 +23,8 @@ export function npxInvocation(npxArgs, runtime = {}) {
         const npxCli = win32.join(win32.dirname(execPath), "node_modules", "npm", "bin", "npx-cli.js");
         if (exists(npxCli)) {
             return {
+                // The runtime that owns npx-cli.js, by absolute path: a bare "node" would be searched in the current directory
+                // first on Windows and could be another installation than the one whose npm holds npx-cli.js.
                 command: execPath,
                 args: [npxCli, ...npxArgs],
                 shell: false,
