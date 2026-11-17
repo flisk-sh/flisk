@@ -259,11 +259,11 @@ describe("frontend readiness", () => {
 });
 
 describe("flisk open, in process", () => {
-  async function print(root: string): Promise<void> {
+  async function print(root: string, args: string[] = ["--print"]): Promise<void> {
     const cwd = process.cwd();
     process.chdir(root);
     try {
-      const pending = openCommand.exitOverride().parseAsync(["--print"], { from: "user" });
+      const pending = openCommand.exitOverride().parseAsync(args, { from: "user" });
       const result = pending.catch((error: unknown) => error);
       await vi.runAllTimersAsync();
       const error = await result;
@@ -299,6 +299,43 @@ describe("flisk open, in process", () => {
     expect(stderr).toBe("");
     expect(openUrl).not.toHaveBeenCalled();
     expect(getHostPortPlan).not.toHaveBeenCalled();
+  });
+
+  it("prints the named frontend's URL rather than the first one", async () => {
+    const root = shopProject();
+    answer(() => 200);
+
+    await print(root, ["storefront", "--print"]);
+
+    expect(stdout).toBe(`${SHOP}\n`);
+    expect(stderr).toBe("");
+    expect(process.exitCode).toBe(0);
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("fails and lists the frontends when the name is not a frontend", async () => {
+    const root = shopProject();
+    answer(() => 200);
+
+    await print(root, ["nosuch", "--print"]);
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain('Resource "nosuch" not found');
+    expect(stderr).toContain("Frontends: admin, storefront");
+    expect(process.exitCode).toBe(1);
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("fails and lists the frontends when the name is a backend", async () => {
+    const root = shopProject();
+    answer(() => 200);
+
+    await print(root, ["orders-api", "--print"]);
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain('Resource "orders-api" not found');
+    expect(stderr).toContain("Frontends: admin, storefront");
+    expect(process.exitCode).toBe(1);
   });
 
   it("fails on stderr with no URL outside a project", async () => {
@@ -394,6 +431,30 @@ describe("flisk open, in process", () => {
 
       expect(status).toBeUndefined();
       expect(envelope.data).toEqual({ url: ADMIN, resource: "admin" });
+      expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("outputs the named frontend in the envelope", async () => {
+      const root = shopProject();
+      answer(() => 200);
+
+      const { envelope, status } = await runWithJson(root, ["storefront", "--json"]);
+
+      expect(status).toBeUndefined();
+      expect(envelope.data).toEqual({ url: SHOP, resource: "storefront" });
+      expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("outputs UNKNOWN_FRONTEND and exits 1 for a name that is not a frontend", async () => {
+      const root = shopProject();
+      answer(() => 200);
+
+      const { envelope, status } = await runWithJson(root, ["nosuch", "--json"]);
+
+      expect(status).toBe(1);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0]?.code).toBe("UNKNOWN_FRONTEND");
+      expect(stdout).toContain("Frontends: admin, storefront");
       expect(openUrl).not.toHaveBeenCalled();
     });
 
