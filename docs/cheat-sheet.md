@@ -169,6 +169,7 @@ Project setup does not need a running Docker daemon or an installed Tilt: `flisk
 | Flag | Effect |
 | --- | --- |
 | `--check` | Validate configuration; exit 0 or 1. Use in CI |
+| `--stale` | List projects whose directory is gone while Docker resources remain |
 | `--json` | Versioned JSON report |
 
 ### `flisk import [dir]`
@@ -556,7 +557,12 @@ flisk os --scan-root ~/code           # also look for Flisk projects under ~/cod
 
 ### `flisk mcp`
 
-Runs a Model Context Protocol server over stdio for coding agents. No flags. See [agent hosts](agent-hosts.md).
+Runs a Model Context Protocol server over stdio for coding agents. See [agent hosts](agent-hosts.md).
+
+| Flag | Effect |
+| --- | --- |
+| `--read-only` | Expose only tools that do not change project state. Also available as `FLISK_MCP_READ_ONLY=1` |
+| `--tools <names>` | Expose only the named comma-separated tools. Also available as `FLISK_MCP_TOOLS` |
 
 ### `flisk connect <host>`
 
