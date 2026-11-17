@@ -43,7 +43,13 @@ async function resolveResourceUrl(name) {
     const { resources } = createDiscoveryContext();
     const resource = resources.find((candidate) => candidate.name === name);
     if (!resource) {
-        throw errorFactories.resourceNotFound(name, resources.map((candidate) => candidate.name));
+        const validNames = resources.map((candidate) => candidate.name);
+        throw new FliskError(`No resource named "${name}"`, [
+            ...(validNames.length > 0
+                ? [`Valid resources: ${validNames.join(", ")}`]
+                : ["This project has no resources yet"]),
+            "Run `flisk resources` to list all resources",
+        ]);
     }
     let ingressHttp;
     try {
