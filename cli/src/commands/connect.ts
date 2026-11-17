@@ -112,7 +112,11 @@ export const connectCommand = new Command("connect")
       const targetPath = typeof target === "string" ? path.resolve(target) : undefined;
       const root = findProjectRoot(targetPath);
       if (targetPath && !root) {
-        throw new FliskError(`No Flisk project at ${targetPath}`);
+        throw new FliskError(
+          `No Flisk project at ${targetPath}`,
+          [`Run \`flisk project\` there first, or point --project at an existing Flisk project`],
+          2,
+        );
       }
       const projectRoot = root ?? process.cwd();
       return connectAgentHost({
