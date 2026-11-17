@@ -12,7 +12,7 @@ on:
     paths:
       - "cli/src/utils/native-up.ts"
       - "cli/src/utils/__tests__/native-up-inprocess.test.ts"
-      - "tests/e2e/journeys/agent-recovery/**"
+      - "tests/agent-recovery/**"
       - "docs/FLISK_AGENT_RECOVERY_BENCHMARK.md"
       - "docs/benchmarks/agent-recovery-results.json"
       - ".github/workflows/agent-recovery-benchmark.yml"
@@ -50,7 +50,7 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q postgresql postgresql-client
           sudo systemctl stop postgresql || true
-          bindir="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+          bindir="$(find /usr/lib/postgresql -mindepth 2 -maxdepth 2 -name bin | sort -V | tail -1)"
           echo "$bindir" >> "$GITHUB_PATH"
 
       - name: Unit tests for the DATABASE_URL fix
@@ -60,12 +60,12 @@ jobs:
 
       - name: Scripted experiment, fault G (a service named db declares its own DATABASE_URL)
         run: |
-          node tests/e2e/journeys/agent-recovery/harness.mjs scripted "$RUNNER_TEMP/recovery-g" G 45010 \
+          node tests/agent-recovery/harness.mjs scripted "$RUNNER_TEMP/recovery-g" G 45010 \
             2>&1 | tee "$RUNNER_TEMP/recovery-logs/scripted-g.log"
 
       - name: Fail if the experiments or the result files are missing
         run: |
-          node tests/e2e/journeys/agent-recovery/harness.mjs verify \
+          node tests/agent-recovery/harness.mjs verify \
             docs/benchmarks/agent-recovery-results.json docs/FLISK_AGENT_RECOVERY_BENCHMARK.md \
             2>&1 | tee "$RUNNER_TEMP/recovery-logs/verify.log"
 

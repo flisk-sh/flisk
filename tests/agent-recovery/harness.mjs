@@ -11,7 +11,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const CLI = resolve(HERE, "../../../../cli/bin/flisk.js");
+const CLI = resolve(HERE, "../../cli/bin/flisk.js");
 const sh = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: "utf8", ...opts });
 const ports = (dir) => {
   const env = readEnv(dir);
