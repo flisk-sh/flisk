@@ -69,6 +69,7 @@ import {
   createDoctorUsageReport,
   type DoctorError,
   getDoctorExitCode,
+  summarizeDoctorFix,
 } from "../utils/doctor-report.js";
 import {
   CONTAINER_CHECK_NAMES_MAP,
@@ -750,18 +751,12 @@ export const doctorCommand = new Command("doctor")
       buildCommit,
     );
     if (fixActions) report.data.actions = fixActions;
-    const failedCheckCount = results.filter(
-      (check) => !check.didPass && !check.isSkipped && !check.isWarning,
-    ).length;
-    const repairableCount = fixActions
-      ? fixActions.filter((action) => action.status === "applied" || action.status === "planned")
-          .length
-      : 0;
     if (fixActions) {
+      const { repairableCount, needsActionCount } = summarizeDoctorFix(results, fixActions);
       report.data.repairableCount = repairableCount;
-      report.data.needsActionCount = failedCheckCount;
+      report.data.needsActionCount = needsActionCount;
       report.data.repairable = repairableCount;
-      report.data.needsAction = failedCheckCount;
+      report.data.needsAction = needsActionCount;
     }
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
     if (fixFailed) report.data.ready = false;

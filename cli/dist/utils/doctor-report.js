@@ -97,3 +97,13 @@ export function getDoctorExitCode(report) {
         return 2;
     return report.data.ready ? 0 : 1;
 }
+/**
+ * Splits a `--fix` run into repairs and manual work. A failed check that a planned or applied repair
+ * covers counts as repairable only; `needsActionCount` keeps the failures nobody will repair automatically.
+ */
+export function summarizeDoctorFix(results, actions) {
+    const repairs = actions.filter((a) => a.status === "applied" || a.status === "planned");
+    const covered = new Set(repairs.map((a) => a.check));
+    const needsActionCount = results.filter((c) => !c.didPass && !c.isSkipped && !c.isWarning && !covered.has(c.name)).length;
+    return { repairableCount: repairs.length, needsActionCount };
+}

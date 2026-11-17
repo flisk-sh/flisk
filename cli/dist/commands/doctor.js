@@ -19,7 +19,7 @@ import { checkEnvironmentVariables, checkFliskVersion, checkLatestFliskVersion, 
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
 import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkStartupScripts, checkTypeScriptTypeDependencies, } from "../utils/doctor-project.js";
 import { printDoctorResults, printFixActions, renderDoctorOutput } from "../utils/doctor-render.js";
-import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, } from "../utils/doctor-report.js";
+import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, summarizeDoctorFix, } from "../utils/doctor-report.js";
 import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, } from "../utils/doctor-runner.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, } from "../utils/doctor-runtime.js";
 import { checkAdvertisedEndpoints, checkContainerResourceHealth, checkContainerResourceHealthFor, checkServiceHealth, checkServiceSmoke, DEFAULT_PING_TIMEOUT_MS, } from "../utils/doctor-services.js";
@@ -500,16 +500,12 @@ export const doctorCommand = new Command("doctor")
     const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCapabilities, undefined, buildCommit);
     if (fixActions)
         report.data.actions = fixActions;
-    const failedCheckCount = results.filter((check) => !check.didPass && !check.isSkipped && !check.isWarning).length;
-    const repairableCount = fixActions
-        ? fixActions.filter((action) => action.status === "applied" || action.status === "planned")
-            .length
-        : 0;
     if (fixActions) {
+        const { repairableCount, needsActionCount } = summarizeDoctorFix(results, fixActions);
         report.data.repairableCount = repairableCount;
-        report.data.needsActionCount = failedCheckCount;
+        report.data.needsActionCount = needsActionCount;
         report.data.repairable = repairableCount;
-        report.data.needsAction = failedCheckCount;
+        report.data.needsAction = needsActionCount;
     }
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
     if (fixFailed)
