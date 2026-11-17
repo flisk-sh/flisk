@@ -43,7 +43,7 @@ describe("npxInvocation", () => {
       exists: (path) => path === NPX_CLI,
     });
     expect(invocation).toEqual({
-      command: NODE_EXE,
+      command: "node",
       args: [NPX_CLI, "--yes", "pkg", ...HOSTILE_ARGS],
       shell: false,
       windowsVerbatimArguments: false,
