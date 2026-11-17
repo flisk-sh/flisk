@@ -1,10 +1,23 @@
 {
-  "mode": "report",
+  "mode": "block",
   "guards": {
     "secret-scan": "report",
     "pinned-actions": "report",
     "workflow-permissions": "report",
     "dead-links": "report",
-    "done-without-green": "report"
+    "done-without-green": "report",
+    "north-star": "block"
+  },
+  "north_star": {
+    "metric": "warm start of a backend with Postgres, launch to every URL answering 200",
+    "baseline": "Docker Compose, same stack, same machine",
+    "target": {
+      "ratio": 2,
+      "better": "lower"
+    },
+    "result": "bench/north-star.json",
+    "evidence": "docs/benchmarks/compose-comparison.md",
+    "measure": "node scripts/benchmark/north-star.mjs",
+    "max_age_days": 90
   }
 }
