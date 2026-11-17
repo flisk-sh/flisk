@@ -21,6 +21,7 @@ import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describ
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
 import { isWindows } from "../utils/platform.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { findOnPath } from "../utils/which.js";
 const SHAPE_CHOICES = [
     {
@@ -64,8 +65,10 @@ function oneOf(flag, value, ids, extra = []) {
     const allowed = [...ids, ...extra];
     if (allowed.includes(value))
         return value;
-    throw new FliskError(`Unknown --${flag} "${value}". Use one of: ${allowed.join(", ")}.`, [
-        `flisk create --${flag} ${allowed[0] ?? "<id>"}`,
+    const similar = suggestClosest(value, ids);
+    const hint = similar ? ` Did you mean "${similar}"?` : "";
+    throw new FliskError(`Unknown --${flag} "${value}". Use one of: ${allowed.join(", ")}.${hint}`, [
+        `flisk create --${flag} ${similar ?? allowed[0] ?? "<id>"}`,
         "Leave the flag out to be asked, or to take the default.",
     ]);
 }
