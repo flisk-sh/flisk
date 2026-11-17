@@ -523,6 +523,31 @@ describe("config migrate", () => {
 });
 
 describe("config enable-infra and disable-infra", () => {
+  it("previews both directions and leaves the project config byte-identical", async () => {
+    const root = createTempProject({ projectJson: projectJson("dry", { monitoring: false }) });
+    const configPath = path.join(root, ".flisk", "project.json");
+    const before = fs.readFileSync(configPath, "utf8");
+    const enable = await runCommandInProcess(
+      configCommand,
+      ["enable-infra", "monitoring", "--dry-run", "--json"],
+      root,
+    );
+    expect(JSON.parse(enable.stdout).data).toMatchObject({
+      dryRun: true,
+      service: "monitoring",
+      enabled: true,
+    });
+    expect(fs.readFileSync(configPath, "utf8")).toBe(before);
+
+    const disable = await runCommandInProcess(
+      configCommand,
+      ["disable-infra", "monitoring", "--dry-run"],
+      root,
+    );
+    expect(disable.stdout).toMatch(/Would disable monitoring|No change/);
+    expect(fs.readFileSync(configPath, "utf8")).toBe(before);
+  });
+
   it("enables a service and persists it to project.json", async () => {
     const root = createTempProject({ projectJson: projectJson() });
 

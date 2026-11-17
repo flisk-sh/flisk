@@ -560,6 +560,15 @@ async function toggleInfraService(service, enabled, options = {}) {
             `Must be one of: ${Object.keys(config.optional_infra).join(", ")}`, [`flisk config enable-infra ${Object.keys(config.optional_infra)[0] ?? "monitoring"}`]);
     }
     const wasEnabled = config.optional_infra[service];
+    const changes = Boolean(wasEnabled) !== enabled;
+    if (options.dryRun) {
+        console.log(changes
+            ? `Would ${enabled ? "enable" : "disable"} ${service}.`
+            : `No change: ${service} is already ${enabled ? "enabled" : "disabled"}.`);
+        return {
+            data: { dryRun: true, service, enabled, wasEnabled: Boolean(wasEnabled), changed: changes },
+        };
+    }
     const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
     const rawProjectValue = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
     if (typeof rawProjectValue !== "object" ||
@@ -590,6 +599,7 @@ function infraToggleCommand(name, enabled) {
     return new Command(name)
         .description(`${enabled ? "Enable" : "Disable"} optional infrastructure service`)
         .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
+        .option("--dry-run", "Show the planned change without writing project.json")
         .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
         .option("--json", "Print one JSON envelope on stdout with the service and its previous state", false)
         .action(async (service, options) => {

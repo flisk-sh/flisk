@@ -1374,6 +1374,10 @@ export const COMMAND_SPECS = [
                 allowExcessArguments: false,
                 options: [
                     {
+                        flags: "--dry-run",
+                        description: "Show the planned change without writing project.json",
+                    },
+                    {
                         flags: "--ignore-version",
                         description: "Continue even if the CLI does not match the project's version requirements",
                         defaultValue: false,
@@ -1407,6 +1411,10 @@ export const COMMAND_SPECS = [
                 positionalOptions: false,
                 allowExcessArguments: false,
                 options: [
+                    {
+                        flags: "--dry-run",
+                        description: "Show the planned change without writing project.json",
+                    },
                     {
                         flags: "--ignore-version",
                         description: "Continue even if the CLI does not match the project's version requirements",

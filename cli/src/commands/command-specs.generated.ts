@@ -1452,6 +1452,10 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         allowExcessArguments: false,
         options: [
           {
+            flags: "--dry-run",
+            description: "Show the planned change without writing project.json",
+          },
+          {
             flags: "--ignore-version",
             description:
               "Continue even if the CLI does not match the project's version requirements",
@@ -1487,6 +1491,10 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         positionalOptions: false,
         allowExcessArguments: false,
         options: [
+          {
+            flags: "--dry-run",
+            description: "Show the planned change without writing project.json",
+          },
           {
             flags: "--ignore-version",
             description:
