@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
-import { Command } from "commander";
+import { Command, Option } from "commander";
+import { routeUsageErrorsToJson } from "../utils/command-helpers.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
@@ -120,13 +121,16 @@ export async function runResourcesList(options) {
     }
     await runCommand(action);
 }
-export const resourcesCommand = new Command("resources")
+// Keep a distinct value so Commander can detect conflicts with --stack.
+const noStackOption = new Option("--no-stack", "Show only resources without a stack").conflicts("stack");
+noStackOption.negate = false;
+export const resourcesCommand = routeUsageErrorsToJson(new Command("resources"))
     .description("List all resources (services) in the project")
-    .option("-v, --verbose", "Show detailed information about each resource", false)
+    .option("-v, --verbose", "Show resource details in text view (JSON output is unchanged)", false)
     .option("-s, --stack <stack>", "Filter resources by stack name")
     .option("-t, --type <type>", "Filter resources by type")
-    .option("--no-stack", "Show only resources without a stack")
-    .option("--ports", "Show port assignments", false)
+    .addOption(noStackOption)
+    .option("--ports", "Show port assignments in text view (JSON output is unchanged)", false)
     .option("--json", "Output a versioned JSON resource report", false)
     .addHelpText("after", "\nExamples:\n  flisk resources\n  flisk resources --type database\n  flisk resources --ports")
     .action(async (options) => {
