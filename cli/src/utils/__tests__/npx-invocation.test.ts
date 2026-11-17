@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
-import { npxInvocation, quoteCmdArgument } from "../npx-invocation.js";
+import { npxInvocation, quoteCmdArgument, safePackageSpec } from "../npx-invocation.js";
 
 const NODE_DIR = "C:\\Program Files\\nodejs";
 const NODE_EXE = `${NODE_DIR}\\node.exe`;
@@ -117,4 +117,17 @@ describe("quoteCmdArgument", () => {
       expect(existsSync(marker)).toBe(false);
     },
   );
+});
+
+describe("safePackageSpec", () => {
+  it("keeps plain specs and falls back on options or shell metacharacters", () => {
+    expect(safePackageSpec("flisk-import@1", "d")).toBe("flisk-import@1");
+    expect(safePackageSpec("@scope/pkg@^1.2.3", "d")).toBe("@scope/pkg@^1.2.3");
+    expect(safePackageSpec("./local.tgz", "d")).toBe("./local.tgz");
+    expect(safePackageSpec(undefined, "d")).toBe("d");
+    expect(safePackageSpec("--call=evil", "d")).toBe("d");
+    expect(safePackageSpec("pkg & calc", "d")).toBe("d");
+    expect(safePackageSpec("pkg;rm", "d")).toBe("d");
+    expect(safePackageSpec("$(x)", "d")).toBe("d");
+  });
 });

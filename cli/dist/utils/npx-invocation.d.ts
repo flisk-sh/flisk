@@ -29,3 +29,9 @@ export declare function npxInvocation(npxArgs: string[], runtime?: NpxRuntime): 
  * once more because the batch file re-parses `%*`). This is the method cross-spawn uses (MIT).
  */
 export declare function quoteCmdArgument(arg: string): string;
+/**
+ * The npm package spec to run: the `FLISK_*_PACKAGE` override when it is a plain spec (name, version, path or URL),
+ * else the pinned default. An override that starts with `-` (an npx option) or holds a space, quote or shell
+ * metacharacter is ignored, so an environment value can never add options or commands to the npx call.
+ */
+export declare function safePackageSpec(override: string | undefined, fallback: string): string;
