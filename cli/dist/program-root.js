@@ -13,6 +13,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import { showHelp } from "./commands/help.js";
+import { enhanceUnknownCommandError } from "./utils/command-synonyms.js";
 /** Builds the root program with no subcommands attached yet. */
 export function createRootProgram() {
     const program = new Command();
@@ -25,7 +26,7 @@ export function createRootProgram() {
         .option("--template <name>", "Create a project from a starter template in one command (see the names with: flisk project --list)")
         .option("--project <dir>", "Directory to create the project in (default: the template name)")
         .configureOutput({
-        outputError: (str, write) => write(chalk.red(str)),
+        outputError: (str, write) => write(chalk.red(enhanceUnknownCommandError(str))),
         writeOut: (str) => process.stdout.write(str),
         writeErr: (str) => process.stderr.write(str),
     });

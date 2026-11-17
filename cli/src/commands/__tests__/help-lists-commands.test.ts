@@ -107,4 +107,28 @@ describe("flisk --help", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("suggests flisk down when stop is run (#4474)", () => {
+    const dir = createTempDir("flisk-stop-cmd-");
+    try {
+      const res = runFlisk(["stop"], { cwd: dir });
+      expect(res.status).toBe(1);
+      expect(res.stderr).toContain("error: unknown command 'stop'");
+      expect(res.stderr).toContain('(Did you mean "flisk down"?)');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("suggests flisk up when start is run (#4474)", () => {
+    const dir = createTempDir("flisk-start-cmd-");
+    try {
+      const res = runFlisk(["start"], { cwd: dir });
+      expect(res.status).toBe(1);
+      expect(res.stderr).toContain("error: unknown command 'start'");
+      expect(res.stderr).toContain('(Did you mean "flisk up"?)');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
