@@ -238,6 +238,8 @@ const EXEMPT: Record<string, string> = {
     "prints the flisk commands it would run and writes nothing, in a folder that is not a project; create.test.ts proves nothing is written",
   "repos clone --json":
     "a subcommand of repos that clones git repos; repos.test.ts covers the envelope",
+  "repos list --json":
+    "a subcommand of repos that reads the configured repositories and git state without cloning; repos-list.test.ts covers the envelope",
   "distribute board --json":
     "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute status --json":
