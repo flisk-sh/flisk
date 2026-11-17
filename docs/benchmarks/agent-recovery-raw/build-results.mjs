@@ -25,7 +25,7 @@ const out = runs.map(([round, name, toolCalls, rep, note]) => {
   const notComparable = name === "control-E" || (round === "r2" && name === "flisk-E");
   return {
     round: round === "r2" ? "before-fix" : "after-fix", run: `${round}-${name}`, arm: arm === "flisk" ? "treatment (Flisk CLI + MCP)" : "control (shell only)", fault, faultDescription: FAULT[fault],
-    comparable: !(name === "control-E"), verdict: name === "control-E" ? "NOT COMPARABLE" : "comparable",
+    comparable: !notComparable, verdict: notComparable ? "NOT COMPARABLE" : "comparable",
     completed: name === "control-E" ? false : healthy && clean,
     secondsToFirstHealthy: g.secondsToFirstHealthy, toolCalls, bootsPerService: boots, extraBootsBeyondFirst: extraBoots,
     finalDbOperationSucceeded: name === "control-E" ? false : healthy,

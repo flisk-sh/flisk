@@ -21,6 +21,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: agent-recovery-${{ github.ref }}
   cancel-in-progress: true
@@ -76,7 +80,7 @@ jobs:
           cp -r "$RUNNER_TEMP/recovery-logs" recovery-artifacts/ || true
           cp "$RUNNER_TEMP/recovery-g/scripted-result.json" recovery-artifacts/ || true
           cp "$RUNNER_TEMP/recovery-g/events.log" recovery-artifacts/ || true
-          cp -r "$RUNNER_TEMP/recovery-g/logs" recovery-artifacts/service-logs || true
+          cp -r "$RUNNER_TEMP/recovery-g/.flisk/native/logs" recovery-artifacts/service-logs || true
           cp docs/benchmarks/agent-recovery-results.json recovery-artifacts/ || true
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

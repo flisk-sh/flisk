@@ -106,21 +106,27 @@ blocks in the agent transcript (±2: nested calls are counted differently betwee
 | D | control | yes | 76.1 | 14 | 4 | none |
 | D | Flisk | yes | 261.3 | 14 | 3 | none |
 | E | control | **NOT COMPARABLE** | — | 4 | — | left running, cleaned by hand |
-| E | Flisk | yes | 250.7 | 30 | 8 | none |
+| E | Flisk | yes (**NOT COMPARABLE**) | 250.7 | 30 | 8 | none |
 | F | control | yes | 136.3 | 9 | 2 | none |
 | F | Flisk | yes | 74.7 | 8 | 0 | none |
-| G | Flisk | yes | 250.7 | 25 | 47 (api booted 32 times) | none |
+| G | Flisk | yes | 250.7 | 25 | 43 (api booted 32 times) | none |
 
 Every comparable run ended with the final database operation succeeding (the watcher saw the full e2e pass) and with no
 orphaned ports or postgres processes. Agent-reported counts I kept (final JSON of the Flisk agents D, E, G): failed
 startups 1 / 0 / 4, restarts 1 / 5 / 1. For the other runs I did not keep the agent's own report, so the file records
 `null` rather than a guess. The result file is `docs/benchmarks/agent-recovery-results.json`.
 
+**Data-integrity caveat.** The before-fix Flisk D and Flisk G runs both record the same healthy timestamp to the
+millisecond (`1794872572594`). Their `events.log` files show two different stacks (different PIDs) booting `web` in the
+same second, so both events are plausible, but the raw watcher output was not kept and I cannot prove the two
+watchers did not share an event. Treat the D (261.3 s) and G (250.7 s) before-fix times as **unverified**. The defect
+conclusion does not depend on them: the model-free scripted run fails on the base build (exit 1) and passes on the fix.
+
 **NOT COMPARABLE runs.**
 - *Round 1 (8 runs):* the briefs listed the wrong ports, so agents collided and rewrote `.env`. All were stopped and discarded.
 - *Control E:* the agent was blocked by the sandbox rule that denies reading `.env` files. That is an environment limit,
   not a property of the task. The app was left running and I stopped it by hand.
-- *Flisk E* is comparable only loosely: I injected the fault through the shell environment of the supervisor, and a
+- *Flisk E* (before fix) is also marked NOT COMPARABLE in the results file: I injected the fault through the shell environment of the supervisor, and a
   supervisor's shell environment outranks `.env` by design, so `restart` could not clear it (section 9).
 
 ## 7. Before and after the fix

@@ -42,8 +42,7 @@ start() { # start <name> <dir> <port> <command...>
 case "$1" in
   up)
     start postgres postgres $DB_PORT sh run.sh
-    sleep 3
-    (cd migrate && sh run.sh >> ../logs/migrate.log 2>&1; echo "exit-$?" > ../.pids/migrate)
+    (cd migrate && i=0; until sh run.sh >> ../logs/migrate.log 2>&1; do i=$((i+1)); [ $i -gt 30 ] && { echo "migrate failed" >&2; exit 1; }; sleep 1; done; echo "exit-0" > ../.pids/migrate)
     for d in $API_DEPENDS; do wait_for $d; done
     start api api $API_PORT node server.mjs
     sleep 1
@@ -82,7 +81,10 @@ function prep(dir, arm, fault, base) {
       .join("\n")}\n`,
   );
   writeFileSync(join(dir, "events.log"), "");
-  sh("initdb", ["-D", join(dir, "postgres/data"), "-U", "app", "--auth=trust", "-E", "UTF8"]);
+  const init = sh("initdb", ["-D", join(dir, "postgres/data"), "-U", "app", "--auth=trust", "-E", "UTF8"]);
+  if (init.error || init.status !== 0) {
+    throw new Error(`initdb failed: ${(init.error?.message ?? `${init.stdout}${init.stderr}`).trim().slice(0, 400)}`);
+  }
   if (arm === "flisk") {
     writeFileSync(
       join(dir, "postgres/service.json"),
@@ -197,6 +199,8 @@ async function e2e(dir) {
       const r = sh("psql", [`postgres://app@127.0.0.1:${p.db}/notes`, "-At", "-c", `select count(*) from notes where text='${mark}'`]);
       if (r.stdout.trim() !== "1") throw new Error(`psql: ${(r.stdout + r.stderr).trim().slice(0, 120)}`);
     }));
+  // Probe notes count against NOTES_LIMIT, and watch() probes repeatedly: remove them, pass or fail.
+  sh("psql", [`postgres://app@127.0.0.1:${p.db}/notes`, "-At", "-c", `delete from notes where text='${mark}'`]);
   return { ok: okSteps, steps };
 }
 
@@ -212,6 +216,7 @@ function events(dir) {
   const boots = {};
   for (const l of lines) {
     const name = l.split(" ")[2];
+    if (!name) continue;
     boots[name] = (boots[name] ?? 0) + 1;
   }
   return boots;

@@ -17,7 +17,6 @@
     "db": 7,
     "migrate": 7,
     "api": 32,
-    "undefined": 5,
     "web": 1
   },
   "secondsToFirstHealthy": 250.7,
