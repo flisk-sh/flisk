@@ -33,6 +33,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { NATIVE_WINDOWS_NEXT_STEP } from "../utils/native-windows.js";
 import { findProjectRoot, getBuildCommit } from "../utils/paths.js";
+import { isWsl } from "../utils/platform.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
@@ -256,6 +257,7 @@ export const doctorCommand = new Command("doctor")
             portPlanError = error instanceof Error ? error.message : String(error);
         }
     }
+    const includeWslChecks = isWsl();
     const containerMachineChecks = [
         () => {
             if (hostPortPlan) {
@@ -307,12 +309,14 @@ export const doctorCommand = new Command("doctor")
         requiresContainerRuntime("Docker Compose", () => checkDockerCompose(cachedExec)),
         requiresContainerRuntime("Docker Versions", () => checkDockerVersions(cachedExec)),
         checkBun,
-        () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
+        ...(includeWslChecks
+            ? [() => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict)]
+            : []),
         () => checkPublishedBindAddress(process.env, options.strict),
         // Each project needs several networks; a full address pool fails `flisk up` late.
         requiresContainerRuntime("Docker Network Pool", () => checkDockerNetworkCapacity()),
         requiresContainerRuntime("Docker File Sharing", () => checkDockerFileSharing()),
-        () => checkDockerWslIntegration(),
+        ...(includeWslChecks ? [() => checkDockerWslIntegration()] : []),
         () => checkDuplicateFliskInstalls(),
         () => checkLatestFliskVersion(),
     ];
@@ -410,7 +414,9 @@ export const doctorCommand = new Command("doctor")
             () => checkNativeRuntime(nativeResources),
             () => checkNativeCommands(nativeResources),
             () => checkToolchains(nativeResources),
-            () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
+            ...(includeWslChecks
+                ? [() => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict)]
+                : []),
             () => checkDuplicateFliskInstalls(),
         ]
         : containerMachineChecks;
