@@ -750,8 +750,13 @@ export const doctorCommand = new Command("doctor")
       buildCommit,
     );
     if (fixActions) report.data.actions = fixActions;
-    const failedCheckCount = results.filter((check) => !check.didPass && !check.isSkipped && !check.isWarning).length;
-    const repairableCount = fixActions ? fixActions.filter((action) => action.status === "applied" || action.status === "planned").length : 0;
+    const failedCheckCount = results.filter(
+      (check) => !check.didPass && !check.isSkipped && !check.isWarning,
+    ).length;
+    const repairableCount = fixActions
+      ? fixActions.filter((action) => action.status === "applied" || action.status === "planned")
+          .length
+      : 0;
     if (fixActions) {
       report.data.repairableCount = repairableCount;
       report.data.needsActionCount = failedCheckCount;
@@ -812,7 +817,9 @@ export const doctorCommand = new Command("doctor")
       redactValue(results, textSecrets),
     );
     if (fixActions && fixActions.length === 0) {
-      const failedCount = results.filter((check) => !check.didPass && !check.isSkipped && !check.isWarning).length;
+      const failedCount = results.filter(
+        (check) => !check.didPass && !check.isSkipped && !check.isWarning,
+      ).length;
       if (!options.json) printFixActions(fixActions, options.dryRun, failedCount);
     }
     const outcome = getDoctorOutcomeMessage(inProject, allPassed);
