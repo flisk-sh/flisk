@@ -49,7 +49,7 @@ export function runExport(
     let spawnFailed = false;
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: "inherit",
-      shell: invocation.shell,
+      shell: false,
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on("error", (err) => {
