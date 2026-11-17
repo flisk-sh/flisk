@@ -7,11 +7,13 @@ import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
+import { findRunningFliskProjects } from "../utils/down-cleanup.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { formatCount } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { promptConfirm } from "../utils/prompt.js";
+import { discoverResourcesFromRoot } from "../utils/services.js";
 import { findStaleProjects, pruneStaleProjects, } from "../utils/stale-projects.js";
 /**
  * Whether --prune may go ahead. It deletes database volumes on the whole machine, so it asks first; a run that cannot
@@ -144,7 +146,24 @@ export const projectsCommand = addYesOption(new Command("projects"))
             }
             return;
         }
-        const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+        const root = findProjectRoot();
+        if (!root && !options.check) {
+            const projects = findRunningFliskProjects().map((path) => {
+                const stacks = new Set(discoverResourcesFromRoot(path)
+                    .map((resource) => resource.stack)
+                    .filter(Boolean));
+                return { path, stackCount: stacks.size, state: "running" };
+            });
+            if (options.json)
+                console.log(JSON.stringify(createMachineEnvelope({ projects })));
+            else if (!projects.length)
+                console.log("No Flisk projects are running.");
+            else
+                for (const project of projects)
+                    console.log(`${project.path}\t${project.stackCount} stacks\t${project.state}`);
+            return;
+        }
+        const projectRoot = root ?? (options.json ? undefined : requireProjectRoot());
         if (!projectRoot) {
             throw errorFactories.notInProject();
         }
