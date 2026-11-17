@@ -873,6 +873,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         required: false,
         variadic: false,
       },
+      {
+        name: "extra",
+        description: "Additional positional inputs (resource names use --resources)",
+        required: false,
+        variadic: true,
+      },
     ],
     helpTexts: {
       after: [
