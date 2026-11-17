@@ -731,6 +731,8 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
       ["Pick a name like my-app or shop-2: flisk create my-app"],
     );
   }
+  const projectDir = resolve(process.cwd(), answers.name);
+  assertFolderIsFree(projectDir);
   const steps = buildCreatePlan(answers);
 
   if (options.dryRun) {
@@ -745,9 +747,6 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
     console.log(chalk.gray("\nDry run: nothing was written."));
     return;
   }
-
-  const projectDir = resolve(process.cwd(), answers.name);
-  assertFolderIsFree(projectDir);
 
   // The review comes before anything is written, in every mode, so a default is never a surprise.
   const review = reviewLines(answers, steps);
