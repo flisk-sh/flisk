@@ -78,8 +78,8 @@ export declare function createDoctorReport(checks: CheckResult[], inProject: boo
 /** 0: ready (warnings permitted), 1: blocking findings, 2: usage/internal failure. */
 export declare function getDoctorExitCode(report: DoctorReport): 0 | 1 | 2;
 /**
- * Splits a `--fix` run into repairs and manual work. A failed check that a planned or applied repair
- * covers counts as repairable only; `needsActionCount` keeps the failures nobody will repair automatically.
+ * Splits a `--fix` run into repairs and manual work. A failed check that a planned (dry-run) repair
+ * covers counts as repairable only; a failure that remains after an applied repair stays manual work; `needsActionCount` keeps the failures nobody will repair automatically.
  */
 export declare function summarizeDoctorFix(results: CheckResult[], actions: DoctorAction[]): {
     repairableCount: number;
