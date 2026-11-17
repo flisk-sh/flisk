@@ -26,8 +26,43 @@ export interface ListResourcesOptions {
   json?: boolean;
 }
 
-export async function runResourcesList(options: ListResourcesOptions): Promise<void> {
+export async function runResourcesList(
+  options: ListResourcesOptions,
+  command?: Command,
+): Promise<void> {
   const action = async (): Promise<void> => {
+    const raw =
+      (command as (Command & { rawArgs?: string[] }) | undefined)?.rawArgs ?? process.argv.slice(2);
+    const hasStackOption =
+      raw.some(
+        (arg) =>
+          arg === "-s" || arg === "--stack" || arg.startsWith("--stack=") || arg.startsWith("-s="),
+      ) ||
+      (options.stack !== undefined && options.stack !== false);
+    const hasNoStackOption = raw.includes("--no-stack") || options.noStack === true;
+
+    if (hasStackOption && hasNoStackOption) {
+      const message = "--stack and --no-stack cannot be used together";
+      const suggestions = [
+        "Use `--stack <name>` to filter by stack, or `--no-stack` to see unassigned resources",
+      ];
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            createMachineEnvelope(null, [
+              {
+                code: "USAGE",
+                message,
+                suggestions,
+              },
+            ]),
+          ),
+        );
+        console.error(message);
+        process.exit(2);
+      }
+      return new FliskError(message, suggestions, 2).exit();
+    }
     if (options.json) {
       if (!findProjectRoot()) {
         writeMachineError(errorFactories.notInProject());
@@ -164,16 +199,16 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
 
 export const resourcesCommand = new Command("resources")
   .description("List all resources (services) in the project")
-  .option("-v, --verbose", "Show detailed information about each resource", false)
+  .option("-v, --verbose", "Show detailed information about each resource (text view only)", false)
   .option("-s, --stack <stack>", "Filter resources by stack name")
   .option("-t, --type <type>", "Filter resources by type")
   .option("--no-stack", "Show only resources without a stack")
-  .option("--ports", "Show port assignments", false)
+  .option("--ports", "Show port assignments (text view only)", false)
   .option("--json", "Output a versioned JSON resource report", false)
   .addHelpText(
     "after",
     "\nExamples:\n  flisk resources\n  flisk resources --type database\n  flisk resources --ports",
   )
-  .action(async (options) => {
-    await runResourcesList(options);
+  .action(async function (this: Command, options: ListResourcesOptions) {
+    await runResourcesList(options, this);
   });

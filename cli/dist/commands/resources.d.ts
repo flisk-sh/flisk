@@ -7,5 +7,5 @@ export interface ListResourcesOptions {
     ports?: boolean;
     json?: boolean;
 }
-export declare function runResourcesList(options: ListResourcesOptions): Promise<void>;
+export declare function runResourcesList(options: ListResourcesOptions, command?: Command): Promise<void>;
 export declare const resourcesCommand: Command;

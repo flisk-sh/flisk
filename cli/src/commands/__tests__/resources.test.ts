@@ -353,4 +353,42 @@ describe("resources command", () => {
     expect(output).not.toContain("orders");
     logSpy.mockRestore();
   });
+
+  it("rejects combining --stack and --no-stack in human output", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    await expect(
+      resourcesCommand.parseAsync(["node", "flisk", "--stack", "shop", "--no-stack"], {
+        from: "node",
+      }),
+    ).rejects.toThrow();
+
+    expect(exit).toHaveBeenCalledWith(2);
+    const output = errorSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("--stack and --no-stack cannot be used together");
+    errorSpy.mockRestore();
+  });
+
+  it("rejects combining --stack and --no-stack with --json", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    await expect(
+      resourcesCommand.parseAsync(["node", "flisk", "--stack", "shop", "--no-stack", "--json"], {
+        from: "node",
+      }),
+    ).rejects.toThrow();
+
+    expect(exit).toHaveBeenCalledWith(2);
+    expect(logSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+    const envelope = parseEnvelope(logSpy.mock.calls[0]?.[0] as string);
+    expect(envelope.errors[0].code).toBe("USAGE");
+    expect(envelope.errors[0].message).toContain("--stack and --no-stack cannot be used together");
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
 });
