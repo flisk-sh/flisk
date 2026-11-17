@@ -3,6 +3,7 @@
 import { writeSync } from "node:fs";
 import type { Command } from "commander";
 import type { ValidationResult } from "../types/index.js";
+import { rewriteUnknownCommandMessage } from "./command-suggestions.js";
 import { showErrorAndExit } from "./errors.js";
 import { showCancelled } from "./formatting.js";
 import { createMachineEnvelope } from "./machine-output.js";
@@ -56,11 +57,13 @@ export function routeUsageErrorsToJson<T extends Command>(command: T, hint?: str
   };
   const outputError = output.outputError ?? ((str, write) => write(str));
   const writeErr = output.writeErr ?? ((str) => process.stderr.write(str));
+  const rewriteMessage = (str: string): string =>
+    command.parent === null ? rewriteUnknownCommandMessage(str) : str;
 
   command.configureOutput({
     outputError: (str, write) => {
       if (isJsonRequested(command)) return;
-      outputError(str, write);
+      outputError(rewriteMessage(str), write);
     },
     writeErr: (str) => {
       if (isJsonRequested(command)) return;
@@ -71,7 +74,7 @@ export function routeUsageErrorsToJson<T extends Command>(command: T, hint?: str
   command.exitOverride((err) => {
     if (err.exitCode === 0) process.exit(0);
     if (isJsonRequested(command)) {
-      const { message, didYouMean } = splitDidYouMean(err.message);
+      const { message, didYouMean } = splitDidYouMean(rewriteMessage(err.message));
       const suggestions = [
         ...(didYouMean ? [didYouMean] : []),
         ...(err.code === "commander.excessArguments" && hint ? [hint] : []),

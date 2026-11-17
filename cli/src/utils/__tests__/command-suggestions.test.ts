@@ -1,0 +1,73 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { describe, expect, it } from "vitest";
+import { parseEnvelope, runFlisk } from "../../test-support/index.js";
+import { formatDidYouMean, rewriteUnknownCommandMessage } from "../command-suggestions.js";
+
+describe("rewriteUnknownCommandMessage (#4491)", () => {
+  it("replaces misleading spelling suggestions with intent-based targets", () => {
+    expect(
+      rewriteUnknownCommandMessage(
+        "error: unknown command 'ports'\n(Did you mean one of export, import?)\n",
+      ),
+    ).toBe("error: unknown command 'ports'\n(Did you mean networks?)\n");
+    expect(rewriteUnknownCommandMessage("error: unknown command 'stop'")).toBe(
+      "error: unknown command 'stop'\n(Did you mean down?)",
+    );
+    expect(
+      rewriteUnknownCommandMessage(
+        "error: unknown command 'start'\n(Did you mean one of restart, stack?)",
+      ),
+    ).toBe("error: unknown command 'start'\n(Did you mean up?)");
+    expect(rewriteUnknownCommandMessage("error: unknown command 'services'")).toBe(
+      "error: unknown command 'services'\n(Did you mean one of resources, status?)",
+    );
+  });
+
+  it("leaves spelling-based suggestions intact for unmapped commands", () => {
+    const nope = "error: unknown command 'nope'\n(Did you mean open?)";
+    expect(rewriteUnknownCommandMessage(nope)).toBe(nope);
+    const url = "error: unknown command 'url'\n(Did you mean urls?)";
+    expect(rewriteUnknownCommandMessage(url)).toBe(url);
+  });
+
+  it("formats zero, one, or multiple suggestions cleanly", () => {
+    expect(formatDidYouMean([])).toBe("");
+    expect(formatDidYouMean(["networks"])).toBe("\n(Did you mean networks?)");
+    expect(formatDidYouMean(["resources", "status"])).toBe(
+      "\n(Did you mean one of resources, status?)",
+    );
+  });
+});
+
+describe("CLI unknown command suggestions (#4491)", () => {
+  it("suggests networks instead of export/import for `flisk ports`", () => {
+    const result = runFlisk(["ports"], { cwd: process.cwd() });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("error: unknown command 'ports'");
+    expect(result.stderr).toContain("(Did you mean networks?)");
+    expect(result.stderr).not.toContain("export");
+  });
+
+  it("includes mapped suggestions in `flisk ports --json`", () => {
+    const result = runFlisk(["ports", "--json"], { cwd: process.cwd() });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    const env = parseEnvelope(result.stdout);
+    expect(env.errors).toHaveLength(1);
+    expect((env.errors[0] as { suggestions?: string[] }).suggestions).toEqual([
+      "Did you mean networks?",
+    ]);
+  });
+
+  it("suggests down for `flisk stop` and keeps spelling suggestion for `flisk nope`", () => {
+    const stopResult = runFlisk(["stop"], { cwd: process.cwd() });
+    expect(stopResult.status).toBe(1);
+    expect(stopResult.stderr).toContain("(Did you mean down?)");
+
+    const nopeResult = runFlisk(["nope"], { cwd: process.cwd() });
+    expect(nopeResult.status).toBe(1);
+    expect(nopeResult.stderr).toContain("(Did you mean open?)");
+  });
+});
