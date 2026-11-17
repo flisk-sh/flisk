@@ -63,7 +63,10 @@ const SAFE_PACKAGE_SPEC = /^[A-Za-z0-9@._/:~+=^\\-]+$/;
  * metacharacter is ignored, so an environment value can never add options or commands to the npx call.
  */
 export function safePackageSpec(override, fallback) {
-    if (override && !override.startsWith("-") && SAFE_PACKAGE_SPEC.test(override))
-        return override;
-    return fallback;
+    if (typeof override !== "string" || override.startsWith("-"))
+        return fallback;
+    // A guard that returns the fallback on a mismatch: the override only flows on past a passing regexp test.
+    if (!SAFE_PACKAGE_SPEC.test(override))
+        return fallback;
+    return override;
 }
