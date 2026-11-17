@@ -76,8 +76,9 @@ export const connectCommand = new Command("connect")
                 `Run \`flisk connect ${host}\` for this project, or \`flisk connect ${host} --global\` for your user config`,
             ], 2);
         }
-        const projectRoot = findProjectRoot() ?? process.cwd();
-        return connectAgentHost({
+        const root = findProjectRoot();
+        const projectRoot = root ?? process.cwd();
+        const result = connectAgentHost({
             host,
             scope: options.global ? "global" : "project",
             projectRoot,
@@ -85,6 +86,12 @@ export const connectCommand = new Command("connect")
             dryRun: options.dryRun === true,
             force: options.force === true,
         });
+        if (root || options.global)
+            return result;
+        const warning = `No Flisk project found here; project files go into ${projectRoot}.`;
+        if (!options.json)
+            console.warn(warning);
+        return { ...result, warnings: [warning] };
     };
     if (options.json) {
         let result;
