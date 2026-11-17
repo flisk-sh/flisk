@@ -3,6 +3,7 @@
 import { statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "commander";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 import { findCliAssetRoot, loadTemplate } from "../generator/template-engine.js";
 import {
   describeLayoutProblems,
@@ -106,7 +107,26 @@ export const runtimeCommand = new Command("runtime")
       layoutErrors.length === 0 &&
       templateErrors.length === 0;
     if (options.json) {
-      console.log(JSON.stringify({ ok, assetRoot, missing, layoutErrors, templateErrors }));
+      const errors = ok
+        ? []
+        : [
+            {
+              code: "RUNTIME_CHECK_FAILED",
+              message: [
+                assetRoot
+                  ? `Incomplete Flisk runtime assets at ${assetRoot}`
+                  : "Flisk runtime assets not found",
+                ...missing.map((path) => `Missing: ${path}`),
+                ...layoutErrors,
+                ...templateErrors,
+              ].join("; "),
+            },
+          ];
+      console.log(
+        JSON.stringify(
+          createMachineEnvelope({ ok, assetRoot, missing, layoutErrors, templateErrors }, errors),
+        ),
+      );
     } else if (ok) {
       console.log(`Flisk runtime assets found at ${assetRoot}`);
     } else {
