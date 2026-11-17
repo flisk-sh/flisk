@@ -13,7 +13,7 @@ import { attachNoPositionalHint } from "../utils/command-helpers.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
-import { runCommand } from "../utils/errors.js";
+import { FliskError, runCommand } from "../utils/errors.js";
 import { projectEnvLookup } from "../utils/extra-port-publish.js";
 import { formatCount, showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan, resolveRuntimeTiltPort } from "../utils/host-port-config.js";
@@ -74,6 +74,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
   .option("--json", "Output a versioned JSON status report", false)
   .option("-v, --verbose", "Show detailed information", false)
   .option("--stacks", "Show stack information (default)", true)
+  .option("--stack <name>", "Only report services in this stack")
   .option("--resources", "Show all discovered resources", false)
   .option("--tilt", "Show Tilt resource status (Docker/Tilt stacks only)", false)
   .option("--no-gateway", "Disable gateway status reporting")
@@ -146,7 +147,21 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
       });
 
       // Discover first: outside a project this fails before any status line is printed.
-      const discovery = createDiscoveryContext();
+      const all = createDiscoveryContext();
+      const stack = options.stack;
+      const stacks = stack ? all.stacks.filter((entry) => entry.name === stack) : all.stacks;
+      if (stack && !stacks.length) {
+        throw new FliskError(`Unknown stack "${stack}".`, [
+          "Use flisk stacks to list the available stacks.",
+        ]);
+      }
+      const discovery = stack
+        ? {
+            ...all,
+            stacks,
+            resources: all.resources.filter((resource) => resource.stack === stack),
+          }
+        : all;
       const projectName = projectRoot ? readProjectName(projectRoot) : null;
       const sharedInfraGroup = projectName
         ? groupSharedPostgres(projectName, discovery.stacks, {
@@ -155,7 +170,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         : null;
       // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
       // No Traefik runs then, so every service answers on localhost instead of an ingress route.
-      const nativeProject = isNativeProject(discovery.resources);
+      const nativeProject = isNativeProject(all.resources);
       const nativeStates =
         projectRoot && nativeProject
           ? nativeServiceStates(

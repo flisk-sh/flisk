@@ -416,9 +416,9 @@ describe("stackCommand", () => {
       }),
     ).rejects.toThrow();
 
-    expect(exit).toHaveBeenCalledWith(1);
+    expect(exit).toHaveBeenCalledWith(2);
     const errOutput = errorSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(errOutput).toContain("Pass at least one resource name to --resources.");
+    expect(errOutput).toContain("--resources needs at least one resource name");
   });
 
   it("rejects assignment when duplicate resource names exist across directories", async () => {
