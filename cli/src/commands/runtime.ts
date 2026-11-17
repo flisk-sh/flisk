@@ -3,8 +3,8 @@
 import { statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "commander";
-import { createMachineEnvelope } from "../utils/machine-output.js";
 import { findCliAssetRoot, loadTemplate } from "../generator/template-engine.js";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 import {
   describeLayoutProblems,
   EXTENSION_DIRS,
