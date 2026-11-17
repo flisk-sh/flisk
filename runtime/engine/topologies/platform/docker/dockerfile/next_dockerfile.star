@@ -42,7 +42,7 @@ COPY {res_path}/package.json {res_path}/package-lock.jso[n] ./
 # Every dependency the scaffold needs (react, react-dom) is listed directly, so peers need not be auto-installed.
 # --include=dev: the golden Node layer sets NODE_ENV=production, and npm then skips devDependencies, so typescript and @types/*
 # were missing and `next dev` tried to install them itself at startup and never served a page (500 on every request).
-RUN if [ ! -f package-lock.json ]; then echo "package-lock.json is missing in {res_path}. Run: npm install --package-lock-only --ignore-scripts --legacy-peer-deps --workspaces=false" >&2; exit 1; fi
+RUN if [ ! -f package-lock.json ]; then echo "package-lock.json is missing in {res_path}. Generate it with the package-lock-only mode of npm (flags: --ignore-scripts --legacy-peer-deps --workspaces=false)" >&2; exit 1; fi
 RUN npm ci --include=dev --no-audit --no-fund --legacy-peer-deps
 
 # The COPYs set the owner themselves (--chown): a `chown -R` over the app folder after the install would store every file of
