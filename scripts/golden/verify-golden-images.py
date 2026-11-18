@@ -4,7 +4,7 @@
 """
 Checks the published golden images from outside, the way `flisk up` pulls them: for every registry and layer, the image
 for this Dockerfile's hash must pull without a login on GHCR (a private package fails here), carry linux/amd64 and
-linux/arm64, weigh between MIN_BYTES and MAX_BYTES compressed on each platform, carry the flisk.golden.hash label the
+linux/arm64, weigh between MIN_BYTES and the layer's budget (size-budgets.json) compressed on each platform, carry the flisk.golden.hash label the
 local build compares, and have the same digest in every registry. Reads the registries' HTTP API; pulls nothing to disk.
 
 usage: verify-golden-images.py <golden-layers.Dockerfile or its sha256> <registry> [<registry>...]
@@ -22,9 +22,10 @@ import urllib.request
 
 LAYERS = ["l1", "l2", "l3-backend", "l3-frontend", "l4-backend", "l4-backend-node", "l4-frontend", "l4-migrator"]
 PLATFORMS = ["amd64", "arm64"]
-# Compressed size of each platform image. Measured 2026-11-01: 21 MB (l4-frontend) to 155 MB (l3-backend).
+# Compressed size of each platform image. MIN_BYTES catches an empty image; each layer's upper bound is its budget in
+# size-budgets.json (the measured size plus 10%), so growth in one layer is caught even while the others stay small.
 MIN_BYTES = 10_000_000
-MAX_BYTES = 400_000_000
+BUDGETS = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "size-budgets.json")))["budget_bytes"]
 ACCEPT = ",".join([
     "application/vnd.oci.image.index.v1+json",
     "application/vnd.oci.image.manifest.v1+json",
@@ -47,8 +48,8 @@ def check(observed, full_hash):
                 size = image["sizes"].get(arch)
                 if size is None:
                     problems.append(f"{ref}: no linux/{arch} image")
-                elif not MIN_BYTES <= size <= MAX_BYTES:
-                    problems.append(f"{ref}: linux/{arch} is {size / 1e6:.1f} MB, outside {MIN_BYTES / 1e6:.0f}-{MAX_BYTES / 1e6:.0f} MB")
+                elif not MIN_BYTES <= size <= BUDGETS[layer]:
+                    problems.append(f"{ref}: linux/{arch} is {size / 1e6:.1f} MB, outside {MIN_BYTES / 1e6:.0f}-{BUDGETS[layer] / 1e6:.1f} MB (budget in scripts/golden/size-budgets.json)")
             if image.get("hash_label") != full_hash:
                 problems.append(f"{ref}: flisk.golden.hash label is {image.get('hash_label')!r}, not the Dockerfile's hash")
     for layer in LAYERS:

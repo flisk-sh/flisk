@@ -16,3 +16,4 @@ flisk-convert
 flisk-startup-perf
 flisk-scan-convert
 flisk-tool-add
+flisk-ci-watch
