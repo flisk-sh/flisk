@@ -9,6 +9,7 @@ import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { isNativeProject } from "../utils/native-service.js";
+import { isProcessAlive, readNativeRunState } from "../utils/native-runtime.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
@@ -21,6 +22,14 @@ import { openUrl } from "../utils/url-actions.js";
 export interface FrontendTarget {
   name: string;
   url: string;
+}
+
+/** Keep the container startup grace period; native projects wait only while their supervisor is alive. */
+async function shouldWaitForFrontend(projectRoot: string): Promise<boolean> {
+  const { resources } = discoverResourcesWithProblems(projectRoot);
+  if (!isNativeProject(resources)) return true;
+  const state = readNativeRunState(projectRoot);
+  return state !== null && isProcessAlive(state.pid);
 }
 
 /** The frontends of the current project, with the URL each one is published under. */
@@ -138,9 +147,17 @@ export async function openFirstFrontend(
   }
 
   if (options.isPrintOnly) {
-    const first = await pickReadyFrontend(selected, 120000);
+    const shouldWait = await shouldWaitForFrontend(projectRoot);
+    const first = await pickReadyFrontend(selected, shouldWait ? 120000 : 0);
     if (!first) {
-      console.error("No frontend answered yet. Start the stack with `flisk up` and try again.");
+      const target = selected[0];
+      console.error(
+        shouldWait
+          ? "No frontend answered yet. Start the stack with `flisk up` and try again."
+          : "No frontend is answering at " +
+            (target?.url ?? "the selected URL") +
+            ". Start the stack with `flisk up` and try again.",
+      );
       return null;
     }
     console.log(first.url);
@@ -157,13 +174,24 @@ export async function openFirstFrontend(
     console.log(chalk.gray(`  - ${target.name}: ${target.url}`));
   }
 
+  const shouldWait = await shouldWaitForFrontend(projectRoot);
   const spinner = startSpinner("Waiting for the frontend to answer...");
-  const first = await pickReadyFrontend(selected, 120000, (elapsed) => {
+  const first = await pickReadyFrontend(selected, shouldWait ? 120000 : 0, (elapsed) => {
     spinner.text = `Waiting for the frontend to answer... ${Math.round(elapsed / 1000)}s`;
   });
 
   if (!first) {
     spinner.fail("No frontend answered yet.");
+    if (!shouldWait) {
+      for (const target of selected) {
+        console.log(
+          chalk.yellow(
+            "No frontend is answering at " + target.url + ". Start the stack with `flisk up`.",
+          ),
+        );
+      }
+      return null;
+    }
     const plan = await getHostPortPlan(projectRoot, { inspectDocker: false });
     const ingress = plan?.ingressHttp;
     const reachable = ingress ? (await probeHostPort(ingress)) === "in-use" : false;
@@ -244,11 +272,17 @@ export const openCommand = new Command("open")
             unknownFrontendSuggestions(resource, targets),
           );
         }
-        const first = await pickReadyFrontend(selected, 120000);
+        const shouldWait = await shouldWaitForFrontend(projectRoot);
+        const first = await pickReadyFrontend(selected, shouldWait ? 120000 : 0);
         if (!first) {
+          const target = selected[0];
           throw new JsonCommandError(
             "FRONTEND_NOT_READY",
-            "No frontend answered yet. Start the stack with `flisk up` and try again.",
+            shouldWait
+              ? "No frontend answered yet. Start the stack with `flisk up` and try again."
+              : "No frontend is answering at " +
+                (target?.url ?? "the selected URL") +
+                ". Start the stack with `flisk up` and try again.",
             ["Start the stack with `flisk up` and try again."],
           );
         }
@@ -260,5 +294,5 @@ export const openCommand = new Command("open")
       isPrintOnly: options.print,
       ...(resource === undefined ? {} : { resource }),
     });
-    if (url === null && (options.print || resource !== undefined)) process.exitCode = 1;
+    if (url === null) process.exitCode = 1;
   });
