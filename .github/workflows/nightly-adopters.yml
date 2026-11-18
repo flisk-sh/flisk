@@ -10,6 +10,7 @@
 # - openathleteorg/openathlete@96478a75673437d8cca6219304037a3580163a1c (runs on the Kiri engine, `engine: kiri`; every
 #   other entry runs on the runner's Docker. No PR or comment goes to that repository.)
 # - MBombeck/HealthLog@d32036b003a7f834eb21e4bfb324036ebbfb07cc (also `engine: kiri`; no PR or comment goes to that repository.)
+# - iv-org/invidious@9a5c91cf808966fb6a4516c9e21ec7a7ad648f16 (its development Compose file builds the app from source; no PR or comment goes to that repository.)
 #
 # Not adopters: projects whose maintainers closed a Flisk PR. They stay here so `flisk import` keeps working on the
 # Compose files people actually ship, and a later PR to them starts from a stack that is known to come up.
@@ -110,6 +111,13 @@ jobs:
               APP_ENV=production
               AI_VISION_API_KEY=ci-vision-key-not-a-secret
               APP_KEY=base64:Y2ktYXBwLWtleS1ub3QtYS1zZWNyZXQtMDEyMzQ1Njc=
+          # Root docker-compose.yml: builds docker/Dockerfile, Postgres with a healthcheck, depends_on service_healthy.
+          - name: Invidious
+            owner: iv-org
+            repo: invidious
+            commit: 9a5c91cf808966fb6a4516c9e21ec7a7ad648f16
+            health_check: "http://127.0.0.1:3000/api/v1/stats"
+            needs_env: false
           # Rejected ghostfolio/ghostfolio#8377. Its Compose file is docker/docker-compose.yml with env_file ../.env;
           # flisk import reads only a root Compose file, and run from docker/ it drops ../.env (outside the directory).
           - name: Ghostfolio
