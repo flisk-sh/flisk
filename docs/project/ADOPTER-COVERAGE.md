@@ -11,6 +11,7 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | biolend83/tubehaus | 6 services, Caddy proxy, WARP | Flisk setup merged as an option (#40, #42) | ports with a host address from `.env`, `cap_add`, `init`, named volumes, `sidecarOf`, `env` with `${VAR:-default}` |
 | dilolabs/nosia | Rails, Postgres, Caddy | Draft proposal | `command`, `models`, `on-failure:N`, `depends_on` conditions, healthcheck, published ports on every interface, named volumes |
 | LycheeOrg/Lychee | Laravel, MariaDB, sidecars | Draft spec | profiles, `tmpfs`, `env_file`, `deploy` limits, renamed services, `start_period`, volume names, bind mounts |
+| iv-org/invidious | Crystal app built from source, Postgres | Nightly CI only (`nightly-adopters.yml`) | `build` with `dockerfile`, `depends_on` with `service_healthy` and `restart`, healthcheck, ports with a host address, bind-mounted init script, named volume |
 | karatektus/pl_mail | Symfony, Postgres | Issue open | image with `${VAR}`, `entrypoint`, `stop_grace_period`, network aliases, `healthcheck: disable`, ports with variables, a committed `.env` |
 | labsai/EDDI | Java, MongoDB | Not opened | `$$` escapes in commands, one-shot jobs, `service_completed_successfully` (its image does not start on every CPU) |
 | anyproto/any-sync-dockercompose | 15 services | Not opened | bind sources from variables, SELinux labels, `${VAR:?message}` images |
