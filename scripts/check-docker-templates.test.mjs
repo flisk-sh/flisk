@@ -47,7 +47,7 @@ for (const directory of DIRECTORIES) {
 
 	test(`CR in a shebang in ${directory} fails`, (t) => {
 		const root = fixture(t);
-		writeFileSync(path.join(root, directory, "install-deps.sh"), SCRIPT.replace("\n", "\r\n"));
+		writeFileSync(path.join(root, directory, "install-deps.sh"), "#!/usr/bin/env bash\r\nprintf 'ok\\n'\n");
 		assert.ok(checkDockerTemplates(root).includes(
 			`${path.join(directory, "install-deps.sh")}: carriage return in shebang; use LF line endings`,
 		));
