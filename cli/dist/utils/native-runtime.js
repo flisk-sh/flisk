@@ -284,6 +284,7 @@ function readinessCommandPasses(command, plan) {
             cwd: plan.cwd,
             env: { ...process.env, ...(plan.env ?? {}) },
             stdio: "ignore",
+            windowsHide: true,
         });
         const timer = setTimeout(() => child.kill("SIGKILL"), READINESS_COMMAND_TIMEOUT_MS);
         child.once("error", () => {
@@ -809,6 +810,8 @@ export class NativeSupervisor {
             // `flisk up`, which then stops the services in order. Not on Windows: see detachesServices.
             detached: detachesServices(),
             stdio: ["ignore", "pipe", "pipe"],
+            // Without this a console window opens for every service (and every restart) when flisk runs without a console of its own.
+            windowsHide: true,
         });
         service.child = child;
         service.startTime = undefined;

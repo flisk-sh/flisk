@@ -69,7 +69,11 @@ describe("MCP native lifecycle acceptance (real flisk mcp server)", () => {
     svc("web", SERVER(), { appType: "frontend", port: pw, dependsOn: ["api"] });
     mkdirSync(join(root, ".flisk"), { recursive: true });
 
-    child = spawn(process.execPath, [CLI, "mcp"], { cwd: root, stdio: ["pipe", "pipe", "ignore"] });
+    child = spawn(process.execPath, [CLI, "mcp"], {
+      cwd: root,
+      stdio: ["pipe", "pipe", "ignore"],
+      windowsHide: true,
+    });
     let buf = "";
     let id = 0;
     const waiting = new Map<number, (m: any) => void>();
