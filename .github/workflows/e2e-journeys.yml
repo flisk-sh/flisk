@@ -19,10 +19,8 @@ on:
         description: "CLI version to test (local checkout if empty; latest or an exact version also accepted)"
         type: string
         default: ""
-  # No paths filter here: the gate must report on every pull request, or the ci.yml summary waits for a check that never comes.
-  # scripts/e2e/select-journeys.sh runs a suite only when a changed file matches the suite's own paths, and the gate passes
-  # when none was selected.
-  pull_request:
+  # Not run on pull requests: the journeys take 13+ minutes. The merge queue (merge_group above) runs them before merge; the
+  # light 3-service example gate (e2e-examples.yml) is the per-PR end-to-end check.
   schedule:
     - cron: "0 6 * * *" # nightly: quickstart
     - cron: "0 7 * * 3" # weekly: cold-start
