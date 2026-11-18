@@ -2,9 +2,14 @@ import chalk from "chalk";
 import { formatFixFirst, rankDoctorFixes } from "./doctor-fix-first.js";
 import { formatDoctorSummary, orderDoctorResults } from "./doctor-runner.js";
 // Human-readable doctor output: results, repair actions and the "Fix first" list.
-export function printFixActions(actions, dryRun) {
+export function printFixActions(actions, dryRun, failedCheckCount = 0) {
     if (actions.length === 0) {
-        console.log(`${chalk.green("✓")} Nothing to repair\n`);
+        if (failedCheckCount > 0) {
+            console.log(`Nothing to repair automatically; ${failedCheckCount} checks need your action\n`);
+        }
+        else {
+            console.log(`${chalk.green("✓")} Nothing to repair\n`);
+        }
         return;
     }
     for (const action of actions) {

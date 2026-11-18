@@ -1,10 +1,13 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { writeSync } from "node:fs";
+import { Command } from "commander";
 import { describe, expect, it, vi } from "vitest";
 import { captureExit, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { downCommand } from "../down.js";
 import { logsCommand } from "../logs.js";
+import { networksCommand } from "../networks.js";
+import { projectsCommand } from "../projects.js";
 import { statusCommand } from "../status.js";
 
 vi.mock("node:fs", async (importOriginal) => {
@@ -13,6 +16,93 @@ vi.mock("node:fs", async (importOriginal) => {
   const writeSyncMock = vi.fn();
   const mockedFs = { ...actual, default: actual, writeSync: writeSyncMock };
   return { ...mockedFs, default: mockedFs };
+});
+
+describe("networks and projects positional hints preserve the typed command (#4481)", () => {
+  for (const name of ["urls", "networks", "traefik", "info", "projects"]) {
+    const networks = ["urls", "networks", "traefik"].includes(name);
+    const target = name === "urls" ? "nosuch" : "a1";
+    const message = networks
+      ? `Service names are not positional: \`flisk ${name}\` lists every service and takes no resource name.`
+      : `Project and resource names are not positional: \`flisk ${name}\` shows the current project.`;
+    const suggestions = networks
+      ? [
+          `Filter by stack: flisk ${name} --stack <stack>`,
+          `One service: flisk ${name} --json (pick the service from data.services)`,
+        ]
+      : [
+          `Show the current project: flisk ${name} (run from the project directory)`,
+          `Check its configuration: flisk ${name} --check`,
+          `Get project details as JSON: flisk ${name} --json`,
+        ];
+
+    it(`the real ${name} command rejects positionals in text and JSON modes`, async () => {
+      for (const json of [false, true]) {
+        const command = networks ? networksCommand : projectsCommand;
+        command.setOptionValue("json", false);
+        const program = new Command("flisk").addCommand(command);
+        const stderr: string[] = [];
+        const errorLog = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+          stderr.push(args.map(String).join(" "));
+        });
+        vi.mocked(writeSync).mockClear();
+        const { exit } = captureExit();
+        try {
+          await expect(
+            program.parseAsync([name, "a1", ...(json ? ["--json"] : [])], { from: "user" }),
+          ).rejects.toThrow();
+          expect(exit).toHaveBeenCalledWith(1);
+        } finally {
+          errorLog.mockRestore();
+          exit.mockRestore();
+        }
+        if (json) {
+          expect(stderr).toEqual([]);
+          expect(parseEnvelope(captureEnvelopeWrites().join(""))).toEqual({
+            schemaVersion: 1,
+            data: null,
+            errors: [{ code: "USAGE", message, suggestions }],
+          });
+        } else {
+          expect(stderr.join("\n")).toContain(`❌ ${message}`);
+          for (const suggestion of suggestions) expect(stderr.join("\n")).toContain(suggestion);
+        }
+      }
+    });
+
+    it(`flisk ${name} a1 prints its usage error and suggestions`, () => {
+      const result = runFlisk([name, "a1"], { cwd: process.cwd() });
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(`❌ ${message}`);
+      for (const suggestion of suggestions) expect(result.stderr).toContain(suggestion);
+      if (name === "urls" || name === "traefik") expect(result.stderr).not.toContain("networks");
+      if (name === "info") expect(result.stderr).not.toContain("projects");
+    });
+
+    it(`flisk ${name} ${target} --json puts the suggestions in the USAGE envelope`, () => {
+      const result = runFlisk([name, target, "--json"], { cwd: process.cwd() });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(parseEnvelope(result.stdout)).toEqual({
+        schemaVersion: 1,
+        data: null,
+        errors: [{ code: "USAGE", message, suggestions }],
+      });
+    });
+  }
+
+  it("preserves the alias after a root option and rejects multiple positional arguments", () => {
+    const result = runFlisk(["--verbose", "urls", "a1", "a2", "--json"], {
+      cwd: process.cwd(),
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.errors[0]?.code).toBe("USAGE");
+    expect(envelope.errors[0]?.message).toContain("`flisk urls`");
+    expect(result.stdout).not.toContain("networks");
+  });
 });
 
 function captureEnvelopeWrites(): string[] {
