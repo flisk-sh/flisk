@@ -13,8 +13,16 @@ function project(): string {
 }
 
 describe("flisk stacks with one stack", () => {
-  it("lists only the named stack with a positional argument", () => {
+  it("lists only the named stack with a positional argument and shows the resources hint", () => {
     const result = runFlisk(["stacks", "app"], { cwd: project() });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("app");
+    expect(result.stdout).not.toContain("web");
+    expect(result.stdout).toContain("flisk resources --stack app");
+  });
+
+  it("supports the ls alias with a positional stack argument", () => {
+    const result = runFlisk(["ls", "app"], { cwd: project() });
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("app");
     expect(result.stdout).not.toContain("web");
@@ -61,9 +69,17 @@ describe("flisk stacks with one stack", () => {
 
   it("rejects a positional stack together with --stack", () => {
     const result = runFlisk(["stacks", "app", "--stack", "web"], { cwd: project() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     const combined = `${result.stdout}\n${result.stderr}`;
     expect(combined).toContain("Choose one of [stack] and --stack <name>");
+  });
+
+  it("returns a machine error envelope when a positional stack and --stack are both passed with --json", () => {
+    const result = runFlisk(["stacks", "app", "--stack", "web", "--json"], { cwd: project() });
+    expect(result.status).toBe(2);
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.data).toBeNull();
+    expect(envelope.errors[0].message).toBe("Choose one of [stack] and --stack <name>");
   });
 
   it("treats an empty positional stack as a named stack", () => {
@@ -86,6 +102,15 @@ describe("flisk stacks with one stack", () => {
     const envelope = parseEnvelope(result.stdout);
     expect(envelope.data).toBeNull();
     expect(envelope.errors[0].message).toBe('Stack "missing" not found');
+  });
+
+  it("returns a USAGE machine error envelope for excess positional arguments with --json", () => {
+    const result = runFlisk(["stacks", "app", "web", "--json"], { cwd: project() });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.data).toBeNull();
+    expect(envelope.errors[0].code).toBe("USAGE");
   });
 
   it("documents the stack argument in help", () => {

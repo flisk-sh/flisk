@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
+import { routeUsageErrorsToJson } from "../utils/command-helpers.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { formatCount, showDetail, showEmptyState, showStep } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
-export const stacksCommand = new Command("stacks")
+export const stacksCommand = routeUsageErrorsToJson(new Command("stacks"))
     .description("List all stacks and their resources")
     .alias("ls") // Keep 'flisk ls' as shorthand
     .argument("[stack]", "Only show this stack (default: all stacks)")
@@ -25,9 +26,7 @@ export const stacksCommand = new Command("stacks")
         const discovery = createDiscoveryContext();
         const verbose = options.verbose || stacksCommand.parent?.opts().verbose === true;
         if (typeof stackArg === "string" && typeof options.stack === "string") {
-            throw new FliskError("Choose one of [stack] and --stack <name>", [
-                "Pass the stack as a positional argument or with --stack, not both",
-            ]);
+            throw new FliskError("Choose one of [stack] and --stack <name>", ["Pass the stack as a positional argument or with --stack, not both"], 2);
         }
         const stackName = typeof stackArg === "string"
             ? stackArg
@@ -86,7 +85,9 @@ export const stacksCommand = new Command("stacks")
                 console.log(chalk.bold(`  ${name}`));
                 showDetail(`${formatCount(serviceCount, "service")}`, 4);
             }
-            showDetail("\nRun with --verbose for more details, or --services to see all services in each stack.", 0);
+            showDetail(stackName !== undefined
+                ? `\nRun with --verbose for more details, --services to list its services, or "flisk resources --stack ${stackName}" to list its resources.`
+                : "\nRun with --verbose for more details, or --services to see all services in each stack.", 0);
         }
     };
     if (options.json) {
