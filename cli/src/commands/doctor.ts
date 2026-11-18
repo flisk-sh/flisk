@@ -15,9 +15,9 @@ import {
   WEBCONTAINER_UP_MESSAGE,
 } from "../utils/agent-host.js";
 import {
-  getEnabledCapabilities,
   isDatabaseCapabilityEnabled,
   isGatewayEnabled,
+  reportedCapabilities,
 } from "../utils/capabilities.js";
 import { checkColimaDisk } from "../utils/colima-disk.js";
 import { CONTAINER_RUNTIME_CHECK } from "../utils/constants.js";
@@ -448,7 +448,8 @@ export const doctorCommand = new Command("doctor")
     // `.flisk/project.json` and the --no-gateway / --no-database flags decide which shared containers are checked.
     const dbEnabled = isDatabaseCapabilityEnabled(projectRoot, options);
     const gatewayEnabled = isGatewayEnabled(projectRoot, options);
-    const enabledCapabilities = getEnabledCapabilities(projectRoot, options);
+    // A project of local processes starts neither shared container, so it reports no capability (#3873).
+    const enabledCapabilities = reportedCapabilities(projectRoot, nativeResources ?? [], options);
     const portCaps = { gateway: gatewayEnabled, database: dbEnabled };
     // One cache per doctor run, so checks that ask Docker the same question share one answer.
     const hostCommandCache = createHostCommandCache();
