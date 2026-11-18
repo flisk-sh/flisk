@@ -45,6 +45,7 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("checkCircularDependencies", () => {
@@ -1030,7 +1031,7 @@ describe("FLISK_SECRET_PROVIDER", () => {
     ).toThrow("exit 2");
     expect(reported).toContain("keychan");
     vi.stubEnv("FLISK_SECRET_PROVIDER", "infisical");
+    vi.stubEnv("FLISK_SECRET_BRIDGE", "");
     expect(() => enforceServiceConfigGate(root, {}, exit)).not.toThrow();
-    vi.unstubAllEnvs();
   });
 });

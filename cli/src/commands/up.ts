@@ -2142,6 +2142,7 @@ export const upCommand = new Command("up")
             ...(options.only ? { requested: options.only, dependencies: startedDependencies } : {}),
             tiltUrl: `http://localhost:${port}`,
             ...(urlChecks ? { urls: urlChecks } : {}),
+            ...(secretWarnings.length > 0 ? { warnings: secretWarnings } : {}),
           });
         }
         // Only a healthy, unchanged stack gets a fingerprint: the next `flisk up` can then answer in one read-only
