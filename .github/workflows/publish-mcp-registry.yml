@@ -38,7 +38,6 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch'
       || github.event_name == 'workflow_call'
-      || github.event_name == 'push'
       || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-26.04
     timeout-minutes: 25
@@ -115,8 +114,9 @@ jobs:
           # Skip the publish loop if this exact version is already listed (idempotent re-runs and workflow_call double-fires).
           # Use the version-specific endpoint: HTTP 200 = already listed (exit 0), HTTP 404 = not listed (continue),
           # any other status = treat as unknown and continue so the publish loop can decide.
+          # Transport failures must not abort under set -e; fall through to the publish loop.
           registry_status=$(curl --silent --output /dev/null --write-out "%{http_code}" \
-            "https://registry.modelcontextprotocol.io/v0/servers/io.github.flisk-sh%2Fflisk/versions/${VERSION}")
+            "https://registry.modelcontextprotocol.io/v0/servers/io.github.flisk-sh%2Fflisk/versions/${VERSION}" || echo 000)
           if [ "$registry_status" = "200" ]; then
             echo "io.github.flisk-sh/flisk@${VERSION} is already listed in the MCP Registry; nothing to do."
             exit 0
