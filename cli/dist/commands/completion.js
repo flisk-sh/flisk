@@ -12,7 +12,7 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { showError } from "../utils/errors.js";
+import { FliskError, showError } from "../utils/errors.js";
 import { buildCompletionCandidates, } from "./completion-candidates.js";
 import { SUPPORTED_SHELLS } from "./completion-shells.js";
 function toEntries(commands, parent = "") {
@@ -744,6 +744,13 @@ export const completionCommand = new Command("completion")
     .option("--install", "Install completion; prints any shell configuration steps still needed")
     .addHelpText("after", "\nExamples:\n  flisk completion zsh --install\n  flisk completion bash --install\n  flisk completion fish --install")
     .action((shellArgument, options, command) => {
+    // The argument and the option both name the shell, so two different values would silently
+    // ignore one of them.
+    if (shellArgument !== undefined &&
+        options.shell !== undefined &&
+        shellArgument.trim().toLowerCase() !== options.shell.trim().toLowerCase()) {
+        new FliskError(`Conflicting shells: argument "${shellArgument}" does not match --shell "${options.shell}".`, ["Pass the shell once, either as the argument or with --shell"]).exit();
+    }
     const requestedShell = options.shell ?? shellArgument;
     const environmentShell = basename(process.env.SHELL ?? "")
         .replace(/\.exe$/i, "")

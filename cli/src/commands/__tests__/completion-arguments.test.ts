@@ -69,6 +69,32 @@ describe("flisk completion shell selection", () => {
     }
   });
 
+  it("rejects a positional shell that conflicts with --shell", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { expectExit } = captureExit();
+
+    try {
+      await expect(runCompletionCommand(["bash", "--shell", "zsh"])).rejects.toThrow(
+        "process.exit",
+      );
+
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("bash"));
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("zsh"));
+      expect(log).not.toHaveBeenCalled();
+      expectExit(1);
+    } finally {
+      error.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it("accepts a positional shell that matches --shell", async () => {
+    const { stdout } = await runCompletion(["zsh", "--shell", "zsh"]);
+
+    expect(stdout).toContain("#compdef flisk");
+  });
+
   it.each([
     ["positional argument", ["unknown-shell"]],
     ["--shell option", ["--shell", "unknown-shell"]],
