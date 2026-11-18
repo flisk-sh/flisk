@@ -32,9 +32,14 @@ const health = async (port: number) => {
 describe("MCP native lifecycle acceptance (real flisk mcp server)", () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "flisk-mcp-accept-")));
   let child: ChildProcess | undefined;
-  afterAll(() => {
-    child?.kill();
-    rmSync(root, { recursive: true, force: true });
+  afterAll(async () => {
+    // Windows will not delete a folder that a running process has as its working directory, so wait for the server to exit.
+    if (child && child.exitCode === null && child.signalCode === null) {
+      const exited = new Promise((done) => child?.once("exit", done));
+      child.kill();
+      await exited;
+    }
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
 
   it("starts, diagnoses, repairs, restarts and stops a native stack through MCP", async () => {

@@ -4,11 +4,12 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
 import { expandEnvValue } from "../env-expand.js";
 import {
   dependencyWaves,
+  detachesServices,
   findMissingPrograms,
   isProcessAlive,
   localUrl,
@@ -22,6 +23,7 @@ import {
   shellInvocation,
   signalGroup,
   stopNativeRun,
+  terminateSupervisorProcess,
 } from "../native-runtime.js";
 import { processStartTime } from "../process-identity.js";
 
@@ -984,6 +986,50 @@ describe("nativeServiceStates", () => {
       status: "ready",
       reason: "finished",
     });
+  });
+});
+
+describe("terminateSupervisorProcess", () => {
+  it("ends the supervisor's whole process tree on Windows, so its services go with it", async () => {
+    const killed: number[] = [];
+    const kill = vi.spyOn(process, "kill");
+    // A pid that does not exist, so the wait that follows returns at once.
+    await terminateSupervisorProcess(2_147_000_000, 50, "win32", (pid) => killed.push(pid));
+    expect(killed).toEqual([2_147_000_000]);
+    expect(kill).not.toHaveBeenCalledWith(2_147_000_000, "SIGTERM");
+    kill.mockRestore();
+  });
+
+  it("sends SIGTERM on POSIX and never runs taskkill", async () => {
+    const killed: number[] = [];
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    await terminateSupervisorProcess(2_147_000_000, 50, "linux", (pid) => killed.push(pid));
+    expect(kill).toHaveBeenCalledWith(2_147_000_000, "SIGTERM");
+    expect(killed).toEqual([]);
+    kill.mockRestore();
+  });
+});
+
+describe("detachesServices", () => {
+  it("gives a service its own process group on POSIX and not on Windows", () => {
+    expect(detachesServices("linux")).toBe(true);
+    expect(detachesServices("darwin")).toBe(true);
+    expect(detachesServices("win32")).toBe(false);
+  });
+
+  it("keeps the error a crashing service wrote just before it exited", async () => {
+    // Spawned the way the supervisor spawns a service: piped stdio, the platform's detach setting.
+    const child = spawn(
+      process.execPath,
+      ["-e", 'console.error("FATAL: API_TOKEN is not set"); process.exit(1)'],
+      { detached: detachesServices(), stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
+    );
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    await new Promise((resolve) => child.once("close", resolve));
+    expect(stderr).toContain("FATAL: API_TOKEN is not set");
   });
 });
 
