@@ -117,7 +117,11 @@ jobs:
             repo: invidious
             commit: 9a5c91cf808966fb6a4516c9e21ec7a7ad648f16
             health_check: "http://127.0.0.1:3000/api/v1/stats"
-            needs_env: false
+            # INVIDIOUS_CONFIG is a multi-line YAML value in the Compose file, which the importer cannot copy to .env, so it
+            # lands as a required secret with no value. JSON is YAML, so one line does it (db host is the Compose service name).
+            needs_env: true
+            env_file: |
+              INVIDIOUS_CONFIG='{"db":{"dbname":"invidious","user":"kemal","password":"kemal","host":"invidious-db","port":5432},"check_tables":true,"hmac_key":"ci-hmac-key-not-a-secret"}'
           # Rejected ghostfolio/ghostfolio#8377. Its Compose file is docker/docker-compose.yml with env_file ../.env;
           # flisk import reads only a root Compose file, and run from docker/ it drops ../.env (outside the directory).
           - name: Ghostfolio
