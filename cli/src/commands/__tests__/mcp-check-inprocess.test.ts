@@ -175,7 +175,7 @@ describe("resolveMcpCheckTarget", () => {
     });
     const error = await resolveMcpCheckTarget("tool").catch((e) => e);
     expect(error).toBeInstanceOf(FliskError);
-    expect(error.message).toBe('Resource "tool" not found');
+    expect(error.message).toBe('No resource named "tool"');
     expect(error.suggestions.join("\n")).toContain("tools");
   });
 
