@@ -7,7 +7,8 @@ const FLISK_BANNER = `
   ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Your whole app, running on your computer with one command.")}
 `;
 
-const COMMAND_GROUPS = [
+/** The rows of the `flisk --help` table, including the example each row prints. */
+export const COMMAND_GROUPS = [
   {
     title: "Project Level",
     color: chalk.blue,
@@ -15,7 +16,7 @@ const COMMAND_GROUPS = [
       {
         name: "create",
         desc: "Pick a stack with a few questions and get a project that runs",
-        alias: "[name] --kind web --extras queue",
+        alias: "[name] --frontend react --runtime docker --extras queue:nats",
       },
       {
         name: "tool",
