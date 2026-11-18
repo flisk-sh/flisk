@@ -215,6 +215,16 @@ describe("argument building", () => {
     ).toEqual(["up", "store", "--only=api", "--only=web", "--force", "--dry-run", "--json"]);
     expect(buildUpArgs({})).toEqual(["up", "--json"]);
   });
+  it("passes profiles and an env file to up, as the CLI flags they wrap", () => {
+    expect(buildUpArgs({ profile: ["heavy", "admin-ui"], envFile: ".env.integration" })).toEqual([
+      "up",
+      "--profile=heavy",
+      "--profile=admin-ui",
+      "--env-file=.env.integration",
+      "--json",
+    ]);
+    expect(buildUpArgs({ profile: [], envFile: undefined })).toEqual(["up", "--json"]);
+  });
   it.each([
     [{ stack: "-rf" }],
     [{ only: ["ok", "--json"] }],
@@ -228,6 +238,10 @@ describe("argument building", () => {
     expect(() => buildUpArgs({ only: ["api", 7] })).toThrow("only must be an array");
     expect(() => buildUpArgs({ stack: 7 })).toThrow("stack must be a name");
     expect(() => buildUpArgs({ dryRun: "yes" })).toThrow("dryRun must be a boolean");
+    expect(() => buildUpArgs({ profile: ["ok", "--json"] })).toThrow("profile must be an array");
+    expect(() => buildUpArgs({ profile: "heavy" })).toThrow("profile must be an array");
+    expect(() => buildUpArgs({ envFile: "" })).toThrow("envFile must be a non-empty path");
+    expect(() => buildUpArgs({ envFile: "-rf" })).toThrow("envFile must be a non-empty path");
     expect(() => buildLogsArgs({ tail: "5" })).toThrow("tail must be a positive integer");
     expect(() => buildLogsArgs({ since: 5 })).toThrow("since must be a duration");
   });
@@ -263,6 +277,18 @@ describe("argument building", () => {
       properties: Record<string, { enum?: string[] }>;
     };
     expect(schema.properties.source?.enum).toEqual(["runtime", "build"]);
+  });
+
+  it("advertises profile and envFile on the up tool schema", () => {
+    const up = createFliskTools().find((tool) => tool.name === "up");
+    const schema = up?.inputSchema as unknown as {
+      properties: Record<string, { type?: string; items?: { type?: string } }>;
+    };
+    expect(schema.properties.profile).toMatchObject({
+      type: "array",
+      items: { type: "string" },
+    });
+    expect(schema.properties.envFile).toMatchObject({ type: "string" });
   });
 
   it("builds resource_create arguments, always non-interactive, with options after the name", () => {
