@@ -278,15 +278,7 @@
 			"job": "analyze",
 			"tier": "security",
 			"required": false,
-			"reason": "Code scanning; javascript-typescript and actions on every PR (the main ruleset waits for both categories); weekly",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "codeql.yml",
-			"job": "starlark",
-			"tier": "security",
-			"required": false,
-			"reason": "Unofficial Starlark analyzer (flisk-sh/codeql-starlark); report-only SARIF for Tiltfiles and *.star on every PR and weekly",
+			"reason": "Code scanning; javascript-typescript and actions on every PR (the main ruleset waits for both categories), then the unofficial Starlark analyzer (flisk-sh/codeql-starlark, report-only SARIF) as a step; weekly",
 			"owner": "maintainers"
 		},
 		{
