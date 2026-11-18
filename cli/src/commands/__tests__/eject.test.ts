@@ -368,5 +368,4 @@ describe("flisk eject", () => {
       rmSync(outPath, { force: true });
     }
   });
-
 });
