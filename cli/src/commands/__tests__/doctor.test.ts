@@ -403,13 +403,37 @@ describe("doctor generated runtime asset preflight", () => {
     }
   }
 
-  it("fails when the root workspace package.json and Docker template scripts are missing", () => {
+  it("fails when the root workspace package.json is missing", () => {
     const result = checkGeneratedProjectRuntimeAssets();
 
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("package.json");
-    expect(result.message).toContain("install-deps.sh");
+    // No generated Dockerfile references the templates, so they are not required (#4583).
+    expect(result.message).not.toContain("install-deps.sh");
     expect(result.fix).toContain("flisk project");
+  });
+
+  it("passes on a fresh starter with no generated Dockerfiles and no docker-templates directory (#4583)", () => {
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "portal-starter", private: true, workspaces: ["services/*/*"] }),
+    );
+    const serviceDir = join(testDir, "services", "main", "api");
+    mkdirSync(serviceDir, { recursive: true });
+    writeFileSync(
+      join(serviceDir, "service.json"),
+      JSON.stringify({ appName: "api", appType: "backend", stack: "main", port: 4000 }),
+    );
+    // The starter's own production Dockerfile never copies shared-platform-engineering.
+    writeFileSync(
+      join(serviceDir, "Dockerfile"),
+      "FROM node:20\nCOPY package.json ./\nCOPY src ./src\nCOPY public ./public\n",
+    );
+
+    const result = checkGeneratedProjectRuntimeAssets();
+
+    expect(result.didPass).toBe(true);
+    expect(result.message).toContain("runtime assets are present");
   });
 
   it("passes when generated Docker runtime assets are present", () => {

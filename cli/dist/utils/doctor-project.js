@@ -99,15 +99,9 @@ export function checkGeneratedFiles(strict = false) {
         fix: "Run `flisk up` to generate them (it needs Docker, Compose and Tilt). `flisk config verify` checks the project-level files only.",
     };
 }
-// The scripts `flisk project` copies into every project. Generated Dockerfiles
-// may reference others; those are checked by scanning the Dockerfiles below.
-const REQUIRED_DOCKER_TEMPLATE_FILES = [
-    "install-deps.sh",
-    "bun-hoisted-symlink-fix.sh",
-    "prisma-bun-client-link-fix.sh",
-    "prisma-normalize-client.sh",
-    "infisical-entrypoint.sh",
-];
+// Only docker-templates files that a generated Dockerfile actually copies are
+// required. A fresh starter has no generated Dockerfiles, so it must not fail
+// for templates it never references (#4583).
 const TEMPLATE_COPY_PATTERN = /shared-platform-engineering\/docker-templates\/([\w.-]+)/g;
 /** docker-templates files named in COPY lines of generated Dockerfiles. */
 function findReferencedTemplateFiles(projectRoot) {
@@ -139,9 +133,9 @@ export function checkGeneratedProjectRuntimeAssets() {
         referenced = findReferencedTemplateFiles(projectRoot);
     }
     catch {
-        // Discovery can fail on a half-written project; the base list still applies.
+        // Discovery can fail on a half-written project; there is nothing to check then.
     }
-    for (const file of new Set([...REQUIRED_DOCKER_TEMPLATE_FILES, ...referenced])) {
+    for (const file of referenced) {
         if (!existsSync(join(templateDir, file))) {
             problems.push(`shared-platform-engineering/docker-templates/${file}`);
         }
