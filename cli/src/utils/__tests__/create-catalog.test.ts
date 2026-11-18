@@ -100,8 +100,9 @@ describe("the catalog is read from the registries, not kept here", () => {
     expect(localRequirements({ frontend: true })).toEqual(["node", "npm"]);
     // A provider-owned package.json runs `npm run dev` (#4459).
     expect(localRequirements({ frontend: false, language: "node" })).toEqual(["npm"]);
-    // The shared Bun scaffold's dev script runs `bun run --watch`, so it needs Bun, not npm (#4678).
+    // The shared Bun scaffold starts through `npm run dev`, whose script runs `bun run --watch` (#4678).
     expect(localRequirements({ frontend: false, language: DEFAULT_BACKEND_LANGUAGE })).toEqual([
+      "npm",
       "bun",
     ]);
     // A language without a package.json runs its own dev command.

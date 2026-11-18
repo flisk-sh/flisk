@@ -148,12 +148,14 @@ export function localRequirements(parts: { frontend: boolean; language?: string 
       ?.createFiles?.("app")
       .some((file) => file.filename === "package.json");
     // A package.json owned by the provider runs `npm run dev` (#4459). A provider with neither its
-    // own devCommand nor its own package.json uses the shared Bun scaffold, whose dev script runs
-    // `bun run --watch`; that needs Bun, not npm.
+    // own devCommand nor its own package.json uses the shared Bun scaffold: `flisk up` starts it with
+    // `npm run dev`, whose script runs `bun run --watch`, so it needs npm and Bun (#4678).
     if (!provider) programs.add(parts.language);
     else if (hasPackageJson) programs.add("npm");
-    else if (!provider.devCommand) programs.add(provider.installHint.trim().split(/\s+/)[0]);
-    else programs.add(provider.devCommand.split(" ")[0]);
+    else if (!provider.devCommand) {
+      programs.add("npm");
+      programs.add(provider.installHint.trim().split(/\s+/)[0]);
+    } else programs.add(provider.devCommand.split(" ")[0]);
   }
   return [...programs];
 }

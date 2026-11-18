@@ -376,10 +376,15 @@ describe("the review, the recovery message and the folder guard", () => {
     extras: [],
   };
 
-  it("says what is created, what it needs and what was chosen, and flags a missing program", () => {
-    const lines = reviewLines(local, buildCreatePlan(local), (program) => program !== "bun");
+  it("says what is created, what it needs and what was chosen, and flags missing programs", () => {
+    const lines = reviewLines(
+      local,
+      buildCreatePlan(local),
+      (program) => program !== "bun" && program !== "npm",
+    );
     expect(lines[0]).toBe("Creating shop: shop-api, shop-web");
-    expect(lines[1]).toContain("Not found on this machine: bun");
+    expect(lines[1]).toContain("Needs: node, npm, bun.");
+    expect(lines[1]).toContain("Not found on this machine: npm, bun");
     expect(lines[2]).toMatch(/^Chosen: runtime: local · website: /);
   });
 
@@ -443,12 +448,11 @@ describe("the review, the recovery message and the folder guard", () => {
     }
   });
 
-  it("--start needs npm even when Bun is installed, because the services run npm run dev", () => {
+  it("--start needs npm and Bun for the default API, because npm run dev starts bun run --watch", () => {
     expect(startBlockers(local, () => true)).toEqual([]);
     expect(startBlockers(local, (p) => p !== "npm")).toEqual(["npm"]);
-    // the services start with npm run dev, so a missing Bun alone does not block --start (#4459)
-    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(["npm"]);
-    expect(startBlockers(local, (p) => p !== "bun")).toEqual([]);
+    expect(startBlockers(local, (p) => p !== "bun")).toEqual(["bun"]);
+    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(["npm", "bun"]);
     expect(startBlockers({ ...local, starter: "x" }, () => false)).toEqual([]);
   });
 
