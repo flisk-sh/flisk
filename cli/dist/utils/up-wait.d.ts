@@ -89,6 +89,8 @@ export declare function parseWaitTimeout(value: unknown): {
     ok: false;
     message: string;
 };
+/** The hint every INVALID_WAIT_TIMEOUT refusal reports: one example that passes the parser. */
+export declare const INVALID_WAIT_TIMEOUT_SUGGESTIONS: readonly ["Try: --wait-timeout 600"];
 /**
  * The last LOG_TAIL_CHARS of a log, masked before it is cut: cutting first could keep the end of a secret without its start,
  * and the shortened value would no longer match.

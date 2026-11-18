@@ -108,7 +108,11 @@ export const errorFactories = {
         const orderedValid = names.length === 1 && names[0] !== undefined
             ? rankByDistance(names[0], validNames)
             : validNames;
-        const suggestions = closestNameSuggestions(names, orderedValid, names.length > 1);
+        // The valid names ride in suggestions too, so a JSON consumer gets them without parsing the message.
+        const suggestions = [
+            ...closestNameSuggestions(names, orderedValid, names.length > 1),
+            `Valid names: ${orderedValid.join(", ")}`,
+        ];
         return new FliskError(`Unknown service ${names.join(", ")}. Valid names: ${orderedValid.join(", ")}`, suggestions, 2);
     },
     directoryExists: (path) => new FliskError(`Directory already exists: ${path}`, [
