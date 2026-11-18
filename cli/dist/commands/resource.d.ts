@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate } from "../backend-languages/bun.js";
 import type { FrontendFrameworkFile } from "../frontend-frameworks/types.js";
 import type { AgentConfig, CreatableResourceType, InfraFramework, InfraResourceType, PortAssignableResourceType } from "../types/index.js";
+import { FliskError } from "../utils/errors.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 export declare const BASE_TEMPLATE: {
     readonly port: 0;
@@ -250,4 +251,9 @@ export interface ResourceReport {
     language: string | null;
     discovered: boolean;
 }
+/**
+ * Turns a prompt that could not read input into an error that names the flags which avoid the
+ * stack prompt. The suggestions travel with both the printed error and the `--json` envelope.
+ */
+export declare function resourceNoInputError(cause: unknown): FliskError;
 export declare const resourceCommand: Command;

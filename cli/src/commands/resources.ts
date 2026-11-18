@@ -101,6 +101,7 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
       showEmptyState(
         stackName ? "stack-services" : "resources",
         stackContext + noStackContext + typeContext,
+        options.type,
       );
       return;
     }

@@ -802,6 +802,13 @@ export function parseResourceType(type: string): CreatableResourceType | InfraRe
     ]);
   }
   const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
+  if (normalized === "migrator") {
+    throw new FliskError("A migrator cannot be created with --type migrator.", [
+      "Create one together with a new API: flisk resource <api> --type backend --feature prisma",
+      "For another migration tool: flisk resource <name> --type bring-your-own --dockerfile ./Dockerfile --restart no",
+      "Put the Dockerfile that runs the migration in the resource directory (or pass its directory with --path)",
+    ]);
+  }
   const validTypes: readonly string[] = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
   if (!validTypes.includes(normalized)) {
     const closest = suggestClosest(normalized, validTypes);
@@ -1084,6 +1091,18 @@ const DEFAULT_STACK_NAME = "main";
 /** Marker for "no --stack given"; an omitted flag asks which stack to use instead of picking one. */
 const STACK_OPTION_SENTINEL = "default";
 
+/**
+ * Turns a prompt that could not read input into an error that names the flags which avoid the
+ * stack prompt. The suggestions travel with both the printed error and the `--json` envelope.
+ */
+export function resourceNoInputError(cause: unknown): FliskError {
+  const detail = getErrorMessage(cause);
+  return new FliskError(`${detail} Pass --stack <name> or --yes to skip this prompt.`, [
+    "Pass --stack <name> to skip the stack prompt, or --yes to accept the default stack.",
+    "For example: flisk resource api --type backend --stack main --yes.",
+  ]);
+}
+
 export const resourceCommand = addYesOption(new Command("resource"))
   .description("Create a new resource (service) from scratch, or register an existing one")
   .argument("[name]", "Resource name (kebab-case)")
@@ -1239,11 +1258,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       if (!assumeYes && !process.stdin.isTTY) {
-        throw new FliskError("Resource creation needs --yes or a terminal.", [
-          "Pass --yes to accept defaults, or --json for machine-readable output (implies --yes).",
-          "For example: flisk resource api --stack main --yes.",
-          "Use flisk resources to list existing resources.",
-        ]);
+        throw resourceNoInputError("Resource creation needs --yes or a terminal.");
       }
 
       showCommandHeader("Resource Creation");
@@ -1443,6 +1458,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
                 ...existingStacks.map((s) => ({ title: s, value: s })),
                 { title: "Create new stack", value: "__new__" },
               ],
+            }).catch((err: unknown) => {
+              throw resourceNoInputError(err);
             });
 
             if (selectedStack === "__new__") {
@@ -1452,6 +1469,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
                   const validation = createKebabCaseValidator("stack")(input);
                   return validation === true || validation;
                 },
+              }).catch((err: unknown) => {
+                throw resourceNoInputError(err);
               });
               stackName = newStack;
             } else {
@@ -1469,10 +1488,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
               return validation === true || validation;
             },
           }).catch((err: unknown) => {
-            // A closed stdin rejects the prompt; name the flags that skip it.
-            throw new FliskError(getErrorMessage(err), [
-              "Pass --stack <name> to choose the stack, or --yes to use the default stack.",
-            ]);
+            throw resourceNoInputError(err);
           });
           stackName = newStack;
         }

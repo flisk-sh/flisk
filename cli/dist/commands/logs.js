@@ -165,9 +165,15 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 const error = errorFactories.unknownServices(unknown, known);
                 fail("UNKNOWN_SERVICE", error.message, error.exitCode, error.suggestions);
             }
+            // A local-process project has no Tilt to reach, so an idle run is not a "Tilt not running" error.
+            // Report the actual state instead, with a runtime-neutral code and command to start the stack.
+            const states = nativeServiceStates(projectRoot, known);
+            const reported = states ? Object.values(states) : [];
+            if (reported.length > 0 && reported.every((state) => state.status === "unknown")) {
+                fail("SERVICES_NOT_RUNNING", "No services of this project are running. Start them with: flisk up");
+            }
             let selected = services.length > 0 ? services : known;
             if (options.unhealthy) {
-                const states = nativeServiceStates(projectRoot, known);
                 const bad = new Set(unhealthyServiceNames(resources, states));
                 selected = selected.filter((name) => bad.has(name));
                 if (selected.length === 0)

@@ -54,10 +54,15 @@ export const VALID_RESOURCE_TYPES = [
 // migrator processes are run in production via `<runtime> run start`.
 // bring-your-own doesn't generate application code, and a database resource
 // has no code at all, so neither needs scripts.
+//
+// A migrator needs only "start": it runs `prisma migrate deploy` once and exits.
+// The generated Dockerfile replaces its backend compiler stage with the migration
+// engine (L3_generate_migration_engine) and sets migrate.sh as its entrypoint, so
+// nothing calls its "dev" or "build" script - the starters ship neither (#4577).
 export const REQUIRED_PACKAGE_SCRIPTS = {
     backend: ["dev", "build", "start"],
     worker: ["dev", "build", "start"],
-    migrator: ["dev", "build", "start"],
+    migrator: ["start"],
     mcp: ["dev", "build", "start"],
     agent: ["dev", "build", "start"],
     frontend: ["dev", "build"],
