@@ -69,6 +69,7 @@ import {
   createDoctorUsageReport,
   type DoctorError,
   getDoctorExitCode,
+  summarizeDoctorFix,
 } from "../utils/doctor-report.js";
 import {
   CONTAINER_CHECK_NAMES_MAP,
@@ -439,7 +440,9 @@ export const doctorCommand = new Command("doctor")
           },
         ];
       }
-      if (!options.json) printFixActions(fixActions, options.dryRun);
+      if (!options.json && fixActions && fixActions.length > 0) {
+        printFixActions(fixActions, options.dryRun);
+      }
     }
 
     // `.flisk/project.json` and the --no-gateway / --no-database flags decide which shared containers are checked.
@@ -748,6 +751,13 @@ export const doctorCommand = new Command("doctor")
       buildCommit,
     );
     if (fixActions) report.data.actions = fixActions;
+    if (fixActions) {
+      const { repairableCount, needsActionCount } = summarizeDoctorFix(results, fixActions);
+      report.data.repairableCount = repairableCount;
+      report.data.needsActionCount = needsActionCount;
+      report.data.repairable = repairableCount;
+      report.data.needsAction = needsActionCount;
+    }
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
     if (fixFailed) report.data.ready = false;
     const exitCode = getDoctorExitCode(report);
@@ -801,6 +811,12 @@ export const doctorCommand = new Command("doctor")
       options,
       redactValue(results, textSecrets),
     );
+    if (fixActions && fixActions.length === 0) {
+      const failedCount = results.filter(
+        (check) => !check.didPass && !check.isSkipped && !check.isWarning,
+      ).length;
+      if (!options.json) printFixActions(fixActions, options.dryRun, failedCount);
+    }
     const outcome = getDoctorOutcomeMessage(inProject, allPassed);
     console.log(
       `${allPassed ? chalk.green(chalk.bold("✓")) : chalk.red(chalk.bold("✗"))} ${outcome}`,

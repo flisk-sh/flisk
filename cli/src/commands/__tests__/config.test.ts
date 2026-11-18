@@ -458,7 +458,10 @@ describe("config migrate", () => {
     const result = await runCommandInProcess(configCommand, ["migrate"], root);
 
     expect(result.status).toBeUndefined();
-    expect(result.stdout).toContain("Migrated 0 service.json files");
+    expect(result.stdout).toContain(
+      "All 1 service.json files are already on schema version 1. Nothing to migrate.",
+    );
+    expect(result.stdout).not.toContain("Review the diff");
     expect(fs.readFileSync(serviceFile(root, "shop/api"))).toEqual(before);
   });
 

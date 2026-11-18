@@ -76,7 +76,8 @@ describe("resources stack filter options", () => {
     const result = runFlisk(["resources", "--help"], { cwd: createStackProject() });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toMatch(new RegExp(`${flag}[^\\n]*text view`));
+    const flagLine = result.stdout.split("\n").find((line) => line.includes(flag));
+    expect(flagLine).toContain("text view");
     expect(result.stdout.replace(/\s+/g, " ")).toContain("JSON output is unchanged");
   });
 
