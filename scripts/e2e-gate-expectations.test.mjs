@@ -32,14 +32,16 @@ function gateJob(gate) {
 	);
 }
 
-test("a pull request and a merge queue entry wait for every gate", () => {
-	for (const event of ["pull_request", "merge_group"]) {
-		assert.deepEqual(gatesForEvent(event), [
-			"e2e-journeys",
-			"e2e-examples",
-			"e2e-platforms",
-		]);
-	}
+test("a pull request waits for the light examples gate only", () => {
+	assert.deepEqual(gatesForEvent("pull_request"), ["e2e-examples"]);
+});
+
+test("a merge queue entry waits for every gate", () => {
+	assert.deepEqual(gatesForEvent("merge_group"), [
+		"e2e-journeys",
+		"e2e-examples",
+		"e2e-platforms",
+	]);
 });
 
 test("a push to main waits for the journeys gate only", () => {
