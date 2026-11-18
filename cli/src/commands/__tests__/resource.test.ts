@@ -922,6 +922,19 @@ describe("parseResourceType", () => {
     );
     expect(() => parseResourceType("")).toThrow(/Unknown resource type/);
   });
+  it("explains how to create a migrator instead of calling it an unknown type", () => {
+    let error: unknown;
+    try {
+      parseResourceType("migrator");
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(FliskError);
+    const { message, suggestions } = error as FliskError;
+    expect(message).not.toContain("Unknown resource type");
+    expect(suggestions.join("\n")).toContain("--feature prisma");
+    expect(suggestions.join("\n")).toContain("bring-your-own");
+  });
 });
 
 const resourceCliPath = join(dirname(fileURLToPath(import.meta.url)), "../../../bin/flisk.js");
