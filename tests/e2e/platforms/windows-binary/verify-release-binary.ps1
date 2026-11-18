@@ -44,7 +44,9 @@ if ($actualVersion -ne $env:VERSION) {
 
 $runtimeJson = & $exePath runtime --check-assets --json
 if ($LASTEXITCODE -ne 0) { throw "flisk.exe runtime --check-assets failed: $runtimeJson" }
-$runtime = $runtimeJson | ConvertFrom-Json
+$runtimeEnvelope = $runtimeJson | ConvertFrom-Json
+# --json wraps the payload in {schemaVersion, data, errors}; older builds printed it bare.
+$runtime = if ($null -ne $runtimeEnvelope.data) { $runtimeEnvelope.data } else { $runtimeEnvelope }
 if (!$runtime.ok) { throw "Runtime asset check failed: $runtimeJson" }
 
 $expectedRoot = (Resolve-Path -LiteralPath (Join-Path $releaseDir "flisk-cli")).Path.TrimEnd("\\")

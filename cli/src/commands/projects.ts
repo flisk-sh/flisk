@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { addYesOption } from "../utils/command-helpers.js";
+import { addYesOption, attachNoPositionalHint } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
@@ -58,7 +58,7 @@ async function confirmPrune(
   return confirmed;
 }
 
-export const projectsCommand = addYesOption(new Command("projects"))
+export const projectsCommand = attachNoPositionalHint(addYesOption(new Command("projects")))
   .description("Show project information and configuration status")
   .alias("info")
   .option("--check", "Check if project is properly configured", false)

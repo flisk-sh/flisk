@@ -141,9 +141,9 @@ export function importInvocation(
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
   runtime: Omit<NpxRuntime, "platform"> = {},
-): NpxInvocation {
+): NpxInvocation & { pkg: string } {
   const pkg = safePackageSpec(env.FLISK_IMPORT_PACKAGE, IMPORT_PACKAGE);
-  return npxInvocation(["--yes", pkg, ...args], { ...runtime, platform });
+  return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
 }
 
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
@@ -161,7 +161,7 @@ export function runImport(
   return new Promise((resolve) => {
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: "inherit",
-      shell: invocation.shell,
+      shell: false,
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on("error", (err) => {
@@ -198,7 +198,7 @@ export function runImportCaptured(
   return new Promise((resolve) => {
     const child = spawnFn(invocation.command, invocation.args, {
       stdio: ["ignore", "pipe", "pipe"],
-      shell: invocation.shell,
+      shell: false,
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     let stdout = "";

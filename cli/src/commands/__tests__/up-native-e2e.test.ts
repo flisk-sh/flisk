@@ -140,7 +140,10 @@ describe("flisk up with local processes (no Docker, no Tilt)", () => {
       ok: true,
       runtime: "native",
       services: ["unopinionated-api", "unopinionated-web"],
-      urls: { "unopinionated-api": localUrl(apiPort), "unopinionated-web": localUrl(webPort) },
+      urls: [
+        { service: "unopinionated-api", url: localUrl(apiPort), didAnswer: true, status: 200 },
+        { service: "unopinionated-web", url: localUrl(webPort), didAnswer: true, status: 200 },
+      ],
     });
 
     const page = await (await fetch(localUrl(webPort))).text();
