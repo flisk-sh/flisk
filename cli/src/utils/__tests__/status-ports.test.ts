@@ -220,6 +220,12 @@ describe("buildStackPorts", () => {
     expect(ports).toEqual([{ name: "tilt-ui", hostPort: 10355, purpose: "Tilt UI" }]);
   });
 
+  it("publishes no stack port for a project of local processes", () => {
+    // `native` is documented on StackPortsOptions: a project of `command` services starts no Traefik, no Tilt UI and no Postgres.
+    expect(buildStackPorts(plan, 10351, { native: true })).toEqual([]);
+    expect(buildStackPorts(plan, 10351, { native: true, gateway: true })).toEqual([]);
+  });
+
   describe("Traefik ingress rows", () => {
     it("includes both HTTP and HTTPS ingress rows with expected host ports", () => {
       const customPlan: HostPortPlan = {

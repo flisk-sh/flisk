@@ -762,3 +762,70 @@ describe("flisk status", () => {
     expect(stripVTControlCharacters(errors.join("\n"))).toContain("Could not find project root");
   });
 });
+
+// A project of `command` services runs on localhost: no Traefik, no Tilt UI and no Postgres container, so `status` must
+// not name any of them. The Docker fixture above keeps its report; this fixture proves the other runtime.
+describe("flisk status in a local-process project", () => {
+  const originalCwd = process.cwd();
+  const originalExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
+  let nativeRoot = "";
+
+  beforeAll(async () => {
+    nativeRoot = mkdtempSync(join(tmpdir(), "flisk-status-native-"));
+    process.chdir(nativeRoot);
+    process.env.FLISK_EXTENSION_SOURCE = repoRoot;
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await projectCommand.parseAsync(["--yes"], { from: "user" });
+    } finally {
+      log.mockRestore();
+      warn.mockRestore();
+    }
+    for (const [dir, appName, appType, port] of [
+      ["services/app/api", "api", "backend", 3001],
+      ["services/app/web", "web", "frontend", 4000],
+    ] as const) {
+      mkdirSync(join(nativeRoot, dir), { recursive: true });
+      writeFileSync(
+        join(nativeRoot, dir, "service.json"),
+        JSON.stringify({ appName, appType, port, command: "bun run dev" }, null, 2),
+      );
+    }
+  }, 30000);
+
+  afterAll(() => {
+    process.chdir(originalCwd);
+    if (originalExtensionSource === undefined) delete process.env.FLISK_EXTENSION_SOURCE;
+    else process.env.FLISK_EXTENSION_SOURCE = originalExtensionSource;
+    if (nativeRoot.startsWith(tmpdir())) rmSync(nativeRoot, { recursive: true, force: true });
+  });
+
+  beforeEach(() => {
+    clearDiscoveryCache();
+    vi.mocked(isTiltAvailable).mockResolvedValue(true);
+    vi.mocked(runTilt).mockReset();
+    vi.mocked(tiltGetUiResources).mockReset().mockResolvedValue(null);
+    vi.mocked(findTiltPortOwner).mockReset().mockReturnValue(null);
+  });
+
+  it("says no platform service runs instead of claiming Traefik and PostgreSQL", async () => {
+    const output = await runStatus();
+
+    expect(output).toContain("Runtime: local processes (no Docker, no Tilt)");
+    expect(output).toContain("Platform services:");
+    expect(output).toContain(
+      "none: services run as local processes on localhost (no router, no database container)",
+    );
+    expect(output).not.toContain("Traefik");
+    expect(output).not.toContain("PostgreSQL");
+  });
+
+  it("reports no platform service and no platform port in --json", async () => {
+    const output = JSON.parse(await runStatus(["--json"]));
+
+    expect(output.data.runtime).toBe("native");
+    expect(output.data.platformServices).toEqual([]);
+    expect(output.data.ports).toEqual([]);
+  });
+});

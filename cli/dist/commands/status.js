@@ -143,7 +143,10 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
             : null;
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
-        const platformServices = describePlatformServices(projectRoot, discovery.resources, options);
+        // A project of local processes runs no router and no database container, so its resources use neither.
+        const platformServices = nativeProject
+            ? []
+            : describePlatformServices(projectRoot, discovery.resources, options);
         // `extraPorts` published through ${VAR:-default} resolve from the shell and the project .env, like Compose.
         const envLookup = projectEnvLookup(projectRoot ?? undefined);
         let tiltAvailable = false;
@@ -312,7 +315,10 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                         ? { blockedBy: serviceStates[resource.name]?.blockedBy }
                         : {}),
                 })),
-                ports: buildStackPorts(portPlan, tiltPort, { gateway: gatewayEnabled }),
+                ports: buildStackPorts(portPlan, tiltPort, {
+                    gateway: gatewayEnabled,
+                    native: nativeProject,
+                }),
                 stacks: discovery.stacks.map((stack) => ({
                     name: stack.name,
                     resourceCount: stack.resourceCount,
@@ -382,8 +388,14 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         if (!unhealthyOnly) {
             console.log();
             console.log(chalk.bold("Platform services:"));
-            for (const service of platformServices) {
-                showDetail(`${service.name}: ${service.reason}`);
+            if (nativeProject) {
+                // Say what runs instead of naming a router and a database the runtime does not start.
+                showDetail("none: services run as local processes on localhost (no router, no database container)");
+            }
+            else {
+                for (const service of platformServices) {
+                    showDetail(`${service.name}: ${service.reason}`);
+                }
             }
         }
         if (sharedInfraGroup && !unhealthyOnly) {
