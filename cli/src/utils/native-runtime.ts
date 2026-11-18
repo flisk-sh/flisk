@@ -284,6 +284,31 @@ export function planNativeRun(
   return { services, errors, missingVars };
 }
 
+/** Shell builtins that run before the program we care about, so they never name what is missing. */
+const SHELL_BUILTINS = ["cd", ".", "source", "true", ":"];
+
+/**
+ * The program a command really starts. A setup job of a generated starter declares `cd ../agent && npm install`
+ * (#3885), whose first word is the shell builtin `cd`; what fails on a machine without `npm` is the word after it.
+ * A program with a path after the `cd` stays unresolved: it is relative to that directory, not to the service, so it is
+ * left for the shell to report rather than guessed at.
+ */
+function leadingProgram(command: string): string | null {
+  let moved = false;
+  for (const segment of command.split(/&&|;/)) {
+    const program = commandProgram(segment);
+    // A shell builtin or an expression we cannot parse is left to the shell to report.
+    if (!program) return null;
+    if (SHELL_BUILTINS.includes(program)) {
+      if (program === "cd") moved = true;
+      continue;
+    }
+    if (moved && program.includes("/")) return null;
+    return program;
+  }
+  return null;
+}
+
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
 export function findMissingPrograms(
   plans: readonly NativeServicePlan[],
@@ -292,9 +317,8 @@ export function findMissingPrograms(
 ): Array<{ name: string; program: string }> {
   const missing: Array<{ name: string; program: string }> = [];
   for (const plan of plans) {
-    const program = commandProgram(plan.command);
-    // A shell builtin or an expression we cannot parse is left to the shell to report.
-    if (!program || ["cd", ".", "source", "true", ":"].includes(program)) continue;
+    const program = leadingProgram(plan.command);
+    if (!program) continue;
     const found = program.includes("/") ? exists(join(plan.cwd, program)) : Boolean(find(program));
     if (!found) missing.push({ name: plan.name, program });
   }

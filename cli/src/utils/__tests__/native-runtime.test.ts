@@ -243,6 +243,42 @@ describe("native run planning", () => {
       { name: "bin", program: "./bin/server" },
     ]);
   });
+
+  it("names the program after a leading cd, as a generated setup job declares it (#3885)", () => {
+    const plans = planNativeRun([
+      makeResource("setup", "bring-your-own", {
+        command: "cd ../agent && npm install --no-audit --no-fund",
+      }),
+      makeResource("semicolon", "bring-your-own", { command: "cd ../agent; npm install" }),
+      makeResource("installed", "bring-your-own", { command: "cd ../agent && node server.mjs" }),
+      makeResource("path", "bring-your-own", { command: "cd ../agent && ./bin/run" }),
+      makeResource("alone", "bring-your-own", { command: "cd ../agent" }),
+    ]).services;
+    // `./bin/run` is relative to ../agent, so it is left to the shell; `node` is on PATH and a lone `cd` is a builtin.
+    expect(
+      findMissingPrograms(
+        plans,
+        (program) => (program === "node" ? "/usr/bin/node" : null),
+        () => false,
+      ),
+    ).toEqual([
+      { name: "setup", program: "npm" },
+      { name: "semicolon", program: "npm" },
+    ]);
+  });
+
+  it("reports nothing when the program after a leading cd is installed", () => {
+    const plans = planNativeRun([
+      makeResource("setup", "bring-your-own", { command: "cd ../agent && npm install" }),
+    ]).services;
+    expect(
+      findMissingPrograms(
+        plans,
+        () => "/usr/bin/npm",
+        () => false,
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe("service directory .env expansion (#3141)", () => {
