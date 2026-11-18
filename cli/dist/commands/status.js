@@ -326,8 +326,9 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 ...skippedServiceFiles(discovery.problems, projectRoot),
                 sharedInfra: sharedInfraGroup,
                 platformServices,
-                // A project of local processes starts neither shared container, so it reports no capability (#3873).
-                capabilities: reportedCapabilities(projectRoot, discovery.resources, options),
+                // A project of local processes starts neither shared container, so it reports no capability (#3873). Classify it from
+                // every resource, not the --stack slice, so a filtered view reports what the whole project does.
+                capabilities: reportedCapabilities(projectRoot, all.resources, options),
                 // Names of the failing or pending services, so a caller need not filter `resources` itself.
                 unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
             };
