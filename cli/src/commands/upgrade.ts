@@ -23,6 +23,7 @@ import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { PACKAGE_JSON } from "../utils/constants.js";
 import { FliskError, getErrorMessage, logVerbose, showErrorAndExit } from "../utils/errors.js";
 import { showCancelled } from "../utils/formatting.js";
+import { fetchRegistryVersion } from "../utils/latest-version.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { getPackageVersion } from "../utils/paths.js";
 import { binaryAssetName, executableName, isWindows } from "../utils/platform.js";
@@ -559,34 +560,30 @@ export function getCurrentVersion(): string {
   }
 }
 
+function getNpmRegistryVersion(): string | null {
+  try {
+    return execFileSync("npm", ["view", "@flisk-sh/flisk", "version"], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 10_000,
+    }).trim();
+  } catch (err: unknown) {
+    if (err instanceof Error && "code" in err && err.code === "ENOENT") return null;
+    // The subprocess error message can include npm's raw stderr.
+    throw new Error("npm view failed");
+  }
+}
+
 /** @internal Exported for unit tests only; not part of the package API. */
 export async function getLatestVersion(options: { quiet?: boolean } = {}): Promise<string | null> {
   const quiet = options.quiet === true;
   const spinner = quiet ? null : startSpinner("Checking for latest version...");
 
   try {
-    let result: string;
-    if (isWindows()) {
-      const response = await fetch("https://registry.npmjs.org/@flisk-sh%2fflisk/latest", {
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok)
-        throw new FliskError(`npm registry returned ${response.status}`, [
-          "Check your network connection and npm registry access",
-          "Run: npm view @flisk-sh/flisk version",
-        ]);
-      const latest = (await response.json()) as { version?: string };
-      result = latest.version ?? "";
-      if (!result)
-        throw new FliskError("npm registry response did not include a version", [
-          "Run: npm view @flisk-sh/flisk version",
-        ]);
-    } else {
-      result = execSync("npm view @flisk-sh/flisk version", {
-        encoding: "utf-8",
-        timeout: 10000,
-      }).trim();
-    }
+    // Keep npm's configured registry on Unix. Windows already uses the HTTP path.
+    const result =
+      (isWindows() ? null : getNpmRegistryVersion()) ??
+      (await fetchRegistryVersion(AbortSignal.timeout(10_000))).trim();
     spinner?.succeed(`Latest version: ${chalk.green(result)}`);
     return result;
   } catch (err: unknown) {
@@ -953,8 +950,9 @@ async function resolveUpgradeDryRunVersion(
   const latestVersion = await getLatestVersion({ quiet: true });
   if (!latestVersion) {
     throw new FliskError("Could not determine latest version", [
-      "Check your network connection and retry: flisk upgrade --dry-run --json",
+      "Check your network connection and npm registry access, then retry: flisk upgrade --dry-run --json",
       "Or install manually: npm install -g @flisk-sh/flisk@latest",
+      "For Bun: bun install -g @flisk-sh/flisk@latest",
     ]);
   }
   return { latestVersion, upgradeAvailable: latestVersion !== currentVersion };

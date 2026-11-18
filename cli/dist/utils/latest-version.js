@@ -49,6 +49,20 @@ function readCache(path, now) {
         return null;
     }
 }
+/** @internal Fetch the current registry version without using the notice cache. */
+export async function fetchRegistryVersion(signal, fetchImpl = fetch) {
+    const response = await fetchImpl(LATEST_VERSION_URL, {
+        headers: { accept: "application/json" },
+        signal,
+    });
+    if (!response.ok)
+        throw new Error(`npm registry returned ${response.status}`);
+    const body = (await response.json());
+    if (typeof body?.version !== "string" || !body.version.trim()) {
+        throw new Error("npm registry response did not include a version");
+    }
+    return body.version;
+}
 /**
  * The newest published version, or null when it is unknown. Cached for a day under ~/.flisk, and
  * never slower than the timeout: any failure (offline, slow, bad answer) returns null.
@@ -68,14 +82,8 @@ export async function fetchLatestVersion(options = {}) {
     try {
         const controller = new AbortController();
         const request = (async () => {
-            const response = await (options.fetchImpl ?? fetch)(LATEST_VERSION_URL, {
-                headers: { accept: "application/json" },
-                signal: controller.signal,
-            });
-            if (!response.ok)
-                return null;
-            const body = (await response.json());
-            return typeof body.version === "string" && parseParts(body.version) ? body.version : null;
+            const version = await fetchRegistryVersion(controller.signal, options.fetchImpl);
+            return parseParts(version) ? version : null;
         })();
         // A hard race, so a fetch that ignores the abort signal still cannot hold the demo.
         const deadline = new Promise((resolve) => {
