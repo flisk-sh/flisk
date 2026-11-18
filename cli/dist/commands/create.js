@@ -180,10 +180,11 @@ export async function collectAnswers(nameArg, options, interactive) {
     const frontends = frontendCatalog();
     const backends = backendCatalog();
     const extrasCatalog = extraCatalog();
+    // Report every starter conflict first, so a --backend none/--language clash cannot hide the others.
+    assertNoStarterConflicts(options, starters);
     if (options.backend === "none" && options.language !== undefined) {
         throw new FliskError(`--language ${options.language} has no API to apply to: --backend none leaves the API out.`, ["Drop --backend none to get an API in that language, or drop --language."]);
     }
-    assertNoStarterConflicts(options, starters);
     const flagged = {
         frontend: options.frontend !== undefined,
         backend: options.backend !== undefined || options.language !== undefined,

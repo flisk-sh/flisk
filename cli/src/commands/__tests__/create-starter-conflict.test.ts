@@ -74,8 +74,8 @@ describe("create starter conflicting flags (issue 4419)", () => {
     ).resolves.toMatchObject({ starter: dockerStarter });
   });
 
-  it("keeps --json output machine readable when a conflicting flag is present", () => {
-    const cwd = mkdtempSync(join(tmpdir(), "flisk-create-conflict-json-"));
+  it("names every conflicting flag on the command line, before the backend/language guard", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "flisk-create-conflict-cli-"));
     const run = runFlisk(
       [
         "create",
@@ -86,17 +86,19 @@ describe("create starter conflicting flags (issue 4419)", () => {
         dockerStarter,
         "--frontend",
         "vue",
-        "--json",
+        "--backend",
+        "none",
+        "--language",
+        "python",
       ],
       { cwd, timeout: 30_000 },
     );
 
     expect(run.status).toBe(1);
-    expect(run.stderr).toBe("");
-    const envelope = JSON.parse(run.stdout.trim());
-    expect(envelope.schemaVersion).toBe(1);
-    expect(envelope.data).toBeNull();
-    expect(envelope.errors[0].code).toBe("USAGE");
+    const output = `${run.stdout}\n${run.stderr}`;
+    expect(output).toContain("--frontend");
+    expect(output).toContain("--language");
+    expect(output).not.toContain("has no API to apply to");
   });
 
   it("exits 1 with a clear message on a dry run with a conflicting flag", () => {
