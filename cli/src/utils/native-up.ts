@@ -17,6 +17,7 @@ import {
   isPortListening,
   isProcessAlive,
   NATIVE_DIR,
+  type NativeServicePlan,
   NativeSupervisor,
   nativeRunStatePath,
   planNativeRun,
@@ -53,6 +54,25 @@ export interface NativeFailure {
   name: string;
   reason: string;
   logs?: string[];
+}
+
+/** Per-URL readiness entries for `flisk up --json` in a local-process run, matching the container `data.urls` shape. */
+export function nativeUrlChecks(
+  services: readonly Pick<NativeServicePlan, "name" | "url">[],
+  statuses?: ReadonlyMap<string, number>,
+): Array<{ service: string; url: string; didAnswer: boolean; status: number }> {
+  return services.flatMap((service) =>
+    service.url
+      ? [
+          {
+            service: service.name,
+            url: service.url,
+            didAnswer: true,
+            status: statuses?.get(service.name) ?? 200,
+          },
+        ]
+      : [],
+  );
 }
 
 /**
@@ -384,8 +404,11 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
     stack: input.stackName ?? null,
     services: serviceNames,
     ...(input.only ? { requested: input.only, dependencies: input.dependencies } : {}),
-    urls: Object.fromEntries(
-      plan.services.flatMap((service) => (service.url ? [[service.name, service.url]] : [])),
+    urls: nativeUrlChecks(
+      plan.services,
+      "readyStatuses" in supervisor && typeof supervisor.readyStatuses === "function"
+        ? supervisor.readyStatuses()
+        : undefined,
     ),
   });
   if (!quiet) {

@@ -63,6 +63,7 @@ export declare function resolveWords(words: string[]): {
 };
 /** What `flisk tool add` needs from the project before it runs `flisk resource`: its resources and their stacks. */
 export interface ProjectView {
+    native?: boolean;
     resources: Array<{
         name: string;
         stack?: string;

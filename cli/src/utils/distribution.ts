@@ -470,9 +470,7 @@ export function buildBoard(resources: DiscoveredResource[], dist: DistributionFi
     list.length > 0 ? filled(`${list.length} ${label}`) : missing(hint);
 
   const planned = [
-    ...new Set(
-      withStatus("live", "review", "draft", "blocked", "todo").map((e) => channelName(e.id)),
-    ),
+    ...new Set(withStatus("live", "review", "draft", "blocked").map((e) => channelName(e.id))),
   ].sort();
   const listedWhere = [
     ...new Set(withStatus("live", "review").map((e) => channelName(e.id))),

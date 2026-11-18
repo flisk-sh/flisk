@@ -1,0 +1,8 @@
+# GHSA-fc5q-39xc-vjpf (CVE-2026-112366): picomatch ReDoS through repeated extglobs. No fixed release exists yet
+# (4.0.7 is the latest and the advisory lists it as the last affected version). picomatch only reaches Flisk as a
+# dev-time dependency of vite, vitest, knip and tinyglobby, and never sees untrusted glob patterns. Drop this entry
+# and bump picomatch once a patched release ships.
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2027-02-17
+reason = "No patched picomatch release exists; dev-time dependency only, never given untrusted glob patterns"
