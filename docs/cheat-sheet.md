@@ -699,7 +699,7 @@ Checks that `MAINTAINERS.md` (or `[file]`) lists 3 maintainers from 2 companies.
 
 Commands with `--json`: `projects`, `resources`, `stacks`, `status`, `up`, `down`, `logs`, `networks`, `doctor`, `runtime`, `agent sessions`, `config verify`, `config explain`.
 
-`flisk agent sessions --watch --json` is refused: it exits 1 with `USAGE` in the JSON envelope, not a command failure.
+`flisk agent sessions --watch --json` is refused: it exits 2 with `USAGE` in the JSON envelope, not a command failure.
 
 | Exit code | Meaning |
 | --- | --- |
