@@ -67,9 +67,11 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // the range, so `npm install` in the scaffold no longer fails with ERESOLVE. That is the only file that differs.
 // It was re-captured for #4228: the Bun `src/index.ts` now falls back to the port in service.json (4000 here) instead of
 // 3000 when PORT is unset, so the source, the Dockerfile and `flisk networks` agree. That is the only file that differs.
+// It was re-captured for the vitest pin on 2026-11-18: 5.1.0 crashes npm 10.9.9's arborist again (edgesOut null) now that its
+// transitive tree moved, so the scaffold writes `vitest: "5.1.1"`. That is the only byte that differs, in package.json.
 const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "ab9eccc0e49b03ed292bcffeb84e59dcc1a35d7e54170a489242df549fa7d11e",
-  "package.json": "9ca5439e9cbffc9e806d8c153ba54bf300102cd3e7012e3e07a7cf85d0699a48",
+  "package.json": "6a4847b0a3bad8fca07d4939618da361a28724a4f92d01505c66326e40060cc3",
   "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "8e92eeeb5f62315b2a3753963f71d948ac8b39dc31696177b5cbd7ac995536f9",
   "tests/orders-api.test.ts": "01bd607ddaed0147fb67dc8993c6d61e19ccc368bce95b48141d2e7e0c3bc0d4",
