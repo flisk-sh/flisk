@@ -41,6 +41,7 @@ test("a merge queue entry waits for every gate", () => {
 		"e2e-journeys",
 		"e2e-examples",
 		"e2e-platforms",
+		"e2e-resource-types",
 	]);
 });
 
