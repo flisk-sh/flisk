@@ -122,11 +122,15 @@ D4() { # boot, health check, and prove the routed worker write path
       done
       if [ "$ready" = true ]; then booted=true; break; fi
 
-      echo "The example stack did not become reachable on attempt $boot_attempt (Traefik may have failed to bind); retrying the bring-up."
-      tilt get uiresources -o json 2>&1 | jq -r '.items[] | "\(.metadata.name): update=\(.status.updateStatus // "-") runtime=\(.status.runtimeStatus // "-") error=\((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || true
-      kill "$flisk_pid" 2>/dev/null || true
-      flisk down >/dev/null 2>&1 || true
-      sleep 3
+      # On the last attempt, leave the stack up so the cleanup trap can still collect container and NATS
+      # logs for a genuine (non-transient) failure; only tear down between attempts to retry cleanly.
+      if [ "$boot_attempt" -lt 2 ]; then
+        echo "The example stack did not become reachable on attempt $boot_attempt (Traefik may have failed to bind); retrying the bring-up."
+        tilt get uiresources -o json 2>&1 | jq -r '.items[] | "\(.metadata.name): update=\(.status.updateStatus // "-") runtime=\(.status.runtimeStatus // "-") error=\((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || true
+        kill "$flisk_pid" 2>/dev/null || true
+        flisk down >/dev/null 2>&1 || true
+        sleep 3
+      fi
     done
 
     if [ "$booted" != true ]; then
