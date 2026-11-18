@@ -131,8 +131,10 @@ for (const scenario of ["changed", "missing", "CRLF"]) {
 }
 
 test("the checker finds the repository independently of the caller's directory", (t) => {
+	const caller = fixture(t);
+	rmSync(path.join(caller, DIRECTORIES[0], "install-deps.sh"));
 	const result = spawnSync(process.execPath, [fileURLToPath(new URL("check-docker-templates.mjs", import.meta.url))], {
-		cwd: fixture(t), encoding: "utf8", timeout: 10_000,
+		cwd: caller, encoding: "utf8", timeout: 10_000,
 	});
 	assert.ifError(result.error);
 	assert.equal(result.status, 0, result.stderr);
