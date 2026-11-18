@@ -33,7 +33,8 @@ export const stacksCommand = routeUsageErrorsToJson(new Command("stacks"))
             : typeof options.stack === "string"
                 ? options.stack
                 : undefined;
-        if (stackName !== undefined && !stackExists(stackName, discovery.resources)) {
+        // An empty selector is never a stack: a service.json with `"stack": ""` would otherwise pass the existence check.
+        if (stackName !== undefined && (stackName === "" || !stackExists(stackName, discovery.resources))) {
             throw errorFactories.stackNotFound(stackName, discovery.stackNames);
         }
         const visibleStacks = stackName !== undefined
