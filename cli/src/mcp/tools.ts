@@ -30,6 +30,7 @@ import {
   redactValue,
 } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
+import { compileLogGrep, isValidLogContext } from "../utils/tilt-logs.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
@@ -499,6 +500,37 @@ export function buildLogsArgs(args: Record<string, unknown>): string[] {
     }
     out.push(`--source=${args.source}`);
   }
+  if (args.grep !== undefined) {
+    if (typeof args.grep !== "string") {
+      throw new FliskError(
+        "grep must be a regular expression string",
+        ["Pass grep as a string, such as error"],
+        2,
+      );
+    }
+    try {
+      compileLogGrep(args.grep);
+    } catch {
+      throw new FliskError(
+        `Invalid grep regular expression: ${args.grep}`,
+        ["Use a valid JavaScript regular expression"],
+        2,
+      );
+    }
+    out.push(`--grep=${args.grep}`);
+  }
+  if (args.context !== undefined) {
+    if (args.grep === undefined)
+      throw new FliskError("context requires grep", ["Pass grep as well, or omit context"], 2);
+    if (typeof args.context !== "number" || !isValidLogContext(String(args.context))) {
+      throw new FliskError(
+        "context must be a non-negative safe integer",
+        ["Pass a whole number from 0 to 9007199254740991"],
+        2,
+      );
+    }
+    out.push(`--context=${args.context}`);
+  }
   return out;
 }
 
@@ -885,6 +917,17 @@ export function createFliskTools(
           description: "Only these services",
         },
         tail: { type: "integer", minimum: 1, maximum: 10000 },
+        grep: {
+          type: "string",
+          description:
+            "Filter content by regex; ignores case unless the pattern contains uppercase. Matches have match: true.",
+        },
+        context: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "With grep, keep this many neighboring lines per service (match: false). Default 0.",
+        },
         since: {
           type: "string",
           description: "Only logs newer than this, for example 30s, 5m, 1h",

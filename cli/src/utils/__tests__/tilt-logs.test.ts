@@ -2,14 +2,73 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import {
+  compileLogGrep,
   DEFAULT_LOG_TAIL,
+  filterLogContent,
   isTiltConnectionFailure,
+  isValidLogContext,
   isValidPort,
   isValidSince,
   isValidTail,
   MAX_LOG_TAIL,
   parseTiltLogLines,
 } from "../tilt-logs.js";
+
+describe("log content filtering", () => {
+  const record = (resource: string, text: string) => ({
+    resource,
+    text,
+    time: "t",
+    source: "runtime",
+  });
+
+  it("uses smart case without matching the service name", () => {
+    const input = [record("ERROR", "quiet"), record("a", "error"), record("a", "ERROR")];
+    expect(filterLogContent(input, compileLogGrep("error"), 0).map((r) => r.text)).toEqual([
+      "error",
+      "ERROR",
+    ]);
+    expect(filterLogContent(input, compileLogGrep("ERROR"), 0).map((r) => r.text)).toEqual([
+      "ERROR",
+    ]);
+    expect(filterLogContent(input, compileLogGrep("missing"), 3)).toEqual([]);
+    expect(() => compileLogGrep("[")).toThrow();
+  });
+
+  it("merges overlapping windows per service while preserving interleaved order", () => {
+    const input = [
+      record("a", "before"),
+      record("b", "excluded"),
+      record("a", "ERROR one"),
+      record("b", "also excluded"),
+      record("a", "between"),
+      record("a", "ERROR two"),
+      record("a", "after"),
+    ];
+    expect(filterLogContent(input, compileLogGrep("error"), 1)).toEqual(
+      input
+        .filter((r) => r.resource === "a")
+        .map((r) => ({ ...r, match: r.text.startsWith("ERROR") })),
+    );
+    expect(input.every((r) => !("match" in r))).toBe(true);
+  });
+
+  it("expands multiline Tilt messages and clips large context to the window", () => {
+    const input = [record("a", "before\r\nERROR\r\nafter\r\n"), record("b", "unrelated")];
+    expect(filterLogContent(input, compileLogGrep("ERROR"), Number.MAX_SAFE_INTEGER)).toEqual(
+      ["before", "ERROR", "after"].map((text) => ({ ...input[0], text, match: text === "ERROR" })),
+    );
+    expect(filterLogContent([], compileLogGrep(""), 0)).toEqual([]);
+    expect(filterLogContent([record("a", "")], compileLogGrep(""), 0)[0]?.match).toBe(true);
+  });
+
+  it("accepts only whole non-negative safe context counts", () => {
+    for (const value of ["0", "1", "10000", String(Number.MAX_SAFE_INTEGER)])
+      expect(isValidLogContext(value)).toBe(true);
+    for (const value of ["-1", "1.5", "Infinity", "", "1e3", String(Number.MAX_SAFE_INTEGER + 1)])
+      expect(isValidLogContext(value)).toBe(false);
+  });
+});
 
 const line = (message: string, extra: Record<string, unknown> = {}) =>
   JSON.stringify({

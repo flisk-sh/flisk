@@ -75,7 +75,16 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  for (const option of ["service", "since", "port", "tail", "unhealthy", "source"])
+  for (const option of [
+    "service",
+    "since",
+    "port",
+    "tail",
+    "unhealthy",
+    "source",
+    "grep",
+    "context",
+  ])
     logsCommand.setOptionValue(option, undefined);
   logsCommand.setOptionValue("tail", "200");
   logsCommand.setOptionValue("json", false);
@@ -491,5 +500,95 @@ describe("flisk logs --source", () => {
     await logsCommand.parseAsync(["--source", "runtime", "--tail", "1"], { from: "user" });
     expect(out.join("\n")).toContain("api | BOOM: DATABASE_URL missing");
     expect(out.join("\n")).not.toContain("STEP 1/9");
+  });
+});
+
+describe("log content filtering", () => {
+  it("applies source and tail selection before matching and context", async () => {
+    tilt.runTilt.mockResolvedValueOnce(
+      ok(
+        [
+          logLine("ERROR outside tail"),
+          logLine("before"),
+          JSON.stringify({ resource: "api", source: "build", message: "ERROR build" }),
+          logLine("ERROR kept"),
+          logLine("after"),
+        ].join("\n"),
+      ),
+    );
+    const { envelope } = await run(
+      "--source",
+      "runtime",
+      "--tail",
+      "3",
+      "--since",
+      "5m",
+      "--grep",
+      "error",
+      "--context",
+      "1",
+    );
+    expect(envelope).toMatchObject({
+      data: {
+        lines: [
+          { text: "before", match: false },
+          { text: "ERROR kept", match: true },
+          { text: "after", match: false },
+        ],
+      },
+    });
+    expect(tilt.runTilt).toHaveBeenCalledWith(
+      "logs",
+      expect.arrayContaining(["--since", "5m", "--json"]),
+      expect.anything(),
+    );
+  });
+
+  it.each(["-1", "1.5", "9007199254740992"])("rejects invalid context %s", async (context) => {
+    const { code } = await run("--grep", "error", "--context", context);
+    expect(code).toBe(2);
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("keeps matching lines with surrounding context and marks JSON matches", async () => {
+    tilt.runTilt.mockResolvedValueOnce(
+      ok(
+        [logLine("before"), logLine("ERROR crash"), logLine("after"), logLine("unrelated")].join(
+          "\n",
+        ),
+      ),
+    );
+    const { envelope, code } = await run("--grep", "error", "--context", "1");
+    expect(code).toBeNull();
+    expect(envelope).toMatchObject({
+      data: {
+        lines: [
+          { text: "before", match: false },
+          { text: "ERROR crash", match: true },
+          { text: "after", match: false },
+        ],
+      },
+    });
+  });
+
+  it("returns an empty successful snapshot for no matches", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(logLine("ordinary output")));
+    const { envelope, code } = await run("--grep", "ERROR");
+    expect(code).toBeNull();
+    expect(envelope).toMatchObject({ data: { lines: [] }, errors: [] });
+  });
+
+  it("rejects an invalid pattern with usage status before reading logs", async () => {
+    const { envelope, code } = await run("--grep", "[");
+    expect(code).toBe(2);
+    expect(envelope.errors[0]).toMatchObject({ code: "USAGE" });
+    expect(envelope.errors[0]?.message).toContain("[");
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("rejects context without a pattern", async () => {
+    const { envelope, code } = await run("--context", "1");
+    expect(code).toBe(2);
+    expect(envelope.errors[0]).toMatchObject({ code: "USAGE" });
   });
 });

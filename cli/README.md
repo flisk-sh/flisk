@@ -254,7 +254,14 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk up` (services with `command`) | 🏃 Run them as local processes without Docker or Tilt, in `dependsOn` order, with prefixed logs and restarts; Ctrl+C or `flisk down` stops them | `flisk up` |
 | `flisk down` | ⏹️ Stop all services | `flisk down` |
 | `flisk status` | 📊 Show resource status | `flisk status` |
-| `flisk logs` | 📜 Print a bounded snapshot of recent logs from the running stack (`--json`) | `flisk logs` |
+| `flisk logs` | 📜 Print a bounded snapshot of recent logs; filter content with `--grep <regex>` and optional per-service `--context <n>` (`--json`) | `flisk logs --grep error --context 2` |
+
+`--grep` uses a JavaScript regular expression on redacted log content. Patterns without uppercase
+letters ignore case. `--context` defaults to zero and keeps neighboring lines from the same service;
+overlapping windows emit each line once. Service, source, time and tail selection happen first, so
+context stays inside that bounded snapshot. JSON lines have `match: true` for hits and `match: false`
+for context; no hits return an empty list with exit code zero. Invalid regex or context values exit
+with usage code 2. The MCP `logs` tool accepts the same `grep` and `context` options.
 
 ---
 

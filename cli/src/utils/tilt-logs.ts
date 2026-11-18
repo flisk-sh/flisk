@@ -94,6 +94,54 @@ export function filterLogSource<T extends { source: string | null }>(
   return lines.filter((line) => (line.source === "build") === (source === "build"));
 }
 
+/** Compile a smart-case expression: a pattern without uppercase characters ignores case. */
+export function compileLogGrep(pattern: string): RegExp {
+  return new RegExp(pattern, pattern === pattern.toLowerCase() ? "i" : "");
+}
+
+/** Context is a non-negative safe integer; it is clipped to the selected log window. */
+export function isValidLogContext(value: string): boolean {
+  return /^\d+$/.test(value) && Number.isSafeInteger(Number(value));
+}
+
+/**
+ * Match redacted content within the selected window, retaining neighbors from the same service only.
+ * Tilt can batch multiple physical lines in one message. Expand those only for content filtering,
+ * preserving metadata and input order. Merge overlapping context ranges so no line appears twice.
+ */
+export function filterLogContent<T extends { resource: string | null; text: string }>(
+  lines: readonly T[],
+  pattern: RegExp,
+  context: number,
+): Array<T & { match: boolean }> {
+  const expanded = lines.flatMap((line) => {
+    const text = line.text.replace(/\r?\n$/, "");
+    return text.split(/\r?\n/).map((part) => ({ ...line, text: part }));
+  });
+  const matches = expanded.map((line) => pattern.test(line.text));
+  const services = new Map<string | null, number[]>();
+  for (const [index, line] of expanded.entries()) {
+    const indices = services.get(line.resource) ?? [];
+    indices.push(index);
+    services.set(line.resource, indices);
+  }
+  const keep = new Set<number>();
+  for (const indices of services.values()) {
+    let end = -1;
+    for (const [position, index] of indices.entries()) {
+      if (!matches[index]) continue;
+      const start = Math.max(end + 1, position - context, 0);
+      end = Math.min(position + context, indices.length - 1);
+      for (let neighbor = start; neighbor <= end; neighbor++) {
+        keep.add(indices[neighbor] as number);
+      }
+    }
+  }
+  return expanded.flatMap((line, index) =>
+    keep.has(index) ? [{ ...line, match: matches[index] as boolean }] : [],
+  );
+}
+
 /** True when `tilt logs` failed because no Tilt server answered, as opposed to rejecting its arguments. */
 export function isTiltConnectionFailure(stderr: string): boolean {
   return /connection refused|connecting to Tilt|no such host|dial tcp|websocket_token/i.test(

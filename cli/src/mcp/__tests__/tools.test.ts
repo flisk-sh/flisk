@@ -209,6 +209,18 @@ function recordingTools(
 }
 
 describe("argument building", () => {
+  it("forwards log content filtering options and rejects invalid patterns", () => {
+    expect(buildLogsArgs({ grep: "ERROR|warn", context: 2 })).toEqual([
+      "logs",
+      "--json",
+      "--grep=ERROR|warn",
+      "--context=2",
+    ]);
+    expect(() => buildLogsArgs({ grep: "[" })).toThrow();
+    expect(() => buildLogsArgs({ grep: "error", context: -1 })).toThrow();
+    expect(() => buildLogsArgs({ context: 1 })).toThrow();
+  });
+
   it("builds up arguments, one --only= per service so a value is never a flag", () => {
     expect(
       buildUpArgs({ stack: "store", only: ["api", "web"], force: true, dryRun: true }),

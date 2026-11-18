@@ -17,7 +17,7 @@ import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { unhealthyServiceNames } from "../utils/status-groups.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
-import { DEFAULT_LOG_TAIL, filterLogSource, isTiltConnectionFailure, isValidLogSource, isValidSince, isValidTail, LOG_SOURCES, MAX_LOG_TAIL, parseTiltLogLines, sinceMilliseconds, } from "../utils/tilt-logs.js";
+import { compileLogGrep, DEFAULT_LOG_TAIL, filterLogContent, filterLogSource, isTiltConnectionFailure, isValidLogContext, isValidLogSource, isValidSince, isValidTail, LOG_SOURCES, MAX_LOG_TAIL, parseTiltLogLines, sinceMilliseconds, } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
 import { isValidPort } from "../utils/validation.js";
 /** Resource names Tilt knows about, or null when they cannot be listed (the logs call then reports the real error). */
@@ -84,6 +84,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
+    .option("--grep <regex>", "Filter log content (case-insensitive unless the pattern contains uppercase)")
+    .option("--context <n>", "Include n lines before and after each match within the same service")
     .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
     .option("--unhealthy", "Only services that are failing or still starting", false)
     .option("--port <n>", "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)")
@@ -120,6 +122,22 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         fail("USAGE", `--source must be one of: ${LOG_SOURCES.join(", ")}`, 2);
     }
     const source = options.source;
+    if (options.context !== undefined && options.grep === undefined) {
+        fail("USAGE", "--context requires --grep", 2);
+    }
+    if (options.context !== undefined && !isValidLogContext(options.context)) {
+        fail("USAGE", "--context must be a non-negative safe integer", 2);
+    }
+    let grep;
+    if (options.grep !== undefined) {
+        try {
+            grep = compileLogGrep(options.grep);
+        }
+        catch {
+            fail("USAGE", `Invalid --grep regular expression: ${options.grep}`, 2);
+        }
+    }
+    const context = Number(options.context ?? 0);
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText))
         fail("USAGE", "--port must be a valid port number", 2);
@@ -179,7 +197,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 tail: source ? MAX_LOG_TAIL : tail,
                 sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
             });
-            const lines = redactLogLines((source ? filterLogSource(read, source) : read).slice(-tail), secrets);
+            const redacted = redactLogLines((source ? filterLogSource(read, source) : read).slice(-tail), secrets);
+            const lines = grep ? filterLogContent(redacted, grep, context) : redacted;
             if (options.json) {
                 console.log(JSON.stringify(redactValue(createMachineEnvelope({
                     services,
@@ -191,6 +210,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 return;
             }
             if (lines.length === 0) {
+                if (grep)
+                    return;
                 const names = selected.join(", ");
                 const window = options.since === undefined ? "" : ` in the last ${options.since}`;
                 console.log(chalk.gray(`No log lines yet for ${names}. It may not have started, or it printed nothing${window}.`));
@@ -232,7 +253,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 return reportAllHealthy();
         }
         // A source filter needs structured lines, and the tail must count the lines kept, not the build output before them.
-        const structured = Boolean(options.json) || source !== undefined;
+        const structured = Boolean(options.json) || source !== undefined || grep !== undefined;
         const args = ["--port", activePortText, "--tail", String(source ? MAX_LOG_TAIL : tail)];
         if (options.since !== undefined)
             args.push("--since", options.since);
@@ -254,7 +275,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             return;
         }
         const parsed = parseTiltLogLines(result.stdout, source ? MAX_LOG_TAIL : tail);
-        const lines = redactLogLines((source ? filterLogSource(parsed, source) : parsed).slice(-tail), secrets);
+        const redacted = redactLogLines((source ? filterLogSource(parsed, source) : parsed).slice(-tail), secrets);
+        const lines = grep ? filterLogContent(redacted, grep, context) : redacted;
         if (!options.json) {
             const width = Math.max(0, ...lines.map((line) => line.resource?.length ?? 0));
             for (const line of lines) {

@@ -26,9 +26,12 @@ import { discoverResourcesFromRoot } from "../utils/services.js";
 import { unhealthyServiceNames } from "../utils/status-groups.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import {
+  compileLogGrep,
   DEFAULT_LOG_TAIL,
+  filterLogContent,
   filterLogSource,
   isTiltConnectionFailure,
+  isValidLogContext,
   isValidLogSource,
   isValidSince,
   isValidTail,
@@ -110,6 +113,11 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
   .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
   .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
   .option(
+    "--grep <regex>",
+    "Filter log content (case-insensitive unless the pattern contains uppercase)",
+  )
+  .option("--context <n>", "Include n lines before and after each match within the same service")
+  .option(
     "--source <source>",
     "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
   )
@@ -167,6 +175,21 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
       fail("USAGE", `--source must be one of: ${LOG_SOURCES.join(", ")}`, 2);
     }
     const source: LogSource | undefined = options.source;
+    if (options.context !== undefined && options.grep === undefined) {
+      fail("USAGE", "--context requires --grep", 2);
+    }
+    if (options.context !== undefined && !isValidLogContext(options.context)) {
+      fail("USAGE", "--context must be a non-negative safe integer", 2);
+    }
+    let grep: RegExp | undefined;
+    if (options.grep !== undefined) {
+      try {
+        grep = compileLogGrep(options.grep);
+      } catch {
+        fail("USAGE", `Invalid --grep regular expression: ${options.grep}`, 2);
+      }
+    }
+    const context = Number(options.context ?? 0);
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText)) fail("USAGE", "--port must be a valid port number", 2);
     const tail = Number(options.tail);
@@ -230,10 +253,11 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
           tail: source ? MAX_LOG_TAIL : tail,
           sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
         });
-        const lines = redactLogLines(
+        const redacted = redactLogLines(
           (source ? filterLogSource(read, source) : read).slice(-tail),
           secrets,
         );
+        const lines = grep ? filterLogContent(redacted, grep, context) : redacted;
         if (options.json) {
           console.log(
             JSON.stringify(
@@ -252,6 +276,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
           return;
         }
         if (lines.length === 0) {
+          if (grep) return;
           const names = selected.join(", ");
           const window = options.since === undefined ? "" : ` in the last ${options.since}`;
           console.log(
@@ -299,7 +324,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         if (selectedServices.length === 0) return reportAllHealthy();
       }
       // A source filter needs structured lines, and the tail must count the lines kept, not the build output before them.
-      const structured = Boolean(options.json) || source !== undefined;
+      const structured = Boolean(options.json) || source !== undefined || grep !== undefined;
       const args = ["--port", activePortText, "--tail", String(source ? MAX_LOG_TAIL : tail)];
       if (options.since !== undefined) args.push("--since", options.since);
       if (structured) args.push("--json");
@@ -320,10 +345,11 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         return;
       }
       const parsed = parseTiltLogLines(result.stdout, source ? MAX_LOG_TAIL : tail);
-      const lines = redactLogLines(
+      const redacted = redactLogLines(
         (source ? filterLogSource(parsed, source) : parsed).slice(-tail),
         secrets,
       );
+      const lines = grep ? filterLogContent(redacted, grep, context) : redacted;
       if (!options.json) {
         const width = Math.max(0, ...lines.map((line) => line.resource?.length ?? 0));
         for (const line of lines) {
