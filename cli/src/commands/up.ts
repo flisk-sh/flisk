@@ -105,6 +105,7 @@ import {
   enforceServiceConfigGate,
   warnModelRunner,
   warnSchemaVersions,
+  secretProviderWarnings,
   warnSecretConflicts,
 } from "../utils/service-config-checks.js";
 import {
@@ -1246,6 +1247,11 @@ export const upCommand = new Command("up")
             emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
         });
       }
+      // FLISK_SECRET_PROVIDER=infisical without a bridge leaves every required secret empty: one warning per name.
+      const secretWarnings = foundRoot ? secretProviderWarnings(foundRoot, discoveredResources) : [];
+      if (secretWarnings.length > 0 && !emit && !options.quiet) {
+        for (const warning of secretWarnings) console.warn(chalk.yellow(`⚠ ${warning}`));
+      }
       // A dependsOn name that is no service, stack or shared Postgres is dropped by the Tiltfile; say so instead of starting without it.
       const unknownDependsOn = foundRoot
         ? evaluateSharedPlatformPostgres(foundRoot, discoveredResources).unknownDependsOnNames
@@ -1583,6 +1589,7 @@ export const upCommand = new Command("up")
             : {}),
           ...(unknownDependsOn.length > 0 ? { unknownDependsOn } : {}),
           ...(unknownBackends.length > 0 ? { unknownBackendNames: unknownBackends } : {}),
+          ...(secretWarnings.length > 0 ? { warnings: secretWarnings } : {}),
           command: dryRunCommand,
         });
         return;
@@ -2135,6 +2142,7 @@ export const upCommand = new Command("up")
             ...(options.only ? { requested: options.only, dependencies: startedDependencies } : {}),
             tiltUrl: `http://localhost:${port}`,
             ...(urlChecks ? { urls: urlChecks } : {}),
+            ...(secretWarnings.length > 0 ? { warnings: secretWarnings } : {}),
           });
         }
         // Only a healthy, unchanged stack gets a fingerprint: the next `flisk up` can then answer in one read-only

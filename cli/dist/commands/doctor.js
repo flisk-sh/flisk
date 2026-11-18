@@ -39,7 +39,7 @@ import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
 import { EnvUnreadableError, envSecretValues, OUTPUT_WITHHELD, projectSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
-import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
+import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkRequiredSecrets, checkSchemaVersions, checkSecretProvider, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
 import { getProjectName } from "../utils/service-urls.js";
 import { MIN_BUN_VERSION, MIN_TILT_VERSION, versionMeetsMinimum } from "../utils/tool-versions.js";
 import { checkToolchains } from "../utils/toolchain.js";
@@ -115,6 +115,17 @@ export const doctorCommand = new Command("doctor")
         if (options.json)
             console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
         console.error(message);
+        process.exit(2);
+        return;
+    }
+    // An unknown FLISK_SECRET_PROVIDER is a usage error, like a bad flag value.
+    const providerCheck = checkSecretProvider();
+    if (!providerCheck.didPass) {
+        if (options.json)
+            console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message: providerCheck.message }])));
+        console.error(providerCheck.message);
+        if (providerCheck.fix)
+            console.error(providerCheck.fix);
         process.exit(2);
         return;
     }
@@ -333,6 +344,7 @@ export const doctorCommand = new Command("doctor")
     ];
     const schemaAndPortChecks = [
         () => checkSchemaVersions(undefined, options.strict),
+        () => checkRequiredSecrets(),
         () => checkDuplicateResourcePorts(),
     ];
     const envHygieneChecks = [

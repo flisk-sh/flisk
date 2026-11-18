@@ -566,14 +566,89 @@ export function warnSchemaVersions(projectRoot, resources) {
     if (check.fix)
         console.warn(chalk.gray(`  ${check.fix}`));
 }
+/** The secret providers this CLI knows. `env-file` is the default. */
+export const SECRET_PROVIDERS = ["env-file", "infisical"];
+/** The selected provider, as typed (lowercased); empty means the default, `env-file`. */
+function selectedSecretProvider(env) {
+    return (env.FLISK_SECRET_PROVIDER ?? "").trim().toLowerCase();
+}
+/**
+ * This build has no Infisical client. A premium overlay or an external bridge that supplies the secrets announces
+ * itself with FLISK_SECRET_BRIDGE (any non-empty value); without it nothing fills a `secrets.required` name.
+ */
+export function hasSecretBridge(env = process.env) {
+    return (env.FLISK_SECRET_BRIDGE ?? "").trim() !== "";
+}
+/** An unknown FLISK_SECRET_PROVIDER (a typo, a stub) is an error, not a reason to skip the secret check. */
+export function checkSecretProvider(env = process.env) {
+    const provider = selectedSecretProvider(env);
+    if (provider === "" || SECRET_PROVIDERS.includes(provider)) {
+        return {
+            name: "Secret provider",
+            didPass: true,
+            message: `Secret provider is ${provider || "env-file"}`,
+        };
+    }
+    return {
+        name: "Secret provider",
+        didPass: false,
+        message: `FLISK_SECRET_PROVIDER="${(env.FLISK_SECRET_PROVIDER ?? "").trim()}" is not a known secret provider (valid: ${SECRET_PROVIDERS.join(", ")})`,
+        fix: `Set FLISK_SECRET_PROVIDER to ${SECRET_PROVIDERS.join(" or ")}, or unset it to use env-file`,
+    };
+}
+/** Required secret names (`secrets.required` and the tokens of required providers) of every service, deduplicated. */
+function requiredSecretNames(resources) {
+    const names = new Set();
+    for (const resource of resources) {
+        const config = resource.config;
+        const required = config?.secrets?.required;
+        for (const name of Array.isArray(required) ? required : [])
+            if (typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+                names.add(name);
+        for (const provider of providersOf(config))
+            if (provider.required &&
+                provider.tokenSecret !== undefined &&
+                /^[A-Za-z_][A-Za-z0-9_]*$/.test(provider.tokenSecret))
+                names.add(provider.tokenSecret);
+    }
+    return [...names];
+}
+/**
+ * With FLISK_SECRET_PROVIDER=infisical and no bridge, nothing in this build fetches a secret: every required name
+ * stays empty. One warning per name. Empty for any other provider, or when a bridge is present.
+ */
+export function secretProviderWarnings(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), env = process.env) {
+    if (selectedSecretProvider(env) !== "infisical" || hasSecretBridge(env))
+        return [];
+    return requiredSecretNames(resources).map((name) => `FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; ${name} will be empty`);
+}
+/** Prints the secret-provider warnings (one per required secret) to stderr. */
+export function warnSecretProvider(projectRoot, resources, env = process.env) {
+    for (const warning of secretProviderWarnings(projectRoot, resources, env))
+        console.warn(chalk.yellow(`⚠ ${warning}`));
+}
 /**
  * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
  * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
- * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ * With FLISK_SECRET_PROVIDER=infisical the names are left to a bridge: without one they are reported as warnings, and an
+ * unknown provider fails (see checkSecretProvider).
  */
 export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), env = process.env) {
-    const provider = (env.FLISK_SECRET_PROVIDER ?? "").trim().toLowerCase();
+    const provider = selectedSecretProvider(env);
     if (provider !== "" && provider !== "env-file") {
+        const providerCheck = checkSecretProvider(env);
+        if (!providerCheck.didPass)
+            return { ...providerCheck, name: "Required secrets" };
+        const warnings = secretProviderWarnings(projectRoot, resources, env);
+        if (warnings.length > 0) {
+            return {
+                name: "Required secrets",
+                didPass: false,
+                isWarning: true,
+                message: warnings.join("\n    "),
+                fix: "Use a secret bridge (FLISK_SECRET_BRIDGE), or FLISK_SECRET_PROVIDER=env-file with the values in .env",
+            };
+        }
         return {
             name: "Required secrets",
             didPass: true,
@@ -640,6 +715,14 @@ export function warnSecretConflicts(projectRoot, resources) {
  */
 export function enforceServiceConfigGate(projectRoot, options = {}, exit = process.exit) {
     const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
+    const providerCheck = checkSecretProvider();
+    if (!providerCheck.didPass) {
+        options.onInvalid?.(`${providerCheck.message}
+Fix: ${providerCheck.fix}`);
+        console.error(chalk.red(`✗ ${providerCheck.message}`));
+        console.error(chalk.gray(`  Fix: ${providerCheck.fix}`));
+        exit(2);
+    }
     const failed = [
         checkDuplicateResourceNames(projectRoot, resources),
         checkServiceFields(projectRoot, resources),
@@ -650,7 +733,7 @@ export function enforceServiceConfigGate(projectRoot, options = {}, exit = proce
         checkServicePorts(projectRoot, resources),
         checkSidecars(projectRoot, resources),
         checkVolumes(projectRoot, resources),
-    ].filter((check) => !check.didPass);
+    ].filter((check) => !check.didPass && !check.isWarning);
     if (failed.length === 0)
         return;
     const text = failed

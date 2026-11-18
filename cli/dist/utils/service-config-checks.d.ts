@@ -73,10 +73,27 @@ export declare function checkServicePorts(projectRoot?: string, resources?: Disc
 export declare function checkSchemaVersions(projectRoot?: string, strict?: boolean, resources?: DiscoveredResource[]): CheckResult;
 /** Prints the schemaVersion warning once. It never stops anything: the project keeps working as it is. */
 export declare function warnSchemaVersions(projectRoot: string, resources?: DiscoveredResource[]): void;
+/** The secret providers this CLI knows. `env-file` is the default. */
+export declare const SECRET_PROVIDERS: readonly ["env-file", "infisical"];
+/**
+ * This build has no Infisical client. A premium overlay or an external bridge that supplies the secrets announces
+ * itself with FLISK_SECRET_BRIDGE (any non-empty value); without it nothing fills a `secrets.required` name.
+ */
+export declare function hasSecretBridge(env?: NodeJS.ProcessEnv): boolean;
+/** An unknown FLISK_SECRET_PROVIDER (a typo, a stub) is an error, not a reason to skip the secret check. */
+export declare function checkSecretProvider(env?: NodeJS.ProcessEnv): CheckResult;
+/**
+ * With FLISK_SECRET_PROVIDER=infisical and no bridge, nothing in this build fetches a secret: every required name
+ * stays empty. One warning per name. Empty for any other provider, or when a bridge is present.
+ */
+export declare function secretProviderWarnings(projectRoot?: string, resources?: DiscoveredResource[], env?: NodeJS.ProcessEnv): string[];
+/** Prints the secret-provider warnings (one per required secret) to stderr. */
+export declare function warnSecretProvider(projectRoot: string, resources?: DiscoveredResource[], env?: NodeJS.ProcessEnv): void;
 /**
  * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
  * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
- * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ * With FLISK_SECRET_PROVIDER=infisical the names are left to a bridge: without one they are reported as warnings, and an
+ * unknown provider fails (see checkSecretProvider).
  */
 export declare function checkRequiredSecrets(projectRoot?: string, resources?: DiscoveredResource[], env?: NodeJS.ProcessEnv): CheckResult;
 /** Prints each secret that a literal in `params` or `env` overrides. A warning: such a project still starts. */

@@ -67,7 +67,7 @@ $ flisk up --dry-run
 ```
 
 - **Cause:** the service lists `SECRET_KEY` in `secrets.required`, and neither the env file of the run (the project `.env`, or the one chosen with `--env-file`) nor the environment has a non-empty value for it. Compose refuses to interpolate such a name, which used to fail the whole Tiltfile and stop every service.
-- **Fix:** put `SECRET_KEY=...` in `.env`, export it, or list it under `secrets.optional` if the service can run without it. With `FLISK_SECRET_PROVIDER=infisical` the check is skipped and Infisical supplies the names.
+- **Fix:** put `SECRET_KEY=...` in `.env`, export it, or list it under `secrets.optional` if the service can run without it. With `FLISK_SECRET_PROVIDER=infisical` and no bridge (`FLISK_SECRET_BRIDGE` unset or blank) the check is replaced by a warning per required secret, because the free CLI has no Infisical client; the warning does not appear when a bridge is present. Setting the `FLISK_SECRET_BRIDGE` marker alone does not supply any secret value: the bridge itself must provide them. An unknown provider value fails with exit code 2.
 - **Defined in:** [`service-config-checks.ts`](../cli/src/utils/service-config-checks.ts) (`checkRequiredSecrets`), run by the `flisk up` gate, dry run included.
 - **Checked:** reproduced by the Docker chaos tier (`secrets=required, no value`) and covered by `service-config-checks.test.ts`.
 

@@ -14,6 +14,7 @@ import {
   checkNetworkPorts,
   checkPostgresVolumes,
   checkRequiredSecrets,
+  checkSecretProvider,
   checkSchemaVersions,
   checkServiceFields,
   checkServicePorts,
@@ -22,6 +23,7 @@ import {
   enforceServiceConfigGate,
   type ModelRunnerState,
   postgresImageMajor,
+  secretProviderWarnings,
   warnModelRunner,
   warnSchemaVersions,
 } from "../service-config-checks.js";
@@ -43,6 +45,7 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("checkCircularDependencies", () => {
@@ -633,10 +636,13 @@ describe("checkRequiredSecrets", () => {
     ).toBe(false);
   });
 
-  it("leaves the names to the provider with FLISK_SECRET_PROVIDER=infisical", () => {
+  it("leaves the names to the provider with FLISK_SECRET_PROVIDER=infisical and a bridge", () => {
     service("api", { secrets: { required: ["A_KEY"] } });
     expect(
-      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "infisical" }).didPass,
+      checkRequiredSecrets(root, undefined, {
+        FLISK_SECRET_PROVIDER: "infisical",
+        FLISK_SECRET_BRIDGE: "1",
+      }).didPass,
     ).toBe(true);
   });
 
@@ -964,5 +970,68 @@ describe("warnModelRunner", () => {
     warnModelRunner(root);
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe("FLISK_SECRET_PROVIDER", () => {
+  const exit = (code: number): never => {
+    throw new Error(`exit ${code}`);
+  };
+
+  it("env-file (or unset) checks required secrets as before", () => {
+    service("api", { secrets: { required: ["API_KEY"] } });
+    for (const provider of [undefined, "", "env-file"]) {
+      const env = provider === undefined ? {} : { FLISK_SECRET_PROVIDER: provider };
+      expect(checkSecretProvider(env).didPass).toBe(true);
+      expect(checkRequiredSecrets(root, undefined, env).didPass).toBe(false);
+      expect(secretProviderWarnings(root, undefined, env)).toEqual([]);
+    }
+  });
+
+  it("infisical without a bridge warns once per required secret, and does not fail", () => {
+    service("api", { secrets: { required: ["API_KEY", "DB_PASSWORD"], optional: ["TOKEN"] } });
+    service("worker", { port: 4001, secrets: { required: ["API_KEY"] } }, "app/worker");
+    const env = { FLISK_SECRET_PROVIDER: "infisical" };
+    expect(secretProviderWarnings(root, undefined, env)).toEqual([
+      "FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; API_KEY will be empty",
+      "FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; DB_PASSWORD will be empty",
+    ]);
+    const result = checkRequiredSecrets(root, undefined, env);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain("API_KEY will be empty");
+    expect(result.message).not.toContain("TOKEN");
+  });
+
+  it("infisical with a bridge behaves as before: no warnings, secrets left to the provider", () => {
+    service("api", { secrets: { required: ["API_KEY"] } });
+    const env = { FLISK_SECRET_PROVIDER: "infisical", FLISK_SECRET_BRIDGE: "premium" };
+    expect(secretProviderWarnings(root, undefined, env)).toEqual([]);
+    const result = checkRequiredSecrets(root, undefined, env);
+    expect(result.didPass).toBe(true);
+    expect(result.isWarning).toBeUndefined();
+  });
+
+  it("keychan (a typo) fails, naming the value and the valid providers", () => {
+    service("api", { secrets: { required: ["API_KEY"] } });
+    const env = { FLISK_SECRET_PROVIDER: "keychan" };
+    const result = checkSecretProvider(env);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("keychan");
+    expect(result.message).toContain("env-file, infisical");
+    expect(checkRequiredSecrets(root, undefined, env).didPass).toBe(false);
+  });
+
+  it("the gate exits 2 for an unknown provider and lets a warning-only infisical through", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    service("api", { secrets: { required: ["API_KEY"] } });
+    vi.stubEnv("FLISK_SECRET_PROVIDER", "keychan");
+    let reported = "";
+    expect(() =>
+      enforceServiceConfigGate(root, { onInvalid: (message) => (reported = message) }, exit),
+    ).toThrow("exit 2");
+    expect(reported).toContain("keychan");
+    vi.stubEnv("FLISK_SECRET_PROVIDER", "infisical");
+    vi.stubEnv("FLISK_SECRET_BRIDGE", "");
+    expect(() => enforceServiceConfigGate(root, {}, exit)).not.toThrow();
   });
 });
