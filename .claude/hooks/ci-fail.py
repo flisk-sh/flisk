@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stop hook: if this session's branch has an open flisk-sh/flisk PR with failing CI, tell Claude to fix it.
 
-Scope: only the PR of the branch checked out in the session's cwd, only repo flisk-sh/flisk.
+Scope: the PRs of the branches checked out in this repo's worktrees, only repo flisk-sh/flisk.
 Each (PR, commit, failing set) is reported once, so it cannot loop.
 """
 import json, os, subprocess, sys
@@ -19,40 +19,58 @@ def main():
     if data.get("stop_hook_active"):
         return
     cwd = data.get("cwd") or os.getcwd()
+    # A session often opens its PRs from other worktrees, so check the branch of every worktree of this repo.
+    branches = []
     try:
-        out = subprocess.run(
-            ["gh", "pr", "view", "--json", "number,state,url,headRefOid,statusCheckRollup"],
-            cwd=cwd, capture_output=True, text=True, timeout=20,
-        )
-        if out.returncode != 0:
-            return
-        pr = json.loads(out.stdout)
+        wt = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=cwd, capture_output=True, text=True, timeout=10)
+        branches = [l[len("branch refs/heads/"):] for l in wt.stdout.splitlines() if l.startswith("branch refs/heads/")]
+        cur = subprocess.run(["git", "branch", "--show-current"], cwd=cwd, capture_output=True, text=True, timeout=10).stdout.strip()
+        if cur and cur not in branches:
+            branches.append(cur)
     except Exception:
         return
-    if pr.get("state") != "OPEN" or f"github.com/{REPO}/" not in pr.get("url", ""):
-        return
-    failing = sorted({
-        c.get("name") or c.get("context") or "?"
-        for c in pr.get("statusCheckRollup") or []
-        if (c.get("conclusion") or c.get("state") or "").upper() in BAD
-    })
-    if not failing:
-        return
-    key = f"{pr['number']}:{pr['headRefOid']}:{','.join(failing)}"
     try:
         seen = json.load(open(SEEN))
     except Exception:
         seen = []
-    if key in seen:
+    reasons = []
+    for branch in dict.fromkeys(branches):
+        if branch in ("main", "master"):
+            continue
+        try:
+            out = subprocess.run(
+                ["gh", "pr", "view", branch, "--json", "number,state,url,headRefOid,statusCheckRollup"],
+                cwd=cwd, capture_output=True, text=True, timeout=20,
+            )
+            if out.returncode != 0:
+                continue
+            pr = json.loads(out.stdout)
+        except Exception:
+            continue
+        if pr.get("state") != "OPEN" or f"github.com/{REPO}/" not in pr.get("url", ""):
+            continue
+        failing = sorted({
+            c.get("name") or c.get("context") or "?"
+            for c in pr.get("statusCheckRollup") or []
+            if (c.get("conclusion") or c.get("state") or "").upper() in BAD
+        })
+        if not failing:
+            continue
+        key = f"{pr['number']}:{pr['headRefOid']}:{','.join(failing)}"
+        if key in seen:
+            continue
+        seen.append(key)
+        reasons.append(f"{pr['url']} (branch {branch}): {', '.join(failing)}")
+    if not reasons:
         return
     os.makedirs(os.path.dirname(SEEN), exist_ok=True)
-    json.dump((seen + [key])[-200:], open(SEEN, "w"))
+    json.dump(seen[-200:], open(SEEN, "w"))
     print(json.dumps({
         "decision": "block",
         "reason": (
-            f"CI is failing on {pr['url']}: {', '.join(failing)}. "
-            "Find the cause (gh run list --branch <branch>; gh run view <id> --log-failed), "
-            "fix it, verify, commit with -s and push to the PR branch."
+            "CI is failing on: " + "; ".join(reasons) + ". "
+            "For each, find the cause (gh run list --branch <branch>; gh run view <id> --log-failed), "
+            "fix it in that branch's worktree, verify, commit with -s and push."
         ),
     }))
 
