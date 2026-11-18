@@ -12,6 +12,10 @@ export const COMMAND_SPECS = [
         allowExcessArguments: false,
         options: [
             {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+            {
                 flags: "-v, --verbose",
                 description: "Show detailed information about each stack",
                 defaultValue: false,
@@ -45,6 +49,10 @@ export const COMMAND_SPECS = [
         positionalOptions: false,
         allowExcessArguments: false,
         options: [
+            {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
             {
                 flags: "-v, --verbose",
                 description: "Show resource details in text view (JSON output is unchanged)",
@@ -134,6 +142,10 @@ export const COMMAND_SPECS = [
         positionalOptions: false,
         allowExcessArguments: false,
         options: [
+            {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
             {
                 flags: "-v, --verbose",
                 description: "Enable verbose output",
@@ -233,6 +245,10 @@ export const COMMAND_SPECS = [
                 defaultValue: false,
             },
             {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+            {
                 flags: "-v, --verbose",
                 description: "Enable verbose output",
                 defaultValue: false,
@@ -273,10 +289,6 @@ export const COMMAND_SPECS = [
                 flags: "--json",
                 description: "Print one JSON object on stdout; implies quiet human output",
                 defaultValue: false,
-            },
-            {
-                flags: "--project <path>",
-                description: "Stop the Flisk project in this folder (default: the current project, or the only running one)",
             },
         ],
         arguments: [],
@@ -368,12 +380,12 @@ export const COMMAND_SPECS = [
         allowExcessArguments: false,
         options: [
             {
-                flags: "--project [path]",
-                description: "Write into the specified Flisk project (default: current project)",
-            },
-            {
                 flags: "--global",
                 description: "Write the MCP entry to the host's user config instead (no skills)",
+            },
+            {
+                flags: "--project [path]",
+                description: "Write into the specified Flisk project (default: current project)",
             },
             {
                 flags: "--dry-run",
@@ -419,6 +431,10 @@ export const COMMAND_SPECS = [
         allowExcessArguments: false,
         options: [
             {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+            {
                 flags: "-s, --service <names...>",
                 description: "Only these services (names as in flisk resources)",
             },
@@ -443,10 +459,6 @@ export const COMMAND_SPECS = [
             {
                 flags: "--port <n>",
                 description: "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
-            },
-            {
-                flags: "--project <path>",
-                description: "View logs for the Flisk project in this folder (default: the current project)",
             },
             {
                 flags: "--json",
@@ -716,6 +728,10 @@ export const COMMAND_SPECS = [
         allowExcessArguments: false,
         options: [
             {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+            {
                 flags: "--json",
                 description: "Output a versioned JSON status report",
                 defaultValue: false,
@@ -757,10 +773,6 @@ export const COMMAND_SPECS = [
                 flags: "--strict",
                 description: "Exit 1 when any service is not ready or nothing is running",
                 defaultValue: false,
-            },
-            {
-                flags: "--project <path>",
-                description: "Show status for the Flisk project in this folder (default: the current project)",
             },
         ],
         arguments: [],
@@ -1225,7 +1237,12 @@ export const COMMAND_SPECS = [
         passThrough: false,
         positionalOptions: false,
         allowExcessArguments: false,
-        options: [],
+        options: [
+            {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+        ],
         arguments: [],
         helpTexts: {},
         subcommands: [
@@ -1590,6 +1607,10 @@ export const COMMAND_SPECS = [
         allowExcessArguments: false,
         options: [
             {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+            {
                 flags: "--all",
                 description: "Run every check and show Machine and Project sections with a summary",
                 defaultValue: false,
@@ -1748,6 +1769,10 @@ export const COMMAND_SPECS = [
         allowExcessArguments: true,
         options: [
             {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+            {
                 flags: "-s, --stack <stack>",
                 description: "Filter by stack name",
             },
@@ -1884,6 +1909,10 @@ export const COMMAND_SPECS = [
         allowExcessArguments: false,
         options: [
             {
+                flags: "--project <path>",
+                description: "Use the Flisk project in this folder (default: the current project)",
+            },
+            {
                 flags: "--port <n>",
                 description: "Tilt UI port (default: TILT_PORT or 10350)",
             },
@@ -1891,10 +1920,6 @@ export const COMMAND_SPECS = [
                 flags: "--rebuild",
                 description: "Rebuild the image through Tilt instead of restarting the container",
                 defaultValue: false,
-            },
-            {
-                flags: "--project <path>",
-                description: "Restart resources for the Flisk project in this folder (default: the current project)",
             },
             {
                 flags: "--wait <seconds>",

@@ -4,11 +4,78 @@
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import chalk from "chalk";
+import type { Command } from "commander";
 import { findRunningFliskProjects } from "./down-cleanup.js";
 import { errorFactories, FliskError } from "./errors.js";
 import { writeMachineError } from "./machine-output.js";
 import { shellQuote } from "./native-container.js";
 import { findProjectRoot } from "./paths.js";
+
+/** The one --project declaration shared by every command that reads project state. */
+export const PROJECT_OPTION_FLAGS = "--project <path>";
+export const PROJECT_OPTION_DESCRIPTION =
+  "Use the Flisk project in this folder (default: the current project)";
+
+/**
+ * Declares the shared --project option and resolves the target project before the action runs.
+ * Only an explicit --project is resolved, so commands keep their existing behaviour without it.
+ * The value is replaced with an absolute path so commands that resolve it again stay correct.
+ */
+export function addProjectOption(
+  command: Command,
+  commandName = command.name(),
+  flags: string = PROJECT_OPTION_FLAGS,
+): Command {
+  command.option(flags, PROJECT_OPTION_DESCRIPTION);
+  command.hook("preAction", (thisCommand: Command, actionCommand: Command) => {
+    // Subcommands such as `config verify` declare --json themselves, so read both scopes.
+    const opts = actionCommand.optsWithGlobals() as {
+      project?: string | boolean;
+      json?: boolean;
+    };
+    if (opts.project === "") {
+      const error = new FliskError("Missing value for --project <path>", [
+        `Pass the folder of a Flisk project: flisk ${commandName} --project <path>`,
+      ]);
+      if (opts.json) writeMachineError(error);
+      error.exit();
+    }
+    if (typeof opts.project !== "string" || opts.project.length === 0) return;
+    const absolute = resolve(opts.project);
+    thisCommand.setOptionValueWithSource("project", absolute, "cli");
+    resolveCommandProject({ commandName, project: absolute, json: Boolean(opts.json) });
+  });
+  return command;
+}
+
+/**
+ * Rewrites an explicit relative `--project <path>` in a child CLI invocation to the absolute path.
+ * `addProjectOption` changes the working directory to the resolved project root before the action
+ * runs, so a detached child started with the caller's raw argv would resolve the same relative
+ * path a second time from the new directory and target the wrong project.
+ */
+export function absoluteProjectArgs(
+  argv: readonly string[],
+  cwd: string = process.cwd(),
+  resolvedProject?: string,
+): string[] {
+  const out = [...argv];
+  for (let i = 0; i < out.length; i++) {
+    const arg = out[i] as string;
+    if (arg === "--project") {
+      const value = out[i + 1];
+      if (value !== undefined && !value.startsWith("-")) {
+        out[i + 1] = resolvedProject ?? resolve(cwd, value);
+        i++;
+      }
+      continue;
+    }
+    if (arg.startsWith("--project=")) {
+      out[i] = `--project=${resolvedProject ?? resolve(cwd, arg.slice("--project=".length))}`;
+    }
+  }
+  return out;
+}
 
 export interface ResolveProjectOptions {
   /** Name of the command requesting resolution (e.g. "logs", "restart", "status"). */

@@ -44,6 +44,7 @@ import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/prof
 import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-owner.js";
 import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
+import { absoluteProjectArgs, addProjectOption } from "../utils/project-resolution.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnModelRunner, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServiceUrl, resolveSubdomainBases, routesAsApi, } from "../utils/service-urls.js";
@@ -427,7 +428,7 @@ async function runUpWait(options) {
         ]);
         showErrorAndExit(timeout.message, 1, []);
     }
-    const outcome = await upAndWait(process.argv.slice(2), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
+    const outcome = await upAndWait(absoluteProjectArgs(process.argv.slice(2), process.cwd(), typeof options.project === "string" ? options.project : undefined), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
     // A failed or timed-out wait names what was unhealthy with the last lines of its log, the reason (a traceback, a
     // missing variable) a person would otherwise look up with `flisk logs --unhealthy` (#3823).
     const unhealthy = outcome.kind === "failed" || outcome.kind === "timeout"
@@ -543,7 +544,7 @@ function missingDeclaredRepoDirs(projectRoot) {
     }
     return (repos ?? []).map((repo) => repo.dir).filter((dir) => !existsSync(join(projectRoot, dir)));
 }
-export const upCommand = new Command("up")
+export const upCommand = addProjectOption(new Command("up"), "up")
     .description("Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster")
     .alias("deploy")
     .argument("[stack-name]", "Name of the stack to start (optional - runs all if omitted), or a git repository URL to clone and start")

@@ -22,6 +22,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import {
   isRoutableService,
   isWebUiBringYourOwn,
@@ -235,7 +236,10 @@ export async function checkServiceStatus(
   return "stopped";
 }
 
-export const networksCommand = attachNoPositionalHint(new Command("networks"))
+export const networksCommand = addProjectOption(
+  attachNoPositionalHint(new Command("networks")),
+  "networks",
+)
   .description("Show Traefik-routed URLs for all services")
   .alias("urls")
   .alias("traefik")

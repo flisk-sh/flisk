@@ -62,8 +62,8 @@ function printResult(result) {
 export const connectCommand = new Command("connect")
     .description("Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills")
     .argument("<host>", `Agent host: ${CONNECT_HOSTS.join(", ")}`)
-    .option("--project [path]", "Write into the specified Flisk project (default: current project)")
     .option("--global", "Write the MCP entry to the host's user config instead (no skills)")
+    .option("--project [path]", "Write into the specified Flisk project (default: current project)")
     .option("--dry-run", "Print what would be written, without changing any file", false)
     .option("--force", "Replace an existing, different flisk entry or edited Flisk skill", false)
     .option("--json", "Print the result as a JSON envelope")
@@ -72,6 +72,9 @@ export const connectCommand = new Command("connect")
     const target = options.project ?? command.optsWithGlobals().project;
     const run = () => {
         const host = resolveConnectHost(hostArg);
+        if (target === "") {
+            throw new FliskError("Missing value for --project <path>", ["Pass the folder of a Flisk project: flisk connect <host> --project <path>"], 2);
+        }
         if (options.global && target) {
             throw new FliskError("Choose one of --project and --global", [
                 `Run \`flisk connect ${host}\` for this project, or \`flisk connect ${host} --global\` for your user config`,

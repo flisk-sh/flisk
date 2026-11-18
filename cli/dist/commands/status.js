@@ -16,7 +16,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { nativeServiceStates, readNativeRunState } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { resolveCommandProject } from "../utils/project-resolution.js";
+import { addProjectOption, resolveCommandProject } from "../utils/project-resolution.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { skippedServiceFiles } from "../utils/services.js";
 import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
@@ -52,7 +52,7 @@ function failStrictStatus(notReady) {
         process.exitCode = 1;
     }
 }
-export const statusCommand = attachNoPositionalHint(new Command("status"))
+export const statusCommand = addProjectOption(attachNoPositionalHint(new Command("status")), "status")
     .description("Show status of resources and stacks")
     .option("--json", "Output a versioned JSON status report", false)
     .option("-v, --verbose", "Show detailed information", false)
@@ -63,7 +63,6 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
     .option("--no-gateway", "Disable gateway status reporting")
     .option("--unhealthy", "Show only services that are failing or still starting", false)
     .option("--strict", "Exit 1 when any service is not ready or nothing is running", false)
-    .option("--project <path>", "Show status for the Flisk project in this folder (default: the current project)")
     .addHelpText("after", "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict")
     .action(async (options, command) => {
     const project = options.project ?? command.optsWithGlobals().project;

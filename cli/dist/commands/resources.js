@@ -9,6 +9,7 @@ import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../u
 import { formatCount, showAllSatisfyCondition, showDetail, showEmptyState, showStep, } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
 export async function runResourcesList(options) {
@@ -128,7 +129,7 @@ export async function runResourcesList(options) {
 // that breaks it fails the tests instead of silently dropping the conflict check.
 const noStackOption = new Option("--no-stack", "Show only resources without a stack").conflicts("stack");
 noStackOption.negate = false;
-export const resourcesCommand = routeUsageErrorsToJson(new Command("resources"))
+export const resourcesCommand = addProjectOption(routeUsageErrorsToJson(new Command("resources")), "resources")
     .description("List all resources (services) in the project")
     .option("-v, --verbose", "Show resource details in text view (JSON output is unchanged)", false)
     .option("-s, --stack <stack>", "Filter resources by stack name")

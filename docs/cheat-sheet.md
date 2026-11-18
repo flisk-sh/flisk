@@ -76,6 +76,8 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `-h`, `--help` | Help. `flisk help <command>` works too |
 | `flisk --doctor` | Same as `flisk doctor` |
 
+`--project <path>` is accepted by `up`, `down`, `restart`, `status`, `logs`, `connect`, `stacks`, `resources`, `networks`, `doctor` and `config` (including its `regenerate`, `migrate`, `verify`, `explain`, `enable-infra` and `disable-infra` subcommands). It runs the command against the Flisk project in that folder from any working directory.
+
 ## 📋 Commands at a glance
 
 | Command | Aliases | What it does |

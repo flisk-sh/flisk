@@ -20,6 +20,7 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import { checkCircularDependencies, checkDependsOnShape, checkServicePorts, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
@@ -52,7 +53,7 @@ const DRIFT_LABELS = {
     none: "no",
     unknown: "unknown",
 };
-export const configCommand = new Command("config")
+export const configCommand = addProjectOption(new Command("config"), "config")
     .description("Manage project configuration and regenerate master files")
     .addCommand(new Command("regenerate")
     .description("Regenerate all 4 master config files from .flisk/project.json")
