@@ -31,7 +31,7 @@ describe("restart without a resource", () => {
 
   it("prints the hint when invoked without an argument", () => {
     const result = runFlisk(["restart"], { cwd: process.cwd() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toContain("missing required argument 'resource'");
     expect(result.stderr).toContain("Run `flisk resources`");
   });
