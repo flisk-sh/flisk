@@ -42,7 +42,9 @@ export declare function checkCoreVersion(currentVersion?: string, args?: string[
     ok: boolean;
     message?: string;
 };
-export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<NpxRuntime, "platform">): NpxInvocation;
+export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<NpxRuntime, "platform">): NpxInvocation & {
+    pkg: string;
+};
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export declare function runImport(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<number>;
 /** What flisk-import printed and how it exited, for `flisk import --json`. */

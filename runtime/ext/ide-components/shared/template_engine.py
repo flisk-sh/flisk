@@ -68,7 +68,8 @@ class TemplateEngine:
         
         # Process each condition
         for condition_name, condition_value in conditions.items():
-            pattern = rf'{{{{if {condition_name}}}}(.*?){{{{endif}}}}'
+            tag = re.escape("{{if " + condition_name + "}}")
+            pattern = tag + r"(.*?)" + re.escape("{{endif}}")
             
             if condition_value:
                 # Keep content, remove tags
