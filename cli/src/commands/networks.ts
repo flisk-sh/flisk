@@ -5,6 +5,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import type { ServiceUrl } from "../types/index.js";
+import { attachNoPositionalHint } from "../utils/command-helpers.js";
 import { getStackEmoji } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, logVerbose, requireProjectRoot } from "../utils/errors.js";
@@ -234,7 +235,7 @@ export async function checkServiceStatus(
   return "stopped";
 }
 
-export const networksCommand = new Command("networks")
+export const networksCommand = attachNoPositionalHint(new Command("networks"))
   .description("Show Traefik-routed URLs for all services")
   .alias("urls")
   .alias("traefik")

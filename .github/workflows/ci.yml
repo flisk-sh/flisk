@@ -615,7 +615,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
 
@@ -667,8 +667,9 @@ jobs:
   summary:
     name: 📋 Summary
     runs-on: ubuntu-26.04
-    # Waits for the e2e gates, which run for tens of minutes on a pull request. The wait is bounded by the script's 25-minute
-    # deadline; workflow-pr-speed caps pull request jobs at 30 minutes.
+    # Waits for the e2e gates for the event: a pull request waits for the light 3-service examples gate only, the merge queue for
+    # all three (tens of minutes). The wait is bounded by the script's 25-minute deadline; workflow-pr-speed caps pull request
+    # jobs at 30 minutes.
     timeout-minutes: 30
     if: always()
     needs: [lint, quick-checks, typecheck, test, package, package-smoke, npm-package-smoke, dependency-review, workflow-audit]

@@ -237,7 +237,9 @@ export const configCommand = new Command("config")
         const warnings = [];
         const failures = [];
         const pendingMigrations = [];
-        for (const filePath of discoverServiceManifestPaths(projectRoot)) {
+        const manifestPaths = discoverServiceManifestPaths(projectRoot);
+        const totalFiles = manifestPaths.length;
+        for (const filePath of manifestPaths) {
             let manifest;
             try {
                 manifest = JSON.parse(readFileSync(filePath, "utf-8"));
@@ -295,8 +297,13 @@ export const configCommand = new Command("config")
             clearDiscoveryCache();
         }
         const migrated = pendingMigrations.length;
-        console.log(chalk.green(`✅ Migrated ${migrated} service.json file${migrated === 1 ? "" : "s"} to schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}.`));
-        console.log(chalk.yellow("Review the diff; unknown fields were preserved."));
+        if (migrated === 0) {
+            console.log(chalk.green(`All ${totalFiles} service.json files are already on schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}. Nothing to migrate.`));
+        }
+        else {
+            console.log(chalk.green(`✅ Migrated ${migrated} service.json file${migrated === 1 ? "" : "s"} to schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}.`));
+            console.log(chalk.yellow("Review the diff; unknown fields were preserved."));
+        }
         return {
             data: {
                 schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,

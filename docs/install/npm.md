@@ -22,7 +22,7 @@ Then check your computer with [`flisk doctor`](../start/words.md#flisk-doctor). 
 
 **Update** to the newest version: `flisk upgrade` (alias `flisk update`), or `npm install -g @flisk-sh/flisk@latest`.
 
-**Pin a version** (stay on one exact version): `npm install -g @flisk-sh/flisk@1.3.80`. To make a whole team use at least one version, see [upgrading and version pinning](../upgrading.md).
+**Pin a version** (stay on one exact version): `npm install -g @flisk-sh/flisk@<version>` — an example; replace `<version>` with the version you want to stay on, such as `1.4.69`. To make a whole team use at least one version, see [upgrading and version pinning](../upgrading.md).
 
 **Uninstall** (remove Flisk from your computer):
 

@@ -111,7 +111,15 @@ http.createServer((_q, s) => s.end("ok")).listen(process.env.PORT, () => console
       inferred: true,
     });
     expect(up.data.services).toContain("plain-node");
-    const url = up.data.urls?.["plain-node"];
+    const urlEntry = (
+      up.data.urls as Array<{ service: string; url: string; didAnswer: boolean; status: number }>
+    )?.find((entry) => entry.service === "plain-node");
+    expect(urlEntry).toMatchObject({
+      service: "plain-node",
+      didAnswer: true,
+      status: 200,
+    });
+    const url = urlEntry?.url;
     expect(url).toMatch(/^http:\/\/localhost:\d+$/);
 
     // Test that the service answers
