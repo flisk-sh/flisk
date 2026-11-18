@@ -821,6 +821,26 @@ describe("flisk status in a local-process project", () => {
     expect(output).not.toContain("PostgreSQL");
   });
 
+  it("does not deny the declared image containers in a mixed run", async () => {
+    const imageDir = join(nativeRoot, "services/infra/cache");
+    mkdirSync(imageDir, { recursive: true });
+    writeFileSync(
+      join(imageDir, "service.json"),
+      JSON.stringify({ appName: "cache", appType: "backend", port: 6379, image: "redis:7" }, null, 2),
+    );
+    try {
+      clearDiscoveryCache();
+      const output = await runStatus();
+
+      expect(output).toContain("no platform-managed router or database");
+      expect(output).toContain("declared image services run as containers");
+      expect(output).not.toContain("no database container");
+    } finally {
+      rmSync(join(nativeRoot, "services/infra"), { recursive: true, force: true });
+      clearDiscoveryCache();
+    }
+  });
+
   it("reports no platform service and no platform port in --json", async () => {
     const output = JSON.parse(await runStatus(["--json"]));
 

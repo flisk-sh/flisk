@@ -14,7 +14,7 @@ import { getHostPortPlan, resolveRuntimeTiltPort } from "../utils/host-port-conf
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeRunState } from "../utils/native-runtime.js";
-import { isNativeProject } from "../utils/native-service.js";
+import { isNativeProject, isNativeService } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
@@ -390,7 +390,11 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             console.log(chalk.bold("Platform services:"));
             if (nativeProject) {
                 // Say what runs instead of naming a router and a database the runtime does not start.
-                showDetail("none: services run as local processes on localhost (no router, no database container)");
+                // A mixed run still starts its declared `image` containers with Docker, so do not deny those.
+                const mixedRun = all.resources.some((resource) => !isNativeService(resource));
+                showDetail(mixedRun
+                    ? "none: no platform-managed router or database; command services run as local processes on localhost, declared image services run as containers"
+                    : "none: services run as local processes on localhost (no router, no database container)");
             }
             else {
                 for (const service of platformServices) {
