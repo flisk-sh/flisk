@@ -208,6 +208,9 @@ export function parseWaitTimeout(
   return { ok: true, seconds };
 }
 
+/** The hint every INVALID_WAIT_TIMEOUT refusal reports: one example that passes the parser. */
+export const INVALID_WAIT_TIMEOUT_SUGGESTIONS = ["Try: --wait-timeout 600"] as const;
+
 /**
  * The last LOG_TAIL_CHARS of a log, masked before it is cut: cutting first could keep the end of a secret without its start,
  * and the shortened value would no longer match.

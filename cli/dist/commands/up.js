@@ -62,7 +62,7 @@ import { attachedUpInCiWarning, upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
 import { evaluateTiltReadiness, getDisabledHealthResourceNames, healthProbeCannotRun, tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
-import { defaultUpWaitDeps, failedWaitMessages, fetchUnhealthyLogLines, formatUnhealthyLogTails, parseWaitTimeout, unhealthyLogTails, upAndWait, withUnhealthyLogs, } from "../utils/up-wait.js";
+import { defaultUpWaitDeps, failedWaitMessages, fetchUnhealthyLogLines, formatUnhealthyLogTails, INVALID_WAIT_TIMEOUT_SUGGESTIONS, parseWaitTimeout, unhealthyLogTails, upAndWait, withUnhealthyLogs, } from "../utils/up-wait.js";
 import { buildPrintedUrlTargets, checkPrintedUrls, formatUrlFailures, healthUrlOf, printedHealthUrl, tiltResourceHasExited, urlFailureSuggestions, } from "../utils/url-check.js";
 import { enableDiscoveredStacks, writeDefaultProjectConfig } from "./project.js";
 export function formatUpSuccess(port, options = {}) {
@@ -423,9 +423,13 @@ async function runUpWait(options) {
     const timeout = parseWaitTimeout(options.waitTimeout);
     if (!timeout.ok) {
         emit?.({ ok: false }, [
-            { code: "INVALID_WAIT_TIMEOUT", message: timeout.message, suggestions: [] },
+            {
+                code: "INVALID_WAIT_TIMEOUT",
+                message: timeout.message,
+                suggestions: [...INVALID_WAIT_TIMEOUT_SUGGESTIONS],
+            },
         ]);
-        showErrorAndExit(timeout.message, 1, []);
+        showErrorAndExit(timeout.message, 1, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
     }
     const outcome = await upAndWait(process.argv.slice(2), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
     // A failed or timed-out wait names what was unhealthy with the last lines of its log, the reason (a traceback, a
@@ -885,11 +889,7 @@ export const upCommand = new Command("up")
                 const validNames = candidates.map((service) => service.name);
                 const error = errorFactories.unknownServices(unknown, validNames);
                 emit?.({ ok: false }, [
-                    {
-                        code: "UNKNOWN_SERVICE",
-                        message: error.message,
-                        ...(error.suggestions.length > 0 ? { suggestions: error.suggestions } : {}),
-                    },
+                    { code: "UNKNOWN_SERVICE", message: error.message, suggestions: error.suggestions },
                 ]);
                 error.exit();
             }
@@ -1225,9 +1225,13 @@ export const upCommand = new Command("up")
                 : undefined;
             if (emit && parsedWaitTimeout && !parsedWaitTimeout.ok) {
                 emit({ ok: false }, [
-                    { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
+                    {
+                        code: "INVALID_WAIT_TIMEOUT",
+                        message: parsedWaitTimeout.message,
+                        suggestions: [...INVALID_WAIT_TIMEOUT_SUGGESTIONS],
+                    },
                 ]);
-                showErrorAndExit(parsedWaitTimeout.message, 1, []);
+                showErrorAndExit(parsedWaitTimeout.message, 1, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
             }
             // Keep the running Tilt's port saved once refusal checks pass, so the next `flisk up` (and status, logs, restart) finds it again.
             hostPortPlan.tiltUi = runningPort;

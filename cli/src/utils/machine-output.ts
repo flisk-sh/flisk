@@ -22,6 +22,18 @@ export function createMachineEnvelope<T>(
   return { schemaVersion: SCHEMA_VERSION, data, errors };
 }
 
+/**
+ * Builds one error entry for a `--json` envelope. `suggestions` is always present, so a consumer
+ * reads it without checking for the key first (#4522).
+ */
+export function machineError(
+  code: string,
+  message: string,
+  suggestions: readonly string[] = [],
+): MachineError {
+  return { code, message, suggestions: [...suggestions] };
+}
+
 function isMachineError(value: unknown): value is MachineError {
   if (typeof value !== "object" || value === null) return false;
   const error = value as Record<string, unknown>;

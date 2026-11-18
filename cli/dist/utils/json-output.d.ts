@@ -2,7 +2,8 @@ import type { MachineError } from "../types/index.js";
 export type JsonError = MachineError;
 export type JsonEmitter = (data: Record<string, unknown>, errors?: JsonError[]) => void;
 /**
- * Returns an emitter that writes at most one `{schemaVersion, data, errors}` object to stdout. If the process
+ * Returns an emitter that writes at most one `{schemaVersion, data, errors}` object to stdout. Every error entry
+ * carries a `suggestions` array, so a consumer reads it without checking for the key first (#4522). If the process
  * exits before anything was emitted (a preflight `process.exit`, Tilt ending early), a failure object is written
  * so a JSON consumer never sees an empty stdout. Uses writeSync because `process.exit` does not flush async writes.
  */

@@ -88,7 +88,7 @@ describe("not-found error suggestions", () => {
 
     expect(error.message).toBe("Unknown service widgt. Valid names: widget");
     expect(error.exitCode).toBe(2);
-    expect(error.suggestions).toEqual(['Did you mean "widget"?']);
+    expect(error.suggestions).toEqual(['Did you mean "widget"?', "Valid names: widget"]);
   });
 
   it("pairs each suggestion with its unknown service", () => {
@@ -97,6 +97,7 @@ describe("not-found error suggestions", () => {
     expect(error.suggestions).toEqual([
       'Did you mean "widget" for "widgt"?',
       'Did you mean "widget" for "widge"?',
+      "Valid names: widget",
     ]);
   });
 
@@ -104,7 +105,7 @@ describe("not-found error suggestions", () => {
     const error = errorFactories.unknownServices(["ok"], ["zeta", "ok1"]);
 
     expect(error.message).toBe("Unknown service ok. Valid names: ok1, zeta");
-    expect(error.suggestions).toEqual(['Did you mean "ok1"?']);
+    expect(error.suggestions).toEqual(['Did you mean "ok1"?', "Valid names: ok1, zeta"]);
   });
 
   it("builds a shared UNKNOWN_RESOURCE error with valid resource names and closest match first", () => {
