@@ -932,8 +932,11 @@ describe("parseResourceType", () => {
     expect(error).toBeInstanceOf(FliskError);
     const { message, suggestions } = error as FliskError;
     expect(message).not.toContain("Unknown resource type");
+    expect(suggestions.join("\n")).toContain("new API");
     expect(suggestions.join("\n")).toContain("--feature prisma");
-    expect(suggestions.join("\n")).toContain("bring-your-own");
+    expect(suggestions.join("\n")).toContain("--type bring-your-own");
+    expect(suggestions.join("\n")).toContain("--restart no");
+    expect(suggestions.join("\n")).toContain("--path");
   });
 });
 

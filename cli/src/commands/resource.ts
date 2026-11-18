@@ -804,8 +804,9 @@ export function parseResourceType(type: string): CreatableResourceType | InfraRe
   const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
   if (normalized === "migrator") {
     throw new FliskError("A migrator cannot be created with --type migrator.", [
-      "Create one together with an API: flisk resource <api> --type backend --feature prisma",
-      "For another migration tool, run it as a one-shot bring-your-own job with --restart no",
+      "Create one together with a new API: flisk resource <api> --type backend --feature prisma",
+      "For another migration tool: flisk resource <name> --type bring-your-own --dockerfile ./Dockerfile --restart no",
+      "Put the Dockerfile that runs the migration in the resource directory (or pass its directory with --path)",
     ]);
   }
   const validTypes: readonly string[] = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
