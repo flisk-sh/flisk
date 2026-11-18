@@ -2,8 +2,6 @@
 name: 🔀 PR | Security | CodeQL
 
 on:
-  push:
-    branches: [main]
   pull_request:
   merge_group:
   schedule:
