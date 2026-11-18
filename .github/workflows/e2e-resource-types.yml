@@ -23,7 +23,6 @@ on:
   # one frontend framework runs that framework's leg, a change to shared code runs one canary leg per kind of suite, a change to
   # how the matrix is built runs every leg. A PR that touches none of them
   # runs no legs, and the gate passes. The merge queue runs the full pull request set; nightly and release run every axis.
-  pull_request:
   merge_group:
   schedule:
     - cron: "30 6 * * *"
