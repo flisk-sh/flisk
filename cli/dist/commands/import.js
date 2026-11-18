@@ -113,7 +113,7 @@ export function checkCoreVersion(currentVersion = getPackageVersion(), args = []
 }
 export function importInvocation(args, env = process.env, platform = process.platform, runtime = {}) {
     const pkg = safePackageSpec(env.FLISK_IMPORT_PACKAGE, IMPORT_PACKAGE);
-    return npxInvocation(["--yes", pkg, ...args], { ...runtime, platform });
+    return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
 }
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersion) {

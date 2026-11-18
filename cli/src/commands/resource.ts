@@ -648,9 +648,10 @@ export function createPackageJson(
       // vitest 5 peers on @types/node ^22 || >=24 and npm enforces that range: ^20 failed `npm install` with ERESOLVE.
       "@types/node": "^22.0.0",
       typescript: "^7.0.2",
-      // vitest 5.0.x crashes npm 10's arborist (loadPeerSet, edgesOut null) when a peer edge is missing,
-      // even though `vite` is declared. vitest 5.1.0 fixed it, so users' `npm install` on npm 10 works.
-      vitest: "5.1.0",
+      // vitest 5.0.x and 5.1.0 crash npm 10's arborist (loadPeerSet, edgesOut null) when a peer edge is missing,
+      // even though `vite` is declared: 5.1.0 stopped installing once its transitive tree moved (2026-11-18, npm 10.9.9).
+      // vitest 5.1.1 installs on npm 10.9.9, so users' `npm install` on npm 10 works.
+      vitest: "5.1.1",
       "@biomejs/biome": "^2.6.2",
 
       // vitest 5 peers on vite ^6.4.0 || ^7 || ^8; vite 5 makes `vitest run` fail at startup with
@@ -1171,7 +1172,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
       return;
     }
     // --json never prompts: every question takes the default that --yes takes.
-    const assumeYes = Boolean(options.yes || options.json);
+    const assumeYes = Boolean(
+      options.yes || options.json || (options.dryRun && !process.stdin.isTTY),
+    );
     // Set once a port is claimed; called when the create ends, after service.json is written or the create failed.
     let releasePortReservation: (() => void) | undefined;
     const action = async (): Promise<JsonCommandResult> => {
