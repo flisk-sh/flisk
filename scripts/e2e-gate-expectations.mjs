@@ -21,13 +21,22 @@ export const GATES = {
 	"e2e-journeys": { workflow: "e2e-journeys.yml", job: "e2e-journeys" },
 	"e2e-examples": { workflow: "e2e-examples.yml", job: "e2e-examples" },
 	"e2e-platforms": { workflow: "e2e-platforms.yml", job: "e2e-platforms" },
+	"e2e-resource-types": {
+		workflow: "e2e-resource-types.yml",
+		job: "e2e-resource-types",
+	},
 };
 
-// The gates each CI event waits for. A pull request and a merge queue entry run every gate. A push to main runs the
+// The gates each CI event waits for. A pull request runs only the light 3-service examples gate; a merge queue entry runs every gate. A push to main runs the
 // journeys gate only. A manual dispatch of ci.yml starts no gate workflow, so it waits for nothing.
 export const GATES_BY_EVENT = {
-	pull_request: ["e2e-journeys", "e2e-examples", "e2e-platforms"],
-	merge_group: ["e2e-journeys", "e2e-examples", "e2e-platforms"],
+	pull_request: ["e2e-examples"],
+	merge_group: [
+		"e2e-journeys",
+		"e2e-examples",
+		"e2e-platforms",
+		"e2e-resource-types",
+	],
 	push: ["e2e-journeys"],
 	workflow_dispatch: [],
 };
