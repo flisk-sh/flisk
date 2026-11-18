@@ -14,18 +14,6 @@ on:
         description: "The release to test (latest or an exact tag such as v1.3.204)"
         type: string
         default: "latest"
-  pull_request:
-    paths:
-      - "cli/src/cli.ts"
-      - "cli/src/utils/platform.ts"
-      - "cli/src/utils/which.ts"
-      - "cli/src/utils/windows-doctor.ts"
-      - "cli/src/commands/up.ts"
-      - "cli/src/commands/doctor.ts"
-      - "cli/src/commands/runtime.ts"
-      - "tests/e2e/lib/**"
-      - "tests/e2e/platforms/windows-hardware/**"
-      - ".github/workflows/e2e-platforms-hardware.yml"
 
 permissions:
   contents: read
