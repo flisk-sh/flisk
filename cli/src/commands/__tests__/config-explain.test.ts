@@ -233,6 +233,18 @@ describe("config explain: user-owned files", () => {
 });
 
 describe("config explain: failure cases", () => {
+  it("suggests the service manifest when passed a resource name", async () => {
+    const root = createTempProject({ projectJson, resources: { api: { appType: "backend" } } });
+    const result = await explainJson(root, "api");
+    const envelope = parseEnvelope(result.stdout);
+    expect(result.status).toBe(1);
+    expect(envelope.errors[0]).toEqual(
+      expect.objectContaining({
+        suggestions: expect.arrayContaining([expect.stringContaining("api/service.json")]),
+      }),
+    );
+  });
+
   it("fails with a structured error when the file does not exist", async () => {
     const root = createTempProject({ projectJson });
 
