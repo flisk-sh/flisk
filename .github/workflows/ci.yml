@@ -55,6 +55,10 @@ jobs:
               - '!docs/**'
               - '!openspec/**'
               - '!LICENSE'
+              # Claude Code's own config: no CLI, runtime or test code. .claude/skills stays code (the docs job checks it).
+              - '!.claude/hooks/**'
+              - '!.claude/memory/**'
+              - '!.claude/settings.json'
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
