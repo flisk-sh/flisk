@@ -80,6 +80,7 @@ export declare function waitForServiceReady(plan: Pick<NativeServicePlan, "healt
     isAlive: () => boolean;
     timeoutMs?: number;
     intervalMs?: number;
+    onStatus?: (status: number) => void;
 }): Promise<boolean>;
 /** What `.flisk/native/run.json` holds while a native run is up. */
 export interface NativeRunState {
@@ -259,6 +260,8 @@ export declare class NativeSupervisor {
     stop(): Promise<void>;
     /** The current process id of a service, for tests and diagnostics. */
     pidOf(name: string): number | undefined;
+    /** HTTP readiness status codes recorded per service during startup. */
+    readyStatuses(): ReadonlyMap<string, number>;
     /** Parsed outputs produced by finished migrators (for inspection and tests). */
     outputsOf(migratorName: string): Record<string, string> | undefined;
     private resolveServiceEnv;
