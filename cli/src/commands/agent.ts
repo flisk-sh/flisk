@@ -138,9 +138,17 @@ agentCommand
 
       const appType = resource.config?.appType ?? resource.type;
       if (appType !== "agent") {
+        const agents = discovery.resources
+          .filter((candidate) => (candidate.config?.appType ?? candidate.type) === "agent")
+          .map((candidate) => candidate.name);
         fail({
           code: "NOT_AN_AGENT",
           message: `Resource "${resourceName}" is of type "${appType}", not "agent".`,
+          hints: [
+            ...(agents.length ? [`Agent resources: ${agents.sort().join(", ")}`] : []),
+            "List agents with: flisk agent list",
+            "Create one with: flisk resource <name> --type agent",
+          ],
         });
       }
 
