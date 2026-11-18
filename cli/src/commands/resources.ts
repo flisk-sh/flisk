@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
-import { Command } from "commander";
+import { Command, Option } from "commander";
+import { routeUsageErrorsToJson } from "../utils/command-helpers.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
@@ -162,13 +163,23 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
   await runCommand(action);
 }
 
-export const resourcesCommand = new Command("resources")
+// Commander marks every `--no-` option as negated, which would make it share the `stack` key with
+// `--stack <stack>` and conflict with itself. `Option.negate` is a public, typed field (commander
+// typings, ^15), so it is cleared here to give `--no-stack` its own `noStack` key and let
+// `.conflicts("stack")` work. `resources-options.test.ts` pins this coupling: a Commander change
+// that breaks it fails the tests instead of silently dropping the conflict check.
+const noStackOption = new Option("--no-stack", "Show only resources without a stack").conflicts(
+  "stack",
+);
+noStackOption.negate = false;
+
+export const resourcesCommand = routeUsageErrorsToJson(new Command("resources"))
   .description("List all resources (services) in the project")
-  .option("-v, --verbose", "Show detailed information about each resource", false)
+  .option("-v, --verbose", "Show resource details in text view (JSON output is unchanged)", false)
   .option("-s, --stack <stack>", "Filter resources by stack name")
   .option("-t, --type <type>", "Filter resources by type")
-  .option("--no-stack", "Show only resources without a stack")
-  .option("--ports", "Show port assignments", false)
+  .addOption(noStackOption)
+  .option("--ports", "Show port assignments in text view (JSON output is unchanged)", false)
   .option("--json", "Output a versioned JSON resource report", false)
   .addHelpText(
     "after",

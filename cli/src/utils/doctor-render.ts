@@ -5,9 +5,17 @@ import { formatDoctorSummary, orderDoctorResults } from "./doctor-runner.js";
 
 // Human-readable doctor output: results, repair actions and the "Fix first" list.
 
-export function printFixActions(actions: DoctorAction[], dryRun: boolean): void {
+export function printFixActions(
+  actions: DoctorAction[],
+  dryRun: boolean,
+  failedCheckCount: number = 0,
+): void {
   if (actions.length === 0) {
-    console.log(`${chalk.green("✓")} Nothing to repair\n`);
+    if (failedCheckCount > 0) {
+      console.log(`Nothing to repair automatically; ${failedCheckCount} checks need your action\n`);
+    } else {
+      console.log(`${chalk.green("✓")} Nothing to repair\n`);
+    }
     return;
   }
   for (const action of actions) {
