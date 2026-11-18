@@ -55,6 +55,14 @@ export declare function buildUpArgs(args: Record<string, unknown>): string[];
  * or an unsupported host arrives; otherwise the caller polls the `status` tool for `data.tilt.readiness`.
  */
 export declare function startUp(args: Record<string, unknown>, deps?: UpDeps): Promise<McpToolResult>;
+/**
+ * `flisk status --json --unhealthy` still lists every service (the flag only shortens the text output, and the envelope
+ * carries the names in `data.unhealthy`). For an agent that wants the broken services only, drop the others from
+ * `data.resources` and from each stack's `resources`, and say so in `data.filteredTo`. Counts keep describing the whole project.
+ */
+export declare function trimStatusToUnhealthy(result: McpToolResult): McpToolResult;
+/** `flisk status --json`, narrowed by `unhealthy` and `stack` the way the CLI does. */
+export declare function buildStatusArgs(args: Record<string, unknown>): string[];
 export declare function buildLogsArgs(args: Record<string, unknown>): string[];
 /** `flisk resource <name> ... --yes`: options as `--flag=value`, after the name, so a variadic `--feature` never takes it. */
 /** `flisk tool add <tool> [name] --json` for the tool_add tool; the tool must be one the catalog knows. */

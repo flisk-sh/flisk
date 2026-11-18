@@ -30,6 +30,7 @@ import {
   buildProjectInitArgs,
   buildResourceCreateArgs,
   buildStackAssignArgs,
+  buildStatusArgs,
   buildToolAddArgs,
   buildUpArgs,
   createFliskTools,
@@ -39,6 +40,7 @@ import {
   startUp,
   toTextResult,
   toToolResult,
+  trimStatusToUnhealthy,
   type UpDeps,
 } from "../tools.js";
 
@@ -269,6 +271,135 @@ describe("argument building", () => {
     for (const bad of ["other", "", 1, "--tail=1"]) {
       expect(() => buildLogsArgs({ source: bad })).toThrow("source must be runtime or build");
     }
+  });
+
+  it("builds status arguments from unhealthy and stack, and rejects bad values", () => {
+    expect(buildStatusArgs({})).toEqual(["status", "--json"]);
+    expect(buildStatusArgs({ unhealthy: true })).toEqual(["status", "--json", "--unhealthy"]);
+    expect(buildStatusArgs({ unhealthy: false })).toEqual(["status", "--json"]);
+    expect(buildStatusArgs({ unhealthy: true, stack: "shop" })).toEqual([
+      "status",
+      "--json",
+      "--unhealthy",
+      "--stack=shop",
+    ]);
+    expect(() => buildStatusArgs({ unhealthy: "yes" })).toThrow("unhealthy must be a boolean");
+    expect(() => buildStatusArgs({ stack: "--strict" })).toThrow("stack must be a name");
+    expect(() => buildStatusArgs({ stack: 7 })).toThrow("stack must be a name");
+  });
+
+  it("passes the unhealthy filter to logs and rejects a non-boolean", () => {
+    expect(buildLogsArgs({ unhealthy: true })).toEqual(["logs", "--json", "--unhealthy"]);
+    expect(buildLogsArgs({ unhealthy: false })).toEqual(["logs", "--json"]);
+    expect(() => buildLogsArgs({ unhealthy: "yes" })).toThrow("unhealthy must be a boolean");
+  });
+
+  it("advertises unhealthy on status and logs and stack on status in tools/list", () => {
+    const tools = createFliskTools();
+    const props = (name: string) =>
+      (
+        tools.find((tool) => tool.name === name)?.inputSchema as unknown as {
+          properties: Record<string, { type?: string }>;
+        }
+      ).properties;
+    expect(props("status").unhealthy?.type).toBe("boolean");
+    expect(props("status").stack?.type).toBe("string");
+    expect(props("logs").unhealthy?.type).toBe("boolean");
+    for (const name of ["status", "logs"]) {
+      expect(tools.find((tool) => tool.name === name)?.description).toContain("unhealthy: true");
+    }
+  });
+
+  it("trims status to the unhealthy services, in resources and in each stack, and marks it", () => {
+    const full = {
+      data: {
+        resourceCount: 3,
+        unhealthy: ["api"],
+        resources: [
+          { name: "api", status: "error" },
+          { name: "web", status: "ready" },
+          { name: "db", status: "ready" },
+        ],
+        stacks: [
+          { name: "app", resources: ["api", "web"], healthyCount: 1 },
+          { name: "data", resources: ["db"], healthyCount: 1 },
+        ],
+        ports: { gateway: 80 },
+      },
+      errors: [],
+    };
+    const out = trimStatusToUnhealthy({ data: full, isError: false });
+    const data = (out.data as { data: Record<string, unknown> }).data;
+    expect(data.resources).toEqual([{ name: "api", status: "error" }]);
+    expect(data.stacks).toEqual([
+      { name: "app", resources: ["api"], healthyCount: 1 },
+      { name: "data", resources: [], healthyCount: 1 },
+    ]);
+    expect(data.filteredTo).toBe("unhealthy");
+    expect(data.unhealthy).toEqual(["api"]);
+    expect(data.resourceCount).toBe(3);
+    expect(data.ports).toEqual({ gateway: 80 });
+    expect(out.isError).toBe(false);
+  });
+
+  it("returns an empty resource list, not an error, when every service is healthy", () => {
+    const out = trimStatusToUnhealthy({
+      data: {
+        data: { unhealthy: [], resources: [{ name: "api", status: "ready" }], stacks: [] },
+        errors: [],
+      },
+      isError: false,
+    });
+    expect(out.isError).toBe(false);
+    expect((out.data as { data: { resources: unknown[] } }).data.resources).toEqual([]);
+  });
+
+  it("leaves a status result alone when it has no unhealthy list or is an error", () => {
+    const odd = { data: { data: [], errors: [] }, isError: false };
+    expect(trimStatusToUnhealthy(odd)).toBe(odd);
+    const failed = { data: { data: null, errors: [{ code: "X", message: "m" }] }, isError: true };
+    expect(trimStatusToUnhealthy(failed)).toBe(failed);
+  });
+
+  it("trims the status tool result only when unhealthy is true", async () => {
+    const stdout = JSON.stringify({
+      schemaVersion: 1,
+      data: {
+        unhealthy: ["api"],
+        resources: [{ name: "api" }, { name: "web" }],
+        stacks: [],
+      },
+      errors: [],
+    });
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout, stderr: "" }));
+    const names = async (args: Record<string, unknown>) => {
+      const r = await tools.find((t) => t.name === "status")?.handler(args);
+      return (r?.data as { data: { resources: { name: string }[] } }).data.resources.map(
+        (x) => x.name,
+      );
+    };
+    expect(await names({})).toEqual(["api", "web"]);
+    expect(await names({ unhealthy: false })).toEqual(["api", "web"]);
+    expect(await names({ unhealthy: true })).toEqual(["api"]);
+  });
+
+  it("calls the CLI with the unhealthy filters for status and logs", async () => {
+    const seen: string[][] = [];
+    const tools = createFliskTools(async (args) => {
+      seen.push(args);
+      return { exitCode: 0, stdout: '{"schemaVersion":1,"data":[],"errors":[]}', stderr: "" };
+    });
+    const status = await tools
+      .find((t) => t.name === "status")
+      ?.handler({ unhealthy: true, stack: "shop" });
+    const logs = await tools.find((t) => t.name === "logs")?.handler({ unhealthy: true });
+    expect(seen).toEqual([
+      ["status", "--json", "--unhealthy", "--stack=shop"],
+      ["logs", "--json", "--unhealthy"],
+    ]);
+    // every service healthy: an empty list, not an error
+    expect(status?.isError).toBe(false);
+    expect(logs?.isError).toBe(false);
   });
 
   it("advertises source as an enum on the logs tool schema", () => {
