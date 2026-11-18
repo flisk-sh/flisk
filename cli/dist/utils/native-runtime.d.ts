@@ -73,8 +73,19 @@ export declare function findMissingPrograms(plans: readonly NativeServicePlan[],
     name: string;
     program: string;
 }>;
-/** True when something accepts TCP connections on localhost:port. */
+/**
+ * True when something accepts TCP connections on localhost:port. The probe ends the socket
+ * cleanly after connecting: an immediate destroy can make a server that has already written a
+ * greeting log a connection reset, which looks like a failure to the person running `flisk up`.
+ */
 export declare function isPortListening(port: number, timeoutMs?: number): Promise<boolean>;
+/**
+ * The single readiness probe used while starting, restarting or waiting for a local process.
+ * When the plan has an HTTP health URL the first probe is a real HTTP GET, so an HTTP server
+ * never sees a bare connect that it would log as a reset. TCP and command checks keep their
+ * own probe. This is shared by `up`, `status` and `--wait` through `waitForServiceReady`.
+ */
+export declare function probeServiceReady(plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled"> & Partial<Pick<NativeServicePlan, "readiness" | "cwd" | "env">>): Promise<number | null>;
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
 export declare function waitForServiceReady(plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled"> & Partial<Pick<NativeServicePlan, "readiness" | "cwd" | "env">>, options: {
     isAlive: () => boolean;
