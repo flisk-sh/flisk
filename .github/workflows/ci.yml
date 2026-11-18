@@ -1,9 +1,7 @@
-# Checks for every PR and push to main. Run manually from the Actions tab too.
+# Checks for every PR and merge queue run. Not on push to main: the merge queue already ran them on the exact commit. Run manually from the Actions tab too.
 name: 🔀 PR | CI | Checks
 
 on:
-  push:
-    branches: [main]
   pull_request:
   merge_group:
   workflow_dispatch:
@@ -55,6 +53,10 @@ jobs:
               - '!docs/**'
               - '!openspec/**'
               - '!LICENSE'
+              # Claude Code's own config: no CLI, runtime or test code. .claude/skills stays code (the docs job checks it).
+              - '!.claude/hooks/**'
+              - '!.claude/memory/**'
+              - '!.claude/settings.json'
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter

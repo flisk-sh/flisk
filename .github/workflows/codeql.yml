@@ -58,4 +58,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: flisk-sh/codeql-starlark@2dfbd614fa9097279c0938e3469b86bc43930dfc # v0.2.2
+          fetch-depth: 2 # the PR merge commit and its base, to list what the PR changes
+      # A pull request that touches no Starlark has nothing for this analyzer to find. The job still runs and passes (the
+      # analyzer step below is skipped), so nothing waits on a result that never comes. main, merge groups and the weekly
+      # run always scan.
+      - name: Does this change touch Starlark?
+        id: changed
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          run=true
+          if [ "$EVENT" = pull_request ]; then
+            if git diff --name-only HEAD^1 HEAD | grep -Eq '\.(star|bzl)$|(^|/)Tiltfile$|^\.github/workflows/codeql\.yml$'; then
+              run=true
+            else
+              run=false
+              echo "No Starlark files changed in this pull request; skipping the Starlark analysis."
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - if: steps.changed.outputs.run == 'true'
+        uses: flisk-sh/codeql-starlark@2dfbd614fa9097279c0938e3469b86bc43930dfc # v0.2.2
