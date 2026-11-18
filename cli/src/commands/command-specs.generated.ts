@@ -38,14 +38,27 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         defaultValue: false,
       },
       {
+        flags: "--stack <name>",
+        description: "Only show this stack",
+      },
+      {
         flags: "--json",
         description: "Output a versioned JSON stack report",
         defaultValue: false,
       },
     ],
-    arguments: [],
+    arguments: [
+      {
+        name: "stack",
+        description: "Only show this stack (default: all stacks)",
+        required: false,
+        variadic: false,
+      },
+    ],
     helpTexts: {
-      after: ["\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json"],
+      after: [
+        "\nExamples:\n  flisk stacks\n  flisk stacks app\n  flisk stacks --stack app\n  flisk stacks app --json\n  flisk stacks --services\n  flisk stacks --json\n\nTo list the resources of one stack, run: flisk resources --stack <name>",
+      ],
     },
     subcommands: [],
   },
