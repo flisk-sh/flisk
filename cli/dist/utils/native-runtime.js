@@ -222,14 +222,14 @@ export function isPortListening(port, timeoutMs = 1_000) {
         socket.once("error", () => finish(false));
     });
 }
-async function healthAnswers(url) {
+async function healthCheckStatus(url) {
     try {
         const response = await fetch(url, { signal: AbortSignal.timeout(2_000), redirect: "manual" });
         await response.body?.cancel();
-        return response.status < 400;
+        return response.status < 400 ? response.status : null;
     }
     catch {
-        return false;
+        return null;
     }
 }
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
@@ -249,7 +249,11 @@ export async function waitForServiceReady(plan, options) {
             : readiness?.kind === "command"
                 ? await readinessCommandPasses(readiness.command, plan)
                 : plan.healthUrl
-                    ? await healthAnswers(plan.healthUrl)
+                    ? await healthCheckStatus(plan.healthUrl).then((status) => {
+                        if (status !== null)
+                            options.onStatus?.(status);
+                        return status !== null;
+                    })
                     : await isPortListening(plan.port);
         if (ready)
             return true;
@@ -677,6 +681,9 @@ export class NativeSupervisor {
                     : await waitForServiceReady(service.plan, {
                         isAlive: () => !this.stopping && !service.gaveUp,
                         timeoutMs: this.options.readyTimeoutMs,
+                        onStatus: (status) => {
+                            service.readyStatus = status;
+                        },
                     });
                 await service.identityReady;
                 if (isReady) {
@@ -733,6 +740,16 @@ export class NativeSupervisor {
     /** The current process id of a service, for tests and diagnostics. */
     pidOf(name) {
         return this.services.get(name)?.child?.pid;
+    }
+    /** HTTP readiness status codes recorded per service during startup. */
+    readyStatuses() {
+        const statuses = new Map();
+        for (const [name, service] of this.services) {
+            if (service.readyStatus !== undefined) {
+                statuses.set(name, service.readyStatus);
+            }
+        }
+        return statuses;
     }
     /** Parsed outputs produced by finished migrators (for inspection and tests). */
     outputsOf(migratorName) {

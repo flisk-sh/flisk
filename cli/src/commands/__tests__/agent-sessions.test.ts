@@ -126,6 +126,20 @@ describe("flisk agent sessions", () => {
     const { status, envelope } = await runEnvelopeCase(envelopeProject, ["api"]);
     expect(status).toBe(1);
     expect(envelope.errors[0].code).toBe("NOT_AN_AGENT");
+    expect(envelope.errors[0].suggestions).toEqual(
+      expect.arrayContaining([
+        "List agents with: flisk agent list",
+        "Create one with: flisk resource <name> --type agent",
+      ]),
+    );
+  });
+
+  it("prints the NOT_AN_AGENT next steps in human-readable output", () => {
+    const res = runFlisk(["agent", "sessions", "api"], envelopeProject);
+    expect(res.status).not.toBe(0);
+    const output = res.stdout + res.stderr;
+    expect(output).toContain("List agents with: flisk agent list");
+    expect(output).toContain("Create one with: flisk resource <name> --type agent");
   });
 
   it("reports NO_PORT when an agent resource has no assigned port", async () => {
