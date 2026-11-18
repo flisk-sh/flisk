@@ -1,9 +1,7 @@
-# Checks for every PR and push to main. Run manually from the Actions tab too.
+# Checks for every PR and merge queue run. Not on push to main: the merge queue already ran them on the exact commit. Run manually from the Actions tab too.
 name: 🔀 PR | CI | Checks
 
 on:
-  push:
-    branches: [main]
   pull_request:
   merge_group:
   workflow_dispatch:
