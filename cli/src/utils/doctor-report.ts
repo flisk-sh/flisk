@@ -26,6 +26,12 @@ export interface DoctorReport {
     fixFirst?: RankedFix[];
     /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
     actions?: DoctorAction[];
+    /** Number of repair actions that are repairable (planned or applied). */
+    repairableCount?: number;
+    /** Number of failed checks that need manual action. */
+    needsActionCount?: number;
+    repairable?: number;
+    needsAction?: number;
     host?: HostInfo & { containerRuntimeReachable: boolean | null };
     buildCache?: DockerBuildCacheReport;
     /** Colima disk file on the Mac against what Docker reports; present only on a running Colima VM. */
@@ -173,4 +179,22 @@ export function createDoctorReport(
 export function getDoctorExitCode(report: DoctorReport): 0 | 1 | 2 {
   if (report.errors.length > 0) return 2;
   return report.data.ready ? 0 : 1;
+}
+
+/**
+ * Splits a `--fix` run into repairs and manual work. A failed check that a planned (dry-run) repair
+ * covers counts as repairable only; a failure that remains after an applied repair stays manual work; `needsActionCount` keeps the failures nobody will repair automatically.
+ */
+export function summarizeDoctorFix(
+  results: CheckResult[],
+  actions: DoctorAction[],
+): { repairableCount: number; needsActionCount: number } {
+  const repairs = actions.filter((a) => a.status === "applied" || a.status === "planned");
+  // Only a dry-run (`planned`) action covers a failure: an `applied` repair already ran before the
+  // checks, so a check that still fails afterwards is manual work.
+  const covered = new Set(repairs.filter((a) => a.status === "planned").map((a) => a.check));
+  const needsActionCount = results.filter(
+    (c) => !c.didPass && !c.isSkipped && !c.isWarning && !covered.has(c.name),
+  ).length;
+  return { repairableCount: repairs.length, needsActionCount };
 }
