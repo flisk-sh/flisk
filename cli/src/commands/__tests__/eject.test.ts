@@ -196,7 +196,7 @@ describe("flisk eject", () => {
       const output = error.mock.calls.flat().join("\n");
       // Other generated files are still there, so the message names the missing Tiltfile.
       expect(output).toContain(
-        "The generated Tiltfile (.flisk/.flisk-out/Tiltfile) is missing. Run `flisk config regenerate` (or `flisk up`), then `flisk eject`.",
+        "The generated Tiltfile (.flisk/.flisk-out/Tiltfile) is missing. Run `flisk config regenerate` (or `flisk up` for Tilt-backed services), then `flisk eject`.",
       );
       // The fix is regenerate, not `flisk project --yes` (already run when the starter was cloned),
       // and never `flisk eject`, the command that just failed (#4451).
@@ -347,4 +347,26 @@ describe("flisk eject", () => {
 
     expect(existsSync(join(tempDir, "EJECTED.md"))).toBe(false);
   });
+
+  it("points at moving a blocking file when .flisk/.flisk-out is a regular file", async () => {
+    const outPath = join(tempDir, ".flisk", ".flisk-out");
+    rmSync(outPath, { recursive: true, force: true });
+    writeFileSync(outPath, "blocking");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { expectExit } = captureExit();
+    try {
+      await expect(
+        ejectCommand.parseAsync(["node", "flisk", "--dry-run"], { from: "node" }),
+      ).rejects.toThrow("process.exit");
+      const output = error.mock.calls.flat().join("\n");
+      expect(output).toContain("A file is blocking the generated output directory");
+      expect(output).toContain("flisk config regenerate");
+      expect(output).not.toContain("flisk project --yes");
+      expectExit(1);
+    } finally {
+      error.mockRestore();
+      rmSync(outPath, { force: true });
+    }
+  });
+
 });
