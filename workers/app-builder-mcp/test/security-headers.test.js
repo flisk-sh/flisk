@@ -49,3 +49,8 @@ test("the body stream passes through untouched", async () => {
   assert.equal(out.body, src.body);
   assert.equal(await out.text(), "ab");
 });
+
+test("the home page carries the Flisk analytics beacon for build.flisk.si", async () => {
+  const res = await worker.fetch(new Request("https://build.flisk.si/"), {}, { waitUntil() {} });
+  assert.match(await res.text(), /<script defer data-domain="build\.flisk\.si" src="https:\/\/flisk\.sh\/a\.js"><\/script>/);
+});
