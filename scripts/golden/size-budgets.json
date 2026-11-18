@@ -1,0 +1,23 @@
+{
+  "_comment": "Compressed registry size per platform image, in bytes: the larger of linux/amd64 and linux/arm64 measured on ghcr.io/flisk-sh on 2026-11-18 (golden hash fc63c4669fb5), plus 10%. verify-golden-images.py fails the publish when a layer is over its budget. To raise one on purpose, change the number here in the PR that grows the layer and explain it.",
+  "measured_bytes": {
+    "l1": 52200000,
+    "l2": 56000000,
+    "l3-backend": 56000000,
+    "l3-frontend": 56000000,
+    "l4-backend": 52200000,
+    "l4-backend-node": 64300000,
+    "l4-frontend": 26100000,
+    "l4-migrator": 52600000
+  },
+  "budget_bytes": {
+    "l1": 57500000,
+    "l2": 61700000,
+    "l3-backend": 61700000,
+    "l3-frontend": 61700000,
+    "l4-backend": 57500000,
+    "l4-backend-node": 70800000,
+    "l4-frontend": 28800000,
+    "l4-migrator": 57900000
+  }
+}

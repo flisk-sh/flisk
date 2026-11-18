@@ -8,13 +8,6 @@ on:
       - "tests/tilt-engine/**"
       - "tests/requirements.txt"
       - ".github/workflows/python-tests.yml"
-  push:
-    branches: [main]
-    paths:
-      - "runtime/**"
-      - "tests/tilt-engine/**"
-      - "tests/requirements.txt"
-      - ".github/workflows/python-tests.yml"
 
 concurrency:
   group: python-tests-${{ github.event.pull_request.number || github.ref }}
