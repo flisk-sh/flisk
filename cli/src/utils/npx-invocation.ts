@@ -42,6 +42,8 @@ export function npxInvocation(npxArgs: string[], runtime: NpxRuntime = {}): NpxI
     const npxCli = win32.join(win32.dirname(execPath), "node_modules", "npm", "bin", "npx-cli.js");
     if (exists(npxCli)) {
       return {
+        // The runtime that owns npx-cli.js, by absolute path: a bare "node" would be searched in the current directory
+        // first on Windows and could be another installation than the one whose npm holds npx-cli.js.
         command: execPath,
         args: [npxCli, ...npxArgs],
         shell: false,
@@ -85,6 +87,8 @@ const SAFE_PACKAGE_SPEC = /^[A-Za-z0-9@._/:~+=^\\-]+$/;
  * metacharacter is ignored, so an environment value can never add options or commands to the npx call.
  */
 export function safePackageSpec(override: string | undefined, fallback: string): string {
-  if (override && !override.startsWith("-") && SAFE_PACKAGE_SPEC.test(override)) return override;
-  return fallback;
+  if (typeof override !== "string" || override.startsWith("-")) return fallback;
+  // A guard that returns the fallback on a mismatch: the override only flows on past a passing regexp test.
+  if (!SAFE_PACKAGE_SPEC.test(override)) return fallback;
+  return override;
 }

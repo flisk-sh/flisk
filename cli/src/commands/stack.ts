@@ -19,7 +19,7 @@ import {
   showDetail,
   showSuccess,
 } from "../utils/formatting.js";
-import { runJsonCommand } from "../utils/json-command.js";
+import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { promptMultiSelect, promptText } from "../utils/prompt.js";
 import { createKebabCaseValidator, validateStackName } from "../utils/validation.js";
@@ -276,10 +276,13 @@ export const stackCommand = addYesOption(new Command("stack"))
 
       if (options.resources !== undefined) {
         const requestedNames = normalizeResourceNames(options.resources);
-        if (requestedNames.length === 0) {
-          throw new FliskError("Pass at least one resource name to --resources.", [
-            "Example: `flisk stack api --resources users-api orders-api --yes`",
-          ]);
+        if (requestedNames.length === 0 || requestedNames.some((name) => name.startsWith("-"))) {
+          throw new JsonCommandError(
+            "USAGE",
+            "--resources needs at least one resource name",
+            ["Example: `flisk stack api --resources users-api orders-api --yes`"],
+            2,
+          );
         }
 
         const configPathsByName = new Map<string, string[]>();

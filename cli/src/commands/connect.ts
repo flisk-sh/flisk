@@ -17,7 +17,7 @@ import { findProjectRoot } from "../utils/paths.js";
 
 interface ConnectCommandOptions {
   global?: boolean;
-  project?: boolean;
+  project?: boolean | string;
   dryRun?: boolean;
   force?: boolean;
   json?: boolean;
@@ -87,7 +87,7 @@ export const connectCommand = new Command("connect")
     "Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills",
   )
   .argument("<host>", `Agent host: ${CONNECT_HOSTS.join(", ")}`)
-  .option("--project", "Write into this project (default)")
+  .option("--project [path]", "Write into the specified Flisk project (default: current project)")
   .option("--global", "Write the MCP entry to the host's user config instead (no skills)")
   .option("--dry-run", "Print what would be written, without changing any file", false)
   .option("--force", "Replace an existing, different flisk entry or edited Flisk skill", false)
@@ -96,10 +96,11 @@ export const connectCommand = new Command("connect")
     "after",
     "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global",
   )
-  .action(async (hostArg: string, options: ConnectCommandOptions) => {
+  .action(async (hostArg: string, options: ConnectCommandOptions, command: Command) => {
+    const target = options.project ?? command.optsWithGlobals().project;
     const run = () => {
       const host = resolveConnectHost(hostArg);
-      if (options.global && options.project) {
+      if (options.global && target) {
         throw new FliskError(
           "Choose one of --project and --global",
           [
@@ -108,7 +109,16 @@ export const connectCommand = new Command("connect")
           2,
         );
       }
-      const projectRoot = findProjectRoot() ?? process.cwd();
+      const targetPath = typeof target === "string" ? path.resolve(target) : undefined;
+      const root = findProjectRoot(targetPath);
+      if (targetPath && !root) {
+        throw new FliskError(
+          `No Flisk project at ${targetPath}`,
+          [`Run \`flisk project\` there first, or point --project at an existing Flisk project`],
+          2,
+        );
+      }
+      const projectRoot = root ?? process.cwd();
       return connectAgentHost({
         host,
         scope: options.global ? "global" : "project",
