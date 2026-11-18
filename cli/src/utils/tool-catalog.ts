@@ -382,12 +382,13 @@ export function toolIds(): string[] {
 /** The `flisk resource` arguments for a tool that maps to one resource. */
 export function resourceArgs(
   tool: ResourceTool,
-  options: { name?: string; stack?: string; dryRun?: boolean; json?: boolean },
+  options: { name?: string; stack?: string; dryRun?: boolean; json?: boolean; local?: boolean },
 ): string[] {
   return [
     "resource",
     options.name ?? tool.defaultName,
     ...tool.args,
+    ...(options.local ? ["--local"] : []),
     ...(options.stack ? ["--stack", options.stack] : []),
     "--yes",
     ...(options.dryRun ? ["--dry-run"] : []),

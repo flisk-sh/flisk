@@ -51,6 +51,7 @@ export declare function resourceArgs(tool: ResourceTool, options: {
     stack?: string;
     dryRun?: boolean;
     json?: boolean;
+    local?: boolean;
 }): string[];
 /** A manual tool's steps with `{name}` filled in: the given name, or the tool's default. */
 export declare function manualSteps(tool: ManualTool, name?: string): string[];
