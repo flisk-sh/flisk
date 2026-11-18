@@ -25,6 +25,7 @@ h1{font-size:2rem;line-height:1.2;margin:0 0 .5rem}
 .btn{display:inline-block;margin:.5rem 0 1.5rem;padding:.6rem 1.1rem;border-radius:.4rem;background:#1a1a1a;color:#fff;text-decoration:none;font-weight:600}
 code{font:14px ui-monospace,Menlo,monospace;word-break:break-all}
 </style>
+<script defer data-domain="build.flisk.si" src="https://flisk.sh/a.js"></script>
 </head>
 <body>
 <main>
