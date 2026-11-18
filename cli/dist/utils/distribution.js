@@ -351,7 +351,7 @@ export function buildBoard(resources, dist) {
         .at(-1);
     const countCell = (list, label, hint) => list.length > 0 ? filled(`${list.length} ${label}`) : missing(hint);
     const planned = [
-        ...new Set(withStatus("live", "review", "draft", "blocked", "todo").map((e) => channelName(e.id))),
+        ...new Set(withStatus("live", "review", "draft", "blocked").map((e) => channelName(e.id))),
     ].sort();
     const listedWhere = [
         ...new Set(withStatus("live", "review").map((e) => channelName(e.id))),
