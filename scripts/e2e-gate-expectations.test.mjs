@@ -93,11 +93,11 @@ test("the gate workflow has the job that reports the gate name", () => {
 	}
 });
 
-test("the push trigger of the journeys workflow matches the CI workflow", () => {
-	// The CI workflow runs on a push to main, so the journeys gate only reports when the journeys workflow does too.
+test("the CI workflow does not run on a push, so the journeys gate has no push check to wait for", () => {
+	// The CI workflow ran on a push to main only until #4727. Without it, no CI summary job waits for a gate on a push, so
+	// the journeys workflow's own push trigger (the post-merge quickstart leg) is independent of CI.
 	const ci = readWorkflow("ci.yml");
-	const journeys = readWorkflow("e2e-journeys.yml");
-	assert.deepEqual(ci.on.push.branches, journeys.on.push.branches);
+	assert.equal(ci.on.push, undefined);
 });
 
 test("the CI summary job reads the gate list from the script", () => {
