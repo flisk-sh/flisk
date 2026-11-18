@@ -7,6 +7,7 @@ import { FliskError } from "../utils/errors.js";
 import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
+import { isProcessAlive, readNativeRunState } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
@@ -16,6 +17,14 @@ import { startSpinner } from "../utils/spinner.js";
 import { buildServicePorts } from "../utils/status-ports.js";
 import { suggestClosest } from "../utils/suggestions.js";
 import { openUrl } from "../utils/url-actions.js";
+/** Keep the container startup grace period; native projects wait only while their supervisor is alive. */
+async function shouldWaitForFrontend(projectRoot) {
+    const { resources } = discoverResourcesWithProblems(projectRoot);
+    if (!isNativeProject(resources))
+        return true;
+    const state = readNativeRunState(projectRoot);
+    return state !== null && isProcessAlive(state.pid);
+}
 /** The frontends of the current project, with the URL each one is published under. */
 export async function listFrontendTargets(projectRoot) {
     const { resources } = discoverResourcesWithProblems(projectRoot);
@@ -112,9 +121,15 @@ export async function openFirstFrontend(projectRootOverride, options = {}) {
         return null;
     }
     if (options.isPrintOnly) {
-        const first = await pickReadyFrontend(selected, 120000);
+        const shouldWait = await shouldWaitForFrontend(projectRoot);
+        const first = await pickReadyFrontend(selected, shouldWait ? 120000 : 0);
         if (!first) {
-            console.error("No frontend answered yet. Start the stack with `flisk up` and try again.");
+            const target = selected[0];
+            console.error(shouldWait
+                ? "No frontend answered yet. Start the stack with `flisk up` and try again."
+                : "No frontend is answering at " +
+                    (target?.url ?? "the selected URL") +
+                    ". Start the stack with `flisk up` and try again.");
             return null;
         }
         console.log(first.url);
@@ -127,12 +142,19 @@ export async function openFirstFrontend(projectRootOverride, options = {}) {
     for (const target of selected) {
         console.log(chalk.gray(`  - ${target.name}: ${target.url}`));
     }
+    const shouldWait = await shouldWaitForFrontend(projectRoot);
     const spinner = startSpinner("Waiting for the frontend to answer...");
-    const first = await pickReadyFrontend(selected, 120000, (elapsed) => {
+    const first = await pickReadyFrontend(selected, shouldWait ? 120000 : 0, (elapsed) => {
         spinner.text = `Waiting for the frontend to answer... ${Math.round(elapsed / 1000)}s`;
     });
     if (!first) {
         spinner.fail("No frontend answered yet.");
+        if (!shouldWait) {
+            for (const target of selected) {
+                console.log(chalk.yellow(`No frontend is answering at ${target.url}. Start the stack with \`flisk up\`.`));
+            }
+            return null;
+        }
         const plan = await getHostPortPlan(projectRoot, { inspectDocker: false });
         const ingress = plan?.ingressHttp;
         const reachable = ingress ? (await probeHostPort(ingress)) === "in-use" : false;
@@ -190,9 +212,15 @@ export const openCommand = new Command("open")
             if (resource !== undefined && selected.length === 0) {
                 throw new JsonCommandError("UNKNOWN_FRONTEND", `Resource "${resource}" not found`, unknownFrontendSuggestions(resource, targets));
             }
-            const first = await pickReadyFrontend(selected, 120000);
+            const shouldWait = await shouldWaitForFrontend(projectRoot);
+            const first = await pickReadyFrontend(selected, shouldWait ? 120000 : 0);
             if (!first) {
-                throw new JsonCommandError("FRONTEND_NOT_READY", "No frontend answered yet. Start the stack with `flisk up` and try again.", ["Start the stack with `flisk up` and try again."]);
+                const target = selected[0];
+                throw new JsonCommandError("FRONTEND_NOT_READY", shouldWait
+                    ? "No frontend answered yet. Start the stack with `flisk up` and try again."
+                    : "No frontend is answering at " +
+                        (target?.url ?? "the selected URL") +
+                        ". Start the stack with `flisk up` and try again.", ["Start the stack with `flisk up` and try again."]);
             }
             return { data: { url: first.url, resource: first.name } };
         });
@@ -202,6 +230,6 @@ export const openCommand = new Command("open")
         isPrintOnly: options.print,
         ...(resource === undefined ? {} : { resource }),
     });
-    if (url === null && (options.print || resource !== undefined))
+    if (url === null)
         process.exitCode = 1;
 });

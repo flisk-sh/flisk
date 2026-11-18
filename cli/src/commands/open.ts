@@ -8,8 +8,8 @@ import { FliskError } from "../utils/errors.js";
 import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
-import { isNativeProject } from "../utils/native-service.js";
 import { isProcessAlive, readNativeRunState } from "../utils/native-runtime.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
@@ -155,8 +155,8 @@ export async function openFirstFrontend(
         shouldWait
           ? "No frontend answered yet. Start the stack with `flisk up` and try again."
           : "No frontend is answering at " +
-            (target?.url ?? "the selected URL") +
-            ". Start the stack with `flisk up` and try again.",
+              (target?.url ?? "the selected URL") +
+              ". Start the stack with `flisk up` and try again.",
       );
       return null;
     }
@@ -186,7 +186,7 @@ export async function openFirstFrontend(
       for (const target of selected) {
         console.log(
           chalk.yellow(
-            "No frontend is answering at " + target.url + ". Start the stack with `flisk up`.",
+            `No frontend is answering at ${target.url}. Start the stack with \`flisk up\`.`,
           ),
         );
       }
@@ -281,8 +281,8 @@ export const openCommand = new Command("open")
             shouldWait
               ? "No frontend answered yet. Start the stack with `flisk up` and try again."
               : "No frontend is answering at " +
-                (target?.url ?? "the selected URL") +
-                ". Start the stack with `flisk up` and try again.",
+                  (target?.url ?? "the selected URL") +
+                  ". Start the stack with `flisk up` and try again.",
             ["Start the stack with `flisk up` and try again."],
           );
         }

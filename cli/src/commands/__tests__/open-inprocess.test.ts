@@ -14,9 +14,9 @@ import { checkColima } from "../../utils/colima.js";
 import { probeHostPort } from "../../utils/doctor-runtime.js";
 import { ProcessExitError } from "../../utils/errors.js";
 import { getHostPortPlan } from "../../utils/host-port-config.js";
+import { isProcessAlive, readNativeRunState } from "../../utils/native-runtime.js";
 import { discoverResourcesWithProblems } from "../../utils/services.js";
 import { openUrl } from "../../utils/url-actions.js";
-import { isProcessAlive, readNativeRunState } from "../../utils/native-runtime.js";
 import { findReadyFrontend, isFrontendReady, openCommand, openFirstFrontend } from "../open.js";
 
 // Discovery, the saved port plan, the port probe, Colima and the browser are faked, so each case picks what the machine
