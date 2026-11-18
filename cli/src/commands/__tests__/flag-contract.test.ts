@@ -242,6 +242,8 @@ const EXEMPT: Record<string, string> = {
     "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute status --json":
     "a subcommand of distribute that needs a distribution.json; distribute.test.ts covers the envelope and --init",
+  "distribute status --dry-run":
+    "dry-run on distribute status requires --init; distribute.test.ts proves --init --dry-run writes nothing and emits a machine envelope under --json",
   "distribute kit --dry-run":
     "takes a required <resource> argument and prints the kit instead of 'Dry run -' lines only; distribute.test.ts proves it writes nothing",
   "connect --json":

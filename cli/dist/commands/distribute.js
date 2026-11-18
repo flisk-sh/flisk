@@ -91,34 +91,89 @@ const kitCommand = new Command("kit")
     });
 })
     .addHelpText("after", "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force");
+function describeAdditions(baseline, next) {
+    const lines = [];
+    const oldApps = baseline?.apps ?? {};
+    for (const [name, app] of Object.entries(next.apps)) {
+        const old = oldApps[name];
+        if (!old) {
+            lines.push(`add app: ${name}`);
+        }
+        const oldChannels = old?.channels ?? {};
+        for (const channel of Object.keys(app.channels ?? {})) {
+            if (!(channel in oldChannels))
+                lines.push(`add channel: ${name}/${channel}`);
+        }
+    }
+    return lines;
+}
 const statusSubcommand = new Command("status")
     .description(`Print the channel grid from ${DISTRIBUTION_FILE}`)
     .option("--json", "Output the grid as a versioned JSON envelope", false)
     .option("--init", `Write an empty ${DISTRIBUTION_FILE} for the project's resources`, false)
-    .option("--force", `With --init, add missing apps and channels to an existing ${DISTRIBUTION_FILE}, keeping its entries`, false)
+    .option("--merge", `With --init, add missing apps and channels to an existing ${DISTRIBUTION_FILE}, keeping its entries`, false)
+    .option("--reset", `With --init, replace an existing ${DISTRIBUTION_FILE} with fresh entries`, false)
+    .option("--force", "Alias for --merge; use --reset to replace existing entries", false)
+    .option("--dry-run", "With --init, print the apps and channels it would write and change nothing", false)
     .action(async (options) => {
     await run(Boolean(options.json), async () => {
+        if (!options.init && (options.merge || options.reset || options.force || options.dryRun)) {
+            throw new FliskError("Use --merge, --reset, --force and --dry-run only with --init", ["Run flisk distribute status --init --merge (or --reset, --force, --dry-run)"], 2);
+        }
         const root = projectRootOrThrow();
         const file = path.join(root, DISTRIBUTION_FILE);
         if (options.init) {
-            if (fs.existsSync(file) && !options.force) {
-                throw new FliskError(`${DISTRIBUTION_FILE} already exists`, [
-                    "Edit it by hand, or run again with --force to add missing apps and channels",
+            const merging = Boolean(options.merge || options.force);
+            const resetting = Boolean(options.reset);
+            if (merging && resetting) {
+                throw new FliskError("Choose one of --merge and --reset", [
+                    "--merge keeps existing entries",
+                    "--reset replaces them with fresh entries",
                 ]);
             }
+            const exists = fs.existsSync(file);
+            if (exists && !merging && !resetting) {
+                throw new FliskError(`${DISTRIBUTION_FILE} already exists`, [
+                    "Edit it by hand, or run again with --merge to add missing apps and channels",
+                    "Or run with --reset to replace it with fresh entries",
+                ]);
+            }
+            if (options.force && exists) {
+                console.warn("Hint: --force now merges like --merge; use --reset to replace existing entries.");
+            }
             const resources = discoverResourcesFromRoot(root);
-            const existing = fs.existsSync(file) ? readDistribution(root) : null;
-            const initial = existing
-                ? mergeDistribution(existing, resources)
-                : createInitialDistribution(resources);
+            const existing = exists && !resetting ? readDistribution(root) : null;
+            const initial = resetting || !existing
+                ? createInitialDistribution(resources)
+                : mergeDistribution(existing, resources);
+            if (options.dryRun) {
+                if (options.json) {
+                    console.log(JSON.stringify(createMachineEnvelope({
+                        dryRun: true,
+                        path: file,
+                        distribution: initial,
+                    })));
+                    return;
+                }
+                console.log(`Dry run - would ${resetting ? "reset" : exists ? "update" : "write"} ${DISTRIBUTION_FILE} (nothing written):`);
+                const additions = describeAdditions(resetting ? null : existing, initial);
+                if (additions.length === 0)
+                    console.log("  No additions.");
+                else
+                    for (const line of additions)
+                        console.log(`  ${line}`);
+                return;
+            }
             fs.writeFileSync(file, `${JSON.stringify(initial, null, 2)}\n`);
             if (options.json) {
                 console.log(JSON.stringify(createMachineEnvelope({ path: file, distribution: initial })));
             }
             else {
-                console.log(existing
-                    ? `Updated ${DISTRIBUTION_FILE}: ${Object.keys(initial.apps).length} apps, existing entries kept.`
-                    : `Wrote ${DISTRIBUTION_FILE} with ${Object.keys(initial.apps).length} apps.`);
+                console.log(resetting
+                    ? `Reset ${DISTRIBUTION_FILE} with ${Object.keys(initial.apps).length} apps.`
+                    : existing
+                        ? `Updated ${DISTRIBUTION_FILE}: ${Object.keys(initial.apps).length} apps, existing entries kept.`
+                        : `Wrote ${DISTRIBUTION_FILE} with ${Object.keys(initial.apps).length} apps.`);
             }
             return;
         }
@@ -135,7 +190,8 @@ const statusSubcommand = new Command("status")
         }
         console.log(formatStatusGrid(grid));
     });
-});
+})
+    .addHelpText("after", `\nExamples:\n  flisk distribute status --init --dry-run\n  flisk distribute status --init --merge\n  flisk distribute status --init --reset`);
 export const distributeCommand = new Command("distribute")
     .description("How an app gets to its users: board, listing kit and channel status (local files only)")
     .addCommand(boardCommand)

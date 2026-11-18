@@ -613,7 +613,7 @@ Board, listing kit and channel status for getting an app to users. Everything is
 | `flisk distribute kit <resource>` | Write a listing kit for one resource (`plugin.json`, `.mcp.json`, `server.json`, `listing.md`) |
 | `flisk distribute status` | Print the channel grid from `distribution.json` |
 
-Each subcommand takes `--json` for machine-readable output. `flisk distribute kit` also takes `--out <dir>` (default `distribution/<resource>`), `--dry-run` and `--force`.
+Each subcommand takes `--json` for machine-readable output. `flisk distribute kit` also takes `--out <dir>` (default `distribution/<resource>`), `--dry-run` and `--force`. `flisk distribute status --init` writes `distribution.json`: `--merge` adds missing apps and channels while keeping existing entries, `--reset` replaces them with fresh entries, and `--force` is an alias for `--merge` that prints a hint. Add `--dry-run` to print the apps and channels that would be written without changing any file.
 
 ### `flisk completion [shell]`
 
