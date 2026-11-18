@@ -290,6 +290,15 @@ describe("console output helpers", () => {
       showEmptyState("resources", " matching 'redis'");
       expect(loggedLines()[0]).toContain("No resources found matching 'redis'.");
     });
+
+    it("appends --type <type> to the creation command when a type filter is given", () => {
+      showEmptyState("resources", ' with type "agent"', "agent");
+      expect(loggedLines()).toEqual([
+        expect.stringContaining('No resources found with type "agent".'),
+        expect.stringContaining("To create a resource:"),
+        expect.stringContaining("  flisk resource <name> --type agent"),
+      ]);
+    });
   });
 
   describe("showCancelled", () => {

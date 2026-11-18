@@ -70,7 +70,7 @@ export async function runResourcesList(options) {
             const stackContext = stackName ? ` in stack "${stackName}"` : "";
             const noStackContext = withoutStackFilter && !stackName ? " without a stack" : "";
             const typeContext = options.type !== undefined ? ` with type "${options.type}"` : "";
-            showEmptyState(stackName ? "stack-services" : "resources", stackContext + noStackContext + typeContext);
+            showEmptyState(stackName ? "stack-services" : "resources", stackContext + noStackContext + typeContext, options.type);
             return;
         }
         showStep(`Found ${formatCount(resources.length, "resource")}:\n`);
