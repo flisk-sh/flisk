@@ -169,6 +169,7 @@ Project setup does not need a running Docker daemon or an installed Tilt: `flisk
 | Flag | Effect |
 | --- | --- |
 | `--check` | Validate configuration; exit 0 or 1. Use in CI |
+| `--stale` | List projects whose directory is gone while Docker resources remain |
 | `--json` | Versioned JSON report |
 
 ### `flisk import [dir]`
@@ -267,6 +268,8 @@ flisk resource old-api --path services/old-api --register-existing
 | `-s`, `--stack <stack>` | Stack to assign the resource to |
 | `-p`, `--path <path>` | Custom resource directory. `--resource-path` is an older alias |
 | `--register-existing` | Register an existing resource without creating templates |
+| `--local` | Scaffold a frontend or backend as a host process without Docker or Tilt |
+| `--durability <kind>` | Agent session checkpoint storage. Choose `files` (default, named volume) or `postgres`. Applies to `--type agent` |
 | `-y`, `--yes` | No prompts, use defaults |
 | `--port <port>` | Port (default: next free in 4000-5999) |
 | `--feature <feature...>` | Enable a resource feature, for example `prisma` |
@@ -312,11 +315,15 @@ flisk stack api                                         # pick resources interac
 flisk stack api --resources orders-api users-api --yes  # scriptable
 flisk stack api --resources orders-api,users-api --yes
 flisk stack --list                                      # resources without a stack
+flisk stack api --move --resources orders-api --yes
+flisk stack --remove --resources orders-api --yes
 ```
 
 | Flag | Effect |
 | --- | --- |
 | `--resources <names...>` | Resources to add (comma- or space-separated) |
+| `--move` | Allow moving the named resources from another stack to the specified stack. Requires `--resources` |
+| `--remove` | Clear the stack assignment for the named resources. Requires `--resources` and omits the stack name |
 | `--list` | List resources without a stack |
 | `--yes` | Skip the confirmation prompt |
 | `--json` | One JSON object on stdout. Implies `--yes`; needs `--list` or a stack name with `--resources` |
@@ -562,7 +569,12 @@ flisk os --scan-root ~/code           # also look for Flisk projects under ~/cod
 
 ### `flisk mcp`
 
-Runs a Model Context Protocol server over stdio for coding agents. No flags. See [agent hosts](agent-hosts.md).
+Runs a Model Context Protocol server over stdio for coding agents. See [agent hosts](agent-hosts.md).
+
+| Flag | Effect |
+| --- | --- |
+| `--read-only` | Expose only tools that do not change project state. Also available as `FLISK_MCP_READ_ONLY=1` |
+| `--tools <names>` | Expose only the named comma-separated tools. Also available as `FLISK_MCP_TOOLS` |
 
 ### `flisk connect <host>`
 

@@ -831,7 +831,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         return;
     }
     // --json never prompts: every question takes the default that --yes takes.
-    const assumeYes = Boolean(options.yes || options.json);
+    const assumeYes = Boolean(options.yes || options.json || (options.dryRun && !process.stdin.isTTY));
     // Set once a port is claimed; called when the create ends, after service.json is written or the create failed.
     let releasePortReservation;
     const action = async () => {
@@ -1111,6 +1111,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
         // Check if resource already exists
         const isExistingResource = existsSync(fullPath);
         const hasServiceJson = existsSync(resolve(fullPath, SERVICE_JSON));
+        if (options.registerExisting && !isExistingResource) {
+            throw new FliskError(`No existing resource folder at ${finalResourcePath}`, [
+                "Create the folder and its service contents first, then run with --register-existing",
+                "Or drop --register-existing to scaffold a new resource",
+            ]);
+        }
         if (options.port !== undefined && resourceType === "sdk") {
             throw new FliskError("--port does not apply to --type sdk.", [
                 "Drop --port, or use a service type",

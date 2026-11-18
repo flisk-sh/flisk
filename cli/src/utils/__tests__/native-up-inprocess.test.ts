@@ -54,8 +54,14 @@ vi.mock("../errors.js", async (importOriginal) => ({
   showError: errors.showError,
 }));
 
-const { localDatabaseEnv, runNativeUp, runVariables, shadowedEnvKeys, withFailureLogs } =
-  await import("../native-up.js");
+const {
+  localDatabaseEnv,
+  nativeUrlChecks,
+  runNativeUp,
+  runVariables,
+  shadowedEnvKeys,
+  withFailureLogs,
+} = await import("../native-up.js");
 
 class ExitCalled extends Error {
   constructor(readonly code: number) {
@@ -584,7 +590,10 @@ describe("runNativeUp start", () => {
       services: ["api", "web"],
       requested: ["web"],
       dependencies: ["api"],
-      urls: { api: "http://localhost:4100", web: "http://localhost:4200" },
+      urls: [
+        { service: "api", url: "http://localhost:4100", didAnswer: true, status: 200 },
+        { service: "web", url: "http://localhost:4200", didAnswer: true, status: 200 },
+      ],
     });
     const output = logs.join("\n");
     expect(output).toContain("Flisk is up (local processes, no Docker).");
@@ -681,5 +690,67 @@ describe("runNativeUp start", () => {
     await run;
     expect(emit).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("pins native urls to the {service, url, didAnswer, status} array shape (swarm and recorded statuses)", async () => {
+    expect(
+      nativeUrlChecks(
+        [
+          { name: "coordinator", url: "http://localhost:4100" },
+          { name: "worker-1", url: "http://localhost:4101" },
+          { name: "job-only", url: undefined },
+        ],
+        new Map([["worker-1", 204]]),
+      ),
+    ).toEqual([
+      { service: "coordinator", url: "http://localhost:4100", didAnswer: true, status: 200 },
+      { service: "worker-1", url: "http://localhost:4101", didAnswer: true, status: 204 },
+    ]);
+
+    const swarmServices = [
+      makeResource("coordinator", "backend", {
+        command: "node server.mjs",
+        port: 4100,
+        healthCheckPath: "/health",
+      }),
+      makeResource("worker-1", "worker", {
+        command: "node ../worker/server.mjs",
+        port: 4101,
+        healthCheckPath: "/health",
+      }),
+      makeResource("worker-2", "worker", {
+        command: "node ../worker/server.mjs",
+        port: 4102,
+        healthCheckPath: "/health",
+      }),
+      makeResource("worker-3", "worker", {
+        command: "node ../worker/server.mjs",
+        port: 4103,
+        healthCheckPath: "/health",
+      }),
+    ];
+    const emit = vi.fn();
+    void runNativeUp({
+      projectRoot: createTempDir(),
+      selected: swarmServices,
+      dependencies: [],
+      emit,
+      quiet: true,
+      exit: vi.fn() as unknown as (code: number) => never,
+    });
+    await flush();
+
+    expect(emit).toHaveBeenCalledWith({
+      ok: true,
+      runtime: "native",
+      stack: null,
+      services: ["coordinator", "worker-1", "worker-2", "worker-3"],
+      urls: [
+        { service: "coordinator", url: "http://localhost:4100", didAnswer: true, status: 200 },
+        { service: "worker-1", url: "http://localhost:4101", didAnswer: true, status: 200 },
+        { service: "worker-2", url: "http://localhost:4102", didAnswer: true, status: 200 },
+        { service: "worker-3", url: "http://localhost:4103", didAnswer: true, status: 200 },
+      ],
+    });
   });
 });
