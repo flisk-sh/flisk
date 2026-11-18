@@ -1964,6 +1964,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     description: "Restart a running resource in the stack",
     aliases: [],
     hidden: false,
+    showHelpAfterError: "\nRun `flisk resources` to see the resource names you can restart.",
     hasAction: true,
     allowUnknown: false,
     passThrough: false,
