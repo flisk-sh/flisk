@@ -53,6 +53,8 @@ jobs:
               - '!docs/**'
               - '!openspec/**'
               - '!LICENSE'
+              # CodeQL has its own workflow and runs on its own path filters, so editing it cannot affect the CLI, runtime or tests.
+              - '!.github/workflows/codeql.yml'
               # Claude Code's own config: no CLI, runtime or test code. .claude/skills stays code (the docs job checks it).
               - '!.claude/hooks/**'
               - '!.claude/memory/**'
