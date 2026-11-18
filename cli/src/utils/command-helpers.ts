@@ -4,7 +4,7 @@ import { writeSync } from "node:fs";
 import type { Command } from "commander";
 import type { ValidationResult } from "../types/index.js";
 import { rewriteUnknownCommandMessage } from "./command-suggestions.js";
-import { showErrorAndExit } from "./errors.js";
+import { FliskError, showErrorAndExit } from "./errors.js";
 import { showCancelled } from "./formatting.js";
 import { createMachineEnvelope } from "./machine-output.js";
 import { promptConfirm } from "./prompt.js";
@@ -17,6 +17,22 @@ export const NO_POSITIONAL_HINTS: Readonly<Record<string, string>> = {
   status:
     "Service names are not positional: status shows the whole project. Use: flisk status (or flisk logs --service <name>)",
   logs: "Service names are not positional. Use: flisk logs --service <name>",
+  networks:
+    "Service names are not positional: `flisk networks` lists every service and takes no resource name.",
+  projects:
+    "Project and resource names are not positional: `flisk projects` shows the current project.",
+};
+
+const NO_POSITIONAL_SUGGESTIONS: Readonly<Record<string, readonly string[]>> = {
+  networks: [
+    "Filter by stack: flisk networks --stack <stack>",
+    "One service: flisk networks --json (pick the service from data.services)",
+  ],
+  projects: [
+    "Show the current project: flisk projects (run from the project directory)",
+    "Check its configuration: flisk projects --check",
+    "Get project details as JSON: flisk projects --json",
+  ],
 };
 
 /**
@@ -73,6 +89,7 @@ export function routeUsageErrorsToJson<T extends Command>(command: T, hint?: str
 
   command.exitOverride((err) => {
     if (err.exitCode === 0) process.exit(0);
+    if (err.code === "commander.conflictingOption") err.exitCode = 2;
     if (isJsonRequested(command)) {
       const { message, didYouMean } = splitDidYouMean(rewriteMessage(err.message));
       const suggestions = [
@@ -100,6 +117,30 @@ export function attachNoPositionalHint<T extends Command>(
 ): T {
   const hint = NO_POSITIONAL_HINTS[commandName];
   if (!hint) return command;
+
+  const suggestions = NO_POSITIONAL_SUGGESTIONS[commandName];
+  if (suggestions) {
+    // Reject before the action so the real and lightweight programs share the same usage error.
+    command.allowExcessArguments().hook("preAction", () => {
+      if (command.args.length === 0) return;
+      const enteredName = command.parent?.args[0] ?? commandName;
+      const name = [commandName, ...command.aliases()].includes(enteredName)
+        ? enteredName
+        : commandName;
+      const formatTypedName = (text: string) =>
+        text.replaceAll(`flisk ${commandName}`, `flisk ${name}`);
+      const error = new FliskError(formatTypedName(hint), suggestions.map(formatTypedName));
+      if (isJsonRequested(command)) {
+        const envelope = createMachineEnvelope(null, [
+          { code: "USAGE", message: error.message, suggestions: error.suggestions },
+        ]);
+        writeSync(1, `${JSON.stringify(envelope)}\n`);
+        process.exit(error.exitCode);
+      }
+      error.exit();
+    });
+    return routeUsageErrorsToJson(command);
+  }
 
   let originalShowHelp: string | boolean = `\n${hint}`;
   Object.defineProperty(command, "_showHelpAfterError", {

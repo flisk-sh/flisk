@@ -1,10 +1,18 @@
 import type { DiscoveredResource } from "../types/index.js";
 import type { JsonEmitter } from "./json-output.js";
+import { type NativeServicePlan } from "./native-runtime.js";
 export interface NativeFailure {
     name: string;
     reason: string;
     logs?: string[];
 }
+/** Per-URL readiness entries for `flisk up --json` in a local-process run, matching the container `data.urls` shape. */
+export declare function nativeUrlChecks(services: readonly Pick<NativeServicePlan, "name" | "url">[], statuses?: ReadonlyMap<string, number>): Array<{
+    service: string;
+    url: string;
+    didAnswer: boolean;
+    status: number;
+}>;
 /**
  * Each failure with the last lines its service wrote (`logs`). The reason alone ("kept exiting; see its output above")
  * points at output that a `--json` or MCP caller never saw, so the cause (a missing variable, a stack trace) travels with

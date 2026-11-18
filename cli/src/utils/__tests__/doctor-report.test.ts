@@ -60,6 +60,11 @@ describe("doctor report contract", () => {
     });
   });
 
+  it("omits ports when no host port plan is provided (local-process/native projects)", () => {
+    const report = createDoctorReport([passing], true);
+    expect(report.data.ports).toBeUndefined();
+  });
+
   it("returns 2 for usage and internal errors even if other checks pass", () => {
     for (const code of ["USAGE", "INTERNAL"] as const) {
       const report = createDoctorReport([passing], false, [{ code, message: "Failed" }]);

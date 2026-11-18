@@ -129,6 +129,23 @@ describe("distribute board", () => {
     expect(board.rows[3]?.cells.Who.text).toBe("flisk-sh");
   });
 
+  it("only lists a channel in the plan after it leaves todo", () => {
+    const dist: DistributionFile = {
+      schemaVersion: 1,
+      apps: { helper: { channels: { toolradar: { status: "todo" } } } },
+    };
+    const resources = discoverResourcesFromRoot(project(dist));
+    expect(buildBoard(resources, dist).rows[0]?.cells.Where.isMissing).toBe(true);
+    const planned: DistributionFile = {
+      schemaVersion: 1,
+      apps: { helper: { channels: { toolradar: { status: "draft" } } } },
+    };
+    expect(buildBoard(resources, planned).rows[0]?.cells.Where).toEqual({
+      text: "Toolradar",
+      isMissing: false,
+    });
+  });
+
   it("--json prints one envelope with six rows of six columns", async () => {
     const out = await runDistribute(project(), ["board", "--json"]);
     const envelope = JSON.parse(out);
