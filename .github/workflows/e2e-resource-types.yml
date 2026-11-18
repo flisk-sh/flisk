@@ -56,15 +56,36 @@ jobs:
       actions: read
       pull-requests: read
     outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      matrix: ${{ steps.matrix.outputs.matrix || steps.merged.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        id: checkout
+        # A pull request that merges while this run waits for a runner loses refs/pull/N/merge, so this checkout fails. The
+        # next step decides: a merged pull request plans no legs (the run ends green instead of filing "Merged with red checks"
+        # for a change that never ran, #4592, #4597, #4650); any other checkout failure still fails the plan.
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
           persist-credentials: false
           ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
           fetch-depth: 2
+      - name: Plan no legs for a pull request that merged while this run was queued
+        id: merged
+        if: steps.checkout.outcome == 'failure'
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          state="$(gh pr view "$PR" --json state --jq .state)"
+          if [ "$state" != "MERGED" ]; then
+            echo "::error::The checkout of refs/pull/$PR/merge failed and the pull request is $state"
+            exit 1
+          fi
+          echo "Pull request #$PR merged while this run was queued; its merge ref is gone, so no legs run."
+          echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
       - name: Build the matrix for this event
         id: matrix
+        if: steps.merged.outcome == 'skipped'
         env:
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}
