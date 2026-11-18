@@ -19,7 +19,7 @@ import { checkEnvironmentVariables, checkFliskVersion, checkLatestFliskVersion, 
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
 import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkStartupScripts, checkTypeScriptTypeDependencies, } from "../utils/doctor-project.js";
 import { printDoctorResults, printFixActions, renderDoctorOutput } from "../utils/doctor-render.js";
-import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, } from "../utils/doctor-report.js";
+import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, summarizeDoctorFix, } from "../utils/doctor-report.js";
 import { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, orderDoctorResults, requiresContainerRuntime, runChecks, } from "../utils/doctor-runner.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, } from "../utils/doctor-runtime.js";
 import { checkAdvertisedEndpoints, checkContainerResourceHealth, checkContainerResourceHealthFor, checkServiceHealth, checkServiceSmoke, DEFAULT_PING_TIMEOUT_MS, } from "../utils/doctor-services.js";
@@ -228,8 +228,9 @@ export const doctorCommand = new Command("doctor")
                 },
             ];
         }
-        if (!options.json)
+        if (!options.json && fixActions && fixActions.length > 0) {
             printFixActions(fixActions, options.dryRun);
+        }
     }
     // `.flisk/project.json` and the --no-gateway / --no-database flags decide which shared containers are checked.
     const dbEnabled = isDatabaseCapabilityEnabled(projectRoot, options);
@@ -499,6 +500,13 @@ export const doctorCommand = new Command("doctor")
     const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCapabilities, undefined, buildCommit);
     if (fixActions)
         report.data.actions = fixActions;
+    if (fixActions) {
+        const { repairableCount, needsActionCount } = summarizeDoctorFix(results, fixActions);
+        report.data.repairableCount = repairableCount;
+        report.data.needsActionCount = needsActionCount;
+        report.data.repairable = repairableCount;
+        report.data.needsAction = needsActionCount;
+    }
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
     if (fixFailed)
         report.data.ready = false;
@@ -535,6 +543,11 @@ export const doctorCommand = new Command("doctor")
     for (const error of errors)
         console.error(`${chalk.red("✗")} Doctor check failed: ${redactSecrets(error.message, textSecrets)}`);
     renderDoctorOutput(redactValue(machineResults, textSecrets), redactValue(projectResults, textSecrets), inProject, options, redactValue(results, textSecrets));
+    if (fixActions && fixActions.length === 0) {
+        const failedCount = results.filter((check) => !check.didPass && !check.isSkipped && !check.isWarning).length;
+        if (!options.json)
+            printFixActions(fixActions, options.dryRun, failedCount);
+    }
     const outcome = getDoctorOutcomeMessage(inProject, allPassed);
     console.log(`${allPassed ? chalk.green(chalk.bold("✓")) : chalk.red(chalk.bold("✗"))} ${outcome}`);
     if (exitCode !== 0)

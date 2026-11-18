@@ -92,7 +92,25 @@ This is an illustrative example. `--tail` limits the number of recent lines, and
 - `agent sessions`: `agent` (the resource name), `port`, `sessions` (each with `sessionId`, `lastActivity`, `status` and `checkpointBytes`; the last two may be `null`) and `total`. With `--session-id <id>` it is `agent`, `port` and `session` (the checkpoint the agent returned). Failures carry their own code: `USAGE`, `UNKNOWN_RESOURCE`, `NOT_AN_AGENT`, `NO_PORT`, `NO_ROUTE`, `AGENT_NOT_RUNNING`, `AGENT_REQUEST_FAILED`, or `SESSION_LIST_UNSUPPORTED` for an agent scaffolded before `GET /sessions` existed.
 - `config explain`: `file` (project-relative), `ownership`, `reason`, `source` (the input it is generated from, or `null`), `driftOnUp` (what `flisk up` does when the file was edited), `isEditedNow` (whether it differs from its snapshot now) and `next` (suggested steps, in order).
 - `runtime`: `--check-assets` now uses the standard envelope: `data` carries `ok`, `assetRoot` (the directory the bundled engine and templates were found in, or `null`), `missing` (required assets that are absent), `layoutErrors` and `templateErrors`. `ok` is `true` only when all three lists are empty and an asset root was found. On failure `errors` carries a `RUNTIME_CHECK_FAILED` entry and the exit code is `1`.
-- `upgrade --dry-run`: `dryRun` (`true`), `currentVersion`, `latestVersion` (or `null` when `--all` could not reach the remote check), `upgradeAvailable`, `method` (`npm`, `bun`, `git`, `binary`, `homebrew`, or `scoop`), `path` (or `null`), and `installations` (every detected installation on `PATH` when `--all` is passed, each `{method, path}`). Calling `flisk upgrade --json` without `--dry-run` is refused with `data: null`, a `COMMAND_FAILED` error naming `--dry-run`, and exit code `1` so an upgrade never runs silently.
+- `upgrade --dry-run` and `upgrade --dry-run --json`: `dryRun` (`true`), `currentVersion` (the running CLI's `MAJOR.MINOR.PATCH`), `latestVersion` (or `null` when `--all` could not reach the remote check), `upgradeAvailable`, `method` (`npm`, `bun`, `git`, `binary`, `homebrew`, `scoop` or `unknown`), `path` (where that installation lives, or `null`) and `installations` (the detected installation, or every detected installation on `PATH` when `--all` is passed, each `{method, path}`; `[]` when no installation path could be resolved). `--json` is only accepted together with `--dry-run`, so `flisk upgrade --dry-run --json` is the one JSON form of `upgrade`: calling `flisk upgrade --json` without `--dry-run` is refused with `data: null`, a `COMMAND_FAILED` error naming `--dry-run`, and exit code `1` so an upgrade never runs silently. `latestVersion` is a version for `npm`, `bun`, `binary`, `homebrew` and `scoop`, but for `method: "git"` it is the 7-character commit hash of the remote default branch while `currentVersion` stays a semver, so a script must not compare the two as versions there: read `upgradeAvailable` instead, which is `true` when the checkout's `HEAD` differs from that hash.
+
+Example output for `flisk upgrade --dry-run --json` on a git install:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "dryRun": true,
+    "currentVersion": "1.4.68",
+    "latestVersion": "7520a09",
+    "upgradeAvailable": true,
+    "method": "git",
+    "path": "/home/me/flisk",
+    "installations": [{ "method": "git", "path": "/home/me/flisk" }]
+  },
+  "errors": []
+}
+```
 
 For `project`, `resource`, `stack`, `import`, `eject` and the `config` subcommands above, the human output goes to stderr without colour and stdout carries the envelope only. Outside a project each prints `data: null` and one `COMMAND_FAILED` error with `suggestions`, and exits `1`. When a deeper check stops the command before it can report (for example the machine check of `flisk project`), the error code is the command's own failure code (`PROJECT_FAILED`, `RESOURCE_FAILED`, `STACK_FAILED`, `IMPORT_FAILED`, `EJECT_FAILED`, `REGENERATE_FAILED`, `MIGRATE_FAILED`, `INFRA_TOGGLE_FAILED`) with the message the check printed.
 
