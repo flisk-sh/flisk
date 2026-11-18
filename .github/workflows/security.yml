@@ -51,6 +51,8 @@ jobs:
               - '!docs/**'
               - '!openspec/**'
               - '!LICENSE'
+              # CodeQL has its own workflow and runs on its own path filters, so editing it cannot affect the CLI, runtime or tests.
+              - '!.github/workflows/codeql.yml'
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
