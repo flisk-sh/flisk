@@ -173,6 +173,9 @@ jobs:
             repo: HealthLog
             commit: d32036b003a7f834eb21e4bfb324036ebbfb07cc
             engine: kiri
+            # prisma.config.ts rewrites the host "db" to localhost unless /.dockerenv exists, and Kiri containers have no
+            # /.dockerenv, so the migration looked for Postgres inside the app container (P1001). The DB answers to a second name.
+            network_aliases: "db=healthlog-db"
             health_check: "http://127.0.0.1:3000"
             needs_env: true
             env_file: |
@@ -180,7 +183,7 @@ jobs:
               ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
               API_TOKEN_HMAC_KEY=fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
               SESSION_COOKIE_SECURE=false
-              DATABASE_URL=postgresql://healthlog:ci-postgres-not-a-secret@db:5432/healthlog?schema=public
+              DATABASE_URL=postgresql://healthlog:ci-postgres-not-a-secret@healthlog-db:5432/healthlog?schema=public
               APP_URL=http://localhost:3000
               NEXT_PUBLIC_APP_URL=http://localhost:3000
     steps:
@@ -313,6 +316,27 @@ jobs:
               [ -f "$file" ] || continue
               jq --arg path "$path" '.healthCheckPath = $path' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
               echo "healthCheckPath of $file is now $path"
+              found=1
+            done
+            [ "$found" = 1 ] || { echo "::error::no service.json for $name"; exit 1; }
+          done
+
+      # A service that must also answer to another name (service=alias, space separated), the way a maintainer would write
+      # container.networkAliases in service.json.
+      - name: Set Network Aliases
+        if: matrix.network_aliases
+        working-directory: adopter
+        env:
+          NETWORK_ALIASES: ${{ matrix.network_aliases }}
+        run: |
+          for entry in $NETWORK_ALIASES; do
+            name="${entry%%=*}"
+            alias="${entry#*=}"
+            found=0
+            for file in services/*/"$name"/service.json; do
+              [ -f "$file" ] || continue
+              jq --arg alias "$alias" '.container.networkAliases = ((.container.networkAliases // []) + [$alias] | unique)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+              echo "$file answers to $alias too"
               found=1
             done
             [ "$found" = 1 ] || { echo "::error::no service.json for $name"; exit 1; }
