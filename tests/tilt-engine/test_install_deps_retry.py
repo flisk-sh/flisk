@@ -44,6 +44,7 @@ case "$step" in
   tgz404) echo "error: GET https://registry.npmjs.org/rollup/-/rollup-4.67.3.tgz - 404"; exit 1 ;;
   meta404) echo "error: GET https://registry.npmjs.org/no-such-package-xyz - 404"; exit 1 ;;
   age) echo 'error: No version matching "rollup" found for specifier "4.67.3" (blocked by minimum-release-age: 86400 seconds)'; exit 1 ;;
+  age2) echo 'error: Version "@vitest/mocker@5.1.1" was published within minimum release age of 86400 seconds'; exit 1 ;;
   503) echo "error: GET https://registry.npmjs.org/vite - 503"; exit 1 ;;
   *) echo "unexpected call $n"; exit 1 ;;
 esac
@@ -94,6 +95,14 @@ def test_a_package_that_does_not_exist_fails_at_once_without_the_transient_hint(
 @DOCKER_REQUIRED
 def test_a_pinned_version_newer_than_the_minimum_age_installs_without_it():
     code, log, calls = run_install("age,ok")
+    assert code == 0, log
+    assert "--minimum-release-age" in calls[0]
+    assert "--minimum-release-age" not in calls[1]
+
+
+@DOCKER_REQUIRED
+def test_the_newer_bun_wording_for_the_minimum_age_also_installs_without_it():
+    code, log, calls = run_install("age2,ok")
     assert code == 0, log
     assert "--minimum-release-age" in calls[0]
     assert "--minimum-release-age" not in calls[1]
