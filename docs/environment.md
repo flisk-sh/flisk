@@ -162,7 +162,8 @@ STRIPE_KEY=sk_test_...
 - An **optional** name is injected as `${NAME:-}`: the resource starts with the variable empty.
 - Names must be valid environment variable names (letters, digits and underscores, not starting with a digit); anything else fails
   with the resource and the name in the message.
-- `FLISK_SECRET_PROVIDER=infisical` (set in the environment) leaves secrets to Infisical, and nothing is injected from `.env`.
+- `FLISK_SECRET_PROVIDER` is `env-file` (the default) or `infisical`. Any other value (a typo such as `keychan`) is an error: `flisk up` and `flisk doctor` name the value and the valid ones and exit with code 2.
+- `FLISK_SECRET_PROVIDER=infisical` leaves the names to a premium or external secret bridge and injects nothing from `.env`. The free CLI has no Infisical client and fetches no secret. When no bridge is present (`FLISK_SECRET_BRIDGE` is unset or empty), `flisk up` and `flisk doctor` warn for every required secret that it will be empty (`FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; API_KEY will be empty`); `flisk up --dry-run --json` lists the same warnings in `data.warnings`. With a bridge present, the names are left to it.
 
 ### Public variables (`NEXT_PUBLIC_*`, `VITE_*`) and client bundling
 

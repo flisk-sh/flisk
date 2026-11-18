@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- An unknown `FLISK_SECRET_PROVIDER` (a typo such as `keychan`) now fails `flisk up` and `flisk doctor` with exit code 2, naming the value and the valid ones (`env-file`, `infisical`); it used to skip the required-secret check silently. With `infisical` and no secret bridge, both commands warn for every required secret that will be empty (also in `flisk up --dry-run --json` `data.warnings`), since the free CLI has no Infisical client (#4706).
 - `flisk runtime --check-assets --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"ok":...},"errors":[]}`) instead of a bare object; on failure `errors` carries a `RUNTIME_CHECK_FAILED` entry and the exit code is `1` (#4467).
 
 ## 2026-11-16 (undefined)

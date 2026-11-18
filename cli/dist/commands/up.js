@@ -45,7 +45,7 @@ import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-own
 import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
-import { enforceServiceConfigGate, warnModelRunner, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
+import { enforceServiceConfigGate, warnModelRunner, warnSchemaVersions, secretProviderWarnings, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServiceUrl, resolveSubdomainBases, routesAsApi, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
@@ -909,6 +909,12 @@ export const upCommand = new Command("up")
                 onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
             });
         }
+        // FLISK_SECRET_PROVIDER=infisical without a bridge leaves every required secret empty: one warning per name.
+        const secretWarnings = foundRoot ? secretProviderWarnings(foundRoot, discoveredResources) : [];
+        if (secretWarnings.length > 0 && !emit && !options.quiet) {
+            for (const warning of secretWarnings)
+                console.warn(chalk.yellow(`⚠ ${warning}`));
+        }
         // A dependsOn name that is no service, stack or shared Postgres is dropped by the Tiltfile; say so instead of starting without it.
         const unknownDependsOn = foundRoot
             ? evaluateSharedPlatformPostgres(foundRoot, discoveredResources).unknownDependsOnNames
@@ -1168,6 +1174,7 @@ export const upCommand = new Command("up")
                     : {}),
                 ...(unknownDependsOn.length > 0 ? { unknownDependsOn } : {}),
                 ...(unknownBackends.length > 0 ? { unknownBackendNames: unknownBackends } : {}),
+                ...(secretWarnings.length > 0 ? { warnings: secretWarnings } : {}),
                 command: dryRunCommand,
             });
             return;

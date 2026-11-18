@@ -151,7 +151,9 @@ import {
   checkModelRunner,
   checkNetworkPorts,
   checkPostgresVolumes,
+  checkRequiredSecrets,
   checkSchemaVersions,
+  checkSecretProvider,
   checkServicePorts,
   checkSidecars,
   checkVolumes,
@@ -301,6 +303,21 @@ export const doctorCommand = new Command("doctor")
       if (options.json)
         console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message }])));
       console.error(message);
+      process.exit(2);
+      return;
+    }
+
+    // An unknown FLISK_SECRET_PROVIDER is a usage error, like a bad flag value.
+    const providerCheck = checkSecretProvider();
+    if (!providerCheck.didPass) {
+      if (options.json)
+        console.log(
+          JSON.stringify(
+            createDoctorUsageReport([{ code: "USAGE", message: providerCheck.message }]),
+          ),
+        );
+      console.error(providerCheck.message);
+      if (providerCheck.fix) console.error(providerCheck.fix);
       process.exit(2);
       return;
     }
@@ -554,6 +571,7 @@ export const doctorCommand = new Command("doctor")
     ];
     const schemaAndPortChecks: ProjectCheck[] = [
       () => checkSchemaVersions(undefined, options.strict),
+      () => checkRequiredSecrets(),
       () => checkDuplicateResourcePorts(),
     ];
     const envHygieneChecks: ProjectCheck[] = [
