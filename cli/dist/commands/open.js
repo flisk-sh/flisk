@@ -149,7 +149,9 @@ export async function openFirstFrontend(projectRootOverride, options = {}) {
     });
     if (!first) {
         spinner.fail("No frontend answered yet.");
-        if (!shouldWait) {
+        const { resources } = discoverResourcesWithProblems(projectRoot);
+        // Local-process projects never use Docker ingress: skip port-80 / Docker advice (#3715).
+        if (isNativeProject(resources) || !shouldWait) {
             for (const target of selected) {
                 console.log(chalk.yellow(`No frontend is answering at ${target.url}. Start the stack with \`flisk up\`.`));
             }

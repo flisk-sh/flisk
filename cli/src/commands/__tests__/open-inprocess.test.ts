@@ -229,6 +229,28 @@ describe("openFirstFrontend, in process", () => {
     expect(openUrl).not.toHaveBeenCalled();
   });
 
+  it("avoids Docker advice when an active local-process run never answers", async () => {
+    const root = createTempProject({ projectJson: { project: { name: "native-shop" } } });
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    vi.mocked(readNativeRunState).mockReturnValue({
+      pid: 123,
+      startedAt: "2026-11-19T00:00:00.000Z",
+      services: {},
+    });
+    vi.mocked(isProcessAlive).mockReturnValue(true);
+    answer(() => 503);
+
+    expect(await open(root)).toBeNull();
+
+    expect(probeHostPort).not.toHaveBeenCalled();
+    expect(stdout).toContain("No frontend is answering at http://localhost:5173.");
+    expect(stdout).not.toContain("Docker");
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
   it("says the stack is not serving yet when there is no saved port plan", async () => {
     const root = shopProject();
     vi.mocked(getHostPortPlan).mockResolvedValue(null as unknown as HostPortPlan);
