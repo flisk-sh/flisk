@@ -2,8 +2,6 @@
 name: 🔀 PR | Security | CodeQL
 
 on:
-  push:
-    branches: [main]
   pull_request:
   merge_group:
   schedule:
@@ -20,37 +18,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
+  # One job, one runner: CodeQL analyzes both languages in a single init/analyze (each keeps its own
+  # /language:<name> category, which the main ruleset's code-scanning rule waits for), then the Starlark analyzer runs.
   analyze:
-    name: 🔬 Analyze (${{ matrix.language }})
+    name: 🔬 Analyze
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [javascript-typescript, actions]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      # Both legs run on every pull request: the main ruleset's code-scanning rule waits for a CodeQL result in every
-      # category main has, so skipping the actions leg left every PR blocked. The actions leg takes under 20 seconds.
-      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: none
-      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
-        with:
-          category: /language:${{ matrix.language }}
-
-  # Starlark (Tiltfiles, *.star) has no CodeQL extractor. This unofficial community analyzer reports through SARIF into the
-  # same Code scanning view. Pinned to a full commit like every other action here.
-  starlark:
-    name: 🔬 Analyze (starlark)
-    runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    timeout-minutes: 25
     permissions:
       contents: read
       security-events: write # upload SARIF results
@@ -59,9 +32,8 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2 # the PR merge commit and its base, to list what the PR changes
-      # A pull request that touches no Starlark has nothing for this analyzer to find. The job still runs and passes (the
-      # analyzer step below is skipped), so nothing waits on a result that never comes. main, merge groups and the weekly
-      # run always scan.
+      # A pull request that touches no Starlark has nothing for the Starlark analyzer to find, so that step is skipped
+      # while the job still passes. Merge groups and the weekly run always scan.
       - name: Does this change touch Starlark?
         id: changed
         env:
@@ -77,5 +49,12 @@ jobs:
             fi
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
-      - if: steps.changed.outputs.run == 'true'
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: javascript-typescript,actions
+          build-mode: none
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      # Starlark (Tiltfiles, *.star) has no CodeQL extractor. This unofficial community analyzer reports through SARIF into
+      # the same Code scanning view. Pinned to a full commit like every other action here.
+      - if: ${{ !cancelled() && steps.changed.outputs.run == 'true' }}
         uses: flisk-sh/codeql-starlark@2dfbd614fa9097279c0938e3469b86bc43930dfc # v0.2.2
