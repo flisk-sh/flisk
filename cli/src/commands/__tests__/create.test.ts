@@ -866,18 +866,22 @@ describe("a generated website runs without Docker or Tilt", () => {
       const web = join(dirOf(), "my-app", "web");
 
       // npm's arborist intermittently throws "Cannot read properties of null (reading 'edgesOut')" on a
-      // fresh install (an npm bug, not a flisk one), which flaked this test in the merge queue. Retry the
-      // install a couple of times so a transient npm fault does not reject the whole merge-queue batch.
+      // fresh install (an npm bug, not a flisk one), which flaked this test in the merge queue. The root
+      // cause is the many parallel test workers all writing the one shared global npm cache (~/.npm) at
+      // once, which corrupts arborist's view of the tree. Give this install its own cache directory so it
+      // cannot race the other workers, and still retry a couple of times for any other transient fault.
+      const npmCache = join(dirOf(), "npm-cache");
+      const installEnv = { ...process.env, PATH, npm_config_cache: npmCache };
       let install = spawnSync(pm as string, ["install"], {
         cwd: web,
-        env: { ...process.env, PATH },
+        env: installEnv,
         encoding: "utf8",
         timeout: 240_000,
       });
       for (let attempt = 1; attempt < 3 && install.status !== 0; attempt += 1) {
         install = spawnSync(pm as string, ["install"], {
           cwd: web,
-          env: { ...process.env, PATH },
+          env: installEnv,
           encoding: "utf8",
           timeout: 240_000,
         });
