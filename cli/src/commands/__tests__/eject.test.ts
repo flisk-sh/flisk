@@ -194,8 +194,9 @@ describe("flisk eject", () => {
         ejectCommand.parseAsync(["node", "flisk", "--yes"], { from: "node" }),
       ).rejects.toThrow("process.exit");
       const output = error.mock.calls.flat().join("\n");
+      // Other generated files are still there, so the message names the missing Tiltfile.
       expect(output).toContain(
-        "Generated Tilt files are not created yet. Run `flisk config regenerate` (or `flisk up`), then `flisk eject`.",
+        "The generated Tiltfile (.flisk/.flisk-out/Tiltfile) is missing. Run `flisk config regenerate` (or `flisk up`), then `flisk eject`.",
       );
       // The fix is regenerate, not `flisk project --yes` (already run when the starter was cloned),
       // and never `flisk eject`, the command that just failed (#4451).
@@ -217,6 +218,7 @@ describe("flisk eject", () => {
         ejectCommand.parseAsync(["node", "flisk", "--dry-run"], { from: "node" }),
       ).rejects.toThrow("process.exit");
       const output = error.mock.calls.flat().join("\n");
+      expect(output).toContain("Generated Tilt files are not created yet.");
       expect(output).toContain("flisk config regenerate");
       expect(output).toContain("flisk up");
       expect(output).not.toContain("flisk project --yes");
