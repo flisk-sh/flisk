@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- The golden image publish check holds each layer to its own size budget (measured size plus 10%, in `scripts/golden/size-budgets.json`) instead of one 400 MB cap, and `docs/golden-image-sizes.md` lists what each layer holds (#2692).
 - `flisk runtime --check-assets --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"ok":...},"errors":[]}`) instead of a bare object; on failure `errors` carries a `RUNTIME_CHECK_FAILED` entry and the exit code is `1` (#4467).
 
 ## 2026-11-16 (undefined)
