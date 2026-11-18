@@ -2025,6 +2025,11 @@ export const COMMAND_SPECS = [
                         description: "Overwrite an existing kit",
                         defaultValue: false,
                     },
+                    {
+                        flags: "--json",
+                        description: "Output one JSON envelope with the kit result",
+                        defaultValue: false,
+                    },
                 ],
                 arguments: [
                     {
@@ -2036,7 +2041,7 @@ export const COMMAND_SPECS = [
                 ],
                 helpTexts: {
                     after: [
-                        "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force",
+                        "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force\n  flisk distribute kit my-resource --json",
                     ],
                 },
                 subcommands: [],
