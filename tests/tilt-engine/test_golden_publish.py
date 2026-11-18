@@ -256,7 +256,8 @@ class TestVerifyPublishedImages:
     REGISTRIES = ["ghcr.io/flisk-sh", "docker.io/alexdykyi"]
 
     def _observed(self):
-        image = lambda layer: {"digest": f"sha256:{layer}", "sizes": {"amd64": 51_200_000, "arm64": 52_200_000}, "hash_label": self.HASH}
+        measured = json.loads((REPO_ROOT / "scripts" / "golden" / "size-budgets.json").read_text())["measured_bytes"]
+        image = lambda layer: {"digest": f"sha256:{layer}", "sizes": {"amd64": measured[layer], "arm64": measured[layer]}, "hash_label": self.HASH}
         return {registry: {layer: image(layer) for layer in LAYERS} for registry in self.REGISTRIES}
 
     def test_good_images_pass(self):
@@ -276,6 +277,23 @@ class TestVerifyPublishedImages:
         observed["docker.io/alexdykyi"]["l4-migrator"]["sizes"]["amd64"] = 900_000_000
 
         assert any("linux/amd64 is 900.0 MB" in p for p in _load_verifier().check(observed, self.HASH))
+
+    def test_growth_over_ten_percent_in_one_layer_fails_even_below_the_old_400_mb_cap(self):
+        budgets = json.loads((REPO_ROOT / "scripts" / "golden" / "size-budgets.json").read_text())
+        observed = self._observed()
+        grown = int(budgets["measured_bytes"]["l4-migrator"] * 1.15)
+        observed["ghcr.io/flisk-sh"]["l4-migrator"]["sizes"]["arm64"] = grown
+
+        problems = _load_verifier().check(observed, self.HASH)
+
+        assert len(problems) == 1 and "golden-l4-migrator" in problems[0] and "size-budgets.json" in problems[0]
+
+    def test_every_layer_has_a_budget_above_its_measured_size_by_about_ten_percent(self):
+        budgets = json.loads((REPO_ROOT / "scripts" / "golden" / "size-budgets.json").read_text())
+        assert set(budgets["budget_bytes"]) == set(LAYERS) == set(budgets["measured_bytes"])
+        for layer in LAYERS:
+            ratio = budgets["budget_bytes"][layer] / budgets["measured_bytes"][layer]
+            assert 1.09 <= ratio <= 1.12, (layer, ratio)
 
     def test_a_missing_platform_fails(self):
         observed = self._observed()

@@ -94,10 +94,11 @@ test("the gate workflow has the job that reports the gate name", () => {
 });
 
 test("the push trigger of the journeys workflow matches the CI workflow", () => {
-	// The CI workflow runs on a push to main, so the journeys gate only reports when the journeys workflow does too.
+	// If the CI workflow runs on a push to main, the journeys gate only reports when the journeys workflow does too.
+	// CI no longer runs on push (#4727), so there is nothing to match then.
 	const ci = readWorkflow("ci.yml");
 	const journeys = readWorkflow("e2e-journeys.yml");
-	assert.deepEqual(ci.on.push.branches, journeys.on.push.branches);
+	if (ci.on.push) assert.deepEqual(ci.on.push.branches, journeys.on.push.branches);
 });
 
 test("the CI summary job reads the gate list from the script", () => {
