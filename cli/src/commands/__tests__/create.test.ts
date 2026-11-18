@@ -377,9 +377,9 @@ describe("the review, the recovery message and the folder guard", () => {
   };
 
   it("says what is created, what it needs and what was chosen, and flags a missing program", () => {
-    const lines = reviewLines(local, buildCreatePlan(local), (program) => program !== "npm");
+    const lines = reviewLines(local, buildCreatePlan(local), (program) => program !== "bun");
     expect(lines[0]).toBe("Creating shop: shop-api, shop-web");
-    expect(lines[1]).toContain("Not found on this machine: npm");
+    expect(lines[1]).toContain("Not found on this machine: bun");
     expect(lines[2]).toMatch(/^Chosen: runtime: local · website: /);
   });
 

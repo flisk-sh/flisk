@@ -146,9 +146,9 @@ describe("a starter is one flisk project command", () => {
 
 describe("the review sentences", () => {
   it("a local project lists the programs it needs and what is missing here", () => {
-    const text = describeRequirements(answers(), (program) => program !== "npm");
+    const text = describeRequirements(answers(), (program) => program !== "bun");
     expect(text).toContain("No Docker, no Tilt, no database");
-    expect(text).toContain("Not found on this machine: npm");
+    expect(text).toContain("Not found on this machine: bun");
     expect(describeRequirements(answers(), () => true)).not.toContain("Not found");
   });
 

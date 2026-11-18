@@ -147,10 +147,12 @@ export function localRequirements(parts: { frontend: boolean; language?: string 
     const hasPackageJson = provider
       ?.createFiles?.("app")
       .some((file) => file.filename === "package.json");
-    // A generated package.json runs `npm run dev` — from the language or the shared scaffold (#4459).
-    // Only a scaffold without one runs the provider's dev command directly.
+    // A package.json owned by the provider runs `npm run dev` (#4459). A provider with neither its
+    // own devCommand nor its own package.json uses the shared Bun scaffold, whose dev script runs
+    // `bun run --watch`; that needs Bun, not npm.
     if (!provider) programs.add(parts.language);
-    else if (hasPackageJson || !provider.devCommand) programs.add("npm");
+    else if (hasPackageJson) programs.add("npm");
+    else if (!provider.devCommand) programs.add(provider.installHint.trim().split(/\s+/)[0]);
     else programs.add(provider.devCommand.split(" ")[0]);
   }
   return [...programs];
