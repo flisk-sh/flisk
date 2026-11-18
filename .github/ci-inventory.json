@@ -584,6 +584,14 @@
 		},
 		{
 			"workflow": "release-binaries.yml",
+			"job": "publish-mcp-registry",
+			"tier": "release",
+			"required": false,
+			"reason": "Calls publish-mcp-registry.yml via workflow_call to list the released npm version in the MCP Registry; runs in parallel with publish-image after publish (#3980)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
 			"job": "windows-binary",
 			"tier": "e2e",
 			"required": false,
