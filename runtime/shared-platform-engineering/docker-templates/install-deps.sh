@@ -150,7 +150,7 @@ while :; do
   INSTALL_CODE=0
   run_install "--force" $ATTEMPT || INSTALL_CODE=$?
   [ "$INSTALL_CODE" -eq 0 ] && break
-  if [ -n "$MIN_RELEASE_AGE_FLAG" ] && grep -q "blocked by minimum-release-age" "$BUN_INSTALL_LOG"; then
+  if [ -n "$MIN_RELEASE_AGE_FLAG" ] && grep -Eq "blocked by minimum-release-age|within minimum release age" "$BUN_INSTALL_LOG"; then
     # A dependency pins a version newer than the minimum age: that version is what the service asks for, so allow it.
     echo "ℹ️  A dependency asks for a version published in the last ${MIN_RELEASE_AGE_SECONDS}s; installing without the minimum age"
     MIN_RELEASE_AGE_FLAG=""
