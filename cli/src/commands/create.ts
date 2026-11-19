@@ -48,6 +48,7 @@ import {
   LOCAL_BACKEND_DIR,
   LOCAL_FRONTEND_DIR,
   missingPrograms,
+  projectNameError,
   starterInfo,
   toProjectName,
 } from "../utils/create-plan.js";
@@ -279,10 +280,8 @@ export async function collectAnswers(
   interactive: boolean,
 ): Promise<CreateAnswers> {
   if (nameArg !== undefined && !isValidProjectName(nameArg)) {
-    throw new FliskError(
-      `"${nameArg}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`,
-      ["Pick a name like my-app or shop-2: flisk create my-app"],
-    );
+    const { message, suggestions } = projectNameError(nameArg);
+    throw new FliskError(message, suggestions);
   }
 
   const starters = starterCatalog();
@@ -801,10 +800,8 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
 
   const answers = await collectAnswers(nameArg, options, interactive);
   if (!isValidProjectName(answers.name)) {
-    throw new FliskError(
-      `"${answers.name}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`,
-      ["Pick a name like my-app or shop-2: flisk create my-app"],
-    );
+    const { message, suggestions } = projectNameError(answers.name);
+    throw new FliskError(message, suggestions);
   }
   const projectDir = resolve(process.cwd(), answers.name);
   assertFolderIsFree(projectDir);

@@ -39,6 +39,7 @@ import {
   buildCreatePlan,
   isEmptyApp,
   isValidProjectName,
+  projectNameError,
   toProjectName,
 } from "../../utils/create-plan.js";
 import { FliskError } from "../../utils/errors.js";
@@ -169,6 +170,30 @@ describe("collectAnswers without a terminal", () => {
       collectAnswers("shop", { backend: "none", language: backends[0]?.id }, false),
     ).rejects.toThrow(/--backend none leaves the API out/);
     await expect(collectAnswers("../evil", {}, false)).rejects.toThrow(/not a usable project name/);
+  });
+
+  it("suggests the exact command for a name it can correct", async () => {
+    const myApp = await collectAnswers("My App", {}, false).catch((err: unknown) => err);
+    expect(myApp).toBeInstanceOf(FliskError);
+    expect((myApp as FliskError).message).toMatch(/start with a letter/);
+    expect((myApp as FliskError).message).toMatch(/at most 48 characters/);
+    expect((myApp as FliskError).suggestions.join("\n")).toContain("flisk create my-app");
+
+    const upper = projectNameError("UPPER");
+    expect(upper.suggestions.join("\n")).toContain("flisk create upper");
+  });
+
+  it("states the letter rule and does not offer a fix it cannot make", () => {
+    const digitStart = projectNameError("9lives");
+    expect(digitStart.message).toMatch(/start with a letter/);
+    expect(digitStart.suggestions.join("\n")).toContain("flisk create my-app");
+    expect(digitStart.suggestions.join("\n")).not.toContain("9lives");
+  });
+
+  it("states the 48-character limit and trims the suggested command to it", () => {
+    const long = projectNameError("a".repeat(60));
+    expect(long.message).toMatch(/at most 48 characters/);
+    expect(long.suggestions.join("\n")).toContain(`flisk create ${"a".repeat(48)}`);
   });
 });
 
