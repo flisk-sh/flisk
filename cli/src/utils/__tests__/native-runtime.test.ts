@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
 import { expandEnvValue } from "../env-expand.js";
@@ -278,6 +278,76 @@ describe("native run planning", () => {
         () => false,
       ),
     ).toEqual([]);
+  });
+
+  it("does not take a builtin or a compound command for the program (#3885 review)", () => {
+    const plans = planNativeRun([
+      makeResource("exported", "bring-your-own", {
+        command: "cd ../agent && export MODE=dev && npm install",
+      }),
+      makeResource("colon", "bring-your-own", { command: "cd ../agent && : && npm install" }),
+      makeResource("compound", "bring-your-own", {
+        command: "cd ../agent && if true; then npm install; fi",
+      }),
+      makeResource("piped", "bring-your-own", { command: "cd ../agent && npm install | tee log" }),
+      makeResource("sourced", "bring-your-own", {
+        command: "cd ../agent && source .env && npm install",
+      }),
+      makeResource("redirected", "bring-your-own", {
+        command: "cd ../agent && npm install > log",
+      }),
+    ]).services;
+    // `export` and `:` are builtins that run first; the rest is shell grammar this preflight cannot name.
+    expect(
+      findMissingPrograms(
+        plans,
+        () => null,
+        () => false,
+      ),
+    ).toEqual([
+      { name: "exported", program: "npm" },
+      { name: "colon", program: "npm" },
+    ]);
+  });
+
+  it("keeps a separator inside quotes or an escape part of the argument (#3885 review)", () => {
+    const plans = planNativeRun([
+      makeResource("quoted", "bring-your-own", {
+        command: 'cd ../agent && npm install --flag "a && b"',
+      }),
+      makeResource("escaped", "bring-your-own", {
+        command: "cd ../agent && npm install --flag a\\;b",
+      }),
+    ]).services;
+    expect(
+      findMissingPrograms(
+        plans,
+        () => null,
+        () => false,
+      ),
+    ).toEqual([
+      { name: "quoted", program: "npm" },
+      { name: "escaped", program: "npm" },
+    ]);
+  });
+
+  it("leaves a bare program to the shell when PATH has a relative entry after a cd", () => {
+    const plans = planNativeRun([
+      makeResource("setup", "bring-your-own", { command: "cd ../agent && npm install" }),
+    ]).services;
+    const previous = process.env.PATH;
+    process.env.PATH = ["bin", previous ?? ""].filter(Boolean).join(delimiter);
+    try {
+      expect(
+        findMissingPrograms(
+          plans,
+          () => null,
+          () => false,
+        ),
+      ).toEqual([]);
+    } finally {
+      process.env.PATH = previous;
+    }
   });
 });
 

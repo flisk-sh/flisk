@@ -3,7 +3,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, } from "node:fs";
 import { connect } from "node:net";
-import { basename, join } from "node:path";
+import { basename, delimiter, isAbsolute, join } from "node:path";
 import chalk from "chalk";
 import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
@@ -12,7 +12,6 @@ import { FliskError } from "./errors.js";
 import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
 import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainerName, removeNativeContainers, } from "./native-container.js";
 import { appendNativeLogLine, readLogTail } from "./native-log.js";
-import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, processStartTime } from "./process-identity.js";
 import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
@@ -195,38 +194,236 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
     }
     return { services, errors, missingVars };
 }
+/** Shell keywords that begin a compound command; which program runs inside is the shell's grammar, not a word. */
+const SHELL_KEYWORDS = new Set([
+    "if",
+    "then",
+    "else",
+    "elif",
+    "fi",
+    "for",
+    "while",
+    "until",
+    "do",
+    "done",
+    "case",
+    "esac",
+    "select",
+    "coproc",
+    "function",
+    "time",
+    "{",
+    "}",
+    "!",
+    "[[",
+    "]]",
+]);
 /** Shell builtins that run before the program we care about, so they never name what is missing. */
-const SHELL_BUILTINS = ["cd", ".", "source", "true", ":"];
+const SHELL_BUILTINS = new Set([
+    ":",
+    "true",
+    "false",
+    "cd",
+    "export",
+    "set",
+    "unset",
+    "local",
+    "readonly",
+    "declare",
+    "typeset",
+    "shift",
+    "umask",
+    "ulimit",
+    "trap",
+    "eval",
+    "alias",
+    "unalias",
+    "hash",
+    "command",
+    "builtin",
+    "type",
+    "times",
+    "wait",
+    "exit",
+    "return",
+    "break",
+    "continue",
+    "echo",
+    "printf",
+    "test",
+    "[",
+    "read",
+    "pwd",
+    "jobs",
+    "kill",
+    "getopts",
+    "fc",
+]);
+/** Builtins that can repoint PATH or define a function, so which program runs after them cannot be told here. */
+const UNMODELLED_BUILTINS = new Set([".", "source"]);
+/** Marker for a segment whose program this preflight cannot name, so the shell is left to report it. */
+const UNRESOLVED = Symbol("unresolved");
+/**
+ * Splits a command into `&&`/`;` separated segments of words the way the shell does it (#3885 review): a separator
+ * inside quotes or escaped by a backslash is part of the argument, not a separator. Returns null for syntax whose
+ * program this preflight cannot tell — a pipe, a redirection, a background job, an unterminated quote.
+ */
+function shellSegments(command) {
+    const segments = [[]];
+    let word = "";
+    let expansion = false;
+    let started = false;
+    const push = () => {
+        const segment = segments[segments.length - 1];
+        if (started && segment)
+            segment.push({ text: word, expansion });
+        word = "";
+        expansion = false;
+        started = false;
+    };
+    for (let i = 0; i < command.length; i += 1) {
+        const char = command.charAt(i);
+        if (char === "'") {
+            const end = command.indexOf("'", i + 1);
+            if (end === -1)
+                return null;
+            word += command.slice(i + 1, end);
+            started = true;
+            i = end;
+            continue;
+        }
+        if (char === '"') {
+            let end = i + 1;
+            let closed = false;
+            while (end < command.length) {
+                const inner = command.charAt(end);
+                if (inner === "\\" && end + 1 < command.length) {
+                    word += command[end + 1];
+                    end += 2;
+                    continue;
+                }
+                if (inner === '"') {
+                    closed = true;
+                    break;
+                }
+                if (inner === "$" || inner === "`")
+                    expansion = true;
+                word += inner;
+                end += 1;
+            }
+            if (!closed)
+                return null;
+            started = true;
+            i = end;
+            continue;
+        }
+        if (char === "\\") {
+            if (i + 1 >= command.length)
+                return null;
+            word += command[i + 1];
+            started = true;
+            i += 1;
+            continue;
+        }
+        if (char === "$" || char === "`") {
+            expansion = true;
+            word += char;
+            started = true;
+            continue;
+        }
+        if (char === " " || char === "\t") {
+            push();
+            continue;
+        }
+        if (char === "\n")
+            return null;
+        if (char === "&") {
+            if (command[i + 1] !== "&")
+                return null;
+            push();
+            segments.push([]);
+            i += 1;
+            continue;
+        }
+        if (char === ";") {
+            push();
+            segments.push([]);
+            continue;
+        }
+        if (char === "|" || char === "(" || char === ")" || char === "<" || char === ">")
+            return null;
+        word += char;
+        started = true;
+    }
+    push();
+    return segments;
+}
+/** The program one segment starts, null when it only runs builtins, or UNRESOLVED when it cannot be told. */
+function segmentProgram(words) {
+    for (const word of words) {
+        // Leading VAR=value assignments set the program's environment, and `exec`/`env` choose it; neither is the program.
+        if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word.text))
+            continue;
+        if (word.text === "exec" || word.text === "env")
+            continue;
+        if (SHELL_BUILTINS.has(word.text))
+            return null;
+        if (word.expansion)
+            return UNRESOLVED;
+        return /^[A-Za-z0-9_./@+-]+$/.test(word.text) ? word.text : UNRESOLVED;
+    }
+    return null;
+}
 /**
  * The program a command really starts. A setup job of a generated starter declares `cd ../agent && npm install`
  * (#3885), whose first word is the shell builtin `cd`; what fails on a machine without `npm` is the word after it.
- * A program with a path after the `cd` stays unresolved: it is relative to that directory, not to the service, so it is
- * left for the shell to report rather than guessed at.
+ *
+ * The command is read the way the shell reads it: `&&` and `;` inside quotes or escaped are arguments, `export` and
+ * the other builtins run before the program, and a compound command (`if … then … fi`), a pipe, a redirection or a
+ * sourced script — anything whose program this word-by-word view cannot name — is left for the shell to report rather
+ * than guessed at.
  */
 function leadingProgram(command) {
+    const segments = shellSegments(command);
+    if (!segments)
+        return null;
     let moved = false;
-    for (const segment of command.split(/&&|;/)) {
-        const program = commandProgram(segment);
-        // A shell builtin or an expression we cannot parse is left to the shell to report.
-        if (!program)
+    for (const words of segments) {
+        if (words.length === 0)
+            continue;
+        const first = words[0];
+        if (!first)
+            continue;
+        if (SHELL_KEYWORDS.has(first.text) || UNMODELLED_BUILTINS.has(first.text))
             return null;
-        if (SHELL_BUILTINS.includes(program)) {
-            if (program === "cd")
+        const program = segmentProgram(words);
+        if (program === UNRESOLVED)
+            return null;
+        if (program === null) {
+            if (words.some((word) => word.text === "cd"))
                 moved = true;
             continue;
         }
-        if (moved && program.includes("/"))
-            return null;
-        return program;
+        return { program, moved };
     }
     return null;
+}
+/** True when PATH has an entry that is not absolute, which the shell resolves against its current directory. */
+function pathHasRelativeEntry() {
+    const pathEnv = process.env.PATH ?? process.env.Path ?? "";
+    return pathEnv.split(delimiter).some((entry) => entry !== "" && !isAbsolute(entry));
 }
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
 export function findMissingPrograms(plans, find = findOnPath, exists = existsSync) {
     const missing = [];
     for (const plan of plans) {
-        const program = leadingProgram(plan.command);
-        if (!program)
+        const leading = leadingProgram(plan.command);
+        if (!leading)
+            continue;
+        const { program, moved } = leading;
+        // After a `cd`, a relative path — or a bare name on a relative PATH entry — belongs to the directory the shell
+        // moved to, which this preflight does not know; leave it for the shell rather than report a program that runs.
+        if (moved && (program.includes("/") || pathHasRelativeEntry()))
             continue;
         const found = program.includes("/") ? exists(join(plan.cwd, program)) : Boolean(find(program));
         if (!found)
