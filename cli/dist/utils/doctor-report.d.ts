@@ -58,6 +58,7 @@ export interface DoctorReport {
     errors: DoctorError[];
 }
 type DoctorCheck = () => CheckResult | Promise<CheckResult>;
+export declare function timeDoctorCheck(check: DoctorCheck): Promise<CheckResult>;
 /** Wait for concurrent probes to finish even if one throws, so they can release resources. */
 export declare function collectDoctorChecks(machineChecks: DoctorCheck[], projectChecks: DoctorCheck[]): Promise<{
     checks: CheckResult[];
