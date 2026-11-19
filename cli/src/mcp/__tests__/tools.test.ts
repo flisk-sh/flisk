@@ -296,12 +296,12 @@ describe("argument building", () => {
 
   it("advertises unhealthy on status and logs and stack on status in tools/list", () => {
     const tools = createFliskTools();
-    const props = (name: string) =>
-      (
-        tools.find((tool) => tool.name === name)?.inputSchema as unknown as {
-          properties: Record<string, { type?: string }>;
-        }
-      ).properties;
+    const props = (name: string) => {
+      const schema = tools.find((tool) => tool.name === name)?.inputSchema as unknown as
+        | { properties: Record<string, { type?: string }> }
+        | undefined;
+      return schema?.properties ?? {};
+    };
     expect(props("status").unhealthy?.type).toBe("boolean");
     expect(props("status").stack?.type).toBe("string");
     expect(props("logs").unhealthy?.type).toBe("boolean");
@@ -374,9 +374,8 @@ describe("argument building", () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout, stderr: "" }));
     const names = async (args: Record<string, unknown>) => {
       const r = await tools.find((t) => t.name === "status")?.handler(args);
-      return (r?.data as { data: { resources: { name: string }[] } }).data.resources.map(
-        (x) => x.name,
-      );
+      const body = r?.data as { data: { resources: { name: string }[] } } | undefined;
+      return (body?.data.resources ?? []).map((x) => x.name);
     };
     expect(await names({})).toEqual(["api", "web"]);
     expect(await names({ unhealthy: false })).toEqual(["api", "web"]);
