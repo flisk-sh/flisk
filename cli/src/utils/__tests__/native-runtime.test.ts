@@ -26,6 +26,7 @@ import {
   terminateSupervisorProcess,
 } from "../native-runtime.js";
 import { processStartTime } from "../process-identity.js";
+import { withFailureLogs } from "../native-up.js";
 
 const NODE = JSON.stringify(process.execPath);
 
@@ -1017,19 +1018,46 @@ describe("detachesServices", () => {
     expect(detachesServices("win32")).toBe(false);
   });
 
-  it("keeps the error a crashing service wrote just before it exited", async () => {
-    // Spawned the way the supervisor spawns a service: piped stdio, the platform's detach setting.
-    const child = spawn(
-      process.execPath,
-      ["-e", 'console.error("FATAL: API_TOKEN is not set"); process.exit(1)'],
-      { detached: detachesServices(), stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
+  it("logs a crashing service's final error, redacts secrets, and includes the log in failures", async () => {
+    const root = createTempDir();
+    const token = "NATIVE_CRASH_TOKEN_DO_NOT_LOG_12345";
+    writeFileSync(join(root, ".env"), `API_TOKEN=${token}\n`);
+    writeFileSync(
+      join(root, "crash.mjs"),
+      'console.error(`FATAL: API_TOKEN is not set (${process.env.API_TOKEN})`); process.exit(1);',
     );
-    let stderr = "";
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    await new Promise((resolve) => child.once("close", resolve));
-    expect(stderr).toContain("FATAL: API_TOKEN is not set");
+    const logPath = nativeLogPath(root, "crasher");
+    const plan = planNativeRun(
+      [
+        nativeService(root, "crasher", {
+          appType: "migrator",
+          command: `${NODE} crash.mjs`,
+          env: { API_TOKEN: ref("API_TOKEN") },
+        }),
+      ],
+      { API_TOKEN: token },
+      root,
+    );
+    const lines: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onLine: (_name, line) => lines.push(line) },
+      { baseEnv: { API_TOKEN: token } },
+    );
+    supervisors.push(supervisor);
+
+    const failures = await supervisor.start();
+    const stored = readFileSync(logPath, "utf-8");
+    const [failure] = withFailureLogs(root, failures);
+
+    expect(failures).toMatchObject([
+      { name: "crasher", reason: "the job did not exit 0; see its output above" },
+    ]);
+    expect(lines).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
+    expect(stored).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
+    expect(stored).not.toContain(token);
+    expect(failure?.logs?.join("\n")).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
   });
 });
 

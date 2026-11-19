@@ -32,11 +32,27 @@ const health = async (port: number) => {
 describe("MCP native lifecycle acceptance (real flisk mcp server)", () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "flisk-mcp-accept-")));
   let child: ChildProcess | undefined;
+  let stopNativeRun: (() => Promise<void>) | undefined;
   afterAll(async () => {
-    // Windows will not delete a folder that a running process has as its working directory, so wait for the server to exit.
+    // `child.kill()` only stops the MCP server on Windows; first ask it to stop all native services.
+    if (stopNativeRun) {
+      await Promise.race([
+        stopNativeRun().catch(() => undefined),
+        new Promise((done) => setTimeout(done, 5_000)),
+      ]);
+    }
+    // If the server could not process `down`, terminate its descendants too on Windows.
     if (child && child.exitCode === null && child.signalCode === null) {
       const exited = new Promise((done) => child?.once("exit", done));
-      child.kill();
+      if (process.platform === "win32" && child.pid) {
+        const killer = spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+          stdio: "ignore",
+          windowsHide: true,
+        });
+        await new Promise((done) => killer.once("close", done));
+      } else {
+        child.kill();
+      }
       await exited;
     }
     rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
@@ -97,6 +113,9 @@ describe("MCP native lifecycle acceptance (real flisk mcp server)", () => {
     const call = async (name: string, args: Record<string, unknown> = {}) => {
       const m = await rpc("tools/call", { name, arguments: { projectPath: root, ...args } });
       return { isError: m.result?.isError as boolean, env: JSON.parse(m.result.content[0].text) };
+    };
+    stopNativeRun = async () => {
+      await call("down");
     };
     await rpc("initialize", {
       protocolVersion: "2024-11-05",
