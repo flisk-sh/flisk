@@ -47,6 +47,12 @@ Then edit `services/<stack>/qdrant-mcp-acme/service.json`:
   took a couple of minutes here.
 - `QDRANT_URL` uses the resource name from step one, which is how services reach each other inside the stack.
 
+Start the stack so the server runs:
+
+```bash
+flisk up
+```
+
 The server speaks MCP over server-sent events at `/sse` (the image's default transport).
 
 ## 2. One collection per customer
