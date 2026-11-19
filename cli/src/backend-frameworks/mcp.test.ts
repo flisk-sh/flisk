@@ -1,14 +1,16 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { crc32, inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { portFromEnv } from "../utils/generated-port.js";
 import {
   getMcpIndexTemplate,
+  getMcpPolicyExampleTemplate,
   getMcpTestTemplate,
   MCP_ICON_512_PNG_BASE64,
   mcpBackendProvider,
@@ -190,5 +192,134 @@ describe("getMcpTestTemplate", () => {
 
   it("reads the JSON-RPC response from the server-sent event's data line", () => {
     expect(test).toContain("line.startsWith('data: ')");
+  });
+});
+
+/** The environment without PAY_LIMIT_CENTS, so a default-limit test does not depend on the machine. */
+function withoutPayLimit(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const { PAY_LIMIT_CENTS: _ignored, ...rest } = env;
+  return rest;
+}
+
+describe("getMcpPolicyExampleTemplate", () => {
+  /** Writes the example as src/policy.ts and runs checkPay on the given amounts the way a tool would. */
+  function decide(calls: [number, number?][], envOverrides: Record<string, string> = {}) {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-mcp-policy-"));
+    try {
+      writeFileSync(join(dir, "policy.ts"), getMcpPolicyExampleTemplate());
+      writeFileSync(
+        join(dir, "run.ts"),
+        `import { checkPay } from './policy.ts';
+` +
+          `console.log(JSON.stringify(${JSON.stringify(calls)}.map(([amount, limit]) => checkPay(amount, limit))));
+`,
+      );
+      const out = execFileSync(
+        process.execPath,
+        ["--experimental-strip-types", join(dir, "run.ts")],
+        {
+          encoding: "utf8",
+          // The default limit must not come from the machine running the test, so PAY_LIMIT_CENTS is dropped first.
+          env: { ...withoutPayLimit(process.env), NODE_NO_WARNINGS: "1", ...envOverrides },
+        },
+      );
+      return JSON.parse(out.trim().split("\n").pop() ?? "[]") as {
+        allowed: boolean;
+        reason?: string;
+      }[];
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("allows a pay call up to the limit", () => {
+    expect(decide([[100], [50000], [75000, 100000]])).toEqual([
+      { allowed: true },
+      { allowed: true },
+      { allowed: true },
+    ]);
+  });
+
+  it("refuses a pay call above the limit and says why", () => {
+    const [over, overCustom] = decide([[50001], [100001, 100000]]);
+    expect(over).toEqual({
+      allowed: false,
+      reason: "the amount 50001 is above the limit of 50000 cents",
+    });
+    expect(overCustom?.allowed).toBe(false);
+  });
+
+  it("refuses every payment when the limit is not a positive number", () => {
+    for (const decision of decide([
+      [100, 0],
+      [100, -5],
+    ])) {
+      expect(decision).toEqual({
+        allowed: false,
+        reason: "the limit is not a positive number of cents, so every payment is refused",
+      });
+    }
+  });
+
+  it("refuses every payment when an explicit limit is not finite", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-mcp-policy-"));
+    try {
+      writeFileSync(join(dir, "policy.ts"), getMcpPolicyExampleTemplate());
+      writeFileSync(
+        join(dir, "run.ts"),
+        `import { checkPay } from './policy.ts';\n` +
+          `console.log(JSON.stringify([checkPay(100, Number.NaN), checkPay(100, Number.POSITIVE_INFINITY)]));\n`,
+      );
+      const out = execFileSync(
+        process.execPath,
+        ["--experimental-strip-types", join(dir, "run.ts")],
+        {
+          encoding: "utf8",
+          env: { ...withoutPayLimit(process.env), NODE_NO_WARNINGS: "1" },
+        },
+      );
+      expect(JSON.parse(out.trim().split("\n").pop() ?? "[]")).toEqual([
+        {
+          allowed: false,
+          reason: "the limit is not a positive number of cents, so every payment is refused",
+        },
+        {
+          allowed: false,
+          reason: "the limit is not a positive number of cents, so every payment is refused",
+        },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses every payment when PAY_LIMIT_CENTS is malformed, not allows them all", () => {
+    for (const bad of ["abc", "", "0", "-1"]) {
+      const [decision] = decide([[100]], { PAY_LIMIT_CENTS: bad });
+      expect(decision?.allowed, `PAY_LIMIT_CENTS=${JSON.stringify(bad)}`).toBe(false);
+    }
+  });
+
+  it("uses a valid PAY_LIMIT_CENTS from the environment", () => {
+    const [atLimit, over] = decide([[200], [201]], { PAY_LIMIT_CENTS: "200" });
+    expect(atLimit).toEqual({ allowed: true });
+    expect(over?.allowed).toBe(false);
+  });
+
+  it("refuses an amount that is not a positive whole number of cents", () => {
+    for (const decision of decide([[0], [-5], [12.5]])) {
+      expect(decision).toEqual({
+        allowed: false,
+        reason: "the amount must be a positive whole number of cents",
+      });
+    }
+  });
+
+  it("is the code the policy recipe shows", () => {
+    const recipe = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../../../docs/recipes/mcp-tool-policy.md"),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    expect(recipe).toContain(getMcpPolicyExampleTemplate());
   });
 });
