@@ -668,7 +668,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      id-token: write  # forwarded to the callee for cosign OIDC / mcp-publisher login
+      id-token: write  # forwarded to the callee for cosign OIDC / registry publisher login
     uses: ./.github/workflows/publish-mcp-registry.yml # zizmor: ignore[self-repository] reusable workflow resolves from this commit
     with:
       version: ${{ needs.build.outputs.version }}
