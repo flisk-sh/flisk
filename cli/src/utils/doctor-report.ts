@@ -19,6 +19,8 @@ export interface DoctorReport {
     ready: boolean;
     inProject: boolean;
     checks: CheckResult[];
+    /** Non-blocking warning messages, in check order; also present as isWarning entries in checks. */
+    warnings?: string[];
     capabilities?: string[];
     commit?: string;
     commitSha?: string;
@@ -109,6 +111,7 @@ export function createDoctorReport(
   commit?: string,
 ): DoctorReport {
   const fixFirst = rankDoctorFixes(checks);
+  const warnings = checks.filter((check) => check.isWarning).map((check) => check.message);
   const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
   const detectedBuildCache =
     buildCache ??
@@ -130,6 +133,7 @@ export function createDoctorReport(
         checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
       inProject,
       checks: checks.map((check) => ({ durationMs: 0, ...check })),
+      ...(warnings.length > 0 ? { warnings } : {}),
       ...(capabilities ? { capabilities } : {}),
       ...(observedOwner ? { observed: observedOwner } : {}),
       ...(fixFirst.length > 0 ? { fixFirst } : {}),

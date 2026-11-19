@@ -38,6 +38,7 @@ export function createDoctorUsageReport(errors) {
 /** Produce the same readiness decision for human and machine consumers. */
 export function createDoctorReport(checks, inProject, errors = [], portPlan, host, capabilities, buildCache, commit) {
     const fixFirst = rankDoctorFixes(checks);
+    const warnings = checks.filter((check) => check.isWarning).map((check) => check.message);
     const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
     const detectedBuildCache = buildCache ??
         checks.find((check) => check.name === "Docker Build Cache")?.buildCache;
@@ -49,6 +50,7 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
                 checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
             inProject,
             checks: checks.map((check) => ({ durationMs: 0, ...check })),
+            ...(warnings.length > 0 ? { warnings } : {}),
             ...(capabilities ? { capabilities } : {}),
             ...(observedOwner ? { observed: observedOwner } : {}),
             ...(fixFirst.length > 0 ? { fixFirst } : {}),

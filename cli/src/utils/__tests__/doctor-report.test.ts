@@ -21,6 +21,7 @@ describe("doctor report contract", () => {
         ready: true,
         inProject: true,
         checks: checks.map((check) => ({ durationMs: 0, ...check })),
+        warnings: ["Move from /mnt/c"],
       },
       errors: [],
     });

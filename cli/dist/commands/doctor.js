@@ -39,8 +39,9 @@ import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
+import { secretProviderUsageError } from "../utils/secret-provider.js";
 import { EnvUnreadableError, envSecretValues, OUTPUT_WITHHELD, projectSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
-import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
+import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkRequiredSecrets, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
 import { getProjectName } from "../utils/service-urls.js";
 import { MIN_BUN_VERSION, MIN_TILT_VERSION, versionMeetsMinimum } from "../utils/tool-versions.js";
 import { checkToolchains } from "../utils/toolchain.js";
@@ -88,6 +89,14 @@ export const doctorCommand = new Command("doctor")
     .option("--ping-timeout <ms>", "Per-service ping timeout in milliseconds", String(DEFAULT_PING_TIMEOUT_MS))
     .addHelpText("after", "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --fix --dry-run\n  flisk doctor --json")
     .action(async (options) => {
+    const providerError = secretProviderUsageError(process.env);
+    if (providerError) {
+        if (options.json)
+            console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message: providerError.message }])));
+        console.error(providerError.message);
+        process.exit(providerError.exitCode);
+        return;
+    }
     // Validate before running any probe; parseInt would silently accept "100ms" or "1.5".
     const pingTimeout = Number(options.pingTimeout);
     if (!/^\d+$/.test(options.pingTimeout) ||
@@ -136,11 +145,14 @@ export const doctorCommand = new Command("doctor")
             fix: NATIVE_WINDOWS_NEXT_STEP,
         };
         // Keep Windows diagnostics behind the win32 platform check (Linux/macOS unchanged).
+        const windowsRoot = findProjectRoot();
         const windowsChecks = [
             nativeWindowsFinding,
             checkWindowsRuntimeTools(),
             checkWindowsDockerMode(),
             await checkWindowsHostConfiguration(),
+            // The Windows report returns early; the secret-bridge warning still applies in a project.
+            ...(windowsRoot ? [checkRequiredSecrets(windowsRoot, undefined, process.env)] : []),
         ];
         let windowsPortPlan = null;
         try {
@@ -150,7 +162,7 @@ export const doctorCommand = new Command("doctor")
             /* The native-Windows platform finding remains the primary failure. */
         }
         if (options.json) {
-            console.log(JSON.stringify(createDoctorReport(windowsChecks, Boolean(findProjectRoot()), [], windowsPortPlan, {
+            console.log(JSON.stringify(createDoctorReport(windowsChecks, Boolean(windowsRoot), [], windowsPortPlan, {
                 ...host,
                 canUp: false,
             }, undefined, undefined, getBuildCommit())));
@@ -331,6 +343,7 @@ export const doctorCommand = new Command("doctor")
     const declarationChecks = [
         () => checkDuplicateResourceNames(),
         () => checkDependsOnShape(),
+        () => checkRequiredSecrets(checkDir, undefined, process.env),
     ];
     const graphChecks = [
         () => checkCircularDependencies(),

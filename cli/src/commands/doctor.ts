@@ -137,6 +137,7 @@ import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
+import { secretProviderUsageError } from "../utils/secret-provider.js";
 import {
   EnvUnreadableError,
   envSecretValues,
@@ -152,6 +153,7 @@ import {
   checkModelRunner,
   checkNetworkPorts,
   checkPostgresVolumes,
+  checkRequiredSecrets,
   checkSchemaVersions,
   checkServicePorts,
   checkSidecars,
@@ -273,6 +275,18 @@ export const doctorCommand = new Command("doctor")
     "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --fix --dry-run\n  flisk doctor --json",
   )
   .action(async (options) => {
+    const providerError = secretProviderUsageError(process.env);
+    if (providerError) {
+      if (options.json)
+        console.log(
+          JSON.stringify(
+            createDoctorUsageReport([{ code: "USAGE", message: providerError.message }]),
+          ),
+        );
+      console.error(providerError.message);
+      process.exit(providerError.exitCode);
+      return;
+    }
     // Validate before running any probe; parseInt would silently accept "100ms" or "1.5".
     const pingTimeout = Number(options.pingTimeout);
     if (
@@ -326,11 +340,14 @@ export const doctorCommand = new Command("doctor")
         fix: NATIVE_WINDOWS_NEXT_STEP,
       };
       // Keep Windows diagnostics behind the win32 platform check (Linux/macOS unchanged).
+      const windowsRoot = findProjectRoot();
       const windowsChecks: CheckResult[] = [
         nativeWindowsFinding,
         checkWindowsRuntimeTools(),
         checkWindowsDockerMode(),
         await checkWindowsHostConfiguration(),
+        // The Windows report returns early; the secret-bridge warning still applies in a project.
+        ...(windowsRoot ? [checkRequiredSecrets(windowsRoot, undefined, process.env)] : []),
       ];
       let windowsPortPlan: HostPortPlan | null = null;
       try {
@@ -343,7 +360,7 @@ export const doctorCommand = new Command("doctor")
           JSON.stringify(
             createDoctorReport(
               windowsChecks,
-              Boolean(findProjectRoot()),
+              Boolean(windowsRoot),
               [],
               windowsPortPlan,
               {
@@ -552,6 +569,7 @@ export const doctorCommand = new Command("doctor")
     const declarationChecks: ProjectCheck[] = [
       () => checkDuplicateResourceNames(),
       () => checkDependsOnShape(),
+      () => checkRequiredSecrets(checkDir, undefined, process.env),
     ];
     const graphChecks: ProjectCheck[] = [
       () => checkCircularDependencies(),
