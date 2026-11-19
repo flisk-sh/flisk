@@ -195,9 +195,15 @@ describe("getMcpTestTemplate", () => {
   });
 });
 
+/** The environment without PAY_LIMIT_CENTS, so a default-limit test does not depend on the machine. */
+function withoutPayLimit(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const { PAY_LIMIT_CENTS: _ignored, ...rest } = env;
+  return rest;
+}
+
 describe("getMcpPolicyExampleTemplate", () => {
   /** Writes the example as src/policy.ts and runs checkPay on the given amounts the way a tool would. */
-  function decide(calls: [number, number?][]) {
+  function decide(calls: [number, number?][], envOverrides: Record<string, string> = {}) {
     const dir = mkdtempSync(join(tmpdir(), "flisk-mcp-policy-"));
     try {
       writeFileSync(join(dir, "policy.ts"), getMcpPolicyExampleTemplate());
@@ -213,7 +219,8 @@ describe("getMcpPolicyExampleTemplate", () => {
         ["--experimental-strip-types", join(dir, "run.ts")],
         {
           encoding: "utf8",
-          env: { ...process.env, NODE_NO_WARNINGS: "1" },
+          // The default limit must not come from the machine running the test, so PAY_LIMIT_CENTS is dropped first.
+          env: { ...withoutPayLimit(process.env), NODE_NO_WARNINGS: "1", ...envOverrides },
         },
       );
       return JSON.parse(out.trim().split("\n").pop() ?? "[]") as {
@@ -240,6 +247,31 @@ describe("getMcpPolicyExampleTemplate", () => {
       reason: "the amount 50001 is above the limit of 50000 cents",
     });
     expect(overCustom?.allowed).toBe(false);
+  });
+
+  it("refuses every payment when the limit is not a positive number", () => {
+    for (const decision of decide([
+      [100, 0],
+      [100, -5],
+    ])) {
+      expect(decision).toEqual({
+        allowed: false,
+        reason: "the limit is not a positive number of cents, so every payment is refused",
+      });
+    }
+  });
+
+  it("refuses every payment when PAY_LIMIT_CENTS is malformed, not allows them all", () => {
+    for (const bad of ["abc", "", "0", "-1"]) {
+      const [decision] = decide([[100]], { PAY_LIMIT_CENTS: bad });
+      expect(decision?.allowed, `PAY_LIMIT_CENTS=${JSON.stringify(bad)}`).toBe(false);
+    }
+  });
+
+  it("uses a valid PAY_LIMIT_CENTS from the environment", () => {
+    const [atLimit, over] = decide([[200], [201]], { PAY_LIMIT_CENTS: "200" });
+    expect(atLimit).toEqual({ allowed: true });
+    expect(over?.allowed).toBe(false);
   });
 
   it("refuses an amount that is not a positive whole number of cents", () => {

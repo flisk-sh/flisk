@@ -15,6 +15,10 @@ export const PAY_LIMIT_CENTS = Number(process.env.PAY_LIMIT_CENTS ?? 50000);
 export type Decision = { allowed: true } | { allowed: false; reason: string };
 
 export function checkPay(amountCents: number, limitCents: number = PAY_LIMIT_CENTS): Decision {
+  // A limit that is not a positive number (a typo in PAY_LIMIT_CENTS, say) must refuse, not wave everything through.
+  if (!Number.isFinite(limitCents) || limitCents <= 0) {
+    return { allowed: false, reason: 'the limit is not a positive number of cents, so every payment is refused' };
+  }
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
     return { allowed: false, reason: 'the amount must be a positive whole number of cents' };
   }
@@ -26,6 +30,7 @@ export function checkPay(amountCents: number, limitCents: number = PAY_LIMIT_CEN
 ```
 
 - The limit is 50000 cents unless `PAY_LIMIT_CENTS` says otherwise (set it under `env` in `service.json`).
+- A limit that is not a positive number, such as `PAY_LIMIT_CENTS=abc`, refuses every payment instead of allowing them all.
 - A refusal carries a reason, so the agent can tell the user why instead of retrying.
 
 ## 2. The tool that uses it
