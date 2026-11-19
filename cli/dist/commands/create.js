@@ -152,6 +152,22 @@ function splitStackChoice(pick) {
     const [language, framework] = pick.split("/");
     return { language, ...(framework ? { framework } : {}) };
 }
+/** The error for a `--backend` the JavaScript catalog does not know, pointing at `--language` when that is the answer. */
+function unknownBackend(framework, known) {
+    // The languages that own their runtime (their `frameworks` is empty) and the servers they usually run.
+    const ownRuntime = backendCatalog().filter((entry) => entry.frameworks.length === 0);
+    const owner = ownRuntime.find((entry) => entry.serverFrameworks.includes(framework));
+    const languageIds = ownRuntime.map((entry) => entry.id).join("|");
+    const suggestions = [`flisk create --backend ${known[0] ?? "<id>"}`];
+    if (owner) {
+        suggestions.push(`For ${owner.title} use: flisk create <name> --language ${owner.id}`);
+    }
+    if (languageIds) {
+        suggestions.push(`For an API in another language use: --language ${languageIds}`);
+    }
+    suggestions.push("Leave the flag out to be asked, or to take the default.");
+    throw new FliskError(`Unknown --backend "${framework}". Use one of: ${known.join(", ")}.`, suggestions);
+}
 /** Resolves `--backend` and `--language` into the API choice the catalog allows, or throws with what it allows. */
 function resolveBackend(framework, language) {
     const catalog = backendCatalog();
@@ -163,7 +179,9 @@ function resolveBackend(framework, language) {
         : undefined;
     if (framework) {
         const everyFramework = catalog.flatMap((entry) => entry.frameworks.map((option) => option.id));
-        oneOf("backend", framework, everyFramework);
+        if (!everyFramework.includes(framework)) {
+            unknownBackend(framework, everyFramework);
+        }
         if (lang && owner && lang !== owner.id) {
             throw new FliskError(`--backend ${framework} runs on ${owner.id}, not ${lang}.`, [
                 `Use --language ${owner.id}, or leave --language out.`,
