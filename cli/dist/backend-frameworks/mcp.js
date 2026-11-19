@@ -277,6 +277,29 @@ describe('${name} MCP protocol', () => {
 `;
 }
 /**
+ * A policy example for a generated MCP server: a plain check that runs before a `pay` tool does anything, and refuses an
+ * amount above a limit. It is the whole of the idea: decide first, in code you can read and test, then call. Nothing in the
+ * scaffold imports it; docs/recipes/mcp-tool-policy.md shows it (a test keeps the two the same) and wires it to a tool.
+ */
+export function getMcpPolicyExampleTemplate() {
+    return `// src/policy.ts: decide before a tool runs. Plain code, so it is easy to read and to test.
+// Swap it for a Cedar policy later if the rules outgrow a function; the call site stays the same.
+export const PAY_LIMIT_CENTS = Number(process.env.PAY_LIMIT_CENTS ?? 50000);
+
+export type Decision = { allowed: true } | { allowed: false; reason: string };
+
+export function checkPay(amountCents: number, limitCents: number = PAY_LIMIT_CENTS): Decision {
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+    return { allowed: false, reason: 'the amount must be a positive whole number of cents' };
+  }
+  if (amountCents > limitCents) {
+    return { allowed: false, reason: 'the amount ' + amountCents + ' is above the limit of ' + limitCents + ' cents' };
+  }
+  return { allowed: true };
+}
+`;
+}
+/**
  * The scaffold for \`--type mcp\`. It is not in BACKEND_FRAMEWORKS: \`mcp\` is a resource type of its own, not a \`--framework\`
  * choice for a backend.
  */

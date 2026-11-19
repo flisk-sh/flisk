@@ -100,6 +100,32 @@ describe("tool catalog", () => {
     }
   });
 
+  it("points the rag tool at the Qdrant MCP memory recipe", () => {
+    const rag = findTool("rag");
+    if (rag?.status !== "resource") throw new Error("rag should be a resource tool");
+    expect(rag.next).toContain("Qdrant MCP server");
+    expect(rag.next).toContain("docs/recipes/qdrant-mcp-memory.md");
+    expect(rag.next).toContain("flisk tool add embeddings");
+  });
+
+  it("has an OpenAPI-to-MCP gateway as a bring-your-own image", () => {
+    for (const spelling of ["openapi-mcp", "openapi to mcp", "openapi-gateway", "swagger-mcp"]) {
+      expect(findTool(spelling)?.id, spelling).toBe("openapi-mcp");
+    }
+    const gateway = findTool("openapi-mcp");
+    if (gateway?.status !== "manual") throw new Error("openapi-mcp should be manual");
+    const steps = manualSteps(gateway, "orders-mcp").join("\n");
+    expect(steps).toContain("FROM ckanthony/openapi-mcp:0.1.0");
+    expect(steps).toContain("--spec");
+    expect(steps).toContain(
+      "flisk resource orders-mcp --type bring-your-own --path orders-mcp --port 4300",
+    );
+    expect(steps).toContain('"healthCheck": { "port": 4300 }');
+    expect(manualSteps(gateway).join("\n")).toContain(
+      "flisk resource gateway --type bring-your-own",
+    );
+  });
+
   it("rejects every cloud provider", () => {
     for (const id of ["aws", "google-cloud", "gcp", "azure", "kubernetes"]) {
       expect(findTool(id)?.status).toBe("rejected");

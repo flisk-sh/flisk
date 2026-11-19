@@ -203,7 +203,23 @@ export const TOOL_CATALOG: readonly ToolEntry[] = [
     status: "resource",
     defaultName: "vectors",
     args: ["--type", DATABASE_RESOURCE_TYPE, "--framework", "qdrant"],
-    next: "Pair it with flisk tool add embeddings and flisk tool add llm-api for the full retrieve-then-answer loop.",
+    next: "Pair it with flisk tool add embeddings and flisk tool add llm-api for the full retrieve-then-answer loop. For agent memory over MCP, add the Qdrant MCP server as a bring-your-own resource, one collection per customer: docs/recipes/qdrant-mcp-memory.md.",
+  },
+  {
+    id: "openapi-mcp",
+    title: "OpenAPI-to-MCP gateway",
+    group: "ai",
+    aliases: ["openapi-to-mcp", "openapi-gateway", "swagger-mcp"],
+    status: "manual",
+    defaultName: "gateway",
+    reason:
+      "Flisk has no generator for a gateway that turns an OpenAPI spec into MCP tools, so it runs ckanthony/openapi-mcp as a bring-your-own image pointed at your backend's spec.",
+    steps: [
+      'Add {name}/Dockerfile: FROM ckanthony/openapi-mcp:0.1.0, then CMD ["--spec", "http://<your-backend>:<port>/openapi.json", "--port", "4300"]',
+      "flisk resource {name} --type bring-your-own --path {name} --port 4300",
+      'In {name}/service.json set "healthCheck": { "port": 4300 }: the /mcp route is a long-lived stream, so a TCP check is the one that works',
+      "flisk up   (each operation in the spec becomes an MCP tool; clients connect to /mcp over HTTP with server-sent events)",
+    ],
   },
   {
     id: "embeddings",
