@@ -112,16 +112,24 @@ describe("flisk projects --json", () => {
     });
   });
 
-  it("reports a machine error with exit 1 when no project root exists", () => {
+  it("lists running projects with exit 0 when no project root exists", () => {
     const emptyDir = createTempProject({ projectJson: null });
-    for (const check of [false, true]) {
-      const result = runProjects(emptyDir, check);
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("Could not find project root");
-      expect(result.stdout).not.toContain("\u001b[");
-      const body = JSON.parse(result.stdout);
-      expect(body.data).toBeNull();
-      expect(body.errors[0].code).toBe("COMMAND_FAILED");
-    }
-  }, 30_000); // two CLI runs; the 5s default is exceeded under full-suite load
+    const result = runProjects(emptyDir, false);
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain("\u001b[");
+    const body = JSON.parse(result.stdout);
+    expect(body.errors).toEqual([]);
+    expect(body.data.projects).toEqual(expect.any(Array));
+  }, 30_000);
+
+  it("reports a machine error with exit 1 for --check when no project root exists", () => {
+    const emptyDir = createTempProject({ projectJson: null });
+    const result = runProjects(emptyDir, true);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Could not find project root");
+    expect(result.stdout).not.toContain("\u001b[");
+    const body = JSON.parse(result.stdout);
+    expect(body.data).toBeNull();
+    expect(body.errors[0].code).toBe("COMMAND_FAILED");
+  }, 30_000);
 });
