@@ -85,6 +85,36 @@ describe("flisk run (#2872)", () => {
     expect(target.env).toMatchObject({ GREETING: "hi", PORT: "4567", FROM_DOT_ENV: "yes" });
   });
 
+  it("keeps a container target on the docker exec path despite a local command override", () => {
+    const root = createTempDir();
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(
+      join(root, ".flisk", "project.json"),
+      JSON.stringify({ project: { name: "Run-Test" } }),
+    );
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "service.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        appName: "api",
+        appType: "backend",
+        stack: "app",
+        port: 4567,
+      }),
+    );
+    writeFileSync(join(dir, "service.local.json"), JSON.stringify({ command: "node host.js" }));
+
+    let target: { runtime?: string } | null = null;
+    try {
+      target = resolveRunTarget(root, "api", ["printenv"]);
+    } catch {
+      // No Docker here: the point is that runtime selection never chose the host.
+    }
+    expect(target?.runtime).not.toBe("native");
+  });
+
   it("passes the command's exit code through, and --json reports it with the output", () => {
     const root = nativeProject();
     const plain = flisk(root, [

@@ -49,6 +49,36 @@ describe("choosing the native runtime for flisk up", () => {
     expect(selectNativeRun(undefined, undefined, fail, createTempDir())).toBeNull();
   });
 
+  it("applies service.local.json only on the native path and reports the fields", () => {
+    const root = createTempProject({
+      files: {
+        "api/service.json": JSON.stringify(
+          native("api", { port: 8080, env: { KEEP: "committed" } }),
+        ),
+        "api/service.local.json": JSON.stringify({
+          port: 9100,
+          command: "node local-server.js",
+          env: { KEEP: "local", ADDED: "yes" },
+        }),
+      },
+    });
+
+    const selection = selectNativeRun(undefined, undefined, fail, root);
+    expect(selection?.overrides).toEqual([
+      { service: "api", field: "port" },
+      { service: "api", field: "command" },
+      { service: "api", field: "env" },
+    ]);
+    expect(selection?.selected[0]).toMatchObject({
+      port: 9100,
+      config: {
+        port: 9100,
+        command: "node local-server.js",
+        env: { KEEP: "local", ADDED: "yes" },
+      },
+    });
+  });
+
   it("brings the dependsOn closure of a stack or --only selection", () => {
     const root = createTempProject({
       files: {
@@ -87,6 +117,22 @@ describe("choosing the native runtime for flisk up", () => {
     expect(() => selectNativeRun(undefined, undefined, fail, root)).toThrow(
       /service "web": declares both command and image/,
     );
+  });
+
+  it("does not let a local command override move a container project onto the native path", () => {
+    const root = createTempProject({
+      stacks: {
+        shop: {
+          api: { appType: "backend", schemaVersion: 1, port: 4400 },
+          web: { appType: "frontend", schemaVersion: 1, port: 4401 },
+        },
+      },
+      files: {
+        "services/shop/api/service.local.json": JSON.stringify({ command: "node local.js" }),
+      },
+    });
+    // Runtime is chosen from committed manifests: both services are Dockerfile-built, so Docker/Tilt stays.
+    expect(selectNativeRun(undefined, undefined, fail, root)).toBeNull();
   });
 
   it("refuses to mix command services with container services", () => {

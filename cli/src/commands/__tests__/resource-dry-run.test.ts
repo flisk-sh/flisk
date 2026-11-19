@@ -125,7 +125,10 @@ describe("resource scaffolding preview", () => {
       const args = ["--type", type, "--path", "existing", "--register-existing"];
       const preview = runResourceCommand(root, args);
       expect(preview.resource.action).toBe("registered");
-      expect(preview.files).toEqual([{ path: "existing/service.json", action: "update" }]);
+      expect(preview.files).toEqual([
+        { path: "existing/service.json", action: "update" },
+        { path: ".gitignore", action: "create" },
+      ]);
       expect(preview.directories).toEqual([]);
       expect(snapshot(root)).toEqual(before);
       runResourceCommand(root, args, false);
@@ -142,7 +145,10 @@ describe("resource scaffolding preview", () => {
     });
     const before = snapshot(root);
     const preview = runResourceCommand(root, ["--type", "bring-your-own", "--path", "custom"]);
-    expect(preview.files).toEqual([{ path: "custom/service.json", action: "create" }]);
+    expect(preview.files).toEqual([
+      { path: "custom/service.json", action: "create" },
+      { path: ".gitignore", action: "create" },
+    ]);
     expect(snapshot(root)).toEqual(before);
   });
 

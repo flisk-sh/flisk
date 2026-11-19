@@ -14,6 +14,7 @@ import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
+import { SERVICE_LOCAL_JSON } from "./constants.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
@@ -172,19 +173,33 @@ export function planNativeRun(
   vars: Readonly<Record<string, string | undefined>> = process.env,
   projectRoot?: string,
   projectName?: string,
+  options: { includeDisabled?: boolean } = {},
 ): NativeRunPlan {
   const root = projectRoot ?? findProjectRoot(selected[0]?.path ?? process.cwd()) ?? process.cwd();
   const containerProject = projectName ?? basename(root);
   const errors: string[] = [];
   const missingVars: string[] = [];
-  const names = new Set(selected.map((resource) => resource.name));
+  // `enabled: false` (including a `service.local.json` override) is a local-process decision: plan
+  // the service as absent instead of starting it and making its dependents wait for a port that never opens.
+  // `flisk up` omits disabled services. A one-off `flisk run` of a disabled service still needs its
+  // environment and PORT, so that caller opts in here without changing startup eligibility.
+  const active = options.includeDisabled
+    ? [...selected]
+    : selected.filter((resource) => resource.config?.enabled !== false);
+  const byName = new Map(selected.map((resource) => [resource.name, resource]));
+  const disabled = new Set(
+    selected
+      .filter((resource) => resource.config?.enabled === false)
+      .map((resource) => resource.name),
+  );
+  const names = new Set(active.map((resource) => resource.name));
   const byStack = new Map<string, string[]>();
-  for (const resource of selected) {
+  for (const resource of active) {
     if (resource.stack)
       byStack.set(resource.stack, [...(byStack.get(resource.stack) ?? []), resource.name]);
   }
   const portOwners = new Map<number, string>();
-  const services = selected.map((resource): NativeServicePlan => {
+  const services = active.map((resource): NativeServicePlan => {
     const config = resource.config ?? ({} as NonNullable<DiscoveredResource["config"]>);
     // The same reading as the Docker path: dependsOn plus the deprecated `dependencies`, and a stack name means its services.
     const dependsOn: string[] = [];
@@ -194,6 +209,15 @@ export function planNativeRun(
       } else if (byStack.has(dep)) {
         for (const member of byStack.get(dep) ?? [])
           if (member !== resource.name) dependsOn.push(member);
+      } else if (disabled.has(dep)) {
+        const depPath = byName.get(dep)?.configPath;
+        const where = depPath
+          ? `${basename(depPath)} or its sibling ${SERVICE_LOCAL_JSON}`
+          : "service.json or its sibling service.local.json";
+        // Explicit policy: a dependent refuses to start while its dependency is disabled locally.
+        errors.push(
+          `service "${resource.name}" dependsOn "${dep}", which is disabled locally (enabled: false in ${where}). Enable it or remove the dependency before starting "${resource.name}".`,
+        );
       } else {
         errors.push(
           `service "${resource.name}" dependsOn "${dep}", which is not a service in this project. Add a "${dep}" service with a command, or with an "image" to run it as a container (a database, a cache), or remove it from dependsOn.`,

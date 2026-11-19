@@ -9,6 +9,7 @@ import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../u
 import { formatCount, showAllSatisfyCondition, showDetail, showEmptyState, showStep, } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
 export async function runResourcesList(options) {
@@ -63,7 +64,11 @@ export async function runResourcesList(options) {
                 port: resource.port ?? null,
                 path: resource.configPath,
             }));
-            console.log(JSON.stringify(createMachineEnvelope({ resources: data, ...skippedServiceFiles(discovery.problems) })));
+            console.log(JSON.stringify(createMachineEnvelope({
+                resources: data,
+                ...skippedServiceFiles(discovery.problems),
+                overrides: applyServiceLocalOverrides(discovery.resources).overrides,
+            })));
             return;
         }
         if (resources.length === 0) {

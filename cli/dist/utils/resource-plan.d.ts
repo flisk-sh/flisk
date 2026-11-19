@@ -6,6 +6,8 @@ export declare class ResourceFilePlan {
     text(path: string, content: string): void;
     /** A file another tool writes right after the scaffold (such as package-lock.json): previewed and validated, never written here. */
     generated(path: string): void;
+    /** Keep the root .gitignore in the preview when this scaffold needs to add entries to it. */
+    gitignore(projectRoot: string): void;
     files(path: string, tasks: FileGenerationTask[], options?: {
         exclusive?: boolean;
     }): void;

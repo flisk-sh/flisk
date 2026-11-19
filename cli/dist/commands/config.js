@@ -21,6 +21,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkCircularDependencies, checkDependsOnShape, checkServicePorts, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
 import { describeSharedPostgresUsers, evaluateSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
@@ -334,6 +335,19 @@ export const configCommand = new Command("config")
         });
         const { resources, problems } = discoverResourcesWithProblems(projectRoot);
         warnAboutSkippedFiles(problems);
+        // Reporting only: verify never applies these fields to generated files. A malformed local file is a
+        // machine-local problem, so it must not stop verification of the committed configuration. Text
+        // verification never inspects local files at all.
+        let overrides = [];
+        let overrideErrors = [];
+        if (options.json) {
+            try {
+                overrides = applyServiceLocalOverrides(resources).overrides;
+            }
+            catch (error) {
+                overrideErrors = [error instanceof Error ? error.message : String(error)];
+            }
+        }
         const manifestPaths = [
             ...resources.map((r) => r.configPath),
             ...problems.map((p) => p.path),
@@ -380,6 +394,9 @@ export const configCommand = new Command("config")
                 warnings: result.warnings,
                 diffs: result.diffs,
                 state: result.state,
+                overrides,
+                // Separate from `errors`: a bad service.local.json does not invalidate generated files.
+                overrideErrors,
                 sharedPlatformPostgres: sharedPostgres,
             })));
             if (!result.valid || sharedPostgresErrors.length > 0 || !prismaConsistency.didPass)

@@ -17,6 +17,7 @@ import { nativeServiceStates, readNativeRunState } from "../utils/native-runtime
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { skippedServiceFiles } from "../utils/services.js";
 import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
@@ -139,8 +140,30 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
         // No Traefik runs then, so every service answers on localhost instead of an ingress route.
         const nativeProject = isNativeProject(all.resources);
+        // A malformed local file must not break status; config verify and flisk up report it.
+        let allOverrides = null;
+        try {
+            allOverrides = applyServiceLocalOverrides(all.resources);
+        }
+        catch {
+            // Fall back to committed resources; local-only diagnostics belong to config verify.
+        }
+        // Keep the stack filter for native reporting, including the enabled check used by launch.
+        const stackNames = new Set(discovery.resources.map((resource) => resource.name));
+        const stackOverrides = allOverrides
+            ? {
+                resources: allOverrides.resources.filter((resource) => stackNames.has(resource.name)),
+                overrides: allOverrides.overrides.filter((override) => stackNames.has(override.service)),
+            }
+            : null;
+        // Native launch skips `enabled: false`, so readiness must not wait for a service it never starts.
+        const launchResources = (stackOverrides?.resources ?? discovery.resources).filter((resource) => resource.config?.enabled !== false);
+        // Only the native report uses overridden ports and URLs; container reporting stays committed.
+        const reportedResources = nativeProject
+            ? (stackOverrides?.resources ?? discovery.resources)
+            : discovery.resources;
         const nativeStates = projectRoot && nativeProject
-            ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
+            ? nativeServiceStates(projectRoot, launchResources.map((resource) => resource.name))
             : null;
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
         const platformServices = describePlatformServices(projectRoot, discovery.resources, options);
@@ -298,7 +321,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     staleDisabled,
                 },
                 resourceCount: discovery.resources.length,
-                resources: discovery.resources.map((resource) => ({
+                resources: reportedResources.map((resource) => ({
                     name: resource.name,
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
@@ -324,6 +347,8 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
                 // The service.json files discovery skipped (invalid JSON or fields), so `resources` is not silently short.
                 ...skippedServiceFiles(discovery.problems, projectRoot),
+                // service.local.json fields that will be used when these services run as local processes.
+                overrides: allOverrides?.overrides ?? [],
                 sharedInfra: sharedInfraGroup,
                 platformServices,
                 capabilities: getEnabledCapabilities(projectRoot, options),

@@ -1270,3 +1270,38 @@ writeFileSync(process.env.FLISK_OUTPUT, "SERVICE_TOKEN=" + token + "\\n");
     expect(data.apiKey).not.toBe(SENTINEL_SECRET);
   });
 });
+
+describe("local enabled overrides in native planning", () => {
+  it("omits a disabled service from startup planning and names the disabled dependency", () => {
+    const root = createTempDir();
+    const api = nativeService(root, "api", {
+      command: "node api.js",
+      port: 4100,
+      enabled: false,
+    });
+    const web = nativeService(root, "web", { command: "node web.js", dependsOn: ["api"] });
+
+    const plan = planNativeRun([api, web]);
+    expect(plan.services.map((service) => service.name)).toEqual(["web"]);
+    expect(plan.errors[0]).toMatch(
+      /service "web" dependsOn "api", which is disabled locally \(enabled: false in service\.json or its sibling service\.local\.json\)/,
+    );
+  });
+
+  it("still builds the environment of a disabled service for a one-off run", () => {
+    const root = createTempDir();
+    const api = nativeService(root, "api", {
+      command: "node api.js",
+      port: 4100,
+      enabled: false,
+      env: { TOKEN: "local" },
+    });
+
+    expect(planNativeRun([api]).services).toEqual([]);
+    const oneOff = planNativeRun([api], {}, undefined, undefined, { includeDisabled: true });
+    expect(oneOff.services[0]).toMatchObject({
+      name: "api",
+      env: expect.objectContaining({ TOKEN: "local", PORT: "4100" }),
+    });
+  });
+});
