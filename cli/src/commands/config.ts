@@ -686,7 +686,12 @@ export const configCommand = new Command("config")
         const editorParts = editor.split(/\s+/);
         const editorCmd = editorParts[0] || "vi";
         const editorArgs = [...editorParts.slice(1), projectJsonPath];
-        spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+const editorResult = spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+        if (editorResult.error || editorResult.status !== 0) {
+          throw new FliskError(`Editor "${editorCmd}" failed`, [
+            editorResult.error?.message ?? `Exited with status ${editorResult.status ?? 1}`,
+          ]);
+        }
 
         console.log(chalk.green("\n✅ Editor closed."));
         console.log(chalk.gray("Run `flisk config regenerate` to apply changes."));
