@@ -163,6 +163,18 @@ const DRY_RUN_MATRIX: Array<{
     expect: "Files written:",
   },
   { site: "up --dry-run", command: ["up"], project: CONFIGURED_PROJECT, expect: "Dry run" },
+  {
+    site: "config enable-infra --dry-run",
+    command: ["config", "enable-infra"],
+    project: CONFIGURED_PROJECT,
+    expect: "Would enable monitoring.",
+  },
+  {
+    site: "config disable-infra --dry-run",
+    command: ["config", "disable-infra"],
+    project: CONFIGURED_PROJECT,
+    expect: "No change: monitoring is already disabled.",
+  },
 ];
 
 /**
@@ -565,6 +577,8 @@ const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
   down: { command: downCommand, args: [] },
   eject: { command: ejectCommand, args: [] },
   up: { command: upCommand, args: [] },
+  "config enable-infra": { command: configCommand, args: ["enable-infra", "monitoring"] },
+  "config disable-infra": { command: configCommand, args: ["disable-infra", "monitoring"] },
 };
 
 describe("flag contract: --dry-run", () => {

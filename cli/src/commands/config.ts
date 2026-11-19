@@ -721,7 +721,7 @@ function isOptionalInfraKey(
 async function toggleInfraService(
   service: string,
   enabled: boolean,
-  options: { json?: boolean; ignoreVersion?: boolean } = {},
+  options: { json?: boolean; ignoreVersion?: boolean; dryRun?: boolean } = {},
 ): Promise<JsonCommandResult> {
   const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
   if (!projectRoot) throw errorFactories.notInProject();
@@ -769,6 +769,17 @@ async function toggleInfraService(
   }
 
   const wasEnabled = config.optional_infra[service];
+  const changes = Boolean(wasEnabled) !== enabled;
+  if (options.dryRun) {
+    console.log(
+      changes
+        ? `Would ${enabled ? "enable" : "disable"} ${service}.`
+        : `No change: ${service} is already ${enabled ? "enabled" : "disabled"}.`,
+    );
+    return {
+      data: { dryRun: true, service, enabled, wasEnabled: Boolean(wasEnabled), changed: changes },
+    };
+  }
 
   const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
   const rawProjectValue: unknown = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
@@ -811,6 +822,7 @@ function infraToggleCommand(name: "enable-infra" | "disable-infra", enabled: boo
   return new Command(name)
     .description(`${enabled ? "Enable" : "Disable"} optional infrastructure service`)
     .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
+    .option("--dry-run", "Show the planned change without writing project.json")
     .option(
       "--ignore-version",
       "Continue even if the CLI does not match the project's version requirements",
@@ -821,14 +833,19 @@ function infraToggleCommand(name: "enable-infra" | "disable-infra", enabled: boo
       "Print one JSON envelope on stdout with the service and its previous state",
       false,
     )
-    .action(async (service: string, options: { json?: boolean; ignoreVersion?: boolean }) => {
-      const action = () => toggleInfraService(service, enabled, options);
-      if (options.json) {
-        await runJsonCommand("INFRA_TOGGLE_FAILED", `flisk config ${name}`, action);
-        return;
-      }
-      await runCommand(action);
-    });
+    .action(
+      async (
+        service: string,
+        options: { json?: boolean; ignoreVersion?: boolean; dryRun?: boolean },
+      ) => {
+        const action = () => toggleInfraService(service, enabled, options);
+        if (options.json) {
+          await runJsonCommand("INFRA_TOGGLE_FAILED", `flisk config ${name}`, action);
+          return;
+        }
+        await runCommand(action);
+      },
+    );
 }
 
 configCommand
