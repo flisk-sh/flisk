@@ -646,6 +646,8 @@ async function runCreate(nameArg, options) {
     if (!isValidProjectName(answers.name)) {
         throw new FliskError(`"${answers.name}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`, ["Pick a name like my-app or shop-2: flisk create my-app"]);
     }
+    const projectDir = resolve(process.cwd(), answers.name);
+    assertFolderIsFree(projectDir);
     const steps = buildCreatePlan(answers);
     if (options.dryRun) {
         console.log(describeAnswers(answers).join("\n"));
@@ -657,8 +659,6 @@ async function runCreate(nameArg, options) {
         console.log(chalk.gray("\nDry run: nothing was written."));
         return;
     }
-    const projectDir = resolve(process.cwd(), answers.name);
-    assertFolderIsFree(projectDir);
     // The review comes before anything is written, in every mode, so a default is never a surprise.
     const review = reviewLines(answers, steps);
     if (interactive) {

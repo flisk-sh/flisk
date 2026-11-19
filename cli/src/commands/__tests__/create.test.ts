@@ -635,6 +635,17 @@ function inTempDir() {
 describe("flisk create (the real CLI, no terminal)", () => {
   const dirOf = inTempDir();
 
+  it("dry-run rejects an occupied project folder without changing it", () => {
+    const project = join(dirOf(), "existing");
+    mkdirSync(project);
+    writeFileSync(join(project, "keep.txt"), "mine");
+    const run = runFlisk(["create", "existing", "--dry-run"], { cwd: dirOf(), timeout: 60_000 });
+    expect(run.status).not.toBe(0);
+    expect(run.stdout + run.stderr).toContain("already exists and is not empty");
+    expect(readdirSync(project)).toEqual(["keep.txt"]);
+    expect(readFileSync(join(project, "keep.txt"), "utf8")).toBe("mine");
+  });
+
   it("--dry-run prints the real flisk commands and writes nothing", () => {
     const run = runFlisk(["create", "shop", "--dry-run"], { cwd: dirOf(), timeout: 60_000 });
     expect(run.status).toBe(0);
