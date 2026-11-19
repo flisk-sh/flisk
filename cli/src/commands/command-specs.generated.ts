@@ -813,6 +813,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         defaultValue: false,
       },
       {
+        flags: "--usage",
+        description: "Show CPU, memory and process usage per service",
+        defaultValue: false,
+      },
+      {
         flags: "--project <path>",
         description:
           "Show status for the Flisk project in this folder (default: the current project)",
@@ -821,7 +826,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict",
+        "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --usage\n  flisk status --json\n  flisk status --strict",
       ],
     },
     subcommands: [],
