@@ -1198,7 +1198,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     name: "tool",
     path: ["tool"],
     description:
-      "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected); list with flisk tool list",
+      "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list",
     aliases: [],
     hidden: false,
     hasAction: false,
