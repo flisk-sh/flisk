@@ -71,20 +71,40 @@ export class PostgresEffects {
 }
 
 /**
+ * Reads the outbox. A missing file is an empty outbox. A last line that is not valid JSON is a write a crash cut short: it is
+ * dropped from the file (so the next record does not glue onto it) and every complete record before it is kept, because those
+ * keys are what stops a retry from delivering twice. A bad line anywhere else means the file was damaged some other way, and
+ * delivering on top of it could repeat a delivery, so it throws.
+ */
+function readOutbox(file) {
+  let text;
+  try {
+    text = readFileSync(file, "utf-8");
+  } catch (error) {
+    if (error?.code === "ENOENT") return [];
+    throw error;
+  }
+  const rows = text.split("\n").filter(Boolean);
+  const records = [];
+  for (const [index, row] of rows.entries()) {
+    try {
+      records.push(JSON.parse(row));
+    } catch {
+      if (index !== rows.length - 1)
+        throw new Error(`the outbox ${file} has a damaged line ${index + 1}`);
+      writeFileSync(file, records.map((record) => `${JSON.stringify(record)}\n`).join(""));
+    }
+  }
+  return records;
+}
+
+/**
  * The receiver of the side effect: one JSON line per delivery in the outbox file. It remembers the keys it has seen, so a
  * second call with the same key delivers nothing and answers with the first delivery, the way a payment API treats an
  * Idempotency-Key. Replace the body with your own call and pass `key` along with it.
  */
 export function deliver(file, key, payload) {
-  let lines = [];
-  try {
-    lines = readFileSync(file, "utf-8")
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
-  } catch {
-    // nothing delivered yet
-  }
+  const lines = readOutbox(file);
   const first = lines.find((line) => line.key === key);
   if (first) return { delivered: true, key, at: first.at, duplicate: true };
   const at = new Date().toISOString();

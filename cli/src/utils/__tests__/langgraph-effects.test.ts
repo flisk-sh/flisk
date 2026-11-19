@@ -157,3 +157,49 @@ describe("PostgresEffects", () => {
     expect(await store.get("nothing")).toBeNull();
   });
 });
+
+describe("deliver with a damaged outbox", () => {
+  it("keeps the earlier deliveries when a crash left a partial last line, and does not deliver them again", async () => {
+    const { deliver } = await load();
+    const outbox = join(tmp(), "outbox.jsonl");
+    deliver(outbox, "a", { answer: "one" });
+    // A crash in the middle of the next append: a complete record, then a cut-off one with no newline.
+    writeFileSync(outbox, `${readFileSync(outbox, "utf-8")}{"key":"b","at":"2026-11-1`);
+    // The earlier key is still known, so a retry of it delivers nothing.
+    expect(deliver(outbox, "a", { answer: "changed" })).toMatchObject({
+      key: "a",
+      duplicate: true,
+    });
+    // The torn line is gone, and the next record starts on a line of its own.
+    deliver(outbox, "c", { answer: "three" });
+    const rows = lines(outbox).map((line) => JSON.parse(line) as { key: string });
+    expect(rows.map((row) => row.key)).toEqual(["a", "c"]);
+  });
+
+  it("delivers a key whose own write was cut off, once", async () => {
+    const { deliver } = await load();
+    const outbox = join(tmp(), "outbox.jsonl");
+    deliver(outbox, "a", { answer: "one" });
+    writeFileSync(outbox, `${readFileSync(outbox, "utf-8")}{"key":"b"`);
+    const result = deliver(outbox, "b", { answer: "two" });
+    expect(result.duplicate).toBeUndefined();
+    expect(lines(outbox).map((line) => (JSON.parse(line) as { key: string }).key)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("refuses to deliver on top of a damaged line in the middle", async () => {
+    const { deliver } = await load();
+    const outbox = join(tmp(), "outbox.jsonl");
+    writeFileSync(outbox, `{"key":"a"}\nnot json\n{"key":"b"}\n`);
+    expect(() => deliver(outbox, "c", { answer: "three" })).toThrow(/damaged line 2/);
+    expect(readFileSync(outbox, "utf-8")).not.toContain('"key":"c"');
+  });
+
+  it("treats a missing outbox as empty", async () => {
+    const { deliver } = await load();
+    const outbox = join(tmp(), "none", "outbox.jsonl");
+    expect(deliver(outbox, "a", { answer: "one" })).toMatchObject({ delivered: true, key: "a" });
+  });
+});
