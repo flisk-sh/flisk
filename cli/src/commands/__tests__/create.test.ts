@@ -812,6 +812,13 @@ describe("flisk create (the real CLI, no terminal)", () => {
     expect(readFileSync(join(dirOf(), "shop", "keep.txt"), "utf8")).toBe("mine");
   });
 
+  it("suggests next for a close frontend framework name", () => {
+    const run = runFlisk(["create", "shop", "--frontend", "nextjs", "--dry-run"], { cwd: dirOf() });
+    expect(run.status).not.toBe(0);
+    expect(run.stdout + run.stderr).toContain('Did you mean "next"?');
+    expect(run.stdout + run.stderr).toContain("flisk create --frontend next");
+  });
+
   it("names the valid choices for a wrong flag and exits non-zero", () => {
     const run = runFlisk(["create", "shop", "--frontend", "nope", "--dry-run"], {
       cwd: dirOf(),
@@ -819,6 +826,7 @@ describe("flisk create (the real CLI, no terminal)", () => {
     });
     expect(run.status).not.toBe(0);
     expect(run.stdout + run.stderr).toContain(frontends[0]?.id);
+    expect(run.stdout + run.stderr).not.toContain("Did you mean");
   });
 });
 

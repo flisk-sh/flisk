@@ -54,6 +54,7 @@ import {
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
 import { isWindows } from "../utils/platform.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { findOnPath } from "../utils/which.js";
 
 /** The shape of an app: what to ask about. These are choices about the journey, not generators. */
@@ -117,8 +118,10 @@ export interface CreateOptions {
 function oneOf(flag: string, value: string, ids: readonly string[], extra: string[] = []): string {
   const allowed = [...ids, ...extra];
   if (allowed.includes(value)) return value;
-  throw new FliskError(`Unknown --${flag} "${value}". Use one of: ${allowed.join(", ")}.`, [
-    `flisk create --${flag} ${allowed[0] ?? "<id>"}`,
+  const similar = suggestClosest(value, ids);
+  const hint = similar ? ` Did you mean "${similar}"?` : "";
+  throw new FliskError(`Unknown --${flag} "${value}". Use one of: ${allowed.join(", ")}.${hint}`, [
+    `flisk create --${flag} ${similar ?? allowed[0] ?? "<id>"}`,
     "Leave the flag out to be asked, or to take the default.",
   ]);
 }
