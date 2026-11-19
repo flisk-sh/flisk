@@ -10,6 +10,7 @@ import { Command } from "@langchain/langgraph";
 import { FileEffects, PostgresEffects } from "./effects.mjs";
 import { FileSaver } from "./file-saver.mjs";
 import { buildGraph } from "./graph.mjs";
+import { recoveryPlan } from "./recovery.mjs";
 
 const dataDir = process.env.DATA_DIR ?? ".data";
 
@@ -65,7 +66,10 @@ async function drive(run, input) {
     const asked = result?.__interrupt__?.[0];
     run.status = asked ? "awaiting_approval" : "done";
     run.pending = asked ? asked.value : null;
+    // The checkpoint holds the answer now, so the copy on the run record is no longer needed.
+    run.decision = null;
   } catch (error) {
+    run.decision = null;
     run.status = "failed";
     // The details stay in the agent's log; GET /runs only says that the run failed.
     console.error(error);
@@ -87,12 +91,16 @@ async function view(run) {
 async function resume(run) {
   const state = await graph.getState(config(run.id));
   run.resumed = (run.resumed ?? 0) + 1;
-  if (!state.values?.goal)
+  const plan = recoveryPlan(run, state);
+  if (plan === "start") {
     return drive(run, { goal: run.goal, needsApproval: run.approve === true });
-  if (state.next.length === 0) {
+  }
+  if (plan === "done") {
     run.status = "done";
     return saveRuns();
   }
+  // The answer was accepted and saved, but the agent died before LangGraph checkpointed it: give it to LangGraph again.
+  if (plan === "resume-with-decision") return drive(run, new Command({ resume: run.decision }));
   return drive(run, null);
 }
 for (const run of runs.values()) if (run.status === "running") resume(run);
@@ -149,10 +157,13 @@ createServer(async (request, response) => {
     if (run.status !== "awaiting_approval") {
       return json(response, 409, { error: `the run is ${run.status}, not awaiting_approval` });
     }
+    // The answer is saved on the run record before the 202, so an agent that dies after answering still has it on restart
+    // (recoveryPlan) and the client never has to send it twice.
+    run.decision = { approved: body.approved, note: body.note ?? null };
     run.status = "running";
     run.pending = null;
     saveRuns();
-    drive(run, new Command({ resume: { approved: body.approved, note: body.note ?? null } }));
+    drive(run, new Command({ resume: run.decision }));
     return json(response, 202, run);
   }
   json(response, 404, { error: "not found" });

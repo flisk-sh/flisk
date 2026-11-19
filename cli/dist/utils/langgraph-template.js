@@ -15,6 +15,7 @@ const TEMPLATE_FILES = {
     "agent/graph.mjs": "langgraph/agent/graph.mjs",
     "agent/file-saver.mjs": "langgraph/agent/file-saver.mjs",
     "agent/effects.mjs": "langgraph/agent/effects.mjs",
+    "agent/recovery.mjs": "langgraph/agent/recovery.mjs",
     "agent/plan.mjs": "super-agent/planner/plan.mjs",
     "tools/server.mjs": "super-agent/tools/server.mjs",
 };
