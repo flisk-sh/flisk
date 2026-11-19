@@ -826,7 +826,11 @@ describe("flisk status in a local-process project", () => {
     mkdirSync(imageDir, { recursive: true });
     writeFileSync(
       join(imageDir, "service.json"),
-      JSON.stringify({ appName: "cache", appType: "backend", port: 6379, image: "redis:7" }, null, 2),
+      JSON.stringify(
+        { appName: "cache", appType: "backend", port: 6379, image: "redis:7" },
+        null,
+        2,
+      ),
     );
     try {
       clearDiscoveryCache();
