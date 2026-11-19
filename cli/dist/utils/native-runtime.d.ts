@@ -126,6 +126,13 @@ export interface NativeStopDeps {
     /** SIGTERM, then SIGKILL, to a service's process group (its process tree on Windows). */
     stopGroup: (pid: number, startTime: string) => Promise<void>;
 }
+/**
+ * Asks the supervising `flisk up` to stop, then waits for it to be gone. On POSIX that is a SIGTERM, which the supervisor
+ * answers by stopping its services in order. Windows has no such signal: `process.kill` ends the process at once, and with it
+ * the shells (cmd.exe) of its services, whose pipes close, but not the processes those shells started, which then run on with
+ * no parent to find them by. So on Windows the supervisor's whole process tree is ended, services included.
+ */
+export declare function terminateSupervisorProcess(pid: number, timeoutMs: number, platform?: NodeJS.Platform, killTree?: (pid: number) => void): Promise<void>;
 export interface NativeStopResult {
     wasRunning: boolean;
     services: string[];
@@ -212,6 +219,13 @@ export declare function shellInvocation(command: string, platform?: NodeJS.Platf
     args: string[];
     windowsVerbatimArguments: boolean;
 };
+/**
+ * Whether a service gets its own process group. On Windows a detached child starts with its own console, and what it writes to
+ * a pipe never reaches the parent: a crashed service's error (a missing variable, a stack trace) was lost, so the log files,
+ * `flisk logs` and the failure text of `up` stayed empty. A Windows stop ends the whole tree with taskkill (signalGroup), so
+ * it does not need a group; the cost is that a Ctrl+C in the terminal also reaches the services directly.
+ */
+export declare function detachesServices(platform?: NodeJS.Platform): boolean;
 export declare class NativeSupervisor {
     private readonly projectRoot;
     private readonly events;

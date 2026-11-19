@@ -284,6 +284,7 @@ function readinessCommandPasses(command, plan) {
             cwd: plan.cwd,
             env: { ...process.env, ...(plan.env ?? {}) },
             stdio: "ignore",
+            windowsHide: true,
         });
         const timer = setTimeout(() => child.kill("SIGKILL"), READINESS_COMMAND_TIMEOUT_MS);
         child.once("error", () => {
@@ -385,19 +386,31 @@ async function stopProcessGroup(pid, timeoutMs = STOP_TIMEOUT_MS, canSignal = as
     if (!(await waitForExit(pid, timeoutMs)) && (await canSignal()))
         signalGroup(pid, "SIGKILL");
 }
-const defaultStopDeps = {
-    isAlive: isProcessAlive,
-    startTimeOf: (pid) => processStartTime(pid),
-    bootTimeMs,
-    terminateSupervisor: async (pid, timeoutMs) => {
+/**
+ * Asks the supervising `flisk up` to stop, then waits for it to be gone. On POSIX that is a SIGTERM, which the supervisor
+ * answers by stopping its services in order. Windows has no such signal: `process.kill` ends the process at once, and with it
+ * the shells (cmd.exe) of its services, whose pipes close, but not the processes those shells started, which then run on with
+ * no parent to find them by. So on Windows the supervisor's whole process tree is ended, services included.
+ */
+export async function terminateSupervisorProcess(pid, timeoutMs, platform = process.platform, killTree = killWindowsTree) {
+    if (platform === "win32") {
+        killTree(pid);
+    }
+    else {
         try {
             process.kill(pid, "SIGTERM");
         }
         catch {
             // Gone between the check and the signal.
         }
-        await waitForExit(pid, timeoutMs);
-    },
+    }
+    await waitForExit(pid, timeoutMs);
+}
+const defaultStopDeps = {
+    isAlive: isProcessAlive,
+    startTimeOf: (pid) => processStartTime(pid),
+    bootTimeMs,
+    terminateSupervisor: (pid, timeoutMs) => terminateSupervisorProcess(pid, timeoutMs),
     stopGroup: (pid, startTime) => stopProcessGroup(pid, STOP_TIMEOUT_MS, async () => (await processStartTime(pid)) === startTime),
 };
 /**
@@ -602,6 +615,15 @@ export function shellInvocation(command, platform = process.platform, comSpec = 
     }
     return { file: "/bin/sh", args: ["-c", command], windowsVerbatimArguments: false };
 }
+/**
+ * Whether a service gets its own process group. On Windows a detached child starts with its own console, and what it writes to
+ * a pipe never reaches the parent: a crashed service's error (a missing variable, a stack trace) was lost, so the log files,
+ * `flisk logs` and the failure text of `up` stayed empty. A Windows stop ends the whole tree with taskkill (signalGroup), so
+ * it does not need a group; the cost is that a Ctrl+C in the terminal also reaches the services directly.
+ */
+export function detachesServices(platform = process.platform) {
+    return platform !== "win32";
+}
 /** True while the process has neither exited nor been ended by a signal (Node leaves `exitCode` null in the second case). */
 function isChildRunning(child) {
     return child !== undefined && child.exitCode === null && child.signalCode === null;
@@ -785,9 +807,11 @@ export class NativeSupervisor {
             env: { ...(this.baseEnv ?? process.env), ...plan.env },
             windowsVerbatimArguments: shell.windowsVerbatimArguments,
             // Its own process group, so a stop reaches what the shell started too, and a Ctrl+C in the terminal reaches only
-            // `flisk up`, which then stops the services in order.
-            detached: true,
+            // `flisk up`, which then stops the services in order. Not on Windows: see detachesServices.
+            detached: detachesServices(),
             stdio: ["ignore", "pipe", "pipe"],
+            // Without this a console window opens for every service (and every restart) when flisk runs without a console of its own.
+            windowsHide: true,
         });
         service.child = child;
         service.startTime = undefined;
