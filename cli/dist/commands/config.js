@@ -495,7 +495,7 @@ export const configCommand = new Command("config")
             ]);
         }
         // A pipe, script or CI job cannot answer an editor, and vi would wait on the closed stdin.
-        if (!process.stdin.isTTY) {
+        if (!process.stdin.isTTY || !process.stdout.isTTY) {
             throw new FliskError("config edit needs a terminal; edit .flisk/project.json directly", [
                 `Edit it in your own editor: ${projectJsonPath}`,
             ]);
@@ -507,7 +507,23 @@ export const configCommand = new Command("config")
         const editorParts = editor.split(/\s+/);
         const editorCmd = editorParts[0] || "vi";
         const editorArgs = [...editorParts.slice(1), projectJsonPath];
-        spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+        const editorResult = spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+        if (editorResult.error || editorResult.status !== 0) {
+            throw new FliskError(`Editor "${editorCmd}" failed`, [
+                editorResult.error?.message ??
+                    (editorResult.signal
+                        ? `Terminated by ${editorResult.signal}`
+                        : `Exited with status ${editorResult.status ?? 1}`),
+            ]);
+        }
+        try {
+            readProjectConfig(projectRoot);
+        }
+        catch (error) {
+            throw new FliskError("Editor saved an invalid .flisk/project.json", [
+                error instanceof Error ? error.message : String(error),
+            ]);
+        }
         console.log(chalk.green("\n✅ Editor closed."));
         console.log(chalk.gray("Run `flisk config regenerate` to apply changes."));
     });
