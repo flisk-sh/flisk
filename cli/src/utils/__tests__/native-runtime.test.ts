@@ -10,6 +10,7 @@ import { expandEnvValue } from "../env-expand.js";
 import {
   dependencyWaves,
   findMissingPrograms,
+  isNativeRunSupervisorAlive,
   isProcessAlive,
   localUrl,
   NativeSupervisor,
@@ -26,6 +27,21 @@ import {
 import { processStartTime } from "../process-identity.js";
 
 const NODE = JSON.stringify(process.execPath);
+
+describe("native run supervisor identity", () => {
+  it("accepts the recorded process and rejects a reused pid", async () => {
+    const startTime = await processStartTime(process.pid);
+    expect(startTime).toBeDefined();
+    const state = {
+      pid: process.pid,
+      pidStartTime: startTime,
+      startedAt: new Date().toISOString(),
+      services: {},
+    };
+    expect(await isNativeRunSupervisorAlive(state)).toBe(true);
+    expect(await isNativeRunSupervisorAlive({ ...state, pidStartTime: "reused-pid" })).toBe(false);
+  });
+});
 
 /** A `${NAME}` (or `${NAME:-fallback}`) reference, written out so it is not mistaken for a template literal. */
 const ref = (name: string, fallback?: string) =>

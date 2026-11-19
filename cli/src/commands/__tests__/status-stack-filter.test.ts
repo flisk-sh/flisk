@@ -20,7 +20,10 @@ it("limits the JSON report to the requested stack", () => {
 
 it("rejects a stack for a bare Node project, which has none", () => {
   const cwd = mkdtempSync(join(tmpdir(), "flisk-status-bare-"));
-  writeFileSync(join(cwd, "package.json"), JSON.stringify({ name: "bare", scripts: { dev: "node app.js" } }));
+  writeFileSync(
+    join(cwd, "package.json"),
+    JSON.stringify({ name: "bare", scripts: { dev: "node app.js" } }),
+  );
   const result = runFlisk(["status", "--stack", "shop", "--json"], { cwd });
   expect(result.status).not.toBe(0);
   expect(result.stdout + result.stderr).toContain('Unknown stack "shop"');

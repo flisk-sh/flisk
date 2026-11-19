@@ -314,6 +314,16 @@ export function readNativeRunState(projectRoot) {
         return null;
     }
 }
+/** True only when the supervisor pid still belongs to the process recorded for this native run. */
+export async function isNativeRunSupervisorAlive(state) {
+    if (!state || state.pidStartTime === undefined || !isProcessAlive(state.pid))
+        return false;
+    const startedAt = Date.parse(state.startedAt);
+    if (Number.isFinite(startedAt) && startedAt < bootTimeMs())
+        return false;
+    const currentStartTime = await processStartTime(state.pid);
+    return currentStartTime !== undefined && currentStartTime === state.pidStartTime;
+}
 function writeNativeRunState(projectRoot, state) {
     const dir = join(projectRoot, NATIVE_DIR);
     const logsDir = join(dir, "logs");

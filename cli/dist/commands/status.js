@@ -13,7 +13,7 @@ import { formatCount, showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan, resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
-import { nativeServiceStates, readNativeRunState } from "../utils/native-runtime.js";
+import { isNativeRunSupervisorAlive, nativeServiceStates, readNativeRunState, } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
@@ -80,10 +80,11 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 }
                 const stateRoot = inferredStateRoot(process.cwd());
                 const runState = readNativeRunState(stateRoot);
+                const runIsAlive = await isNativeRunSupervisorAlive(runState);
                 if (!options.json) {
                     showStep("Flisk Status\n");
                     console.log(chalk.bold("Runtime:"), "local processes (no Docker, no Tilt)");
-                    console.log(`  ${runState ? "✓" : "…"} ${inferredProject.service.name} ${runState ? "ready" : "unknown"}\n`);
+                    console.log(`  ${runIsAlive ? "✓" : "…"} ${inferredProject.service.name} ${runIsAlive ? "ready" : "unknown"}\n`);
                 }
                 if (options.json) {
                     console.log(JSON.stringify(createMachineEnvelope({
@@ -104,13 +105,13 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                                 stack: null,
                                 type: "backend",
                                 port: inferredProject.service.config?.port ?? null,
-                                status: runState ? "ready" : "unknown",
+                                status: runIsAlive ? "ready" : "unknown",
                             },
                         ],
                     })));
                 }
                 if (options.strict) {
-                    failStrictStatus(runState ? [] : null);
+                    failStrictStatus(runIsAlive ? [] : null);
                 }
                 return;
             }

@@ -109,6 +109,8 @@ export interface NativeRunState {
 export declare function nativeRunStatePath(projectRoot: string): string;
 export declare function nativeLogPath(projectRoot: string, service: string): string;
 export declare function readNativeRunState(projectRoot: string): NativeRunState | null;
+/** True only when the supervisor pid still belongs to the process recorded for this native run. */
+export declare function isNativeRunSupervisorAlive(state: NativeRunState | null): Promise<boolean>;
 /** True while the process exists (a zombie or another user's process counts as existing). */
 export declare function isProcessAlive(pid: number): boolean;
 /**
