@@ -461,6 +461,10 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         description: "Only these services (names as in flisk resources)",
       },
       {
+        flags: "-f, --follow",
+        description: "Live follow is unavailable; use flisk ui or repeat with --since",
+      },
+      {
         flags: "--tail <n>",
         description: "Number of most recent lines to return",
         defaultValue: "200",
