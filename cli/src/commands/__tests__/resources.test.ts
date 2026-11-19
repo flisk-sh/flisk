@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { resourcesCommand } from "../resources.js";
+import { VALID_RESOURCE_TYPES } from "../../utils/constants.js";
+import { isResourceCreateType } from "../../types/index.js";
 
 const originalCwd = process.cwd();
 
@@ -302,6 +304,30 @@ describe("resources command", () => {
     logSpy.mockRestore();
   });
 
+it("does not suggest creating a library with --type in the empty state", async () => {
+  setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+  const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+  await resourcesCommand.parseAsync(["node", "flisk", "--type", "library"], { from: "node" });
+
+  const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+  expect(output).toContain('No resources found with type "library".');
+  expect(output).toContain("flisk resource <name>");
+  expect(output).not.toContain("--type library");
+  logSpy.mockRestore();
+});
+
+it("keeps the --type creation hint for a creatable type in the empty state", async () => {
+  setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+  const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+  await resourcesCommand.parseAsync(["node", "flisk", "--type", "worker"], { from: "node" });
+
+  const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+  expect(output).toContain("flisk resource <name> --type worker");
+  logSpy.mockRestore();
+});
+
   it("displays empty state when filtering by stack and type yields no matches", async () => {
     setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -354,3 +380,19 @@ describe("resources command", () => {
     logSpy.mockRestore();
   });
 });
+
+describe("resource type lists", () => {
+  it("only library and migrator are filterable but not creatable", () => {
+    const filterOnly = VALID_RESOURCE_TYPES.filter((type) => !isResourceCreateType(type));
+    expect([...filterOnly].sort()).toEqual(["library", "migrator"]);
+  });
+
+  it("accepts every creatable type, plus sdk", () => {
+    expect(isResourceCreateType("backend")).toBe(true);
+    expect(isResourceCreateType("inference")).toBe(true);
+    expect(isResourceCreateType("sdk")).toBe(true);
+    expect(isResourceCreateType("library")).toBe(false);
+    expect(isResourceCreateType("migrator")).toBe(false);
+  });
+});
+

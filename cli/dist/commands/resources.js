@@ -11,6 +11,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { findProjectRoot } from "../utils/paths.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
+import { isResourceCreateType } from "../types/index.js";
 export async function runResourcesList(options) {
     const action = async () => {
         if (options.json) {
@@ -70,7 +71,8 @@ export async function runResourcesList(options) {
             const stackContext = stackName ? ` in stack "${stackName}"` : "";
             const noStackContext = withoutStackFilter && !stackName ? " without a stack" : "";
             const typeContext = options.type !== undefined ? ` with type "${options.type}"` : "";
-            showEmptyState(stackName ? "stack-services" : "resources", stackContext + noStackContext + typeContext, options.type);
+            const creatable = options.type !== undefined && isResourceCreateType(options.type);
+            showEmptyState(stackName ? "stack-services" : "resources", stackContext + noStackContext + typeContext, creatable ? options.type : undefined);
             return;
         }
         showStep(`Found ${formatCount(resources.length, "resource")}:\n`);

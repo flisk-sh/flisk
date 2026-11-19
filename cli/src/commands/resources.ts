@@ -17,6 +17,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { findProjectRoot } from "../utils/paths.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
+import { isResourceCreateType } from "../types/index.js";
 
 export interface ListResourcesOptions {
   verbose?: boolean;
@@ -98,10 +99,11 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
       const stackContext = stackName ? ` in stack "${stackName}"` : "";
       const noStackContext = withoutStackFilter && !stackName ? " without a stack" : "";
       const typeContext = options.type !== undefined ? ` with type "${options.type}"` : "";
+      const creatable = options.type !== undefined && isResourceCreateType(options.type);
       showEmptyState(
         stackName ? "stack-services" : "resources",
         stackContext + noStackContext + typeContext,
-        options.type,
+        creatable ? options.type : undefined,
       );
       return;
     }
