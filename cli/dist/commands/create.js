@@ -17,7 +17,7 @@ import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../u
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
-import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, starterInfo, toProjectName, } from "../utils/create-plan.js";
+import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, projectNameError, starterInfo, toProjectName, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
 import { isWindows } from "../utils/platform.js";
@@ -143,7 +143,8 @@ function resolveBackend(framework, language) {
  */
 export async function collectAnswers(nameArg, options, interactive) {
     if (nameArg !== undefined && !isValidProjectName(nameArg)) {
-        throw new FliskError(`"${nameArg}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`, ["Pick a name like my-app or shop-2: flisk create my-app"]);
+        const { message, suggestions } = projectNameError(nameArg);
+        throw new FliskError(message, suggestions);
     }
     const starters = starterCatalog();
     const frontends = frontendCatalog();
@@ -582,7 +583,8 @@ async function runCreate(nameArg, options) {
     }
     const answers = await collectAnswers(nameArg, options, interactive);
     if (!isValidProjectName(answers.name)) {
-        throw new FliskError(`"${answers.name}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`, ["Pick a name like my-app or shop-2: flisk create my-app"]);
+        const { message, suggestions } = projectNameError(answers.name);
+        throw new FliskError(message, suggestions);
     }
     const steps = buildCreatePlan(answers);
     if (options.dryRun) {

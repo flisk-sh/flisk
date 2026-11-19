@@ -81,6 +81,23 @@ export function toProjectName(raw: string): string {
     .replace(/-+$/, "");
 }
 
+/**
+ * The error for a name that cannot be a project folder, with the exact command that works when the fix is obvious.
+ * A name given on the command line is never renamed silently, so a fixable name is spelled out in the hint, not applied.
+ */
+export function projectNameError(name: string): { message: string; suggestions: string[] } {
+  const fixed = toProjectName(name);
+  const canFix = fixed !== name && isValidProjectName(fixed);
+  return {
+    message: `"${name}" is not a usable project name. A project name must start with a letter, use only lowercase letters, digits and dashes, and be at most 48 characters, e.g. my-app.`,
+    suggestions: [
+      canFix
+        ? `Rename it for the command line: flisk create ${fixed}`
+        : "Pick a name like my-app or shop-2: flisk create my-app",
+    ],
+  };
+}
+
 /** A starter's name in plain words, and whether it runs on this computer without Docker. */
 export function starterInfo(id: string): { title: string; local: boolean } {
   const found = starterCatalog().find((option) => option.id === id);
