@@ -454,12 +454,50 @@ function assignsPath(words: readonly CommandWord[]): boolean {
   return words.some((word) => /^PATH=/.test(word.text));
 }
 
+/** `env` options that stand alone: none of them takes an argument, and none is the program (#4676 review). */
+const ENV_STANDALONE_OPTIONS = new Set([
+  "-",
+  "-i",
+  "--ignore-environment",
+  "-0",
+  "--null",
+  "-v",
+  "--debug",
+]);
+
+/** `env` options whose value is the next word (`-u HOME`), or the rest of their own word (`-uHOME`, `--unset=HOME`). */
+const ENV_VALUE_OPTIONS = new Set(["-u", "--unset", "-C", "--chdir", "-S", "--split-string"]);
+const ENV_INLINE_VALUE_OPTION = /^(?:-[uCS].+|--(?:unset|chdir|split-string)=.+)$/;
+
 /** The program one segment starts, null when it only runs builtins, or UNRESOLVED when it cannot be told. */
 function segmentProgram(words: readonly CommandWord[]): string | null | typeof UNRESOLVED {
-  for (const word of words) {
-    // Leading VAR=value assignments set the program's environment, and `exec`/`env` choose it; neither is the program.
+  // `env` picks the program itself, after its own options and `NAME=VALUE` assignments; an option this preflight does
+  // not know is left to env rather than reported as a program that is missing (#4676 review).
+  let inEnv = false;
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    if (!word) continue;
+    // Leading VAR=value assignments set the program's environment, and `exec` chooses it; neither is the program.
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word.text)) continue;
-    if (word.text === "exec" || word.text === "env") continue;
+    if (word.text === "exec") continue;
+    if (word.text === "env") {
+      inEnv = true;
+      continue;
+    }
+    if (inEnv) {
+      if (word.text === "--") {
+        inEnv = false;
+        continue;
+      }
+      if (ENV_STANDALONE_OPTIONS.has(word.text)) continue;
+      if (ENV_VALUE_OPTIONS.has(word.text)) {
+        index += 1;
+        continue;
+      }
+      if (ENV_INLINE_VALUE_OPTION.test(word.text)) continue;
+      if (word.text.startsWith("-")) return UNRESOLVED;
+      inEnv = false;
+    }
     if (SHELL_BUILTINS.has(word.text)) return null;
     if (word.expansion) return UNRESOLVED;
     return /^[A-Za-z0-9_./@+-]+$/.test(word.text) ? word.text : UNRESOLVED;

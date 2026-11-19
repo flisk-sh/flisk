@@ -367,6 +367,31 @@ describe("native run planning", () => {
     ).toEqual([{ name: "quoted-hash", program: "npm" }]);
   });
 
+  it("reads env's own options before naming the program it runs (#4676 review)", () => {
+    const plans = planNativeRun([
+      makeResource("plain", "bring-your-own", { command: "env npm install" }),
+      makeResource("ignored", "bring-your-own", { command: "env -i node server.js" }),
+      makeResource("after-cd", "bring-your-own", {
+        command: "cd ../agent && env -i /usr/bin/node server.js",
+      }),
+      makeResource("unset", "bring-your-own", { command: "env -u HOME npm ci" }),
+      makeResource("inline", "bring-your-own", { command: "env -uHOME npm ci" }),
+      makeResource("chdir", "bring-your-own", { command: "env --chdir=app npm ci" }),
+      makeResource("assign", "bring-your-own", { command: "env NODE_ENV=production npm ci" }),
+      makeResource("unknown", "bring-your-own", { command: "env -Z nope-runtime run" }),
+      makeResource("missing", "bring-your-own", { command: "env -i nope-runtime run" }),
+    ]).services;
+    // `-i`, `-u HOME` and `--chdir=app` belong to env; the word after them is the program it runs. An option this
+    // preflight does not know is left to env rather than reported as a missing program.
+    expect(
+      findMissingPrograms(
+        plans,
+        (program) => (program === "npm" || program === "node" ? `/usr/bin/${program}` : null),
+        () => false,
+      ),
+    ).toEqual([{ name: "missing", program: "nope-runtime" }]);
+  });
+
   it("leaves a bare program to the shell when PATH has a relative entry after a cd", () => {
     const plans = planNativeRun([
       makeResource("setup", "bring-your-own", { command: "cd ../agent && npm install" }),
