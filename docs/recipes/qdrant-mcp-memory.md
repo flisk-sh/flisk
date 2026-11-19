@@ -1,7 +1,7 @@
 # Qdrant MCP server: long-term agent memory, one collection per customer
 
 `flisk tool add rag` gives you a Qdrant vector store. This recipe puts the Qdrant MCP server in front of it, so an agent
-stores and finds facts through two MCP tools, `qdrant-store` and `qdrant-find`, and keeps each customer's memory in a
+stores and finds facts through the server's two tools, `qdrant-store` and `qdrant-find`, and keeps each customer's memory in a
 collection of its own.
 
 Versions that were run: `qdrant/mcp-server-qdrant` 0.8.1 (from PyPI), `qdrant/qdrant:v1.12.5` (the image `flisk tool add rag`

@@ -261,6 +261,38 @@ describe("getMcpPolicyExampleTemplate", () => {
     }
   });
 
+  it("refuses every payment when an explicit limit is not finite", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-mcp-policy-"));
+    try {
+      writeFileSync(join(dir, "policy.ts"), getMcpPolicyExampleTemplate());
+      writeFileSync(
+        join(dir, "run.ts"),
+        `import { checkPay } from './policy.ts';\n` +
+          `console.log(JSON.stringify([checkPay(100, Number.NaN), checkPay(100, Number.POSITIVE_INFINITY)]));\n`,
+      );
+      const out = execFileSync(
+        process.execPath,
+        ["--experimental-strip-types", join(dir, "run.ts")],
+        {
+          encoding: "utf8",
+          env: { ...withoutPayLimit(process.env), NODE_NO_WARNINGS: "1" },
+        },
+      );
+      expect(JSON.parse(out.trim().split("\n").pop() ?? "[]")).toEqual([
+        {
+          allowed: false,
+          reason: "the limit is not a positive number of cents, so every payment is refused",
+        },
+        {
+          allowed: false,
+          reason: "the limit is not a positive number of cents, so every payment is refused",
+        },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("refuses every payment when PAY_LIMIT_CENTS is malformed, not allows them all", () => {
     for (const bad of ["abc", "", "0", "-1"]) {
       const [decision] = decide([[100]], { PAY_LIMIT_CENTS: bad });
