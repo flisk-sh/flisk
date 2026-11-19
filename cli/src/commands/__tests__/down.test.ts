@@ -114,6 +114,12 @@ vi.mock("../../utils/json-output.js", () => ({
   createJsonEmitter: createJsonEmitterMock,
 }));
 
+const promptConfirmMock = vi.hoisted(() => vi.fn(async () => false));
+vi.mock("../../utils/prompt.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/prompt.js")>()),
+  promptConfirm: promptConfirmMock,
+}));
+
 import { buildTiltDownArgs } from "../../utils/tilt.js";
 import { downCommand } from "../down.js";
 
@@ -168,6 +174,7 @@ describe("flisk down", () => {
     removeProjectArtifactsMock.mockReset();
     foreignOwnersMock.mockReset().mockReturnValue([]);
     collectLeftoversMock.mockReset().mockResolvedValue(null);
+    promptConfirmMock.mockReset().mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -227,14 +234,15 @@ describe("flisk down", () => {
   /** Runs `flisk down` expecting it to exit with an error, and returns what it printed to stderr. */
   async function downFails(cwd: string, args: string[]): Promise<string> {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("exit:1");
+    const exit = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+      throw new Error(`exit:${code ?? 0}`);
     }) as never);
     process.chdir(cwd);
     try {
       await expect(
         downCommand.parseAsync(["node", "flisk", ...args], { from: "node" }),
       ).rejects.toThrow("exit:1");
+      expect(exit).toHaveBeenCalledWith(1);
       return error.mock.calls.flat().join("\n");
     } finally {
       process.chdir(originalCwd);
@@ -247,11 +255,54 @@ describe("flisk down", () => {
     const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
     const project = scratchProject("foreign");
     findRunningFliskProjectsMock.mockReturnValue([project]);
+    const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
     try {
       const output = await downFails(elsewhere, []);
       expect(output).toContain(`a different project is running: ${project}`);
+      expect(output).toContain(`cd '${project}' && flisk down`);
       expect(output).toContain("flisk down --project");
+      expect(promptConfirmMock).not.toHaveBeenCalled();
+      expect(runTiltMock).not.toHaveBeenCalled();
     } finally {
+      if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
+      else delete (process.stdin as { isTTY?: boolean }).isTTY;
+      rmSync(project, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it("outside a project dry-runs the only running project without consent", async () => {
+    const project = scratchProject("dry-run-foreign");
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    findRunningFliskProjectsMock.mockReturnValue([project]);
+    try {
+      const { output } = await downFrom(elsewhere, ["--dry-run"]);
+      expect(runTiltMock).not.toHaveBeenCalled();
+      expect(promptConfirmMock).not.toHaveBeenCalled();
+      expect(output).toContain(`stopping the one that is running: ${project}`);
+      expect(output).toMatch(/Dry run/i);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it("outside a project stops the only running project after TTY confirmation", async () => {
+    const project = scratchProject("tty-confirm");
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    findRunningFliskProjectsMock.mockReturnValue([project]);
+    promptConfirmMock.mockResolvedValue(true);
+    const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    try {
+      const { tiltCwd, output } = await downFrom(elsewhere, []);
+      expect(promptConfirmMock).toHaveBeenCalledOnce();
+      expect(tiltCwd).toBe(project);
+      expect(output).toContain(`stopping the one that is running: ${project}`);
+    } finally {
+      if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
+      else delete (process.stdin as { isTTY?: boolean }).isTTY;
       rmSync(project, { recursive: true, force: true });
       rmSync(elsewhere, { recursive: true, force: true });
     }
@@ -265,6 +316,7 @@ describe("flisk down", () => {
       const { tiltCwd, output } = await downFrom(elsewhere, ["--yes"]);
       expect(tiltCwd).toBe(project);
       expect(output).toContain(`stopping the one that is running: ${project}`);
+      expect(promptConfirmMock).not.toHaveBeenCalled();
     } finally {
       rmSync(project, { recursive: true, force: true });
       rmSync(elsewhere, { recursive: true, force: true });
