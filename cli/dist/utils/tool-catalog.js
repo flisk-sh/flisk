@@ -149,9 +149,9 @@ export const TOOL_CATALOG = [
         defaultName: "gateway",
         reason: "Flisk has no generator for a gateway that turns an OpenAPI spec into MCP tools, so it runs ckanthony/openapi-mcp as a bring-your-own image pointed at your backend's spec.",
         steps: [
-            'Add {name}/Dockerfile: FROM ckanthony/openapi-mcp:0.1.0, then CMD ["--spec", "http://<your-backend>:<port>/openapi.json", "--port", "4300"]',
+            'Add {name}/Dockerfile: FROM ckanthony/openapi-mcp:0.1.0, then CMD ["--spec", "http://<your-backend>:<port>/openapi.json", "--base-url", "http://<your-backend>:<port>", "--port", "4300"]. --base-url is the address the tools call: without it the gateway uses the servers entry of the spec, which is empty or unreachable from a container when it is "/" or localhost',
             "flisk resource {name} --type bring-your-own --path {name} --port 4300",
-            'In {name}/service.json set "healthCheck": { "port": 4300 }: the /mcp route is a long-lived stream, so a TCP check is the one that works',
+            'In {name}/service.json set "healthCheck": false. The image is distroless (no shell), so the TCP check Flisk generates cannot run in it, and /mcp is a stream, so an HTTP path does not fit; Flisk then counts the gateway ready while its container runs',
             "flisk up   (each operation in the spec becomes an MCP tool; clients connect to /mcp over HTTP with server-sent events)",
         ],
     },

@@ -120,7 +120,10 @@ describe("tool catalog", () => {
     expect(steps).toContain(
       "flisk resource orders-mcp --type bring-your-own --path orders-mcp --port 4300",
     );
-    expect(steps).toContain('"healthCheck": { "port": 4300 }');
+    expect(steps).toContain('"--base-url"');
+    expect(steps).toContain('"healthCheck": false');
+    expect(steps).toContain("distroless");
+    expect(steps).not.toContain('"port": 4300 }');
     expect(manualSteps(gateway).join("\n")).toContain(
       "flisk resource gateway --type bring-your-own",
     );
