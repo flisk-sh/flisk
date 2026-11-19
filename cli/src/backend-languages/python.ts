@@ -15,6 +15,7 @@ export const PYTHON_DEV_COMMAND =
 export const pythonBackendProvider: BackendLanguageProvider = {
   id: "python",
   label: "Python 3.12 + FastAPI",
+  serverFrameworks: ["fastapi", "flask"],
   devCommand: PYTHON_DEV_COMMAND,
   watch: ["src/**/*"],
   installHint: 'pip install -e ".[dev]"   # optional: Docker builds the image for you',

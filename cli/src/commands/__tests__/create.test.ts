@@ -41,6 +41,7 @@ import {
   isValidProjectName,
   toProjectName,
 } from "../../utils/create-plan.js";
+import { FliskError } from "../../utils/errors.js";
 import {
   assertFolderIsFree,
   claimFolder,
@@ -145,6 +146,22 @@ describe("collectAnswers without a terminal", () => {
       /Unknown --starter/,
     );
     await expect(collectAnswers("shop", { runtime: "vm" }, false)).rejects.toThrow(/local, docker/);
+  });
+
+  it("points a --backend from Python, Go or Rust at --language", async () => {
+    const unknown = (value: string) =>
+      collectAnswers("shop", { backend: value }, false).catch((err: unknown) => err);
+
+    const fastapi = await unknown("fastapi");
+    expect(fastapi).toBeInstanceOf(FliskError);
+    expect((fastapi as FliskError).suggestions.join("\n")).toContain("--language python");
+
+    const gin = await unknown("gin");
+    expect((gin as FliskError).suggestions.join("\n")).toContain("--language go");
+
+    const nope = await unknown("nope");
+    expect((nope as FliskError).message).toContain('Unknown --backend "nope"');
+    expect((nope as FliskError).suggestions.join("\n")).toContain("--language python|go|rust");
   });
 
   it("rejects a name that is not a safe folder name before anything else", async () => {
