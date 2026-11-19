@@ -401,9 +401,17 @@ export async function startUp(args, deps = defaultUpDeps) {
 export function trimStatusToUnhealthy(result) {
     const envelope = result.data;
     const data = envelope?.data;
-    if (!data || !Array.isArray(data.unhealthy) || !Array.isArray(data.resources))
+    if (!data || !Array.isArray(data.resources))
         return result;
-    const broken = new Set(data.unhealthy);
+    // A bare Node project reports one resource with a status and no `unhealthy` list: anything not ready is broken.
+    const resourceList = data.resources;
+    const broken = Array.isArray(data.unhealthy)
+        ? new Set(data.unhealthy)
+        : data.inferred === true
+            ? new Set(resourceList.filter((r) => r.status !== "ready").map((r) => String(r.name)))
+            : null;
+    if (!broken)
+        return result;
     const trimmed = {
         ...data,
         resources: data.resources.filter((r) => broken.has(String(r.name))),

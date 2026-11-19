@@ -95,6 +95,12 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
       if (!project) {
         const inferredProject = inferNodeProject(process.cwd());
         if (inferredProject) {
+          // An inferred project has no stacks, so a requested stack cannot match.
+          if (options.stack) {
+            throw new FliskError(`Unknown stack "${options.stack}".`, [
+              "This project has no stacks. Run flisk status without --stack.",
+            ]);
+          }
           const stateRoot = inferredStateRoot(process.cwd());
           const runState = readNativeRunState(stateRoot);
 

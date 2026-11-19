@@ -484,8 +484,15 @@ export async function startUp(
 export function trimStatusToUnhealthy(result: McpToolResult): McpToolResult {
   const envelope = result.data as { data?: Record<string, unknown> } | null;
   const data = envelope?.data;
-  if (!data || !Array.isArray(data.unhealthy) || !Array.isArray(data.resources)) return result;
-  const broken = new Set(data.unhealthy as string[]);
+  if (!data || !Array.isArray(data.resources)) return result;
+  // A bare Node project reports one resource with a status and no `unhealthy` list: anything not ready is broken.
+  const resourceList = data.resources as { name?: string; status?: unknown }[];
+  const broken = Array.isArray(data.unhealthy)
+    ? new Set(data.unhealthy as string[])
+    : data.inferred === true
+      ? new Set(resourceList.filter((r) => r.status !== "ready").map((r) => String(r.name)))
+      : null;
+  if (!broken) return result;
   const trimmed: Record<string, unknown> = {
     ...data,
     resources: (data.resources as { name?: string }[]).filter((r) => broken.has(String(r.name))),
