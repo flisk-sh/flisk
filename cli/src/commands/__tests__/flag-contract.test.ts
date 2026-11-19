@@ -242,6 +242,8 @@ const EXEMPT: Record<string, string> = {
     "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute status --json":
     "a subcommand of distribute that needs a distribution.json; distribute.test.ts covers the envelope and --init",
+  "distribute kit --json":
+    "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute kit --dry-run":
     "takes a required <resource> argument and prints the kit instead of 'Dry run -' lines only; distribute.test.ts proves it writes nothing",
   "connect --json":
@@ -671,7 +673,7 @@ describe("flag contract: unknown flag handling", () => {
     const dir = createTempDir("flisk-unknown-flag-");
     try {
       const res = runFlisk(["status", "--nonexistent-flag-test"], { cwd: dir });
-      expect(res.status).toBe(1);
+      expect(res.status).toBe(2);
       expect(res.stderr).toContain("error: unknown option");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

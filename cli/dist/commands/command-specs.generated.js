@@ -1127,7 +1127,7 @@ export const COMMAND_SPECS = [
     {
         name: "tool",
         path: ["tool"],
-        description: "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected); list with flisk tool list",
+        description: "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list",
         aliases: [],
         hidden: false,
         hasAction: false,
@@ -1877,6 +1877,7 @@ export const COMMAND_SPECS = [
         description: "Restart a running resource in the stack",
         aliases: [],
         hidden: false,
+        showHelpAfterError: "\nRun `flisk resources` to see the resource names you can restart.",
         hasAction: true,
         allowUnknown: false,
         passThrough: false,
@@ -2024,6 +2025,11 @@ export const COMMAND_SPECS = [
                         description: "Overwrite an existing kit",
                         defaultValue: false,
                     },
+                    {
+                        flags: "--json",
+                        description: "Output one JSON envelope with the kit result",
+                        defaultValue: false,
+                    },
                 ],
                 arguments: [
                     {
@@ -2035,7 +2041,7 @@ export const COMMAND_SPECS = [
                 ],
                 helpTexts: {
                     after: [
-                        "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force",
+                        "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force\n  flisk distribute kit my-resource --json",
                     ],
                 },
                 subcommands: [],

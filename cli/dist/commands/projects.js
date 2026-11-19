@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { projectNeedsContainerFiles } from "../generator/template-engine.js";
 import { addYesOption, attachNoPositionalHint } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
@@ -149,7 +150,12 @@ export const projectsCommand = attachNoPositionalHint(addYesOption(new Command("
             throw errorFactories.notInProject();
         }
         const outDir = join(projectRoot, ".flisk", ".flisk-out");
-        const missing = MASTER_CONFIG_FILES.filter((file) => !existsSync(join(outDir, file)));
+        // A local-process project never gets the Tilt master configs (#4434): `flisk up` runs its services on the
+        // host, so asking for them would report a project as unconfigured over files it must never have.
+        const needsMasterConfigs = projectNeedsContainerFiles(projectRoot);
+        const missing = needsMasterConfigs
+            ? MASTER_CONFIG_FILES.filter((file) => !existsSync(join(outDir, file)))
+            : [];
         if (options.json) {
             const discovery = createDiscoveryContext();
             console.log(JSON.stringify(createMachineEnvelope({
@@ -170,12 +176,11 @@ export const projectsCommand = attachNoPositionalHint(addYesOption(new Command("
         console.log(chalk.gray(`  ${projectRoot}`));
         console.log();
         console.log(chalk.bold("Master Configuration:"));
-        if (missing.length === 0) {
-            for (const file of MASTER_CONFIG_FILES) {
-                console.log(chalk.green(`  ✓ ${file}`));
-            }
+        if (!needsMasterConfigs) {
+            console.log(chalk.gray("  Not used: this project runs its services as local processes (no Tilt)"));
         }
         else {
+            // One source of truth for the check mark: the file is on disk.
             for (const file of MASTER_CONFIG_FILES) {
                 const exists = !missing.includes(file);
                 if (exists) {

@@ -108,8 +108,8 @@ describe("flisk eject --json", () => {
     expect(envelope.errors).toEqual([
       expect.objectContaining({
         code: "COMMAND_FAILED",
-        message: expect.stringContaining("Generated Tilt files are missing"),
-        suggestions: expect.arrayContaining(["flisk project --yes"]),
+        message: expect.stringContaining("Generated Tilt files are not created yet"),
+        suggestions: expect.arrayContaining(["flisk config regenerate"]),
       }),
     ]);
   }, 120_000);

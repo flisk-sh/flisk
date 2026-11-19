@@ -76,7 +76,8 @@ export function nativeEjectedContent(services: readonly LocalServiceRow[]): stri
   const hasContainers = services.some((service) => service.image !== undefined);
   const table = services
     .map((service) => {
-      const run = service.image !== undefined ? `docker run ${service.image}` : `\`${service.command}\``;
+      const run =
+        service.image !== undefined ? `docker run ${service.image}` : `\`${service.command}\``;
       return `| \`${service.name}\` | ${run} | ${service.port} |`;
     })
     .join("\n");
@@ -116,7 +117,8 @@ function localServiceRows(resources: readonly DiscoveredResource[]): LocalServic
     const config = resource.config as Record<string, unknown> | undefined;
     if (!config) return [];
     const port = config.port;
-    const portText = typeof port === "number" || typeof port === "string" ? String(port) : "not set";
+    const portText =
+      typeof port === "number" || typeof port === "string" ? String(port) : "not set";
     const command = config.command;
     if (typeof command === "string" && command.trim() !== "") {
       return [{ name: resource.name, command, port: portText }];
@@ -204,9 +206,22 @@ export const ejectCommand = addYesOption(new Command("eject"))
         });
       }
       if (!isNative && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
+        // Same state `flisk config verify` reports as "Not generated yet", so give the same fix:
+        // `flisk project` already ran when the starter was cloned; regenerate writes .flisk-out.
+        // When other generated files exist, only the Tiltfile is gone: name it instead of saying nothing was created.
+        const generatedPath = join(projectRoot, ".flisk", ".flisk-out");
+        const generatedExists = existsSync(generatedPath);
+        if (generatedExists && statSync(generatedPath).isFile()) {
+          throw new FliskError(
+            "A file is blocking the generated output directory (.flisk/.flisk-out). Move it aside, then run `flisk config regenerate` (or `flisk up` for Tilt-backed services), then `flisk eject`.",
+            ["flisk config regenerate"],
+          );
+        }
         throw new FliskError(
-          "Generated Tilt files are missing. Run `flisk project --yes` before ejecting.",
-          ["flisk project --yes", "flisk eject"],
+          generatedExists
+            ? "The generated Tiltfile (.flisk/.flisk-out/Tiltfile) is missing. Run `flisk config regenerate` (or `flisk up` for Tilt-backed services), then `flisk eject`."
+            : "Generated Tilt files are not created yet. Run `flisk config regenerate` (or `flisk up` for Tilt-backed services), then `flisk eject`.",
+          ["flisk config regenerate", "flisk up"],
         );
       }
       const rootTiltfile = join(projectRoot, "Tiltfile");

@@ -70,6 +70,38 @@ describe("flisk projects --json", () => {
     });
   });
 
+  it("reports a local-process project as configured with no Tilt master files missing (#4434)", () => {
+    const projectRoot = createTempProject({
+      generated: [],
+      resources: {
+        api: { appType: "backend", runtime: "node", command: "node server.js" },
+      },
+    });
+
+    const result = runProjects(projectRoot, true);
+    expect(result.status).toBe(0);
+    expect(parseReport(result)).toMatchObject({
+      schemaVersion: 1,
+      data: {
+        projectRoot,
+        configured: true,
+        missingFiles: [],
+        resources: 1,
+        stacks: [],
+        unassignedResources: 1,
+      },
+      errors: [],
+    });
+
+    // The text report agrees: it names no Tilt master file and no missing check.
+    const text = runFlisk(["info"], { cwd: projectRoot, env: { NO_COLOR: "1" } });
+    expect(text.status).toBe(0);
+    expect(text.stdout).not.toContain("(missing)");
+    for (const file of masterConfigFiles) {
+      expect(text.stdout).not.toContain(file);
+    }
+  });
+
   it("lists only the missing master files when the project is partially configured", () => {
     const projectRoot = createProject(["TILT_TECH_STACK.star", "spec.master"]);
     const result = runProjects(projectRoot, true);

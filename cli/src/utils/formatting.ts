@@ -112,7 +112,11 @@ const EMPTY_STATE_CONFIG: Record<
   },
 };
 
-export function showEmptyState(itemType: EmptyStateItemType, filterContext?: string): void {
+export function showEmptyState(
+  itemType: EmptyStateItemType,
+  filterContext?: string,
+  typeFilter?: string,
+): void {
   const config = EMPTY_STATE_CONFIG[itemType];
 
   if (filterContext) {
@@ -121,8 +125,10 @@ export function showEmptyState(itemType: EmptyStateItemType, filterContext?: str
     console.log(chalk.yellow(`No ${config.singular}s found.`));
   }
 
+  const command = typeFilter ? `${config.command} --type ${typeFilter}` : config.command;
+
   console.log(chalk.gray(config.context));
-  console.log(chalk.gray(`  ${config.command}`));
+  console.log(chalk.gray(`  ${command}`));
 
   if (itemType === "stacks") {
     console.log(chalk.gray("\nOr create a new resource with a stack:"));

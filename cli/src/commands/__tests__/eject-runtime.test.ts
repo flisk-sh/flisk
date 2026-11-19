@@ -126,7 +126,9 @@ describe("flisk eject with a local-process project", () => {
   });
 
   it("shows not set for a local-process service without a port", async () => {
-    root = project([{ appName: "worker", appType: "backend", command: "node worker.js", stack: "app" }]);
+    root = project([
+      { appName: "worker", appType: "backend", command: "node worker.js", stack: "app" },
+    ]);
     discovery.discoverResourcesFromRoot.mockImplementation(
       () =>
         [

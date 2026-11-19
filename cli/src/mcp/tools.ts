@@ -311,9 +311,13 @@ export const defaultUpDeps: UpDeps = {
 export function buildUpArgs(args: Record<string, unknown>): string[] {
   const stack = optionalName(args.stack, "stack");
   const only = names(args.only, "only");
+  const profile = names(args.profile, "profile");
+  const envFile = optionalPath(args.envFile, "envFile");
   const out = ["up"];
   if (stack) out.push(stack);
   if (only.length > 0) out.push(...only.map((name) => `--only=${name}`));
+  if (profile.length > 0) out.push(...profile.map((name) => `--profile=${name}`));
+  if (envFile) out.push(`--env-file=${envFile}`);
   if (flag(args.force, "force")) out.push("--force");
   if (flag(args.dryRun, "dryRun")) out.push("--dry-run");
   out.push("--json");
@@ -827,6 +831,17 @@ export function createFliskTools(
           items: { type: "string" },
           description:
             "Start only these services plus what they depend on and shared infrastructure",
+        },
+        profile: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Also start the services whose profiles in service.json include one of these names (without it they are left out)",
+        },
+        envFile: {
+          type: "string",
+          description:
+            "Use this project env file for the run instead of .env, for example .env.integration",
         },
         force: {
           type: "boolean",

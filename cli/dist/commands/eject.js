@@ -163,7 +163,17 @@ export const ejectCommand = addYesOption(new Command("eject"))
             });
         }
         if (!isNative && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
-            throw new FliskError("Generated Tilt files are missing. Run `flisk project --yes` before ejecting.", ["flisk project --yes", "flisk eject"]);
+            // Same state `flisk config verify` reports as "Not generated yet", so give the same fix:
+            // `flisk project` already ran when the starter was cloned; regenerate writes .flisk-out.
+            // When other generated files exist, only the Tiltfile is gone: name it instead of saying nothing was created.
+            const generatedPath = join(projectRoot, ".flisk", ".flisk-out");
+            const generatedExists = existsSync(generatedPath);
+            if (generatedExists && statSync(generatedPath).isFile()) {
+                throw new FliskError("A file is blocking the generated output directory (.flisk/.flisk-out). Move it aside, then run `flisk config regenerate` (or `flisk up` for Tilt-backed services), then `flisk eject`.", ["flisk config regenerate"]);
+            }
+            throw new FliskError(generatedExists
+                ? "The generated Tiltfile (.flisk/.flisk-out/Tiltfile) is missing. Run `flisk config regenerate` (or `flisk up` for Tilt-backed services), then `flisk eject`."
+                : "Generated Tilt files are not created yet. Run `flisk config regenerate` (or `flisk up` for Tilt-backed services), then `flisk eject`.", ["flisk config regenerate", "flisk up"]);
         }
         const rootTiltfile = join(projectRoot, "Tiltfile");
         const userTiltfile = existsSync(rootTiltfile) ? ["Tiltfile"] : [];

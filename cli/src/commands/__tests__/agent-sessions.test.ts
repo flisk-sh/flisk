@@ -847,6 +847,7 @@ describe("flisk agent list", () => {
       const humanRes = runFlisk(["agent", "list"], tmp);
       expect(humanRes.status).toBe(0);
       expect(humanRes.stdout).toContain('No resources found with type "agent".');
+      expect(humanRes.stdout).toContain("flisk resource <name> --type agent");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
