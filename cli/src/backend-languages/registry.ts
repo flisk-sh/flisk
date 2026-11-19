@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { FliskError } from "../utils/errors.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { bunBackendProvider } from "./bun.js";
 import { goBackendProvider } from "./go.js";
 import { nodeBackendProvider } from "./node.js";
@@ -24,9 +25,14 @@ export function getBackendLanguage(languageId?: string): BackendLanguageProvider
 
   if (!provider) {
     const supportedIds = Object.keys(BACKEND_LANGUAGES).join(", ");
+    const closest = suggestClosest(id, Object.keys(BACKEND_LANGUAGES));
     throw new FliskError(
       `Unknown backend language "${languageId}". Supported languages: ${supportedIds}.`,
-      [`Use one of: ${supportedIds}`, `Omit --language to use ${DEFAULT_BACKEND_LANGUAGE}`],
+      [
+        ...(closest ? [`Did you mean "${closest}"?`] : []),
+        `Use one of: ${supportedIds}`,
+        `Omit --language to use ${DEFAULT_BACKEND_LANGUAGE}`,
+      ],
     );
   }
 
