@@ -114,6 +114,52 @@ export interface CreateOptions {
   start?: boolean;
 }
 
+/**
+ * A starter decides its own frontend, backend, language and extras. Reject the flags that would
+ * otherwise be accepted and silently ignored, naming every one the caller supplied.
+ */
+function assertNoStarterConflicts(
+  options: CreateOptions,
+  starters: readonly CatalogOption[],
+): void {
+  if (!options.starter) return;
+
+  const conflicts: string[] = [];
+  for (const [flag, supplied] of [
+    ["--frontend", options.frontend !== undefined],
+    ["--backend", options.backend !== undefined],
+    ["--language", options.language !== undefined],
+    ["--extras", options.extras !== undefined && options.extras !== "none"],
+  ] as const) {
+    if (supplied) conflicts.push(flag);
+  }
+
+  const invalidRuntime =
+    options.runtime !== undefined && !CREATE_RUNTIMES.includes(options.runtime as CreateRuntime);
+  if (options.runtime !== undefined && !invalidRuntime) {
+    const runtime = options.runtime as CreateRuntime;
+    const starterLocal = starters.find((option) => option.id === options.starter)?.local ?? false;
+    const expected: CreateRuntime = starterLocal ? "local" : "docker";
+    if (runtime !== expected) conflicts.push(`--runtime ${options.runtime}`);
+  }
+
+  if (conflicts.length === 0 && !invalidRuntime) return;
+  if (invalidRuntime && conflicts.length === 0) {
+    oneOf("runtime", options.runtime as string, CREATE_RUNTIMES);
+  }
+  const runtimeError = invalidRuntime
+    ? ` Unknown --runtime "${options.runtime}". Use one of: ${CREATE_RUNTIMES.join(", ")}.`
+    : "";
+  throw new FliskError(
+    `${conflicts.join(", ")} cannot be combined with --starter: a starter carries its own parts.${runtimeError}`,
+    [
+      `Remove the conflicting flags (${conflicts.join(", ")}) and retry, keeping the project name and other options you need.`,
+      ...(invalidRuntime ? [`Use --runtime ${CREATE_RUNTIMES.join(" or ")}.`] : []),
+      "Or drop --starter and choose the parts yourself.",
+    ],
+  );
+}
+
 /** A flag value must be one of the ids the catalog offers; the error lists them. */
 function oneOf(flag: string, value: string, ids: readonly string[], extra: string[] = []): string {
   const allowed = [...ids, ...extra];
@@ -221,18 +267,22 @@ export async function collectAnswers(
   const frontends = frontendCatalog();
   const backends = backendCatalog();
   const extrasCatalog = extraCatalog();
+  if (options.starter !== undefined) {
+    oneOf(
+      "starter",
+      options.starter,
+      starters.map((option) => option.id),
+    );
+  }
+  // Report every starter conflict first, so a --backend none/--language clash cannot hide the others.
+  assertNoStarterConflicts(options, starters);
   if (options.backend === "none" && options.language !== undefined) {
     throw new FliskError(
       `--language ${options.language} has no API to apply to: --backend none leaves the API out.`,
       ["Drop --backend none to get an API in that language, or drop --language."],
     );
   }
-  if (options.starter && options.extras !== undefined && options.extras !== "none") {
-    throw new FliskError(
-      "--extras cannot be combined with --starter: a starter carries its own parts.",
-      ["Drop --extras, or drop --starter and add the parts with --runtime docker."],
-    );
-  }
+
   const flagged = {
     frontend: options.frontend !== undefined,
     backend: options.backend !== undefined || options.language !== undefined,
