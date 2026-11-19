@@ -133,18 +133,27 @@ function assertNoStarterConflicts(
     if (supplied) conflicts.push(flag);
   }
 
-  if (options.runtime !== undefined) {
-    const runtime = oneOf("runtime", options.runtime, CREATE_RUNTIMES) as CreateRuntime;
+  const invalidRuntime =
+    options.runtime !== undefined && !CREATE_RUNTIMES.includes(options.runtime as CreateRuntime);
+  if (options.runtime !== undefined && !invalidRuntime) {
+    const runtime = options.runtime as CreateRuntime;
     const starterLocal = starters.find((option) => option.id === options.starter)?.local ?? false;
     const expected: CreateRuntime = starterLocal ? "local" : "docker";
     if (runtime !== expected) conflicts.push(`--runtime ${options.runtime}`);
   }
 
-  if (conflicts.length === 0) return;
+  if (conflicts.length === 0 && !invalidRuntime) return;
+  if (invalidRuntime && conflicts.length === 0) {
+    oneOf("runtime", options.runtime as string, CREATE_RUNTIMES);
+  }
+  const runtimeError = invalidRuntime
+    ? ` Unknown --runtime "${options.runtime}". Use one of: ${CREATE_RUNTIMES.join(", ")}.`
+    : "";
   throw new FliskError(
-    `${conflicts.join(", ")} cannot be combined with --starter: a starter carries its own parts.`,
+    `${conflicts.join(", ")} cannot be combined with --starter: a starter carries its own parts.${runtimeError}`,
     [
-      `Use: flisk create --starter ${options.starter}`,
+      `Remove the conflicting flags (${conflicts.join(", ")}) and retry, keeping the project name and other options you need.`,
+      ...(invalidRuntime ? [`Use --runtime ${CREATE_RUNTIMES.join(" or ")}.`] : []),
       "Or drop --starter and choose the parts yourself.",
     ],
   );
@@ -255,6 +264,13 @@ export async function collectAnswers(
   const frontends = frontendCatalog();
   const backends = backendCatalog();
   const extrasCatalog = extraCatalog();
+  if (options.starter !== undefined) {
+    oneOf(
+      "starter",
+      options.starter,
+      starters.map((option) => option.id),
+    );
+  }
   // Report every starter conflict first, so a --backend none/--language clash cannot hide the others.
   assertNoStarterConflicts(options, starters);
   if (options.backend === "none" && options.language !== undefined) {

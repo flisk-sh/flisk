@@ -65,6 +65,48 @@ describe("create starter conflicting flags (issue 4419)", () => {
     ).resolves.toMatchObject({ starter: localStarter, runtime: "local" });
   });
 
+  it.each(["", "swram"])(
+    'rejects unknown --starter value "%s" before checking conflicts',
+    async (starter) => {
+      await expect(
+        collectAnswers("shop", { starter, runtime: "local", frontend: "vue" }, false),
+      ).rejects.toThrow(/Unknown --starter/);
+    },
+  );
+
+  it("reports other conflicts alongside an invalid runtime", async () => {
+    await expect(
+      collectAnswers(
+        "shop",
+        { starter: dockerStarter, frontend: "vue", extras: "worker", runtime: "bogus" },
+        false,
+      ),
+    ).rejects.toThrow(/--frontend, --extras.*Unknown --runtime "bogus"/);
+  });
+
+  it("keeps the allowed-values error when runtime is the only invalid option", async () => {
+    await expect(
+      collectAnswers("shop", { starter: dockerStarter, runtime: "bogus" }, false),
+    ).rejects.toThrow(/Unknown --runtime "bogus"\. Use one of:/);
+  });
+
+  it("suggests removing conflicts without replacing the project name or dry-run mode", async () => {
+    let error: (Error & { suggestions?: string[] }) | undefined;
+    try {
+      await collectAnswers(
+        "shop",
+        { starter: dockerStarter, frontend: "vue", dryRun: true },
+        false,
+      );
+    } catch (caught) {
+      error = caught as Error & { suggestions?: string[] };
+    }
+    expect(error?.suggestions).toEqual([
+      expect.stringContaining("keeping the project name and other options you need"),
+      "Or drop --starter and choose the parts yourself.",
+    ]);
+  });
+
   it("preserves --starter alone and --extras none", async () => {
     await expect(collectAnswers("shop", { starter: dockerStarter }, false)).resolves.toMatchObject({
       starter: dockerStarter,
@@ -97,6 +139,7 @@ describe("create starter conflicting flags (issue 4419)", () => {
     expect(run.status).toBe(1);
     const output = `${run.stdout}\n${run.stderr}`;
     expect(output).toContain("--frontend");
+    expect(output).toContain("--backend");
     expect(output).toContain("--language");
     expect(output).not.toContain("has no API to apply to");
   });
