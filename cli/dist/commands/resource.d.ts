@@ -250,6 +250,8 @@ export interface ResourceReport {
     framework: string | null;
     language: string | null;
     discovered: boolean;
+    /** Non-fatal notes, such as a stack name that looks like a typo of an existing one (#4378). */
+    warnings?: string[];
 }
 /**
  * Turns a prompt that could not read input into an error that names the flags which avoid the

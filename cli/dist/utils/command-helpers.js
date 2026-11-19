@@ -99,6 +99,25 @@ export function routeUsageErrorsToJson(command, hint) {
     });
     return command;
 }
+/** `flisk resource` (create) and `flisk resources` (list) are one letter apart, so a `--list` or `-l`
+ * on the create command points at the listing command instead of only "unknown option" (#4377). */
+export const RESOURCE_LIST_HINT = "To list resources, run `flisk resources` (or `flisk resources --json`).";
+export function addResourceListHint(command) {
+    const baseOutputError = command.configureOutput().outputError;
+    command.configureOutput({
+        outputError: (str, write) => {
+            const askedForList = str.includes("unknown option '--list'") || str.includes("unknown option '-l'");
+            const message = askedForList ? `${str}\n${RESOURCE_LIST_HINT}\n` : str;
+            if (baseOutputError) {
+                baseOutputError(message, write);
+            }
+            else {
+                write(message);
+            }
+        },
+    });
+    return command;
+}
 /**
  * Attaches positional argument hints and routes parse errors to JSON envelopes when `--json` is requested.
  */
