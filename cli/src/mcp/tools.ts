@@ -498,6 +498,7 @@ export function trimStatusToUnhealthy(result: McpToolResult): McpToolResult {
     resources: (data.resources as { name?: string }[]).filter((r) => broken.has(String(r.name))),
     filteredTo: "unhealthy",
   };
+  if (!Array.isArray(data.unhealthy)) trimmed.unhealthy = [...broken];
   if (Array.isArray(data.stacks)) {
     trimmed.stacks = (data.stacks as { resources?: string[] }[]).map((stack) => ({
       ...stack,

@@ -417,6 +417,8 @@ export function trimStatusToUnhealthy(result) {
         resources: data.resources.filter((r) => broken.has(String(r.name))),
         filteredTo: "unhealthy",
     };
+    if (!Array.isArray(data.unhealthy))
+        trimmed.unhealthy = [...broken];
     if (Array.isArray(data.stacks)) {
         trimmed.stacks = data.stacks.map((stack) => ({
             ...stack,

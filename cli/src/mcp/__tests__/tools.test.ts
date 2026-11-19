@@ -363,10 +363,12 @@ describe("argument building", () => {
     const readyData = (ready.data as { data: Record<string, unknown> }).data;
     expect(readyData.resources).toEqual([]);
     expect(readyData.filteredTo).toBe("unhealthy");
+    expect(readyData.unhealthy).toEqual([]);
     const waiting = trimStatusToUnhealthy({ data: envelope("unknown"), isError: false });
     const waitingData = (waiting.data as { data: Record<string, unknown> }).data;
     expect(waitingData.resources).toEqual([{ name: "app", stack: null, status: "unknown" }]);
     expect(waitingData.filteredTo).toBe("unhealthy");
+    expect(waitingData.unhealthy).toEqual(["app"]);
   });
 
   it("leaves a status result alone when it has no unhealthy list or is an error", () => {
