@@ -140,6 +140,9 @@ export const ACTION_WORD_HINTS: Readonly<Record<string, string>> = {
   validate: "flisk project --check",
   check: "flisk project --check",
   verify: "flisk project --check",
+  info: "flisk info",
+  list: "flisk resources",
+  status: "flisk status",
 };
 
 /** Looks up an action word's hint; own keys only, so `constructor` and `__proto__` never match. */
