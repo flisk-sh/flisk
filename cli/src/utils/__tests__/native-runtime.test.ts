@@ -25,8 +25,8 @@ import {
   stopNativeRun,
   terminateSupervisorProcess,
 } from "../native-runtime.js";
-import { processStartTime } from "../process-identity.js";
 import { withFailureLogs } from "../native-up.js";
+import { processStartTime } from "../process-identity.js";
 
 const NODE = JSON.stringify(process.execPath);
 
@@ -1024,7 +1024,7 @@ describe("detachesServices", () => {
     writeFileSync(join(root, ".env"), `API_TOKEN=${token}\n`);
     writeFileSync(
       join(root, "crash.mjs"),
-      'console.error(`FATAL: API_TOKEN is not set (${process.env.API_TOKEN})`); process.exit(1);',
+      "console.error(`FATAL: API_TOKEN is not set (${process.env.API_TOKEN})`); process.exit(1);",
     );
     const logPath = nativeLogPath(root, "crasher");
     const plan = planNativeRun(
