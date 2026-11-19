@@ -335,6 +335,9 @@ function shellSegments(command) {
             push();
             continue;
         }
+        // An unquoted `#` at the start of a word begins a comment: the shell never runs what follows.
+        if (char === "#" && !started)
+            break;
         if (char === "\n")
             return null;
         if (char === "&") {
@@ -357,6 +360,10 @@ function shellSegments(command) {
     }
     push();
     return segments;
+}
+/** True when the command sets PATH itself (`PATH=/opt/bin`, `export PATH=…`, `env PATH=…`). */
+function assignsPath(words) {
+    return words.some((word) => /^PATH=/.test(word.text));
 }
 /** The program one segment starts, null when it only runs builtins, or UNRESOLVED when it cannot be told. */
 function segmentProgram(words) {
@@ -395,6 +402,8 @@ function leadingProgram(command) {
         if (!first)
             continue;
         if (SHELL_KEYWORDS.has(first.text) || UNMODELLED_BUILTINS.has(first.text))
+            return null;
+        if (assignsPath(words))
             return null;
         const program = segmentProgram(words);
         if (program === UNRESOLVED)

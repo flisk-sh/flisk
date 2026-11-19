@@ -426,6 +426,8 @@ function shellSegments(command: string): CommandWord[][] | null {
       push();
       continue;
     }
+    // An unquoted `#` at the start of a word begins a comment: the shell never runs what follows.
+    if (char === "#" && !started) break;
     if (char === "\n") return null;
     if (char === "&") {
       if (command[i + 1] !== "&") return null;
@@ -445,6 +447,11 @@ function shellSegments(command: string): CommandWord[][] | null {
   }
   push();
   return segments;
+}
+
+/** True when the command sets PATH itself (`PATH=/opt/bin`, `export PATH=…`, `env PATH=…`). */
+function assignsPath(words: readonly CommandWord[]): boolean {
+  return words.some((word) => /^PATH=/.test(word.text));
 }
 
 /** The program one segment starts, null when it only runs builtins, or UNRESOLVED when it cannot be told. */
@@ -478,6 +485,7 @@ function leadingProgram(command: string): { program: string; moved: boolean } | 
     const first = words[0];
     if (!first) continue;
     if (SHELL_KEYWORDS.has(first.text) || UNMODELLED_BUILTINS.has(first.text)) return null;
+    if (assignsPath(words)) return null;
     const program = segmentProgram(words);
     if (program === UNRESOLVED) return null;
     if (program === null) {

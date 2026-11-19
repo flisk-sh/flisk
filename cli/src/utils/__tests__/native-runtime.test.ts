@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { delimiter, join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
 import { expandEnvValue } from "../env-expand.js";
 import {
@@ -92,6 +92,17 @@ function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
 }
 
 describe("native run planning", () => {
+  // `findMissingPrograms` reads the ambient PATH; pin it so a machine with a relative entry behaves like CI.
+  const ambientPath = process.env.PATH;
+
+  beforeEach(() => {
+    process.env.PATH = ["/usr/local/bin", "/usr/bin", "/bin"].join(delimiter);
+  });
+
+  afterEach(() => {
+    process.env.PATH = ambientPath;
+  });
+
   it("expands variable references, with and without a default, and reports unset ones", () => {
     const missing: string[] = [];
     expect(
@@ -329,6 +340,31 @@ describe("native run planning", () => {
       { name: "quoted", program: "npm" },
       { name: "escaped", program: "npm" },
     ]);
+  });
+
+  it("stops at a shell comment and at a PATH the command sets itself (#3885 review)", () => {
+    const plans = planNativeRun([
+      makeResource("commented", "bring-your-own", {
+        command: "cd ../agent && echo ready # optional setup; npm install",
+      }),
+      makeResource("quoted-hash", "bring-your-own", {
+        command: 'cd ../agent && npm install --tag "#dev"',
+      }),
+      makeResource("path-assignment", "bring-your-own", {
+        command: "cd ../agent && PATH=/opt/node/bin && npm install",
+      }),
+      makeResource("exported-path", "bring-your-own", {
+        command: "cd ../agent && export PATH=/opt/node/bin && npm install",
+      }),
+    ]).services;
+    // Everything after an unquoted `#` never runs; a PATH the command sets is not the one this preflight reads.
+    expect(
+      findMissingPrograms(
+        plans,
+        () => null,
+        () => false,
+      ),
+    ).toEqual([{ name: "quoted-hash", program: "npm" }]);
   });
 
   it("leaves a bare program to the shell when PATH has a relative entry after a cd", () => {
