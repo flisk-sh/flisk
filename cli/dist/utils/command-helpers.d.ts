@@ -10,6 +10,10 @@ export declare const NO_POSITIONAL_HINTS: Readonly<Record<string, string>>;
  * `hint` is added as a suggestion for excess positional arguments (#4246, #4251).
  */
 export declare function routeUsageErrorsToJson<T extends Command>(command: T, hint?: string): T;
+/** `flisk resource` (create) and `flisk resources` (list) are one letter apart, so a `--list` or `-l`
+ * on the create command points at the listing command instead of only "unknown option" (#4377). */
+export declare const RESOURCE_LIST_HINT = "To list resources, run `flisk resources` (or `flisk resources --json`).";
+export declare function addResourceListHint<T extends Command>(command: T): T;
 /**
  * Attaches positional argument hints and routes parse errors to JSON envelopes when `--json` is requested.
  */
