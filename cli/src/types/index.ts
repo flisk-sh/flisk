@@ -317,9 +317,13 @@ export type CreatableResourceType = Extract<
   ResourceType,
   (typeof CREATABLE_RESOURCE_TYPES)[number]
 >;
-/** True when `flisk resource --type <type>` accepts the value (the creation list plus `sdk`). */
+/** True when `flisk resource --type <type>` accepts the value, including the `sdk` and `byo` aliases. */
 export function isResourceCreateType(type: string): boolean {
-  return (RESOURCE_CREATE_TYPE_VALUES as readonly string[]).includes(type) || type === "sdk";
+  return (
+    (RESOURCE_CREATE_TYPE_VALUES as readonly string[]).includes(type) ||
+    type === "sdk" ||
+    type === "byo"
+  );
 }
 
 export function isCreatableResourceType(value: unknown): value is CreatableResourceType {
