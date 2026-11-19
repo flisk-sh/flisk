@@ -5,6 +5,7 @@ import { getBackendIndexTemplate } from "../backend-languages/bun.js";
 import { BACKEND_LANGUAGES, getBackendLanguage } from "../backend-languages/registry.js";
 import { getBackendTestTemplate } from "../generator/resource-templates.js";
 import { FliskError } from "../utils/errors.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { elysiaBackendProvider } from "./elysia.js";
 import { expressBackendProvider } from "./express.js";
 import { fastifyBackendProvider } from "./fastify.js";
@@ -85,7 +86,12 @@ export function getBackendFramework(frameworkId) {
     const provider = Object.hasOwn(BACKEND_FRAMEWORKS, id) ? BACKEND_FRAMEWORKS[id] : undefined;
     if (!provider) {
         const supportedIds = Object.keys(BACKEND_FRAMEWORKS).join(", ");
-        throw new FliskError(`Unknown backend framework "${frameworkId}". Supported frameworks: ${supportedIds}.`, [`Use one of: ${supportedIds}`, `Omit --framework to use ${DEFAULT_BACKEND_FRAMEWORK}`]);
+        const closest = suggestClosest(id, Object.keys(BACKEND_FRAMEWORKS));
+        throw new FliskError(`Unknown backend framework "${frameworkId}". Supported frameworks: ${supportedIds}.`, [
+            ...(closest ? [`Did you mean "${closest}"?`] : []),
+            `Use one of: ${supportedIds}`,
+            `Omit --framework to use ${DEFAULT_BACKEND_FRAMEWORK}`,
+        ]);
     }
     return provider;
 }
