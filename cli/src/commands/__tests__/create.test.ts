@@ -685,6 +685,11 @@ describe("flisk create (the real CLI, no terminal)", () => {
     const run = runFlisk(["create", "shop", "--yes"], { cwd: dirOf(), timeout: 120_000 });
     expect(run.status, run.stdout + run.stderr).toBe(0);
     const project = join(dirOf(), "shop");
+    const readme = readFileSync(join(project, "README.md"), "utf8");
+    expect(readme).toContain("# shop");
+    expect(readme).toContain("does not need Docker");
+    expect(readme).toContain("flisk up");
+    expect(readme).toContain("flisk status");
     for (const file of ["web/service.json", "web/package.json", "api/service.json"]) {
       expect(existsSync(join(project, file)), file).toBe(true);
     }
