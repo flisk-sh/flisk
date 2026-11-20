@@ -265,6 +265,20 @@ describe("resources command", () => {
     logSpy.mockRestore();
   });
 
+  it("shows the port with --verbose alone (#4423)", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk", "--verbose"], { from: "node" });
+
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("orders");
+    expect(output).toContain("Type: backend");
+    expect(output).toContain("Port: 4001");
+    expect(output).toContain("Path:");
+    logSpy.mockRestore();
+  });
+
   it("warns about unassigned resources when listing without filters", async () => {
     setupProject([
       { name: "orders", type: "backend", stack: "shop", port: 4001 },

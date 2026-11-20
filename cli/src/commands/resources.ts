@@ -120,13 +120,12 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
           console.log(chalk.yellow(`  Stack: (not assigned)`));
         }
 
-        if (options.ports && resource.port) {
-          console.log(chalk.gray(`  Port: ${resource.port}`));
-        }
-
         if (options.verbose) {
           console.log(chalk.gray(`  Type: ${resource.type || "unknown"}`));
+          if (resource.port) console.log(chalk.gray(`  Port: ${resource.port}`));
           console.log(chalk.gray(`  Path: ${resource.configPath}`));
+        } else if (options.ports && resource.port) {
+          console.log(chalk.gray(`  Port: ${resource.port}`));
         }
 
         console.log();
@@ -178,11 +177,19 @@ noStackOption.negate = false;
 
 export const resourcesCommand = routeUsageErrorsToJson(new Command("resources"))
   .description("List all resources (services) in the project")
-  .option("-v, --verbose", "Show resource details in text view (JSON output is unchanged)", false)
+  .option(
+    "-v, --verbose",
+    "Show resource details including the port in text view (JSON output is unchanged)",
+    false,
+  )
   .option("-s, --stack <stack>", "Filter resources by stack name")
   .option("-t, --type <type>", "Filter resources by type")
   .addOption(noStackOption)
-  .option("--ports", "Show port assignments in text view (JSON output is unchanged)", false)
+  .option(
+    "--ports",
+    "Short text view with each resource's port (--verbose also includes ports)",
+    false,
+  )
   .option("--json", "Output a versioned JSON resource report", false)
   .addHelpText(
     "after",
