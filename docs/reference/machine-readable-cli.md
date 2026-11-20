@@ -1,6 +1,6 @@
 # Machine-readable CLI
 
-The supported agent polling loop uses `flisk status --json`; add `--tilt` to include Tilt's live resource list in `tilt.resources`. Use `flisk resources --json` for the discovered manifest view, `flisk stacks --json` for stack names and counts and `flisk networks --json` for routed URLs and reachability. `flisk doctor --json` reports environment readiness and actionable checks.
+The supported agent polling loop uses `flisk status --json`; add `--tilt` to include Tilt's live resource list in `tilt.resources`. When a script or agent needs one bounded "ready" gate instead of its own polling loop, use `flisk wait [service...] --timeout <seconds> --json`. Use `flisk resources --json` for the discovered manifest view, `flisk stacks --json` for stack names and counts and `flisk networks --json` for routed URLs and reachability. `flisk doctor --json` reports environment readiness and actionable checks.
 
 Every response uses this envelope:
 
@@ -33,6 +33,7 @@ A call the argument parser rejects (an unknown command or option, a missing requ
 Command data:
 
 - `status`: `tilt.available`, `tilt.resourcesQueried`, `tilt.readiness`, `tilt.tiltfileError`, `tilt.staleDisabled` (resource names the Tiltfile enables that Tilt still reports as `Disabled` until `flisk down && flisk up`), optional live `tilt.resources`, total `resourceCount`, discovered manifest `resources` (`name`, `stack`, `type`, `port`), `stacks` (`name`, `resourceCount`, `resources` containing resource names, `healthyCount`, `healthTotal`: what `healthyCount` is out of, which leaves out a database with no process of its own), `unhealthy` (names of failing or pending services), `unassignedResources` (resource names), and `capabilities` (names of the project capabilities that are on, such as `database`; a project with `capabilities.database: false` in `.flisk/project.json` has no `database` here and `sharedInfra` is `null`). `--tilt` controls the live `tilt.resources` list: without it, `tilt.resourcesQueried` is `false` and `tilt.resources` is `null`. The manifest `resources` array is always available and does not report live health. `tilt.readiness` retains its existing behavior and may be populated whenever Tilt is available. If Tilt is unavailable, `tilt.available` is `false` and no live resource-list query is made.
+- `wait`: `ok`, `state` (`ready`, `failed`, `timeout` or `unknown-service`), `ready`, `timeoutSeconds`, `runtime` (`native` for local-process projects, `docker` for Docker/Tilt projects), `services` (one entry per waited-on service with `name`, `status`, optional `reason` and `blockedBy`, and optional `logs` with its last lines on failure), `unhealthy` (failing or still-starting names) and `unknown` (only for `unknown-service`). It is read-only: it waits on the same readiness rule as `up --wait` and `status`, changes no files and starts nothing. A ready wait exits 0. A failure exits 1 with `errors[].code` `WAIT_RESOURCE_FAILED`; a timeout exits 1 with `WAIT_TIMEOUT`; an unknown service name exits 2 with `UNKNOWN_SERVICE` and `suggestions`. Human output names the failing service and prints its last log lines on stderr. The MCP `wait` tool takes `services` and `timeoutSeconds` and returns this same envelope.
 - `resources`: `resources` with stable service name, stack, type, port, and manifest path.
 - `resources`, `stacks` and `status`: when discovery skipped a `service.json` (invalid JSON or invalid fields), `skipped` lists each one with `file` (relative to the project root, as `config verify --json` names it) and `reason`, so a short `resources` list is not mistaken for a complete one. The field is absent when nothing was skipped, the exit code stays 0, and the human warning still goes to stderr.
 - `stacks`: `stacks` with `name` and `resourceCount`. `--services` adds `services` (service names; its length equals `resourceCount`), and `--verbose` adds `description`; `--services` alone does not include `description`. A project with no stacks returns `stacks: []`. Outside a project it emits the same envelope as `resources --json` (`data: null`, one `errors` entry, exit 2).
@@ -72,6 +73,24 @@ Example output for `flisk logs --json --service orders-api --tail 50 --since 5m`
 ```
 
 This is an illustrative example. `--tail` limits the number of recent lines, and `--since` filters logs to the specified duration. JSON mode returns a snapshot and exits rather than following a live stream. On failure, `data` is `null` and `errors` contains entries with `code` and `message`, optionally with `suggestions`. Usage errors exit with code `2`; other failures use the applicable command exit code. Error diagnostics are also written to stderr.
+
+Example output for a successful `flisk wait orders-api --timeout 60 --json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": true,
+    "state": "ready",
+    "ready": true,
+    "timeoutSeconds": 60,
+    "runtime": "docker",
+    "services": [{ "name": "orders-api", "status": "ready" }],
+    "unhealthy": []
+  },
+  "errors": []
+}
+```
 - `config verify`: `valid`, `errors`, `warnings`, `diffs` and `state` (`generated`, `not_generated` or `not_needed`). A container project that has never been generated (no master file and no service output yet) has `state` `not_generated` and exactly one error, "Not generated yet: run 'flisk up' or 'flisk config regenerate'", with no `diffs` and a payload of well under 2 KB; it exits 1 like any unverified project. A deleted or edited file in a generated project is still reported per file. A local-process project generates no container files and reports `not_needed`. Drift or missing tracked master outputs exits 1 and includes a unified diff; a valid project exits 0. A missing project exits 1 with a structured command error; a `project.json` whose field has the wrong type exits 1 with a `COMMAND_FAILED` error that names the field (`.flisk/project.json.discovery.paths: expected an array, got "services"`), while unparseable JSON or an unexpected failure exits 2 with a structured internal error. JSON verification does not regenerate files.
 - `config regenerate`: `dryRun`, `hasChanges`, `staleServiceOutputs` (the service.json files whose generated compose and Dockerfile are older than the file; `flisk up` writes those, not regenerate) and `changes`, one entry per master file with `file`, `status` (`new`, `modified` or `unchanged`) and `lineDiff` (new minus current lines, `0` for a new file). With `--dry-run` nothing is written; without it the files are rewritten (hand edits in them are discarded) and `changes` says how each one differed before the run.
 - `config migrate`: `schemaVersion` (the version the files now declare), `migrated` (the `service.json` paths that were rewritten, relative to the project root) and `warnings`. When any file cannot be migrated, nothing is written: `data` is `null`, `errors` has one `MIGRATE_FAILED` entry per problem, and the exit code is `1`.

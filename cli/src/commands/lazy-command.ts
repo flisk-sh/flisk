@@ -25,6 +25,7 @@ export const LAZY_COMMANDS: Readonly<Record<string, { module: string; exportName
   projects: { module: "./projects.js", exportName: "projectsCommand" },
   up: { module: "./up.js", exportName: "upCommand" },
   down: { module: "./down.js", exportName: "downCommand" },
+  wait: { module: "./wait.js", exportName: "waitCommand" },
   mcp: { module: "./mcp.js", exportName: "mcpCommand" },
   connect: { module: "./connect.js", exportName: "connectCommand" },
   logs: { module: "./logs.js", exportName: "logsCommand" },

@@ -25,11 +25,11 @@ The entries are the ones the [MCP setup guide](../agent-tooling/flisk-mcp-setup.
 
 ## What the agent can then do
 
-The `flisk mcp` server gives the agent 24 tools. Each runs the matching Flisk command, so it behaves like the CLI:
+The `flisk mcp` server gives the agent 25 tools. Each runs the matching Flisk command, so it behaves like the CLI:
 
 - **Check the machine:** `doctor` reports what would stop a stack from starting, with a fix for each problem.
 - **Build:** `project_templates` lists the starters `project_init` can clone, `project_init` creates a project or clones a starter, `resource_create` scaffolds a backend, frontend, worker, MCP server or agent, `tool_add` adds a tool by name (react, postgresql, rag…) and rejects cloud providers, `stack_assign` puts resources in a stack, `config_regenerate` rewrites the generated master files (a dry run unless `dryRun` is `false`).
-- **Run:** `up` starts the stack (or `only` some services and their dependencies), `status` reports readiness and URLs, `down` stops it, `resource_restart` restarts one service, and `resource_run` runs a one-off command (a seed script, `printenv`) with one service's environment.
+- **Run:** `up` starts the stack (or `only` some services and their dependencies), `status` reports readiness and URLs, `wait` blocks until the named services (or all of them) are healthy, `down` stops it, `resource_restart` restarts one service, and `resource_run` runs a one-off command (a seed script, `printenv`) with one service's environment.
 
 ### Is it ready? The `state` field
 

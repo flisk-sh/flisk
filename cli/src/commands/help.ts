@@ -88,6 +88,7 @@ const COMMAND_GROUPS = [
         alias: "<service> -- <command>",
       },
       { name: "status", desc: "Show status of resources and stacks", alias: "" },
+      { name: "wait", desc: "Wait until services are healthy", alias: "[services...]" },
       {
         name: "open",
         desc: "Open the first ready frontend in your browser, or the frontend you name",

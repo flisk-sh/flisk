@@ -33,6 +33,7 @@ import {
   buildStatusArgs,
   buildToolAddArgs,
   buildUpArgs,
+  buildWaitArgs,
   createFliskTools,
   defaultUpDeps,
   type FliskRun,
@@ -216,6 +217,17 @@ describe("argument building", () => {
       buildUpArgs({ stack: "store", only: ["api", "web"], force: true, dryRun: true }),
     ).toEqual(["up", "store", "--only=api", "--only=web", "--force", "--dry-run", "--json"]);
     expect(buildUpArgs({})).toEqual(["up", "--json"]);
+  });
+  it("builds wait arguments with the named services and bounded timeout", () => {
+    expect(buildWaitArgs({ services: ["api", "web"], timeoutSeconds: 30 })).toEqual([
+      "wait",
+      "api",
+      "web",
+      "--timeout=30",
+      "--json",
+    ]);
+    expect(buildWaitArgs({})).toEqual(["wait", "--timeout=1800", "--json"]);
+    expect(() => buildWaitArgs({ timeoutSeconds: 0 })).toThrow(/timeoutSeconds/);
   });
   it("passes profiles and an env file to up, as the CLI flags they wrap", () => {
     expect(buildUpArgs({ profile: ["heavy", "admin-ui"], envFile: ".env.integration" })).toEqual([
@@ -1052,6 +1064,7 @@ describe("tool list", () => {
       "up",
       "down",
       "status",
+      "wait",
       "logs",
       "resource_list",
       "resource_restart",
@@ -1714,6 +1727,7 @@ describe("tool list", () => {
       doctor: { noPing: true },
       down: { dryRun: true },
       status: {},
+      wait: { services: ["api"], timeoutSeconds: 5 },
       logs: { services: ["api"], tail: 5, since: "5m" },
       resource_list: { stack: "shop" },
       resource_restart: { resource: "api" },
@@ -1823,6 +1837,7 @@ describe("tool annotations", () => {
     const readOnly = [
       "doctor",
       "status",
+      "wait",
       "logs",
       "resource_list",
       "agent_list",
@@ -1849,6 +1864,7 @@ describe("tool annotations", () => {
     const readOnlyToolToCli: Record<string, [string] | [string, string]> = {
       doctor: ["doctor"],
       status: ["status"],
+      wait: ["wait"],
       logs: ["logs"],
       resource_list: ["resources"],
       agent_list: ["agent", "list"],

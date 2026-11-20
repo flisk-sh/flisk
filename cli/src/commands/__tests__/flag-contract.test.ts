@@ -317,6 +317,8 @@ const EXEMPT: Record<string, string> = {
     "compares the installed CLI with origin over git on the host, and prints 'Dry run:' rather than 'Dry run -'",
   "upgrade --yes":
     "updates the installed CLI checkout, so a test run would rebuild the repo under test",
+  "wait --json":
+    "blocks until services are ready (or the timeout passes) and needs Tilt or a running stack, so a matrix run would wait for a timeout; wait-inprocess.test.ts covers the envelope and exit codes with in-process doubles",
   "version --json":
     "prints the version envelope and works outside a project, so the matrix's project-required rows do not fit; version.test.ts covers the envelope",
   "tool list --json":

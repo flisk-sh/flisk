@@ -81,7 +81,15 @@ export type UpWaitOutcome = {
 };
 /** The arguments of the detached child: the caller's own, without the wait options, asking for one JSON result. */
 export declare function detachedUpArgs(argv: string[]): string[];
-/** Parses `--wait-timeout`: a whole number of seconds from 1 to 21600 (6 hours), or the default when omitted. */
+/** Parses a wait timeout: a whole number of seconds from 1 to 21600 (6 hours), or the default when omitted. */
+export declare function parseTimeoutSeconds(value: unknown, flag: string): {
+    ok: true;
+    seconds: number;
+} | {
+    ok: false;
+    message: string;
+};
+/** Parses `--wait-timeout` with the same rule every other wait timeout uses. */
 export declare function parseWaitTimeout(value: unknown): {
     ok: true;
     seconds: number;

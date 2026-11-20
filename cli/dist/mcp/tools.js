@@ -16,6 +16,7 @@ import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templa
 import { OUTPUT_WITHHELD, projectSecretValues, redactProjectText, redactValue, } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
+import { DEFAULT_WAIT_TIMEOUT_SECONDS, parseTimeoutSeconds } from "../utils/up-wait.js";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
@@ -437,6 +438,23 @@ export function buildStatusArgs(args) {
         out.push(`--stack=${stack}`);
     return out;
 }
+/** `flisk wait [services...] --timeout=<seconds> --json` for the `wait` tool. */
+export function buildWaitArgs(args) {
+    const services = names(args.services, "services");
+    const parsed = parseTimeoutSeconds(args.timeoutSeconds, "timeoutSeconds");
+    if (!parsed.ok) {
+        throw new FliskError(parsed.message, [
+            "Pass timeoutSeconds as a whole number of seconds from 1 to 21600, for example 60",
+        ]);
+    }
+    return ["wait", ...services, `--timeout=${parsed.seconds}`, "--json"];
+}
+/** A tool call may wait longer than the usual CLI timeout: give the command its full window plus a little slack. */
+export function waitCliTimeoutMs(args) {
+    const parsed = parseTimeoutSeconds(args.timeoutSeconds, "timeoutSeconds");
+    const seconds = parsed.ok ? parsed.seconds : DEFAULT_WAIT_TIMEOUT_SECONDS;
+    return seconds * 1000 + 30_000;
+}
 export function buildLogsArgs(args) {
     const out = ["logs", "--json"];
     if (flag(args.unhealthy, "unhealthy"))
@@ -673,6 +691,7 @@ const WRITES_LOCALLY = {
 const TOOL_ANNOTATIONS = {
     doctor: READ_ONLY,
     status: READ_ONLY,
+    wait: READ_ONLY,
     logs: READ_ONLY,
     resource_list: READ_ONLY,
     agent_list: READ_ONLY,
@@ -833,6 +852,25 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                 const result = await viaCli(buildStatusArgs)(args);
                 return flag(args.unhealthy, "unhealthy") ? trimStatusToUnhealthy(result) : result;
             },
+        },
+        {
+            name: "wait",
+            description: "Block until the named services (or every service when services is omitted) are healthy, using the same readiness rule as `up --wait` and `status`. Read-only: it changes no files and starts nothing. Returns one envelope with each service's state; a failure names the service and carries its last log lines. Optionally select the project with projectPath.",
+            inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
+                services: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Only wait for these services; omit to wait for every service",
+                },
+                timeoutSeconds: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 21600,
+                    description: "How long to wait before giving up (default 1800, at most 21600)",
+                },
+            }),
+            handler: async (args) => viaCli(buildWaitArgs, { timeoutMs: waitCliTimeoutMs(args) })(args),
         },
         {
             name: "logs",

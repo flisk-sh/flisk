@@ -467,6 +467,48 @@ export const COMMAND_SPECS = [
         subcommands: [],
     },
     {
+        name: "wait",
+        path: ["wait"],
+        description: "Wait until services are healthy",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+            {
+                flags: "--timeout <seconds>",
+                description: "How long to wait before giving up (default: 1800)",
+                defaultValue: "1800",
+            },
+            {
+                flags: "--json",
+                description: "Output one JSON envelope with every service's state",
+                defaultValue: false,
+            },
+            {
+                flags: "--project <path>",
+                description: "Wait for the Flisk project in this folder (default: the current project)",
+            },
+        ],
+        arguments: [
+            {
+                name: "services",
+                description: "Only wait for these services (default: every service)",
+                required: false,
+                variadic: true,
+            },
+        ],
+        helpTexts: {
+            after: [
+                "\nExamples:\n  flisk wait\n  flisk wait orders-api\n  flisk wait orders-api orders-web --timeout 60\n  flisk wait --json",
+            ],
+        },
+        subcommands: [],
+    },
+    {
         name: "eject",
         path: ["eject"],
         description: "Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)",

@@ -63,6 +63,10 @@ export declare function startUp(args: Record<string, unknown>, deps?: UpDeps): P
 export declare function trimStatusToUnhealthy(result: McpToolResult): McpToolResult;
 /** `flisk status --json`, narrowed by `unhealthy` and `stack` the way the CLI does. */
 export declare function buildStatusArgs(args: Record<string, unknown>): string[];
+/** `flisk wait [services...] --timeout=<seconds> --json` for the `wait` tool. */
+export declare function buildWaitArgs(args: Record<string, unknown>): string[];
+/** A tool call may wait longer than the usual CLI timeout: give the command its full window plus a little slack. */
+export declare function waitCliTimeoutMs(args: Record<string, unknown>): number;
 export declare function buildLogsArgs(args: Record<string, unknown>): string[];
 /** `flisk resource <name> ... --yes`: options as `--flag=value`, after the name, so a variadic `--feature` never takes it. */
 /** `flisk tool add <tool> [name] --json` for the tool_add tool; the tool must be one the catalog knows. */
