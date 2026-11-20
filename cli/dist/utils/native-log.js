@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { appendFileSync, chmodSync, closeSync, openSync, readSync, renameSync, statSync, } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, openSync, readFileSync, readSync, renameSync, statSync, } from "node:fs";
 /**
  * Size at which a local process's log is rotated to `<service>.log.1` (one old file is kept), so a noisy dev server
  * cannot fill the disk (#3720). Maintainers may tune this number.
@@ -9,6 +9,27 @@ export const NATIVE_LOG_MAX_BYTES = 10 * 1024 * 1024;
 /** Bytes read per step when `flisk logs` reads a log from the end. */
 const TAIL_BLOCK_BYTES = 64 * 1024;
 const TIMESTAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) /;
+/** Sequence numbers are written as `<timestamp> #<seq> <text>`, so the counter survives a supervisor restart. */
+const WRITTEN_SEQ = /(?:^|\n)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z #(\d+) /g;
+/** Highest sequence number already present in these logs (current and rotated); 0 when none is numbered yet. */
+export function maxNativeLogSeq(paths) {
+    let max = 0;
+    for (const path of paths) {
+        let text;
+        try {
+            text = readFileSync(path, "utf-8");
+        }
+        catch {
+            continue;
+        }
+        for (const match of text.matchAll(WRITTEN_SEQ)) {
+            const value = Number(match[1]);
+            if (Number.isSafeInteger(value) && value > max)
+                max = value;
+        }
+    }
+    return max;
+}
 /**
  * The last `tail` non-empty lines of a log, oldest first, read from the end of the file in blocks so memory follows the
  * size of the answer, not of the file. With `cutoffMs`, reading stops at the first line whose timestamp is older; lines

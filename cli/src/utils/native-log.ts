@@ -5,6 +5,7 @@ import {
   chmodSync,
   closeSync,
   openSync,
+  readFileSync,
   readSync,
   renameSync,
   statSync,
@@ -20,6 +21,26 @@ export const NATIVE_LOG_MAX_BYTES = 10 * 1024 * 1024;
 const TAIL_BLOCK_BYTES = 64 * 1024;
 
 const TIMESTAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) /;
+/** Sequence numbers are written as `<timestamp> #<seq> <text>`, so the counter survives a supervisor restart. */
+const WRITTEN_SEQ = /(?:^|\n)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z #(\d+) /g;
+
+/** Highest sequence number already present in these logs (current and rotated); 0 when none is numbered yet. */
+export function maxNativeLogSeq(paths: readonly string[]): number {
+  let max = 0;
+  for (const path of paths) {
+    let text: string;
+    try {
+      text = readFileSync(path, "utf-8");
+    } catch {
+      continue;
+    }
+    for (const match of text.matchAll(WRITTEN_SEQ)) {
+      const value = Number(match[1]);
+      if (Number.isSafeInteger(value) && value > max) max = value;
+    }
+  }
+  return max;
+}
 
 /**
  * The last `tail` non-empty lines of a log, oldest first, read from the end of the file in blocks so memory follows the

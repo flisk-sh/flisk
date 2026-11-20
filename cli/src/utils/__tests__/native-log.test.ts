@@ -4,7 +4,12 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "no
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createTempDir } from "../../test-support/index.js";
-import { appendNativeLogLine, NATIVE_LOG_MAX_BYTES, readLogTail } from "../native-log.js";
+import {
+  appendNativeLogLine,
+  maxNativeLogSeq,
+  NATIVE_LOG_MAX_BYTES,
+  readLogTail,
+} from "../native-log.js";
 import { nativeLogPath, readNativeLogLines } from "../native-runtime.js";
 
 const stamp = (index: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, 0, index)).toISOString();
@@ -78,6 +83,43 @@ describe("readNativeLogLines (#3720)", () => {
     const lines = readNativeLogLines(root, ["api"], { tail: 2 });
 
     expect(lines.map((line) => line.text)).toEqual(["line 99998", "line 99999"]);
+  });
+
+  it("reads the sequence number the supervisor wrote into each line", () => {
+    const root = createTempDir("flisk-native-");
+    const logPath = nativeLogPath(root, "api");
+    mkdirSync(join(root, ".flisk", "native", "logs"), { recursive: true });
+    writeFileSync(
+      logPath,
+      `${stamp(0)} #11 first\n${stamp(1)} #12 second\n${stamp(2)} old format\n`,
+    );
+
+    const lines = readNativeLogLines(root, ["api"], { tail: 10 });
+
+    expect(lines.map((line) => line.seq)).toEqual([11, 12, undefined]);
+    expect(lines.map((line) => line.text)).toEqual(["first", "second", "old format"]);
+  });
+});
+
+describe("maxNativeLogSeq", () => {
+  it("finds the highest number in current and rotated logs, including after a restart", () => {
+    const dir = createTempDir("flisk-log-");
+    const current = join(dir, "api.log");
+    const rotated = join(dir, "web.log.1");
+    writeFileSync(current, `${stamp(0)} #3 hello\n${stamp(1)} #8 world\n${stamp(2)} #2 x\n`);
+    writeFileSync(rotated, `${stamp(3)} #12 older\n`);
+
+    expect(maxNativeLogSeq([current, rotated])).toBe(12);
+  });
+
+  it("does not mistake a number in the message for a sequence number", () => {
+    const path = join(createTempDir("flisk-log-"), "api.log");
+    writeFileSync(path, `${stamp(0)} look at #999 in the message\n`);
+    expect(maxNativeLogSeq([path])).toBe(0);
+  });
+
+  it("returns zero for missing logs", () => {
+    expect(maxNativeLogSeq([join(createTempDir("flisk-log-"), "missing.log")])).toBe(0);
   });
 });
 

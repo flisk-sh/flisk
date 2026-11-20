@@ -436,6 +436,10 @@ export const COMMAND_SPECS = [
                 description: "Only logs newer than this duration, for example 30s, 5m, 1h",
             },
             {
+                flags: "--after <cursor>",
+                description: "Only lines with a sequence number greater than this cursor, returned as data.nextCursor by a previous --json read",
+            },
+            {
                 flags: "--source <source>",
                 description: "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
             },
@@ -461,7 +465,7 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",
+                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json\n  flisk logs --json --after 42",
             ],
         },
         subcommands: [],

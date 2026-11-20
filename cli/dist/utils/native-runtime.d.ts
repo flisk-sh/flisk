@@ -179,6 +179,8 @@ export declare function nativeServiceStates(projectRoot: string, services: reado
 }>;
 /** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
 export interface NativeLogLine {
+    /** Written into the log by the supervisor, so it stays the same across reads (omitted in older logs). */
+    seq?: number;
     time: string | null;
     resource: string;
     level: null;
@@ -249,6 +251,8 @@ export declare class NativeSupervisor {
     private readonly migratorOutputs;
     private readonly redactLine;
     private readonly startedAt;
+    /** One counter for every service in the project, resumed from the logs when a previous supervisor wrote them. */
+    private seq;
     private pidStartTime?;
     private stopping;
     private baseEnv;
