@@ -1596,6 +1596,11 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
               resourceType as CreatableResourceType as PortAssignableResourceType,
               allResources,
             );
+      const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
+      // Re-running `flisk resource <existing>` without --port must keep the current service.json port (#3738).
+      // The "next free port" helper counts this resource's own port as taken, which would flip it on every run.
+      const previousResourcePort =
+        shouldRegisterExisting && hasServiceJson ? readServiceJsonPort(existingServiceJsonPath) : undefined;
       if (options.restart !== undefined) {
         if (resourceType !== BRING_YOUR_OWN_TYPE) {
           throw new FliskError("--restart can only be used with --type bring-your-own.", [
@@ -1627,8 +1632,14 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
       }
       // Registering an existing inference server without --port keeps the port its service.json already has.
       const existingInferencePort =
-        isInference && !options.port && shouldRegisterExisting && hasServiceJson
-          ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
+        isInference && !options.port ? previousResourcePort : undefined;
+      const existingAssignedPort =
+        !isInference &&
+        !infraPreset &&
+        resourceType !== "sdk" &&
+        !isDatabase &&
+        !options.port
+          ? previousResourcePort
           : undefined;
       if (infraPreset) assertInfraPresetOptions(infraPreset, options);
       let assignedPort = infraPreset
@@ -1637,12 +1648,13 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
           ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
           : resourceType === "sdk" || isDatabase
             ? 0
-            : resolveResourcePort(
-                resourceType as PortAssignableResourceType,
-                options.port,
-                nextPort,
-                allResources,
-              );
+            : (existingAssignedPort ??
+                resolveResourcePort(
+                  resourceType as PortAssignableResourceType,
+                  options.port,
+                  nextPort,
+                  allResources,
+                ));
       // --local: on your own computer the port has to be free right now, not only unassigned in this project (another
       // program may already listen on 3000). Picked here so the details, the confirmation and the JSON report all show
       // the port the service really gets. An explicit --port is kept as it is.
@@ -1657,15 +1669,16 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         );
       }
 
-      const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
       // The port above comes from the scan at the start. Another create running at the same time may have taken it since,
       // so claim it and read the project's ports again; a taken port moves to the next free one, a taken --port is refused (#4023).
+      // Re-running an existing resource without --port keeps its port, so it does not need a new reservation.
       if (
         assignedPort > 0 &&
         !infraPreset &&
         !isInference &&
         resourceType !== "sdk" &&
-        !isDatabase
+        !isDatabase &&
+        existingAssignedPort === undefined
       ) {
         const reserved = await reserveResourcePort(
           assignedPort,
@@ -1785,6 +1798,18 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
       console.log(chalk.gray(`  Path:  ${finalResourcePath}`));
 
       if (stackNote) console.log(chalk.yellow(`\n⚠️  ${stackNote}`));
+
+      if (
+        options.port !== undefined &&
+        previousResourcePort !== undefined &&
+        assignedPort !== previousResourcePort
+      ) {
+        console.log(
+          chalk.yellow(
+            `\n⚠️  Port changed from ${previousResourcePort} to ${assignedPort}. Update the Dockerfile to match.`,
+          ),
+        );
+      }
 
       if (shouldRegisterExisting && hasServiceJson) {
         console.log(
