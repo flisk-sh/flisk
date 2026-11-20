@@ -1,19 +1,11 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawn } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { cleanEnv, createTempProject, fliskBin, runFlisk } from "../../test-support/index.js";
 import { GENERATED_ROOT_BLOCK_START } from "../../utils/gitignore-generated.js";
 import {
   ensureProjectRuntimeAssets,
@@ -23,54 +15,46 @@ import {
 
 const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const repoRoot = resolve(cliRoot, "..");
-const fliskBin = join(cliRoot, "bin", "flisk.js");
 
-const tempDirs: string[] = [];
+const BASE_PROJECT_JSON = {
+  version: "1.0",
+  project: { name: "race-test", version: "1.0.0" },
+  phases: {
+    pre_alpha: { name: "Pre-Alpha", description: "", enabledStacks: [] },
+    alpha: { name: "Alpha", description: "", enabledStacks: [] },
+    beta: { name: "Beta", description: "", enabledStacks: [] },
+    out_of_scope: { name: "Out of Scope", description: "", enabledStacks: [] },
+  },
+  optional_infra: {
+    monitoring: false,
+    elk: false,
+    debezium: false,
+    golden_image: false,
+    verdaccio: false,
+  },
+  discovery: { paths: ["services/*/*"] },
+};
 
-function createProject(options: { git?: boolean } = {}): string {
-  const root = mkdtempSync(join(tmpdir(), "flisk-regen-race-"));
-  tempDirs.push(root);
+function makeRaceProject(options: { git?: boolean; gitignore?: string } = {}): string {
+  const root = createTempProject({
+    projectJson: BASE_PROJECT_JSON,
+    files: options.gitignore ? { ".gitignore": options.gitignore } : undefined,
+  });
   if (options.git) {
     execFileSync("git", ["init", "-q"], { cwd: root, stdio: "ignore" });
   }
-  mkdirSync(join(root, ".flisk"), { recursive: true });
-  writeFileSync(
-    join(root, ".flisk", "project.json"),
-    `${JSON.stringify(
-      {
-        version: "1.0",
-        project: { name: "race-test", version: "1.0.0" },
-        phases: {
-          pre_alpha: { name: "Pre-Alpha", description: "", enabledStacks: [] },
-          alpha: { name: "Alpha", description: "", enabledStacks: [] },
-          beta: { name: "Beta", description: "", enabledStacks: [] },
-          out_of_scope: { name: "Out of Scope", description: "", enabledStacks: [] },
-        },
-        optional_infra: {
-          monitoring: false,
-          elk: false,
-          debezium: false,
-          golden_image: false,
-          verdaccio: false,
-        },
-        discovery: { paths: ["services/*/*"] },
-      },
-      null,
-      2,
-    )}\n`,
-  );
   return root;
 }
 
-function runFlisk(
+function spawnFliskAsync(
   cwd: string,
-  args: string[],
+  args: readonly string[],
   envOverrides: Record<string, string>,
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(process.execPath, [fliskBin, ...args], {
       cwd,
-      env: { ...process.env, ...envOverrides },
+      env: cleanEnv({ NO_COLOR: "1", ...envOverrides }),
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -88,16 +72,9 @@ function runFlisk(
   });
 }
 
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
 describe("concurrent config regeneration (#4021)", () => {
   it("succeeds when generateMasterConfigs runs concurrently in-process and writes .gitignore block once", async () => {
-    const root = createProject({ git: true });
-    writeFileSync(join(root, ".gitignore"), "my-private-dir/\n");
+    const root = makeRaceProject({ git: true, gitignore: "my-private-dir/\n" });
     const oldSource = process.env.FLISK_EXTENSION_SOURCE;
     process.env.FLISK_EXTENSION_SOURCE = repoRoot;
 
@@ -129,7 +106,7 @@ describe("concurrent config regeneration (#4021)", () => {
   }, 30_000);
 
   it("succeeds when ensureProjectRuntimeAssets runs concurrently without leaving temp folders", async () => {
-    const root = createProject();
+    const root = makeRaceProject();
     await Promise.all(
       Array.from({ length: 6 }, () =>
         Promise.resolve().then(() => ensureProjectRuntimeAssets(root)),
@@ -142,18 +119,18 @@ describe("concurrent config regeneration (#4021)", () => {
   });
 
   it("succeeds across 5 parallel flisk config regenerate child processes", async () => {
-    const root = createProject({ git: true });
-    writeFileSync(join(root, ".gitignore"), "my-private-dir/\n");
+    const root = makeRaceProject({ git: true, gitignore: "my-private-dir/\n" });
 
     // Seed once so the race also exercises replacing existing vendored trees.
-    const seed = await runFlisk(root, ["config", "regenerate"], {
-      FLISK_EXTENSION_SOURCE: repoRoot,
+    const seed = runFlisk(["config", "regenerate"], {
+      cwd: root,
+      env: { FLISK_EXTENSION_SOURCE: repoRoot },
     });
-    expect(seed.code, seed.stderr).toBe(0);
+    expect(seed.status, seed.stderr).toBe(0);
 
     const runs = await Promise.all(
       Array.from({ length: 5 }, () =>
-        runFlisk(root, ["config", "regenerate"], { FLISK_EXTENSION_SOURCE: repoRoot }),
+        spawnFliskAsync(root, ["config", "regenerate"], { FLISK_EXTENSION_SOURCE: repoRoot }),
       ),
     );
 
