@@ -23,6 +23,7 @@ import { writeNextPostgresProject } from "../utils/next-postgres-template.js";
 import { LOCKFILE_COMMAND } from "../utils/npm-lockfile.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
+import { deriveProjectName } from "../utils/project-name.js";
 import { listProjectTemplates, PROJECT_TEMPLATES, resolveBundledTemplateDir, templateGitCommands, templateTargetDir, } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { writeSecurityProject } from "../utils/security-template.js";
@@ -482,7 +483,7 @@ const DEFAULT_PROJECT_JSON = {
  */
 export function writeDefaultProjectConfig(projectRoot) {
     const projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-    projectConfig.project.name = basename(projectRoot) || "my-project";
+    projectConfig.project.name = deriveProjectName(projectRoot);
     ensureDirectory(join(projectRoot, ".flisk"));
     writeJsonFile(join(projectRoot, ".flisk", PROJECT_JSON), projectConfig);
 }
@@ -697,7 +698,7 @@ export const projectCommand = addYesOption(new Command("project"))
         }
         else if (yes) {
             projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-            projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
+            projectConfig.project.name = deriveProjectName(projectRoot);
             if (!quiet)
                 console.log(chalk.gray("Using default configuration (non-interactive mode)"));
         }
@@ -705,7 +706,7 @@ export const projectCommand = addYesOption(new Command("project"))
             showStep("📝 Project Setup Wizard\n");
             const projectName = await promptText({
                 message: "Project name:",
-                initial: projectRoot.split("/").pop() || "my-project",
+                initial: deriveProjectName(projectRoot),
                 validate: (input) => input.trim() !== "" || "Project name is required",
             });
             const projectVersion = await promptText({
