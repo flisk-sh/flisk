@@ -106,7 +106,7 @@ describe("flisk stacks with one stack", () => {
 
   it("returns a USAGE machine error envelope for excess positional arguments with --json", () => {
     const result = runFlisk(["stacks", "app", "web", "--json"], { cwd: project() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toBe("");
     const envelope = parseEnvelope(result.stdout);
     expect(envelope.data).toBeNull();

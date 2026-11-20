@@ -34,7 +34,8 @@ export const stacksCommand = routeUsageErrorsToJson(new Command("stacks"))
                 ? options.stack
                 : undefined;
         // An empty selector is never a stack: a service.json with `"stack": ""` would otherwise pass the existence check.
-        if (stackName !== undefined && (stackName === "" || !stackExists(stackName, discovery.resources))) {
+        if (stackName !== undefined &&
+            (stackName === "" || !stackExists(stackName, discovery.resources))) {
             throw errorFactories.stackNotFound(stackName, discovery.stackNames);
         }
         const visibleStacks = stackName !== undefined
