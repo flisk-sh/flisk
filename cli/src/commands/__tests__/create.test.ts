@@ -485,12 +485,13 @@ describe("the review, the recovery message and the folder guard", () => {
     }
   });
 
-  it("--start needs npm even when Bun is installed, because the services run npm run dev", () => {
+  it("--start needs npm and Bun for the default bun + hono API", () => {
     expect(startBlockers(local, () => true)).toEqual([]);
     expect(startBlockers(local, (p) => p !== "npm")).toEqual(["npm"]);
-    // the services start with npm run dev, so a missing Bun alone does not block --start (#4459)
-    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(["npm"]);
-    expect(startBlockers(local, (p) => p !== "bun")).toEqual([]);
+    // The default API is bun + hono and its generated dev script runs bun, so --start now names a
+    // missing Bun instead of letting flisk up fail with "kept exiting" (#4678, supersedes #4459).
+    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(["npm", "bun"]);
+    expect(startBlockers(local, (p) => p !== "bun")).toEqual(["bun"]);
     expect(startBlockers({ ...local, starter: "x" }, () => false)).toEqual([]);
   });
 
