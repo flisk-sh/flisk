@@ -1,4 +1,13 @@
+/** What Tilt reports for its own `(Tiltfile)` resource. */
+export interface TiltfileLoad {
+    /** Completed evaluations in Tilt's build history: one on a clean start, more after a reload. */
+    builds: number;
+    /** How long the first evaluation took, when Tilt gives start and finish timestamps. */
+    firstElapsedMs?: number;
+}
 export interface StackProgress {
+    /** The first Tiltfile load, timed separately from the services it starts. */
+    tiltfileLoad: TiltfileLoad;
     /** Resources that are up. */
     ready: number;
     /** Resources Tilt is still working on. */

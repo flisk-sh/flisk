@@ -81,6 +81,37 @@ describe("renderDemoFrame", () => {
     expect(text).toContain("3 of 6 services ready · 2 building");
   });
 
+  it("keeps the active reset and Tiltfile phases in the four-row window (#4128)", () => {
+    const phases: DemoState["phases"] = [
+      { id: "reset", label: "Resetting the previous demo", status: "done", elapsedMs: 4300 },
+      { id: "fetch", label: "Fetching the demo", status: "done", elapsedMs: 900 },
+      { id: "config", label: "Generating project config", status: "done", elapsedMs: 2100 },
+      { id: "deps", label: "Installing dependencies", status: "done", elapsedMs: 3400 },
+      { id: "reading", label: "Reading the project", status: "active" },
+      { id: "start", label: "Starting services", status: "pending" },
+    ];
+
+    const reading = frameToPlain(renderDemoFrame(baseState({ phases }), 80)).join("\n");
+    expect(reading).toContain("◐  Reading the project");
+    expect(reading).toContain("○  Starting services");
+    expect(reading).not.toContain("Resetting the previous demo");
+
+    const resetting = frameToPlain(
+      renderDemoFrame(
+        baseState({
+          phases: phases.map((phase) =>
+            phase.id === "reset"
+              ? { ...phase, status: "active" as const, elapsedMs: undefined }
+              : phase,
+          ),
+        }),
+        80,
+      ),
+    ).join("\n");
+    expect(resetting).toContain("◐  Resetting the previous demo");
+    expect(resetting).not.toContain("Reading the project");
+  });
+
   it("puts the running URLs and the version on the finished frame", () => {
     const text = frameToPlain(
       renderDemoFrame(

@@ -168,10 +168,43 @@ if (templateArg) {
 
   console.log(chalk.gray(`📁 Demo folder: ${destination}`));
 
+  // The stage is created before the reset: `tilt down` used to evaluate the whole Tiltfile before the first
+  // visible phase, hiding those ~2 minutes (#4128). Seeing `Resetting the previous demo` makes the wait honest.
+  const hasPreviousDemo = fixedDir && existsSync(destination);
+  let phases: DemoPhase[] = [
+    ...(hasPreviousDemo
+      ? [{ id: "reset", label: "Resetting the previous demo", status: "pending" } as const]
+      : []),
+    { id: "fetch", label: "Fetching the demo", status: "pending" },
+    { id: "config", label: "Generating project config", status: "pending" },
+    { id: "deps", label: "Installing dependencies", status: "pending" },
+    { id: "reading", label: "Reading the project", status: "pending" },
+    { id: "start", label: "Starting services", status: "pending" },
+  ];
+
+  const stage = createDemoStage({
+    title: "Flisk demo",
+    subtitle: `${templateArg} starter`,
+    phases,
+    servicesReady: 0,
+    servicesTotal: 0,
+    servicesBuilding: 0,
+    elapsedMs: 0,
+  });
+
+  const setPhase = (id: string, status: DemoPhaseStatus, elapsedMs?: number): void => {
+    phases = phases.map((phase) =>
+      phase.id === id ? { ...phase, status, elapsedMs: elapsedMs ?? phase.elapsedMs } : phase,
+    );
+    stage.update({ phases });
+  };
+
+  const logLines: string[] = [`flisk ${pkg.version} ${templateArg}`, `cwd: ${destination}`];
+
   // Reusing an existing checkout is what keeps a second take free: the clone and the
   // dependency install are skipped, so the recording starts on the interesting part.
   let reused = false;
-  if (fixedDir && existsSync(destination)) {
+  if (hasPreviousDemo) {
     if (!existsSync(join(destination, ".flisk", "project.json"))) {
       console.log(chalk.yellow(`${destination} already exists and is not a Flisk project.`));
       console.log(
@@ -192,9 +225,14 @@ if (templateArg) {
 
     // Take the old stack down before its folder goes, so a Traefik left behind does not keep port 80.
     // If it cannot be stopped, deleting the folder would leave containers running that nothing can stop.
+    const resetStarted = Date.now();
+    setPhase("reset", "active");
     try {
       await stopDemoStack(destination);
+      setPhase("reset", "done", Date.now() - resetStarted);
     } catch (error) {
+      stage.fail((error as Error).message, `Run \`flisk down\` in ${destination}, then try again.`);
+      stage.stop();
       console.error(
         chalk.red(`❌ Could not stop the previous demo stack: ${(error as Error).message}`),
       );
@@ -227,35 +265,12 @@ if (templateArg) {
     process.exit(1);
   }
 
-  let phases: DemoPhase[] = [
-    {
-      id: "fetch",
-      label: reused ? "Reusing the demo" : "Fetching the demo",
-      status: "pending",
-    },
-    { id: "config", label: "Generating project config", status: "pending" },
-    { id: "deps", label: "Installing dependencies", status: "pending" },
-    { id: "start", label: "Starting services", status: "pending" },
-  ];
-
-  const stage = createDemoStage({
-    title: "Flisk demo",
-    subtitle: `${templateArg} starter`,
-    phases,
-    servicesReady: 0,
-    servicesTotal: 0,
-    servicesBuilding: 0,
-    elapsedMs: 0,
-  });
-
-  const setPhase = (id: string, status: DemoPhaseStatus, elapsedMs?: number): void => {
+  if (reused) {
     phases = phases.map((phase) =>
-      phase.id === id ? { ...phase, status, elapsedMs: elapsedMs ?? phase.elapsedMs } : phase,
+      phase.id === "fetch" ? { ...phase, label: "Reusing the demo" } : phase,
     );
     stage.update({ phases });
-  };
-
-  const logLines: string[] = [`flisk ${pkg.version} ${templateArg}`, `cwd: ${destination}`];
+  }
   setPhase("fetch", "active");
 
   // 1. Clone (or reuse) and install the CLI. Both are silent so the frame on screen is the
@@ -370,10 +385,11 @@ if (templateArg) {
   }
   setPhase("deps", "done", Date.now() - depsStarted);
 
-  // 4. Start the stack and report what Tilt is doing. The Tilt port is not fixed (another
-  // project may hold the default), so the ports that answer are looked at.
-  const startStarted = Date.now();
-  setPhase("start", "active");
+  // 4. Start the stack and report what Tilt is doing. Its first act is reading the Tiltfile: that load used to be
+  // folded into "Starting services", so a 61 s load looked like a stalled start (#4128). Time it on its own.
+  const readingStarted = Date.now();
+  let startStarted = readingStarted;
+  setPhase("reading", "active");
   // Docker out of network ranges fails `init-networks` at once and blocks every service behind it, so make room first.
   const { ensureNetworkCapacity } = await import("./utils/demo-networks.js");
   const capacity = await ensureNetworkCapacity();
@@ -395,6 +411,19 @@ if (templateArg) {
   // The progress line counts the user's services plus the database and the proxy, not Tilt helpers. That is the
   // number the progress line shows, so the last frame has to finish on the same one.
   let lastTotal = discovered;
+  let tiltfileLoads = 0;
+  let readingDone = false;
+  const noteFirstTiltfileLoad = (load: { builds: number; firstElapsedMs?: number }): void => {
+    if (!watching) return;
+    if (load.builds > tiltfileLoads) tiltfileLoads = load.builds;
+    if (readingDone || load.builds === 0) return;
+    readingDone = true;
+    // Tilt's own build timestamps are the measurement, not the 2 s polling interval. They say when the load
+    // actually ran, so the phase reports 61 s even if the first poll happened later.
+    setPhase("reading", "done", load.firstElapsedMs ?? Date.now() - readingStarted);
+    startStarted = Date.now();
+    setPhase("start", "active");
+  };
   void (async () => {
     while (watching) {
       try {
@@ -409,6 +438,7 @@ if (templateArg) {
           const progress = await readStackProgress(port);
           if (progress) {
             lastTotal = progress.total;
+            noteFirstTiltfileLoad(progress.tiltfileLoad);
             stage.update({
               servicesReady: progress.ready,
               servicesTotal: progress.total,
@@ -431,6 +461,18 @@ if (templateArg) {
 
   const outcome = await runStackQuiet(invocation, destination);
   watching = false;
+  if (!readingDone) {
+    // Tilt may have gone away before a poll, or its API may not expose buildHistory. The stack is up, so the load
+    // happened: fall back to the wall clock rather than leaving a phase pending forever.
+    setPhase("reading", "done", Date.now() - readingStarted);
+    startStarted = Date.now();
+    setPhase("start", "active");
+  }
+  logLines.push(
+    tiltfileLoads > 0
+      ? `Tiltfile evaluations: ${tiltfileLoads}`
+      : "Tiltfile evaluations: not reported by Tilt",
+  );
   logLines.push("--- stack ---", outcome.raw ?? "");
   if (!outcome.ok) {
     const tiltUiUrl =
@@ -450,6 +492,9 @@ if (templateArg) {
     servicesBuilding: 0,
     servicesPhase: undefined,
   });
+  // A successful run writes the log too: the Tiltfile evaluation count is the evidence that a clean start did not
+  // reload the Tiltfile (#4128), and there is no other place that survives the stage leaving the screen.
+  writeLog(logLines);
 
   // 5. Open the browser only when a frontend actually answers, the same way `flisk open`
   // does. A failed open is not a failed demo: the URL is already on screen.
@@ -574,7 +619,7 @@ function firstMachineFailure(raw: string | undefined): string | undefined {
   return undefined;
 }
 
-/** Writes the child output somewhere a failed run can be inspected. */
+/** Writes the child output and Tiltfile evaluation count somewhere the run can be inspected later. */
 function writeLog(lines: string[]): string | undefined {
   try {
     const dir = join(homedir(), ".flisk", "logs");

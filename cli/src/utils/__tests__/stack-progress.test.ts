@@ -37,6 +37,7 @@ describe("readStackProgress", () => {
   it("is empty when tilt reports no resources", async () => {
     tiltAnswers(JSON.stringify({}));
     expect(await readStackProgress(10350)).toEqual({
+      tiltfileLoad: { builds: 0 },
       ready: 0,
       building: 0,
       pending: 0,
@@ -176,6 +177,62 @@ describe("readStackProgress", () => {
     const progress = await readStackProgress(10350);
     expect(progress?.broken[0].message).toHaveLength(160);
   });
+
+  it("sees exactly one Tiltfile load and its duration on a clean start (#4128)", async () => {
+    tiltAnswers(
+      JSON.stringify({
+        items: [
+          {
+            metadata: { name: "(Tiltfile)" },
+            status: {
+              updateStatus: "ok",
+              buildHistory: [
+                {
+                  startTime: "2026-11-13T18:21:25Z",
+                  finishTime: "2026-11-13T18:22:26Z",
+                },
+              ],
+            },
+          },
+          row("orders-api", "ok", "ok"),
+        ],
+      }),
+    );
+
+    const progress = await readStackProgress(10350);
+    expect(progress?.tiltfileLoad).toEqual({ builds: 1, firstElapsedMs: 61_000 });
+    expect(progress?.total).toBe(1);
+  });
+
+  it("notices a mid-run Tiltfile reload instead of treating it as one load (#4128)", async () => {
+    tiltAnswers(
+      JSON.stringify({
+        items: [
+          {
+            metadata: { name: "(Tiltfile)" },
+            status: {
+              updateStatus: "ok",
+              buildHistory: [
+                {
+                  startTime: "2026-11-13T18:20:24Z",
+                  finishTime: "2026-11-13T18:21:25Z",
+                },
+                {
+                  startTime: "2026-11-13T18:25:06Z",
+                  finishTime: "2026-11-13T18:25:53Z",
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+
+    expect((await readStackProgress(10350))?.tiltfileLoad).toEqual({
+      builds: 2,
+      firstElapsedMs: 61_000,
+    });
+  });
 });
 
 /** One UIResource row as `tilt get uiresources -o json` returns it. */
@@ -195,7 +252,14 @@ function demoResources() {
     "admin-app",
   ];
   const items = [
-    row("(Tiltfile)", "ok", "not_applicable"),
+    {
+      metadata: { name: "(Tiltfile)" },
+      status: {
+        updateStatus: "ok",
+        runtimeStatus: "not_applicable",
+        buildHistory: [{ startTime: "2026-11-13T18:21:25Z", finishTime: "2026-11-13T18:22:26Z" }],
+      },
+    },
     row("init-networks", "ok", "not_applicable"),
     row("golden-layers-build", "ok", "not_applicable"),
     row("service-discovery-daemon", "none", "none"),
@@ -225,6 +289,7 @@ describe("readStackProgress on the demo's real resource list", () => {
     expect(items).toHaveLength(32);
     tiltAnswers(JSON.stringify({ items }));
     const progress = await readStackProgress(10350);
+    expect(progress?.tiltfileLoad).toEqual({ builds: 1, firstElapsedMs: 61_000 });
     expect(progress?.total).toBe(9);
     expect(progress?.building).toBe(1);
     expect(progress?.ready).toBe(7);
@@ -281,6 +346,7 @@ describe("readStackProgress on the demo's real resource list", () => {
 
 describe("formatProgress", () => {
   const base: StackProgress = {
+    tiltfileLoad: { builds: 1 },
     ready: 3,
     building: 2,
     pending: 4,

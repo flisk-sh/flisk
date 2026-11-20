@@ -37,10 +37,27 @@ export async function readStackProgress(port, read = defaultTiltResourceReader) 
     let failed = 0;
     let total = 0;
     let infraPhase;
+    let tiltfileLoad = { builds: 0 };
     for (const item of items) {
         const name = item.metadata?.name ?? "unknown";
         const update = item.status?.updateStatus ?? "";
         const runtime = item.status?.runtimeStatus ?? "";
+        if (name === "(Tiltfile)") {
+            // Tilt releases the services only after this resource has loaded once. Its build history is also the honest
+            // answer to "did a clean start reload the Tiltfile?": one entry means one evaluation, two means a mid-run
+            // reload (#4128). Keep the timing from the first entry for the demo's own phase.
+            const history = item.status?.buildHistory ?? [];
+            tiltfileLoad = { builds: history.length };
+            for (const build of history) {
+                const start = build.startTime ? Date.parse(build.startTime) : Number.NaN;
+                const finish = build.finishTime ? Date.parse(build.finishTime) : Number.NaN;
+                if (Number.isFinite(start) && Number.isFinite(finish) && finish >= start) {
+                    tiltfileLoad.firstElapsedMs = finish - start;
+                    break;
+                }
+            }
+            continue;
+        }
         if (HELPER_NAME.test(name))
             continue;
         const infra = infraLabel(name);
@@ -94,7 +111,7 @@ export async function readStackProgress(port, read = defaultTiltResourceReader) 
         building += 1;
         working.push({ name, state: update });
     }
-    return { ready, building, pending, failed, total, infraPhase, working, broken };
+    return { tiltfileLoad, ready, building, pending, failed, total, infraPhase, working, broken };
 }
 /** A one-line summary of the progress, for the progress line. */
 export function formatProgress(progress) {

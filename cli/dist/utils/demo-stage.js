@@ -238,7 +238,11 @@ export function renderDemoFrame(state, columns = 80) {
             { text: sanitizeCell(state.subtitle), style: "dim" },
         ]);
         blank();
-        const visible = state.phases.slice(0, 4);
+        // Keep the active phase in the four-row window: a reset, the first Tiltfile load and the start are separate
+        // phases now, so slicing the first four would hide exactly the step that is running (#4128).
+        const active = state.phases.findIndex((phase) => phase.status === "active");
+        const first = active < 0 ? 0 : Math.max(0, Math.min(active - 2, state.phases.length - 4));
+        const visible = state.phases.slice(first, first + 4);
         for (const phase of visible)
             push(phaseRow(phase, width));
         for (let index = visible.length; index < 4; index += 1)
