@@ -359,7 +359,7 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | `--ignore-drift` | Start even if generated files differ from `service.json` |
 | `--no-database` | Do not provision the shared Postgres: saves `capabilities.database: false` in `.flisk/project.json` and regenerates `.flisk/.flisk-out/`. Set it back to `true` to turn Postgres on again |
 | `--ignore-version` | Start even if this `flisk` is older than `minFliskVersion` in `.flisk/project.json` |
-| `--json` | Print one JSON object when the stack is ready or the command fails. Implies `--quiet` |
+| `--json` | Print one versioned JSON envelope on stdout; never prompts. Implies `--quiet` |
 | `-q`, `--quiet` | Less output |
 | `-v`, `--verbose` | More output |
 
