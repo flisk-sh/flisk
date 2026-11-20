@@ -17,5 +17,7 @@ export declare function runningContainer(project: string, service: string, docke
 export declare function resolveRunTarget(projectRoot: string, serviceName: string, command: string[], options?: {
     interactive: boolean;
     resources?: DiscoveredResource[];
+    /** Injectable for tests: a fake `docker ps` runner with a known container id. */
+    docker?: (args: string[]) => SpawnSyncReturns<string>;
 }): RunTarget;
 export declare const runServiceCommand: Command;
