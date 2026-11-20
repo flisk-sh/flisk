@@ -436,6 +436,14 @@ export const COMMAND_SPECS = [
                 description: "Only logs newer than this duration, for example 30s, 5m, 1h",
             },
             {
+                flags: "--grep <text>",
+                description: "Filter log content (plain text; case-insensitive unless the pattern contains uppercase)",
+            },
+            {
+                flags: "--context <n>",
+                description: "Include n lines before and after each match within the same service",
+            },
+            {
                 flags: "--source <source>",
                 description: "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
             },

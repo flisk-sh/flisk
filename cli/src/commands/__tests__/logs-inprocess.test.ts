@@ -83,6 +83,35 @@ async function runLogs(args: string[]) {
 }
 
 describe("flisk logs (in-process)", () => {
+  it("filters native redacted logs with per-service context and keeps no-grep output unchanged", async () => {
+    nativeService.isNativeProject.mockReturnValue(true);
+    services.discoverResourcesFromRoot.mockReturnValue(NATIVE);
+    secrets.envSecretValues.mockReturnValue(["private-token"]);
+    nativeRuntime.readNativeLogLines.mockReturnValue([
+      line("api", "before"),
+      line("frontend", "unrelated"),
+      line("api", "ERROR private-token"),
+      line("api", "after"),
+    ]);
+    const result = await runLogs(["--json", "--grep", "error", "--context", "1"]);
+    const envelope = parseEnvelope(result.stdout);
+    expect(
+      envelope.data.lines.map((r: { resource: string; match: boolean }) => [r.resource, r.match]),
+    ).toEqual([
+      ["api", false],
+      ["api", true],
+      ["api", false],
+    ]);
+    expect(result.stdout).not.toContain("private-token");
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+    const secretOnly = await runLogs(["--json", "--grep", "private-token"]);
+    expect(parseEnvelope(secretOnly.stdout).data.lines).toEqual([]);
+    const noHit = await runLogs(["--grep", "absent"]);
+    expect(noHit.stdout).toBe("");
+    const unchanged = await runLogs(["--json"]);
+    expect(parseEnvelope(unchanged.stdout).data.lines).toHaveLength(4);
+    expect(unchanged.stdout).not.toContain('"match"');
+  });
   beforeEach(() => {
     process.exitCode = 0;
     delete process.env.TILT_PORT;
@@ -213,12 +242,12 @@ describe("flisk logs (in-process)", () => {
       });
       nativeRuntime.readNativeLogLines.mockReturnValue([line("frontend", "compiling")]);
 
-      const run = await runLogs(["--json", "--unhealthy", "--since", "5m"]);
+      const run = await runLogs(["--json", "--unhealthy", "--since", "5m", "--grep", "compil"]);
 
       expect(run.status).toBeUndefined();
       expect(parseEnvelope(run.stdout).data).toMatchObject({
         since: "5m",
-        lines: [{ resource: "frontend", text: "compiling" }],
+        lines: [{ resource: "frontend", text: "compiling", match: true }],
       });
       expect(nativeRuntime.nativeServiceStates).toHaveBeenCalledWith("/project", [
         "api",

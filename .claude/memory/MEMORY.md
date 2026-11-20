@@ -1,5 +1,7 @@
 # Repo memory
 
+- 2026-11-18 (#4687): On a checkout path containing non-ASCII characters, the package-version and stale-INTENTIONAL Node checks can fail because some scripts use URL.pathname as a filesystem path; macOS WSL2 smoke-script tests also encounter BSD/GNU sed differences. Compare the unchanged baseline before attributing these script failures to CLI changes.
+
 Hard-won, repo-specific facts for anyone (human or agent) working here. Keep entries short, dated, and about things the code cannot tell you. Add one line when a small PR or task teaches you a trap; delete lines that stop being true.
 
 ## Verify before you push

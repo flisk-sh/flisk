@@ -1,0 +1,10 @@
+{
+  "group": "journeys",
+  "suite": "log-grep",
+  "description": "Smart-case content filtering and per-service context through real native and Docker/Tilt logs and MCP, with generated-config idempotence (#4687).",
+  "paths": ["cli/src/commands/logs.ts", "cli/src/utils/tilt-logs.ts", "cli/src/mcp/tools.ts", "tests/e2e/journeys/log-grep/**", "tests/e2e/lib/**", ".github/workflows/e2e-journeys.yml"],
+  "cases": ["LG1", "LG2"],
+  "triggers": ["pr", "manual"],
+  "timeoutMinutes": 15,
+  "needsSecrets": []
+}
