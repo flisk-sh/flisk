@@ -44,7 +44,7 @@ Run `make help` to inspect all available targets:
 - `make test`: Run TypeScript, Python, and shell checks.
 - `make test-ts`: Run TypeScript CLI test suite.
 - `make test-python`: Run Python test suite with pytest.
-- `make test-shell`: Run Bash syntax checks on scripts and e2e suite definitions.
+- `make test-shell`: Run Bash syntax checks on scripts and e2e suite definitions, plus static repo checks including the Starlark `.sh` execution check (`scripts/check-star-shell-paths.mjs`).
 - `make test-e2e GROUP=<group> SUITE=<suite>`: Run a live-stack e2e test suite (requires Docker, Tilt, and built flisk).
 - `make scores`: Print the deterministic scoreboard (`scripts/scores/README.md`). `make test-shell` fails when a gate or ratchet on it drops.
 

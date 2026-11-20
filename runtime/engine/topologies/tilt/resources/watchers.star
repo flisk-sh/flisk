@@ -15,6 +15,41 @@
 #   Watchers.setup_package_json(services, should_enable_fn)
 # =============================================================================
 
+# Native Windows runs Tilt string commands through cmd.exe: it cannot execute
+# ./script.sh, and the maintenance loops need date, sleep and /tmp. Every
+# maintenance resource below therefore goes through maintenance_command(): POSIX
+# keeps its bash script, Windows gets a no-op that prints why in the Tilt UI.
+# FLISK_WATCHERS_PORTABLE=1 forces the Windows branch on any host for tests.
+load('../../../../discovery/native_windows.star', 'POWERSHELL')
+
+IS_NATIVE_WINDOWS = os.name == "nt" or os.getenv("FLISK_WATCHERS_PORTABLE") == "1"
+
+_IMAGE_SKIP_REASON = 'image maintenance needs bash and POSIX tools; skipped on native Windows (use WSL2 or run the cleanup manually)'
+_MONITOR_SKIP_REASON = 'macOS memory monitoring needs bash and POSIX tools; skipped on native Windows'
+_CRON_SKIP_REASON = 'cron status tracking needs POSIX shell scripts and /tmp; skipped on native Windows (see docs/design/native-windows-runtime-decision.md)'
+
+def _ps_quote(text):
+    """A PowerShell single-quoted literal (an embedded quote is doubled)."""
+    return "'" + text.replace("'", "''") + "'"
+
+def windows_skip_command(name, reason, serve = False):
+    """PowerShell command that reports why a maintenance resource is skipped on native Windows.
+
+    A serve_cmd must keep running: if it exits, Tilt marks the resource red even with exit code 0.
+    """
+    wait = "while ($true) { Start-Sleep -Seconds 300 }" if serve else "exit 0"
+    body = "Write-Output " + _ps_quote("[flisk] " + name + ": " + reason) + "; " + wait
+    return POWERSHELL + [body]
+
+def maintenance_command(name, posix_command, reason, is_windows, serve = False):
+    """The command Tilt runs: the bash script off Windows, a documented no-op on Windows."""
+    if is_windows:
+        return windows_skip_command(name, reason, serve)
+    return posix_command
+
+if IS_NATIVE_WINDOWS:
+    print('[flisk] watchers: native Windows uses no-op maintenance resources; POSIX bash scripts need WSL2 (see docs/design/native-windows-runtime-decision.md)')
+
 # =============================================================================
 # 📦 PACKAGE.JSON WATCHERS
 # =============================================================================
@@ -89,14 +124,24 @@ def setup_utility_resources():
     )
     
     local_resource('prune-images',
-        cmd='./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f',
+        cmd=maintenance_command(
+            'prune-images',
+            'bash ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f',
+            _IMAGE_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+        ),
         resource_deps=[],
         labels=['dev.maintenance'],
         auto_init=False
     )
 
     local_resource('memory-optimizer',
-        cmd='./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/mac-m1-resource-monitor.sh && ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f && docker builder prune -af --filter "until=24h"',
+        cmd=maintenance_command(
+            'memory-optimizer',
+            'bash ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/mac-m1-resource-monitor.sh && bash ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f && docker builder prune -af --filter "until=24h"',
+            _MONITOR_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+        ),
         resource_deps=[],
         labels=['dev.maintenance', 'mac-m1'],
         auto_init=False
@@ -111,7 +156,9 @@ def setup_utility_resources():
     
     # Continuous dangling image cleanup - runs every 5 minutes via serve_cmd loop
     local_resource('auto-prune-dangling',
-        serve_cmd='''
+        serve_cmd=maintenance_command(
+            'auto-prune-dangling',
+            '''
             echo "🧹 Auto-prune started (every 300s)"
             while true; do
                 count=$(docker images -f "dangling=true" -q 2>/dev/null | wc -l | tr -d ' ')
@@ -123,10 +170,14 @@ def setup_utility_resources():
                 fi
                 # Tilt tags every build as tilt-<hash>, so superseded builds stay tagged
                 # and are never dangling. Keep the newest 2 per service; running images are skipped.
-                ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 2 --force >/dev/null 2>&1 || true
+                bash ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 2 --force >/dev/null 2>&1 || true
                 sleep 300
             done
-        ''',
+            ''',
+            _IMAGE_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+            serve=True,
+        ),
         resource_deps=[],
         labels=['dev.maintenance', 'mac-m1'],
         auto_init=True,
@@ -134,13 +185,19 @@ def setup_utility_resources():
 
     # Continuously reclaim heavyweight migrator images once migration succeeds.
     local_resource('auto-prune-migrator-images',
-        serve_cmd='''
+        serve_cmd=maintenance_command(
+            'auto-prune-migrator-images',
+            '''
             echo "🧹 Migrator image cleanup started (every 45s)"
             while true; do
-                ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-completed-migrator-images.sh || true
+                bash ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-completed-migrator-images.sh || true
                 sleep 45
             done
-        ''',
+            ''',
+            _IMAGE_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+            serve=True,
+        ),
         resource_deps=[],
         labels=['dev.maintenance'],
         auto_init=True,
@@ -176,16 +233,23 @@ def setup_cron_resources():
     """Set up cron job resources that run periodically."""
     # Initialize status tracking
     local_resource('cron-status-init',
-        cmd='./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh init',
+        cmd=maintenance_command(
+            'cron-status-init',
+            'bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh init',
+            _CRON_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+        ),
         labels=['dev.quality', 'cron', 'setup'],
         auto_init=True,
     )
 
     # Cron lint - runs every 60 seconds
     local_resource('cron-lint',
-        serve_cmd='''
+        serve_cmd=maintenance_command(
+            'cron-lint',
+            '''
             echo "🧹 Cron lint started (every 60s) - auto-fixing issues..."
-            ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
+            bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
             while true; do
                 start_time=$(date +%s)
 
@@ -203,24 +267,28 @@ def setup_cron_resources():
                 fi
 
                 echo "$(date +%H:%M:%S) 🧹 Running lint..."
-                ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
+                bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
 
                 if bun biome lint --write . 2>&1; then
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ✅ Lint complete (${duration}s)"
-                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint success "${duration}s"
+                    bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint success "${duration}s"
                 else
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ⚠️  Lint found issues (${duration}s)"
-                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint failure "${duration}s"
+                    bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint failure "${duration}s"
                 fi
 
                 echo "$(date +%H:%M:%S) 😴 Sleeping 60s..."
                 sleep 60
             done
-        ''',
+            ''',
+            _CRON_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+            serve=True,
+        ),
         resource_deps=['cron-status-init'],
         labels=['dev.quality', 'cron'],
         auto_init=True,
@@ -228,9 +296,11 @@ def setup_cron_resources():
 
     # Cron format - runs every 60 seconds
     local_resource('cron-format',
-        serve_cmd='''
+        serve_cmd=maintenance_command(
+            'cron-format',
+            '''
             echo "🎨 Cron format started (every 60s) - auto-fixing formatting..."
-            ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
+            bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
             while true; do
                 start_time=$(date +%s)
 
@@ -248,24 +318,28 @@ def setup_cron_resources():
                 fi
 
                 echo "$(date +%H:%M:%S) 🎨 Running format..."
-                ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
+                bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
 
                 if bun biome check --write . && bun biome format --write . 2>&1; then
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ✅ Format complete (${duration}s)"
-                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format success "${duration}s"
+                    bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format success "${duration}s"
                 else
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ⚠️  Format had issues (${duration}s)"
-                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format failure "${duration}s"
+                    bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format failure "${duration}s"
                 fi
 
                 echo "$(date +%H:%M:%S) 😴 Sleeping 60s..."
                 sleep 60
             done
-        ''',
+            ''',
+            _CRON_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+            serve=True,
+        ),
         resource_deps=['cron-status-init'],
         labels=['dev.quality', 'cron'],
         auto_init=True,
@@ -273,7 +347,13 @@ def setup_cron_resources():
 
     # Status HTTP server for cron jobs
     local_resource('cron-jobs-status-server',
-        serve_cmd='./.flisk/.flisk-out/ext/ui-enhancements/cron-status-server.sh',
+        serve_cmd=maintenance_command(
+            'cron-jobs-status-server',
+            'bash ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-server.sh',
+            _CRON_SKIP_REASON,
+            IS_NATIVE_WINDOWS,
+            serve=True,
+        ),
         resource_deps=['cron-status-init'],
         labels=['dev.quality', 'cron', 'api'],
         auto_init=True,
