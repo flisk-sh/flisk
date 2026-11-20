@@ -7,8 +7,9 @@ import { isWindows, pathLookups } from "./platform.js";
 export function findOnPath(
   command: string,
   pathEnv: string | undefined = process.env.PATH ?? process.env.Path ?? "",
+  platform: NodeJS.Platform = process.platform,
 ): string | null {
-  const windows = isWindows();
+  const windows = platform === "win32";
   const names = pathLookups(command, windows);
   if (windows && !extname(command)) {
     for (const extension of (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")) {

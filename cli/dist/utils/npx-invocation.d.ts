@@ -32,7 +32,7 @@ export declare function npxInvocation(npxArgs: string[], runtime?: NpxRuntime): 
  * Picks the package runner for `flisk import` and `flisk export`: npx when installed, otherwise bunx. When neither is
  * on PATH, npx stays the fallback so the existing spawn error and install hint are reported (#3744).
  */
-export declare function findPackageRunner(pathEnv?: string): PackageRunner;
+export declare function findPackageRunner(pathEnv: string | undefined, platform?: NodeJS.Platform): PackageRunner;
 /**
  * Builds the package-runner call: npx keeps its `--yes` flag and Windows handling, while bunx has no `--yes` and is a
  * batch file on Windows, so it goes through cmd.exe with every argument quoted.

@@ -101,8 +101,8 @@ describe("flisk export", () => {
     });
   });
 
-  it("uses bunx.cmd through cmd.exe on Windows when npx is absent (#3744)", async () => {
-    await withSimulatedPath(["bunx"], () => {
+  it("uses a resolved bunx.cmd through cmd.exe on Windows when npx is absent (#3744)", async () => {
+    await withSimulatedPath(["bunx.cmd"], () => {
       const inv = exportInvocation(["a&b"], {}, "win32", {
         execPath: "C:\\tools\\flisk.exe",
         comSpec: "cmd.exe",
@@ -111,6 +111,19 @@ describe("flisk export", () => {
       expect(inv.windowsVerbatimArguments).toBe(true);
       expect(inv.args[3]).toContain("bunx.cmd");
       expect(inv.args[3]).toContain("a^^^&b");
+    });
+  });
+
+  it("runs the resolved bunx.exe directly on Windows (#3744)", async () => {
+    await withSimulatedPath(["bunx.exe"], () => {
+      const inv = exportInvocation(["a&b"], {}, "win32", {
+        execPath: "C:\\tools\\flisk.exe",
+        comSpec: "cmd.exe",
+      });
+      expect(inv.command).toContain("bunx.exe");
+      expect(inv.command).not.toBe("cmd.exe");
+      expect(inv.windowsVerbatimArguments).toBe(false);
+      expect(inv.args).toEqual([EXPORT_PACKAGE, "a&b"]);
     });
   });
 

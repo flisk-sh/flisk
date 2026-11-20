@@ -75,10 +75,13 @@ export function npxInvocation(npxArgs: string[], runtime: NpxRuntime = {}): NpxI
  * Picks the package runner for `flisk import` and `flisk export`: npx when installed, otherwise bunx. When neither is
  * on PATH, npx stays the fallback so the existing spawn error and install hint are reported (#3744).
  */
-export function findPackageRunner(pathEnv?: string): PackageRunner {
-  const npx = pathEnv === undefined ? findOnPath("npx") : findOnPath("npx", pathEnv);
+export function findPackageRunner(
+  pathEnv: string | undefined,
+  platform: NodeJS.Platform = process.platform,
+): PackageRunner {
+  const npx = findOnPath("npx", pathEnv, platform);
   if (npx) return "npx";
-  const bunx = pathEnv === undefined ? findOnPath("bunx") : findOnPath("bunx", pathEnv);
+  const bunx = findOnPath("bunx", pathEnv, platform);
   if (bunx) return "bunx";
   return "npx";
 }
@@ -91,18 +94,27 @@ export function packageRunnerInvocation(
   packageArgs: readonly string[],
   runtime: PackageRunnerRuntime = {},
 ): NpxInvocation {
-  if (findPackageRunner(runtime.pathEnv) === "npx") {
+  const platform = runtime.platform ?? process.platform;
+  if (findPackageRunner(runtime.pathEnv, platform) === "npx") {
     return npxInvocation(["--yes", ...packageArgs], runtime);
   }
 
   const args = [...packageArgs];
-  if ((runtime.platform ?? process.platform) !== "win32") {
+  if (platform !== "win32") {
     return { command: "bunx", args, shell: false, windowsVerbatimArguments: false };
+  }
+
+  // Bun's Windows installer ships `bunx.exe` and no `bunx.cmd` (#3744): run the discovered runner. An executable is
+  // spawned directly; only a batch file (`bunx.cmd`, `bunx.bat`) needs cmd.exe and the quoting below, which then
+  // runs the resolved path so the PATH search cannot pick a different copy than the one found here.
+  const bunx = findOnPath("bunx", runtime.pathEnv, platform);
+  if (bunx && !/\.(?:cmd|bat)$/i.test(bunx)) {
+    return { command: bunx, args, shell: false, windowsVerbatimArguments: false };
   }
 
   // The same cmd.exe quoting as npxInvocation: environment values must not choose the program that is spawned.
   const comSpec = runtime.comSpec ?? "cmd.exe";
-  const line = ["bunx.cmd", ...args.map(quoteCmdArgument)].join(" ");
+  const line = [quoteCmdArgument(bunx ?? "bunx.cmd"), ...args.map(quoteCmdArgument)].join(" ");
   return {
     command: comSpec,
     args: ["/d", "/s", "/c", `"${line}"`],
