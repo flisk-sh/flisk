@@ -334,6 +334,17 @@
 		},
 		{
 			"workflow": "e2e-scale.yml",
+			"job": "queue-paths",
+			"tier": "gate",
+			"required": false,
+			"reason": "Skips the scale gate on a merge queue entry that changes no file the suite declares in tests/e2e/scale/erp/suite.json paths",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-scale.yml",
 			"job": "e2e-scale",
 			"tier": "e2e",
 			"required": false,
@@ -735,6 +746,17 @@
 			"tier": "gate",
 			"required": false,
 			"reason": "Detects docs-only PRs for the platforms gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-platforms.yml",
+			"job": "queue-paths",
+			"tier": "gate",
+			"required": false,
+			"reason": "Skips the platforms gate on a merge queue entry that changes no file the suite declares in tests/e2e/platforms/windows/suite.json paths",
 			"owner": "maintainers",
 			"exempt": {
 				"check-name": "#1283"
