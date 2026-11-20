@@ -36,8 +36,8 @@ flisk up shop
 | **بيئة تشغيل تطبيقك** | ما يستخدمه تطبيقك | Node.js، Python، Go، Bun، ... | كل المسارات: هي التي تشغّل شيفرتك |
 | **Node.js** | 22.12+ | [nodejs.org](https://nodejs.org/) | التثبيت عبر npm (`npm install -g @flisk-sh/flisk`) |
 | **Docker** | Engine 25+، Compose 2.20.2+ | [docker.com](https://www.docker.com/products/docker-desktop/) | مسار Docker وTilt فقط |
-| **Tilt** | 0.25+ | `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash` | مسار Docker وTilt فقط |
-| **Bun** | 1.2+ | `curl -fsSL https://bun.sh/install \| bash` | التثبيت عبر Bun (`bun add -g @flisk-sh/flisk`)، أو خدمات JavaScript المولَّدة |
+| **Tilt** | 0.25+ | macOS/Linux: `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash`. Windows: يعمل مسار Docker وTilt داخل Ubuntu على WSL2 — استخدم سطر Linux هناك؛ تثبيت PowerShell أصلي: `iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.ps1'))` | مسار Docker وTilt فقط |
+| **Bun** | 1.2+ | macOS/Linux: `curl -fsSL https://bun.sh/install \| bash`. Windows PowerShell: `powershell -c "irm bun.sh/install.ps1 \| iex"` | التثبيت عبر Bun (`bun add -g @flisk-sh/flisk`)، أو خدمات JavaScript المولَّدة |
 
 > **طريقتان للتشغيل.** المشروع الذي تعلن كل خدمة فيه عن `command` يشغّلها كعمليات محلية: لا تحتاج إلا إلى Flisk وبيئة تشغيل تطبيقك ([أبسط مسار](start/simplest.md)). أما قاعدة البيانات، أو عنوان واحد أمام كل الخدمات، أو الحاوية نفسها التي تنشرها، فتحتاج إلى Docker وTilt. يفحص `flisk doctor` ما يستخدمه مشروعك فقط.
 

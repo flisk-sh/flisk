@@ -228,8 +228,8 @@ Agents get durable checkpoint volumes that survive `flisk down`, sticky session 
 | **Your app's runtime** | whatever your app uses | Node.js, Python, Go, Bun, ... | Every path: it runs your code |
 | **Node.js** | 22.12+ | [nodejs.org](https://nodejs.org/) | npm install (`npm install -g @flisk-sh/flisk`) |
 | **Docker** | Engine 25+, Compose 2.20.2+ | [docker.com](https://www.docker.com/products/docker-desktop/) | Docker + Tilt path only |
-| **Tilt** | 0.25+ | `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash` | Docker + Tilt path only |
-| **Bun** | 1.2+ | `curl -fsSL https://bun.sh/install \| bash` | Bun install (`bun add -g @flisk-sh/flisk`), or generated JavaScript services |
+| **Tilt** | 0.25+ | macOS/Linux: `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash`. Windows: the Docker + Tilt path runs in WSL2 Ubuntu, so use the Linux line there; native PowerShell: `iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.ps1'))` | Docker + Tilt path only |
+| **Bun** | 1.2+ | macOS/Linux: `curl -fsSL https://bun.sh/install \| bash`. Windows PowerShell: `powershell -c "irm bun.sh/install.ps1 \| iex"` | Bun install (`bun add -g @flisk-sh/flisk`), or generated JavaScript services |
 
 > **Two ways to run.** A project whose services each declare a `command` runs them as local processes: you need only Flisk and your app's runtime ([simplest path](docs/start/simplest.md)). A database, one gateway URL for every service, or the same container you deploy need [Docker](docs/start/words.md#docker) and Tilt. `flisk doctor` checks only what your project uses.
 

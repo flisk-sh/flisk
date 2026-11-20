@@ -11,9 +11,9 @@ The tools you need depend on the path you pick [below](#pick-a-path). You instal
 | Tool | Minimum version | Install | Install path |
 |------|----------------|---------|--------------|
 | **Docker** | Engine 25+, Compose 2.20.2+ | [docker.com](https://www.docker.com/products/docker-desktop/) | Full demo, full control and guided setup |
-| **Tilt** | 0.25+ | `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash` | Full demo, full control and guided setup |
+| **Tilt** | 0.25+ | macOS/Linux: `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash`. Windows: Docker + Tilt runs in WSL2 Ubuntu — use the Linux line there; native PowerShell: `iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.ps1'))` | Full demo, full control and guided setup |
 | **Node.js** | 22.12+ | [nodejs.org](https://nodejs.org/) | npm path (`npm install -g @flisk-sh/flisk`) |
-| **Bun** | 1.2+ | `curl -fsSL https://bun.sh/install \| bash` | Bun path (`bun add -g @flisk-sh/flisk`) |
+| **Bun** | 1.2+ | macOS/Linux: `curl -fsSL https://bun.sh/install \| bash`. Windows PowerShell: `powershell -c "irm bun.sh/install.ps1 \| iex"` | Bun path (`bun add -g @flisk-sh/flisk`) |
 
 > **Conditional prerequisites**: Node.js is required when you install Flisk via npm (`npm install -g @flisk-sh/flisk`), and also for the Docker-free demo (`flisk demo` without Docker), even if you installed Flisk with Bun: that demo runs on Node.js 22.12+. Bun is only required when you install via Bun (`bun add -g @flisk-sh/flisk`) or your project has generated JavaScript services. Docker and Tilt are required for every path except the simplest one, where your services run as local processes.
 
