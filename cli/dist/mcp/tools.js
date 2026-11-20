@@ -15,7 +15,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import { OUTPUT_WITHHELD, projectSecretValues, redactProjectText, redactValue, } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
-import { compileLogGrep, isValidLogContext } from "../utils/tilt-logs.js";
+import { isValidLogContext } from "../utils/tilt-logs.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -418,13 +418,7 @@ export function buildLogsArgs(args) {
     }
     if (args.grep !== undefined) {
         if (typeof args.grep !== "string") {
-            throw new FliskError("grep must be a regular expression string", ["Pass grep as a string, such as error"], 2);
-        }
-        try {
-            compileLogGrep(args.grep);
-        }
-        catch {
-            throw new FliskError(`Invalid grep regular expression: ${args.grep}`, ["Use a valid JavaScript regular expression"], 2);
+            throw new FliskError("grep must be a string", ["Pass grep as a string, such as error"], 2);
         }
         out.push(`--grep=${args.grep}`);
     }
@@ -794,7 +788,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                 tail: { type: "integer", minimum: 1, maximum: 10000 },
                 grep: {
                     type: "string",
-                    description: "Filter content by regex; ignores case unless the pattern contains uppercase. Matches have match: true.",
+                    description: "Filter content by plain-text match (meta-characters have no special meaning); ignores case unless the text contains uppercase. Matches have match: true.",
                 },
                 context: {
                     type: "integer",

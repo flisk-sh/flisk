@@ -432,8 +432,8 @@ export const COMMAND_SPECS = [
                 description: "Only logs newer than this duration, for example 30s, 5m, 1h",
             },
             {
-                flags: "--grep <regex>",
-                description: "Filter log content (case-insensitive unless the pattern contains uppercase)",
+                flags: "--grep <text>",
+                description: "Filter log content (plain text; case-insensitive unless the pattern contains uppercase)",
             },
             {
                 flags: "--context <n>",

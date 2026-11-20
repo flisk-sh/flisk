@@ -209,14 +209,15 @@ function recordingTools(
 }
 
 describe("argument building", () => {
-  it("forwards log content filtering options and rejects invalid patterns", () => {
+  it("forwards log content filtering options and keeps meta-characters literal", () => {
     expect(buildLogsArgs({ grep: "ERROR|warn", context: 2 })).toEqual([
       "logs",
       "--json",
       "--grep=ERROR|warn",
       "--context=2",
     ]);
-    expect(() => buildLogsArgs({ grep: "[" })).toThrow();
+    expect(buildLogsArgs({ grep: "[ok]" })).toEqual(["logs", "--json", "--grep=[ok]"]);
+    expect(() => buildLogsArgs({ grep: 5 })).toThrow();
     expect(() => buildLogsArgs({ grep: "error", context: -1 })).toThrow();
     expect(() => buildLogsArgs({ context: 1 })).toThrow();
   });

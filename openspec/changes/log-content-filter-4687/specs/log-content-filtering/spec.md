@@ -1,12 +1,16 @@
 ## ADDED Requirements
 
 ### Requirement: Match log content through CLI and MCP
-The system SHALL accept a regex through `logs --grep` and MCP `logs.grep` and SHALL return only matches and requested context from the selected redacted log window.
+The system SHALL accept plain text through `logs --grep` and MCP `logs.grep` and SHALL return only matches and requested context from the selected redacted log window.
 
 #### Scenario: Smart-case matching
 - **WHEN** a pattern contains no uppercase letters
 - **THEN** matching SHALL ignore case
 - **AND** a pattern containing uppercase letters SHALL match case-sensitively
+
+#### Scenario: Literal meta-characters
+- **WHEN** the pattern contains regular expression meta-characters
+- **THEN** the system SHALL match those characters as plain text instead of executing them
 
 #### Scenario: Preserve bounded selection
 - **WHEN** the caller combines grep with service, source, since or tail selection
@@ -22,12 +26,7 @@ The system SHALL return up to the requested number of neighboring lines from the
 - **AND** context SHALL NOT include unrelated lines from another service
 
 ### Requirement: Reject invalid content options
-The system SHALL reject malformed regex patterns and invalid context values before reading logs.
-
-#### Scenario: Invalid regex
-- **WHEN** the caller provides an invalid regex
-- **THEN** the CLI SHALL return a usage error with exit code two and the pattern
-- **AND** the MCP tool SHALL report an input error
+The system SHALL reject invalid context values before reading logs.
 
 #### Scenario: Missing grep
 - **WHEN** context is supplied without grep

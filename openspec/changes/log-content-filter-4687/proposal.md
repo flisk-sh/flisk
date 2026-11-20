@@ -6,7 +6,7 @@ Reading a full service-log tail wastes attention and agent context when only a f
 
 ## What Changes
 
-- Add `logs --grep <regex> --context <n>` and corresponding MCP properties.
+- Add `logs --grep <text> --context <n>` and corresponding MCP properties.
 - Apply smart-case matching and merge overlapping context windows within each service.
 - Preserve existing redaction, service/source/time filters and bounded tail behavior.
 - Flag matching JSON lines with `match: true` and context lines with `match: false`.

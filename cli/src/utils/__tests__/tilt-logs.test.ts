@@ -32,7 +32,25 @@ describe("log content filtering", () => {
       "ERROR",
     ]);
     expect(filterLogContent(input, compileLogGrep("missing"), 3)).toEqual([]);
-    expect(() => compileLogGrep("[")).toThrow();
+  });
+
+  it("matches meta-characters literally instead of compiling them", () => {
+    const input = [
+      record("a", "value [ok] done"),
+      record("a", "no brackets"),
+      record("a", "literal (a+)+$ here"),
+      record("a", "unfinished \\"),
+    ];
+    expect(filterLogContent(input, compileLogGrep("[ok]"), 0).map((r) => r.text)).toEqual([
+      "value [ok] done",
+    ]);
+    expect(filterLogContent(input, compileLogGrep("(a+)+$"), 0).map((r) => r.text)).toEqual([
+      "literal (a+)+$ here",
+    ]);
+    expect(filterLogContent(input, compileLogGrep("unfinished \\"), 0).map((r) => r.text)).toEqual([
+      "unfinished \\",
+    ]);
+    expect(() => compileLogGrep("[")).not.toThrow();
   });
 
   it("merges overlapping windows per service while preserving interleaved order", () => {

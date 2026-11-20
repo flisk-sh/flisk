@@ -83,9 +83,9 @@ check_logs() { # run after the fixture is ready; also used for deliberate-break 
   run empty logs --grep never-a-match --json
   [ "$RC" -eq 0 ] || die "no-match must succeed"
   assert check "$OUT/empty.out" "j.data.lines.length === 0" "no matches is empty"
-  run invalid logs --grep '[' --json
-  [ "$RC" -eq 2 ] || die "invalid regex must exit 2"
-  assert envelope "$OUT/invalid.out" USAGE
+  run literal logs --grep '.' --json
+  [ "$RC" -eq 0 ] || die "literal meta-character pattern must succeed"
+  assert check "$OUT/literal.out" "j.data.lines.length === 0" "meta-characters match as literal text"
   local calls
   calls=$(jq -nc --arg service "$SERVICE" '[{"tool":"logs","arguments":{"services":[$service],"source":"runtime","grep":"error","context":1}},{"tool":"logs","arguments":{"grep":"never-a-match"}}]')
   mcp_session grep "$calls"

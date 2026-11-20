@@ -578,12 +578,15 @@ describe("log content filtering", () => {
     expect(envelope).toMatchObject({ data: { lines: [] }, errors: [] });
   });
 
-  it("rejects an invalid pattern with usage status before reading logs", async () => {
-    const { envelope, code } = await run("--grep", "[");
-    expect(code).toBe(2);
-    expect(envelope.errors[0]).toMatchObject({ code: "USAGE" });
-    expect(envelope.errors[0]?.message).toContain("[");
-    expect(tilt.runTilt).not.toHaveBeenCalled();
+  it("matches meta-characters in the pattern literally", async () => {
+    tilt.runTilt.mockResolvedValueOnce(
+      ok([logLine("plain"), logLine("value [ok] here")].join("\n")),
+    );
+    const { envelope, code } = await run("--grep", "[ok]");
+    expect(code).toBeNull();
+    expect(envelope).toMatchObject({
+      data: { lines: [{ text: "value [ok] here", match: true }] },
+    });
   });
 
   it("rejects context without a pattern", async () => {

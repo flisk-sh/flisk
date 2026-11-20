@@ -30,7 +30,11 @@ export declare function isValidLogSource(value: string): value is LogSource;
 export declare function filterLogSource<T extends {
     source: string | null;
 }>(lines: readonly T[], source: LogSource): T[];
-/** Compile a smart-case expression: a pattern without uppercase characters ignores case. */
+/**
+ * Compile a smart-case content filter from caller-supplied text. The pattern is escaped first, so
+ * it is matched as plain text: a command-line argument or MCP argument cannot inject an expression
+ * for the RegExp engine to execute (CWE-400). A pattern without uppercase characters ignores case.
+ */
 export declare function compileLogGrep(pattern: string): RegExp;
 /** Context is a non-negative safe integer; it is clipped to the selected log window. */
 export declare function isValidLogContext(value: string): boolean;

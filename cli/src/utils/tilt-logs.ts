@@ -94,9 +94,18 @@ export function filterLogSource<T extends { source: string | null }>(
   return lines.filter((line) => (line.source === "build") === (source === "build"));
 }
 
-/** Compile a smart-case expression: a pattern without uppercase characters ignores case. */
+/** Escape every regular expression meta-character so caller-supplied text is matched literally. */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Compile a smart-case content filter from caller-supplied text. The pattern is escaped first, so
+ * it is matched as plain text: a command-line argument or MCP argument cannot inject an expression
+ * for the RegExp engine to execute (CWE-400). A pattern without uppercase characters ignores case.
+ */
 export function compileLogGrep(pattern: string): RegExp {
-  return new RegExp(pattern, pattern === pattern.toLowerCase() ? "i" : "");
+  return new RegExp(escapeRegExp(pattern), pattern === pattern.toLowerCase() ? "i" : "");
 }
 
 /** Context is a non-negative safe integer; it is clipped to the selected log window. */

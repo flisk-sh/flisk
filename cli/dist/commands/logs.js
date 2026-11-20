@@ -84,7 +84,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
-    .option("--grep <regex>", "Filter log content (case-insensitive unless the pattern contains uppercase)")
+    .option("--grep <text>", "Filter log content (plain text; case-insensitive unless the pattern contains uppercase)")
     .option("--context <n>", "Include n lines before and after each match within the same service")
     .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
     .option("--unhealthy", "Only services that are failing or still starting", false)
@@ -128,15 +128,9 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     if (options.context !== undefined && !isValidLogContext(options.context)) {
         fail("USAGE", "--context must be a non-negative safe integer", 2);
     }
-    let grep;
-    if (options.grep !== undefined) {
-        try {
-            grep = compileLogGrep(options.grep);
-        }
-        catch {
-            fail("USAGE", `Invalid --grep regular expression: ${options.grep}`, 2);
-        }
-    }
+    // compileLogGrep escapes the pattern before compiling, so it cannot throw and no
+    // caller-controlled expression reaches the RegExp engine.
+    const grep = options.grep === undefined ? undefined : compileLogGrep(options.grep);
     const context = Number(options.context ?? 0);
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText))
