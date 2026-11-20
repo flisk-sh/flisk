@@ -2051,7 +2051,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     ],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
+        "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild\n\nTilt resources require Tilt; local-process projects: use `flisk down && flisk up` for a full restart.",
       ],
     },
     subcommands: [],
