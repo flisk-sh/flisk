@@ -36,8 +36,8 @@ flisk up shop
 | **Il runtime della tua app** | quello che usa la tua app | Node.js, Python, Go, Bun, ... | Ogni percorso: esegue il tuo codice |
 | **Node.js** | 22.12+ | [nodejs.org](https://nodejs.org/) | Installazione con npm (`npm install -g @flisk-sh/flisk`) |
 | **Docker** | Engine 25+, Compose 2.20.2+ | [docker.com](https://www.docker.com/products/docker-desktop/) | Solo per il percorso Docker + Tilt |
-| **Tilt** | 0.25+ | `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash` | Solo per il percorso Docker + Tilt |
-| **Bun** | 1.2+ | `curl -fsSL https://bun.sh/install \| bash` | Installazione con Bun (`bun add -g @flisk-sh/flisk`) o servizi JavaScript generati |
+| **Tilt** | 0.25+ | macOS/Linux: `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash`. Windows: il percorso Docker + Tilt gira in Ubuntu su WSL2 — usa la riga Linux lì; installazione nativa in PowerShell: `iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.ps1'))` | Solo per il percorso Docker + Tilt |
+| **Bun** | 1.2+ | macOS/Linux: `curl -fsSL https://bun.sh/install \| bash`. Windows PowerShell: `powershell -c "irm bun.sh/install.ps1 \| iex"` | Installazione con Bun (`bun add -g @flisk-sh/flisk`) o servizi JavaScript generati |
 
 > **Due modi di esecuzione.** In un progetto in cui ogni servizio dichiara un `command`, i servizi girano come processi locali: ti servono solo Flisk e il runtime della tua app ([percorso più semplice](start/simplest.md)). Un database, un unico indirizzo per tutti i servizi o lo stesso container che usi in produzione richiedono [Docker](start/words.md#docker) e Tilt. `flisk doctor` controlla solo ciò che il tuo progetto usa.
 
