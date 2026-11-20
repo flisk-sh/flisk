@@ -502,6 +502,9 @@ describe("networksCommand and helpers", () => {
       const jsonReport = JSON.parse(lines[0]);
       expect(jsonReport.schemaVersion).toBe(1);
       expect(jsonReport.data.services).toHaveLength(2);
+      expect(
+        (jsonReport.data.services as Array<{ path: string }>).map((service) => service.path).sort(),
+      ).toEqual(["services/shop/orders-api", "services/shop/web"]);
 
       lines.length = 0;
       networksCommand.setOptionValue("json", false);
