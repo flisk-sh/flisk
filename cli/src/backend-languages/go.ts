@@ -15,6 +15,7 @@ export const GO_DEV_COMMAND = "go run .";
 export const goBackendProvider: BackendLanguageProvider = {
   id: "go",
   label: "Go 1.23 (net/http)",
+  serverFrameworks: ["gin", "echo", "fiber"],
   devCommand: GO_DEV_COMMAND,
   watch: ["**/*.go", "go.mod", "go.sum"],
   installHint: "go mod tidy   # optional: Docker builds the image for you",

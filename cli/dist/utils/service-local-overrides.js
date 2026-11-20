@@ -30,14 +30,20 @@ function invalid(file, message, suggestions = []) {
  * Generation never calls this: it reads the committed `service.json` only. Callers that start local
  * processes (`flisk up`'s native path and `flisk run`) and commands that report active overrides use
  * this one helper, so the field whitelist and the `env` merge rule live in a single place.
+ *
+ * The default throws on the first invalid local file: a run must refuse a broken file, not start
+ * half of it. `skipInvalidFiles` is for read-only reporting (`flisk status`): one malformed file is
+ * one service's problem, so that service falls back to its committed fields while every other
+ * service keeps its valid override — a locally disabled service must not come back to life in
+ * health totals because some other file is broken. The skipped file is named in `invalidFiles`;
+ * `flisk up` and `config verify` keep reporting it as an error.
  */
-export function applyServiceLocalOverrides(resources) {
-    const result = { resources: [], overrides: [] };
-    for (const resource of resources) {
+export function applyServiceLocalOverrides(resources, options = {}) {
+    const result = { resources: [], overrides: [], invalidFiles: [] };
+    const applyOne = (resource) => {
         const localPath = join(dirname(resource.configPath), SERVICE_LOCAL_JSON);
         if (!existsSync(localPath)) {
-            result.resources.push(resource);
-            continue;
+            return resource;
         }
         const file = displayPath(localPath);
         let content;
@@ -124,7 +130,22 @@ export function applyServiceLocalOverrides(resources) {
         }
         for (const field of fields)
             result.overrides.push({ service: resource.name, field });
-        result.resources.push({ ...resource, config, port: config.port });
+        return { ...resource, config, port: config.port };
+    };
+    for (const resource of resources) {
+        if (!options.skipInvalidFiles) {
+            result.resources.push(applyOne(resource));
+            continue;
+        }
+        try {
+            result.resources.push(applyOne(resource));
+        }
+        catch (error) {
+            if (!(error instanceof FliskError))
+                throw error;
+            result.invalidFiles.push(error.message);
+            result.resources.push(resource);
+        }
     }
     return result;
 }

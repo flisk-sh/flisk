@@ -97,6 +97,42 @@ test("every host starts the same server: flisk mcp", () => {
   assert.equal(readJson(plugin, ".codex-plugin/plugin.json").mcpServers, "./.mcp.json");
 });
 
+test("the Claude Code plugin starts flisk mcp without a POSIX shell", () => {
+  const dir = path.join(ROOT, CLAUDE_PLUGIN_DIR);
+  const config = readJson(dir, ".mcp.json");
+  const server = config.mcpServers.flisk;
+  assert.deepEqual(Object.keys(config.mcpServers), ["flisk"]);
+  assert.equal(server.command, "node");
+  assert.equal(server.args.length, 1);
+  assert.match(server.args[0], /^\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/flisk-mcp\.mjs$/);
+  assert.doesNotMatch(JSON.stringify(server), /\.sh\b/);
+
+  const launcher = path.join(dir, "scripts", "flisk-mcp.mjs");
+  assert.ok(existsSync(launcher), "the portable launcher is shipped inside the plugin");
+  const code = readFileSync(launcher, "utf8");
+  assert.match(code, /spawn\("flisk", \["mcp"\], options\)/);
+  assert.match(code, /if \(process\.platform === "win32"\) options\.shell = true;/);
+
+  // Run the shipped launcher with a fake `flisk` on PATH. On Windows npm installs a flisk.cmd shim, which Node can
+  // only start through a shell; the .cmd fixture below makes the test cover that path on a Windows runner.
+  const bin = mkdtempSync(path.join(tmpdir(), "flisk-claude-mcp-bin-"));
+  try {
+    const marker = "flisk mcp started";
+    if (process.platform === "win32") {
+      writeFileSync(path.join(bin, "flisk.cmd"), `@echo off\r\necho ${marker}\r\n`);
+    } else {
+      writeFileSync(path.join(bin, "flisk"), `#!/bin/sh\necho ${marker}\n`, { mode: 0o755 });
+    }
+    const output = execFileSync(process.execPath, [launcher], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` },
+    });
+    assert.match(output, new RegExp(marker));
+  } finally {
+    rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 test("every marketplace points at a folder with that host's manifest", () => {
   const claude = readJson(ROOT, ".claude-plugin/marketplace.json").plugins[0].source;
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/plugin.json")), "Claude Code / Copilot CLI");
@@ -113,14 +149,15 @@ test("every marketplace points at a folder with that host's manifest", () => {
   assert.ok(existsSync(path.join(ROOT, gemini.contextFileName)), "Gemini context file");
 });
 
-test("the Claude Code plugin has no local MCP server and only file types the Claude directory takes from any organization", () => {
+test("the Claude Code plugin ships no POSIX shell launcher", () => {
   const dir = path.join(ROOT, CLAUDE_PLUGIN_DIR);
-  assert.ok(!existsSync(path.join(dir, ".mcp.json")), "a local MCP server is refused unless the organization is Verified");
-  const allowed = /\.(md|txt|json|ya?ml|png|jpe?g|gif|webp|ico)$/i;
-  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const walk = (d) =>
+    readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)],
+    );
   for (const file of walk(dir)) {
-    assert.match(file, allowed, `${path.relative(ROOT, file)} is not Markdown, text, JSON, YAML or an image`);
-    if (!/\.(png|jpe?g|gif|webp|ico)$/i.test(file)) {
+    assert.doesNotMatch(file, /\.sh$/, `${path.relative(ROOT, file)} needs a POSIX shell`);
+    if (/\.(md|txt|json|ya?ml|mjs)$/i.test(file)) {
       const text = readFileSync(file, "utf8");
       assert.ok(!text.startsWith("#!"), `${path.relative(ROOT, file)} starts with #!`);
       assert.ok(!text.includes("\0"), `${path.relative(ROOT, file)} has a NUL byte`);

@@ -14,6 +14,8 @@ export interface DoctorReport {
         ready: boolean;
         inProject: boolean;
         checks: CheckResult[];
+        /** Non-blocking warning messages, in check order; also present as isWarning entries in checks. */
+        warnings?: string[];
         capabilities?: string[];
         commit?: string;
         commitSha?: string;
@@ -58,6 +60,7 @@ export interface DoctorReport {
     errors: DoctorError[];
 }
 type DoctorCheck = () => CheckResult | Promise<CheckResult>;
+export declare function timeDoctorCheck(check: DoctorCheck): Promise<CheckResult>;
 /** Wait for concurrent probes to finish even if one throws, so they can release resources. */
 export declare function collectDoctorChecks(machineChecks: DoctorCheck[], projectChecks: DoctorCheck[]): Promise<{
     checks: CheckResult[];

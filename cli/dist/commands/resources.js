@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command, Option } from "commander";
+import { isResourceCreateType } from "../types/index.js";
 import { routeUsageErrorsToJson } from "../utils/command-helpers.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
@@ -75,7 +76,8 @@ export async function runResourcesList(options) {
             const stackContext = stackName ? ` in stack "${stackName}"` : "";
             const noStackContext = withoutStackFilter && !stackName ? " without a stack" : "";
             const typeContext = options.type !== undefined ? ` with type "${options.type}"` : "";
-            showEmptyState(stackName ? "stack-services" : "resources", stackContext + noStackContext + typeContext, options.type);
+            const creatable = options.type !== undefined && isResourceCreateType(options.type);
+            showEmptyState(stackName ? "stack-services" : "resources", stackContext + noStackContext + typeContext, creatable ? options.type : undefined);
             return;
         }
         showStep(`Found ${formatCount(resources.length, "resource")}:\n`);

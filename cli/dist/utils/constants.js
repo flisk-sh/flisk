@@ -34,6 +34,9 @@ export const RESOURCE_DEFAULTS_FILE = "TILT_RESOURCE_DEFAULTS.star";
 export const PROJECT_JSON = "project.json";
 // Manifest file name for Node / JavaScript packages and root workspace.
 export const PACKAGE_JSON = "package.json";
+// Agent documentation Flisk writes on project setup: created only when missing, never overwritten.
+export const AGENTS_FILE = "AGENTS.md";
+export const CLAUDE_FILE = "CLAUDE.md";
 export const MASTER_CONFIG_FILES = [
     TECH_STACK_FILE,
     RESOURCE_DEFAULTS_FILE,

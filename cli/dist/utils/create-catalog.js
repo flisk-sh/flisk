@@ -39,6 +39,7 @@ export function backendCatalog() {
         frameworks: defaultFirst(frameworks
             .filter((entry) => entry.languages.includes(language.id))
             .map((entry) => ({ id: entry.id, title: entry.label, hint: "", local: true })), DEFAULT_BACKEND_FRAMEWORK),
+        serverFrameworks: language.serverFrameworks ?? [],
     }));
     return defaultFirst(options, DEFAULT_BACKEND_LANGUAGE);
 }

@@ -19,7 +19,7 @@ const COMMAND_GROUPS = [
       },
       {
         name: "tool",
-        desc: "Add a tool by name: react, postgresql, fastapi, rag (cloud is rejected)",
+        desc: "Add a tool by name: react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected)",
         alias: "add <tool> [name]",
       },
       {

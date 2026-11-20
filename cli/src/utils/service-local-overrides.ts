@@ -22,6 +22,12 @@ export interface ServiceLocalOverrideResult {
   resources: DiscoveredResource[];
   /** One entry per applied field, in resource order. Empty when no local file has an override. */
   overrides: LocalOverride[];
+  /**
+   * With `skipInvalidFiles`: one message per local file that was ignored, so a reporting command can
+   * say which service fell back to its committed fields. Empty in the default mode, which throws
+   * on the first invalid file instead.
+   */
+  invalidFiles: string[];
 }
 
 function displayPath(localPath: string): string {
@@ -43,17 +49,24 @@ function invalid(file: string, message: string, suggestions: string[] = []): nev
  * Generation never calls this: it reads the committed `service.json` only. Callers that start local
  * processes (`flisk up`'s native path and `flisk run`) and commands that report active overrides use
  * this one helper, so the field whitelist and the `env` merge rule live in a single place.
+ *
+ * The default throws on the first invalid local file: a run must refuse a broken file, not start
+ * half of it. `skipInvalidFiles` is for read-only reporting (`flisk status`): one malformed file is
+ * one service's problem, so that service falls back to its committed fields while every other
+ * service keeps its valid override — a locally disabled service must not come back to life in
+ * health totals because some other file is broken. The skipped file is named in `invalidFiles`;
+ * `flisk up` and `config verify` keep reporting it as an error.
  */
 export function applyServiceLocalOverrides(
   resources: readonly DiscoveredResource[],
+  options: { skipInvalidFiles?: boolean } = {},
 ): ServiceLocalOverrideResult {
-  const result: ServiceLocalOverrideResult = { resources: [], overrides: [] };
+  const result: ServiceLocalOverrideResult = { resources: [], overrides: [], invalidFiles: [] };
 
-  for (const resource of resources) {
+  const applyOne = (resource: DiscoveredResource): DiscoveredResource => {
     const localPath = join(dirname(resource.configPath), SERVICE_LOCAL_JSON);
     if (!existsSync(localPath)) {
-      result.resources.push(resource);
-      continue;
+      return resource;
     }
 
     const file = displayPath(localPath);
@@ -150,7 +163,21 @@ export function applyServiceLocalOverrides(
     }
 
     for (const field of fields) result.overrides.push({ service: resource.name, field });
-    result.resources.push({ ...resource, config, port: config.port });
+    return { ...resource, config, port: config.port };
+  };
+
+  for (const resource of resources) {
+    if (!options.skipInvalidFiles) {
+      result.resources.push(applyOne(resource));
+      continue;
+    }
+    try {
+      result.resources.push(applyOne(resource));
+    } catch (error) {
+      if (!(error instanceof FliskError)) throw error;
+      result.invalidFiles.push(error.message);
+      result.resources.push(resource);
+    }
   }
 
   return result;

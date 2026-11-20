@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -27,6 +27,19 @@ function freePort(): Promise<number> {
       const { port } = server.address() as { port: number };
       server.close(() => resolve(port));
     });
+  });
+}
+
+/** Polls until the condition holds, so a test never asserts output the child has not written yet. */
+function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve, reject) => {
+    const poll = () => {
+      if (condition()) resolve();
+      else if (Date.now() > deadline) reject(new Error("condition not met in time"));
+      else setTimeout(poll, 50);
+    };
+    poll();
   });
 }
 
@@ -96,6 +109,58 @@ describe("native resource restart through the control channel", () => {
     greeting = "two";
     expect((await requestNativeRestart(root, "api", { waitMs: 20_000 })).state).toBe("ready");
     expect(await (await fetch(`http://localhost:${apiPort}/`)).text()).toBe("two");
+  });
+
+  it("keeps redacting local-override secrets after a restart reloaded the plan", async () => {
+    const root = createTempDir();
+    const apiPort = await freePort();
+    mkdirSync(join(root, "api"), { recursive: true });
+    writeFileSync(
+      join(root, "api", "server.mjs"),
+      `import { createServer } from "node:http";
+createServer((req, res) => { res.writeHead(req.url === "/health" ? 200 : 404); res.end(); })
+  .listen(Number(process.env.PORT), () => console.log("token=" + process.env.API_TOKEN));`,
+    );
+    // A service.local.json env override as `flisk up` plans it; the reload below stands in for the
+    // value having been edited while the run was up.
+    let token = "LOCAL_API_TOKEN_BEFORE_EDIT_001";
+    const plans = (t: string) =>
+      planNativeRun(
+        [
+          service(join(root, "api"), "api", {
+            command: `${NODE} server.mjs`,
+            port: apiPort,
+            healthCheckPath: "/health",
+            env: { API_TOKEN: t },
+          }),
+        ],
+        {},
+        root,
+      ).services;
+    const lines: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plans(token),
+      { onLine: (_name, line) => lines.push(line) },
+      { reload: () => ({ plans: plans(token), baseEnv: {} }) },
+    );
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+    await waitFor(() => lines.some((line) => line === "token=[REDACTED]"));
+
+    token = "LOCAL_API_TOKEN_AFTER_EDIT_002";
+    expect((await requestNativeRestart(root, "api", { waitMs: 20_000 })).state).toBe("ready");
+    await waitFor(() => lines.filter((line) => line.startsWith("token=")).length >= 2);
+
+    // The restarted process writes with the fresh plan's env: both the old and the newly loaded
+    // override value stay masked on the terminal and in the persisted log.
+    expect(lines.filter((line) => line === "token=[REDACTED]")).toHaveLength(2);
+    const output = lines.join("\n");
+    expect(output).not.toContain("LOCAL_API_TOKEN_BEFORE_EDIT_001");
+    expect(output).not.toContain("LOCAL_API_TOKEN_AFTER_EDIT_002");
+    const stored = readFileSync(nativeLogPath(root, "api"), "utf-8");
+    expect(stored).not.toContain("LOCAL_API_TOKEN_BEFORE_EDIT_001");
+    expect(stored).not.toContain("LOCAL_API_TOKEN_AFTER_EDIT_002");
   });
 
   it("reports failed with the cause in the log when the restarted service dies", async () => {

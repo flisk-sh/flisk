@@ -329,17 +329,31 @@ export function findMissingPrograms(
   return missing;
 }
 
-/** True when something accepts TCP connections on localhost:port. */
+/**
+ * True when something accepts TCP connections on localhost:port. The probe ends the socket
+ * cleanly after connecting: an immediate destroy can make a server that has already written a
+ * greeting log a connection reset, which looks like a failure to the person running `flisk up`.
+ */
 export function isPortListening(port: number, timeoutMs = 1_000): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = connect({ host: "localhost", port });
-    const finish = (listening: boolean) => {
-      socket.destroy();
+    let settled = false;
+    const finish = (listening: boolean, graceful: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (graceful && !socket.destroyed) {
+        socket.end();
+        // Drain anything the server sent so its write finishes before we let go of the socket.
+        socket.resume();
+        socket.once("close", () => socket.destroy());
+      } else {
+        socket.destroy();
+      }
       resolve(listening);
     };
-    socket.setTimeout(timeoutMs, () => finish(false));
-    socket.once("connect", () => finish(true));
-    socket.once("error", () => finish(false));
+    socket.setTimeout(timeoutMs, () => finish(false, false));
+    socket.once("connect", () => finish(true, true));
+    socket.once("error", () => finish(false, false));
   });
 }
 
@@ -351,6 +365,27 @@ async function healthCheckStatus(url: string): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * The single readiness probe used while starting, restarting or waiting for a local process.
+ * When the plan has an HTTP health URL the first probe is a real HTTP GET, so an HTTP server
+ * never sees a bare connect that it would log as a reset. TCP and command checks keep their
+ * own probe. This is shared by `up`, `status` and `--wait` through `waitForServiceReady`.
+ */
+export async function probeServiceReady(
+  plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled"> &
+    Partial<Pick<NativeServicePlan, "readiness" | "cwd" | "env">>,
+): Promise<number | null> {
+  const readiness = plan.healthCheckDisabled ? undefined : plan.readiness;
+  if (readiness?.kind === "port") {
+    return (await isPortListening(readiness.port)) ? 0 : null;
+  }
+  if (readiness?.kind === "command") {
+    return (await readinessCommandPasses(readiness.command, plan)) ? 0 : null;
+  }
+  if (plan.healthUrl) return healthCheckStatus(plan.healthUrl);
+  return plan.port !== undefined && (await isPortListening(plan.port)) ? 0 : null;
 }
 
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
@@ -373,18 +408,11 @@ export async function waitForServiceReady(
   }
   while (Date.now() < deadline) {
     if (!options.isAlive()) return false;
-    const ready =
-      readiness?.kind === "port"
-        ? await isPortListening(readiness.port)
-        : readiness?.kind === "command"
-          ? await readinessCommandPasses(readiness.command, plan)
-          : plan.healthUrl
-            ? await healthCheckStatus(plan.healthUrl).then((status) => {
-                if (status !== null) options.onStatus?.(status);
-                return status !== null;
-              })
-            : await isPortListening(plan.port as number);
-    if (ready) return true;
+    const status = await probeServiceReady(plan);
+    if (status !== null) {
+      if (status > 0) options.onStatus?.(status);
+      return true;
+    }
     await sleep(interval);
   }
   return false;
@@ -416,6 +444,7 @@ function readinessCommandPasses(
       cwd: plan.cwd,
       env: { ...process.env, ...(plan.env ?? {}) },
       stdio: "ignore",
+      windowsHide: true,
     });
     const timer = setTimeout(() => child.kill("SIGKILL"), READINESS_COMMAND_TIMEOUT_MS);
     child.once("error", () => {
@@ -476,6 +505,15 @@ export function readNativeRunState(projectRoot: string): NativeRunState | null {
   } catch {
     return null;
   }
+}
+
+/** True only when the supervisor pid still belongs to the process recorded for this native run. */
+export async function isNativeRunSupervisorAlive(state: NativeRunState | null): Promise<boolean> {
+  if (!state || state.pidStartTime === undefined || !isProcessAlive(state.pid)) return false;
+  const startedAt = Date.parse(state.startedAt);
+  if (Number.isFinite(startedAt) && startedAt < bootTimeMs()) return false;
+  const currentStartTime = await processStartTime(state.pid);
+  return currentStartTime !== undefined && currentStartTime === state.pidStartTime;
 }
 
 function writeNativeRunState(projectRoot: string, state: NativeRunState): void {
@@ -567,18 +605,35 @@ export interface NativeStopDeps {
   stopGroup: (pid: number, startTime: string) => Promise<void>;
 }
 
-const defaultStopDeps: NativeStopDeps = {
-  isAlive: isProcessAlive,
-  startTimeOf: (pid) => processStartTime(pid),
-  bootTimeMs,
-  terminateSupervisor: async (pid, timeoutMs) => {
+/**
+ * Asks the supervising `flisk up` to stop, then waits for it to be gone. On POSIX that is a SIGTERM, which the supervisor
+ * answers by stopping its services in order. Windows has no such signal: `process.kill` ends the process at once, and with it
+ * the shells (cmd.exe) of its services, whose pipes close, but not the processes those shells started, which then run on with
+ * no parent to find them by. So on Windows the supervisor's whole process tree is ended, services included.
+ */
+export async function terminateSupervisorProcess(
+  pid: number,
+  timeoutMs: number,
+  platform: NodeJS.Platform = process.platform,
+  killTree: (pid: number) => void = killWindowsTree,
+): Promise<void> {
+  if (platform === "win32") {
+    killTree(pid);
+  } else {
     try {
       process.kill(pid, "SIGTERM");
     } catch {
       // Gone between the check and the signal.
     }
-    await waitForExit(pid, timeoutMs);
-  },
+  }
+  await waitForExit(pid, timeoutMs);
+}
+
+const defaultStopDeps: NativeStopDeps = {
+  isAlive: isProcessAlive,
+  startTimeOf: (pid) => processStartTime(pid),
+  bootTimeMs,
+  terminateSupervisor: (pid, timeoutMs) => terminateSupervisorProcess(pid, timeoutMs),
   stopGroup: (pid, startTime) =>
     stopProcessGroup(pid, STOP_TIMEOUT_MS, async () => (await processStartTime(pid)) === startTime),
 };
@@ -877,6 +932,16 @@ export function shellInvocation(
   return { file: "/bin/sh", args: ["-c", command], windowsVerbatimArguments: false };
 }
 
+/**
+ * Whether a service gets its own process group. On Windows a detached child starts with its own console, and what it writes to
+ * a pipe never reaches the parent: a crashed service's error (a missing variable, a stack trace) was lost, so the log files,
+ * `flisk logs` and the failure text of `up` stayed empty. A Windows stop ends the whole tree with taskkill (signalGroup), so
+ * it does not need a group; the cost is that a Ctrl+C in the terminal also reaches the services directly.
+ */
+export function detachesServices(platform: NodeJS.Platform = process.platform): boolean {
+  return platform !== "win32";
+}
+
 /** True while the process has neither exited nor been ended by a signal (Node leaves `exitCode` null in the second case). */
 function isChildRunning(child: ChildProcess | undefined): boolean {
   return child !== undefined && child.exitCode === null && child.signalCode === null;
@@ -887,7 +952,8 @@ export class NativeSupervisor {
   /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
   private readonly logSizes = new Map<string, number>();
   private readonly migratorOutputs = new Map<string, Record<string, string>>();
-  private readonly redactLine: (line: string) => string;
+  /** Redacts one line of service output; rebuilt from the active plans whenever a restart reloads them. */
+  private redactLine: (line: string) => string;
   private readonly startedAt = new Date().toISOString();
   private pidStartTime?: string;
   private stopping = false;
@@ -917,14 +983,7 @@ export class NativeSupervisor {
     } = {},
   ) {
     this.baseEnv = options.baseEnv;
-    // Local overrides are applied to the plans, not written to service.json, so the discovery-based
-    // redactor cannot see them. Mask their secret-named env values with the same rules (including
-    // ${VAR} expansions and multiline values kept line by line) before any output is written.
-    const overrideSecrets = plans.flatMap((plan) => [
-      ...secretValuesFromEnv(plan.rawEnv),
-      ...secretValuesFromEnv(plan.env),
-    ]);
-    this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths, overrideSecrets);
+    this.redactLine = this.buildRedactor(plans);
     for (const plan of plans) {
       this.services.set(plan.name, {
         plan,
@@ -934,6 +993,20 @@ export class NativeSupervisor {
         isReady: false,
       });
     }
+  }
+
+  /**
+   * The redactor for the plans that are about to run. Local overrides are applied to the plans, not
+   * written to service.json, so the discovery-based redactor cannot see them: their secret-named
+   * env values are masked with the same rules (including ${VAR} expansions and multiline values kept
+   * line by line) before any output is written.
+   */
+  private buildRedactor(plans: readonly NativeServicePlan[]): (line: string) => string {
+    const overrideSecrets = plans.flatMap((plan) => [
+      ...secretValuesFromEnv(plan.rawEnv),
+      ...secretValuesFromEnv(plan.env),
+    ]);
+    return createEnvRedactor(this.projectRoot, this.options.extraEnvPaths, overrideSecrets);
   }
 
   /** The width service names are padded to in prefixed output. */
@@ -1093,9 +1166,11 @@ export class NativeSupervisor {
       env: { ...(this.baseEnv ?? process.env), ...plan.env },
       windowsVerbatimArguments: shell.windowsVerbatimArguments,
       // Its own process group, so a stop reaches what the shell started too, and a Ctrl+C in the terminal reaches only
-      // `flisk up`, which then stops the services in order.
-      detached: true,
+      // `flisk up`, which then stops the services in order. Not on Windows: see detachesServices.
+      detached: detachesServices(),
       stdio: ["ignore", "pipe", "pipe"],
+      // Without this a console window opens for every service (and every restart) when flisk runs without a console of its own.
+      windowsHide: true,
     });
     service.child = child;
     service.startTime = undefined;
@@ -1414,6 +1489,9 @@ export class NativeSupervisor {
       if (!fresh) return;
       service.plan = fresh;
       this.baseEnv = baseEnv;
+      // The restarted process writes with the fresh plan's env, so the redaction must follow it: a
+      // local override changed since start (or one the reload re-read) must not start leaking.
+      this.redactLine = this.buildRedactor(plans);
     } catch {
       // An unreadable env file keeps the plan the run started with.
     }

@@ -99,6 +99,62 @@ describe("service.local.json overrides", () => {
     );
   });
 
+  it("skips an invalid local file per resource, keeping other services' valid overrides", () => {
+    const root = createTempProject({
+      projectJson,
+      files: {
+        "services/app/api/service.json": JSON.stringify({
+          appName: "api",
+          appType: "backend",
+          stack: "app",
+          schemaVersion: 1,
+          port: 8080,
+        }),
+        "services/app/api/service.local.json": '{"port": 9100,',
+        "services/app/worker/service.json": JSON.stringify({
+          appName: "worker",
+          appType: "worker",
+          stack: "app",
+          schemaVersion: 1,
+        }),
+        "services/app/worker/service.local.json": JSON.stringify({ enabled: false }),
+      },
+    });
+    const discovered = discoverResourcesFromRoot(root);
+    const { resources, overrides, invalidFiles } = applyServiceLocalOverrides(discovered, {
+      skipInvalidFiles: true,
+    });
+
+    // The malformed file is one service's problem: api falls back to its committed fields while the
+    // worker keeps its valid override (a disabled service must not come back to life because
+    // another file is broken).
+    const apiResource = resources.find((resource) => resource.name === "api");
+    const worker = resources.find((resource) => resource.name === "worker");
+    expect(apiResource?.config?.port).toBe(8080);
+    expect(worker?.config?.enabled).toBe(false);
+    expect(overrides).toEqual([{ service: "worker", field: "enabled" }]);
+    expect(invalidFiles[0]).toMatch(/service\.local\.json: invalid JSON/);
+  });
+
+  it("still throws on the first invalid file without skipInvalidFiles", () => {
+    const root = createTempProject({
+      projectJson,
+      files: {
+        "services/app/api/service.json": JSON.stringify({
+          appName: "api",
+          appType: "backend",
+          stack: "app",
+          schemaVersion: 1,
+        }),
+        "services/app/api/service.local.json": '{"port": 9100,',
+      },
+    });
+
+    expect(() => applyServiceLocalOverrides(discoverResourcesFromRoot(root))).toThrow(
+      /invalid JSON/,
+    );
+  });
+
   it("leaves generated Docker/Tilt output byte-identical with a local file present", () => {
     const root = fixture();
     const generate = () =>

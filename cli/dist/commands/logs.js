@@ -82,6 +82,7 @@ function nativeResources(projectRoot) {
 export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .description("Print a bounded snapshot of recent logs from the running stack")
     .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
+    .option("-f, --follow", "Live follow is unavailable; use flisk ui or repeat with --since")
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
     .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
@@ -111,6 +112,9 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         }
         return showErrorAndExit(message, exitCode);
     };
+    if (options.follow) {
+        fail("FOLLOW_NOT_SUPPORTED", "flisk logs prints a snapshot; live follow is not supported. Use flisk ui or repeat with --since 10s.");
+    }
     if (!isValidTail(options.tail))
         fail("USAGE", `--tail must be an integer from 1 to ${MAX_LOG_TAIL}`, 2);
     if (options.since !== undefined && !isValidSince(options.since)) {

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { expect, it } from "vitest";
+import { createTempDir, runFlisk } from "../../test-support/index.js";
 import { logsCommand } from "../logs.js";
 
 it("shows examples in logs help", () => {
@@ -26,4 +27,16 @@ it("documents --source", () => {
   logsCommand.outputHelp();
   expect(help).toContain("--source <source>");
   expect(help).toContain("flisk logs --service orders-api --source runtime --json");
+});
+
+it("gives a snapshot hint for follow and reserves the positional hint for names", () => {
+  const cwd = createTempDir("logs-options");
+  const run = (...args: string[]) => runFlisk(["logs", ...args], { cwd });
+  const follow = run("-f");
+  expect(follow.status).toBe(1);
+  expect(follow.stdout + follow.stderr).toContain("live follow is not supported");
+  const unknown = run("--unknown");
+  expect(unknown.stdout + unknown.stderr).not.toContain("Service names are not positional");
+  const positional = run("api");
+  expect(positional.stdout + positional.stderr).toContain("Service names are not positional");
 });
