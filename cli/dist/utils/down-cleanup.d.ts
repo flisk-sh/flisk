@@ -40,7 +40,7 @@ export interface PruneNetworksPlan {
  */
 export declare function planProjectNetworkPrune(projectName: string, commandRunner?: CommandRunner, stoppedByDown?: readonly string[]): PruneNetworksPlan;
 /**
- * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
+ * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` or PowerShell fails),
  * so a caller can tell "no tilt up" from "could not look".
  */
 export declare function lookupProjectTiltUpPids(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[] | null;
