@@ -22,21 +22,24 @@ describe("stripTemplateExtras", () => {
     const root = tempDir();
     writeFileSync(join(root, "SALES_PITCH.md"), "pitch");
     writeFileSync(join(root, "DEMO_GUIDE.md"), "guide");
-    writeFileSync(join(root, "README.md"), [
-      "├── SALES_PITCH.md",
-      "├── DEMO_GUIDE.md",
-      "",
-      "- 📊 **[Sales Pitch Deck (SALES_PITCH.md)](SALES_PITCH.md):** Executive problem statement, core value pillars, and",
-      "ROI metrics.",
-      "- 🎬 **[Demo Walkthrough Guide (DEMO_GUIDE.md)](DEMO_GUIDE.md):** Step-by-step playbook",
-      "for sales engineers.",
-      "",
-      '<a href="SALES_PITCH.md">Sales Pitch</a>',
-      '<a href="DEMO_GUIDE.md">Demo Guide</a>',
-      "",
-      "See [the running app](docs/app.md) and ![screenshot](docs/app.png).",
-      "",
-    ].join("\n"));
+    writeFileSync(
+      join(root, "README.md"),
+      [
+        "├── SALES_PITCH.md",
+        "├── DEMO_GUIDE.md",
+        "",
+        "- 📊 **[Sales Pitch Deck (SALES_PITCH.md)](SALES_PITCH.md):** Executive problem statement, core value pillars, and",
+        "ROI metrics.",
+        "- 🎬 **[Demo Walkthrough Guide (DEMO_GUIDE.md)](DEMO_GUIDE.md):** Step-by-step playbook",
+        "for sales engineers.",
+        "",
+        '<a href="SALES_PITCH.md">Sales Pitch</a>',
+        '<a href="DEMO_GUIDE.md">Demo Guide</a>',
+        "",
+        "See [the running app](docs/app.md) and ![screenshot](docs/app.png).",
+        "",
+      ].join("\n"),
+    );
 
     const removed = stripTemplateExtras(root, ["SALES_PITCH.md", "DEMO_GUIDE.md"]);
 
@@ -64,11 +67,7 @@ describe("stripTemplateExtras", () => {
     writeFileSync(join(root, "docs", "demo.gif"), "gif");
     writeFileSync(join(root, "docs", "demo.mp4"), "mp4");
 
-    const removed = stripTemplateExtras(root, [
-      "docs/demo.gif",
-      "docs/demo.mp4",
-      "video/shots",
-    ]);
+    const removed = stripTemplateExtras(root, ["docs/demo.gif", "docs/demo.mp4", "video/shots"]);
 
     expect(removed).toEqual(["docs/demo.gif", "docs/demo.mp4", "video/shots"]);
     expect(existsSync(join(root, "video", "shots"))).toBe(false);

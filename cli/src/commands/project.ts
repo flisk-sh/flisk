@@ -42,9 +42,9 @@ import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
-import { stripTemplateExtras } from "../utils/template-extras.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
+import { stripTemplateExtras } from "../utils/template-extras.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
 import { isTargetDirSafe } from "../utils/validation.js";
 
