@@ -4,13 +4,63 @@
 Pytest configuration and shared fixtures for tilt-engine tests.
 """
 
+import importlib.util
 import json
 import os
 import pytest
+import sys
 import tempfile
 import shutil
+import warnings
 from pathlib import Path
 from typing import Generator
+
+# The engine and its tests use Python 3.10+ syntax (e.g. `str | None`). On an older interpreter
+# collection fails with a TypeError before pytest can skip anything, so refuse the whole directory
+# with one clear reason instead (#4304). README.md documents the same minimum for contributors.
+MIN_TEST_PYTHON = (3, 10)
+
+
+def unsupported_python(version=None) -> bool:
+    """True when `version` (default: the running interpreter) is below the documented minimum."""
+    current = tuple(sys.version_info if version is None else version)[:2]
+    return current < MIN_TEST_PYTHON
+
+
+def pytest_configure(config):
+    if unsupported_python():
+        minimum = ".".join(map(str, MIN_TEST_PYTHON))
+        warnings.warn(
+            f"Flisk engine tests require Python {minimum}+ (README.md); found "
+            f"{sys.version.split()[0]}. Skipping tests/tilt-engine collection.",
+            stacklevel=1,
+        )
+
+
+def pytest_ignore_collect(collection_path, config):
+    """Do not import test modules on an unsupported interpreter; their annotations are 3.10+."""
+    return (
+        unsupported_python()
+        and collection_path.suffix == ".py"
+        and collection_path.name.startswith("test_")
+    )
+
+
+def asyncio_plugin_missing(find_spec=None) -> bool:
+    """True when the async-test plugin from tests/requirements.txt is not installed (#4304)."""
+    finder = importlib.util.find_spec if find_spec is None else find_spec
+    return finder("pytest_asyncio") is None
+
+
+def pytest_collection_modifyitems(config, items):
+    if not asyncio_plugin_missing():
+        return
+    skip = pytest.mark.skip(
+        reason="pytest-asyncio is required for async engine tests (see tests/requirements.txt)"
+    )
+    for item in items:
+        if "asyncio" in item.keywords:
+            item.add_marker(skip)
 
 
 @pytest.fixture
