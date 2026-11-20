@@ -653,6 +653,16 @@ function normalizeProjectConfig(value: unknown): NormalizedProjectConfig {
   if (typeof project.name !== "string") {
     return fail("project.name", "a string", project.name);
   }
+  // Reading an existing project.json accepts every name Docker Compose accepts for a project (lowercase letters, numbers,
+  // hyphens and underscores, starting with a letter or number): `flisk import` keeps a Compose project's own name such as
+  // `pl_mail` so its volume names stay stable. The stricter kebab-case rule applies where Flisk derives or asks for a name.
+  if (project.name.length > 64 || !/^[a-z0-9][a-z0-9_-]*$/.test(project.name)) {
+    return fail(
+      "project.name",
+      "a Docker-compatible name (lowercase letters, numbers, hyphens and underscores, starting with a letter or number)",
+      project.name,
+    );
+  }
   if (typeof project.version !== "string") {
     return fail("project.version", "a string", project.version);
   }
