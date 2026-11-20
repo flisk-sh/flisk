@@ -6,9 +6,9 @@
  * forgetting a few projects fills the host disk and memory long before anyone runs `flisk down` (#4296).
  */
 
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { execFileSync } from "node:child_process";
 import { readProjectConfig } from "../generator/template-engine.js";
 import type { CheckResult } from "../types/index.js";
 import { formatBytes } from "./formatting.js";
@@ -90,8 +90,7 @@ export interface IdleProjectOptions {
 export function checkIdleProjects(options: IdleProjectOptions = {}): CheckResult {
   const runner = options.commandRunner ?? defaultRun;
   const idleHours = options.idleHours ?? DEFAULT_IDLE_HOURS;
-  const psOutput =
-    options.psOutput ?? safeRun(runner, "ps", ["-axo", "pid=,etime=,command="]);
+  const psOutput = options.psOutput ?? safeRun(runner, "ps", ["-axo", "pid=,etime=,command="]);
   const running = parseRunningProjects(psOutput, options.isProject).filter(
     (p) => p.uptimeSeconds >= idleHours * 3600,
   );
@@ -120,8 +119,7 @@ export function checkIdleProjects(options: IdleProjectOptions = {}): CheckResult
   });
 
   const dockerOutput =
-    options.dockerOutput ??
-    safeRun(runner, "docker", ["ps", "--format", '{{.Names}}\t{{.Size}}']);
+    options.dockerOutput ?? safeRun(runner, "docker", ["ps", "--format", "{{.Names}}\t{{.Size}}"]);
   for (const line of dockerOutput.split(/\r?\n/)) {
     const [name, size] = line.trim().split(/\s+/);
     if (!name) continue;
@@ -145,7 +143,10 @@ export function checkIdleProjects(options: IdleProjectOptions = {}): CheckResult
     const [name, projectLabel] = line.trim().split(/\s+/);
     if (!name) continue;
     for (const project of projects) {
-      if (projectLabel?.toLowerCase() === project.key || name.toLowerCase().startsWith(project.key)) {
+      if (
+        projectLabel?.toLowerCase() === project.key ||
+        name.toLowerCase().startsWith(project.key)
+      ) {
         project.volumes += 1;
       }
     }

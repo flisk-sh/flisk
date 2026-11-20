@@ -53,11 +53,9 @@ describe("checkIdleProjects (#4296)", () => {
       " 1 2-01:00:00 tilt up -f /work/bot/.flisk/.flisk-out/Tiltfile",
       " 2 49:00:00 tilt up -f /work/fresh/.flisk/.flisk-out/Tiltfile",
     ].join("\n");
-    const dockerOutput = [
-      "bot-web-1\t12.4MB",
-      "bot_postgres\t1.2GB",
-      "fresh-web-1\t1MB",
-    ].join("\n");
+    const dockerOutput = ["bot-web-1\t12.4MB", "bot_postgres\t1.2GB", "fresh-web-1\t1MB"].join(
+      "\n",
+    );
     const volumeOutput = ["bot_db\tbot", "bot_nats\tbot", "other_db\tother"].join("\n");
     const result = checkIdleProjects({
       psOutput: ps,

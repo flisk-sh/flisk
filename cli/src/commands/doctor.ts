@@ -38,8 +38,8 @@ import {
   planDoctorFixes,
   projectTiltPids,
 } from "../utils/doctor-fix.js";
-import { checkIdleProjects } from "../utils/doctor-idle.js";
 import { checkDiskSpace } from "../utils/doctor-host.js";
+import { checkIdleProjects } from "../utils/doctor-idle.js";
 import {
   checkEnvironmentVariables,
   checkFliskVersion,
