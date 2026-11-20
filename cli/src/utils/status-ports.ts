@@ -196,6 +196,10 @@ export function buildStackPorts(
   tiltPort?: number,
   options?: StackPortsOptions,
 ): StackPort[] {
+  if (typeof options === "object" && options !== null && "native" in options && options.native) {
+    // A local process publishes nothing through the stack: no ingress, no Tilt UI, no Postgres container.
+    return [];
+  }
   const gatewayEnabled = resolveGatewayOption(options);
   const ports: StackPort[] = [];
   if (plan && gatewayEnabled) {

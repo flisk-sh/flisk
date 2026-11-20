@@ -123,6 +123,10 @@ export function buildServicePorts(resource, ingressHttp, options, lookup) {
 }
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */
 export function buildStackPorts(plan, tiltPort, options) {
+    if (typeof options === "object" && options !== null && "native" in options && options.native) {
+        // A local process publishes nothing through the stack: no ingress, no Tilt UI, no Postgres container.
+        return [];
+    }
     const gatewayEnabled = resolveGatewayOption(options);
     const ports = [];
     if (plan && gatewayEnabled) {
