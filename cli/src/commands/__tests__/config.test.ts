@@ -630,6 +630,36 @@ describe("config enable-infra and disable-infra", () => {
     expect(fs.readFileSync(path.join(root, ".flisk", "project.json"))).toEqual(before);
   });
 
+  it("reports no change for an already enabled verdaccio without a license (#4432)", async () => {
+    vi.stubEnv("FLISK_LICENSE_KEY", "");
+    const root = createTempProject({
+      projectJson: projectJson("config-boundaries", { verdaccio: true }),
+    });
+    const before = fs.readFileSync(path.join(root, ".flisk", "project.json"));
+
+    const result = await runCommandInProcess(configCommand, ["enable-infra", "verdaccio"], root);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stdout).toContain("No change: verdaccio is already enabled");
+    expect(fs.readFileSync(path.join(root, ".flisk", "project.json"))).toEqual(before);
+  });
+
+  it("keeps the license requirement for a dry run that would enable verdaccio", async () => {
+    vi.stubEnv("FLISK_LICENSE_KEY", "");
+    const root = createTempProject({ projectJson: projectJson() });
+    const before = fs.readFileSync(path.join(root, ".flisk", "project.json"));
+
+    const result = await runCommandInProcess(
+      configCommand,
+      ["enable-infra", "verdaccio", "--dry-run"],
+      root,
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Verdaccio is a Premium feature");
+    expect(fs.readFileSync(path.join(root, ".flisk", "project.json"))).toEqual(before);
+  });
+
   it("lets verdaccio be disabled without a license", async () => {
     vi.stubEnv("FLISK_LICENSE_KEY", "");
     const root = createTempProject({
