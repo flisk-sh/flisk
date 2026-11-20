@@ -103,6 +103,27 @@ export function localDatabaseEnv(dependsOn, databaseNames = [], declaredEnv = {}
         : { DATABASE_URL: "" };
 }
 /**
+ * What a native `flisk up` does about the run already on record, decided before auto ports are resolved so the active
+ * run's ports are kept instead of reallocated around it: `attach` keeps the running services and their saved ports (a
+ * second resolution would see the run's own ports occupied and save different ones), and a `--force` replacement (or a
+ * dead supervisor's leftovers) is stopped first, so the new run replays this checkout's saved assignment. `flisk up`
+ * answers `attach` itself; `runNativeUp` re-checks and remains the guard for the one-command flow.
+ */
+export async function decideNativeRun(projectRoot, options = {}) {
+    if (options.dryRun)
+        return { action: "start" };
+    const running = readNativeRunState(projectRoot);
+    if (!running)
+        return { action: "start" };
+    if (running.pid !== process.pid && isProcessAlive(running.pid) && !options.force) {
+        return { action: "attach", pid: running.pid };
+    }
+    // --force replaces the live run; a dead supervisor's leftovers must not hold ports either. Stop whatever the record
+    // owns (its processes and containers) before ports are chosen.
+    await stopNativeRun(projectRoot);
+    return { action: "start" };
+}
+/**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).
  */

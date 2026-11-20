@@ -55,6 +55,7 @@ vi.mock("../errors.js", async (importOriginal) => ({
 }));
 
 const {
+  decideNativeRun,
   localDatabaseEnv,
   nativeUrlChecks,
   runNativeUp,
@@ -456,6 +457,51 @@ describe("runNativeUp with an existing run", () => {
     });
     expect(runtime.stopNativeRun).toHaveBeenCalledWith(root);
     expect(exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("decideNativeRun", () => {
+  it("attaches to a live run without stopping anything, so its ports stay the saved ones", async () => {
+    runtime.readNativeRunState.mockReturnValue({ pid: 999_999 });
+    runtime.isProcessAlive.mockReturnValue(true);
+
+    const decision = await decideNativeRun("/tmp/proj");
+
+    expect(decision).toEqual({ action: "attach", pid: 999_999 });
+    expect(runtime.stopNativeRun).not.toHaveBeenCalled();
+  });
+
+  it("stops the owned run before a --force replacement can resolve ports", async () => {
+    runtime.readNativeRunState.mockReturnValue({ pid: 999_999 });
+    runtime.isProcessAlive.mockReturnValue(true);
+
+    const decision = await decideNativeRun("/tmp/proj", { force: true });
+
+    expect(decision).toEqual({ action: "start" });
+    expect(runtime.stopNativeRun).toHaveBeenCalledWith("/tmp/proj");
+  });
+
+  it("clears a dead supervisor's leftovers before a fresh start", async () => {
+    runtime.readNativeRunState.mockReturnValue({ pid: 999_999 });
+    runtime.isProcessAlive.mockReturnValue(false);
+
+    const decision = await decideNativeRun("/tmp/proj");
+
+    expect(decision).toEqual({ action: "start" });
+    expect(runtime.stopNativeRun).toHaveBeenCalledWith("/tmp/proj");
+  });
+
+  it("starts cold with no run on record, and never decides during a dry run", async () => {
+    expect(await decideNativeRun("/tmp/proj")).toEqual({ action: "start" });
+    expect(runtime.stopNativeRun).not.toHaveBeenCalled();
+
+    // A dry run reports a plan: it neither attaches nor stops the run on record.
+    runtime.readNativeRunState.mockReturnValue({ pid: 999_999 });
+    runtime.isProcessAlive.mockReturnValue(true);
+    runtime.readNativeRunState.mockClear();
+    expect(await decideNativeRun("/tmp/proj", { dryRun: true })).toEqual({ action: "start" });
+    expect(runtime.readNativeRunState).not.toHaveBeenCalled();
+    expect(runtime.stopNativeRun).not.toHaveBeenCalled();
   });
 });
 

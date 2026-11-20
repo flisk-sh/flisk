@@ -6,7 +6,8 @@
 
 def _env_name(name):
     result = ''
-    for char in name:
+    # Tilt's Starlark cannot iterate a string directly (see _chars in validator.star); index it instead.
+    for char in [name[i] for i in range(len(name))]:
         if ('a' <= char and char <= 'z') or ('A' <= char and char <= 'Z') or ('0' <= char and char <= '9'):
             result += char.upper()
         else:

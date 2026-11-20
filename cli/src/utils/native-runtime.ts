@@ -117,6 +117,9 @@ export function localUrl(port: number, path = ""): string {
   return `http://localhost:${port}${path}`;
 }
 
+/** `http://localhost:4000` and friends: the host part is kept, the complete port number is captured for a rewrite. */
+const ENDPOINT_PORT_PATTERN = /((?:localhost|127\.0\.0\.1):)(\d+)/g;
+
 /**
  * Start order as waves: every service in a wave depends only on services in earlier waves. Names in `dependsOn` that are not
  * part of the selection are ignored here (planNativeRun reports them). Throws on a cycle; the service config gate refuses
@@ -232,10 +235,14 @@ export function planNativeRun(
         missingVars.push(`${resource.name}: ${name}`),
       );
     }
-    // A dependency's URL in `env` still names the port from service.json. Point it at the port this run resolved.
+    // A dependency's URL in `env` still names the port from service.json. Point it at the port this run resolved — but
+    // only for services this service depends on: an unrelated service that moved off the same port must not rewrite
+    // someone else's URL. Self is excluded: a service never points at the port it moved itself.
+    const dependencyNames = new Set(dependsOn);
     const rewrites = new Map<number, number>();
     for (const candidate of selected) {
-      if (candidate.autoPort !== true || candidate.name === resource.name) continue;
+      if (candidate.name === resource.name || !dependencyNames.has(candidate.name)) continue;
+      if (candidate.autoPort !== true) continue;
       const before =
         candidate.portBeforeAuto ??
         (typeof candidate.declaredPort === "number" ? candidate.declaredPort : undefined);
@@ -246,14 +253,13 @@ export function planNativeRun(
         rewrites.set(before, after);
       }
     }
+    // One pass over the original value, matching the complete port: chained replaceAll would turn a's 4000→4001 into
+    // b's 4001→4002, and a prefix match would rewrite localhost:40000 as localhost:40010.
     for (const [key, value] of Object.entries(env)) {
-      let rewritten = value;
-      for (const [before, after] of rewrites) {
-        rewritten = rewritten
-          .replaceAll(`localhost:${before}`, `localhost:${after}`)
-          .replaceAll(`127.0.0.1:${before}`, `127.0.0.1:${after}`);
-      }
-      env[key] = rewritten;
+      env[key] = value.replace(ENDPOINT_PORT_PATTERN, (whole, prefix: string, digits: string) => {
+        const after = rewrites.get(Number(digits));
+        return after === undefined ? whole : `${prefix}${after}`;
+      });
     }
     const containerName = isNativeContainerService(resource)
       ? nativeContainerName(containerProject, resource.name)

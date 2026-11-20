@@ -175,6 +175,10 @@ def generate_frontend_compose(resource_path, resource_name, res, manifest=None):
       - {env_file_rel_path}
     environment:
         - VITE_APP_ENV=development
+        # #4683: the run-time port for this checkout. Compose interpolates the placeholder from the environment the
+        # CLI exports, overriding the image's deterministic ENV PORT, so `next dev` (and any server reading PORT)
+        # binds the port this run resolved without the generated file carrying the number.
+        - PORT={port}
     labels:
 {traefik_labels}
     networks:

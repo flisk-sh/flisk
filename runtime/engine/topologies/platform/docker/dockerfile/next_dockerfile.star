@@ -58,11 +58,15 @@ FROM base AS development
 # without this the dev server dies with EACCES: mkdir '.next'. Give the run user the app folder itself and .next, not what is
 # inside it (a recursive chown would copy node_modules into a new layer; the COPYs above already set the sources' owner).
 # NODE_ENV=development: next dev under the golden layer's NODE_ENV=production warns and serves from a build that does not exist.
+# #4683: the port is a run-time value. `next dev` reads PORT from the environment, and Compose sets PORT to the
+# resolved number at container start, so an auto port moves the server without rebuilding the image; the generated
+# file keeps only the deterministic fallback below. The same sh -c form the Python template uses: Docker does not
+# expand exec-form arguments.
 ENV NODE_ENV=development PORT={port} HOSTNAME=0.0.0.0
 RUN mkdir -p .next && chown {run_user}:{run_user} /app/{res_path} /app/{res_path}/.next
 USER {run_user}
 EXPOSE {port}
-CMD ["npx", "next", "dev", "--hostname", "0.0.0.0", "--port", "{port}"]
+CMD ["sh", "-c", "npx next dev --hostname 0.0.0.0 --port ${{PORT:-{port}}}"]
 
 FROM base AS build
 RUN npx next build

@@ -6,6 +6,12 @@ VANILLA_VITE_FRONTEND = """{header}
 import {{ resolve }} from 'node:path';
 import {{ defineConfig }} from 'vite';
 
+// #4683: the dev-server port is a run-time value. PORT reaches this process through Compose
+// interpolation or the native runtime; the manifest number below is only the fallback, so the
+// generated file stays deterministic whatever port this checkout picked.
+const serverPort = Number(process.env.PORT) || {port};
+const hmrPort = serverPort + 1000;
+
 export default defineConfig({{
   base: '{base_path}',
   build: {{
@@ -41,9 +47,9 @@ export default defineConfig({{
   }},
   server: {{
     host: '0.0.0.0',
-    port: {port},
+    port: serverPort,
     hmr: {{
-      port: {hmr_port},
+      port: hmrPort,
     }},
 {proxy_config}
   }},

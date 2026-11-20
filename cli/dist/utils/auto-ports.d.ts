@@ -25,7 +25,12 @@ export declare function autoPortRange(resource: DiscoveredResource): {
 /** The Compose/Tilt environment variable that carries a service's resolved port into generated `${...}` placeholders. */
 export declare function autoPortEnvName(resource: DiscoveredResource): string;
 export declare function overlayResolvedPorts(resources: readonly DiscoveredResource[], resolved: ReadonlyMap<string, number>, previous?: ReadonlyMap<string, number>): DiscoveredResource[];
-/** Overlay the ports remembered from an earlier `flisk up` so status/open/resources report the same addresses. */
+/**
+ * Overlay the ports remembered from an earlier `flisk up` so status/open/resources report the same addresses. A service
+ * that received its port from `--auto-port` keeps that choice on a later plain `flisk up`, even though its manifest
+ * declares a number: the saved assignment is this checkout's, while the manifest port is only the fallback when the
+ * saved one left the range.
+ */
 export declare function applySavedAutoPorts(resources: readonly DiscoveredResource[], projectRoot: string | null | undefined): DiscoveredResource[];
 export interface ResolveAutoPortsOptions {
     /** `--auto-port`: apply to every service in this run, even manifests that declare a fixed number. */
@@ -66,7 +71,9 @@ export interface AutoPortResolution {
 }
 /**
  * Choose a free port for every `auto` service (and every service under `--auto-port`), reusing this checkout's saved port
- * while it is still free. Fixed ports and their conflict errors are untouched when `force` is false.
+ * while it is still free. Fixed ports and their conflict errors are untouched when `force` is false, except a service
+ * that already holds a saved assignment from an earlier `--auto-port`: its manifest number is the fallback, not the
+ * port this checkout runs on.
  */
 export declare function resolveAutoPorts(resources: readonly DiscoveredResource[], projectRoot: string, options?: ResolveAutoPortsOptions): Promise<AutoPortResolution>;
 export {};

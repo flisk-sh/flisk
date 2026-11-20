@@ -133,3 +133,24 @@ export function evaluateReadiness(
 export function isGatewayLivenessProbe(method: string, pathname: string, headers: Headers): boolean {
   return method === "GET" && pathname === "/health" && !headers.has("X-Wake-Resource");
 }
+
+/** The port the gateway proxies to when a static route carries no usable port. */
+export const DEFAULT_PROXY_PORT = "80";
+
+/**
+ * The port a woken container listens on. A static route generated for `"port": "auto"` (#4683) cannot carry the
+ * resolved number (generated files stay deterministic), so its X-Wake-Proxy-Port header holds the
+ * `${FLISK_SERVICE_<NAME>_PORT:-default}` placeholder instead: server.ts passes the container's own environment,
+ * and the real port is its PORT entry (Compose already interpolated it when the container started), with the
+ * placeholder's own numeric default as the fallback. A fixed-port route carries the number and passes through
+ * unchanged.
+ */
+export function resolveProxyPort(rawPort: string, containerEnv?: string): string {
+  if (/^\d+$/.test(rawPort)) return rawPort;
+  const fromEnv = /^PORT=(\d+)$/m.exec(containerEnv ?? "")?.[1];
+  if (fromEnv) return fromEnv;
+  // `${FLISK_SERVICE_<NAME>_PORT:-4000}`: the route generator always writes a numeric default.
+  const fallback = /:-(\d+)\}/.exec(rawPort)?.[1];
+  if (fallback) return fallback;
+  return DEFAULT_PROXY_PORT;
+}

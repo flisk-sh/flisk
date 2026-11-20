@@ -110,8 +110,9 @@ def generate_frontend(manifest, backend_manifest=None, write_fn=None):
     
     resource_path = manifest.get('_resource_path', '')
     stack = manifest.get('stack', 'app')
+    # The dev-server port is read from PORT at run time (#4683); this number is only the generated fallback, and the
+    # HMR port derives from that same runtime value inside the config (see the framework templates).
     port = manifest_port_number(manifest, BASE_PORT_FRONTEND)
-    hmr_port = port + 1000  # HMR port is always port + 1000
     app_name = manifest.get('appName', 'unknown')
     base_path = get_frontend_base_path(manifest, app_name)
     vite_base_path = _normalize_vite_base_path(base_path)
@@ -134,7 +135,6 @@ def generate_frontend(manifest, backend_manifest=None, write_fn=None):
         header=header,
         base_path=vite_base_path,
         port=port,
-        hmr_port=hmr_port,
         proxy_config=proxy_config,
         internal_aliases=internal_aliases,
         optimize_deps_include=optimize_deps_include,

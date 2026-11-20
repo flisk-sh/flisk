@@ -185,6 +185,13 @@ def _validate_schema(manifest, context):
         
         stats['fields_checked'] += 1
         
+        # `"port": "auto"` is a run-time value the CLI resolves (#4683): the schema stage accepts the literal and
+        # skips the integer type and min/max constraints for it. The `auto` branch in _validate_values accepts it
+        # too, so a full validation (integration.star loads with level='all') never reports it as invalid.
+        if field_name == 'port' and value == 'auto':
+            stats['rules_passed'] += 1
+            continue
+        
         # Check field type
         field_type = field_schema.get('type')
         type_valid = _check_field_type(field_name, value, field_type, field_schema)

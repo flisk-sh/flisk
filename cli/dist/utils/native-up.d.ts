@@ -61,6 +61,23 @@ export declare function shadowedEnvKeys(projectRoot: string, envFilePath?: strin
  * that does not exist and never goes healthy (#4456). A service that does depend on the database keeps the value.
  */
 export declare function localDatabaseEnv(dependsOn: readonly string[], databaseNames?: readonly string[], declaredEnv?: Readonly<Record<string, string>>): Record<string, string>;
+export type NativeRunDecision = {
+    action: "attach";
+    pid: number;
+} | {
+    action: "start";
+};
+/**
+ * What a native `flisk up` does about the run already on record, decided before auto ports are resolved so the active
+ * run's ports are kept instead of reallocated around it: `attach` keeps the running services and their saved ports (a
+ * second resolution would see the run's own ports occupied and save different ones), and a `--force` replacement (or a
+ * dead supervisor's leftovers) is stopped first, so the new run replays this checkout's saved assignment. `flisk up`
+ * answers `attach` itself; `runNativeUp` re-checks and remains the guard for the one-command flow.
+ */
+export declare function decideNativeRun(projectRoot: string, options?: {
+    dryRun?: boolean;
+    force?: boolean;
+}): Promise<NativeRunDecision>;
 /**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).
