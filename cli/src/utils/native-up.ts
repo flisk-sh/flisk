@@ -8,7 +8,7 @@ import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { ensureGeneratedSecrets } from "./generated-secrets.js";
-import type { JsonEmitter } from "./json-output.js";
+import type { JsonEmitter, JsonError } from "./json-output.js";
 import { isDockerRunning } from "./native-container.js";
 import {
   dependencyWaves,
@@ -174,6 +174,71 @@ export function localDatabaseEnv(
     : { DATABASE_URL: "" };
 }
 
+/** A problem `flisk up` can detect before starting anything, in both a real run and a dry run. */
+export interface UpPreflightProblem {
+  code: string;
+  message: string;
+  suggestions?: string[];
+}
+
+/**
+ * The static preflight shared by `flisk up` and `flisk up --dry-run`: an invalid plan (including two services on one
+ * port), a binding toolchain mismatch and a command whose program is not installed. Everything here only reads, so a
+ * dry run reports these problems with `ok: false` and exits 1 instead of printing a plan a real run would refuse.
+ */
+export function nativeUpPreflight(
+  selected: readonly DiscoveredResource[],
+  plan: { services: readonly NativeServicePlan[]; errors: string[] },
+): UpPreflightProblem[] {
+  const problems: UpPreflightProblem[] = [];
+  if (plan.errors.length > 0) {
+    const message = plan.errors.join("\n");
+    problems.push({
+      code: "INVALID_SERVICE_CONFIG",
+      message: message.includes("both use port")
+        ? `${message}\nFix: Give each service a different "port" in its service.json (or use flisk resource to assign free ports).`
+        : message,
+    });
+  }
+
+  const toolchainMismatches = findToolchainMismatches(selected).filter(
+    (finding) => !finding.isHint,
+  );
+  if (toolchainMismatches.length > 0) {
+    problems.push({
+      code: "TOOLCHAIN_MISMATCH",
+      message: `${toolchainMismatches.map(describeToolchainFinding).join("\n")}\nSwitch to that version with your version manager, or change "toolchain" in the service.json.`,
+    });
+  }
+
+  for (const { name, program } of findMissingPrograms(plan.services)) {
+    problems.push({
+      code: "NATIVE_COMMAND_NOT_FOUND",
+      message: `service "${name}" runs ${program}, which is not installed (not found on PATH). Install it, or change "command" in its service.json.`,
+    });
+  }
+  return problems;
+}
+
+/**
+ * The host-port half of the same preflight. A real run calls it only after an already-running stack has been reported,
+ * since that stack legitimately holds its own ports; a dry run calls it before printing its plan.
+ */
+export async function nativeUpPortPreflight(
+  services: readonly NativeServicePlan[],
+): Promise<UpPreflightProblem[]> {
+  const problems: UpPreflightProblem[] = [];
+  for (const service of services) {
+    if (service.port === undefined || !(await isPortListening(service.port))) continue;
+    const occupant = findPortOccupant(service.port);
+    problems.push({
+      code: "PORT_IN_USE",
+      message: `Port ${service.port} for service "${service.name}" is already in use${occupant ? ` by ${occupant.command} (pid ${occupant.pid})` : ""}. Stop it, or change "port" in the service.json.`,
+    });
+  }
+  return problems;
+}
+
 /**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).
@@ -182,11 +247,21 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   const { projectRoot, selected, emit } = input;
   const exit = input.exit ?? ((code: number) => process.exit(code));
   const quiet = Boolean(input.quiet);
-  const fail = (code: string, message: string, data: Record<string, unknown> = {}): never => {
-    emit?.({ ok: false, runtime: "native", ...data }, [{ code, message }]);
-    showError(message);
+  const failProblems = (
+    problems: readonly UpPreflightProblem[],
+    extra: Record<string, unknown> = {},
+  ): never => {
+    const errors: JsonError[] = problems.map(({ code, message, suggestions }) => ({
+      code,
+      message,
+      ...(suggestions && suggestions.length > 0 ? { suggestions } : {}),
+    }));
+    emit?.({ ok: false, runtime: "native", ...extra }, errors);
+    showError(problems.map((problem) => problem.message).join("\n"));
     return exit(1);
   };
+  const fail = (code: string, message: string, data: Record<string, unknown> = {}): never =>
+    failProblems([{ code, message }], data);
 
   // Names a service declares in secrets.generate are written once to the env file before anything starts (never printed).
   const generatedNames = ensureGeneratedSecrets(projectRoot, selected, {
@@ -202,22 +277,11 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   }
   const vars = runVariables(projectRoot, input.envFilePath);
   const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
-  if (plan.errors.length > 0) fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
   const databaseNames = databaseResourceNames(selected);
   for (const service of plan.services) {
     if (!service.container) {
       Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames, service.env));
     }
-  }
-  // A "toolchain" in service.json is binding: a service on the wrong runtime fails later in ways that never name the version.
-  const toolchainMismatches = findToolchainMismatches(selected).filter(
-    (finding) => !finding.isHint,
-  );
-  if (toolchainMismatches.length > 0) {
-    fail(
-      "TOOLCHAIN_MISMATCH",
-      `${toolchainMismatches.map(describeToolchainFinding).join("\n")}\nSwitch to that version with your version manager, or change "toolchain" in the service.json.`,
-    );
   }
   if (plan.missingVars.length > 0 && !quiet) {
     console.warn(
@@ -226,17 +290,11 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       ),
     );
   }
-  const missing = findMissingPrograms(plan.services);
-  if (missing.length > 0) {
-    fail(
-      "NATIVE_COMMAND_NOT_FOUND",
-      missing
-        .map(
-          ({ name, program }) =>
-            `service "${name}" runs ${program}, which is not installed (not found on PATH). Install it, or change "command" in its service.json.`,
-        )
-        .join("\n"),
-    );
+  // One preflight for both modes: a dry run must refuse the same project a real start would refuse. It only reads,
+  // so the problems are collected before the dry-run plan is printed, and no generated file is written.
+  const problems = nativeUpPreflight(selected, plan);
+  if (problems.length > 0) {
+    failProblems(problems, input.dryRun ? { dryRun: true } : {});
   }
 
   const containers = plan.services.filter((service) => service.container);
@@ -285,6 +343,8 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
     }
   }
   if (input.dryRun) {
+    const portProblems = await nativeUpPortPreflight(plan.services);
+    if (portProblems.length > 0) failProblems(portProblems, { dryRun: true });
     emit?.({
       ok: true,
       dryRun: true,
@@ -306,16 +366,8 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up again.`,
     );
   }
-
-  for (const service of plan.services) {
-    if (service.port !== undefined && (await isPortListening(service.port))) {
-      const occupant = findPortOccupant(service.port);
-      fail(
-        "PORT_IN_USE",
-        `Port ${service.port} for service "${service.name}" is already in use${occupant ? ` by ${occupant.command} (pid ${occupant.pid})` : ""}. Stop it, or change "port" in the service.json.`,
-      );
-    }
-  }
+  const portProblems = await nativeUpPortPreflight(plan.services);
+  if (portProblems.length > 0) failProblems(portProblems);
 
   const width = Math.max(...serviceNames.map((name) => name.length));
   const prefix = (name: string) => formatPrefix(name, serviceNames.indexOf(name), width);
