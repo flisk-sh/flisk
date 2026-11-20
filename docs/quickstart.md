@@ -148,7 +148,7 @@ The [README](../README.md#installation) has the four install pages (npm, Bun, pr
 Please install Flisk and configure its local MCP server for this agent: https://flisk.sh/llms.txt
 ```
 
-Or run `flisk connect claude`, `flisk connect cursor` or `flisk connect codex` yourself; see [Flisk for AI agents](agents/flisk-for-agents.md).
+Or run `flisk connect claude`, `flisk connect cursor`, `flisk connect codex` or `flisk connect gemini` yourself; see [Flisk for AI agents](agents/flisk-for-agents.md).
 
 **Coming from the old package?** The CLI used to ship as `@tdk-landscape/tdk-cli-core`, and that package still owns the `flisk` command on a machine that installed it. Remove it once, then install Flisk:
 

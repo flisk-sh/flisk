@@ -94,7 +94,7 @@ export const connectCommand = new Command("connect")
   .option("--json", "Print the result as a JSON envelope")
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global",
+    "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global\n  flisk connect gemini --dry-run",
   )
   .action(async (hostArg: string, options: ConnectCommandOptions, command: Command) => {
     const target = options.project ?? command.optsWithGlobals().project;
