@@ -6,8 +6,8 @@ import { type ReadinessProbe } from "./service-manifest.js";
  * Docker and no Tilt. It runs in the foreground like `tilt up` does: Ctrl+C (or `flisk down` from another terminal) stops it.
  *
  * - Services start in `dependsOn` order: a service starts once everything it depends on is ready.
- * - Ready means the health URL answers (`healthCheckPath` on `port`), else the port accepts connections, else the process is
- *   still alive after a second.
+ * - Ready means the health URL answers (`healthCheckPath` on `port`), else the port accepts connections, else the same process
+ *   is still alive after a second. One that exits during that second is a failed start: its restart gets its own grace period.
  * - Output is prefixed with the service name and also appended to `.flisk/native/logs/<service>.log`.
  * - A process that exits is restarted with a growing delay, unless the service sets `"restart": "no"`. Five quick crashes in a
  *   row stop the restarts.
@@ -272,6 +272,11 @@ export declare class NativeSupervisor {
     });
     /** The width service names are padded to in prefixed output. */
     get prefixWidth(): number;
+    /**
+     * Waits for one startup attempt of a service: its probe, or a full grace period with the *same* process alive. A process
+     * that exits inside the grace is a failed attempt, so its restart gets a fresh wait instead of inheriting this one (#3950).
+     */
+    private waitForStartup;
     /**
      * Starts every service once its dependencies are ready. Resolves with the services that never became ready (empty when the
      * whole selection is up); a service whose dependency failed is reported as blocked and never started.
