@@ -236,7 +236,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     ],
     helpTexts: {
       after: [
-        "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
+        "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExit codes: 2 for an argument you typed wrong (an unknown --only service, an unknown --profile, an invalid --wait-timeout, a rejected --env-file), 1 for a failure such as a stack that cannot start.\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
       ],
     },
     subcommands: [],
@@ -459,6 +459,10 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       {
         flags: "-s, --service <names...>",
         description: "Only these services (names as in flisk resources)",
+      },
+      {
+        flags: "-f, --follow",
+        description: "Live follow is unavailable; use flisk ui or repeat with --since",
       },
       {
         flags: "--tail <n>",
@@ -818,6 +822,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         defaultValue: false,
       },
       {
+        flags: "--usage",
+        description: "Show CPU, memory and process usage per service",
+        defaultValue: false,
+      },
+      {
         flags: "--project <path>",
         description:
           "Show status for the Flisk project in this folder (default: the current project)",
@@ -826,7 +835,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict",
+        "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --usage\n  flisk status --json\n  flisk status --strict",
       ],
     },
     subcommands: [],
@@ -885,6 +894,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         description: "Stack name to assign to resources",
         required: false,
         variadic: false,
+      },
+      {
+        name: "extra",
+        description: "Additional positional inputs (resource names use --resources)",
+        required: false,
+        variadic: true,
       },
     ],
     helpTexts: {
@@ -1110,7 +1125,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       {
         flags: "--list",
         description:
-          "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array",
+          "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
         defaultValue: false,
       },
       {
@@ -1207,7 +1222,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     name: "tool",
     path: ["tool"],
     description:
-      "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected); list with flisk tool list",
+      "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list",
     aliases: [],
     hidden: false,
     hasAction: false,
@@ -1465,6 +1480,10 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         allowExcessArguments: false,
         options: [
           {
+            flags: "--dry-run",
+            description: "Show the planned change without writing project.json",
+          },
+          {
             flags: "--ignore-version",
             description:
               "Continue even if the CLI does not match the project's version requirements",
@@ -1500,6 +1519,10 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         positionalOptions: false,
         allowExcessArguments: false,
         options: [
+          {
+            flags: "--dry-run",
+            description: "Show the planned change without writing project.json",
+          },
           {
             flags: "--ignore-version",
             description:
@@ -1973,6 +1996,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     description: "Restart a running resource in the stack",
     aliases: [],
     hidden: false,
+    showHelpAfterError: "\nRun `flisk resources` to see the resource names you can restart.",
     hasAction: true,
     allowUnknown: false,
     passThrough: false,
@@ -2015,7 +2039,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     ],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
+        "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild\n\nTilt resources require Tilt; local-process projects: use `flisk down && flisk up` for a full restart.",
       ],
     },
     subcommands: [],
@@ -2126,6 +2150,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
             description: "Overwrite an existing kit",
             defaultValue: false,
           },
+          {
+            flags: "--json",
+            description: "Output one JSON envelope with the kit result",
+            defaultValue: false,
+          },
         ],
         arguments: [
           {
@@ -2137,7 +2166,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         ],
         helpTexts: {
           after: [
-            "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force",
+            "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force\n  flisk distribute kit my-resource --json",
           ],
         },
         subcommands: [],

@@ -54,6 +54,8 @@ export function frontendCatalog(): CatalogOption[] {
 export interface LanguageOption extends CatalogOption {
   /** The backend frameworks this language can be combined with; empty when the language owns its runtime. */
   frameworks: CatalogOption[];
+  /** The frameworks this language is usually served with, for a `--backend` hint (`fastapi` for Python). */
+  serverFrameworks: string[];
 }
 
 /** The backend languages, each with the frameworks it can be combined with, the registry's default first. */
@@ -71,6 +73,7 @@ export function backendCatalog(): LanguageOption[] {
         .map((entry) => ({ id: entry.id, title: entry.label, hint: "", local: true })),
       DEFAULT_BACKEND_FRAMEWORK,
     ),
+    serverFrameworks: language.serverFrameworks ?? [],
   }));
   return defaultFirst(options, DEFAULT_BACKEND_LANGUAGE);
 }
@@ -147,11 +150,15 @@ export function localRequirements(parts: { frontend: boolean; language?: string 
     const hasPackageJson = provider
       ?.createFiles?.("app")
       .some((file) => file.filename === "package.json");
-    // A generated package.json runs `npm run dev` — from the language or the shared scaffold (#4459).
-    // Only a scaffold without one runs the provider's dev command directly.
+    // A package.json owned by the provider runs `npm run dev` (#4459). A provider with neither its
+    // own devCommand nor its own package.json uses the shared Bun scaffold: `flisk up` starts it with
+    // `npm run dev`, whose script runs `bun run --watch`, so it needs npm and Bun (#4678).
     if (!provider) programs.add(parts.language);
-    else if (hasPackageJson || !provider.devCommand) programs.add("npm");
-    else programs.add(provider.devCommand.split(" ")[0]);
+    else if (hasPackageJson) programs.add("npm");
+    else if (!provider.devCommand) {
+      programs.add("npm");
+      programs.add(provider.installHint.trim().split(/\s+/)[0]);
+    } else programs.add(provider.devCommand.split(" ")[0]);
   }
   return [...programs];
 }

@@ -111,6 +111,6 @@ const port = Number.isInteger(envPort) && envPort >= 1 && envPort <= 65535 ? env
 
 // Bind beyond loopback: Traefik reaches the container over the Docker network.
 app.listen(port, "0.0.0.0", () => {
-  console.log("\n🚀 api running on http://localhost:" + port);
-  console.log("📊 Health check: http://localhost:" + port + "/health\n");
+  console.log(`\n🚀 api running on http://localhost:${port}`);
+  console.log(`📊 Health check: http://localhost:${port}/health\n`);
 });

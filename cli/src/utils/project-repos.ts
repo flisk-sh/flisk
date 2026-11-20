@@ -15,10 +15,11 @@ import {
   mkdirSync,
   realpathSync,
   renameSync,
+  rmdirSync,
   rmSync,
   statSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, normalize, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { readProjectConfig } from "../generator/template-engine.js";
 import type { CheckResult, RepoConfig } from "../types/index.js";
@@ -242,6 +243,38 @@ export function validateRepoList(
 }
 
 /**
+ * Collects the ancestors of `targetPath` that do not exist yet, from the outermost to the innermost.
+ * These are exactly the directories this clone attempt may create, so a failed attempt can remove
+ * them without touching a parent folder that was already present.
+ */
+function missingAncestors(targetPath: string, projectRoot: string): string[] {
+  const missing: string[] = [];
+  const root = resolve(projectRoot);
+  const prefix = root.endsWith(sep) ? root : `${root}${sep}`;
+  let current = dirname(targetPath);
+  while (current !== root && current.startsWith(prefix)) {
+    if (existsSync(current)) break;
+    missing.unshift(current);
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return missing;
+}
+
+/** Removes empty directories created by this clone attempt, leaving pre-existing parents intact. */
+function cleanupCreatedParents(paths: string[]): void {
+  // Remove the deepest directory first, so each parent is empty when the loop reaches it.
+  for (const path of [...paths].reverse()) {
+    try {
+      rmdirSync(path);
+    } catch {
+      // Keep the clone error as the failure; a directory that is no longer empty is left in place.
+    }
+  }
+}
+
+/**
  * Clones a single repository if its destination directory does not already exist.
  * Leaves existing directories untouched.
  */
@@ -280,9 +313,12 @@ export async function cloneRepo(
     };
   }
 
+  const createdParents = missingAncestors(targetPath, projectRoot);
+
   try {
     mkdirSync(dirname(targetPath), { recursive: true });
   } catch (error) {
+    cleanupCreatedParents(createdParents);
     throw new FliskError(
       `Failed to create the parent directory for "${redactRepoUrl(repo.url)}" at "${repo.dir}": ${(error as Error).message}`,
       ["Check that the parent path is writable and is not a file"],
@@ -305,6 +341,7 @@ export async function cloneRepo(
     await runner(gitArgs, { cwd: projectRoot });
   } catch (error) {
     rmSync(tempPath, { recursive: true, force: true });
+    cleanupCreatedParents(createdParents);
     const hint = redactRepoUrl(firstLine(error));
     throw new FliskError(
       `Failed to clone repository "${redactRepoUrl(repo.url)}" into "${repo.dir}": ${hint || "git clone failed"}`,

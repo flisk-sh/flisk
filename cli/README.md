@@ -341,7 +341,10 @@ flisk status --stacks            # 🗂️ Show stack information (default)
 flisk status --tilt              # 🔍 Query active Tilt resource status
 flisk status --verbose           # 📝 Detailed resource breakdowns per stack (-v)
 flisk status --json              # 🤖 Machine-readable JSON status report
+flisk status --unhealthy         # Show only failing or still-starting services
+flisk status --stack api         # Limit the report to one stack
 flisk status --strict            # 🚦 Exit 1 unless every service is ready (for scripts and CI)
+flisk logs --unhealthy           # Show logs only for failing or still-starting services
 flisk resources --stack api
 ```
 

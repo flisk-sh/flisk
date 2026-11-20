@@ -67,6 +67,7 @@ export interface StackReport {
 export const stackCommand = addYesOption(new Command("stack"))
   .description("Organize resources into stacks (groups)")
   .argument("[stack-name]", "Stack name to assign to resources")
+  .argument("[extra...]", "Additional positional inputs (resource names use --resources)")
   .option("--list", "List resources without a stack", false)
   .option("--resources <names...>", "Resource names to update (comma- or space-separated)")
   .option("--move", "Allow moving named resources from another stack", false)
@@ -85,8 +86,26 @@ export const stackCommand = addYesOption(new Command("stack"))
     "after",
     "\nExamples:\n  flisk stack --list\n  flisk stack shop --resources orders-api web\n  flisk stack shop --move --resources orders-api --yes\n  flisk stack --remove --resources orders-api --yes",
   )
-  .action(async (stackName, options) => {
+  .action(async (stackName, extra: string[], options) => {
     const action = async (): Promise<JsonCommandResult> => {
+      if (extra.length) {
+        if (stackName === "assign" && extra.length === 2) {
+          const [resource, stack] = extra;
+          throw new FliskError("Assign one resource by naming the stack first.", [
+            `flisk stack ${stack} --resources ${resource}`,
+            "List resources without a stack: flisk stack --list",
+          ]);
+        }
+        if (stackName === "create" && extra.length === 1) {
+          throw new FliskError("A stack is created when you assign resources to it.", [
+            `flisk stack ${extra[0]} --resources <name>`,
+            "List resources without a stack: flisk stack --list",
+          ]);
+        }
+        throw new FliskError("Provide one stack name and pass resource names with --resources.", [
+          "flisk stack <stack> --resources <name>",
+        ]);
+      }
       const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
 
       if (!projectRoot) throw errorFactories.notInProject();

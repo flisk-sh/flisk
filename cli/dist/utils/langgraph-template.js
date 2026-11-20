@@ -14,6 +14,8 @@ const TEMPLATE_FILES = {
     "agent/server.mjs": "langgraph/agent/server.mjs",
     "agent/graph.mjs": "langgraph/agent/graph.mjs",
     "agent/file-saver.mjs": "langgraph/agent/file-saver.mjs",
+    "agent/effects.mjs": "langgraph/agent/effects.mjs",
+    "agent/recovery.mjs": "langgraph/agent/recovery.mjs",
     "agent/plan.mjs": "super-agent/planner/plan.mjs",
     "tools/server.mjs": "super-agent/tools/server.mjs",
 };
@@ -65,8 +67,29 @@ flisk mcp check tools --call --no-icon   # the tool server speaks MCP
 
 **Durable runs.** Every node's result is a LangGraph checkpoint, written to \`agent/.data/checkpoints.json\`. Kill the agent in
 the middle of a run and Flisk starts it again; it resumes the run at the node it was in, and finished nodes do not run again.
-Try it with \`STEP_DELAY_MS=2000 flisk up\`, then \`kill -9\` the agent mid-run. For production, swap \`FileSaver\` for
-\`@langchain/langgraph-checkpoint-postgres\`.
+Try it with \`STEP_DELAY_MS=2000 flisk up\`, then \`kill -9\` the agent mid-run. With \`DATABASE_URL\` set (the Flisk
+Postgres, say) the agent uses \`@langchain/langgraph-checkpoint-postgres\` and keeps its effect records in an \`agent_effects\`
+table instead; \`GET /health\` says which store it opened (\`file\` or \`postgres\`).
+
+**Human approval, and a side effect that happens once.** A run started with \`"approve": true\` goes on after the check to an
+\`approve\` node. It calls LangGraph's \`interrupt()\`, so the run stops there, is saved, and waits, however often the agent
+restarts. \`POST /runs/:id/resume\` with \`{"approved": true}\` (or \`false\`, with an optional \`note\`) continues it; the side
+effect (\`act\`, which delivers the answer to \`agent/.data/outbox.jsonl\`) runs only when it was approved. Resuming starts the
+node over, so the side effect is keyed by the run and the step, and looked up in the effect store before it runs and saved after
+it (\`agent/effects.mjs\`): a run resumed again, or after a crash between the effect and its checkpoint, sends once.
+
+\`\`\`bash
+curl -X POST localhost:${LANGGRAPH_PORTS.agent}/runs -H 'content-type: application/json' \\
+  -d '{"goal":"Explain flisk and mcp","approve":true}'          # note the id
+curl localhost:${LANGGRAPH_PORTS.agent}/runs                    # status awaiting_approval, pending.question
+flisk restart agent                                             # or kill -9: the run is still waiting
+curl -X POST localhost:${LANGGRAPH_PORTS.agent}/runs/<id>/resume -H 'content-type: application/json' -d '{"approved":true}'
+curl localhost:${LANGGRAPH_PORTS.agent}/runs                    # status done, effect.delivered true
+wc -l agent/.data/outbox.jsonl                                  # 1: sent once
+\`\`\`
+
+Answering a run that is not waiting gets a 409, so a second answer cannot start the node again. A run started without
+\`approve\` has no approval and no side effect.
 
 **Retries.** A node that throws (the tool server is restarting, say) is retried by LangGraph's \`retryPolicy\`: up to
 \`MAX_ATTEMPTS\` (5) times, starting \`RETRY_BACKOFF_MS\` (1 s) apart and doubling.

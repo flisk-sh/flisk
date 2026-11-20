@@ -143,7 +143,9 @@ export const INFRA_PRESETS = {
   mongodb: {
     type: DATABASE_RESOURCE_TYPE,
     description: "MongoDB document database",
-    image: "mongo:8.0",
+    // 8.0.21-8.0.34 refuse to start on Linux 6.19+ (including GitHub's ubuntu-26.04 runners): their kernel check reads
+    // Ubuntu's `uname -r` of 7.0.0 and misses the backported fix. 8.0.38 checks /proc/version_signature instead (#4755).
+    image: "mongo:8.0.38",
     port: 27017,
     healthCheck: { command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"] },
     dataPath: "/data/db",

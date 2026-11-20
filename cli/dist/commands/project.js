@@ -31,7 +31,7 @@ import { suggestClosest } from "../utils/suggestions.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
-import { isTargetDirSafe } from "../utils/validation.js";
+import { deriveProjectName, isTargetDirSafe, validateProjectName } from "../utils/validation.js";
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
  * cloned starter template). Tilt's discovery groups app resources by this
@@ -101,6 +101,9 @@ export const ACTION_WORD_HINTS = {
     validate: "flisk project --check",
     check: "flisk project --check",
     verify: "flisk project --check",
+    info: "flisk info",
+    list: "flisk resources",
+    status: "flisk status",
 };
 /** Looks up an action word's hint; own keys only, so `constructor` and `__proto__` never match. */
 export function actionWordHint(word) {
@@ -479,13 +482,13 @@ const DEFAULT_PROJECT_JSON = {
  */
 export function writeDefaultProjectConfig(projectRoot) {
     const projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-    projectConfig.project.name = basename(projectRoot) || "my-project";
+    projectConfig.project.name = deriveProjectName(basename(projectRoot));
     ensureDirectory(join(projectRoot, ".flisk"));
     writeJsonFile(join(projectRoot, ".flisk", PROJECT_JSON), projectConfig);
 }
 /**
- * Prints the template catalog: with `json`, one stable JSON array on stdout (the same rows as the `project_templates`
- * MCP tool); otherwise one block per template for a person to read.
+ * Prints the template catalog: with `json`, the usual envelope with the templates in `data.templates` (the same rows
+ * as the `project_templates` MCP tool); otherwise one block per template for a person to read.
  */
 export function printTemplateCatalog(json) {
     const templates = listProjectTemplates();
@@ -511,7 +514,7 @@ export const projectCommand = addYesOption(new Command("project"))
     .option("--config-file <path>", "Load project config from existing JSON file")
     .option("-q, --quiet", "Only print what fails; used by `flisk demo`", false)
     .option("--no-agent-skills", "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md")
-    .option("--list", "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array", false)
+    .option("--list", "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
     .addHelpText("after", "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check")
     .action(async (template, options) => {
@@ -689,12 +692,21 @@ export const projectCommand = addYesOption(new Command("project"))
             }
             const configContent = readFileSync(configFilePath, "utf-8");
             projectConfig = JSON.parse(configContent);
+            if (typeof projectConfig?.project?.name === "string") {
+                const nameResult = validateProjectName(projectConfig.project.name.trim());
+                if (!nameResult.valid) {
+                    throw new FliskError(nameResult.error ?? "Invalid project name", [
+                        "Set project.name in the config file to a Docker- and npm-compatible name (lowercase letters, numbers, and hyphens only)",
+                    ]);
+                }
+                projectConfig.project.name = projectConfig.project.name.trim();
+            }
             if (!quiet)
                 showSuccess(`Loaded config from: ${configFilePath}`);
         }
         else if (yes) {
             projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-            projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
+            projectConfig.project.name = deriveProjectName(basename(projectRoot));
             if (!quiet)
                 console.log(chalk.gray("Using default configuration (non-interactive mode)"));
         }
@@ -702,8 +714,11 @@ export const projectCommand = addYesOption(new Command("project"))
             showStep("📝 Project Setup Wizard\n");
             const projectName = await promptText({
                 message: "Project name:",
-                initial: projectRoot.split("/").pop() || "my-project",
-                validate: (input) => input.trim() !== "" || "Project name is required",
+                initial: deriveProjectName(basename(projectRoot)),
+                validate: (input) => {
+                    const result = validateProjectName(input.trim());
+                    return result.valid ? true : (result.error ?? "Project name is required");
+                },
             });
             const projectVersion = await promptText({
                 message: "Project version:",

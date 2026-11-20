@@ -14,6 +14,7 @@ import {
   parseEnvelope,
   runFlisk,
 } from "../../test-support/index.js";
+import { deriveProjectName } from "../../utils/validation.js";
 import { TILT_UP_COMMAND } from "../eject.js";
 
 const VALID_PROJECT_JSON = {
@@ -107,8 +108,8 @@ describe("flisk eject --json", () => {
     expect(envelope.errors).toEqual([
       expect.objectContaining({
         code: "COMMAND_FAILED",
-        message: expect.stringContaining("Generated Tilt files are missing"),
-        suggestions: expect.arrayContaining(["flisk project --yes"]),
+        message: expect.stringContaining("Generated Tilt files are not created yet"),
+        suggestions: expect.arrayContaining(["flisk config regenerate"]),
       }),
     ]);
   }, 120_000);
@@ -226,7 +227,9 @@ describe("flisk resource --json", () => {
 
   it("prints the framework inventory with --frameworks", () => {
     const root = createTempDir();
-    const frontend = parseEnvelope(json(["resource", "--frameworks"], root).stdout).data;
+    const frontend = parseEnvelope(
+      json(["resource", "--type", "frontend", "--frameworks"], root).stdout,
+    ).data;
     expect(frontend.type).toBe("frontend");
     expect(frontend.frameworks).toContainEqual(expect.objectContaining({ id: "react" }));
     const backend = parseEnvelope(
@@ -248,7 +251,7 @@ describe("flisk project --json", () => {
     expect(parseEnvelope(created.stdout).data).toMatchObject({
       action: "created",
       projectRoot: dir,
-      projectName: basename(dir),
+      projectName: deriveProjectName(basename(dir)),
       generatedFiles: ["TILT_TECH_STACK.star", "TILT_RESOURCE_DEFAULTS.star", "spec.master"],
       env: { created: true, added: [] },
       agentSkills: [],

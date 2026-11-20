@@ -4,12 +4,14 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
 import { expandEnvValue } from "../env-expand.js";
 import {
   dependencyWaves,
+  detachesServices,
   findMissingPrograms,
+  isNativeRunSupervisorAlive,
   isProcessAlive,
   localUrl,
   NativeSupervisor,
@@ -22,10 +24,27 @@ import {
   shellInvocation,
   signalGroup,
   stopNativeRun,
+  terminateSupervisorProcess,
 } from "../native-runtime.js";
+import { withFailureLogs } from "../native-up.js";
 import { processStartTime } from "../process-identity.js";
 
 const NODE = JSON.stringify(process.execPath);
+
+describe("native run supervisor identity", () => {
+  it("accepts the recorded process and rejects a reused pid", async () => {
+    const startTime = await processStartTime(process.pid);
+    expect(startTime).toBeDefined();
+    const state = {
+      pid: process.pid,
+      pidStartTime: startTime,
+      startedAt: new Date().toISOString(),
+      services: {},
+    };
+    expect(await isNativeRunSupervisorAlive(state)).toBe(true);
+    expect(await isNativeRunSupervisorAlive({ ...state, pidStartTime: "reused-pid" })).toBe(false);
+  });
+});
 
 /** A `${NAME}` (or `${NAME:-fallback}`) reference, written out so it is not mistaken for a template literal. */
 const ref = (name: string, fallback?: string) =>
@@ -601,6 +620,35 @@ describe("native supervisor", () => {
     expect(notes.at(-1)).toMatch(/exited 5 times in a row, so it is not restarted/);
   });
 
+  it("names the missing program when a service exits 127 (#4678)", async () => {
+    const root = createTempDir();
+    // The shell cannot find this program, so the service exits 127 on every start.
+    const plan = planNativeRun([
+      nativeService(root, "shop-api", {
+        command: "definitely-missing-flisk-program --watch",
+        port: await freePort(),
+      }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onNote: (_name, message) => notes.push(message) },
+      { restartDelayMs: 10 },
+    );
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([
+      { name: "shop-api", reason: "runs definitely-missing-flisk-program, which is not installed" },
+    ]);
+    // The first exit already names the program to install, not only the give-up note.
+    expect(notes[1]).toBe(
+      "exited with code 127: shop-api runs definitely-missing-flisk-program, which is not installed; restarting in 0.01s",
+    );
+    expect(notes.at(-1)).toMatch(
+      /exited with code 127: shop-api runs definitely-missing-flisk-program, which is not installed; it exited 5 times in a row/,
+    );
+  });
+
   it('does not restart a service with "restart": "no"', async () => {
     const root = createTempDir();
     const plan = planNativeRun([nativeService(root, "once", { command: "exit 0", restart: "no" })]);
@@ -984,6 +1032,77 @@ describe("nativeServiceStates", () => {
       status: "ready",
       reason: "finished",
     });
+  });
+});
+
+describe("terminateSupervisorProcess", () => {
+  it("ends the supervisor's whole process tree on Windows, so its services go with it", async () => {
+    const killed: number[] = [];
+    const kill = vi.spyOn(process, "kill");
+    // A pid that does not exist, so the wait that follows returns at once.
+    await terminateSupervisorProcess(2_147_000_000, 50, "win32", (pid) => killed.push(pid));
+    expect(killed).toEqual([2_147_000_000]);
+    expect(kill).not.toHaveBeenCalledWith(2_147_000_000, "SIGTERM");
+    kill.mockRestore();
+  });
+
+  it("sends SIGTERM on POSIX and never runs taskkill", async () => {
+    const killed: number[] = [];
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    await terminateSupervisorProcess(2_147_000_000, 50, "linux", (pid) => killed.push(pid));
+    expect(kill).toHaveBeenCalledWith(2_147_000_000, "SIGTERM");
+    expect(killed).toEqual([]);
+    kill.mockRestore();
+  });
+});
+
+describe("detachesServices", () => {
+  it("gives a service its own process group on POSIX and not on Windows", () => {
+    expect(detachesServices("linux")).toBe(true);
+    expect(detachesServices("darwin")).toBe(true);
+    expect(detachesServices("win32")).toBe(false);
+  });
+
+  it("logs a crashing service's final error, redacts secrets, and includes the log in failures", async () => {
+    const root = createTempDir();
+    const token = "NATIVE_CRASH_TOKEN_DO_NOT_LOG_12345";
+    writeFileSync(join(root, ".env"), `API_TOKEN=${token}\n`);
+    writeFileSync(
+      join(root, "crash.mjs"),
+      "console.error(`FATAL: API_TOKEN is not set (${process.env.API_TOKEN})`); process.exit(1);",
+    );
+    const logPath = nativeLogPath(root, "crasher");
+    const plan = planNativeRun(
+      [
+        nativeService(root, "crasher", {
+          appType: "migrator",
+          command: `${NODE} crash.mjs`,
+          env: { API_TOKEN: ref("API_TOKEN") },
+        }),
+      ],
+      { API_TOKEN: token },
+      root,
+    );
+    const lines: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onLine: (_name, line) => lines.push(line) },
+      { baseEnv: { API_TOKEN: token } },
+    );
+    supervisors.push(supervisor);
+
+    const failures = await supervisor.start();
+    const stored = readFileSync(logPath, "utf-8");
+    const [failure] = withFailureLogs(root, failures);
+
+    expect(failures).toMatchObject([
+      { name: "crasher", reason: "the job did not exit 0; see its output above" },
+    ]);
+    expect(lines).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
+    expect(stored).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
+    expect(stored).not.toContain(token);
+    expect(failure?.logs?.join("\n")).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
   });
 });
 

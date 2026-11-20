@@ -57,6 +57,8 @@ describe("langgraph template", () => {
       "@anthropic-ai/sdk",
       "@langchain/core",
       "@langchain/langgraph",
+      "@langchain/langgraph-checkpoint-postgres",
+      "pg",
       "zod",
     ]);
     for (const [name, version] of Object.entries(pkg.dependencies)) {
@@ -74,6 +76,62 @@ describe("langgraph template", () => {
     );
     expect(readFileSync(join(dir, ".gitignore"), "utf-8")).toBe(".data/\nnode_modules/\n");
   });
+  it("writes the effect store next to the graph, so the project has everything the server imports", () => {
+    const dir = project();
+    expect(readFileSync(join(dir, "agent/effects.mjs"), "utf-8")).toContain(
+      "export async function once(",
+    );
+    const server = readFileSync(join(dir, "agent/server.mjs"), "utf-8");
+    for (const imported of server.matchAll(/from "\.\/([\w-]+\.mjs)"/g)) {
+      expect(() => readFileSync(join(dir, "agent", imported[1] as string), "utf-8")).not.toThrow();
+    }
+  });
+
+  it("stops the run for a human with interrupt() before the side effect, and only runs it when approved", () => {
+    const graph = readFileSync(join(templates, "langgraph/agent/graph.mjs"), "utf-8");
+    expect(graph).toContain("interrupt,");
+    expect(graph).toContain("const decision = interrupt(");
+    expect(graph).toContain('.addNode("approve", approveNode)');
+    expect(graph).toContain('.addNode("act", actNode)');
+    // the approval is opt-in, so a run without it keeps the four-node trace
+    expect(graph).toContain('return state.needsApproval ? "approve" : END;');
+    expect(graph).toContain('return state.approval?.approved ? "act" : END;');
+    // the side effect is keyed by the run and goes through the effect store and the receiver
+    expect(graph).toContain(`\`\${config.configurable.thread_id}:send\``);
+    expect(graph).toContain("once(effects, key, (k) => deliver(outbox, k,");
+  });
+
+  it("continues a waiting run with POST /runs/:id/resume, and answers a run that is not waiting with 409", () => {
+    const server = readFileSync(join(templates, "langgraph/agent/server.mjs"), "utf-8");
+    expect(server).toContain(String.raw`/^\/runs\/([^/]+)\/resume$/`);
+    expect(server).toContain("new Command({ resume:");
+    expect(server).toContain('run.status = asked ? "awaiting_approval" : "done"');
+    expect(server).toContain('run.status !== "awaiting_approval"');
+    expect(server).toContain("json(response, 409");
+    expect(server).toContain("json(response, 404");
+  });
+
+  it("uses the Postgres checkpointer and effect table when DATABASE_URL is set, and files otherwise", () => {
+    const server = readFileSync(join(templates, "langgraph/agent/server.mjs"), "utf-8");
+    expect(server).toContain("if (!process.env.DATABASE_URL)");
+    expect(server).toContain("PostgresSaver.fromConnString(process.env.DATABASE_URL)");
+    expect(server).toContain("await checkpointer.setup();");
+    expect(server).toContain("new FileSaver(");
+    expect(server).toContain("new PostgresEffects(");
+  });
+
+  it("explains the approval flow in the project's README", () => {
+    const readme = readFileSync(join(project(), "README.md"), "utf-8");
+    expect(readme).toContain("POST /runs/:id/resume");
+    expect(readme).toContain('"approve":true');
+    expect(readme).toContain("flisk restart agent");
+    expect(readme).toContain("agent/.data/outbox.jsonl");
+    // the shell example keeps its line breaks
+    expect(readme).toContain(
+      '-H \'content-type: application/json\' \\\n  -d \'{"goal":"Explain flisk and mcp","approve":true}\'',
+    );
+  });
+
   it("keeps error details in the agent's log instead of sending them to the caller", () => {
     const server = readFileSync(join(templates, "langgraph/agent/server.mjs"), "utf-8");
     expect(server).toContain("console.error(error);");

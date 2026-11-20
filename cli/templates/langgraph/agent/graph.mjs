@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: MIT
 // The agent as a LangGraph StateGraph: plan -> research -> write -> check, and back to research when the checker finds a
 // topic with no note. Every node's result is checkpointed, so a run that crashes resumes at the node it was in.
-import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+// A run started with `approve: true` goes on after the check: approve (a human decides, through interrupt) -> act (the side
+// effect, sent once however many times the run is resumed).
+import { Annotation, END, interrupt, START, StateGraph } from "@langchain/langgraph";
+import { deliver, once } from "./effects.mjs";
 import { plan } from "./plan.mjs";
 
 const toolsUrl = process.env.TOOLS_URL ?? "http://localhost:4401";
@@ -18,6 +21,11 @@ export const State = Annotation.Root({
   notes: Annotation({ reducer: (old, update) => ({ ...old, ...update }), default: () => ({}) }),
   answer: Annotation(),
   review: Annotation(),
+  // Set by `POST /runs` with `approve: true`: the run waits for a human before its side effect.
+  needsApproval: Annotation(),
+  // The human's decision ({ approved, note }), then the result of the side effect ({ delivered, key, ... }).
+  approval: Annotation(),
+  effect: Annotation(),
   revisions: Annotation({ reducer: (old, update) => old + update, default: () => 0 }),
   // Every node that ran, in order, with the process it ran in. A run resumed after a crash shows that the nodes it had
   // finished kept the old process: they were not run again.
@@ -86,12 +94,42 @@ async function checkNode(state) {
   return { review: { ok: false, redo: true, reasons }, revisions: 1, trace };
 }
 
-/** After the check: back to research when the checker sent work back, else the run is over. */
-export function afterCheck(state) {
-  return state.review.redo ? "research" : END;
+/**
+ * Waits for a human. interrupt() stops the run here and saves it; it stays stopped, across restarts, until `POST /runs/:id/resume`
+ * continues it, and the body of that request is what interrupt() then returns. The node starts over from its first line on
+ * resume, so nothing before interrupt() may have a side effect.
+ */
+async function approveNode(state) {
+  await pause();
+  const decision = interrupt({ question: "Send this answer?", answer: state.answer });
+  return {
+    approval: { approved: decision?.approved === true, note: decision?.note ?? null },
+    trace: [ran("approve")],
+  };
 }
 
-export function buildGraph(checkpointer) {
+/** After the check: back to research when the checker sent work back, then the approval if the run asked for one, else done. */
+export function afterCheck(state) {
+  if (state.review.redo) return "research";
+  return state.needsApproval ? "approve" : END;
+}
+
+/** After the decision: the side effect when it was approved, else the run ends without one. */
+export function afterApprove(state) {
+  return state.approval?.approved ? "act" : END;
+}
+
+export function buildGraph(checkpointer, { effects, outbox } = {}) {
+  /**
+   * The side effect, keyed by the run and the step, so a run resumed after a crash (or an agent that died between the effect
+   * and its checkpoint) sends once: the key is looked up in the effect store first, and goes to the receiver with the call.
+   */
+  async function actNode(state, config) {
+    const key = `${config.configurable.thread_id}:send`;
+    const effect = await once(effects, key, (k) => deliver(outbox, k, { answer: state.answer }));
+    return { effect, trace: [ran("act")] };
+  }
+
   // A node that throws (the tool server is down, say) is retried with backoff before the run fails.
   const retryPolicy = {
     maxAttempts: Number(process.env.MAX_ATTEMPTS ?? 5),
@@ -104,10 +142,14 @@ export function buildGraph(checkpointer) {
     .addNode("research", researchNode, { retryPolicy })
     .addNode("write", writeNode)
     .addNode("check", checkNode)
+    .addNode("approve", approveNode)
+    .addNode("act", actNode)
     .addEdge(START, "plan")
     .addEdge("plan", "research")
     .addEdge("research", "write")
     .addEdge("write", "check")
     .addConditionalEdges("check", afterCheck)
+    .addConditionalEdges("approve", afterApprove)
+    .addEdge("act", END)
     .compile({ checkpointer });
 }

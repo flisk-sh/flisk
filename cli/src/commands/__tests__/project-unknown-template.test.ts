@@ -54,6 +54,17 @@ describe("exitUnknownTemplate", () => {
     },
   );
 
+  it.each([
+    ["info", "flisk info"],
+    ["list", "flisk resources"],
+    ["status", "flisk status"],
+  ])("explains where to run project action %s", (word, command) => {
+    const output = refuse(word);
+    const hint = `Did you mean "${command}"?`;
+    expect(output).toContain(hint);
+    expect(output.indexOf(hint)).toBeLessThan(output.indexOf("Available templates:"));
+  });
+
   it.each(["constructor", "__proto__", "toString", "hasOwnProperty"])(
     "does not treat prototype key '%s' as an action word",
     (word) => {
