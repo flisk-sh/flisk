@@ -675,6 +675,7 @@ export const configCommand = new Command("config")
         if (!process.stdin.isTTY || !process.stdout.isTTY) {
           throw new FliskError("config edit needs a terminal; edit .flisk/project.json directly", [
             `Edit it in your own editor: ${projectJsonPath}`,
+            "Then run `flisk config regenerate` to apply the changes.",
           ]);
         }
 
@@ -700,6 +701,7 @@ export const configCommand = new Command("config")
           readProjectConfig(projectRoot);
         } catch (error) {
           throw new FliskError("Editor saved an invalid .flisk/project.json", [
+            "Fix .flisk/project.json before running `flisk config regenerate`.",
             error instanceof Error ? error.message : String(error),
           ]);
         }

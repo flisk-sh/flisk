@@ -867,6 +867,7 @@ describe("config edit", () => {
     expect(result.stderr).toContain(
       "config edit needs a terminal; edit .flisk/project.json directly",
     );
+    expect(result.stderr).toContain("flisk config regenerate");
     expect(result.stdout).not.toContain("Opening");
     expect(spawnSync).not.toHaveBeenCalled();
   });
@@ -901,7 +902,7 @@ describe("config edit", () => {
     vi.mocked(spawnSync).mockReturnValueOnce({
       status: null,
       error: Object.assign(new Error("spawn missing-editor ENOENT"), { code: "ENOENT" }),
-    } as ReturnType<typeof spawnSync>);
+    } as unknown as ReturnType<typeof spawnSync>);
     const root = createTempProject({ projectJson: projectJson() });
 
     const result = await runCommandInProcess(configCommand, ["edit"], root);
@@ -938,6 +939,7 @@ describe("config edit", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Editor saved an invalid .flisk/project.json");
+    expect(result.stderr).toContain("Fix .flisk/project.json");
     expect(result.stderr).toContain("Could not parse project.json");
     expect(result.stdout).not.toContain("Editor closed.");
   });
