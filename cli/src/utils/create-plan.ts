@@ -14,6 +14,7 @@
 import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
 import { DATABASE_FRAMEWORK, DATABASE_RESOURCE_TYPE } from "../types/index.js";
 import { extraCatalog, localRequirements, starterCatalog } from "./create-catalog.js";
+import { starterNeeds } from "./project-templates.js";
 
 export type CreateRuntime = "local" | "docker";
 export const CREATE_RUNTIMES: readonly CreateRuntime[] = ["local", "docker"];
@@ -228,11 +229,7 @@ export function describeRequirements(
   answers: CreateAnswers,
   onPath: (program: string) => boolean = () => true,
 ): string {
-  if (answers.starter) {
-    return starterInfo(answers.starter).local
-      ? "runs on this computer; no Docker, no database"
-      : "Docker (its README says what else)";
-  }
+  if (answers.starter) return starterNeeds(answers.starter);
   if (answers.runtime === "docker")
     return "Docker and Tilt (`flisk doctor` checks what is missing)";
   const programs = localRequirements({

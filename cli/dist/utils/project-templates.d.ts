@@ -15,11 +15,20 @@ export interface ProjectTemplateEntry {
     key: string;
     repo: string;
     description: string;
+    /** What the starter needs to run, in the same words create's `needs:` line uses. */
+    needs: string;
     ref?: string;
 }
+/** True when a starter is written by the CLI and runs as local processes, with no Docker. */
+export declare function runsLocally(template: ProjectTemplate): boolean;
+/**
+ * The one wording for what a starter needs, shared by `flisk project --list` and the `needs:` line of
+ * `flisk create --starter <key> --dry-run`. Both read the same fact about the starter from this catalog.
+ */
+export declare function starterNeeds(key: string): string;
 /** Public starter repositories plus the bundled default product example. */
 export declare const PROJECT_TEMPLATES: Record<string, ProjectTemplate>;
-/** The template catalog in registration order: key, repo, description and, for a pinned template, its ref. */
+/** The template catalog in registration order: key, repo, description, needs and, for a pinned template, its ref. */
 export declare function listProjectTemplates(): ProjectTemplateEntry[];
 /**
  * The folder a starter lands in: the requested path, or its default folder. A starter that the
