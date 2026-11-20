@@ -67,7 +67,7 @@ export function deriveProjectName(folderName) {
     if (name.length > MAX_NAME_LENGTH) {
         name = name.slice(0, MAX_NAME_LENGTH).replace(/-+$/g, "");
     }
-    return name || "my-project";
+    return name;
 }
 export function createKebabCaseValidator(context) {
     const validate = context === "resource" ? validateResourceName : validateStackName;

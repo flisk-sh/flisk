@@ -308,6 +308,14 @@ describe("deriveProjectName", () => {
     expect(deriveProjectName("")).toBe("my-project");
     expect(deriveProjectName("   ")).toBe("my-project");
   });
+
+  it("truncates long derived names to 63 characters", () => {
+    expect(deriveProjectName("a".repeat(70))).toBe("a".repeat(63));
+  });
+
+  it("trims a trailing dash left after truncation", () => {
+    expect(deriveProjectName(`${"a".repeat(62)} b`)).toBe("a".repeat(62));
+  });
 });
 
 describe("validateProjectName", () => {
@@ -324,6 +332,12 @@ describe("validateProjectName", () => {
     });
     expect(validateProjectName("Bad_Name").valid).toBe(false);
     expect(validateProjectName("").valid).toBe(false);
+  });
+
+  it("rejects a project name longer than 63 characters", () => {
+    const result = validateProjectName("a".repeat(64));
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("64 characters");
   });
 });
 
