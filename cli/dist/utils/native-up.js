@@ -149,6 +149,27 @@ export async function runNativeUp(input) {
     }
     const containers = plan.services.filter((service) => service.container);
     const serviceNames = plan.services.map((service) => service.name);
+    // Check for a live run before printing the start banner: a second `flisk up`
+    // starts nothing, so it must not claim to (#4642). Dry runs still print their
+    // plan, because they never enter this branch.
+    if (!input.dryRun) {
+        const running = readNativeRunState(projectRoot);
+        if (running && running.pid !== process.pid && isProcessAlive(running.pid)) {
+            if (!input.force) {
+                const message = `This project is already running as local processes (flisk up, pid ${running.pid}).`;
+                emit?.({ ok: true, alreadyRunning: true, runtime: "native", pid: running.pid });
+                if (!quiet) {
+                    console.log(chalk.green(message));
+                    console.log(chalk.gray("Stop it with flisk down, or pass --force to restart it."));
+                }
+                return;
+            }
+        }
+        if (running) {
+            // A previous run that was replaced (--force) or killed without cleaning up: stop whatever it left behind.
+            await stopNativeRun(projectRoot);
+        }
+    }
     const startOrder = dependencyWaves(plan.services);
     const description = input.only
         ? `${formatCount(input.only.length, "requested service")}${input.dependencies.length > 0 ? ` plus ${input.dependencies.join(", ")}` : ""}`
@@ -180,22 +201,6 @@ export async function runNativeUp(input) {
         if (!quiet)
             console.log(chalk.yellow("Dry run: not starting services"));
         return;
-    }
-    const running = readNativeRunState(projectRoot);
-    if (running && running.pid !== process.pid && isProcessAlive(running.pid)) {
-        if (!input.force) {
-            const message = `This project is already running as local processes (flisk up, pid ${running.pid}).`;
-            emit?.({ ok: true, alreadyRunning: true, runtime: "native", pid: running.pid });
-            if (!quiet) {
-                console.log(chalk.green(message));
-                console.log(chalk.gray("Stop it with flisk down, or pass --force to restart it."));
-            }
-            return;
-        }
-    }
-    if (running) {
-        // A previous run that was replaced (--force) or killed without cleaning up: stop whatever it left behind.
-        await stopNativeRun(projectRoot);
     }
     if (containers.length > 0 && !isDockerRunning()) {
         fail("DOCKER_NOT_RUNNING", `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up again.`);

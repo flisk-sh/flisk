@@ -30,8 +30,14 @@ export function machineError(
   code: string,
   message: string,
   suggestions: readonly string[] = [],
+  extra?: { validNames?: readonly string[] },
 ): MachineError {
-  return { code, message, suggestions: [...suggestions] };
+  return {
+    code,
+    message,
+    suggestions: [...suggestions],
+    ...(extra?.validNames !== undefined ? { validNames: [...extra.validNames] } : {}),
+  };
 }
 
 function isMachineError(value: unknown): value is MachineError {
@@ -41,6 +47,10 @@ function isMachineError(value: unknown): value is MachineError {
   if (error.suggestions !== undefined) {
     if (!Array.isArray(error.suggestions)) return false;
     if (!error.suggestions.every((item) => typeof item === "string")) return false;
+  }
+  if (error.validNames !== undefined) {
+    if (!Array.isArray(error.validNames)) return false;
+    if (!error.validNames.every((item) => typeof item === "string")) return false;
   }
   return true;
 }

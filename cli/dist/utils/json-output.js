@@ -15,7 +15,7 @@ export function createJsonEmitter(failureCode, command) {
         if (emitted)
             return;
         emitted = true;
-        const normalized = errors.map((error) => machineError(error.code, error.message, error.suggestions ?? []));
+        const normalized = errors.map((error) => machineError(error.code, error.message, error.suggestions ?? [], error.validNames !== undefined ? { validNames: error.validNames } : undefined));
         writeSync(1, `${JSON.stringify(createMachineEnvelope(data, normalized))}\n`);
     };
     process.once("exit", (code) => {

@@ -88,7 +88,7 @@ describe("not-found error suggestions", () => {
 
     expect(error.message).toBe("Unknown service widgt. Valid names: widget");
     expect(error.exitCode).toBe(2);
-    expect(error.suggestions).toEqual(['Did you mean "widget"?', "Valid names: widget"]);
+    expect(error.suggestions).toEqual(['Did you mean "widget"?']);
   });
 
   it("pairs each suggestion with its unknown service", () => {
@@ -97,7 +97,6 @@ describe("not-found error suggestions", () => {
     expect(error.suggestions).toEqual([
       'Did you mean "widget" for "widgt"?',
       'Did you mean "widget" for "widge"?',
-      "Valid names: widget",
     ]);
   });
 
@@ -105,7 +104,29 @@ describe("not-found error suggestions", () => {
     const error = errorFactories.unknownServices(["ok"], ["zeta", "ok1"]);
 
     expect(error.message).toBe("Unknown service ok. Valid names: ok1, zeta");
-    expect(error.suggestions).toEqual(['Did you mean "ok1"?', "Valid names: ok1, zeta"]);
+    expect(error.suggestions).toEqual(['Did you mean "ok1"?']);
+  });
+
+  it("sorts valid names when more than one service is unknown", () => {
+    const error = errorFactories.unknownServices(["zeta", "alpha"], ["ok2", "ok1"]);
+
+    expect(error.message).toBe("Unknown service zeta, alpha. Valid names: ok1, ok2");
+  });
+
+  it("prints at most ten valid names, then points at flisk resources", () => {
+    const ten = Array.from({ length: 10 }, (_, index) => `svc${index + 1}`);
+    const short = errorFactories.unknownServices(["nope"], ten);
+    expect(short.message).toBe(`Unknown service nope. Valid names: ${ten.join(", ")}`);
+    expect(short.exitCode).toBe(2);
+
+    const long = errorFactories.unknownServices(["api"], [...ten, "api1", "api10", "api11"]);
+    expect(long.message).toBe("Unknown service api.");
+    expect(long.suggestions).toEqual([
+      'Did you mean "api1"?',
+      "Run `flisk resources` to see available services",
+    ]);
+    // An unknown name is a usage error on both `up --only` and `logs`.
+    expect(long.exitCode).toBe(2);
   });
 
   it("builds a shared UNKNOWN_RESOURCE error with valid resource names and closest match first", () => {

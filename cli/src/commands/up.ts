@@ -101,6 +101,7 @@ import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-own
 import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
+import { secretProviderUsageError } from "../utils/secret-provider.js";
 import {
   enforceServiceConfigGate,
   warnModelRunner,
@@ -465,6 +466,31 @@ export interface NativeUpSelection {
 }
 
 /**
+ * Builds the JSON `UNKNOWN_SERVICE` error entry with structured `validNames` and guaranteed
+ * non-empty `suggestions`, keeping the shared `errorFactories.unknownServices` suggestions
+ * uncluttered for human-readable output (#4522).
+ */
+function unknownServiceJsonError(
+  message: string,
+  suggestions: readonly string[],
+  validNames: readonly string[],
+): MachineError {
+  const sortedValidNames = [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const jsonSuggestions =
+    suggestions.length > 0
+      ? [...suggestions]
+      : sortedValidNames.length > 0
+        ? [`Valid names: ${sortedValidNames.join(", ")}`]
+        : ["Run `flisk resources` to see available services"];
+  return {
+    code: "UNKNOWN_SERVICE",
+    message,
+    suggestions: jsonSuggestions,
+    validNames: sortedValidNames,
+  };
+}
+
+/**
  * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which
  * a project without any `command` service always takes. Outside a project, a directory whose services all declare `command`
  * becomes the project. A project whose .flisk/project.json selects its own Tiltfile (`flisk import tiltfile`) also returns null:
@@ -474,7 +500,12 @@ export interface NativeUpSelection {
 export function selectNativeRun(
   stackName: string | undefined,
   only: string[] | undefined,
-  fail: (code: string, message: string, suggestions?: string[]) => never,
+  fail: (
+    code: string,
+    message: string,
+    suggestions?: string[],
+    extra?: { validNames?: string[] },
+  ) => never,
   cwd: string = process.cwd(),
 ): NativeUpSelection | null {
   const foundRoot = findProjectRoot(cwd);
@@ -514,11 +545,11 @@ export function selectNativeRun(
   if (only) {
     const unknown = findUnknownServices(only, requested);
     if (unknown.length > 0) {
-      const error = errorFactories.unknownServices(
-        unknown,
-        requested.map((service) => service.name),
-      );
-      fail("UNKNOWN_SERVICE", error.message, error.suggestions);
+      const validNames = requested.map((service) => service.name);
+      const error = errorFactories.unknownServices(unknown, validNames);
+      fail("UNKNOWN_SERVICE", error.message, error.suggestions, {
+        validNames: [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+      });
     }
   }
   // A process cannot start before what it depends on, so a stack or --only selection always brings its dependsOn closure.
@@ -873,11 +904,35 @@ export const upCommand = new Command("up")
   )
   .action(async (stackName, options) => {
     const baseEmit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
-    // A low-disk warning (5 to 15 GiB free) rides along in every successful --json result.
+    const providerError = secretProviderUsageError(process.env);
+    if (providerError) {
+      baseEmit?.({ ok: false }, [
+        {
+          code: "USAGE",
+          message: providerError.message,
+          ...(providerError.suggestions.length > 0
+            ? { suggestions: providerError.suggestions }
+            : {}),
+        },
+      ]);
+      console.error(providerError.message);
+      process.exit(providerError.exitCode);
+    }
+    // Non-blocking findings (low disk, secret bridge) ride along in every successful --json result.
     let diskWarning: Record<string, unknown> | undefined;
+    const projectWarnings: string[] = [];
     const emit: JsonEmitter | undefined = baseEmit
       ? (data, errors) =>
-          baseEmit(diskWarning && data.ok === true ? { ...data, diskWarning } : data, errors)
+          baseEmit(
+            data.ok === true
+              ? {
+                  ...data,
+                  ...(diskWarning ? { diskWarning } : {}),
+                  ...(projectWarnings.length > 0 ? { warnings: projectWarnings } : {}),
+                }
+              : data,
+            errors,
+          )
       : undefined;
     // Before any build or process starts: fail below the hard threshold, warn below the soft one (#3708).
     const guardDisk = (isDockerRun: boolean): void => {
@@ -997,12 +1052,22 @@ export const upCommand = new Command("up")
 
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated
     // files (#2229). Decided before any Docker or Tilt check; a project without `command` services never enters this branch.
-    const nativeRun = selectNativeRun(stackName, options.only, (code, message, suggestions) => {
-      emit?.({ ok: false }, [
-        { code, message, ...(suggestions && suggestions.length > 0 ? { suggestions } : {}) },
-      ]);
-      return showErrorAndExit(message, 1, suggestions);
-    });
+    const nativeRun = selectNativeRun(
+      stackName,
+      options.only,
+      (code, message, suggestions, extra) => {
+        const jsonError: MachineError =
+          code === "UNKNOWN_SERVICE" && extra?.validNames !== undefined
+            ? unknownServiceJsonError(message, suggestions ?? [], extra.validNames)
+            : {
+                code,
+                message,
+                ...(suggestions && suggestions.length > 0 ? { suggestions } : {}),
+              };
+        emit?.({ ok: false }, [jsonError]);
+        return showErrorAndExit(message, 1, suggestions);
+      },
+    );
     // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
     if (nativeRun) {
       const { projectRoot } = nativeRun;
@@ -1027,6 +1092,7 @@ export const upCommand = new Command("up")
         resources: nativeRun.all,
         onInvalid: (message) =>
           emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
+        onWarning: (message) => projectWarnings.push(message),
       });
       if (nativeRun.isNewProject && !options.dryRun) {
         writeDefaultProjectConfig(projectRoot);
@@ -1226,7 +1292,7 @@ export const upCommand = new Command("up")
           const validNames = candidates.map((service) => service.name);
           const error = errorFactories.unknownServices(unknown, validNames);
           emit?.({ ok: false }, [
-            { code: "UNKNOWN_SERVICE", message: error.message, suggestions: error.suggestions },
+            unknownServiceJsonError(error.message, error.suggestions, validNames),
           ]);
           error.exit();
         }
@@ -1245,6 +1311,7 @@ export const upCommand = new Command("up")
           resources: discoveredResources,
           onInvalid: (message) =>
             emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
+          onWarning: (message) => projectWarnings.push(message),
         });
       }
       // A dependsOn name that is no service, stack or shared Postgres is dropped by the Tiltfile; say so instead of starting without it.

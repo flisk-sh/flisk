@@ -12,7 +12,9 @@ export declare function createMachineEnvelope<T>(data: T | null, errors?: Machin
  * Builds one error entry for a `--json` envelope. `suggestions` is always present, so a consumer
  * reads it without checking for the key first (#4522).
  */
-export declare function machineError(code: string, message: string, suggestions?: readonly string[]): MachineError;
+export declare function machineError(code: string, message: string, suggestions?: readonly string[], extra?: {
+    validNames?: readonly string[];
+}): MachineError;
 /** Narrows unknown JSON to the machine-output envelope used by CLI `--json` commands. */
 export declare function isMachineOutputEnvelope(value: unknown): value is MachineOutputEnvelope;
 export declare function toMachineError(error: unknown): {

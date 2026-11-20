@@ -21,6 +21,13 @@ export declare function projectNeedsDatabaseKeys(projectRoot: string): boolean;
  * flag-style booleans (`{ gateway: false }`), which turn a capability off the same way.
  */
 export declare function resolveProjectCapabilities(projectRootOrConfig?: CapabilitySource, options?: Record<string, unknown>): ProjectCapabilities;
+/**
+ * The capabilities a status or doctor report shows: a project of local processes (#3873) starts neither the router nor
+ * the shared database, so it reports none — `getEnabledCapabilities` infers both from resource types and `dependsOn`,
+ * which describe containers, not `command` services. A caller without the project's resources passes `[]`, which reads
+ * as "not native" and keeps the inferred answer.
+ */
+export declare function reportedCapabilities(projectRoot: string | null | undefined, resources: readonly DiscoveredResource[], options?: Record<string, unknown>): string[];
 /** False when the project, the source or a flag turned the named capability off. */
 export declare function isCapabilityEnabled(projectRootOrConfig: CapabilitySource, capabilityName: string, options?: Record<string, unknown>): boolean;
 /** False when the project or a `--no-database` flag opted out of the bundled shared Postgres. */

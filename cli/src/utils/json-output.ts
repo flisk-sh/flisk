@@ -22,7 +22,12 @@ export function createJsonEmitter(failureCode: string, command: string): JsonEmi
     if (emitted) return;
     emitted = true;
     const normalized = errors.map((error) =>
-      machineError(error.code, error.message, error.suggestions ?? []),
+      machineError(
+        error.code,
+        error.message,
+        error.suggestions ?? [],
+        error.validNames !== undefined ? { validNames: error.validNames } : undefined,
+      ),
     );
     writeSync(1, `${JSON.stringify(createMachineEnvelope(data, normalized))}\n`);
   };

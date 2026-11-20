@@ -188,7 +188,7 @@ describe("flisk logs --json", () => {
     expect(envelope.errors[0]).toEqual({
       code: "UNKNOWN_SERVICE",
       message: "Unknown service ok. Valid names: ok1, zeta",
-      suggestions: ['Did you mean "ok1"?', "Valid names: ok1, zeta"],
+      suggestions: ['Did you mean "ok1"?'],
     });
   });
 
@@ -223,15 +223,12 @@ describe("flisk logs --json", () => {
     expect(messages.join("\n")).toContain('Did you mean "api"?');
   });
 
-  it("suggests the valid names for an unrelated unknown service", async () => {
+  it("omits name suggestions for an unrelated unknown service", async () => {
     tilt.runTilt.mockResolvedValueOnce(resources("api", "web"));
     const { envelope, code } = await run("-s", "completely-unrelated");
     expect(code).toBe(2);
-    expect(envelope.errors[0]).toMatchObject({
-      code: "UNKNOWN_SERVICE",
-      suggestions: ["Valid names: api, web"],
-    });
-    expect(envelope.errors[0].suggestions).not.toContain("Did you mean");
+    expect(envelope.errors[0]).toMatchObject({ code: "UNKNOWN_SERVICE" });
+    expect(envelope.errors[0].suggestions).toBeUndefined();
   });
 
   it("reports a missing Tilt binary", async () => {

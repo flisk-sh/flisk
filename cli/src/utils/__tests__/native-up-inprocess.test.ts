@@ -373,6 +373,50 @@ describe("runNativeUp dry run", () => {
 });
 
 describe("runNativeUp with an existing run", () => {
+  it("does not print the Starting banner or service list when a live run already owns the project (#4642)", async () => {
+    runtime.readNativeRunState.mockReturnValue({ pid: 999_999 });
+    runtime.isProcessAlive.mockReturnValue(true);
+    const emit = vi.fn();
+    await runNativeUp({
+      projectRoot: createTempDir(),
+      selected: [api, web],
+      dependencies: [],
+      emit,
+      exit: throwingExit,
+    });
+    expect(emit).toHaveBeenCalledWith({
+      ok: true,
+      alreadyRunning: true,
+      runtime: "native",
+      pid: 999_999,
+    });
+    const printed = logs.join("\n");
+    expect(printed).not.toContain("Starting");
+    expect(printed).not.toContain("  - api:");
+    expect(printed).not.toContain("  - web:");
+    expect(printed).toContain("pid 999999");
+    expect(printed).toContain("pass --force to restart it");
+    expect(runtime.supervisorArgs).toHaveLength(0);
+  });
+
+  it("keeps dry-run output unchanged when a live run exists (#4642)", async () => {
+    runtime.readNativeRunState.mockReturnValue({ pid: 999_999 });
+    runtime.isProcessAlive.mockReturnValue(true);
+    const emit = vi.fn();
+    await runNativeUp({
+      projectRoot: createTempDir(),
+      selected: [api, web],
+      dependencies: [],
+      dryRun: true,
+      emit,
+      exit: throwingExit,
+    });
+    expect(logs[0]).toContain("Would start 2 services as local processes");
+    expect(logs).toContainEqual(expect.stringContaining("web: node web.js (after api)"));
+    expect(emit).toHaveBeenCalledWith(expect.objectContaining({ ok: true, dryRun: true }));
+    expect(emit).not.toHaveBeenCalledWith(expect.objectContaining({ alreadyRunning: true }));
+  });
+
   it("reports a live run and returns without starting a second one", async () => {
     runtime.readNativeRunState.mockReturnValue({ pid: 999_999 });
     runtime.isProcessAlive.mockReturnValue(true);

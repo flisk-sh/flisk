@@ -137,14 +137,15 @@ export const errorFactories = {
     const orderedValid =
       names.length === 1 && names[0] !== undefined
         ? rankByDistance(names[0], validNames)
-        : validNames;
-    // The valid names ride in suggestions too, so a JSON consumer gets them without parsing the message.
-    const suggestions = [
-      ...closestNameSuggestions(names, orderedValid, names.length > 1),
-      `Valid names: ${orderedValid.join(", ")}`,
-    ];
+        : [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    // A project with many services would put all of them on one unreadable line; point at the list instead.
+    const tooManyToPrint = orderedValid.length > 10;
+    const suggestions = closestNameSuggestions(names, orderedValid, names.length > 1);
+    if (tooManyToPrint) suggestions.push("Run `flisk resources` to see available services");
     return new FliskError(
-      `Unknown service ${names.join(", ")}. Valid names: ${orderedValid.join(", ")}`,
+      tooManyToPrint
+        ? `Unknown service ${names.join(", ")}.`
+        : `Unknown service ${names.join(", ")}. Valid names: ${orderedValid.join(", ")}`,
       suggestions,
       2,
     );

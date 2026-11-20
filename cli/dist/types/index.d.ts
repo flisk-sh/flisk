@@ -235,6 +235,8 @@ export declare const INFERENCE_RESOURCE_TYPE = "inference";
  */
 export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference", "database", "queue", "storage", "mail", "payment"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
+/** True when `flisk resource --type <type>` accepts the value, including the `sdk` and `byo` aliases. */
+export declare function isResourceCreateType(type: string): boolean;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";
 export interface ResourceMetadata {
@@ -405,6 +407,7 @@ export interface PortOwnerDetails {
 }
 export interface CheckResult {
     name: string;
+    durationMs?: number;
     didPass: boolean;
     message: string;
     fix?: string;
@@ -535,6 +538,7 @@ export interface MachineError {
     code: string;
     message: string;
     suggestions?: string[];
+    validNames?: string[];
 }
 export interface PortOccupant {
     pid: number;

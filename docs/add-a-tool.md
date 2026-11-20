@@ -43,6 +43,7 @@ Tools that add a resource need a Flisk project: outside one, `flisk tool add rea
 | AI | `rag` | adds a resource | A Qdrant vector store: `flisk resource vectors --type database --framework qdrant` |
 | AI | `embeddings` | adds a resource | A local model server (Ollama): `flisk resource embeddings --type inference`; pull an embedding model such as `nomic-embed-text` into it |
 | AI | `llm-api` | adds a resource | A local OpenAI-compatible API at `/v1` (Ollama): `flisk resource llm --type inference`; no API key |
+| AI | `openapi-mcp` | manual steps | An OpenAPI-to-MCP gateway (`ckanthony/openapi-mcp`) as a `bring-your-own` image pointed at your backend's spec; each operation becomes an MCP tool |
 | DevOps | `docker` | built in | Flisk already runs container stacks on Docker; check it with `flisk doctor` |
 | DevOps | `github-actions` | manual steps | A workflow that runs `flisk config verify` on every push |
 | Widgets | `weather` | manual steps | A weather backend (`flisk tool add nodejs weather`) plus the one route that calls the free Open-Meteo forecast |
@@ -56,6 +57,10 @@ Tools that add a resource need a Flisk project: outside one, `flisk tool add rea
 Widgets are cards that Flisk Chat draws from data. To add a new widget (or a tool the chat's computer can use), see [Add a widget or a tool to Flisk Chat](https://github.com/flisk-sh/chat/blob/main/docs/add-a-widget.md).
 
 A RAG app is the three AI tools together: `flisk tool add rag`, `flisk tool add embeddings` and `flisk tool add llm-api`.
+
+For agent memory over MCP, put the Qdrant MCP server in front of the `rag` resource, one collection per customer: see
+[Qdrant MCP memory](recipes/qdrant-mcp-memory.md). To stop a tool call before it runs, such as a `pay` tool above a limit, see
+[MCP tool policy](recipes/mcp-tool-policy.md).
 
 ## Why cloud providers are rejected
 

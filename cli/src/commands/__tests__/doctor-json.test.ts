@@ -95,12 +95,14 @@ function captureOutput(): { log: ReturnType<typeof vi.spyOn>; exit: ExitCapture[
 }
 
 const PASSING_CHECK: CheckResult = {
+  durationMs: 0,
   name: "Container Runtime",
   didPass: true,
   message: "Docker daemon is running",
 };
 
 const FAILING_CHECK: CheckResult = {
+  durationMs: 0,
   name: "Tilt CLI",
   didPass: false,
   message: "Tilt CLI not found",
@@ -108,6 +110,7 @@ const FAILING_CHECK: CheckResult = {
 };
 
 const SKIPPED_CHECK: CheckResult = {
+  durationMs: 0,
   name: "Service Health",
   didPass: true,
   isSkipped: true,
@@ -186,17 +189,20 @@ describe("doctor JSON command", () => {
     expect(parsedFailing.data.ready).toBe(false);
     expect(parsedFailing.data.checks).toEqual([
       {
+        durationMs: 0,
         name: "Container Runtime",
         didPass: true,
         message: "Docker daemon is running",
       },
       {
+        durationMs: 0,
         name: "Tilt CLI",
         didPass: false,
         message: "Tilt CLI not found",
         fix: "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
       },
       {
+        durationMs: 0,
         name: "Service Health",
         didPass: true,
         isSkipped: true,
@@ -390,6 +396,26 @@ describe("doctor JSON command", () => {
     }
   });
 
+  it("rejects an unknown FLISK_SECRET_PROVIDER with a USAGE JSON report and exit 2", async () => {
+    const saved = process.env.FLISK_SECRET_PROVIDER;
+    const { log, exit } = captureOutput();
+    process.env.FLISK_SECRET_PROVIDER = "keychan";
+    try {
+      await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
+      expect(exit).toHaveBeenCalledWith(2);
+      const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
+      expect(report.data).toBeNull();
+      expect(report.errors[0].code).toBe("USAGE");
+      expect(report.errors[0].message).toContain('"keychan"');
+      expect(report.errors[0].message).toContain("env-file, infisical");
+    } finally {
+      if (saved === undefined) delete process.env.FLISK_SECRET_PROVIDER;
+      else process.env.FLISK_SECRET_PROVIDER = saved;
+      log.mockRestore();
+      exit.mockRestore();
+    }
+  });
+
   it("handles Commander unknown options with USAGE JSON report via exitOverride", async () => {
     const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const { log, exit } = captureOutput();
@@ -498,6 +524,7 @@ describe("doctor JSON command", () => {
       });
       expect(report.data.checks[1].message).toContain("NEXT_PUBLIC_STRIPE (.env)");
       expect(report.data.checks[1].message).not.toContain(secretKey);
+      expect(report.data.warnings).toContain(report.data.checks[1].message);
     } finally {
       Object.defineProperty(process, "platform", platform);
       doctorCommand.setOptionValue("json", false);
@@ -718,17 +745,20 @@ describe("doctor JSON command", () => {
     });
 
     const runtimeCheck: CheckResult = {
+      durationMs: 0,
       name: "Container Runtime",
       didPass: true,
       message: "Docker daemon is running",
     };
     const probeFailingCheck: CheckResult = {
+      durationMs: 0,
       name: "Service Health",
       didPass: false,
       message: "http://api.flisk.localhost:8080/health returned 503 Service Unavailable",
       fix: "flisk logs to inspect container health",
     };
     const probePassingCheck: CheckResult = {
+      durationMs: 0,
       name: "Advertised Endpoints",
       didPass: true,
       message: "All 2 advertised routes responded with expected HTTP status",

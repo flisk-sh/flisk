@@ -50,13 +50,55 @@ function refusal(args: readonly string[]): Record<string, unknown> {
 }
 
 describe("flisk up --json errors share one shape (#4522)", () => {
-  it("suggests the valid services for an unknown --only name", () => {
+  it("exposes structured validNames and non-empty suggestions for an unknown --only name", () => {
     const error = refusal(["--only", "nope", "--dry-run"]);
-    expect(error).toMatchObject({ code: "UNKNOWN_SERVICE" });
+    expect(error).toMatchObject({
+      code: "UNKNOWN_SERVICE",
+      validNames: ["api", "web"],
+    });
     expect(Array.isArray(error.suggestions)).toBe(true);
     expect((error.suggestions as string[]).length).toBeGreaterThan(0);
     expect(error.suggestions).toContain("Valid names: api, web");
     expect(error.message).toContain("Unknown service nope. Valid names: api, web");
+  });
+
+  it("exposes structured validNames alongside typo suggestions for a close --only typo", () => {
+    const error = refusal(["--only", "ap", "--dry-run"]);
+    expect(error).toMatchObject({
+      code: "UNKNOWN_SERVICE",
+      validNames: ["api", "web"],
+      suggestions: ['Did you mean "api"?'],
+    });
+  });
+
+  it("exposes structured validNames for container projects too", () => {
+    const containerDir = createTempProject({
+      projectJson: {
+        name: "json-shape-container",
+        version: "1.0.0",
+        phases: { alpha: { name: "alpha", description: "", enabledStacks: ["app"] } },
+      },
+      stacks: {
+        app: {
+          web: { appType: "frontend", schemaVersion: 1, port: 3000 },
+          api: { appType: "backend", schemaVersion: 1, port: 4000 },
+        },
+      },
+    });
+    const result = runFlisk(["up", "--json", "--only", "nope", "--dry-run"], { cwd: containerDir });
+    const envelope = firstEnvelope(result.stdout);
+    expect(envelope.errors).toHaveLength(1);
+    expect(envelope.errors[0]).toMatchObject({
+      code: "UNKNOWN_SERVICE",
+      validNames: ["api", "web"],
+      suggestions: ["Valid names: api, web"],
+    });
+  });
+
+  it("does not duplicate valid service names in human-readable output", () => {
+    const result = runFlisk(["up", "--only", "nope", "--dry-run"], { cwd: dir });
+    const matches = result.stderr.match(/Valid names:/g) ?? [];
+    expect(matches).toHaveLength(1);
   });
 
   it("suggests an example timeout for an invalid --wait-timeout", () => {
