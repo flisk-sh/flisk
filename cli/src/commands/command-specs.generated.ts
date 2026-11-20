@@ -431,14 +431,14 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [
       {
         name: "host",
-        description: "Agent host: claude, cursor, codex",
+        description: "Agent host: claude, cursor, codex, gemini",
         required: true,
         variadic: false,
       },
     ],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global",
+        "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global\n  flisk connect gemini --dry-run",
       ],
     },
     subcommands: [],

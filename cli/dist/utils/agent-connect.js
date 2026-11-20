@@ -11,12 +11,13 @@ import { suggestClosest } from "./suggestions.js";
  * skills (the same files `flisk project` writes). Every write is a merge: other servers and other keys stay, and a
  * second run changes nothing.
  */
-export const CONNECT_HOSTS = ["claude", "cursor", "codex"];
+export const CONNECT_HOSTS = ["claude", "cursor", "codex", "gemini"];
 const HOST_ALIASES = {
     claude: "claude",
     "claude-code": "claude",
     cursor: "cursor",
     codex: "codex",
+    gemini: "gemini",
 };
 export const MCP_SERVER_NAME = "flisk";
 export const HOST_SPECS = {
@@ -53,6 +54,19 @@ export const HOST_SPECS = {
             "Run /mcp inside Codex (or `codex mcp list`) to confirm `flisk` is connected",
         ],
     },
+    gemini: {
+        label: "Gemini CLI",
+        format: "json",
+        projectFile: ".gemini/settings.json",
+        // Gemini CLI reads user-scope servers from ~/.gemini/settings.json alongside its other settings.
+        globalFile: ".gemini/settings.json",
+        // Gemini CLI discovers workspace skills in .agents/skills as well as .gemini/skills.
+        skillDirs: [".agents/skills"],
+        next: [
+            "Start Gemini CLI in this folder (`gemini`) and approve the project server `flisk` when it asks",
+            "Run /mcp list inside Gemini CLI to confirm `flisk` is connected",
+        ],
+    },
 };
 /** Resolve a host name or alias, or throw a FliskError that lists the hosts and the closest match. */
 export function resolveConnectHost(input) {
@@ -66,7 +80,7 @@ export function resolveConnectHost(input) {
         "Any other MCP client: add the stdio server `flisk mcp` by hand (docs/agent-tooling/flisk-mcp-setup.md)",
     ], 2);
 }
-/** The MCP server entry for a JSON config (Claude Code, Cursor). */
+/** The MCP server entry for a JSON config (Claude Code, Cursor, Gemini CLI). */
 /** Cursor's variable for the folder that holds .cursor/mcp.json, written literally into the config. */
 export const CURSOR_WORKSPACE_FOLDER = "$" + "{workspaceFolder}";
 export function jsonServerEntry(host, platform = process.platform) {

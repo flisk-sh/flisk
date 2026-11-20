@@ -101,7 +101,7 @@ Use `flisk up`; you do not run `docker compose up` on a Flisk project. For a con
 
 ## flisk mcp vs flisk connect
 
-`flisk mcp` is the MCP server; `flisk connect <host>` configures a coding agent to use it. `flisk mcp` runs over stdio and gives an agent the Flisk commands as tools; you do not usually start it by hand. `flisk connect claude`, `flisk connect cursor` or `flisk connect codex` writes the `flisk mcp` entry into that host's config (`.mcp.json`, `.cursor/mcp.json` or `.codex/config.toml`) and adds the Flisk skills. Add `--dry-run` to see the files first. See [Flisk for AI agents](agents/flisk-for-agents.md) and [MCP setup](agent-tooling/flisk-mcp-setup.md).
+`flisk mcp` is the MCP server; `flisk connect <host>` configures a coding agent to use it. `flisk mcp` runs over stdio and gives an agent the Flisk commands as tools; you do not usually start it by hand. `flisk connect claude`, `flisk connect cursor`, `flisk connect codex` or `flisk connect gemini` writes the `flisk mcp` entry into that host's config (`.mcp.json`, `.cursor/mcp.json`, `.codex/config.toml` or `.gemini/settings.json`) and adds the Flisk skills. Add `--dry-run` to see the files first. See [Flisk for AI agents](agents/flisk-for-agents.md) and [MCP setup](agent-tooling/flisk-mcp-setup.md).
 
 ## backend vs worker resource
 

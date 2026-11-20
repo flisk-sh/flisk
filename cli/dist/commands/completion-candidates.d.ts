@@ -16,7 +16,9 @@ export type CompletionPositional =
 /** The stacks and the resources of the current project. */
  | "stacks-and-resources"
 /** The names of the other commands (`flisk help <command>`). */
- | "commands";
+ | "commands"
+/** The agent hosts `flisk connect` accepts. */
+ | "hosts";
 /** A flag a command accepts. */
 export interface CompletionOption {
     /** The long flag, for example `--json`. */
@@ -53,6 +55,8 @@ export interface CompletionCommand {
     variadic?: boolean;
     /** The values of the flags of this command, when the command accepts another set. */
     optionValues?: Record<string, string[]>;
+    /** The fixed values of the positional argument, when it is not a project value. */
+    positionalValues?: string[];
 }
 /** Everything the four completion scripts suggest. */
 export interface CompletionCandidates {

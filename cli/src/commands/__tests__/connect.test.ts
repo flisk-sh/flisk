@@ -298,10 +298,109 @@ describe("flisk connect: Codex", () => {
   });
 });
 
+describe("flisk connect: Gemini CLI", () => {
+  it("writes .gemini/settings.json and the Flisk skills to .agents/skills", () => {
+    const project = tempDir("flisk-connect-gemini-");
+    const home = tempDir("flisk-connect-home-");
+    const result = connect("gemini", project, home);
+
+    expect(readJson(path.join(project, ".gemini/settings.json"))).toEqual({
+      mcpServers: { flisk: { command: "flisk", args: ["mcp"] } },
+    });
+    for (const { rel, contents } of agentSkillFiles([".agents/skills"])) {
+      expect(fs.readFileSync(path.join(project, rel), "utf-8")).toBe(contents);
+    }
+    expect(result.changes.filter((c) => c.kind === "skill")).toHaveLength(
+      PROJECT_AGENT_SKILLS.length,
+    );
+    expect(result.changes.every((c) => c.action === "create")).toBe(true);
+    expect(snapshot(home)).toEqual({});
+  });
+
+  it("keeps unrelated settings and servers, and is idempotent", () => {
+    const project = tempDir("flisk-connect-gemini-");
+    const home = tempDir("flisk-connect-home-");
+    const file = path.join(project, ".gemini/settings.json");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const original = {
+      theme: "GitHub",
+      mcp: { allowed: ["other"] },
+      mcpServers: { other: { command: "other", args: ["serve"] } },
+    };
+    fs.writeFileSync(file, JSON.stringify(original));
+
+    const first = connect("gemini", project, home);
+    const merged = fs.readFileSync(file, "utf-8");
+    expect(readJson(file)).toEqual({
+      ...original,
+      mcpServers: { ...original.mcpServers, flisk: { command: "flisk", args: ["mcp"] } },
+    });
+    expect(first.changes[0]).toMatchObject({ kind: "mcp", action: "update" });
+
+    const second = connect("gemini", project, home);
+    expect(fs.readFileSync(file, "utf-8")).toBe(merged);
+    expect(second.changes.every((c) => c.action === "unchanged")).toBe(true);
+  });
+
+  it("--dry-run reports the settings file and writes nothing", () => {
+    const project = tempDir("flisk-connect-gemini-");
+    const before = snapshot(project);
+
+    const result = connect("gemini", project, tempDir("flisk-connect-home-"), { dryRun: true });
+
+    expect(snapshot(project)).toEqual(before);
+    expect(result.dryRun).toBe(true);
+    expect(result.changes[0]).toMatchObject({
+      path: path.join(project, ".gemini/settings.json"),
+      kind: "mcp",
+      action: "create",
+    });
+  });
+
+  it("keeps a different flisk server unless --force, and refuses an invalid settings file", () => {
+    const project = tempDir("flisk-connect-gemini-");
+    const file = path.join(project, ".gemini/settings.json");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const custom = { command: "/opt/flisk/bin/flisk", args: ["mcp"] };
+    fs.writeFileSync(file, JSON.stringify({ mcpServers: { flisk: custom }, theme: "GitHub" }));
+
+    const kept = connect("gemini", project, tempDir("flisk-connect-home-"));
+    expect(readJson(file).mcpServers.flisk).toEqual(custom);
+    expect(kept.changes[0].action).toBe("kept");
+
+    connect("gemini", project, tempDir("flisk-connect-home-"), { force: true });
+    expect(readJson(file)).toEqual({
+      theme: "GitHub",
+      mcpServers: { flisk: { command: "flisk", args: ["mcp"] } },
+    });
+
+    fs.writeFileSync(file, "{ not json");
+    expect(() => connect("gemini", project, tempDir("flisk-connect-home-"))).toThrow(FliskError);
+  });
+
+  it("--global writes only ~/.gemini/settings.json, merged, and nothing in the project", () => {
+    const project = tempDir("flisk-connect-gemini-");
+    const home = tempDir("flisk-connect-home-");
+    const file = path.join(home, ".gemini/settings.json");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ ui: { theme: "GitHub" } }));
+
+    const result = connect("gemini", project, home, { scope: "global" });
+
+    expect(readJson(file)).toEqual({
+      ui: { theme: "GitHub" },
+      mcpServers: { flisk: { command: "flisk", args: ["mcp"] } },
+    });
+    expect(result.changes).toEqual([{ path: file, kind: "mcp", action: "update" }]);
+    expect(snapshot(project)).toEqual({});
+  });
+});
+
 describe("flisk connect: host names", () => {
   it("accepts claude-code as an alias", () => {
     expect(resolveConnectHost("claude-code")).toBe("claude");
     expect(resolveConnectHost("Cursor")).toBe("cursor");
+    expect(resolveConnectHost("gemini")).toBe("gemini");
   });
 
   it("rejects an unknown host with exit code 2 and suggestions", () => {
@@ -313,7 +412,7 @@ describe("flisk connect: host names", () => {
     }
     expect(error).toBeInstanceOf(FliskError);
     expect((error as FliskError).exitCode).toBe(2);
-    expect((error as FliskError).message).toContain("claude, cursor, codex");
+    expect((error as FliskError).message).toContain("claude, cursor, codex, gemini");
     expect((error as FliskError).suggestions[0]).toContain('Did you mean "cursor"?');
   });
 });
@@ -358,9 +457,9 @@ describe("flisk connect: the command", () => {
     );
     expect(result.status ?? 0).toBe(0);
     expect(result.stdout).toContain("Dry run - would connect Flisk to Cursor");
-    expect(result.stdout).toContain(".cursor/mcp.json");
+    expect(result.stdout).toContain(path.join(".cursor", "mcp.json"));
     expect(result.stdout).toContain(
-      `.agents/skills/  (${PROJECT_AGENT_SKILLS.length} Flisk skills)`,
+      `${path.join(".agents", "skills")}/  (${PROJECT_AGENT_SKILLS.length} Flisk skills)`,
     );
     expect(snapshot(project)).toEqual({});
   });
@@ -374,5 +473,35 @@ describe("flisk connect: the command", () => {
     );
     expect(result.status).toBe(2);
     expect(result.stderr).toContain("Choose one of --project and --global");
+  });
+
+  it("connects Gemini CLI with --json", async () => {
+    const project = tempDir("flisk-connect-cmd-");
+    const result = await runCommandInProcess(await freshCommand(), ["gemini", "--json"], project);
+    expect(result.status ?? 0).toBe(0);
+    const envelope = JSON.parse(result.stdout);
+    expect(envelope.data).toMatchObject({ ok: true, host: "gemini", scope: "project" });
+    expect(envelope.data.changes[0]).toMatchObject({
+      path: path.join(project, ".gemini/settings.json"),
+      kind: "mcp",
+      action: "create",
+    });
+    expect(readJson(path.join(project, ".gemini/settings.json")).mcpServers.flisk).toEqual({
+      command: "flisk",
+      args: ["mcp"],
+    });
+  });
+
+  it("--dry-run names Gemini CLI and its settings file", async () => {
+    const project = tempDir("flisk-connect-cmd-");
+    const result = await runCommandInProcess(
+      await freshCommand(),
+      ["gemini", "--dry-run"],
+      project,
+    );
+    expect(result.status ?? 0).toBe(0);
+    expect(result.stdout).toContain("Dry run - would connect Flisk to Gemini CLI");
+    expect(result.stdout).toContain(path.join(".gemini", "settings.json"));
+    expect(snapshot(project)).toEqual({});
   });
 });
