@@ -25,7 +25,7 @@ import { groupServicesByStack, hasNoOwnProcess, healthCountedResources, unhealth
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
-import { findTiltPortOwner } from "../utils/tilt-port-owner.js";
+import { findTiltPortOwner, isForeignTilt } from "../utils/tilt-port-owner.js";
 import { tiltSessionIsForProject } from "../utils/tilt-session-owner.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { evaluateTiltReadiness, tiltGetSession, tiltGetUiResources, } from "../utils/up-readiness.js";
@@ -256,14 +256,16 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         // Tilt itself names the Tiltfile it loaded, so ask it before trusting any resource or readiness answer.
         let foreignTilt = false;
         let foreignTiltRoot = null;
+        // Null means ownership is unknown; the resource-name heuristic below stays the fallback for that case.
+        let ownsTiltfile = null;
         if (tiltAvailable && projectRoot) {
             const portOwner = findTiltPortOwner(tiltPort);
-            if (portOwner && portOwner.root !== projectRoot) {
+            if (portOwner && isForeignTilt(portOwner, projectRoot)) {
                 foreignTilt = true;
                 foreignTiltRoot = portOwner.root;
             }
             else {
-                const ownsTiltfile = tiltSessionIsForProject(await tiltGetSession(tiltPort), projectRoot);
+                ownsTiltfile = tiltSessionIsForProject(await tiltGetSession(tiltPort), projectRoot);
                 if (ownsTiltfile === false) {
                     foreignTilt = true;
                 }
@@ -289,7 +291,9 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 const projectResourceNames = new Set(discovery.resources.map((r) => r.name));
                 try {
                     const parsed = JSON.parse(text);
-                    if (tiltAnswerIsForeign(parsed, projectResourceNames)) {
+                    // A session-confirmed Tiltfile outranks the resource names: an infra-only graph (e.g. `init-networks`
+                    // before any app resource registers) is this Tilt starting up, not another project's answer.
+                    if (ownsTiltfile !== true && tiltAnswerIsForeign(parsed, projectResourceNames)) {
                         foreignTilt = true;
                         if (!projectRoot) {
                             foreignTiltRoot = null;

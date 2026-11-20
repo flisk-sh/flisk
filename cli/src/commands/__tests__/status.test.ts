@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -885,6 +885,70 @@ describe("flisk status", () => {
           (resource) => resource.name === "orders-api",
         )?.status,
       ).toBe("ready");
+    });
+
+    it("runs the session check when the port owner's root is another spelling of the project root", async () => {
+      // Tilt's command line keeps the spelling it was started with, so a symlinked checkout must not read as another
+      // project's Tilt: the raw root comparison skipped the session check and reported tilt.available false.
+      const linkPath = join(
+        tmpdir(),
+        `flisk-status-link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      );
+      symlinkSync(projectRoot, linkPath, "junction");
+      try {
+        vi.mocked(findTiltPortOwner).mockReturnValue({ pid: 99, root: linkPath });
+        vi.mocked(tiltGetSession).mockResolvedValue(
+          sessionWithTiltfile(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile")),
+        );
+        vi.mocked(tiltGetUiResources).mockResolvedValue(
+          JSON.stringify({
+            items: [
+              {
+                metadata: { name: "orders-api" },
+                status: { updateStatus: "ok", runtimeStatus: "ok" },
+              },
+            ],
+          }),
+        );
+
+        const data = JSON.parse(await runStatus(["--json"])).data;
+
+        expect(tiltGetSession).toHaveBeenCalledWith(10350);
+        expect(data.tilt.available).toBe(true);
+        expect(data.tilt.readiness).toMatchObject({
+          ready: true,
+          failures: [],
+          enabled: ["orders-api"],
+        });
+      } finally {
+        rmSync(linkPath, { force: true });
+      }
+    });
+
+    it("keeps a session-confirmed Tilt whose graph only has infra resources", async () => {
+      // `init-networks` runs before any app resource registers; with the Tiltfile already confirmed as this
+      // project's, the resource-name heuristic must not read that graph as another project's answer.
+      vi.mocked(tiltGetSession).mockResolvedValue(
+        sessionWithTiltfile(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile")),
+      );
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        JSON.stringify({
+          items: [
+            {
+              metadata: { name: "init-networks" },
+              status: { updateStatus: "ok", runtimeStatus: "ok" },
+            },
+          ],
+        }),
+      );
+
+      const envelope = JSON.parse(await runStatus(["--json"]));
+
+      expect(envelope.data.tilt.available).toBe(true);
+      expect(envelope.data.tilt.resources).toMatchObject({
+        items: [{ metadata: { name: "init-networks" } }],
+      });
+      expect(envelope.errors ?? []).toEqual([]);
     });
   });
 
