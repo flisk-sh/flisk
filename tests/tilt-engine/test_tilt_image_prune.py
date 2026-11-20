@@ -52,14 +52,34 @@ class TestWatcherScriptPaths:
         text = WATCHERS.read_text(encoding="utf-8")
         assert ".flisk-out/ext/assets/" not in text
 
-    def test_dangling_prune_watcher_starts_automatically(self):
-        # auto_init=False on a serve_cmd resource means Tilt never runs its loop,
-        # so the tilt-* retention below would never execute.
+    @staticmethod
+    def _utility_resources() -> dict[str, str]:
         text = WATCHERS.read_text(encoding="utf-8")
-        block = re.search(r"local_resource\('auto-prune-dangling',(.*?)\n    \)", text, re.S)
-        assert block, "auto-prune-dangling resource not found"
-        assert "auto_init=True" in block.group(1)
-        assert "cleanup-tilt-images.sh --keep 2 --force" in block.group(1)
+        start = text.index("def setup_utility_resources():")
+        end = text.index("\ndef ", start + 1)
+        body = text[start:end]
+        return {
+            name: definition
+            for name, definition in re.findall(
+                r"local_resource\(\s*'([^']+)',(.*?)\n    \)", body, re.S
+            )
+        }
+
+    def test_no_unscoped_cleanup_loops_are_generated(self):
+        resources = self._utility_resources()
+
+        assert "auto-prune-dangling" not in resources
+        assert "auto-prune-migrator-images" not in resources
+        for name, definition in resources.items():
+            if "serve_cmd" not in definition:
+                continue
+            assert "auto_init=True" not in definition, f"{name} starts a loop automatically"
+            for command in (
+                "docker image prune -f",
+                "cleanup-tilt-images.sh",
+                "cleanup-completed-migrator-images.sh",
+            ):
+                assert command not in definition, f"{name} runs unscoped cleanup: {command}"
 
 
 @pytest.mark.safety

@@ -109,44 +109,6 @@ def setup_utility_resources():
         auto_init=False
     )
     
-    # Continuous dangling image cleanup - runs every 5 minutes via serve_cmd loop
-    local_resource('auto-prune-dangling',
-        serve_cmd='''
-            echo "🧹 Auto-prune started (every 300s)"
-            while true; do
-                count=$(docker images -f "dangling=true" -q 2>/dev/null | wc -l | tr -d ' ')
-                if [ "$count" -gt "5" ]; then
-                    echo "$(date +%H:%M:%S) 🧹 Cleaning $count dangling images..."
-                    docker image prune -f 2>/dev/null || true
-                else
-                    echo "$(date +%H:%M:%S) ✓ $count dangling images (threshold: 5)"
-                fi
-                # Tilt tags every build as tilt-<hash>, so superseded builds stay tagged
-                # and are never dangling. Keep the newest 2 per service; running images are skipped.
-                ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 2 --force >/dev/null 2>&1 || true
-                sleep 300
-            done
-        ''',
-        resource_deps=[],
-        labels=['dev.maintenance', 'mac-m1'],
-        auto_init=True,
-    )
-
-    # Continuously reclaim heavyweight migrator images once migration succeeds.
-    local_resource('auto-prune-migrator-images',
-        serve_cmd='''
-            echo "🧹 Migrator image cleanup started (every 45s)"
-            while true; do
-                ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-completed-migrator-images.sh || true
-                sleep 45
-            done
-        ''',
-        resource_deps=[],
-        labels=['dev.maintenance'],
-        auto_init=True,
-    )
-
-
 def setup_dependency_sync_status():
     """Set up dependency sync status display resource."""
     local_resource('dependency-sync-status',
@@ -283,8 +245,6 @@ def setup_cron_resources():
     print("⏰  CRON JOBS CONFIGURED")
     print("⏰  - cron-lint: runs every 60 seconds")
     print("⏰  - cron-format: runs every 60 seconds")
-    print("⏰  - auto-prune-dangling: runs every 5 minutes (existing)")
-    print("⏰  - auto-prune-migrator-images: runs every 45 seconds (existing)")
     print("⏰  - Status API: http://localhost:10352/api/cron-jobs-status")
     print("⏰ ═══════════════════════════════════════════════════════════════")
 
