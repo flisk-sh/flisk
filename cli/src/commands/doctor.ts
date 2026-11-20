@@ -38,6 +38,7 @@ import {
   planDoctorFixes,
   projectTiltPids,
 } from "../utils/doctor-fix.js";
+import { checkIdleProjects } from "../utils/doctor-idle.js";
 import { checkDiskSpace } from "../utils/doctor-host.js";
 import {
   checkEnvironmentVariables,
@@ -538,6 +539,8 @@ export const doctorCommand = new Command("doctor")
           ]
         : []),
       checkColima,
+      // A stack left running for days keeps its own Traefik, Postgres and volumes; warn with an exact stop command (#4296).
+      requiresContainerRuntime("Idle Projects", () => checkIdleProjects()),
       checkContainerEngine,
       () => checkDockerRuntime(hostCommandCache),
       () => checkDiskSpace(),

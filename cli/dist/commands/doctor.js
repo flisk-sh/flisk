@@ -14,6 +14,7 @@ import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, } from "../utils/doctor-container.js";
 import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import { applyDoctorFixes, checkDuplicateFliskInstalls, hasFailedActions, planDoctorFixes, projectTiltPids, } from "../utils/doctor-fix.js";
+import { checkIdleProjects } from "../utils/doctor-idle.js";
 import { checkDiskSpace } from "../utils/doctor-host.js";
 import { checkEnvironmentVariables, checkFliskVersion, checkLatestFliskVersion, checkMasterConfigs, checkPublishedBindAddress, checkWslProjectLocation, WSL2_DOCTOR_MESSAGE, } from "../utils/doctor-machine.js";
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
@@ -313,6 +314,8 @@ export const doctorCommand = new Command("doctor")
             ]
             : []),
         checkColima,
+        // A stack left running for days keeps its own Traefik, Postgres and volumes; warn with an exact stop command (#4296).
+        requiresContainerRuntime("Idle Projects", () => checkIdleProjects()),
         checkContainerEngine,
         () => checkDockerRuntime(hostCommandCache),
         () => checkDiskSpace(),
