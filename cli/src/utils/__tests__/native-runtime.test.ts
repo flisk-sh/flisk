@@ -620,6 +620,51 @@ describe("native supervisor", () => {
     expect(notes.at(-1)).toMatch(/exited 5 times in a row, so it is not restarted/);
   });
 
+  it("does not report a no-port worker ready when its process exits at once (#3950)", async () => {
+    const root = createTempDir();
+    writeFileSync(
+      join(root, "crash.mjs"),
+      'console.error("worker: missing env DATABASE_URL"); process.exit(1);\n',
+    );
+    writeFileSync(join(root, "loop.mjs"), "setInterval(() => {}, 1000);\n");
+    const plan = planNativeRun([
+      nativeService(root, "worker", { command: `${NODE} crash.mjs` }),
+      nativeService(root, "dependent", { command: `${NODE} loop.mjs`, dependsOn: ["worker"] }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onNote: (name, message) => notes.push(`${name}: ${message}`) },
+      // Longer than a fraction of the grace: the old code saw "not gaveUp" at t=1s and called it ready.
+      { restartDelayMs: 500 },
+    );
+    supervisors.push(supervisor);
+
+    expect(await supervisor.start()).toEqual([
+      { name: "worker", reason: "kept exiting; see its output above" },
+      { name: "dependent", reason: "not started: worker did not start" },
+    ]);
+    expect(notes).not.toContain("worker: ready");
+    expect(supervisor.pidOf("dependent")).toBeUndefined();
+    expect(readNativeRunState(root)?.services.worker?.ready).toBe(false);
+  });
+
+  it("still reports a no-port worker ready when its process stays up through the grace period (#3950)", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "loop.mjs"), "setInterval(() => {}, 1000);\n");
+    const plan = planNativeRun([nativeService(root, "worker", { command: `${NODE} loop.mjs` })]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onNote: (name, message) => notes.push(`${name}: ${message}`),
+    });
+    supervisors.push(supervisor);
+
+    expect(await supervisor.start()).toEqual([]);
+    expect(notes).toContain("worker: ready");
+    expect(readNativeRunState(root)?.services.worker?.ready).toBe(true);
+  });
+
   it('does not restart a service with "restart": "no"', async () => {
     const root = createTempDir();
     const plan = planNativeRun([nativeService(root, "once", { command: "exit 0", restart: "no" })]);

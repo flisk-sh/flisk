@@ -51,8 +51,8 @@ import { findOnPath } from "./which.js";
  * Docker and no Tilt. It runs in the foreground like `tilt up` does: Ctrl+C (or `flisk down` from another terminal) stops it.
  *
  * - Services start in `dependsOn` order: a service starts once everything it depends on is ready.
- * - Ready means the health URL answers (`healthCheckPath` on `port`), else the port accepts connections, else the process is
- *   still alive after a second.
+ * - Ready means the health URL answers (`healthCheckPath` on `port`), else the port accepts connections, else the same process
+ *   is still alive after a second. One that exits during that second is a failed start: its restart gets its own grace period.
  * - Output is prefixed with the service name and also appended to `.flisk/native/logs/<service>.log`.
  * - A process that exits is restarted with a growing delay, unless the service sets `"restart": "no"`. Five quick crashes in a
  *   row stop the restarts.
@@ -101,6 +101,8 @@ const RUN_FILE = "run.json";
 
 const DEFAULT_READY_TIMEOUT_MS = 60_000;
 const ALIVE_GRACE_MS = 1_000;
+/** How often startup checks for the next process after one exited before it was ready. */
+const STARTUP_RETRY_POLL_MS = 25;
 const STOP_TIMEOUT_MS = 5_000;
 const MAX_QUICK_CRASHES = 5;
 /** A process that ran at least this long before exiting crashed "slowly": its restart delay starts over. */
@@ -396,9 +398,9 @@ function notReadyReason(plan: NativeServicePlan): string {
   if (plan.readiness?.kind === "command") {
     return `healthCheck.command never exited 0: ${plan.readiness.command.join(" ")}`;
   }
-  return plan.healthUrl
-    ? `no answer from ${plan.healthUrl}`
-    : `nothing listening on port ${plan.port}`;
+  if (plan.healthUrl) return `no answer from ${plan.healthUrl}`;
+  if (plan.port !== undefined) return `nothing listening on port ${plan.port}`;
+  return "the process exited before it was ready";
 }
 
 /** How long one run of a `healthCheck.command` may take before it counts as a failed probe. */
@@ -880,6 +882,8 @@ interface RunningService {
   restarting?: boolean;
   /** Resolves with the exit code of the current process (null when a signal ended it). */
   exited?: Promise<number | null>;
+  /** How the last process ended, so a startup failure can name the exit status (#3950). */
+  lastExit?: { code: number | null; signal: NodeJS.Signals | null };
   /** HTTP status code returned by the service's health check when it became ready. */
   readyStatus?: number;
 }
@@ -972,6 +976,43 @@ export class NativeSupervisor {
   }
 
   /**
+   * Waits for one startup attempt of a service: its probe, or a full grace period with the *same* process alive. A process
+   * that exits inside the grace is a failed attempt, so its restart gets a fresh wait instead of inheriting this one (#3950).
+   */
+  private async waitForStartup(service: RunningService): Promise<boolean> {
+    const deadline = Date.now() + (this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS);
+    for (;;) {
+      if (this.stopping || service.gaveUp || Date.now() >= deadline) return false;
+      const child = service.child;
+      if (!isChildRunning(child)) {
+        // A restart is pending, or a dependency may revive this one: keep the startup wait alive until the timeout.
+        if (service.restartTimer || service.waitingFor) {
+          await sleep(STARTUP_RETRY_POLL_MS);
+          continue;
+        }
+        // A no-port process with "restart": "no" that exited 0 has finished, not crashed: keep it ready as before.
+        if (!service.plan.restart && service.plan.port === undefined && !service.plan.job) {
+          return true;
+        }
+        return false;
+      }
+      const ready = await waitForServiceReady(service.plan, {
+        // Capture this process: a quick restart must not be mistaken for the one that survived the grace period.
+        isAlive: () =>
+          !this.stopping && !service.gaveUp && service.child === child && isChildRunning(child),
+        timeoutMs: Math.max(1, deadline - Date.now()),
+        onStatus: (status) => {
+          service.readyStatus = status;
+        },
+      });
+      if (ready) return true;
+      if (this.stopping || service.gaveUp || Date.now() >= deadline) return false;
+      if (service.child === child && isChildRunning(child)) return false; // A probe timed out while the process stayed up.
+      await sleep(STARTUP_RETRY_POLL_MS);
+    }
+  }
+
+  /**
    * Starts every service once its dependencies are ready. Resolves with the services that never became ready (empty when the
    * whole selection is up); a service whose dependency failed is reported as blocked and never started.
    */
@@ -1008,13 +1049,7 @@ export class NativeSupervisor {
           // A one-shot job is ready when it has run to completion with exit code 0.
           const isReady = service.plan.job
             ? (await service.exited) === 0 && !this.stopping
-            : await waitForServiceReady(service.plan, {
-                isAlive: () => !this.stopping && !service.gaveUp,
-                timeoutMs: this.options.readyTimeoutMs,
-                onStatus: (status) => {
-                  service.readyStatus = status;
-                },
-              });
+            : await this.waitForStartup(service);
           await service.identityReady;
           if (isReady) {
             service.isReady = true;
@@ -1028,7 +1063,9 @@ export class NativeSupervisor {
                 ? "the job did not exit 0; see its output above"
                 : service.gaveUp
                   ? "kept exiting; see its output above"
-                  : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
+                  : !isChildRunning(service.child) && service.lastExit
+                    ? `${service.lastExit.signal ? `was stopped by ${service.lastExit.signal}` : `exited with code ${service.lastExit.code}`} before it was ready; see its output above`
+                    : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
             });
           }
           return isReady;
@@ -1132,6 +1169,7 @@ export class NativeSupervisor {
     service.child = child;
     service.startTime = undefined;
     service.identityReady = undefined;
+    service.lastExit = undefined;
     const pid = child.pid;
     if (pid !== undefined) {
       service.identityReady = this.readStartTime(pid).then((startTime) => {
@@ -1142,8 +1180,12 @@ export class NativeSupervisor {
       });
     }
     service.exited = new Promise((resolve) => {
-      child.once("exit", (code) => resolve(code));
-      child.once("error", () => resolve(null));
+      const ended = (code: number | null, signal: NodeJS.Signals | null = null) => {
+        service.lastExit = { code, signal };
+        resolve(code);
+      };
+      child.once("exit", (code, signal) => ended(code, signal));
+      child.once("error", () => ended(null));
     });
     this.events.onNote?.(
       plan.name,
@@ -1233,8 +1275,10 @@ export class NativeSupervisor {
     service.restartTimer = undefined;
     if (this.stopping) return;
     this.spawn(service);
+    const child = service.child;
     void waitForServiceReady(service.plan, {
-      isAlive: () => !this.stopping && isChildRunning(service.child),
+      // A newer restart is a different attempt, not proof that this one survived its grace period.
+      isAlive: () => !this.stopping && service.child === child && isChildRunning(child),
       timeoutMs: this.options.readyTimeoutMs,
     }).then(async (isReady) => {
       await service.identityReady;
@@ -1393,6 +1437,7 @@ export class NativeSupervisor {
     service.restarting = true;
     this.writeControlResult(id, { state: "restarting" });
     const startedAt = Date.now() - 1000;
+    let child: ChildProcess | undefined;
     try {
       if (service.restartTimer) clearTimeout(service.restartTimer);
       service.restartTimer = undefined;
@@ -1407,6 +1452,7 @@ export class NativeSupervisor {
       service.waitingFor = undefined;
       this.events.onNote?.(name, "restarting (requested)");
       this.spawn(service);
+      child = service.child;
     } finally {
       // From here the normal exit handling applies again: a process that dies is retried by the usual policy.
       service.restarting = false;
@@ -1414,7 +1460,7 @@ export class NativeSupervisor {
     const ready = service.plan.job
       ? (await service.exited) === 0 && !this.stopping
       : await waitForServiceReady(service.plan, {
-          isAlive: () => !this.stopping && isChildRunning(service.child),
+          isAlive: () => !this.stopping && service.child === child && isChildRunning(child),
           timeoutMs: this.options.readyTimeoutMs,
         });
     if (ready) {
