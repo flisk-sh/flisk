@@ -13,6 +13,7 @@ import {
   listProjectTemplates,
   PROJECT_TEMPLATES,
   resolveBundledTemplateDir,
+  starterNeeds,
   templateGitCommands,
   templateTargetDir,
 } from "../project-templates.js";
@@ -153,7 +154,7 @@ describe("templateTargetDir", () => {
 });
 
 describe("listProjectTemplates", () => {
-  it("lists every template in registration order with key, repo, description and its ref only when pinned", () => {
+  it("lists every template in registration order with key, repo, description, needs and its ref only when pinned", () => {
     const rows = listProjectTemplates();
     expect(rows.map((row) => row.key)).toEqual(Object.keys(PROJECT_TEMPLATES));
     for (const row of rows) {
@@ -162,10 +163,17 @@ describe("listProjectTemplates", () => {
         key: row.key,
         repo: template?.repo,
         description: template?.description,
+        needs: starterNeeds(row.key),
         ...(template?.ref ? { ref: template.ref } : {}),
       });
     }
     expect(rows.find((row) => row.key === "saas")).not.toHaveProperty("ref");
+  });
+
+  it("says which starters run locally and which need Docker", () => {
+    expect(starterNeeds("swarm")).toBe("runs on this computer; no Docker, no database");
+    expect(starterNeeds("next-postgres")).toBe("Docker (its README says what else)");
+    expect(starterNeeds("unknown")).toBe("Docker (its README says what else)");
   });
 });
 
