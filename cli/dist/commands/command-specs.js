@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Command } from "commander";
 import { createRootProgram } from "../program-root.js";
-import { attachNoPositionalHint, NO_POSITIONAL_HINTS, routeUsageErrorsToJson, } from "../utils/command-helpers.js";
+import { addResourceListHint, attachNoPositionalHint, NO_POSITIONAL_HINTS, routeUsageErrorsToJson, } from "../utils/command-helpers.js";
 import { showErrorAndExit } from "../utils/errors.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -91,6 +91,8 @@ function buildCommand(spec, run) {
     else {
         routeUsageErrorsToJson(command);
     }
+    if (spec.path.length === 1 && spec.name === "resource")
+        addResourceListHint(command);
     for (const option of spec.options) {
         const added = command.createOption(option.flags, option.description);
         if (option.defaultValue !== undefined) {

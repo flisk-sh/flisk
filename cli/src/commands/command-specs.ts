@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { Command, type Option } from "commander";
 import { createRootProgram } from "../program-root.js";
 import {
+  addResourceListHint,
   attachNoPositionalHint,
   NO_POSITIONAL_HINTS,
   routeUsageErrorsToJson,
@@ -135,6 +136,7 @@ function buildCommand(spec: CommandSpec, run: RunRealCommand): Command {
   } else {
     routeUsageErrorsToJson(command);
   }
+  if (spec.path.length === 1 && spec.name === "resource") addResourceListHint(command);
 
   for (const option of spec.options) {
     const added: Option = command.createOption(option.flags, option.description);

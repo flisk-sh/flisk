@@ -32,7 +32,7 @@ One set of files for every agent format, all written by [`scripts/agent-plugin.m
 | --- | --- |
 | `plugin.json`, `mcp.json` | The open [Agent Plugins](https://agent-plugins.org) format: Codex and ChatGPT, Cursor, GitHub Copilot CLI |
 | `.mcp.json` | Older Codex and Copilot builds that predate the open format |
-| `../flisk-claude/` | Claude Code: the same skills and nothing else. The Claude plugin directory refuses a local MCP server or any script from an organization that is not Verified, so for the server run `claude mcp add flisk -- flisk mcp` |
+| `../flisk-claude/` | Claude Code: the same skills and a portable Node launcher for the server. It runs `flisk mcp` on POSIX and native Windows, without `/bin/sh`; for a server you add yourself, run `claude mcp add flisk -- flisk mcp` |
 | `.claude-plugin/plugin.json` | Claude Code |
 | `.codex-plugin/plugin.json` | Codex builds that predate the open format |
 | `.cursor-plugin/plugin.json` | Cursor marketplace |

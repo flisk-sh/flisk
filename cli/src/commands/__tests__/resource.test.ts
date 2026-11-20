@@ -45,6 +45,7 @@ import {
 import {
   CREATABLE_RESOURCE_TYPES,
   isCreatableResourceType,
+  isResourceCreateType,
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../../types/index.js";
 import { FliskError } from "../../utils/errors.js";
@@ -913,6 +914,17 @@ describe("parseResourceType", () => {
     expect(() => parseResourceType("bogus")).toThrow(
       new RegExp(`Supported types: ${[...RESOURCE_CREATE_TYPE_VALUES, "sdk"].join(", ")}\\.`),
     );
+  });
+
+  it("keeps the creation hint helper aligned with resource type validation", () => {
+    for (const type of [...RESOURCE_CREATE_TYPE_VALUES, "sdk", "byo"]) {
+      expect(isResourceCreateType(type), type).toBe(true);
+      expect(() => parseResourceType(type), type).not.toThrow();
+    }
+    for (const type of ["library", "migrator"]) {
+      expect(isResourceCreateType(type), type).toBe(false);
+      expect(() => parseResourceType(type), type).toThrow();
+    }
   });
 
   it("rejects an unknown type with the supported list instead of prompting", () => {
