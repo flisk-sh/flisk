@@ -256,6 +256,8 @@ jobs:
         run: bun run test
       - name: Run the unit tests this queue entry affects
         if: ${{ steps.select.outputs.mode == 'selected' }}
+        shell: bash
+        shell: bash
         env:
           SELECT_DIR: ${{ runner.temp }}/unit-select
         run: |
@@ -317,6 +319,7 @@ jobs:
           FLISK_REQUIRE_TILT: '1'
       - name: Run the unit tests this queue entry affects
         if: ${{ steps.select.outputs.mode == 'selected' }}
+        shell: bash
         env:
           SELECT_DIR: ${{ runner.temp }}/unit-select
           FLISK_REQUIRE_TILT: '1'
