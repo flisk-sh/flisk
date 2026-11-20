@@ -115,6 +115,8 @@ export interface NativeRunState {
         waitingFor?: string[];
         /** The supervisor stopped restarting it (it kept crashing, or a job exited non-zero); only a restart or a new `up` revives it. */
         failed?: boolean;
+        /** Last exit code of the service's process, null when a signal ended it; absent while it has not exited. */
+        lastExitCode?: number | null;
     }>;
 }
 export declare function nativeRunStatePath(projectRoot: string): string;
@@ -176,6 +178,7 @@ export declare function stopNativeRun(projectRoot: string, options?: {
 export declare function nativeServiceStates(projectRoot: string, services: readonly string[]): Record<string, {
     status: "ready" | "pending" | "error" | "unknown";
     reason?: string;
+    exitCode?: number | null;
 }>;
 /** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
 export interface NativeLogLine {

@@ -5,6 +5,9 @@ export interface NativeFailure {
     name: string;
     reason: string;
     logs?: string[];
+    /** Last exit code of the service (127 means its program was not found), null when it never exited. */
+    exitCode?: number | null;
+    program?: string;
 }
 /** Per-URL readiness entries for `flisk up --json` in a local-process run, matching the container `data.urls` shape. */
 export declare function nativeUrlChecks(services: readonly Pick<NativeServicePlan, "name" | "url">[], statuses?: ReadonlyMap<string, number>): Array<{

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
@@ -251,11 +252,27 @@ describe("runNativeUp failures before anything starts", () => {
         exit: throwingExit,
       }),
     ).rejects.toBeInstanceOf(ExitCalled);
-    expect(emit.mock.calls[0][1][0]).toEqual({
+    const [data, issues] = emit.mock.calls[0];
+    expect(issues[0]).toMatchObject({
       code: "NATIVE_COMMAND_NOT_FOUND",
       message:
         'service "api" runs uv, which is not installed (not found on PATH). Install it, or change "command" in its service.json.',
     });
+    expect(data.failures).toEqual([
+      {
+        name: "api",
+        reason:
+          'service "api" runs uv, which is not installed (not found on PATH). Install it, or change "command" in its service.json.',
+        exitCode: 127,
+        program: "uv",
+        code: "PROGRAM_NOT_FOUND",
+        suggestions: [
+          "Install uv so it is on PATH, then run `flisk up`",
+          "Run `flisk doctor` to check your machine",
+        ],
+      },
+    ]);
+    expect(issues[0].suggestions).toEqual(data.failures[0].suggestions);
   });
 
   it("fails when a service port is taken, naming the occupant", async () => {
@@ -272,11 +289,25 @@ describe("runNativeUp failures before anything starts", () => {
         exit: throwingExit,
       }),
     ).rejects.toBeInstanceOf(ExitCalled);
-    expect(emit.mock.calls[0][1][0]).toEqual({
+    const [data, issues] = emit.mock.calls[0];
+    expect(issues[0]).toMatchObject({
       code: "PORT_IN_USE",
       message:
         'Port 4100 for service "api" is already in use by nginx (pid 77). Stop it, or change "port" in the service.json.',
     });
+    expect(data.failures).toEqual([
+      {
+        name: "api",
+        reason:
+          'Port 4100 for service "api" is already in use by nginx (pid 77). Stop it, or change "port" in the service.json.',
+        exitCode: null,
+        code: "PORT_IN_USE",
+        suggestions: [
+          "Run `flisk down` to stop this project's stack",
+          "Free the port (or change `port` in service.json), then run `flisk up`",
+        ],
+      },
+    ]);
     expect(runtime.supervisorArgs).toHaveLength(0);
   });
 
@@ -545,10 +576,20 @@ describe("runNativeUp start", () => {
       exit: exit as unknown as (code: number) => never,
     });
     const [data, issues] = emit.mock.calls[0];
-    expect(data).toEqual({
+    expect(data).toMatchObject({
       ok: false,
       runtime: "native",
-      failures: [{ name: "api", reason: "health check timed out" }],
+      failures: [
+        {
+          name: "api",
+          reason: "health check timed out",
+          exitCode: null,
+          code: "HEALTHCHECK_FAILED",
+          suggestions: expect.arrayContaining([
+            expect.stringContaining("flisk logs --service api"),
+          ]),
+        },
+      ],
     });
     expect(issues[0].code).toBe("UP_RESOURCE_FAILED");
     expect(issues[0].message).toContain("✗ api: health check timed out");
@@ -582,10 +623,107 @@ describe("runNativeUp start", () => {
       "FATAL: DATABASE_URL is not set; the api cannot start",
     ]);
     expect(data.failures[1]).not.toHaveProperty("logs");
-    expect(issues[0].message).toContain("✗ api: kept exiting; see its output above");
+    expect(issues[0].message).toContain("✗ api: kept exiting");
+    expect(JSON.stringify(data.failures)).not.toContain("above");
     expect(issues[0].message).toContain(
       "      FATAL: DATABASE_URL is not set; the api cannot start",
     );
+  });
+
+  it("classifies exit code 127 as a missing program and names it", async () => {
+    const root = createTempDir();
+    writeServiceLog(root, "api", ["> bun run --watch src/index.ts", "sh: bun: command not found"]);
+    runtime.supervisorStart.mockResolvedValue([
+      { name: "api", reason: "kept exiting", exitCode: 127 },
+    ]);
+    const emit = vi.fn();
+    await runNativeUp({
+      projectRoot: root,
+      selected: [api],
+      dependencies: [],
+      emit,
+      quiet: true,
+      exit: vi.fn() as unknown as (code: number) => never,
+    });
+    const [data] = emit.mock.calls[0];
+    expect(data.failures[0]).toMatchObject({
+      name: "api",
+      exitCode: 127,
+      code: "PROGRAM_NOT_FOUND",
+      program: "bun",
+      reason: expect.stringContaining("bun"),
+      suggestions: [
+        "Install bun so it is on PATH, then run `flisk up`",
+        "Run `flisk doctor` to check your machine",
+      ],
+    });
+    expect(JSON.stringify(data.failures)).not.toContain("above");
+  });
+
+  it("classifies a crash loop and a blocked dependent separately", async () => {
+    runtime.supervisorStart.mockResolvedValue([
+      { name: "api", reason: "kept exiting", exitCode: 1 },
+      { name: "web", reason: "not started: api did not start", exitCode: null },
+    ]);
+    const emit = vi.fn();
+    await runNativeUp({
+      projectRoot: createTempDir(),
+      selected: [api],
+      dependencies: [],
+      emit,
+      quiet: true,
+      exit: vi.fn() as unknown as (code: number) => never,
+    });
+    const [data] = emit.mock.calls[0];
+    expect(data.failures.map((failure: { code: string }) => failure.code)).toEqual([
+      "CRASH_LOOP",
+      "DEPENDENCY_FAILED",
+    ]);
+    expect(data.failures[1].exitCode).toBeNull();
+  });
+
+  it("leaves generated files unchanged when startup fails", async () => {
+    const root = createTempDir();
+    for (const file of [
+      ".flisk/.flisk-out/Tiltfile",
+      ".flisk/.flisk-out/spec.master",
+      "services/api/.autogenerated/docker-compose.yml",
+    ]) {
+      const path = join(root, file);
+      mkdirSync(join(path, ".."), { recursive: true });
+      writeFileSync(path, `# generated ${file}\n`);
+    }
+    const hashGenerated = () => {
+      const files: string[] = [];
+      const walk = (dir: string) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const path = join(dir, entry.name);
+          if (entry.isDirectory()) walk(path);
+          else if (entry.isFile()) files.push(path);
+        }
+      };
+      walk(join(root, ".flisk", ".flisk-out"));
+      walk(join(root, "services"));
+      return createHash("sha256")
+        .update(
+          files
+            .sort()
+            .map((path) => `${path}:${statSync(path).size}:${readFileSync(path, "utf8")}`)
+            .join("\n"),
+        )
+        .digest("hex");
+    };
+    const before = hashGenerated();
+    runtime.findMissingPrograms.mockReturnValue([{ name: "api", program: "bun" }]);
+    await expect(
+      runNativeUp({
+        projectRoot: root,
+        selected: [api],
+        dependencies: [],
+        exit: throwingExit,
+      }),
+    ).rejects.toBeInstanceOf(ExitCalled);
+    expect(hashGenerated()).toBe(before);
   });
 
   it("does not repeat the lines in the message when they were printed live", async () => {

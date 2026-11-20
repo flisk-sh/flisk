@@ -39,7 +39,7 @@ Command data:
 - `networks`: `services` with stable service name, stack, base path, URL, optional Windows loopback URL, service port, and reachability state (`running`, `stopped`, or `unknown`). An empty list means no discovered resource currently has a routable base path.
 - `projects`: `projectRoot` (the absolute path of the project), `configured` (`true` when all master configuration files exist), `missingFiles` (the master files that are missing from `.flisk/.flisk-out`; empty when `configured` is `true`), `resources` (the number of discovered resources, not their names), `stacks` (the stack names) and `unassignedResources` (the number of resources that do not belong to a stack). Use `flisk resources --json` or `flisk stacks --json` when you need the names and details. `flisk info --json` is an alias. See the example below.
 - `doctor`: `ready`, `inProject`, ordered `checks`, `capabilities` (names of the capabilities that are on), and, when a host port plan is computed (container projects), a `ports` plan with `http`, `https`, and `postgres` entries (no `postgres` entry when the database capability is off, from `capabilities.database: false` in `.flisk/project.json` or `--no-database`). In a local-process project (`nativeResources`, services started with a `command` rather than Docker) no host port plan exists, so `ports` is absent. Each port entry contains canonical `requested`, selected `chosen`, `explicit`, and `reason` fields. Doctor is read-only and does not persist the plan, unless `--fix` is given (see [doctor-contract.md](doctor-contract.md)). Structured `errors` cover usage/internal failures. Check entries preserve `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. `isSkipped` indicates that a check could not run meaningfully; skipped checks are non-blocking, even when `didPass` is `false`. An optional `warnings` array repeats the messages of the `isWarning` checks, so a consumer can read warnings without filtering `checks`.
-- `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), optional `warnings` (non-blocking project findings such as required secrets left to a missing Infisical bridge), optional `diskWarning`, `tiltUrl` (`http://localhost:<port>`), and `urls` (one entry per URL `flisk up` prints for a started service: `service`, `url`, `didAnswer`, `status`, and for a URL that does not answer `cause`, `message`, `nextCommand` and, for a missing variable, `envName`; absent with `--no-gateway`). In a local-process project (services that declare `command` and run without Docker or Tilt), `data` has `runtime` (`"native"`, plus `inferred: true` when inferred from `package.json`), no `tiltUrl`, and `urls` in the same `{service, url, didAnswer, status}` array shape for each started service with a URL; on startup failure `data.failures` entries have `name`, `reason` and optional `logs`. `flisk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `data.ok` is `false` with `data.tiltUrl` and `data.failures` (a list of affected resources, each with `name` and `message`, plus `fix` when the message names a known machine problem such as Docker running out of network ranges), and `errors[].code` is `UP_TIMEOUT` or `UP_RESOURCE_FAILED`. When every resource is running but a printed URL does not answer, `data.ok` is `false` with `data.tiltUrl` and `data.urls`, `errors[].code` is `UP_URL_UNREACHABLE`, and Tilt keeps running. On smoke-check failure, `data.ok` is `false`, `errors[].code` is `UP_SMOKE_FAILED`, and Tilt is stopped. Hand-edited generated file drift (`DRIFT_DETECTED`, `DRIFT_EXIT_CODE = 2`) and unknown `--only` service names (`UNKNOWN_SERVICE`) exit with code `2`, while `flisk config verify` exits `1` for drift; other startup, preflight, and host/platform refusals (including native Windows startup refusal) exit with code `1`. Parsers should read the failure category from `errors[].code` and the affected resources from `data.failures`. See the examples below.
+- `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), optional `warnings` (non-blocking project findings such as required secrets left to a missing Infisical bridge), optional `diskWarning`, `tiltUrl` (`http://localhost:<port>`), and `urls` (one entry per URL `flisk up` prints for a started service: `service`, `url`, `didAnswer`, `status`, and for a URL that does not answer `cause`, `message`, `nextCommand` and, for a missing variable, `envName`; absent with `--no-gateway`). In a local-process project (services that declare `command` and run without Docker or Tilt), `data` has `runtime` (`"native"`, plus `inferred: true` when inferred from `package.json`), no `tiltUrl`, and `urls` in the same `{service, url, didAnswer, status}` array shape for each started service with a URL; on startup failure `data.failures` entries have `name`, `reason`, `exitCode` (the service's last exit code, or `null` when it never exited), `code` and `suggestions`, plus optional `logs`, `program` (for a missing command) and the existing `message`/`fix`. `flisk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `data.ok` is `false` with `data.tiltUrl` and `data.failures` (a list of affected resources, each with `name`, `reason`, `exitCode`, `code` and `suggestions`, plus optional `logs`, `message` and `fix` when the message names a known machine problem such as Docker running out of network ranges), and `errors[].code` is `UP_TIMEOUT` or `UP_RESOURCE_FAILED`. The local-process and container/Tilt runtimes use the same classifier, so the same cause gets the same `failures[].code`. When every resource is running but a printed URL does not answer, `data.ok` is `false` with `data.tiltUrl` and `data.urls`, `errors[].code` is `UP_URL_UNREACHABLE`, and Tilt keeps running. On smoke-check failure, `data.ok` is `false`, `errors[].code` is `UP_SMOKE_FAILED`, and Tilt is stopped. Hand-edited generated file drift (`DRIFT_DETECTED`, `DRIFT_EXIT_CODE = 2`) and unknown `--only` service names (`UNKNOWN_SERVICE`) exit with code `2`, while `flisk config verify` exits `1` for drift; other startup, preflight, and host/platform refusals (including native Windows startup refusal) exit with code `1`. Parsers should read the failure category from `errors[].code` and the affected resources from `data.failures`. See the examples below.
 - `up` on an unchanged, healthy stack that is already running: `ok` (`true`), `alreadyRunning` (`true`), `stack`, `services`, `tiltUrl` and `advertisedUrls` (the ingress URLs of the running stack, as plain strings) and `urls` (the per-URL check objects a normal start reports, absent with `--no-gateway`). This is the fast no-op path (#4193): it writes no generated files, starts no build and prints the same "Stack is healthy." answer under `--wait`. A change to the config, an unhealthy or missing resource, a flag such as `--force`, or a Tilt that does not answer all take the normal startup path. `advertisedUrls` is only the fast-path list of plain strings.
 - `up --dry-run`: `ok`, `dryRun` (`true`), `stack` (the stack name argument, or `null`), `services` (the services the run would start, in discovery order) and `command` (the `tilt up` command line that would run). With `--only`, it also has `requested` (the names you passed) and `declaredDependencies` (services pulled in because a requested service lists them in `dependsOn`). See the example below.
 - `up --env-file`: the path selects the project env file of the run (see [environment.md](../environment.md)). A path that is missing, unreadable, not a file, outside the project, or that misses a key the platform needs is refused before anything starts: `errors[].code` is `ENV_FILE_INVALID` and the exit code is `2`. A project whose vendored engine predates the option is refused with `errors[].code` `ENV_FILE_ENGINE_TOO_OLD` and exit code `1`. A stack that is already running keeps the env file it started with, so the option is refused with `errors[].code` `ENV_FILE_ALREADY_RUNNING` and exit code `1`. The path is named in the message and in the human output; no value from the file is ever printed.
@@ -274,6 +274,13 @@ If one or more resources fail to start or the readiness timeout expires (`FLISK_
     "failures": [
       {
         "name": "orders-api",
+        "reason": "Build failed: exit status 1",
+        "exitCode": 1,
+        "code": "CRASH_LOOP",
+        "suggestions": [
+          "Run `flisk logs --service orders-api --source runtime` to read the crash output",
+          "Fix the cause, then run `flisk up` again"
+        ],
         "message": "Build failed: exit status 1"
       }
     ]
@@ -284,6 +291,40 @@ If one or more resources fail to start or the readiness timeout expires (`FLISK_
       "message": "Resources failed (orders-api: Build failed: exit status 1). Tilt is still running; inspect it or run: flisk down"
     }
   ]
+}
+```
+
+Every `failures[]` entry, in a local-process run, a container/Tilt run, a `flisk up --wait` result, and the MCP `up` tool, carries these fields:
+
+- `exitCode`: the last exit code of the service, or `null` when it never exited.
+- `code`: one of `PROGRAM_NOT_FOUND` (exit code 127, a command or its program is not installed), `PORT_IN_USE` (a service port is already taken), `HEALTHCHECK_FAILED` (readiness or a health check never passed), `CRASH_LOOP` (the process kept exiting or a one-shot job did not exit 0), `DEPENDENCY_FAILED` (a service it depends on did not start) or `UNKNOWN`.
+- `suggestions`: next commands an agent can run, for example `flisk doctor`, `flisk logs --service <name>`, `flisk down` or installing the named program.
+- `program`: present with `PROGRAM_NOT_FOUND`, naming the missing executable when it could be identified. `reason` also names it; `reason` never contains "see its output above" in machine output, because a JSON or MCP caller never saw that output. The service's last log lines remain in `logs` when available.
+
+Exit code 127 maps to `PROGRAM_NOT_FOUND` in both runtimes:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": false,
+    "runtime": "native",
+    "failures": [
+      {
+        "name": "shop-api",
+        "reason": "kept exiting (bun is not on PATH)",
+        "exitCode": 127,
+        "code": "PROGRAM_NOT_FOUND",
+        "program": "bun",
+        "suggestions": [
+          "Install bun so it is on PATH, then run `flisk up`",
+          "Run `flisk doctor` to check your machine"
+        ],
+        "logs": ["sh: bun: command not found"]
+      }
+    ]
+  },
+  "errors": [{ "code": "UP_RESOURCE_FAILED", "message": "Local processes did not start: ..." }]
 }
 ```
 

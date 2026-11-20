@@ -535,29 +535,36 @@ export function nativeServiceStates(projectRoot, services) {
     const isUp = state !== null && isProcessAlive(state.pid);
     return Object.fromEntries(services.map((name) => {
         const service = state?.services[name];
+        const withExitCode = (value) => service?.lastExitCode === undefined ? value : { ...value, exitCode: service.lastExitCode };
         if (!isUp || !service)
             return [name, { status: "unknown", reason: "not running" }];
         if (service.failed) {
-            return [name, { status: "error", reason: "exited repeatedly; the supervisor gave up" }];
+            return [
+                name,
+                withExitCode({ status: "error", reason: "exited repeatedly; the supervisor gave up" }),
+            ];
         }
         if (!service.pid || !isProcessAlive(service.pid)) {
             // A one-shot job is not restarted: one that exited 0 is done, one that did not has failed.
             if (service.job) {
                 return service.ready
                     ? [name, { status: "ready", reason: "finished" }]
-                    : [name, { status: "pending", reason: "the job did not exit 0" }];
+                    : [name, withExitCode({ status: "pending", reason: "the job did not exit 0" })];
             }
             if (service.waitingFor?.length) {
                 return [
                     name,
-                    { status: "pending", reason: `waiting for ${service.waitingFor.join(", ")}` },
+                    withExitCode({
+                        status: "pending",
+                        reason: `waiting for ${service.waitingFor.join(", ")}`,
+                    }),
                 ];
             }
-            return [name, { status: "pending", reason: "restarting" }];
+            return [name, withExitCode({ status: "pending", reason: "restarting" })];
         }
         return service.ready
             ? [name, { status: "ready" }]
-            : [name, { status: "pending", reason: "starting" }];
+            : [name, withExitCode({ status: "pending", reason: "starting" })];
     }));
 }
 /**
@@ -720,7 +727,11 @@ export class NativeSupervisor {
                 const deps = await Promise.all(service.plan.dependsOn.map((dep) => ready.get(dep)));
                 if (!deps.every(Boolean)) {
                     const blockedBy = service.plan.dependsOn.filter((_dep, index) => !deps[index]);
-                    failures.push({ name, reason: `not started: ${blockedBy.join(", ")} did not start` });
+                    failures.push({
+                        name,
+                        reason: `not started: ${blockedBy.join(", ")} did not start`,
+                        exitCode: null,
+                    });
                     return false;
                 }
                 if (this.stopping)
@@ -730,7 +741,7 @@ export class NativeSupervisor {
                 }
                 catch (err) {
                     const reason = err instanceof Error ? err.message : String(err);
-                    failures.push({ name, reason });
+                    failures.push({ name, reason, exitCode: null });
                     return false;
                 }
                 this.spawn(service);
@@ -755,10 +766,11 @@ export class NativeSupervisor {
                     failures.push({
                         name,
                         reason: service.plan.job
-                            ? "the job did not exit 0; see its output above"
+                            ? "the job did not exit 0"
                             : service.gaveUp
-                                ? "kept exiting; see its output above"
+                                ? "kept exiting"
                                 : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
+                        exitCode: service.lastExitCode ?? null,
                     });
                 }
                 return isReady;
@@ -880,6 +892,7 @@ export class NativeSupervisor {
         if (this.stopping || service.child !== child || service.restarting)
             return;
         service.isReady = false;
+        service.lastExitCode = code;
         this.saveState();
         const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
         if (service.plan.job) {
@@ -1175,6 +1188,7 @@ export class NativeSupervisor {
                 ...(service.plan.container ? { container: service.plan.container } : {}),
                 ...(service.waitingFor ? { waitingFor: service.waitingFor } : {}),
                 ...(service.gaveUp ? { failed: true } : {}),
+                ...(service.lastExitCode !== undefined ? { lastExitCode: service.lastExitCode } : {}),
             };
         }
         writeNativeRunState(this.projectRoot, {

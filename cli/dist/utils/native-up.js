@@ -13,6 +13,7 @@ import { findPortOccupant } from "./port-occupant.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
+import { classifyUpFailure, withUpFailureCodes } from "./up-failure-codes.js";
 import { attachedUpInCiWarning } from "./up-hints.js";
 /** Lines of a failed service's own output a failed `up` carries, and the most characters of one line. */
 const FAILURE_LOG_LINES = 5;
@@ -110,8 +111,10 @@ export async function runNativeUp(input) {
     const { projectRoot, selected, emit } = input;
     const exit = input.exit ?? ((code) => process.exit(code));
     const quiet = Boolean(input.quiet);
-    const fail = (code, message, data = {}) => {
-        emit?.({ ok: false, runtime: "native", ...data }, [{ code, message }]);
+    const fail = (code, message, data = {}, suggestions) => {
+        emit?.({ ok: false, runtime: "native", ...data }, [
+            { code, message, ...(suggestions && suggestions.length > 0 ? { suggestions } : {}) },
+        ]);
         showError(message);
         return exit(1);
     };
@@ -143,9 +146,15 @@ export async function runNativeUp(input) {
     }
     const missing = findMissingPrograms(plan.services);
     if (missing.length > 0) {
-        fail("NATIVE_COMMAND_NOT_FOUND", missing
-            .map(({ name, program }) => `service "${name}" runs ${program}, which is not installed (not found on PATH). Install it, or change "command" in its service.json.`)
-            .join("\n"));
+        // A missing program is exit code 127 at runtime even though we catch it before spawning. Give machine callers the
+        // same code and the program name they would get from a shell that tried to run it.
+        const failures = withUpFailureCodes(missing.map(({ name, program }) => ({
+            name,
+            reason: `service "${name}" runs ${program}, which is not installed (not found on PATH). Install it, or change "command" in its service.json.`,
+            exitCode: 127,
+            program,
+        })));
+        fail("NATIVE_COMMAND_NOT_FOUND", failures.map((failure) => failure.reason).join("\n"), { failures }, failures[0]?.suggestions);
     }
     const containers = plan.services.filter((service) => service.container);
     const serviceNames = plan.services.map((service) => service.name);
@@ -203,12 +212,16 @@ export async function runNativeUp(input) {
         return;
     }
     if (containers.length > 0 && !isDockerRunning()) {
-        fail("DOCKER_NOT_RUNNING", `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up again.`);
+        const message = `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up again.`;
+        const failure = classifyUpFailure({ name: containers[0]?.name ?? "docker", reason: message });
+        fail("DOCKER_NOT_RUNNING", message, { failures: [failure] }, failure.suggestions);
     }
     for (const service of plan.services) {
         if (service.port !== undefined && (await isPortListening(service.port))) {
             const occupant = findPortOccupant(service.port);
-            fail("PORT_IN_USE", `Port ${service.port} for service "${service.name}" is already in use${occupant ? ` by ${occupant.command} (pid ${occupant.pid})` : ""}. Stop it, or change "port" in the service.json.`);
+            const reason = `Port ${service.port} for service "${service.name}" is already in use${occupant ? ` by ${occupant.command} (pid ${occupant.pid})` : ""}. Stop it, or change "port" in the service.json.`;
+            const failure = classifyUpFailure({ name: service.name, reason, exitCode: null });
+            fail("PORT_IN_USE", reason, { failures: [failure] }, failure.suggestions);
         }
     }
     const width = Math.max(...serviceNames.map((name) => name.length));
@@ -264,7 +277,7 @@ export async function runNativeUp(input) {
     if (stopping)
         return;
     if (started.length > 0) {
-        const failures = withFailureLogs(projectRoot, started, startedAt);
+        const failures = withUpFailureCodes(withFailureLogs(projectRoot, started, startedAt));
         const message = [
             "Local processes did not start:",
             // Quiet (--json, MCP): nothing was printed above, so each failure carries its service's last lines.
@@ -274,7 +287,10 @@ export async function runNativeUp(input) {
             ]),
             `Output of every service: ${join(NATIVE_DIR, "logs")}/<service>.log`,
         ].join("\n");
-        emit?.({ ok: false, runtime: "native", failures }, [{ code: "UP_RESOURCE_FAILED", message }]);
+        const suggestions = [...new Set(failures.flatMap((failure) => failure.suggestions))];
+        emit?.({ ok: false, runtime: "native", failures }, [
+            { code: "UP_RESOURCE_FAILED", message, suggestions },
+        ]);
         showError(message);
         await supervisor.stop();
         exit(1);
