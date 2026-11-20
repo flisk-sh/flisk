@@ -84,7 +84,7 @@ export interface NativeUpSelection {
  * Tilt runs that Tiltfile through the generated wrapper, whatever its services declare. Refuses (through `fail`) an unknown
  * stack or service, an invalid service.json, and a run that would mix native and container services.
  */
-export declare function selectNativeRun(stackName: string | undefined, only: string[] | undefined, fail: (code: string, message: string, suggestions?: string[]) => never, cwd?: string): NativeUpSelection | null;
+export declare function selectNativeRun(stackName: string | undefined, only: string[] | undefined, fail: (code: string, message: string, suggestions?: string[], exitCode?: number) => never, cwd?: string): NativeUpSelection | null;
 /** Flags and environment of this run, for the fast no-op decision. */
 export declare function fastNoopFlags(options: Record<string, unknown>, stackName: string | undefined, configuredTiltPort: number | undefined): FastNoopFlags;
 /**
