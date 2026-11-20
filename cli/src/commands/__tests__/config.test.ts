@@ -553,7 +553,9 @@ describe("config enable-infra and disable-infra", () => {
   });
 
   it("reports an already-enabled service without rewriting project.json (#4432)", async () => {
-    const root = createTempProject({ projectJson: projectJson("already-on", { monitoring: true }) });
+    const root = createTempProject({
+      projectJson: projectJson("already-on", { monitoring: true }),
+    });
     const configPath = path.join(root, ".flisk", "project.json");
     const before = fs.readFileSync(configPath, "utf8");
 
