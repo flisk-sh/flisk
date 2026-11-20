@@ -16,6 +16,7 @@ import {
 } from "../../test-support/index.js";
 import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
 import { agentCommand } from "../agent.js";
+import { COMMAND_SPECS } from "../command-specs.generated.js";
 import { configCommand } from "../config.js";
 import { connectCommand } from "../connect.js";
 import { downCommand } from "../down.js";
@@ -692,6 +693,28 @@ describe("flag contract: -y/--yes and --force convention", () => {
     for (const { description } of jsonOptions) {
       const lower = description.toLowerCase();
       expect(lower.includes("json") || lower.includes("machine-readable")).toBe(true);
+    }
+  });
+});
+
+describe("flag contract: --project on project-scoped commands", () => {
+  it("logs, restart and status expose the same required --project <path> option in specs", async () => {
+    const commands = new Map(
+      (await loadAllCommands())
+        .flatMap((cmd) => collectCommands(cmd))
+        .map(({ name, command }) => [name, command] as const),
+    );
+
+    for (const name of ["logs", "restart", "status"]) {
+      const option = commands
+        .get(name)
+        ?.options.find((candidate) => candidate.long === "--project");
+      expect(option?.flags, `${name} --project flags`).toBe("--project <path>");
+      const spec = COMMAND_SPECS.find((entry) => entry.path.join(" ") === name);
+      expect(
+        spec?.options.some((candidate) => candidate.flags === "--project <path>"),
+        `${name} generated spec`,
+      ).toBe(true);
     }
   });
 });

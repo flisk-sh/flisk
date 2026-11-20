@@ -454,7 +454,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "View logs for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project whose logs to read (default: the current project)",
             },
             {
                 flags: "--json",
@@ -773,7 +773,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "Show status for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project to report on (default: the current project)",
             },
         ],
         arguments: [],
@@ -1927,7 +1927,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "Restart resources for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project whose resource to restart (default: the current project)",
             },
             {
                 flags: "--wait <seconds>",

@@ -126,7 +126,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
   )
   .option(
     "--project <path>",
-    "View logs for the Flisk project in this folder (default: the current project)",
+    "Path to the Flisk project whose logs to read (default: the current project)",
   )
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(

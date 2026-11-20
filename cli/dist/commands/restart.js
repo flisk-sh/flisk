@@ -22,7 +22,7 @@ export const restartCommand = new Command("restart")
     .argument("<resource>", "Name of the resource (service) to restart")
     .option("--port <n>", "Tilt UI port (default: TILT_PORT or 10350)")
     .option("--rebuild", "Rebuild the image through Tilt instead of restarting the container", false)
-    .option("--project <path>", "Restart resources for the Flisk project in this folder (default: the current project)")
+    .option("--project <path>", "Path to the Flisk project whose resource to restart (default: the current project)")
     .option("--wait <seconds>", "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)", "60")
     .option("--json", "Output one JSON object and exit", false)
     .addHelpText("after", "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild" +
