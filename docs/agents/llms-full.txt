@@ -68,14 +68,14 @@ flisk resource <name> --type mcp --stack <stack>
   - `down`: Stop the running stack.
   - `status`: Inspect stacks, resources, ingress URLs, ports, and Tilt readiness.
   - `logs`: Fetch a bounded snapshot of recent logs from the running stack. Pass `source: "runtime"` to read only what services printed (the crash cause) without image build output.
-  - `resource_list`: List the project's services with their stack, type, and port.
+  - `resource_list`: List the project's services with their stack, type, port and project-relative folder path.
   - `resource_restart`: Restart a running resource in the stack (Flisk-generated Compose containers restart without rebuilding their image; local processes and imported Tiltfiles use `tilt trigger`); `rebuild: true` rebuilds the image and recreates the container through Tilt.
   - `resource_run`: Run a one-off command with the environment one resource has in the stack; returns the exit code, stdout and stderr. A container resource must be running. Refused unless `confirm: true`; `.env` values in the output are masked.
   - `agent_list`: List AI agent resources (`appType: "agent"`) with their stack, runtime, durability, and port.
   - `agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
   - `stack_list`: List the project's stacks with their resource counts (`services` adds service names, `verbose` descriptions).
   - `project_info`: Show the project root, whether the generated master files exist, and resource and stack counts.
-  - `project_templates`: List the starter templates `project_init` can clone (`data.templates`: key, repo, description, and the pinned commit `ref` when set); the same rows as `flisk project --list --json`.
+  - `project_templates`: List the starter templates `project_init` can clone (`data.templates`: key, repo, description, what it needs to run (`needs`), and the pinned commit `ref` when set); the same rows as `flisk project --list --json`.
   - `network_list`: List the Traefik URL of every frontend and API service and whether it answers (`stack` optional).
   - `config_verify`: Check that the generated files match `.flisk/project.json` and that every `service.json` is valid.
   - `config_explain`: Say whether a project file is generated or user-owned and what editing it does on `up` (`file` required).
@@ -172,9 +172,9 @@ All inspection and lifecycle commands support `--json`:
 
 - `flisk project [template] [--json]`: Create a project or clone a starter template (alias `flisk init`). A template pinned to a commit (`ref`) is checked out at exactly that commit.
 - `flisk create [name] [--starter <name>] [--runtime <local|docker>] [--frontend <id|none>] [--backend <id|none>] [--language <id>] [--extras <list|none>] [--dry-run] [--start] [--yes]`: Pick what you are building with a few key presses (a terminal) or flags. It offers every frontend framework, backend framework, backend language, project starter, queue and database that `flisk resource` and `flisk project` already know, read from their registries, and builds the project with those real commands. The default runs on your computer (`flisk resource --local`: no Docker, no Tilt, no database; a website and an API, each started with `npm install` then `flisk up`); `--runtime docker` is the container route, where `--extras` adds workers, queues and databases. `--dry-run` prints the commands; without a terminal or with `--yes` it never asks. An agent can call the MCP tools `project_init` and `resource_create` (with `local: true` for the default route) for the same result.
-- `flisk project --list [--json]`: List the starter templates with their key, repo, description and pinned commit (`ref`); `--json` prints the usual envelope with the templates in `data.templates`. `next-postgres` is a Next.js website, an Express API and Postgres with a migrator (needs Docker): `flisk create myapp --starter next-postgres` or `flisk project next-postgres --path myapp`, then `flisk up`.
+- `flisk project --list [--json]`: List the starter templates with their key, repo, description, what each needs to run (`needs`) and pinned commit (`ref`); `--json` prints the usual envelope with the templates in `data.templates`. `next-postgres` is a Next.js website, an Express API and Postgres with a migrator (needs Docker): `flisk create myapp --starter next-postgres` or `flisk project next-postgres --path myapp`, then `flisk up`.
 - `flisk projects [--json]`: List the projects Flisk knows about (alias `info`).
-- `flisk resources [--json]`: List the project's services with their stack, type, and port.
+- `flisk resources [--json]`: List the project's services with their stack, type, port and project-relative folder path.
 - `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.
 - `flisk stacks [--json]`: List the project's stacks (alias `ls`).
 - `flisk restart <resource> [--rebuild]`: Restart one running resource. A Flisk-generated Compose container is stopped and started without rebuilding its image; a local process or an imported Tiltfile uses `tilt trigger`. `--rebuild` rebuilds the image and recreates the container through Tilt.
