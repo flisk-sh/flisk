@@ -929,8 +929,12 @@ export class NativeSupervisor {
             });
         });
         this.events.onNote?.(plan.name, `started: ${plan.command}${child.pid ? ` (pid ${child.pid})` : ""}`);
-        this.pipeLines(plan.name, child.stdout, "stdout");
-        this.pipeLines(plan.name, child.stderr, "stderr");
+        // A child's stdio can outlive it (a descendant that inherited the pipe), so its writer must not log into a newer
+        // run's window: output arriving after this child stopped being the service's current one is left out of the log
+        // file, where the start marker above it would attribute it to the new run (#4693).
+        const isCurrentRun = () => service.child === child;
+        this.pipeLines(plan.name, child.stdout, "stdout", isCurrentRun);
+        this.pipeLines(plan.name, child.stderr, "stderr", isCurrentRun);
         child.once("error", (error) => {
             this.events.onNote?.(plan.name, `could not start: ${error.message}`);
         });
@@ -1044,7 +1048,7 @@ export class NativeSupervisor {
             this.respawn(service);
         }
     }
-    pipeLines(name, stream, kind) {
+    pipeLines(name, stream, kind, isCurrentRun) {
         if (!stream)
             return;
         const logPath = nativeLogPath(this.projectRoot, name);
@@ -1065,13 +1069,18 @@ export class NativeSupervisor {
                 }
                 return;
             }
-            try {
-                // A timestamp per line lets `flisk logs` merge services in order and honour --since. The log is rotated to
-                // <service>.log.1 at NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
-                appendNativeLogLine(logPath, `${new Date().toISOString()} ${safeLine}\n`, this.logSizes);
-            }
-            catch {
-                // A full disk must not stop the service; the terminal still shows the line.
+            // Output that outlives its run (a descendant holding the pipe) must not be written once a newer run has started:
+            // positioned after that run's start marker, the log would attribute it to the new run (#4693). The terminal
+            // still shows the line, and output buffered from the run's own child lands before the next start marker.
+            if (isCurrentRun()) {
+                try {
+                    // A timestamp per line lets `flisk logs` merge services in order and honour --since. The log is rotated to
+                    // <service>.log.1 at NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
+                    appendNativeLogLine(logPath, `${new Date().toISOString()} ${safeLine}\n`, this.logSizes);
+                }
+                catch {
+                    // A full disk must not stop the service; the terminal still shows the line.
+                }
             }
             this.events.onLine?.(name, safeLine, kind);
         };
