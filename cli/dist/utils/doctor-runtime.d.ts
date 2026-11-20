@@ -55,7 +55,7 @@ export declare function findStaleDisabledResources(jsonText: string, projectRoot
  * (e.g. not run from inside a project), so callers degrade to today's
  * behavior rather than erroring.
  */
-export declare function getDeferredResourceNames(resources?: DiscoveredResource[]): Set<string>;
+export declare function getDeferredResourceNames(resources?: DiscoveredResource[], projectRoot?: string | null): Set<string>;
 /**
  * Extract failing UIResources from `tilt get uiresources -o json`.
  *
