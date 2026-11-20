@@ -77,6 +77,7 @@ afterEach(() => {
   vi.mocked(envSecretValues).mockReturnValue([]);
   vi.mocked(projectSecretValues).mockReturnValue([]);
   doctorCommand.setOptionValue("json", false);
+  doctorCommand.setOptionValue("problemsOnly", false);
   doctorCommand.setOptionValue("all", false);
   doctorCommand.setOptionValue("ping", true);
   doctorCommand.setOptionValue("pingTimeout", "3000");
@@ -800,45 +801,153 @@ describe("doctor JSON command", () => {
   });
 
   it("includes observed port owner in doctor --json report and check result", async () => {
-    const portCheckWithObserved: CheckResult = {
-      name: "Host Ports",
-      didPass: false,
-      message:
-        "Port 8080 is already in use.\n\nOwner: Docker container shop-api\nImage: example/shop-api:latest\nPort: 8080",
-      fix: "Change FLISK_HTTP_PORT to an available port, or manually stop the conflicting container.",
-      observed: {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+      const portCheckWithObserved: CheckResult = {
+        name: "Host Ports",
+        didPass: false,
+        message:
+          "Port 8080 is already in use.\n\nOwner: Docker container shop-api\nImage: example/shop-api:latest\nPort: 8080",
+        fix: "Change FLISK_HTTP_PORT to an available port, or manually stop the conflicting container.",
+        observed: {
+          ownerType: "docker",
+          container: "shop-api",
+          image: "example/shop-api:latest",
+          port: 8080,
+          setting: "FLISK_HTTP_PORT",
+        },
+      };
+
+      vi.mocked(collectDoctorChecks).mockResolvedValue({
+        checks: [portCheckWithObserved],
+        errors: [],
+      });
+
+      const { log, exit } = captureOutput();
+      await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
+      expect(exit).toHaveBeenCalledWith(1);
+
+      const rawStdout = String(log.mock.calls[0]?.[0]);
+      const report = parseEnvelope(rawStdout);
+
+      expect(report.data.ready).toBe(false);
+      expect(report.data.observed).toMatchObject({
         ownerType: "docker",
         container: "shop-api",
         image: "example/shop-api:latest",
         port: 8080,
         setting: "FLISK_HTTP_PORT",
-      },
-    };
+      });
+      expect(report.data.checks[0].observed).toMatchObject({
+        ownerType: "docker",
+        container: "shop-api",
+        port: 8080,
+      });
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
 
-    vi.mocked(collectDoctorChecks).mockResolvedValue({
-      checks: [portCheckWithObserved],
-      errors: [],
-    });
+  it("filters out passing checks and adds summary counts with --problems-only in --json mode", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+      const checks: CheckResult[] = [
+        { name: "P1", didPass: true, message: "P1 passed" },
+        { name: "P2", didPass: true, message: "P2 passed" },
+        { name: "P3", didPass: true, message: "P3 passed" },
+        { name: "S1", didPass: true, isSkipped: true, message: "S1 skipped" },
+        { name: "F1", didPass: false, message: "F1 failed", fix: "Fix F1" },
+        { name: "F2", didPass: false, message: "F2 failed", fix: "Fix F2" },
+      ];
 
-    const { log, exit } = captureOutput();
-    await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
-    expect(exit).toHaveBeenCalledWith(1);
+      vi.mocked(collectDoctorChecks).mockResolvedValue({ checks, errors: [] });
 
-    const rawStdout = String(log.mock.calls[0]?.[0]);
-    const report = parseEnvelope(rawStdout);
+      const { log, exit } = captureOutput();
+      await expect(
+        doctorCommand.parseAsync(["--json", "--problems-only"], { from: "user" }),
+      ).rejects.toThrow("exit");
+      expect(exit).toHaveBeenCalledWith(1);
 
-    expect(report.data.ready).toBe(false);
-    expect(report.data.observed).toMatchObject({
-      ownerType: "docker",
-      container: "shop-api",
-      image: "example/shop-api:latest",
-      port: 8080,
-      setting: "FLISK_HTTP_PORT",
-    });
-    expect(report.data.checks[0].observed).toMatchObject({
-      ownerType: "docker",
-      container: "shop-api",
-      port: 8080,
-    });
+      const rawStdout = String(log.mock.calls[0]?.[0]);
+      const report = parseEnvelope(rawStdout);
+
+      expect(report.data.ready).toBe(false);
+      expect(report.data.checks).toHaveLength(2);
+      expect(report.data.checks.map((c: CheckResult) => c.name)).toEqual(["F1", "F2"]);
+      expect(report.data.summary).toEqual({
+        passed: 3,
+        skipped: 1,
+        failed: 2,
+      });
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+
+  it("returns unchanged checks and no summary without --problems-only", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+      const checks: CheckResult[] = [
+        { name: "P1", didPass: true, message: "P1 passed" },
+        { name: "P2", didPass: true, message: "P2 passed" },
+        { name: "P3", didPass: true, message: "P3 passed" },
+        { name: "S1", didPass: true, isSkipped: true, message: "S1 skipped" },
+        { name: "F1", didPass: false, message: "F1 failed", fix: "Fix F1" },
+        { name: "F2", didPass: false, message: "F2 failed", fix: "Fix F2" },
+      ];
+
+      vi.mocked(collectDoctorChecks).mockResolvedValue({ checks, errors: [] });
+
+      const { log, exit } = captureOutput();
+      await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
+      expect(exit).toHaveBeenCalledWith(1);
+
+      const rawStdout = String(log.mock.calls[0]?.[0]);
+      const report = parseEnvelope(rawStdout);
+
+      expect(report.data.ready).toBe(false);
+      expect(report.data.checks).toHaveLength(6);
+      expect(report.data.summary).toBeUndefined();
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+
+  it("exits 0 with empty checks array and correct summary when all checks pass with --problems-only", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+      const checks: CheckResult[] = [
+        { name: "P1", didPass: true, message: "P1 passed" },
+        { name: "P2", didPass: true, message: "P2 passed" },
+        { name: "P3", didPass: true, message: "P3 passed" },
+        { name: "S1", didPass: true, isSkipped: true, message: "S1 skipped" },
+      ];
+
+      vi.mocked(collectDoctorChecks).mockResolvedValue({ checks, errors: [] });
+
+      const { log } = captureOutput();
+      await doctorCommand.parseAsync(["--json", "--problems-only"], { from: "user" });
+
+      const rawStdout = String(log.mock.calls[0]?.[0]);
+      const report = parseEnvelope(rawStdout);
+
+      expect(report.data.ready).toBe(true);
+      expect(report.data.checks).toEqual([]);
+      expect(report.data.summary).toEqual({
+        passed: 3,
+        skipped: 1,
+        failed: 0,
+      });
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
   });
 });

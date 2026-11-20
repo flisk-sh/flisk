@@ -847,9 +847,14 @@ export function createFliskTools(
     {
       name: "doctor",
       description:
-        "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
+        "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Pass problemsOnly: true for concise diagnostics (drops passing checks, adds summary counts); recommended for agents. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
+        problemsOnly: {
+          type: "boolean",
+          description:
+            "Return only failing checks and summary counts; recommended for agents to reduce payload size",
+        },
         noPing: {
           type: "boolean",
           description: "Skip pinging running services' health endpoints",
@@ -858,6 +863,7 @@ export function createFliskTools(
       handler: viaCli((args) => [
         "doctor",
         "--json",
+        ...(flag(args.problemsOnly, "problemsOnly") ? ["--problems-only"] : []),
         ...(flag(args.noPing, "noPing") ? ["--no-ping"] : []),
       ]),
     },

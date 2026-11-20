@@ -1142,6 +1142,20 @@ describe("tool list", () => {
       required: ["resource"],
     });
   });
+
+  it("forwards problemsOnly and noPing flags to doctor command", async () => {
+    const seen: { args: string[]; cwd?: string }[] = [];
+    const tools = createFliskTools(async (args, options) => {
+      seen.push({ args, cwd: options?.cwd });
+      return { exitCode: 0, stdout: '{"schemaVersion":1,"data":[],"errors":[]}', stderr: "" };
+    });
+    await tools
+      .find((t) => t.name === "doctor")
+      ?.handler({ projectPath: projectDir, problemsOnly: true, noPing: true });
+    expect(seen).toEqual([
+      { args: ["doctor", "--json", "--problems-only", "--no-ping"], cwd: projectDir },
+    ]);
+  });
   it("documents target and transitive sidecarOf scope on resource_restart", () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     const desc = tools.find((t) => t.name === "resource_restart")?.description ?? "";
@@ -1620,6 +1634,7 @@ describe("tool list", () => {
       ["logs", { tail: 0 }, "tail must be a positive integer"],
       ["logs", { since: "soon" }, "since must be a duration such as 30s, 5m or 1h"],
       ["doctor", { noPing: "yes" }, "noPing must be a boolean"],
+      ["doctor", { problemsOnly: "yes" }, "problemsOnly must be a boolean"],
       ["status", { projectPath: "relative" }, "projectPath must be an absolute path"],
       ["up", { only: ["-x"] }, "only must be an array of names"],
     ];
@@ -1711,7 +1726,7 @@ describe("tool list", () => {
     const { seen, tools } = recordingTools('{"schemaVersion":1,"data":{},"errors":[]}');
     // Every tool that runs the CLI directly, with every option it can pass.
     const calls: Record<string, Record<string, unknown>> = {
-      doctor: { noPing: true },
+      doctor: { noPing: true, problemsOnly: true },
       down: { dryRun: true },
       status: {},
       logs: { services: ["api"], tail: 5, since: "5m" },

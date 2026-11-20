@@ -1,9 +1,13 @@
 export const COMMAND_SPECS = [
     {
         name: "stacks",
-        path: ["stacks"],
+        path: [
+            "stacks",
+        ],
         description: "List all stacks and their resources",
-        aliases: ["ls"],
+        aliases: [
+            "ls",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -29,13 +33,17 @@ export const COMMAND_SPECS = [
         ],
         arguments: [],
         helpTexts: {
-            after: ["\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json"],
+            after: [
+                "\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json",
+            ],
         },
         subcommands: [],
     },
     {
         name: "resources",
-        path: ["resources"],
+        path: [
+            "resources",
+        ],
         description: "List all resources (services) in the project",
         aliases: [],
         hidden: false,
@@ -83,9 +91,13 @@ export const COMMAND_SPECS = [
     },
     {
         name: "projects",
-        path: ["projects"],
+        path: [
+            "projects",
+        ],
         description: "Show project information and configuration status",
-        aliases: ["info"],
+        aliases: [
+            "info",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -124,9 +136,13 @@ export const COMMAND_SPECS = [
     },
     {
         name: "up",
-        path: ["up"],
+        path: [
+            "up",
+        ],
         description: "Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster",
-        aliases: ["deploy"],
+        aliases: [
+            "deploy",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -174,7 +190,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--profile <names...>",
-                description: 'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)',
+                description: "Also start the services whose \"profiles\" in service.json include one of these names (without it they are left out)",
             },
             {
                 flags: "--env-file <path>",
@@ -182,7 +198,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--no-gateway",
-                description: 'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it',
+                description: "Run without gateway routing (no Traefik). Needs \"capabilities\": { \"gateway\": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it",
             },
             {
                 flags: "--json",
@@ -216,7 +232,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "down",
-        path: ["down"],
+        path: [
+            "down",
+        ],
         description: "Stop every running service of this project (local processes or Docker/Tilt)",
         aliases: [],
         hidden: false,
@@ -289,7 +307,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "mcp",
-        path: ["mcp"],
+        path: [
+            "mcp",
+        ],
         description: "Run a Model Context Protocol server over stdio for coding agents",
         aliases: [],
         hidden: false,
@@ -311,13 +331,16 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                '\nThe server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.\nAdd it to an MCP client instead:\n  { "command": "flisk", "args": ["mcp"] }\n\nExamples:\n  flisk mcp                # started by an MCP client\n  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only\n  flisk mcp --tools status,logs,doctor\n  flisk mcp check tools    # check the MCP resource named tools',
+                "\nThe server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.\nAdd it to an MCP client instead:\n  { \"command\": \"flisk\", \"args\": [\"mcp\"] }\n\nExamples:\n  flisk mcp                # started by an MCP client\n  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only\n  flisk mcp --tools status,logs,doctor\n  flisk mcp check tools    # check the MCP resource named tools",
             ],
         },
         subcommands: [
             {
                 name: "check",
-                path: ["mcp", "check"],
+                path: [
+                    "mcp",
+                    "check",
+                ],
                 description: "Check an MCP server's protocol (initialize, tools, prompts, errors, HTTP rules, icon); read-only unless --call",
                 aliases: [],
                 hidden: false,
@@ -357,7 +380,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "connect",
-        path: ["connect"],
+        path: [
+            "connect",
+        ],
         description: "Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills",
         aliases: [],
         hidden: false,
@@ -407,7 +432,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "logs",
-        path: ["logs"],
+        path: [
+            "logs",
+        ],
         description: "Print a bounded snapshot of recent logs from the running stack",
         aliases: [],
         hidden: false,
@@ -468,7 +495,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "eject",
-        path: ["eject"],
+        path: [
+            "eject",
+        ],
         description: "Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)",
         aliases: [],
         hidden: false,
@@ -505,7 +534,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "export",
-        path: ["export"],
+        path: [
+            "export",
+        ],
         description: "Write render.yaml, wrangler.toml or a standalone docker-compose.yml from service.json; never deploys or calls a cloud API (runs flisk-export)",
         aliases: [],
         hidden: false,
@@ -535,7 +566,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "import",
-        path: ["import"],
+        path: [
+            "import",
+        ],
         description: "Import the services in a directory's root docker-compose.yml (runs flisk-import)",
         aliases: [],
         hidden: false,
@@ -579,7 +612,10 @@ export const COMMAND_SPECS = [
         subcommands: [
             {
                 name: "compose",
-                path: ["import", "compose"],
+                path: [
+                    "import",
+                    "compose",
+                ],
                 description: "Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)",
                 aliases: [],
                 hidden: false,
@@ -624,7 +660,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "tiltfile",
-                path: ["import", "tiltfile"],
+                path: [
+                    "import",
+                    "tiltfile",
+                ],
                 description: "Register an existing Tiltfile so flisk up runs it unchanged (writes .flisk/project.json)",
                 aliases: [],
                 hidden: false,
@@ -671,7 +710,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "open",
-        path: ["open"],
+        path: [
+            "open",
+        ],
         description: "Open the first ready frontend in your browser, or the frontend you name",
         aliases: [],
         hidden: false,
@@ -708,7 +749,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "status",
-        path: ["status"],
+        path: [
+            "status",
+        ],
         description: "Show status of resources and stacks",
         aliases: [],
         hidden: false,
@@ -782,7 +825,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "stack",
-        path: ["stack"],
+        path: [
+            "stack",
+        ],
         description: "Organize resources into stacks (groups)",
         aliases: [],
         hidden: false,
@@ -850,7 +895,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "resource",
-        path: ["resource"],
+        path: [
+            "resource",
+        ],
         description: "Create a new resource (service) from scratch, or register an existing one",
         aliases: [],
         hidden: false,
@@ -884,7 +931,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "-s, --stack <stack>",
-                description: 'Stack to assign resource to (default: "main" for a new project)',
+                description: "Stack to assign resource to (default: \"main\" for a new project)",
             },
             {
                 flags: "-p, --path <path>",
@@ -981,7 +1028,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "runtime",
-        path: ["runtime"],
+        path: [
+            "runtime",
+        ],
         description: "Inspect the packaged Flisk runtime assets",
         aliases: [],
         hidden: false,
@@ -1002,15 +1051,21 @@ export const COMMAND_SPECS = [
         ],
         arguments: [],
         helpTexts: {
-            after: ["\nExamples:\n  flisk runtime --check-assets\n  flisk runtime --check-assets --json"],
+            after: [
+                "\nExamples:\n  flisk runtime --check-assets\n  flisk runtime --check-assets --json",
+            ],
         },
         subcommands: [],
     },
     {
         name: "project",
-        path: ["project"],
+        path: [
+            "project",
+        ],
         description: "Initialize or validate project-level master configuration",
-        aliases: ["init"],
+        aliases: [
+            "init",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -1068,13 +1123,17 @@ export const COMMAND_SPECS = [
             },
         ],
         helpTexts: {
-            after: ["\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check"],
+            after: [
+                "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check",
+            ],
         },
         subcommands: [],
     },
     {
         name: "create",
-        path: ["create"],
+        path: [
+            "create",
+        ],
         description: "Pick what you are building with a few key presses and get a project that runs",
         aliases: [],
         hidden: false,
@@ -1141,7 +1200,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "tool",
-        path: ["tool"],
+        path: [
+            "tool",
+        ],
         description: "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list",
         aliases: [],
         hidden: false,
@@ -1153,12 +1214,17 @@ export const COMMAND_SPECS = [
         options: [],
         arguments: [],
         helpTexts: {
-            after: ["\nExamples:\n  flisk tool list\n  flisk tool add\n  flisk tool add react"],
+            after: [
+                "\nExamples:\n  flisk tool list\n  flisk tool add\n  flisk tool add react",
+            ],
         },
         subcommands: [
             {
                 name: "list",
-                path: ["tool", "list"],
+                path: [
+                    "tool",
+                    "list",
+                ],
                 description: "List every tool in the catalogue",
                 aliases: [],
                 hidden: false,
@@ -1176,13 +1242,18 @@ export const COMMAND_SPECS = [
                 ],
                 arguments: [],
                 helpTexts: {
-                    after: ["\nExamples:\n  flisk tool list\n  flisk tool list --json"],
+                    after: [
+                        "\nExamples:\n  flisk tool list\n  flisk tool list --json",
+                    ],
                 },
                 subcommands: [],
             },
             {
                 name: "add",
-                path: ["tool", "add"],
+                path: [
+                    "tool",
+                    "add",
+                ],
                 description: "Add a tool by name (react, postgresql, fastapi, rag…); cloud providers are rejected",
                 aliases: [],
                 hidden: false,
@@ -1231,7 +1302,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "config",
-        path: ["config"],
+        path: [
+            "config",
+        ],
         description: "Manage project configuration and regenerate master files",
         aliases: [],
         hidden: false,
@@ -1246,7 +1319,10 @@ export const COMMAND_SPECS = [
         subcommands: [
             {
                 name: "regenerate",
-                path: ["config", "regenerate"],
+                path: [
+                    "config",
+                    "regenerate",
+                ],
                 description: "Regenerate all 4 master config files from .flisk/project.json",
                 aliases: [],
                 hidden: false,
@@ -1277,7 +1353,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "migrate",
-                path: ["config", "migrate"],
+                path: [
+                    "config",
+                    "migrate",
+                ],
                 description: "Migrate service.json files to the current schema version",
                 aliases: [],
                 hidden: false,
@@ -1300,13 +1379,18 @@ export const COMMAND_SPECS = [
                 ],
                 arguments: [],
                 helpTexts: {
-                    after: ["\nExamples:\n  flisk config migrate\n  flisk config migrate --json"],
+                    after: [
+                        "\nExamples:\n  flisk config migrate\n  flisk config migrate --json",
+                    ],
                 },
                 subcommands: [],
             },
             {
                 name: "verify",
-                path: ["config", "verify"],
+                path: [
+                    "config",
+                    "verify",
+                ],
                 description: "Verify that generated files match .flisk/project.json",
                 aliases: [],
                 hidden: false,
@@ -1328,13 +1412,18 @@ export const COMMAND_SPECS = [
                 ],
                 arguments: [],
                 helpTexts: {
-                    after: ["\nExamples:\n  flisk config verify\n  flisk config verify --json"],
+                    after: [
+                        "\nExamples:\n  flisk config verify\n  flisk config verify --json",
+                    ],
                 },
                 subcommands: [],
             },
             {
                 name: "explain",
-                path: ["config", "explain"],
+                path: [
+                    "config",
+                    "explain",
+                ],
                 description: "Explain whether a project file is Flisk-generated and what editing it does on flisk up",
                 aliases: [],
                 hidden: false,
@@ -1366,7 +1455,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "edit",
-                path: ["config", "edit"],
+                path: [
+                    "config",
+                    "edit",
+                ],
                 description: "Open .flisk/project.json in your $EDITOR",
                 aliases: [],
                 hidden: false,
@@ -1382,7 +1474,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "enable-infra",
-                path: ["config", "enable-infra"],
+                path: [
+                    "config",
+                    "enable-infra",
+                ],
                 description: "Enable optional infrastructure service",
                 aliases: [],
                 hidden: false,
@@ -1420,7 +1515,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "disable-infra",
-                path: ["config", "disable-infra"],
+                path: [
+                    "config",
+                    "disable-infra",
+                ],
                 description: "Disable optional infrastructure service",
                 aliases: [],
                 hidden: false,
@@ -1460,9 +1558,13 @@ export const COMMAND_SPECS = [
     },
     {
         name: "ui",
-        path: ["ui"],
+        path: [
+            "ui",
+        ],
         description: "Terminal dashboard to watch and manage your stacks and services",
-        aliases: ["interactive"],
+        aliases: [
+            "interactive",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -1486,13 +1588,17 @@ export const COMMAND_SPECS = [
         ],
         arguments: [],
         helpTexts: {
-            after: ["\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations"],
+            after: [
+                "\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations",
+            ],
         },
         subcommands: [],
     },
     {
         name: "os",
-        path: ["os"],
+        path: [
+            "os",
+        ],
         description: "Start FliskOS, the local desktop app for your Flisk projects, coding agents and Flisk apps",
         aliases: [],
         hidden: false,
@@ -1534,9 +1640,13 @@ export const COMMAND_SPECS = [
     },
     {
         name: "version",
-        path: ["version"],
+        path: [
+            "version",
+        ],
         description: "Display version number",
-        aliases: ["v"],
+        aliases: [
+            "v",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -1561,7 +1671,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "maintainers",
-        path: ["maintainers"],
+        path: [
+            "maintainers",
+        ],
         description: "Maintainer file checks",
         aliases: [],
         hidden: false,
@@ -1576,7 +1688,10 @@ export const COMMAND_SPECS = [
         subcommands: [
             {
                 name: "check",
-                path: ["maintainers", "check"],
+                path: [
+                    "maintainers",
+                    "check",
+                ],
                 description: "Check MAINTAINERS.md lists 3 maintainers from 2 companies (a gate, not a claim of eligibility)",
                 aliases: [],
                 hidden: false,
@@ -1602,7 +1717,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "doctor",
-        path: ["doctor"],
+        path: [
+            "doctor",
+        ],
         description: "Check environment readiness for Flisk",
         aliases: [],
         hidden: false,
@@ -1615,6 +1732,11 @@ export const COMMAND_SPECS = [
             {
                 flags: "--all",
                 description: "Run every check and show Machine and Project sections with a summary",
+                defaultValue: false,
+            },
+            {
+                flags: "--problems-only",
+                description: "Show only failing checks (in --json mode, drops passed checks and adds summary counts)",
                 defaultValue: false,
             },
             {
@@ -1674,7 +1796,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "completion",
-        path: ["completion"],
+        path: [
+            "completion",
+        ],
         description: "Generate shell completion scripts",
         aliases: [],
         hidden: false,
@@ -1714,9 +1838,13 @@ export const COMMAND_SPECS = [
     },
     {
         name: "upgrade",
-        path: ["upgrade"],
+        path: [
+            "upgrade",
+        ],
         description: "Upgrade Flisk CLI to the latest version",
-        aliases: ["update"],
+        aliases: [
+            "update",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -1760,9 +1888,14 @@ export const COMMAND_SPECS = [
     },
     {
         name: "networks",
-        path: ["networks"],
+        path: [
+            "networks",
+        ],
         description: "Show Traefik-routed URLs for all services",
-        aliases: ["urls", "traefik"],
+        aliases: [
+            "urls",
+            "traefik",
+        ],
         hidden: false,
         hasAction: true,
         allowUnknown: false,
@@ -1793,7 +1926,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "agent",
-        path: ["agent"],
+        path: [
+            "agent",
+        ],
         description: "Inspect and operate AI agent resources",
         aliases: [],
         hidden: false,
@@ -1812,7 +1947,10 @@ export const COMMAND_SPECS = [
         subcommands: [
             {
                 name: "list",
-                path: ["agent", "list"],
+                path: [
+                    "agent",
+                    "list",
+                ],
                 description: "List AI agent resources in the project",
                 aliases: [],
                 hidden: false,
@@ -1856,7 +1994,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "sessions",
-                path: ["agent", "sessions"],
+                path: [
+                    "agent",
+                    "sessions",
+                ],
                 description: "List the sessions of a running AI agent resource, or inspect one session's checkpoint",
                 aliases: [],
                 hidden: false,
@@ -1896,7 +2037,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "restart",
-        path: ["restart"],
+        path: [
+            "restart",
+        ],
         description: "Restart a running resource in the stack",
         aliases: [],
         hidden: false,
@@ -1948,7 +2091,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "run",
-        path: ["run"],
+        path: [
+            "run",
+        ],
         description: "Run a one-off command with the environment a service has in the stack",
         aliases: [],
         hidden: false,
@@ -1987,7 +2132,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "distribute",
-        path: ["distribute"],
+        path: [
+            "distribute",
+        ],
         description: "How an app gets to its users: board, listing kit and channel status (local files only)",
         aliases: [],
         hidden: false,
@@ -2002,7 +2149,10 @@ export const COMMAND_SPECS = [
         subcommands: [
             {
                 name: "board",
-                path: ["distribute", "board"],
+                path: [
+                    "distribute",
+                    "board",
+                ],
                 description: "Print the Zachman board: six perspectives (Planner to User) by six questions, each cell read from service.json or distribution.json",
                 aliases: [],
                 hidden: false,
@@ -2024,7 +2174,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "kit",
-                path: ["distribute", "kit"],
+                path: [
+                    "distribute",
+                    "kit",
+                ],
                 description: "Write a listing kit for one resource (plugin.json, .mcp.json, server.json, listing.md)",
                 aliases: [],
                 hidden: false,
@@ -2071,7 +2224,10 @@ export const COMMAND_SPECS = [
             },
             {
                 name: "status",
-                path: ["distribute", "status"],
+                path: [
+                    "distribute",
+                    "status",
+                ],
                 description: "Print the channel grid from distribution.json",
                 aliases: [],
                 hidden: false,
@@ -2105,7 +2261,9 @@ export const COMMAND_SPECS = [
     },
     {
         name: "repos",
-        path: ["repos"],
+        path: [
+            "repos",
+        ],
         description: "Clone the Git repositories listed in .flisk/project.json",
         aliases: [],
         hidden: false,
@@ -2120,7 +2278,10 @@ export const COMMAND_SPECS = [
         subcommands: [
             {
                 name: "clone",
-                path: ["repos", "clone"],
+                path: [
+                    "repos",
+                    "clone",
+                ],
                 description: "Clone missing service repositories configured in .flisk/project.json",
                 aliases: [],
                 hidden: false,
@@ -2139,7 +2300,7 @@ export const COMMAND_SPECS = [
                 arguments: [],
                 helpTexts: {
                     after: [
-                        '\nEach entry of "repos" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md',
+                        "\nEach entry of \"repos\" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md",
                     ],
                 },
                 subcommands: [],

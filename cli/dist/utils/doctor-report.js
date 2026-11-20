@@ -36,20 +36,42 @@ export function createDoctorUsageReport(errors) {
     return { schemaVersion: SCHEMA_VERSION, data: null, errors };
 }
 /** Produce the same readiness decision for human and machine consumers. */
-export function createDoctorReport(checks, inProject, errors = [], portPlan, host, capabilities, buildCache, commit) {
+export function createDoctorReport(checks, inProject, errors = [], portPlan, host, capabilities, buildCache, commit, options) {
     const fixFirst = rankDoctorFixes(checks);
     const warnings = checks.filter((check) => check.isWarning).map((check) => check.message);
     const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
     const detectedBuildCache = buildCache ??
         checks.find((check) => check.name === "Docker Build Cache")?.buildCache;
     const colimaDisk = checks.find((check) => check.name === "Colima Disk")?.colimaDisk;
+    let summary;
+    if (options?.problemsOnly) {
+        let passed = 0;
+        let skipped = 0;
+        let failed = 0;
+        for (const check of checks) {
+            if (check.isSkipped) {
+                skipped++;
+            }
+            else if (check.didPass) {
+                passed++;
+            }
+            else {
+                failed++;
+            }
+        }
+        summary = { passed, skipped, failed };
+    }
+    const reportedChecks = options?.problemsOnly
+        ? checks.filter((check) => !check.didPass && !check.isSkipped)
+        : checks;
     return {
         schemaVersion: SCHEMA_VERSION,
         data: {
             ready: errors.length === 0 &&
                 checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
             inProject,
-            checks: checks.map((check) => ({ durationMs: 0, ...check })),
+            checks: reportedChecks.map((check) => ({ durationMs: 0, ...check })),
+            ...(summary ? { summary } : {}),
             ...(warnings.length > 0 ? { warnings } : {}),
             ...(capabilities ? { capabilities } : {}),
             ...(observedOwner ? { observed: observedOwner } : {}),
