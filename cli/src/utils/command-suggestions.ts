@@ -14,6 +14,8 @@ export const UNKNOWN_COMMAND_SUGGESTIONS: Readonly<Record<string, readonly strin
   ps: ["resources", "status"],
   start: ["up"],
   stop: ["down"],
+  kill: ["down"],
+  run: ["up"],
   build: ["up"],
 };
 
