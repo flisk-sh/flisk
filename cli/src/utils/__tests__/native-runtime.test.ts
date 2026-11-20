@@ -531,6 +531,7 @@ describe("native supervisor", () => {
     expect(nativeServiceStates(root, ["api"]).api).toEqual({
       status: "pending",
       reason: "waiting for db",
+      exitCode: 1,
     });
     // Five 10ms restarts would have run out long before this: the API is waiting, not crashing.
     await new Promise((resolve) => setTimeout(resolve, 1_000));
