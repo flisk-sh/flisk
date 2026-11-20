@@ -42,6 +42,7 @@ import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
+import { stripTemplateExtras } from "../utils/template-extras.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
@@ -452,6 +453,10 @@ export async function cloneProjectTemplate(
     }
     showErrorAndExit(message);
   }
+
+  // A template is copied whole, including sales decks and demo guides that describe the template rather than
+  // the user's project. Drop the catalog's presentation paths and their README links before the first commit (#4301).
+  if (template.omit) stripTemplateExtras(destination, template.omit);
 
   // A copied or cloned starter ships service.json files but no .flisk/project.json, and every command that needs a
   // project root refuses without one: `flisk doctor`, `flisk status` and `flisk resources` in the new folder failed

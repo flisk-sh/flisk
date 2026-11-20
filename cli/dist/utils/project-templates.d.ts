@@ -7,6 +7,8 @@ export interface ProjectTemplate {
     /** Written by running `flisk project` and `flisk resource` in the new folder, then adding files; needs Docker. */
     composed?: "next-postgres";
     fixedDir?: string;
+    /** Paths copied from the template that are presentation material, not part of the user's project (#4301, #4285). */
+    omit?: readonly string[];
     /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
     ref?: string;
 }
