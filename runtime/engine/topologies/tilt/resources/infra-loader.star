@@ -22,7 +22,7 @@
 
 load('../../../../discovery/native_windows.star', 'file_exists', 'POWERSHELL')
 load('../common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script')
-load('../common/utils.star', 'platform_networks')
+load('../common/utils.star', 'platform_networks', 'external_compose_networks')
 load("../common/utils_debug.star", "debug_log")
 load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
@@ -289,9 +289,9 @@ def _load_database_management(should_enable, root_prefix="", env_file=None, writ
         # Register only services present in the project compose file. Minimal
         # NATS-only examples should not need to add an unrelated Redis broker.
         if _compose_has_service(messaging_compose, 'redis'):
-            dc_resource('redis', labels=['infra.messaging'], auto_init=False)
+            dc_resource('redis', labels=['infra.messaging'], resource_deps=['init-networks'], auto_init=False)
         if _compose_has_service(messaging_compose, 'nats'):
-            dc_resource('nats', labels=['infra.messaging'], resource_deps=_proxy_deps([], golden_image_resource), auto_init=True)
+            dc_resource('nats', labels=['infra.messaging'], resource_deps=_proxy_deps(['init-networks'], golden_image_resource), auto_init=True)
     else:
         debug_log("INFRA: Skipping messaging (compose file not found)")
 
@@ -299,7 +299,7 @@ def _load_database_management(should_enable, root_prefix="", env_file=None, writ
     cdc_enabled = should_enable('debezium')
     if cdc_enabled and _file_exists(messaging_compose):
         dc_resource('kafka', labels=['cdc'], resource_deps=['zookeeper'], auto_init=True)
-        dc_resource('zookeeper', labels=['cdc'], auto_init=True)
+        dc_resource('zookeeper', labels=['cdc'], resource_deps=['init-networks'], auto_init=True)
 
 
 # =============================================================================
@@ -391,19 +391,22 @@ def _load_standalone_traefik(root_prefix, env_file, write_fn, golden_image_resou
     )
 
 
+_PLATFORM_PROXY_COMPOSE_FILES = [
+    'shared-product-engineering/introvertic/infra/docker-compose.traefik.yml',
+    'services/platform/proxy/docker-compose.core.yml',
+    'services/platform/proxy/docker-compose.utilities.yml',
+    'services/platform/proxy/docker-compose.redirects.yml',
+    'services/platform/proxy/docker-compose.docs.yml',
+]
+
+
 def _load_proxy(should_enable, root_prefix="", env_file=None, write_fn=None, golden_image_resource=None):
     """Load Traefik reverse proxy with proper health check sequencing."""
     if not should_enable('proxy'):
         debug_log("INFRA: proxy not enabled")
         return
 
-    compose_files = [
-        root_prefix + 'shared-product-engineering/introvertic/infra/docker-compose.traefik.yml',
-        root_prefix + 'services/platform/proxy/docker-compose.core.yml',
-        root_prefix + 'services/platform/proxy/docker-compose.utilities.yml',
-        root_prefix + 'services/platform/proxy/docker-compose.redirects.yml',
-        root_prefix + 'services/platform/proxy/docker-compose.docs.yml',
-    ]
+    compose_files = [root_prefix + rel for rel in _PLATFORM_PROXY_COMPOSE_FILES]
     missing = [path for path in compose_files if not _file_exists(path)]
     if missing:
         debug_log("INFRA: Platform proxy compose missing ({}), using standalone Traefik".format(missing[0]))
@@ -455,9 +458,9 @@ def _load_monitoring(should_enable, root_prefix="", env_file=None):
     print("📊 Loading monitoring services...")
     _docker_compose(root_prefix + 'services/platform/monitoring/docker-compose.yml', env_file, 'monitoring')
     for svc in ['signoz-frontend', 'signoz-otel-collector', 'signoz-query-service']:
-        dc_resource(svc, labels=['observability.apm'], auto_init=True)
-    dc_resource('clickhouse', labels=['observability.storage'], auto_init=True)
-    dc_resource('elasticsearch', labels=['observability.storage'], auto_init=True)
+        dc_resource(svc, labels=['observability.apm'], resource_deps=['init-networks'], auto_init=True)
+    dc_resource('clickhouse', labels=['observability.storage'], resource_deps=['init-networks'], auto_init=True)
+    dc_resource('elasticsearch', labels=['observability.storage'], resource_deps=['init-networks'], auto_init=True)
     dc_resource('skywalking-oap', labels=['observability.apm'], resource_deps=['elasticsearch'], auto_init=True)
     dc_resource('skywalking-ui', labels=['observability.apm'], resource_deps=['skywalking-oap'], auto_init=True)
 
@@ -489,7 +492,7 @@ def _load_elk(should_enable, root_prefix="", env_file=None):
 
     print("📊 Loading ELK stack...")
     _docker_compose(root_prefix + 'docker/elk-compose.yml', env_file, 'elk')
-    dc_resource('elasticsearch', labels=['observability.elk'], auto_init=True)
+    dc_resource('elasticsearch', labels=['observability.elk'], resource_deps=['init-networks'], auto_init=True)
     dc_resource('logstash', labels=['observability.elk', 'processor', 'logs'], resource_deps=['elasticsearch'], auto_init=True)
     dc_resource('kibana', labels=['observability.elk', 'frontend', 'dashboard'], resource_deps=['elasticsearch'], auto_init=True)
 
@@ -498,11 +501,71 @@ def _load_elk(should_enable, root_prefix="", env_file=None):
 # 🌐 NETWORK INITIALIZATION
 # =============================================================================
 
-def _init_networks(fix_docker_networks_fn, should_enable=None):
-    """Initialize the Docker networks the project uses (infisical and verdaccio only when enabled)."""
+def collect_project_compose_files(should_enable=None, root_prefix="", app_resources=None):
+    """Return every existing Compose file that `flisk up` loads for this project."""
+    files = []
+
+    def add_if_exists(path):
+        if _file_exists(path) and path not in files:
+            files.append(path)
+
+    if should_enable == None or should_enable('database-management'):
+        add_if_exists(root_prefix + 'services/platform/database-management/docker-compose.yml')
+        add_if_exists(root_prefix + 'services/platform/messaging/docker-compose.yml')
+
+    if should_enable != None and should_enable('verdaccio'):
+        add_if_exists(root_prefix + 'docker-compose.verdaccio.yml')
+
+    if should_enable != None and should_enable('infisical'):
+        add_if_exists(root_prefix + 'docker-compose.infisical.yml')
+
+    if should_enable == None or should_enable('proxy'):
+        proxy_files = [root_prefix + rel for rel in _PLATFORM_PROXY_COMPOSE_FILES]
+        missing_proxy = [path for path in proxy_files if not _file_exists(path)]
+        if not missing_proxy:
+            for path in proxy_files:
+                if path not in files:
+                    files.append(path)
+        else:
+            add_if_exists(root_prefix + '.flisk/.flisk-out/docker-compose.traefik.yml')
+
+    if should_enable != None and should_enable('monitoring'):
+        add_if_exists(root_prefix + 'services/platform/monitoring/docker-compose.yml')
+
+    if should_enable != None and should_enable('debezium'):
+        add_if_exists(root_prefix + 'services/platform/cdc/docker-compose.enhanced.yml')
+
+    if should_enable != None and should_enable('elk'):
+        add_if_exists(root_prefix + 'docker/elk-compose.yml')
+
+    resources = APP_RESOURCES if app_resources == None else app_resources
+    for service in resources or []:
+        if type(service) != 'dict':
+            continue
+        svc_path = service.get('path', '')
+        for cf in service.get('compose_files', []):
+            if not cf or cf == '.autogenerated/docker-compose.app.autogenerated.yml':
+                continue
+            if cf.startswith('/'):
+                full_path = cf
+            elif svc_path:
+                full_path = root_prefix + svc_path + '/' + cf
+            else:
+                full_path = root_prefix + cf
+            add_if_exists(full_path)
+
+    return files
+
+
+def _init_networks(fix_docker_networks_fn, should_enable=None, root_prefix="", app_resources=None):
+    """Initialize the Docker networks the project uses (base networks, optional features when on,
+    and any <project>_* network declared external by a project compose file that up loads)."""
+    compose_files = collect_project_compose_files(should_enable, root_prefix, app_resources)
+    extra_networks = external_compose_networks(compose_files, PlatformDockerConstants.PROJECT_NAME + '_')
     networks = platform_networks(
         infisical=PlatformDockerConstants.infisical_network_enabled() or (should_enable != None and should_enable('infisical')),
         verdaccio=should_enable != None and should_enable('verdaccio'),
+        extra_networks=extra_networks,
     )
     local_resource('init-networks',
         cmd=fix_docker_networks_fn(networks),
@@ -598,10 +661,16 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
         project_root: Path to project root from Flisk working directory (optional, e.g., "../../")
         env_file: Path to the env file for docker-compose (optional, defaults to the env file of the run: the project .env, or the file `flisk up --env-file` selected)
     """
+    # Get project root prefix for paths (e.g., "../../" from .flisk/.flisk-out/)
+    # Ensure root_prefix ends with / for proper path concatenation
+    root_prefix = project_root if project_root else ""
+    if root_prefix and not root_prefix.endswith('/'):
+        root_prefix = root_prefix + '/'
+
     # Initialize networks first
     if fix_docker_networks_fn:
         debug_log("INFRA: Initializing networks...")
-        _init_networks(fix_docker_networks_fn, should_enable)
+        _init_networks(fix_docker_networks_fn, should_enable, root_prefix=root_prefix)
         debug_log("INFRA: Networks initialized")
     else:
         debug_log("INFRA: SKIPPING network initialization (no fix_docker_networks_fn)")
@@ -622,12 +691,6 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
     if docker_provider and write_fn:
         _generate_golden_dockerfile(should_enable, docker_provider, write_fn)
         golden_image_resource = _load_golden_image(should_enable, docker_provider, project_root=project_root or '.')
-
-    # Get project root prefix for paths (e.g., "../../" from .flisk/.flisk-out/)
-    # Ensure root_prefix ends with / for proper path concatenation
-    root_prefix = project_root if project_root else ""
-    if root_prefix and not root_prefix.endswith('/'):
-        root_prefix = root_prefix + '/'
 
     # Load the env file of the run for docker-compose variables.
     # Use provided env_file or resolve it from the project root: the project .env, or the file
@@ -659,6 +722,7 @@ Infra = struct(
     # Main loader
     load_all = load_all_infrastructure,
     init_networks = _init_networks,
+    collect_project_compose_files = collect_project_compose_files,
 
     # Individual loaders (for granular control)
     load_database = _load_database_management,

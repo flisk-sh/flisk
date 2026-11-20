@@ -497,7 +497,7 @@ def test_postgres_and_nats_wait_for_the_golden_step_too():
     postgres = source.split("def _register_platform_postgres", 1)[1].split("\ndef ", 1)[0]
     assert "resource_deps=_proxy_deps(['init-networks'], golden_image_resource)" in postgres
     database = source.split("def _load_database_management", 1)[1].split("\ndef ", 1)[0]
-    assert "resource_deps=_proxy_deps([], golden_image_resource)" in database
+    assert "resource_deps=_proxy_deps(['init-networks'], golden_image_resource)" in database
     assert "golden_image_resource=golden_image_resource" in database
     assert "_load_database_management(should_enable, root_prefix, env_file, write_fn, golden_image_resource)" in source
 

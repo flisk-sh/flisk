@@ -609,6 +609,14 @@ describe("formatWaitFailures", () => {
     expect(lines[1]).toBe("cache: pull access denied");
   });
 
+  it("explains a missing external Docker network failure with an actionable fix (#3992)", () => {
+    const fix = machineProblemFix(
+      "network shop_traefik-private declared as external, but could not be found",
+    );
+    expect(fix).toContain('External Docker network "shop_traefik-private" does not exist');
+    expect(fix).toContain("docker network create shop_traefik-private");
+  });
+
   it("says failed when a failure has no text", () => {
     expect(formatWaitFailures([{ name: "web" }])).toEqual(["web: failed"]);
   });

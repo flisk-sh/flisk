@@ -52,6 +52,10 @@ function waitingOn(item: Item): string[] {
 const NETWORK_POOL_EXHAUSTED =
   /all predefined address pools have been fully subnetted|non-overlapping IPv4 address pool|out of network address pools/i;
 
+// Compose failed because a file declared an external Docker network that does not exist yet.
+const EXTERNAL_NETWORK_NOT_FOUND =
+  /network\s+([A-Za-z0-9_.-]+)\s+declared as external,\s*but could not be found/i;
+
 /** What a failed `init-networks` says when its log gives no reason: the usual cause, in plain words, not the shell command. */
 const INIT_NETWORKS_FALLBACK =
   "Docker could not create this project's networks; it is most likely out of network address pools";
@@ -204,6 +208,10 @@ export function loggedErrorLine(log: string): string | null {
 export function machineProblemFix(message: string): string | null {
   if (NETWORK_POOL_EXHAUSTED.test(message)) {
     return "Fix: Docker has no free network ranges left. Run `flisk doctor --fix --scope=machine` to remove the unused networks of every Flisk project (networks in use are kept), or `flisk down --prune-networks` in a stopped project, or `docker network prune` for all unused networks, then run flisk up again";
+  }
+  const missingNetwork = EXTERNAL_NETWORK_NOT_FOUND.exec(message)?.[1];
+  if (missingNetwork) {
+    return `Fix: External Docker network "${missingNetwork}" does not exist. Create it with \`docker network create ${missingNetwork}\`, or prefix the network name with "<project>_" (and run \`flisk config regenerate\`) so init-networks creates it automatically`;
   }
   return null;
 }

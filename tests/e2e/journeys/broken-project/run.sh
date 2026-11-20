@@ -6,10 +6,13 @@
 #       Tilt running, so the case waits for that report, then runs flisk down.
 #   BP4 an interrupted flisk up: the process is killed once Docker has started containers, flisk down removes them, and a second
 #       flisk up brings the service up healthy.
-# BP3 and BP4 each rebuild the scratch project, so run them one at a time (the default `all` runs them in order).
+#   BP5 external project compose network (#3992): messaging compose declares <project>_traefik-private external, init-networks
+#       creates it automatically, and flisk up starts both nats and the app cleanly.
+# BP3, BP4 and BP5 each rebuild the scratch project, so run them one at a time (the default `all` runs them in order).
 #
 #   tests/e2e/journeys/broken-project/run.sh BP3
 #   tests/e2e/journeys/broken-project/run.sh BP4
+#   tests/e2e/journeys/broken-project/run.sh BP5
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -100,6 +103,35 @@ BP4() { # an interrupted flisk up is cleaned up by flisk down, and a second flis
     || die "BP4: flisk status --json does not list $SERVICE after the second flisk up"
   run bp4-down-final down
   log "PASS BP4: flisk down cleaned up after an interrupted up, and a second flisk up started $SERVICE"
+}
+
+BP5() { # a project compose file declaring <project>_traefik-private external starts cleanly because init-networks creates it (#3992)
+  log "BP5 project compose declaring <project>_traefik-private external is initialized by init-networks"
+  scaffold_project ok
+  local proj_prefix="${PROJECT//-/_}"
+  local ext_net="${proj_prefix}_traefik-private"
+  docker network rm "$ext_net" >/dev/null 2>&1 || true
+  mkdir -p "$DIR/services/platform/messaging"
+  cat >"$DIR/services/platform/messaging/docker-compose.yml" <<YAML
+services:
+  nats:
+    image: nats:2-alpine
+    command: ["-js"]
+    networks:
+      - traefik-private
+
+networks:
+  traefik-private:
+    name: ${ext_net}
+    external: true
+YAML
+  start_stack app
+  wait_status_url "$SERVICE"
+  docker network inspect "$ext_net" >/dev/null 2>&1 \
+    || { bp_diagnostics bp5; die "BP5: init-networks did not create external network $ext_net"; }
+  run bp5-down down --prune-networks
+  [ "$RC" -eq 0 ] || die "BP5: flisk down --prune-networks exited $RC"
+  log "PASS BP5: init-networks created $ext_net and flisk up started the stack cleanly"
 }
 
 e2e_main "$@"

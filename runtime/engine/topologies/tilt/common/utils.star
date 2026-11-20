@@ -23,6 +23,7 @@ load('./utils_debug.star',
 load('./utils_docker_networks.star',
     _fix_docker_networks = 'fix_docker_networks',
     _cleanup_docker_networks = 'cleanup_docker_networks',
+    _external_compose_networks = 'external_compose_networks',
 )
 load('./utils_output.star',
     'print_resource_summary',
@@ -65,8 +66,9 @@ load("../manifest/constants.star", "MANIFEST_FILENAME")
 # Shared platform networks. All use the PROJECT_NAME prefix (e.g. flisk_project_*).
 # Every network takes a /16 from Docker's default address pools (about 32 in total), so only the
 # networks the project attaches containers to are created: the three every app service joins,
-# plus the infisical and verdaccio networks when those features are on.
-def platform_networks(infisical=False, verdaccio=False):
+# plus the infisical and verdaccio networks when those features are on, plus any <project>_*
+# external network declared by a project compose file that `up` loads.
+def platform_networks(infisical=False, verdaccio=False, extra_networks=None):
   networks = [
     PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
     PlatformDockerConstants.NETWORK_BACKEND,
@@ -76,6 +78,9 @@ def platform_networks(infisical=False, verdaccio=False):
     networks.append(PlatformDockerConstants.NETWORK_INFISICAL)
   if verdaccio:
     networks.append(PlatformDockerConstants.VERDACCIO_NETWORK)
+  for net in (extra_networks or []):
+    if net and net not in networks:
+      networks.append(net)
   return networks
 
 # Base set (no optional features), kept for callers that need the always-present networks.
@@ -363,6 +368,11 @@ def fix_docker_networks(networks=None):
     return _fix_docker_networks(PLATFORM_NETWORKS if networks == None else networks)
 
 
+def external_compose_networks(compose_files, project_prefix=None, env=None, read_yaml_fn=None):
+    prefix = (PlatformDockerConstants.PROJECT_NAME + '_') if project_prefix == None else project_prefix
+    return _external_compose_networks(compose_files, prefix, env=env, read_yaml_fn=read_yaml_fn)
+
+
 def cleanup_docker_networks(networks=None):
     # Cleanup covers every network the engine can create, so one left by an earlier run is removed too.
     return _cleanup_docker_networks(networks if networks != None else platform_networks(True, True))
@@ -401,6 +411,7 @@ Utils = struct(
     # Docker networks
     fix_docker_networks = fix_docker_networks,
     cleanup_docker_networks = cleanup_docker_networks,
+    external_compose_networks = external_compose_networks,
 
     # Resource summary
     print_resource_summary = print_resource_summary,
