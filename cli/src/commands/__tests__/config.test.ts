@@ -10,6 +10,7 @@ import { findProjectRoot } from "../../utils/paths.js";
 import { configCommand } from "../config.js";
 
 beforeEach(() => {
+  vi.stubEnv("VISUAL", "");
   // Commander keeps option values on each subcommand between parseAsync calls, so clear them before every case.
   for (const sub of configCommand.commands) {
     for (const option of sub.options) sub.setOptionValue(option.attributeName(), undefined);
@@ -821,6 +822,23 @@ describe("config version gate", () => {
 });
 
 describe("config edit", () => {
+  let stdinTty: PropertyDescriptor | undefined;
+  let stdoutTty: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+    stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+  });
+
+  afterEach(() => {
+    if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+    if (stdoutTty) Object.defineProperty(process.stdout, "isTTY", stdoutTty);
+    else delete (process.stdout as { isTTY?: boolean }).isTTY;
+  });
+
   it("opens project.json in a known editor with its own arguments", async () => {
     vi.stubEnv("EDITOR", "code --wait");
     const root = createTempProject({ projectJson: projectJson() });
@@ -836,19 +854,119 @@ describe("config edit", () => {
     expect(result.stdout).toContain("Editor closed.");
   });
 
-  it("falls back to vi with a warning for an unknown editor", async () => {
-    vi.stubEnv("EDITOR", "/opt/bin/frobnicate");
+  it("prefers $VISUAL over $EDITOR", async () => {
+    vi.stubEnv("VISUAL", "nano");
+    vi.stubEnv("EDITOR", "code --wait");
     const root = createTempProject({ projectJson: projectJson() });
 
     const result = await runCommandInProcess(configCommand, ["edit"], root);
 
-    expect(result.stderr).toContain(
-      "Warning: Unknown editor \"/opt/bin/frobnicate\". Using 'vi' instead.",
-    );
-    expect(spawnSync).toHaveBeenCalledWith("vi", [path.join(root, ".flisk", "project.json")], {
+    expect(result.status).toBeUndefined();
+    expect(spawnSync).toHaveBeenCalledWith("nano", [path.join(root, ".flisk", "project.json")], {
       stdio: "inherit",
     });
-    expect(spawnSync).not.toHaveBeenCalledWith("frobnicate", expect.anything(), expect.anything());
+  });
+
+  it("keeps an editor that is not on the old allow-list", async () => {
+    vi.stubEnv("EDITOR", "cursor --wait");
+    const root = createTempProject({ projectJson: projectJson() });
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stderr).not.toContain("Unknown editor");
+    expect(spawnSync).toHaveBeenCalledWith(
+      "cursor",
+      ["--wait", path.join(root, ".flisk", "project.json")],
+      { stdio: "inherit" },
+    );
+  });
+
+  it("fails fast without a terminal and never starts an editor", async () => {
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
+    const root = createTempProject({ projectJson: projectJson() });
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "config edit needs a terminal; edit .flisk/project.json directly",
+    );
+    expect(result.stderr).toContain("flisk config regenerate");
+    expect(result.stdout).not.toContain("Opening");
+    expect(spawnSync).not.toHaveBeenCalled();
+  });
+
+  it("fails fast when stdout is not a terminal and never starts an editor", async () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true });
+    const root = createTempProject({ projectJson: projectJson() });
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "config edit needs a terminal; edit .flisk/project.json directly",
+    );
+    expect(result.stdout).not.toContain("Opening");
+    expect(spawnSync).not.toHaveBeenCalled();
+  });
+
+  it("reports an editor's non-zero exit without claiming success", async () => {
+    vi.mocked(spawnSync).mockReturnValueOnce({ status: 1 } as ReturnType<typeof spawnSync>);
+    const root = createTempProject({ projectJson: projectJson() });
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Editor "vi" failed');
+    expect(result.stderr).toContain("Exited with status 1");
+    expect(result.stdout).not.toContain("Editor closed.");
+  });
+
+  it("reports an editor that cannot be launched without claiming success", async () => {
+    vi.mocked(spawnSync).mockReturnValueOnce({
+      status: null,
+      error: Object.assign(new Error("spawn missing-editor ENOENT"), { code: "ENOENT" }),
+    } as unknown as ReturnType<typeof spawnSync>);
+    const root = createTempProject({ projectJson: projectJson() });
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Editor "vi" failed');
+    expect(result.stderr).toContain("ENOENT");
+    expect(result.stdout).not.toContain("Editor closed.");
+  });
+
+  it("reports an editor terminated by a signal without claiming success", async () => {
+    vi.mocked(spawnSync).mockReturnValueOnce({
+      status: null,
+      signal: "SIGTERM",
+    } as ReturnType<typeof spawnSync>);
+    const root = createTempProject({ projectJson: projectJson() });
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Editor "vi" failed');
+    expect(result.stderr).toContain("Terminated by SIGTERM");
+    expect(result.stdout).not.toContain("Editor closed.");
+  });
+
+  it("rejects malformed project.json after the editor exits successfully", async () => {
+    const root = createTempProject({ projectJson: projectJson() });
+    vi.mocked(spawnSync).mockImplementationOnce(() => {
+      fs.writeFileSync(path.join(root, ".flisk", "project.json"), "{ invalid\n");
+      return { status: 0 } as ReturnType<typeof spawnSync>;
+    });
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Editor saved an invalid .flisk/project.json");
+    expect(result.stderr).toContain("Fix .flisk/project.json");
+    expect(result.stderr).toContain("Could not parse project.json");
+    expect(result.stdout).not.toContain("Editor closed.");
   });
 
   it("exits 1 when project.json is missing without launching an editor", async () => {

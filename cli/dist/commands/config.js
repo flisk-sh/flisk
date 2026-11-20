@@ -494,31 +494,37 @@ export const configCommand = new Command("config")
                 "Create the project config with: flisk project --yes",
             ]);
         }
-        const editor = process.env.EDITOR || "vi";
+        // A pipe, script or CI job cannot answer an editor, and vi would wait on the closed stdin.
+        if (!process.stdin.isTTY || !process.stdout.isTTY) {
+            throw new FliskError("config edit needs a terminal; edit .flisk/project.json directly", [
+                `Edit it in your own editor: ${projectJsonPath}`,
+                "Then run `flisk config regenerate` to apply the changes.",
+            ]);
+        }
+        // $VISUAL comes first, as in most editors; an unset or blank value falls through to $EDITOR.
+        const editor = process.env.VISUAL?.trim() || process.env.EDITOR?.trim() || "vi";
         console.log(chalk.blue(`Opening ${projectJsonPath} in ${editor}...`));
-        const editorParts = editor.trim().split(/\s+/);
+        // Split into a command and its arguments instead of handing the string to a shell.
+        const editorParts = editor.split(/\s+/);
         const editorCmd = editorParts[0] || "vi";
         const editorArgs = [...editorParts.slice(1), projectJsonPath];
-        const allowedEditors = [
-            "vi",
-            "vim",
-            "nano",
-            "emacs",
-            "code",
-            "subl",
-            "atom",
-            "mate",
-            "pico",
-            "micro",
-            "hx",
-        ];
-        const editorBase = editorCmd.replace(/.*\//, ""); // Remove path prefix for validation
-        if (!allowedEditors.includes(editorBase)) {
-            console.error(chalk.yellow(`Warning: Unknown editor "${editorCmd}". Using 'vi' instead.`));
-            spawnSync("vi", [projectJsonPath], { stdio: "inherit" });
+        const editorResult = spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+        if (editorResult.error || editorResult.status !== 0) {
+            throw new FliskError(`Editor "${editorCmd}" failed`, [
+                editorResult.error?.message ??
+                    (editorResult.signal
+                        ? `Terminated by ${editorResult.signal}`
+                        : `Exited with status ${editorResult.status ?? 1}`),
+            ]);
         }
-        else {
-            spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+        try {
+            readProjectConfig(projectRoot);
+        }
+        catch (error) {
+            throw new FliskError("Editor saved an invalid .flisk/project.json", [
+                "Fix .flisk/project.json before running `flisk config regenerate`.",
+                error instanceof Error ? error.message : String(error),
+            ]);
         }
         console.log(chalk.green("\n✅ Editor closed."));
         console.log(chalk.gray("Run `flisk config regenerate` to apply changes."));
