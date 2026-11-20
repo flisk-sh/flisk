@@ -536,7 +536,14 @@ if (process.argv.length === 3 && helpArg && ["-h", "--help", "help"].includes(he
   process.exit(0);
 }
 
-const helpResolved = resolveHelpTarget(process.argv.slice(2), program.commands);
+// `demo` is handled before Commander, so it is not in the program tree that `flisk help demo` searches (#3743).
+const helpArgs = process.argv.slice(2);
+if (helpArgs[0] === "help" && helpArgs[1] === "demo" && helpArgs.length === 2) {
+  showDemoHelp();
+  process.exit(0);
+}
+
+const helpResolved = resolveHelpTarget(helpArgs, program.commands);
 if (helpResolved.unknown) {
   program.error(`error: unknown command '${helpResolved.unknown}'`, {
     exitCode: 1,
