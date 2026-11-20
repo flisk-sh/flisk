@@ -83,7 +83,7 @@ check_logs() { # run after the fixture is ready; also used for deliberate-break 
   run empty logs --grep never-a-match --json
   [ "$RC" -eq 0 ] || die "no-match must succeed"
   assert check "$OUT/empty.out" "j.data.lines.length === 0" "no matches is empty"
-  run literal logs --grep '.' --json
+  run literal logs --service "$SERVICE" --source runtime --grep '.' --json
   [ "$RC" -eq 0 ] || die "literal meta-character pattern must succeed"
   assert check "$OUT/literal.out" "j.data.lines.length === 0" "meta-characters match as literal text"
   local calls
