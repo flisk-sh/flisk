@@ -283,4 +283,35 @@ describe("flisk up guard ordering and timing (#4282)", () => {
       logSpy.mockRestore();
     }
   });
+
+  it("reports the missing project before the native Windows host refusal", async () => {
+    const emptyDir = realpathSync(mkdtempSync(join(tmpdir(), "flisk-up-win-no-project-")));
+    tempDirs.push(emptyDir);
+
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    mocks.findProjectRoot.mockReturnValue(null);
+    vi.stubEnv("FLISK_ALLOW_NATIVE_WINDOWS", "");
+    Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
+    process.chdir(emptyDir);
+    resetCommandOptions(upCommand);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+      throw new Error(`process.exit(${code ?? 0})`);
+    }) as never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(upCommand.parseAsync([], { from: "user" })).rejects.toThrow("process.exit(1)");
+      const output = errorSpy.mock.calls.flat().join("\n");
+      expect(output).toContain("Could not find project root (no .flisk/project.json found)");
+      expect(output).not.toContain("WSL2");
+      expect(mocks.pruneSupersededTiltImages).not.toHaveBeenCalled();
+      expect(mocks.enforceBuildCacheCeiling).not.toHaveBeenCalled();
+      expect(mocks.enforceDiskGuard).not.toHaveBeenCalled();
+      expect(mocks.assertMachineReadyOrExit).not.toHaveBeenCalled();
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+      if (platform) Object.defineProperty(process, "platform", platform);
+    }
+  });
 });

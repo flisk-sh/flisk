@@ -1081,13 +1081,9 @@ export const upCommand = new Command("up")
       });
       return;
     }
-    const platformRefusal = nativeWindowsUpRefusal(
-      process.platform,
-      process.env.FLISK_ALLOW_NATIVE_WINDOWS,
-    );
-    if (platformRefusal) showErrorAndExit(platformRefusal);
-
-    // Find the project before pruning images, trimming build cache, or probing Docker (#4282).
+    // Find the project before the host gate and before pruning images, trimming build cache, or probing Docker (#4282).
+    // Outside a project that is the answer on every platform: native Windows would otherwise hide it behind the WSL2
+    // refusal, which is only relevant to a container stack that actually exists.
     const envFileRoot = requireProjectBeforeDocker(
       () => versionRoot ?? findProjectRoot(),
       (error) => {
@@ -1095,6 +1091,12 @@ export const upCommand = new Command("up")
         return error.exit();
       },
     );
+
+    const platformRefusal = nativeWindowsUpRefusal(
+      process.platform,
+      process.env.FLISK_ALLOW_NATIVE_WINDOWS,
+    );
+    if (platformRefusal) showErrorAndExit(platformRefusal);
 
     // The env file of the run. `--env-file` replaces the project .env for this run, so the file is
     // resolved and read before any prerequisite check, any write and any service starts.
