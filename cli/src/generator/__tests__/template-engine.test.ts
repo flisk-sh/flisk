@@ -1415,6 +1415,54 @@ describe("template-engine", () => {
         fs.rmSync(projectRoot, { recursive: true, force: true });
       }
     });
+
+    it("accepts the Tilt engine's own database-management compose after `flisk up` (#3735, #4851 e2e)", async () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-engine-compose-"));
+      const oldExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
+      process.env.FLISK_EXTENSION_SOURCE = repoRoot;
+      try {
+        const config = projectConfig();
+        config.phases.pre_alpha.enabledStacks = ["database-management"];
+        writeProjectJson(projectRoot, config);
+        await generateMasterConfigs(projectRoot, { quiet: true });
+
+        const composeRel = "services/platform/database-management/docker-compose.yml";
+        const composePath = path.join(projectRoot, composeRel);
+        // The engine's infra-loader.star writes its own header ("SYSTEM-GENERATED - DO
+        // NOT EDIT", not the CLI marker) and env-resolved ports; `flisk up` leaves this
+        // form on disk and `flisk config verify` must not call it drift.
+        const engineVariant = [
+          "###############################################################################",
+          "# SYSTEM-GENERATED - DO NOT EDIT",
+          "# Stack feature: database-management",
+          '# Source: .flisk/project.json stacks.*.services includes "database-management"',
+          "###############################################################################",
+          "",
+          "services:",
+          "  postgres:",
+          "    image: postgres:16-alpine",
+          "    container_name: test-project_postgres",
+          "    restart: unless-stopped",
+          "    environment:",
+          "      POSTGRES_USER: test-project",
+          "      POSTGRES_PASSWORD: ${DB_PASSWORD}",
+          "      POSTGRES_DB: postgres",
+          "    ports:",
+          '      - "127.0.0.1:15432:5432"',
+          "    healthcheck:",
+          '      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U test-project -d postgres"]',
+          "",
+        ].join("\n");
+        fs.writeFileSync(composePath, engineVariant);
+
+        const verified = verifyMasterConfigs(projectRoot);
+        expect(verified.errors.filter((error) => error.includes(composeRel))).toEqual([]);
+      } finally {
+        if (oldExtensionSource === undefined) delete process.env.FLISK_EXTENSION_SOURCE;
+        else process.env.FLISK_EXTENSION_SOURCE = oldExtensionSource;
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("verifyMasterConfigs generated resource files", () => {
