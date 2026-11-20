@@ -222,7 +222,10 @@ describe("native ready-service re-probe (#4692)", () => {
       expect(pid).toBeDefined();
 
       try {
-        process.kill(pid as number, "SIGSTOP");
+        // `/bin/sh -c` keeps the server as a child, so stopping only the shell PID would leave the
+        // HTTP server answering. The supervisor gives each service its own process group; stop all
+        // of it, which is also what a terminal Ctrl+Z does to a foreground command line.
+        process.kill(-(pid as number), "SIGSTOP");
         await waitFor(() => nativeServiceStates(root, ["api"]).api.status === "unhealthy", 12_000);
         expect(nativeServiceStates(root, ["api"]).api.reason).toContain(
           "GET /health failed 3 consecutive probes",
@@ -230,7 +233,7 @@ describe("native ready-service re-probe (#4692)", () => {
       } finally {
         // Let the afterEach stop the process group even if an assertion above failed.
         try {
-          process.kill(pid as number, "SIGCONT");
+          process.kill(-(pid as number), "SIGCONT");
         } catch {
           // It may already have exited.
         }
