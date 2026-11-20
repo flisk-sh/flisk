@@ -12,7 +12,9 @@ import { join, posix } from "node:path";
  * Returns the paths that were actually removed, so callers can log or test what happened.
  */
 export function stripTemplateExtras(root: string, omitted: readonly string[]): string[] {
-  const targets = new Set(omitted.map(normalizeTarget).filter(Boolean));
+  // Keep the spelling from the catalog for the filesystem lookup: Linux/macOS CI volumes are case-sensitive, so a
+  // lowercased `sales_pitch.md` would miss the checked-out `SALES_PITCH.md`. Only README matching is case-insensitive.
+  const targets = new Set(omitted.map(cleanTarget).filter(Boolean));
   const removed: string[] = [];
   for (const target of targets) {
     const parts = target.split("/");
@@ -20,7 +22,7 @@ export function stripTemplateExtras(root: string, omitted: readonly string[]): s
     const full = join(root, ...parts);
     if (!existsSync(full)) continue;
     rmSync(full, { recursive: true, force: true });
-    removed.push(target);
+    removed.push(normalizeTarget(target));
   }
   if (removed.length === 0) return removed;
 
@@ -34,8 +36,12 @@ export function stripTemplateExtras(root: string, omitted: readonly string[]): s
   return removed;
 }
 
+function cleanTarget(value: string): string {
+  return value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
+}
+
 function normalizeTarget(value: string): string {
-  return value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "").toLowerCase();
+  return cleanTarget(value).toLowerCase();
 }
 
 /** Drops Markdown images/links, HTML hrefs and tree lines whose target is one of the removed paths. */
