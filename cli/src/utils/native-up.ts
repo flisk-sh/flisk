@@ -4,6 +4,7 @@ import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource } from "../types/index.js";
+import { checkLiteralPorts } from "./doctor-wiring.js";
 import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
@@ -285,6 +286,11 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
     }
   }
   if (input.dryRun) {
+    const literalPortsCheck = checkLiteralPorts(projectRoot, selected);
+    const literalWarnings = literalPortsCheck.didPass ? [] : [literalPortsCheck.message];
+    if (!literalPortsCheck.didPass && !quiet) {
+      console.warn(chalk.yellow(`⚠️  Literal ports: ${literalPortsCheck.message}`));
+    }
     emit?.({
       ok: true,
       dryRun: true,
@@ -295,6 +301,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       ...(input.only ? { requested: input.only, declaredDependencies: input.dependencies } : {}),
       startOrder,
       ...(containers.length > 0 ? { containers: containers.map((service) => service.name) } : {}),
+      ...(literalWarnings.length > 0 ? { warnings: literalWarnings } : {}),
     });
     if (!quiet) console.log(chalk.yellow("Dry run: not starting services"));
     return;

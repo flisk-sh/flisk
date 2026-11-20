@@ -105,6 +105,7 @@ import {
   checkDuplicateResourcePorts,
   checkFrontendBackendUrls,
   checkInfraFrameworks,
+  checkLiteralPorts,
   checkMigrationsInApi,
   checkNatsBroker,
   checkPostgresCredentials,
@@ -578,6 +579,7 @@ export const doctorCommand = new Command("doctor")
     const schemaAndPortChecks: ProjectCheck[] = [
       () => checkSchemaVersions(undefined, options.strict),
       () => checkDuplicateResourcePorts(),
+      () => checkLiteralPorts(checkDir, nativeResources ?? undefined),
     ];
     const envHygieneChecks: ProjectCheck[] = [
       () => checkPublicEnvSecrets(checkDir, options.strict),

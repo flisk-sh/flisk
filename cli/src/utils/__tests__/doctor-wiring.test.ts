@@ -9,12 +9,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TemplateEngine } from "../../generator/template-engine.js";
 import type { ProjectConfig } from "../../types/index.js";
 import { clearDiscoveryCache } from "../discovery-context.js";
+import { createDoctorReport, getDoctorExitCode } from "../doctor-report.js";
 import {
   checkDockerNetworkCapacity,
   checkDuplicateResourceNames,
   checkDuplicateResourcePorts,
   checkFrontendBackendUrls,
   checkInfraFrameworks,
+  checkLiteralPorts,
   checkMigrationsInApi,
   checkNatsBroker,
   checkPostgresCredentials,
@@ -24,9 +26,12 @@ import {
   checkSharedPlatformPostgres,
   checkSharedStackRoutes,
   checkTiltInstances,
+  findLiteralPorts,
   parseTiltProcesses,
 } from "../doctor-wiring.js";
 import type { ExecAsync } from "../exec-async.js";
+import { runNativeUp } from "../native-up.js";
+import { discoverResourcesFromRoot } from "../services.js";
 
 let root: string;
 
@@ -1194,5 +1199,203 @@ describe("checkPostgresCredentials", () => {
     );
     expect(result.didPass).toBe(true);
     expect(result.isSkipped).toBe(true);
+  });
+});
+
+describe("checkLiteralPorts", () => {
+  it("warns on literal ports in command (--port, --port=, PORT=, localhost/127.0.0.1/0.0.0.0)", () => {
+    resource("app", "api", {
+      appType: "backend",
+      port: 4003,
+      command: "node server.js --port 4003",
+    });
+    resource("app", "web", {
+      appType: "frontend",
+      port: 3003,
+      command: "PORT=3003 vite --port=3003 --host 0.0.0.0:3003",
+    });
+
+    const result = checkLiteralPorts(root);
+    expect(result.name).toBe("Literal ports");
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain(`api (command): literal port 4003 (use \${PORT} instead)`);
+    expect(result.message).toContain(`web (command): literal port 3003 (use \${PORT} instead)`);
+  });
+
+  it("warns on literal ports in env URLs and env.PORT and suggests the owning service's variable", () => {
+    resource("app", "db", {
+      appType: "bring-your-own",
+      port: 5433,
+      image: "postgres:16",
+    });
+    resource("app", "api", {
+      appType: "backend",
+      port: 4003,
+      command: `node server.js --port \${PORT}`,
+      env: {
+        DATABASE_URL: "postgres://postgres:postgres@localhost:5433/app",
+        PORT: "4003",
+      },
+    });
+
+    const result = checkLiteralPorts(root);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain(
+      `api (env.DATABASE_URL): literal port 5433 (use \${DB_PORT} instead)`,
+    );
+    expect(result.message).toContain(`api (env.PORT): literal port 4003 (use \${PORT} instead)`);
+  });
+
+  it("warns on literal ports in healthCheck.command strings", () => {
+    resource("app", "api", {
+      appType: "bring-your-own",
+      port: 4003,
+      image: "example/api:latest",
+      healthCheck: {
+        command: ["curl", "-f", "http://127.0.0.1:4003/health"],
+      },
+    });
+
+    const result = checkLiteralPorts(root);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain(
+      `api (healthCheck.command): literal port 4003 (use \${PORT} instead)`,
+    );
+  });
+
+  it("matches extraPorts (port and hostPort) declared on any service", () => {
+    resource("app", "proxy", {
+      appType: "bring-your-own",
+      port: 8080,
+      image: "nginx:alpine",
+      extraPorts: [{ port: 9090, hostPort: 9091 }],
+    });
+    resource("app", "worker", {
+      appType: "worker",
+      command: "curl http://localhost:9091/metrics",
+    });
+
+    const findings = findLiteralPorts(discoverResourcesFromRoot(root));
+    expect(findings).toEqual([
+      {
+        service: "worker",
+        field: "command",
+        port: 9091,
+        owner: "proxy",
+        replacement: `\${PROXY_PORT}`,
+      },
+    ]);
+  });
+
+  it(`passes cleanly when ports use \${PORT}, \${<NAME>_PORT}, or \${PORT:-default}`, () => {
+    resource("app", "db", {
+      appType: "bring-your-own",
+      port: 5433,
+      image: "postgres:16",
+    });
+    resource("app", "api", {
+      appType: "backend",
+      port: 4003,
+      command: `PORT=\${PORT} node server.js --port \${PORT}`,
+      env: {
+        PORT: `\${PORT}`,
+        DATABASE_URL: `postgres://localhost:\${DB_PORT}/app`,
+        FALLBACK_URL: `http://127.0.0.1:\${DB_PORT:-5433}`,
+      },
+      healthCheck: {
+        command: ["curl", "-f", `http://localhost:\${PORT}/health`],
+      },
+    });
+
+    const result = checkLiteralPorts(root);
+    expect(result.name).toBe("Literal ports");
+    expect(result.didPass).toBe(true);
+    expect(result.isWarning).toBeUndefined();
+  });
+
+  it("ignores numbers that match no declared port and unrelated env values", () => {
+    resource("app", "api", {
+      appType: "backend",
+      port: 4003,
+      command: "curl http://localhost:9999 && EXPORT=4003 node server.js",
+      env: {
+        TIMEOUT_MS: "4003",
+        EXTERNAL_URL: "http://127.0.0.1:7777",
+      },
+    });
+
+    const result = checkLiteralPorts(root);
+    expect(result.didPass).toBe(true);
+  });
+
+  it("ignores generated files such as .autogenerated/Dockerfile.app.autogenerated", () => {
+    resource(
+      "app",
+      "api",
+      {
+        appType: "backend",
+        port: 4003,
+        command: `node server.js --port \${PORT}`,
+      },
+      {
+        "package.json": "{}",
+        ".autogenerated/Dockerfile.app.autogenerated":
+          "EXPOSE 4003\nHEALTHCHECK CMD curl -f http://localhost:4003/health\n",
+      },
+    );
+
+    const result = checkLiteralPorts(root);
+    expect(result.didPass).toBe(true);
+  });
+
+  it("returns findings in JSON report warnings while keeping exit code 0", () => {
+    resource("app", "api", {
+      appType: "backend",
+      port: 4003,
+      command: "node server.js --port 4003",
+    });
+
+    const check = checkLiteralPorts(root);
+    const report = createDoctorReport([check], true);
+    expect(report.data.ready).toBe(true);
+    expect(report.data.warnings).toHaveLength(1);
+    expect(report.data.warnings?.[0]).toContain("api (command): literal port 4003");
+    expect(getDoctorExitCode(report)).toBe(0);
+  });
+
+  it("reports literal port warnings during native flisk up --dry-run --json", async () => {
+    resource("app", "api", {
+      appType: "backend",
+      port: 4003,
+      command: `${JSON.stringify(process.execPath)} -e "console.log(1)" --port 4003`,
+    });
+
+    const emitted: Array<Record<string, unknown>> = [];
+    await runNativeUp({
+      projectRoot: root,
+      selected: discoverResourcesFromRoot(root),
+      dependencies: [],
+      dryRun: true,
+      quiet: true,
+      emit: (data) => {
+        emitted.push(data);
+      },
+    });
+
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]?.ok).toBe(true);
+    expect(emitted[0]?.dryRun).toBe(true);
+    expect(emitted[0]?.warnings).toEqual([
+      expect.stringContaining("api (command): literal port 4003"),
+    ]);
+  });
+
+  it("returns a passing result without throwing when projectRoot does not exist", () => {
+    const result = checkLiteralPorts(join(root, "does-not-exist"));
+    expect(result.name).toBe("Literal ports");
+    expect(result.didPass).toBe(true);
   });
 });

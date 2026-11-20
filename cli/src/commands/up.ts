@@ -39,6 +39,7 @@ import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
 import { diskWarningField, enforceDiskGuard, readDockerVmFreeGib } from "../utils/disk-guard.js";
 import { enforceBuildCacheCeiling } from "../utils/docker-build-cache.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
+import { checkLiteralPorts } from "../utils/doctor-wiring.js";
 import {
   applyEnvFileSelection,
   assertEngineSupportsEnvFile,
@@ -887,17 +888,22 @@ export const upCommand = new Command("up")
     let diskWarning: Record<string, unknown> | undefined;
     const projectWarnings: string[] = [];
     const emit: JsonEmitter | undefined = baseEmit
-      ? (data, errors) =>
+      ? (data, errors) => {
+          if (data.ok !== true) {
+            baseEmit(data, errors);
+            return;
+          }
+          const existingWarnings = Array.isArray(data.warnings) ? (data.warnings as string[]) : [];
+          const combinedWarnings = [...projectWarnings, ...existingWarnings];
           baseEmit(
-            data.ok === true
-              ? {
-                  ...data,
-                  ...(diskWarning ? { diskWarning } : {}),
-                  ...(projectWarnings.length > 0 ? { warnings: projectWarnings } : {}),
-                }
-              : data,
+            {
+              ...data,
+              ...(diskWarning ? { diskWarning } : {}),
+              ...(combinedWarnings.length > 0 ? { warnings: combinedWarnings } : {}),
+            },
             errors,
-          )
+          );
+        }
       : undefined;
     // Before any build or process starts: fail below the hard threshold, warn below the soft one (#3708).
     const guardDisk = (isDockerRun: boolean): void => {
@@ -1596,6 +1602,15 @@ export const upCommand = new Command("up")
         focusTargets,
       });
       const dryRunCommand = focusTargets ? `tilt up ${tiltArgs.join(" ")}` : "tilt up";
+      if (options.dryRun) {
+        const literalPortsCheck = checkLiteralPorts(projectRoot, discoveredResources);
+        if (!literalPortsCheck.didPass) {
+          projectWarnings.push(literalPortsCheck.message);
+          if (!options.quiet) {
+            console.warn(chalk.yellow(`⚠️  Literal ports: ${literalPortsCheck.message}`));
+          }
+        }
+      }
       if (!options.quiet) {
         console.log(chalk.blue(formatHostPortPlan(hostPortPlan)));
         for (const line of formatPortFallbackNotice(hostPortPlan)) console.log(chalk.yellow(line));
