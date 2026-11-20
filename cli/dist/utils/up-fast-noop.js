@@ -14,7 +14,7 @@ import { resolveServiceUrl } from "./service-urls.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths } from "./services.js";
 import { tiltAnswerIsForeign } from "./tilt-answer-owner.js";
 import { findTiltPortOwner, isOwnTilt } from "./tilt-port-owner.js";
-import { evaluateTiltReadiness, tiltGetUiResources } from "./up-readiness.js";
+import { evaluateTiltReadiness, getDisabledHealthResourceNames, getOptionalHealthResourceNames, tiltGetUiResources, } from "./up-readiness.js";
 import { buildPrintedUrlTargets, checkPrintedUrls, URL_PROBE_TIMEOUT_MS, } from "./url-check.js";
 /** The state a run leaves behind so the next `flisk up` can recognize an unchanged, healthy stack (#4193). */
 export const UP_STATE_VERSION = 1;
@@ -284,7 +284,9 @@ export async function tryFastNoop(projectRoot, flags, deps = {}) {
     const deferred = d.deferred(selectedResources);
     if (services.some((name) => deferred.has(name) || !listed.has(name)))
         return null;
-    const readiness = d.readiness(json, deferred, undefined, undefined, () => false).result;
+    const disabledHealth = getDisabledHealthResourceNames(selectedResources);
+    const optionalHealth = getOptionalHealthResourceNames(selectedResources);
+    const readiness = d.readiness(json, deferred, undefined, disabledHealth, () => false, optionalHealth).result;
     if (!readiness.ready || readiness.failures.length > 0 || readiness.pending > 0)
         return null;
     const urlTargets = state.urls.length > 0

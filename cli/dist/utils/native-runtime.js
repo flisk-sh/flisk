@@ -16,7 +16,7 @@ import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, processStartTime } from "./process-identity.js";
 import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
-import { healthCheckPathOf, isHealthCheckDisabled, readinessProbeOf, } from "./service-manifest.js";
+import { healthCheckPathOf, isHealthCheckDisabled, isHealthCheckOptional, readinessProbeOf, } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
 export function isOneShotJob(config) {
@@ -157,6 +157,7 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
             env.PORT = String(port);
         // Without a health path a service is ready once its port listens, which is what gates its dependents.
         const healthDisabled = isHealthCheckDisabled(config);
+        const healthOptional = isHealthCheckOptional(config);
         const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
         const probe = readinessProbeOf(config);
         // A container's healthCheck.command runs inside it, as the Compose health check does.
@@ -182,6 +183,7 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
                     : localUrl(port),
             restart: config.restart !== "no" && !job,
             ...(healthDisabled ? { healthCheckDisabled: true } : {}),
+            ...(healthOptional ? { healthCheckOptional: true } : {}),
             ...(readiness ? { readiness } : {}),
             ...(job ? { job: true } : {}),
             ...(containerName ? { container: containerName } : {}),
@@ -673,6 +675,7 @@ export class NativeSupervisor {
     /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
     logSizes = new Map();
     migratorOutputs = new Map();
+    optionalFailuresList = [];
     redactLine;
     startedAt = new Date().toISOString();
     pidStartTime;
@@ -752,14 +755,17 @@ export class NativeSupervisor {
                     this.resumeDependents(name);
                 }
                 else if (!this.stopping) {
-                    failures.push({
-                        name,
-                        reason: service.plan.job
-                            ? "the job did not exit 0; see its output above"
-                            : service.gaveUp
-                                ? "kept exiting; see its output above"
-                                : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
-                    });
+                    const reason = service.plan.job
+                        ? "the job did not exit 0; see its output above"
+                        : service.gaveUp
+                            ? "kept exiting; see its output above"
+                            : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`;
+                    if (service.plan.healthCheckOptional && !service.plan.job && !service.gaveUp) {
+                        this.optionalFailuresList.push({ name, reason });
+                        this.events.onNote?.(name, `optional health check failed (${reason}); continuing without blocking`);
+                        return true;
+                    }
+                    failures.push({ name, reason });
                 }
                 return isReady;
             })());
@@ -809,6 +815,10 @@ export class NativeSupervisor {
             }
         }
         return statuses;
+    }
+    /** Services with `healthCheck.required: false` whose health checks failed without blocking startup. */
+    optionalFailures() {
+        return [...this.optionalFailuresList];
     }
     /** Parsed outputs produced by finished migrators (for inspection and tests). */
     outputsOf(migratorName) {

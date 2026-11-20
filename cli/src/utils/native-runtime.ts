@@ -41,6 +41,7 @@ import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
+  isHealthCheckOptional,
   type ReadinessProbe,
   readinessProbeOf,
 } from "./service-manifest.js";
@@ -80,6 +81,8 @@ export interface NativeServicePlan {
   restart: boolean;
   /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
   healthCheckDisabled?: boolean;
+  /** True for `healthCheck: { required: false }`: a failing health check is reported without blocking startup. */
+  healthCheckOptional?: boolean;
   /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
   readiness?: ReadinessProbe;
   /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
@@ -244,6 +247,7 @@ export function planNativeRun(
     if (port !== undefined && !containerName) env.PORT = String(port);
     // Without a health path a service is ready once its port listens, which is what gates its dependents.
     const healthDisabled = isHealthCheckDisabled(config);
+    const healthOptional = isHealthCheckOptional(config);
     const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
     const probe = readinessProbeOf(config);
     // A container's healthCheck.command runs inside it, as the Compose health check does.
@@ -271,6 +275,7 @@ export function planNativeRun(
             : localUrl(port),
       restart: config.restart !== "no" && !job,
       ...(healthDisabled ? { healthCheckDisabled: true } : {}),
+      ...(healthOptional ? { healthCheckOptional: true } : {}),
       ...(readiness ? { readiness } : {}),
       ...(job ? { job: true } : {}),
       ...(containerName ? { container: containerName } : {}),
@@ -924,6 +929,7 @@ export class NativeSupervisor {
   /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
   private readonly logSizes = new Map<string, number>();
   private readonly migratorOutputs = new Map<string, Record<string, string>>();
+  private readonly optionalFailuresList: Array<{ name: string; reason: string }> = [];
   private readonly redactLine: (line: string) => string;
   private readonly startedAt = new Date().toISOString();
   private pidStartTime?: string;
@@ -1022,14 +1028,20 @@ export class NativeSupervisor {
             this.events.onNote?.(name, "ready");
             this.resumeDependents(name);
           } else if (!this.stopping) {
-            failures.push({
-              name,
-              reason: service.plan.job
-                ? "the job did not exit 0; see its output above"
-                : service.gaveUp
-                  ? "kept exiting; see its output above"
-                  : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
-            });
+            const reason = service.plan.job
+              ? "the job did not exit 0; see its output above"
+              : service.gaveUp
+                ? "kept exiting; see its output above"
+                : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`;
+            if (service.plan.healthCheckOptional && !service.plan.job && !service.gaveUp) {
+              this.optionalFailuresList.push({ name, reason });
+              this.events.onNote?.(
+                name,
+                `optional health check failed (${reason}); continuing without blocking`,
+              );
+              return true;
+            }
+            failures.push({ name, reason });
           }
           return isReady;
         })(),
@@ -1082,6 +1094,11 @@ export class NativeSupervisor {
       }
     }
     return statuses;
+  }
+
+  /** Services with `healthCheck.required: false` whose health checks failed without blocking startup. */
+  optionalFailures(): ReadonlyArray<{ name: string; reason: string }> {
+    return [...this.optionalFailuresList];
   }
 
   /** Parsed outputs produced by finished migrators (for inspection and tests). */

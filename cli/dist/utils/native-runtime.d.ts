@@ -34,6 +34,8 @@ export interface NativeServicePlan {
     restart: boolean;
     /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
     healthCheckDisabled?: boolean;
+    /** True for `healthCheck: { required: false }`: a failing health check is reported without blocking startup. */
+    healthCheckOptional?: boolean;
     /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
     readiness?: ReadinessProbe;
     /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
@@ -247,6 +249,7 @@ export declare class NativeSupervisor {
     /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
     private readonly logSizes;
     private readonly migratorOutputs;
+    private readonly optionalFailuresList;
     private readonly redactLine;
     private readonly startedAt;
     private pidStartTime?;
@@ -289,6 +292,11 @@ export declare class NativeSupervisor {
     pidOf(name: string): number | undefined;
     /** HTTP readiness status codes recorded per service during startup. */
     readyStatuses(): ReadonlyMap<string, number>;
+    /** Services with `healthCheck.required: false` whose health checks failed without blocking startup. */
+    optionalFailures(): ReadonlyArray<{
+        name: string;
+        reason: string;
+    }>;
     /** Parsed outputs produced by finished migrators (for inspection and tests). */
     outputsOf(migratorName: string): Record<string, string> | undefined;
     private resolveServiceEnv;

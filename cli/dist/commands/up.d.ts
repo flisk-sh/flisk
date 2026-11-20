@@ -8,6 +8,8 @@ import { checkPrintedUrls, type UrlCheck } from "../utils/url-check.js";
 export interface ServiceHealth {
     name: string;
     status: "ready" | "failed" | "starting";
+    /** True when the service's health check is optional (`healthCheck.required: false`). */
+    optional?: boolean;
     url?: string;
     /** The health URL to print; null for a service without one (a bring-your-own service with no healthCheckPath). */
     healthUrl?: string | null;

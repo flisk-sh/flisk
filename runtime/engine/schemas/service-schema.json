@@ -756,7 +756,7 @@
       "type": "string"
     },
     "healthCheck": {
-      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0), and, for container services, interval, timeout and startPeriod in seconds and retries for the Docker health check.",
+      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set required: false (so a failing health check is reported without blocking flisk up or flisk up --wait), one probe (path, port, or command), and, for container services, interval, timeout and startPeriod in seconds and retries for the Docker health check.",
       "oneOf": [
         {
           "type": "boolean"
@@ -765,6 +765,7 @@
           "type": "object",
           "properties": {
             "enabled": { "description": "Whether health checks are enabled; false disables them, like healthCheck: false.", "type": "boolean" },
+            "required": { "description": "Whether this service's health check must pass for flisk up and flisk up --wait to succeed. Defaults to true. Set to false for optional sidecars so a failing health check is reported without blocking stack readiness.", "type": "boolean" },
             "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between container health probes." },
             "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
             "startPeriod": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds after the container starts before failed probes count (Compose start_period), for an app that is slow to boot." },

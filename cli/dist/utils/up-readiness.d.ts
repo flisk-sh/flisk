@@ -9,6 +9,12 @@ export interface ReadinessResult {
         message: string;
         runtime?: boolean;
     }>;
+    /** Running services with `healthCheck.required: false` whose health checks are failing without blocking readiness. */
+    optionalFailures?: Array<{
+        name: string;
+        message: string;
+        runtime?: boolean;
+    }>;
     pending: number;
     timedOut: boolean;
     /** Names of the resources Tilt has enabled (everything not `Disabled`), so callers report what actually started. */
@@ -26,9 +32,11 @@ export declare function tiltResourceLogs(port: number, name: string): Promise<st
  * status is `not_applicable` (a serve-only local resource) has nothing to build, so it counts as built.
  * When health checks are disabled for a resource (`disabledHealth`), its container health check status is stripped so
  * running containers are considered ready immediately. The same goes for a container Docker reports unhealthy when
- * `probeCannotRun` says its health command cannot run at all (see `healthProbeCannotRun`).
+ * `probeCannotRun` says its health command cannot run at all (see `healthProbeCannotRun`), and for a running container
+ * whose health check is still `starting` when `healthCheck.required: false` (`optionalHealth`) so an optional sidecar's
+ * slow health probe never blocks stack readiness.
  */
-export declare function onlyEnabledResources(jsonText: string, disabledHealth?: Set<string>, probeCannotRun?: (service: string) => boolean): string;
+export declare function onlyEnabledResources(jsonText: string, disabledHealth?: Set<string>, probeCannotRun?: (service: string) => boolean, optionalHealth?: Set<string>): string;
 /**
  * True when the container of a Compose service is running and every health probe Docker recorded never ran its command (see
  * `probeNeverRan`), such as `curl` in an image without curl, as in LycheeOrg/Lychee's facial-recognition sidecar. Such a probe
@@ -38,6 +46,7 @@ export declare function onlyEnabledResources(jsonText: string, disabledHealth?: 
  */
 export declare function healthProbeCannotRun(service: string): boolean;
 export declare function getDisabledHealthResourceNames(resources?: DiscoveredResource[]): Set<string>;
+export declare function getOptionalHealthResourceNames(resources?: DiscoveredResource[]): Set<string>;
 /**
  * Services the caller asked for must not vanish into the disabled filter: one that Tilt lists as disabled (it can be
  * disabled while running) is a failure, and one Tilt does not list yet is still pending.
@@ -52,7 +61,7 @@ export declare function isAdvisoryResource(name: string): boolean;
  * One look at `tilt get uiresources -o json`. `settled` means polling can stop: everything is ready, or the rest has
  * finished with a failure (an errored resource, or an expected service Tilt has disabled).
  */
-export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<string>, expected?: string[], disabledHealth?: Set<string>, probeCannotRun?: (service: string) => boolean): {
+export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<string>, expected?: string[], disabledHealth?: Set<string>, probeCannotRun?: (service: string) => boolean, optionalHealth?: Set<string>): {
     result: ReadinessResult;
     settled: boolean;
 };
@@ -90,6 +99,8 @@ export declare function waitForTiltResourcesReady(port: number, options?: {
     isStalled?: (jsonText: string) => boolean;
     /** Resource names whose health checks are disabled. */
     disabledHealth?: Set<string>;
+    /** Resource names with `healthCheck.required: false` whose failing health checks do not block readiness. */
+    optionalHealth?: Set<string>;
     /** How long a runtime-only failure may recover before the wait gives up on it (FLISK_UP_FAILURE_GRACE_MS). */
     failureGraceMs?: number;
     now?: () => number;

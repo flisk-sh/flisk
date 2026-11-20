@@ -1,24 +1,34 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
+import { strictNotReady } from "../../commands/status.js";
 import type { DiscoveredResource } from "../../types/index.js";
-import { planNativeRun, waitForServiceReady } from "../native-runtime.js";
+import { NativeSupervisor, planNativeRun, waitForServiceReady } from "../native-runtime.js";
 import {
   healthCheckErrors,
   healthCheckPathOf,
   isHealthCheckDisabled,
+  isHealthCheckOptional,
   parseHealthCheckConfig,
   validateServiceManifest,
 } from "../service-manifest.js";
+import { UNHEALTHY_CONTAINER_MESSAGE } from "../tilt-resource-state.js";
 import {
   evaluateTiltReadiness,
   getDisabledHealthResourceNames,
+  getOptionalHealthResourceNames,
   onlyEnabledResources,
   waitForTiltResourcesReady,
 } from "../up-readiness.js";
+import { buildPrintedUrlTargets } from "../url-check.js";
 
 const manifestBase = (overrides: Record<string, unknown> = {}) => ({
   schemaVersion: 1,
@@ -99,11 +109,27 @@ describe("health check manifest validation", () => {
       "service.json",
     );
     expect(errors).toContain(
-      'service.json.healthCheck: unexpected key "foo" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
+      'service.json.healthCheck: unexpected key "foo" (expected "enabled", "required", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
     );
     expect(errors).toContain(
-      'service.json.healthCheck: unexpected key "extra" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
+      'service.json.healthCheck: unexpected key "extra" (expected "enabled", "required", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
     );
+  });
+
+  it("accepts healthCheck.required as boolean and rejects non-boolean values", () => {
+    expect(
+      validateServiceManifest(manifestBase({ healthCheck: { required: true } }), "service.json")
+        .errors,
+    ).toEqual([]);
+    expect(
+      validateServiceManifest(manifestBase({ healthCheck: { required: false } }), "service.json")
+        .errors,
+    ).toEqual([]);
+    for (const invalid of ["false", 0, null]) {
+      expect(healthCheckErrors({ healthCheck: { required: invalid } }, "service.json")).toContain(
+        "service.json.healthCheck.required: expected true or false",
+      );
+    }
   });
 
   it("rejects non-boolean enabled in healthCheck object", () => {
@@ -470,5 +496,393 @@ describe("Tilt readiness with disabled health checks", () => {
 
     const disabledNames = getDisabledHealthResourceNames(resources);
     expect(disabledNames).toEqual(new Set(["svc-disabled-bool", "svc-disabled-obj"]));
+  });
+});
+
+describe("healthCheck.required: false (optional service health checks)", () => {
+  const containerWithHealth = (
+    name: string,
+    healthStatus: string,
+    runtimeStatus = "ok",
+    updateStatus = "ok",
+  ) => ({
+    metadata: { name },
+    status: {
+      updateStatus,
+      runtimeStatus,
+      composeResourceInfo: { healthStatus },
+    },
+  });
+
+  it("validates healthCheck.required against service-schema.json", () => {
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+    const schema = JSON.parse(
+      readFileSync(join(repoRoot, "runtime/engine/schemas/service-schema.json"), "utf-8"),
+    );
+    const ajv = new Ajv({ strict: false });
+    const validate = ajv.compile(schema);
+
+    expect(
+      validate({
+        schemaVersion: 1,
+        appName: "face-rec",
+        appType: "bring-your-own",
+        stack: "media",
+        port: 8080,
+        image: "lychee/face-rec:latest",
+        healthCheck: { required: false, path: "/health" },
+      }),
+    ).toBe(true);
+
+    expect(
+      validate({
+        schemaVersion: 1,
+        appName: "face-rec",
+        appType: "bring-your-own",
+        stack: "media",
+        port: 8080,
+        image: "lychee/face-rec:latest",
+        healthCheck: { required: true },
+      }),
+    ).toBe(true);
+
+    expect(
+      validate({
+        schemaVersion: 1,
+        appName: "face-rec",
+        appType: "bring-your-own",
+        stack: "media",
+        port: 8080,
+        image: "lychee/face-rec:latest",
+        healthCheck: { required: "no" },
+      }),
+    ).toBe(false);
+  });
+
+  it("identifies optional health checks via isHealthCheckOptional and parseHealthCheckConfig", () => {
+    expect(isHealthCheckOptional(undefined)).toBe(false);
+    expect(isHealthCheckOptional({})).toBe(false);
+    expect(isHealthCheckOptional({ healthCheck: true })).toBe(false);
+    expect(isHealthCheckOptional({ healthCheck: false })).toBe(false);
+    expect(isHealthCheckOptional({ healthCheck: { required: true } })).toBe(false);
+    expect(isHealthCheckOptional({ healthCheck: { enabled: false, required: false } })).toBe(false);
+    expect(isHealthCheckOptional({ healthCheck: { required: false } })).toBe(true);
+    expect(isHealthCheckOptional({ healthCheck: { required: false, path: "/ping" } })).toBe(true);
+
+    expect(parseHealthCheckConfig({ healthCheck: { required: false, path: "/ping" } })).toEqual({
+      enabled: true,
+      required: false,
+      path: "/ping",
+    });
+    expect(parseHealthCheckConfig({ healthCheck: { required: true } })).toEqual({
+      enabled: true,
+      required: true,
+    });
+  });
+
+  it("getOptionalHealthResourceNames returns only enabled optional-health services", () => {
+    const resources: DiscoveredResource[] = [
+      {
+        name: "api",
+        path: "/api",
+        configPath: "/api/service.json",
+        config: { appName: "api", appType: "backend" },
+      },
+      {
+        name: "required-explicit",
+        path: "/req",
+        configPath: "/req/service.json",
+        config: {
+          appName: "required-explicit",
+          appType: "backend",
+          healthCheck: { required: true },
+        },
+      },
+      {
+        name: "ml-sidecar",
+        path: "/ml",
+        configPath: "/ml/service.json",
+        config: {
+          appName: "ml-sidecar",
+          appType: "bring-your-own",
+          healthCheck: { required: false },
+        },
+      },
+      {
+        name: "disabled-optional",
+        path: "/dis",
+        configPath: "/dis/service.json",
+        config: {
+          appName: "disabled-optional",
+          appType: "bring-your-own",
+          healthCheck: { enabled: false, required: false },
+        },
+      },
+    ];
+    expect(getOptionalHealthResourceNames(resources)).toEqual(new Set(["ml-sidecar"]));
+  });
+
+  it("does not block Tilt readiness when an optional service is unhealthy, and reports it in optionalFailures", () => {
+    const payload = JSON.stringify({
+      items: [
+        containerWithHealth("api", "healthy"),
+        containerWithHealth("ml-sidecar", "unhealthy"),
+      ],
+    });
+
+    // Default (required: true): unhealthy sidecar blocks readiness
+    const requiredEval = evaluateTiltReadiness(payload, new Set());
+    expect(requiredEval.result.ready).toBe(false);
+    expect(requiredEval.result.failures.map((f) => f.name)).toEqual(["ml-sidecar"]);
+    expect(requiredEval.result.optionalFailures).toBeUndefined();
+
+    // With required: false: stack is ready and sidecar is reported in optionalFailures
+    const optionalEval = evaluateTiltReadiness(
+      payload,
+      new Set(),
+      undefined,
+      undefined,
+      undefined,
+      new Set(["ml-sidecar"]),
+    );
+    expect(optionalEval.settled).toBe(true);
+    expect(optionalEval.result.ready).toBe(true);
+    expect(optionalEval.result.failures).toEqual([]);
+    expect(optionalEval.result.optionalFailures).toEqual([
+      {
+        name: "ml-sidecar",
+        message: UNHEALTHY_CONTAINER_MESSAGE,
+        runtime: true,
+      },
+    ]);
+  });
+
+  it("does not block Tilt readiness while an optional service health check is still starting", () => {
+    const payload = JSON.stringify({
+      items: [containerWithHealth("api", "healthy"), containerWithHealth("ml-sidecar", "starting")],
+    });
+
+    const evaluated = evaluateTiltReadiness(
+      payload,
+      new Set(),
+      undefined,
+      undefined,
+      undefined,
+      new Set(["ml-sidecar"]),
+    );
+    expect(evaluated.settled).toBe(true);
+    expect(evaluated.result.ready).toBe(true);
+    expect(evaluated.result.pending).toBe(0);
+    expect(evaluated.result.failures).toEqual([]);
+  });
+
+  it("still blocks Tilt readiness when an optional service fails to build or its container exits", () => {
+    const buildFailed = JSON.stringify({
+      items: [
+        containerWithHealth("api", "healthy"),
+        containerWithHealth("ml-sidecar", "unhealthy", "none", "error"),
+      ],
+    });
+    const buildEval = evaluateTiltReadiness(
+      buildFailed,
+      new Set(),
+      undefined,
+      undefined,
+      undefined,
+      new Set(["ml-sidecar"]),
+    );
+    expect(buildEval.result.ready).toBe(false);
+    expect(buildEval.result.failures.map((f) => f.name)).toEqual(["ml-sidecar"]);
+
+    const exited = JSON.stringify({
+      items: [
+        containerWithHealth("api", "healthy"),
+        containerWithHealth("ml-sidecar", "unhealthy", "error", "ok"),
+      ],
+    });
+    const exitedEval = evaluateTiltReadiness(
+      exited,
+      new Set(),
+      undefined,
+      undefined,
+      undefined,
+      new Set(["ml-sidecar"]),
+    );
+    expect(exitedEval.result.ready).toBe(false);
+    expect(exitedEval.result.failures.map((f) => f.name)).toEqual(["ml-sidecar"]);
+  });
+
+  it("waitForTiltResourcesReady waits for required services while ignoring optional unhealthy ones", async () => {
+    const responses = [
+      JSON.stringify({
+        items: [
+          containerWithHealth("api", "starting"),
+          containerWithHealth("ml-sidecar", "unhealthy"),
+        ],
+      }),
+      JSON.stringify({
+        items: [
+          containerWithHealth("api", "healthy"),
+          containerWithHealth("ml-sidecar", "unhealthy"),
+        ],
+      }),
+    ];
+
+    const result = await waitForTiltResourcesReady(1, {
+      intervalMs: 1,
+      timeoutMs: 200,
+      deferred: new Set(),
+      optionalHealth: new Set(["ml-sidecar"]),
+      failureGraceMs: 0,
+      fetchJson: async () => responses.shift() ?? null,
+    });
+
+    expect(result.ready).toBe(true);
+    expect(result.failures).toEqual([]);
+    expect(result.optionalFailures?.map((f) => f.name)).toEqual(["ml-sidecar"]);
+  });
+
+  it("skips optional-health services in buildPrintedUrlTargets so an unhealthy sidecar cannot fail URL checks", () => {
+    const resources: DiscoveredResource[] = [
+      {
+        name: "api",
+        path: "/api",
+        configPath: "/api/service.json",
+        stack: "core",
+        type: "backend",
+        port: 4000,
+        config: { appName: "api", appType: "backend", stack: "core", port: 4000 },
+      },
+      {
+        name: "ml-sidecar",
+        path: "/ml",
+        configPath: "/ml/service.json",
+        stack: "core",
+        type: "bring-your-own",
+        port: 8080,
+        config: {
+          appName: "ml-sidecar",
+          appType: "bring-your-own",
+          stack: "core",
+          port: 8080,
+          image: "ml:latest",
+          healthCheck: { required: false, path: "/health" },
+        },
+      },
+    ];
+    const targets = buildPrintedUrlTargets(resources, 80);
+    expect(targets.every((target) => target.service === "api")).toBe(true);
+  });
+
+  it("strictNotReady ignores running optional-health services with failing health checks", () => {
+    const resources: DiscoveredResource[] = [
+      {
+        name: "api",
+        path: "/api",
+        configPath: "/api/service.json",
+        type: "backend",
+        config: { appName: "api", appType: "backend" },
+      },
+      {
+        name: "ml-sidecar",
+        path: "/ml",
+        configPath: "/ml/service.json",
+        type: "bring-your-own",
+        config: {
+          appName: "ml-sidecar",
+          appType: "bring-your-own",
+          healthCheck: { required: false },
+        },
+      },
+    ];
+
+    // Optional sidecar running with failing health check: strictNotReady returns []
+    expect(
+      strictNotReady(resources, {
+        api: { status: "ready" },
+        "ml-sidecar": { status: "error", reason: UNHEALTHY_CONTAINER_MESSAGE },
+      }),
+    ).toEqual([]);
+
+    // Optional sidecar still starting: strictNotReady returns []
+    expect(
+      strictNotReady(resources, {
+        api: { status: "ready" },
+        "ml-sidecar": { status: "pending", reason: "starting" },
+      }),
+    ).toEqual([]);
+
+    // Optional sidecar build/exit error: strictNotReady still fails
+    expect(
+      strictNotReady(resources, {
+        api: { status: "ready" },
+        "ml-sidecar": { status: "error", reason: "exited with code 1" },
+      }),
+    ).toEqual(["ml-sidecar"]);
+
+    // Required service unhealthy: strictNotReady still fails
+    expect(
+      strictNotReady(resources, {
+        api: { status: "error", reason: UNHEALTHY_CONTAINER_MESSAGE },
+        "ml-sidecar": { status: "ready" },
+      }),
+    ).toEqual(["api"]);
+  });
+
+  it("planNativeRun and NativeSupervisor allow healthCheck.required: false to continue when health probe times out", async () => {
+    const port = await freePort();
+    const optionalPlan = planNativeRun([
+      nativeResource({
+        appName: "optional-svc",
+        port,
+        command: `${JSON.stringify(process.execPath)} -e "setInterval(() => {}, 1000)"`,
+        healthCheck: { required: false, path: "/health" },
+      }),
+    ]).services[0];
+    expect(optionalPlan.healthCheckOptional).toBe(true);
+
+    const requiredPlan = planNativeRun([
+      nativeResource({
+        appName: "required-svc",
+        port,
+        command: `${JSON.stringify(process.execPath)} -e "setInterval(() => {}, 1000)"`,
+        healthCheck: { required: true, path: "/health" },
+      }),
+    ]).services[0];
+    expect(requiredPlan.healthCheckOptional).toBeUndefined();
+
+    const dir = mkdtempSync(join(tmpdir(), "flisk-opt-hc-"));
+    try {
+      const optSupervisor = new NativeSupervisor(
+        dir,
+        [{ ...optionalPlan, cwd: dir }],
+        {},
+        { readyTimeoutMs: 250, stopTimeoutMs: 500 },
+      );
+      try {
+        const failures = await optSupervisor.start();
+        expect(failures).toEqual([]);
+        expect(optSupervisor.optionalFailures()).toHaveLength(1);
+        expect(optSupervisor.optionalFailures()[0]?.name).toBe("optional-svc");
+      } finally {
+        await optSupervisor.stop();
+      }
+
+      const reqSupervisor = new NativeSupervisor(
+        dir,
+        [{ ...requiredPlan, cwd: dir }],
+        {},
+        { readyTimeoutMs: 250, stopTimeoutMs: 500 },
+      );
+      try {
+        const failures = await reqSupervisor.start();
+        expect(failures).toHaveLength(1);
+        expect(failures[0]?.name).toBe("required-svc");
+      } finally {
+        await reqSupervisor.stop();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

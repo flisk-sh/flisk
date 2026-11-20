@@ -62,7 +62,7 @@ import { cloneForUp, isGitRepoArg } from "../utils/up-from-git.js";
 import { attachedUpInCiWarning, upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
-import { evaluateTiltReadiness, getDisabledHealthResourceNames, healthProbeCannotRun, tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
+import { evaluateTiltReadiness, getDisabledHealthResourceNames, getOptionalHealthResourceNames, healthProbeCannotRun, tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
 import { defaultUpWaitDeps, failedWaitMessages, fetchUnhealthyLogLines, formatUnhealthyLogTails, parseWaitTimeout, unhealthyLogTails, upAndWait, withUnhealthyLogs, } from "../utils/up-wait.js";
 import { buildPrintedUrlTargets, checkPrintedUrls, formatUrlFailures, healthUrlOf, printedHealthUrl, tiltResourceHasExited, urlFailureSuggestions, } from "../utils/url-check.js";
 import { enableDiscoveredStacks, writeDefaultProjectConfig } from "./project.js";
@@ -78,9 +78,10 @@ export function formatUpSuccess(port, options = {}) {
         const services = [...serviceHealth].sort((a, b) => Number(Boolean(b.url)) - Number(Boolean(a.url)));
         lines.push("Services:");
         for (const svc of services.slice(0, 10)) {
-            const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? "✗" : "⟳";
+            const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? (svc.optional ? "⚠" : "✗") : "⟳";
             const urlPart = svc.url ? ` → ${svc.url}` : "";
-            lines.push(`  ${icon} ${svc.name}${urlPart}`);
+            const note = svc.status === "failed" && svc.optional ? " (optional health check failing)" : "";
+            lines.push(`  ${icon} ${svc.name}${urlPart}${note}`);
         }
         if (services.length > 10) {
             lines.push(`  … and ${services.length - 10} more`);
@@ -89,7 +90,7 @@ export function formatUpSuccess(port, options = {}) {
         const withUrl = services.filter((svc) => svc.url && svc.healthUrl !== null);
         lines.push("Health checks:");
         for (const svc of withUrl.slice(0, 10)) {
-            const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? "✗" : "⟳";
+            const icon = svc.status === "ready" ? "✓" : svc.status === "failed" ? (svc.optional ? "⚠" : "✗") : "⟳";
             const healthUrl = svc.healthUrl ?? (svc.url ? healthUrlOf(svc.url) : "");
             lines.push(`  ${icon} ${svc.name}: ${healthUrl}`);
         }
@@ -451,6 +452,11 @@ async function runUpWait(options) {
                     if (typeof url === "string")
                         console.log(chalk.cyan(`  ${url}`));
                 }
+                const warnings = Array.isArray(parsed.data?.warnings) ? parsed.data.warnings : [];
+                for (const warning of warnings) {
+                    if (typeof warning === "string")
+                        console.log(chalk.yellow(`Warning: ${warning}`));
+                }
                 if (parsed.data?.tiltUrl)
                     console.log(chalk.gray(`Tilt: ${parsed.data.tiltUrl}`));
                 console.log(chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."));
@@ -583,13 +589,19 @@ export const upCommand = new Command("up")
     let diskWarning;
     const projectWarnings = [];
     const emit = baseEmit
-        ? (data, errors) => baseEmit(data.ok === true
-            ? {
+        ? (data, errors) => {
+            if (data.ok !== true) {
+                baseEmit(data, errors);
+                return;
+            }
+            const existingWarnings = Array.isArray(data.warnings) ? data.warnings : [];
+            const combinedWarnings = [...projectWarnings, ...existingWarnings];
+            baseEmit({
                 ...data,
                 ...(diskWarning ? { diskWarning } : {}),
-                ...(projectWarnings.length > 0 ? { warnings: projectWarnings } : {}),
-            }
-            : data, errors)
+                ...(combinedWarnings.length > 0 ? { warnings: combinedWarnings } : {}),
+            }, errors);
+        }
         : undefined;
     // Before any build or process starts: fail below the hard threshold, warn below the soft one (#3708).
     const guardDisk = (isDockerRun) => {
@@ -1264,6 +1276,8 @@ export const upCommand = new Command("up")
                 const readiness = await waitForTiltResourcesReady(runningPort, {
                     timeoutMs: parsedWaitTimeout?.ok ? parsedWaitTimeout.seconds * 1000 : undefined,
                     deferred,
+                    disabledHealth: getDisabledHealthResourceNames(discoveredResources),
+                    optionalHealth: getOptionalHealthResourceNames(discoveredResources),
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
                 });
                 const failures = readiness.ready
@@ -1271,6 +1285,9 @@ export const upCommand = new Command("up")
                     : await explainFailures(readiness.failures, (name) => tiltResourceLogs(runningPort, name));
                 const report = alreadyRunningReport(runningPort, { ...readiness, failures });
                 if (report.ok) {
+                    for (const opt of readiness.optionalFailures ?? []) {
+                        projectWarnings.push(`${opt.name} (optional health check): ${opt.message}`);
+                    }
                     let attachedUrlChecks = [];
                     if (gatewayEnabled) {
                         const urlChecks = await checkStackUrls(runningPort, servicesToStart, hostPortPlan.ingressHttp, deferred);
@@ -1322,7 +1339,7 @@ export const upCommand = new Command("up")
             // The same health filters as the --json wait, so a service with its health check disabled, or whose probe cannot run,
             // does not fail the attached run while --json calls the stack healthy.
             const current = snapshot
-                ? evaluateTiltReadiness(snapshot, deferred, undefined, getDisabledHealthResourceNames(discoveredResources), healthProbeCannotRun).result
+                ? evaluateTiltReadiness(snapshot, deferred, undefined, getDisabledHealthResourceNames(discoveredResources), healthProbeCannotRun, getOptionalHealthResourceNames(discoveredResources)).result
                 : undefined;
             if (current && current.failures.length > 0) {
                 const report = alreadyRunningReport(runningPort, current);
@@ -1331,6 +1348,9 @@ export const upCommand = new Command("up")
             }
             if (!options.quiet) {
                 console.log(chalk.green(`Environment is already running on port ${decision.ports.join(", ")}.`));
+                for (const opt of current?.optionalFailures ?? []) {
+                    console.log(chalk.yellow(`Warning: ${opt.name} (optional health check): ${opt.message}`));
+                }
                 console.log(`Tilt UI: ${tiltUrl}`);
             }
             return;
@@ -1469,6 +1489,8 @@ export const upCommand = new Command("up")
                 const readiness = await waitForTiltResourcesReady(port, {
                     timeoutMs: waitTimeoutMs,
                     deferred,
+                    disabledHealth: getDisabledHealthResourceNames(discoveredResources),
+                    optionalHealth: getOptionalHealthResourceNames(discoveredResources),
                     // Only what the caller named must be enabled. Dependencies are the Tiltfile's call (it skips some on purpose).
                     expected: options.only
                         ? options.only.filter((name) => !deferred.has(name))
@@ -1479,6 +1501,9 @@ export const upCommand = new Command("up")
                 });
                 if (readiness.ready) {
                     jsonReady = true;
+                    for (const opt of readiness.optionalFailures ?? []) {
+                        projectWarnings.push(`${opt.name} (optional health check): ${opt.message}`);
+                    }
                     if (options.only) {
                         // Report what Tilt actually enabled, not the service.json closure, which can differ from the Tiltfile's expansion.
                         const enabled = new Set(readiness.enabled);
@@ -1549,6 +1574,8 @@ export const upCommand = new Command("up")
                 const readiness = await waitForTiltResourcesReady(port, {
                     timeoutMs: waitTimeoutMs,
                     deferred,
+                    disabledHealth: getDisabledHealthResourceNames(discoveredResources),
+                    optionalHealth: getOptionalHealthResourceNames(discoveredResources),
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
                     fetchJson: fetchWithProgress(tiltGetUiResources, progress),
                 });
@@ -1597,17 +1624,22 @@ export const upCommand = new Command("up")
                 const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]));
                 const readiness = await waitForTiltResourcesReady(port, {
                     deferred,
+                    disabledHealth: getDisabledHealthResourceNames(discoveredResources),
+                    optionalHealth: getOptionalHealthResourceNames(discoveredResources),
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
                 });
+                const optionalFailed = new Set((readiness.optionalFailures ?? []).map((f) => f.name));
                 const serviceHealth = readiness.enabled.map((name) => {
                     const failed = readiness.failures.find((f) => f.name === name);
+                    const isOptionalFailed = optionalFailed.has(name);
                     const svc = discoveredResources.find((r) => r.name === name);
-                    const isReady = !failed && !readiness.failures.some((f) => f.name === name);
-                    const isStarting = !isReady && !failed;
+                    const isReady = !failed && !isOptionalFailed;
+                    const isStarting = !isReady && !failed && !isOptionalFailed;
                     const url = svc && gatewayEnabled ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
                     return {
                         name,
-                        status: failed ? "failed" : isStarting ? "starting" : "ready",
+                        status: failed || isOptionalFailed ? "failed" : isStarting ? "starting" : "ready",
+                        ...(isOptionalFailed ? { optional: true } : {}),
                         url,
                         ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
                     };
@@ -1617,6 +1649,9 @@ export const upCommand = new Command("up")
                     showLogsHint: true,
                 }))
                     console.log(chalk.blue(line));
+                for (const opt of readiness.optionalFailures ?? []) {
+                    console.log(chalk.yellow(`Warning: ${opt.name} (optional health check): ${opt.message}`));
+                }
                 printedSuccess = true;
                 const ciWarning = attachedUpInCiWarning(process.env);
                 if (ciWarning)
@@ -1709,17 +1744,22 @@ export const upCommand = new Command("up")
             const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]));
             const readiness = await waitForTiltResourcesReady(port, {
                 deferred,
+                disabledHealth: getDisabledHealthResourceNames(discoveredResources),
+                optionalHealth: getOptionalHealthResourceNames(discoveredResources),
                 isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
             });
+            const optionalFailed = new Set((readiness.optionalFailures ?? []).map((f) => f.name));
             const serviceHealth = readiness.enabled.map((name) => {
                 const failed = readiness.failures.find((f) => f.name === name);
+                const isOptionalFailed = optionalFailed.has(name);
                 const svc = discoveredResources.find((r) => r.name === name);
-                const isReady = !failed && !readiness.failures.some((f) => f.name === name);
-                const isStarting = !isReady && !failed;
+                const isReady = !failed && !isOptionalFailed;
+                const isStarting = !isReady && !failed && !isOptionalFailed;
                 const url = svc && gatewayEnabled ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
                 return {
                     name,
-                    status: failed ? "failed" : isStarting ? "starting" : "ready",
+                    status: failed || isOptionalFailed ? "failed" : isStarting ? "starting" : "ready",
+                    ...(isOptionalFailed ? { optional: true } : {}),
                     url,
                     ...(svc && url ? { healthUrl: printedHealthUrl(svc, url) } : {}),
                 };
@@ -1729,6 +1769,9 @@ export const upCommand = new Command("up")
                 showLogsHint: true,
             }))
                 console.log(chalk.blue(line));
+            for (const opt of readiness.optionalFailures ?? []) {
+                console.log(chalk.yellow(`Warning: ${opt.name} (optional health check): ${opt.message}`));
+            }
         }
     };
     if (options.dryRun) {

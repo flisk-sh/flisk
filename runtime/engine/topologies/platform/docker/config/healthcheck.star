@@ -86,8 +86,9 @@ def _is_number(value):
 def manifest_health_check(manifest):
     """A service's `healthCheck` setting in service.json, read the same way as the CLI does (utils/service-manifest.ts).
 
-    Returns struct(disabled, path, port, command, timing):
+    Returns struct(disabled, required, path, port, command, timing):
       disabled - True only for `"healthCheck": false` or `{ "enabled": false }`. Nothing else turns the checks off.
+      required - Whether a failing health check blocks stack readiness (defaults to True; False for `required: false`).
       path     - `healthCheck.path`, or None (the caller then uses `healthCheckPath` or its default).
       port     - `healthCheck.port`: ready when that TCP port accepts a connection (#2875), or None.
       command  - `healthCheck.command`: ready when that command exits 0 (#2875), or None.
@@ -96,11 +97,14 @@ def manifest_health_check(manifest):
     """
     value = manifest.get("healthCheck") if type(manifest) == "dict" else None
     if value == False:
-        return struct(disabled = True, path = None, port = None, command = None, timing = {})
+        return struct(disabled = True, required = True, path = None, port = None, command = None, timing = {})
     if type(value) != "dict":
-        return struct(disabled = False, path = None, port = None, command = None, timing = {})
+        return struct(disabled = False, required = True, path = None, port = None, command = None, timing = {})
+    if "required" in value and type(value["required"]) != "bool":
+        fail("MANIFEST ERROR: 'healthCheck.required' must be true or false")
+    required = value.get("required", True)
     if value.get("enabled") == False:
-        return struct(disabled = True, path = None, port = None, command = None, timing = {})
+        return struct(disabled = True, required = required, path = None, port = None, command = None, timing = {})
     timing = {}
     for key in ["interval", "timeout", "startPeriod"]:
         if key in value:
@@ -121,7 +125,7 @@ def manifest_health_check(manifest):
             fail("MANIFEST ERROR: 'healthCheck.command' must be the program and its arguments, such as [\"grpc_health_probe\", \"-addr=:9090\"]")
     if len([probe for probe in [path, port, command] if probe != None]) > 1:
         fail("MANIFEST ERROR: set only one of 'healthCheck.path', 'healthCheck.port' or 'healthCheck.command'")
-    return struct(disabled = False, path = path, port = port, command = command, timing = timing)
+    return struct(disabled = False, required = required, path = path, port = port, command = command, timing = timing)
 
 
 def compose_probe_test(health_check):

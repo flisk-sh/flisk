@@ -12,6 +12,8 @@ export interface DiscoveredResource {
 export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "database", "bring-your-own"];
 export interface HealthCheckObjectConfig {
     enabled?: boolean;
+    /** Whether a failing health check blocks stack readiness (`flisk up` / `flisk up --wait`). Defaults to true. */
+    required?: boolean;
     interval?: number;
     timeout?: number;
     retries?: number;
