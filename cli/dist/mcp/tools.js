@@ -746,7 +746,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
     const tools = [
         {
             name: "doctor",
-            description: "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
+            description: "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project; for local-process services that also reports missing node_modules/.venv with the exact install command, and hints at a .env in another git worktree with the copy command (it never copies). Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 noPing: {

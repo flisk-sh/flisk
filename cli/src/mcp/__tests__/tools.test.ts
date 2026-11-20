@@ -310,6 +310,14 @@ describe("argument building", () => {
     }
   });
 
+  it("advertises the doctor tool's fresh-worktree dependency and .env findings", () => {
+    const doctor = createFliskTools().find((tool) => tool.name === "doctor");
+    expect(doctor?.description).toContain("missing node_modules/.venv");
+    expect(doctor?.description).toContain("exact install command");
+    expect(doctor?.description).toContain("copy command");
+    expect(doctor?.description).toContain("never copies");
+  });
+
   it("trims status to the unhealthy services, in resources and in each stack, and marks it", () => {
     const full = {
       data: {
