@@ -121,12 +121,84 @@ export function planProjectNetworkPrune(projectName, commandRunner = run, stoppe
     return plan;
 }
 /**
- * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
+ * The win32 counterpart of `ps -axo pid=,command=`: Tilt processes as `pid<TAB>commandLine`, following the PowerShell
+ * pattern of `tilt-process.ts`. Reading the command line here (rather than filtering in PowerShell) keeps the Tiltfile
+ * matching identical on every platform, including paths with spaces.
+ */
+const WINDOWS_TILT_PROCESS_SCRIPT = "Get-CimInstance Win32_Process -Filter \"Name = 'tilt.exe'\" -ErrorAction SilentlyContinue | " +
+    'ForEach-Object { "$($_.ProcessId)`t$($_.CommandLine)" }';
+/** Null means the process list could not be read, as opposed to an empty list meaning nothing is running. */
+function windowsTiltProcesses(commandRunner) {
+    let output;
+    try {
+        output = commandRunner("powershell.exe", [
+            "-NoProfile",
+            "-Command",
+            WINDOWS_TILT_PROCESS_SCRIPT,
+        ]);
+    }
+    catch {
+        return null;
+    }
+    const processes = [];
+    // Windows PowerShell may write UTF-16 to a redirected stdout; dropping the NUL bytes keeps plain ASCII fields intact.
+    for (const line of output.replace(/\0/g, "").split(/\r?\n/)) {
+        const match = /^\s*(\d+)\t(.*)$/.exec(line);
+        if (!match)
+            continue;
+        processes.push({ pid: Number(match[1]), commandLine: match[2] ?? "" });
+    }
+    return processes;
+}
+const TILT_UP = /(?:^|\s)up(?:\s|$)/i;
+const FILE_FLAG_PATH = /(?:^|\s)(?:-f|--file)\s+(?:"([^"]+)"|(\S+))(?=\s|$)/i;
+function normalizeWindowsPath(path) {
+    return path.replace(/\\/g, "/");
+}
+function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+/** The executable at the start of a Windows command line, quoted paths included. */
+function windowsExe(commandLine) {
+    const trimmed = commandLine.trimStart();
+    if (trimmed.startsWith('"'))
+        return trimmed.slice(1, trimmed.indexOf('"', 1));
+    return trimmed.split(/\s+/)[0] ?? "";
+}
+function isTiltUpCommandLine(commandLine) {
+    return /(?:^|[\\/])tilt(?:\.exe)?$/i.test(windowsExe(commandLine)) && TILT_UP.test(commandLine);
+}
+/** True for a `tilt up` whose `-f`/`--file` is exactly this Tiltfile (also when the path was quoted or used `/`). */
+function matchesWindowsTiltUp(process, tiltfilePath) {
+    if (!isTiltUpCommandLine(process.commandLine))
+        return false;
+    const target = escapeRegExp(normalizeWindowsPath(tiltfilePath));
+    return new RegExp(`(?:^|\\s)(?:-f|--file)\\s+"?${target}"?(?=\\s|$)`, "i").test(normalizeWindowsPath(process.commandLine));
+}
+/** The Flisk Tiltfile a `tilt up` command line was started with, or null for any other command. */
+function tiltfileFromWindowsCommandLine(commandLine) {
+    if (!isTiltUpCommandLine(commandLine))
+        return null;
+    const match = FILE_FLAG_PATH.exec(normalizeWindowsPath(commandLine));
+    const flagValue = match?.[1] ?? match?.[2];
+    if (!flagValue)
+        return null;
+    const tiltfile = normalizeWindowsPath(flagValue);
+    return tiltfile.endsWith(PROJECT_TILTFILE_SUFFIX) ? tiltfile : null;
+}
+/**
+ * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` or PowerShell fails),
  * so a caller can tell "no tilt up" from "could not look".
  */
 export function lookupProjectTiltUpPids(tiltfilePath, platform = process.platform, commandRunner = run) {
-    if (platform === "win32")
-        return null;
+    if (platform === "win32") {
+        const processes = windowsTiltProcesses(commandRunner);
+        if (processes === null)
+            return null;
+        return processes
+            .filter((process) => matchesWindowsTiltUp(process, tiltfilePath))
+            .map((p) => p.pid);
+    }
     let output;
     try {
         output = commandRunner("ps", ["-axo", "pid=,command="]);
@@ -167,8 +239,21 @@ const PROJECT_TILTFILE_SUFFIX = "/.flisk/.flisk-out/Tiltfile";
  * it still has `.flisk/project.json`.
  */
 export function findRunningFliskProjects(platform = process.platform, commandRunner = run, isProject = (root) => existsSync(join(root, ".flisk", "project.json"))) {
-    if (platform === "win32")
-        return [];
+    if (platform === "win32") {
+        const processes = windowsTiltProcesses(commandRunner);
+        if (processes === null)
+            return [];
+        const roots = new Set();
+        for (const process of processes) {
+            const tiltfile = tiltfileFromWindowsCommandLine(process.commandLine);
+            if (!tiltfile)
+                continue;
+            const root = tiltfile.slice(0, -PROJECT_TILTFILE_SUFFIX.length).replace(/\//g, "\\");
+            if (isProject(root))
+                roots.add(root);
+        }
+        return [...roots].sort();
+    }
     let output;
     try {
         output = commandRunner("ps", ["-axo", "pid=,command="]);
@@ -195,7 +280,10 @@ export function stopProjectTiltUp(tiltfilePath, platform = process.platform, com
     const pids = findProjectTiltUpPids(tiltfilePath, platform, commandRunner);
     for (const pid of pids) {
         try {
-            commandRunner("kill", ["-TERM", String(pid)]);
+            if (platform === "win32")
+                commandRunner("taskkill.exe", ["/PID", String(pid), "/F"]);
+            else
+                commandRunner("kill", ["-TERM", String(pid)]);
         }
         catch {
             // Already gone.

@@ -22,6 +22,24 @@ import {
 } from "../down-cleanup.js";
 
 const TILTFILE = "/work/shop/.flisk/.flisk-out/Tiltfile";
+const WINDOWS_TILTFILE = "C:\\work\\shop\\.flisk\\.flisk-out\\Tiltfile";
+
+/** The `pid<TAB>commandLine` output of the win32 process lookup (PowerShell, Get-CimInstance Win32_Process). */
+const WINDOWS_TILT_PROCESSES = [
+  `1234\t"C:\\Program Files\\Tilt\\tilt.exe" up -f "${WINDOWS_TILTFILE}" -- --focus=app`,
+  `1235\tC:\\tools\\tilt.exe up -f "C:\\work\\my blog\\.flisk\\.flisk-out\\Tiltfile"`,
+  `1236\tC:\\tools\\tilt.exe up -f ${WINDOWS_TILTFILE}`,
+  `1237\tC:\\tools\\tilt.exe down -f ${WINDOWS_TILTFILE}`,
+  `1238\tC:\\tools\\tilt.exe up -f C:\\work\\other\\Tiltfile`,
+  `1239\tC:\\tools\\tilt.exe up -f C:\\work\\copy\\.flisk\\.flisk-out\\Tiltfile.backup`,
+  `1240\tC:\\tools\\vim.exe up -f ${WINDOWS_TILTFILE}`,
+  `1241\tC:\\tools\\tilt.exe up -f C:\\work\\deleted\\.flisk\\.flisk-out\\Tiltfile`,
+  "invalid line without command",
+].join("\r\n");
+
+const windowsProcessRunner = vi.fn((command: string, _args: string[]) =>
+  command === "powershell.exe" ? WINDOWS_TILT_PROCESSES : "",
+);
 
 describe("projectNetworkNames", () => {
   it("prefixes the engine's network names with the underscored project name", () => {
@@ -196,8 +214,7 @@ describe("findRunningFliskProjects", () => {
     ]);
   });
 
-  it("returns nothing on Windows or when ps fails", () => {
-    expect(findRunningFliskProjects("win32", () => ps, isProject)).toEqual([]);
+  it("returns nothing when ps fails", () => {
     expect(
       findRunningFliskProjects(
         "linux",
@@ -205,6 +222,33 @@ describe("findRunningFliskProjects", () => {
           throw new Error("no ps");
         },
         isProject,
+      ),
+    ).toEqual([]);
+  });
+
+  it("finds the roots of Flisk projects with a tilt up on Windows via PowerShell", () => {
+    windowsProcessRunner.mockClear();
+    const isWindowsProject = (root: string) => root !== "C:\\work\\deleted";
+    expect(findRunningFliskProjects("win32", windowsProcessRunner, isWindowsProject)).toEqual([
+      "C:\\work\\my blog",
+      "C:\\work\\shop",
+    ]);
+    expect(windowsProcessRunner).toHaveBeenCalledTimes(1);
+    const [command, args] = windowsProcessRunner.mock.calls[0] as [string, string[]];
+    expect(command).toBe("powershell.exe");
+    expect(args).toContain("-NoProfile");
+    expect(args).toContain("-Command");
+    expect(args.join(" ")).toContain("Get-CimInstance Win32_Process");
+  });
+
+  it("returns nothing on Windows when PowerShell fails", () => {
+    expect(
+      findRunningFliskProjects(
+        "win32",
+        () => {
+          throw new Error("spawn powershell.exe ENOENT");
+        },
+        (root) => Boolean(root),
       ),
     ).toEqual([]);
   });
@@ -227,8 +271,7 @@ describe("findProjectTiltUpPids and stopProjectTiltUp", () => {
     expect(findProjectTiltUpPids(TILTFILE, "darwin", () => ps)).toEqual([100, 105, 106]);
   });
 
-  it("returns nothing on Windows or when ps fails", () => {
-    expect(findProjectTiltUpPids(TILTFILE, "win32", () => ps)).toEqual([]);
+  it("returns nothing when ps fails", () => {
     expect(
       findProjectTiltUpPids(TILTFILE, "linux", () => {
         throw new Error("no ps");
@@ -236,14 +279,51 @@ describe("findProjectTiltUpPids and stopProjectTiltUp", () => {
     ).toEqual([]);
   });
 
-  it("lookupProjectTiltUpPids answers null, not none, when ps fails or the platform has no ps", () => {
+  it("matches only tilt up processes for this project's Tiltfile on Windows", () => {
+    windowsProcessRunner.mockClear();
+    expect(findProjectTiltUpPids(WINDOWS_TILTFILE, "win32", windowsProcessRunner)).toEqual([
+      1234, 1236,
+    ]);
+    // A Tiltfile path passed with POSIX separators (e.g. by a caller on WSL) matches too.
+    expect(
+      findProjectTiltUpPids(
+        "C:/work/shop/.flisk/.flisk-out/Tiltfile",
+        "win32",
+        windowsProcessRunner,
+      ),
+    ).toEqual([1234, 1236]);
+    expect(windowsProcessRunner).toHaveBeenCalledTimes(2);
+    const [command, args] = windowsProcessRunner.mock.calls[0] as [string, string[]];
+    expect(command).toBe("powershell.exe");
+    expect(args.join(" ")).toContain("Get-CimInstance Win32_Process");
+  });
+
+  it("lookupProjectTiltUpPids answers null, not none, when the process list fails", () => {
     expect(
       lookupProjectTiltUpPids(TILTFILE, "linux", () => {
         throw new Error("no ps");
       }),
     ).toBeNull();
-    expect(lookupProjectTiltUpPids(TILTFILE, "win32", () => ps)).toBeNull();
+    expect(
+      lookupProjectTiltUpPids(WINDOWS_TILTFILE, "win32", () => {
+        throw new Error("spawn powershell.exe ENOENT");
+      }),
+    ).toBeNull();
     expect(lookupProjectTiltUpPids(TILTFILE, "darwin", () => ps)).toEqual([100, 105, 106]);
+  });
+
+  it("stopProjectTiltUp kills each Windows match with taskkill", () => {
+    const calls: string[][] = [];
+    const runner = (command: string, args: string[]): string => {
+      calls.push([command, ...args]);
+      return command === "powershell.exe" ? WINDOWS_TILT_PROCESSES : "";
+    };
+    expect(stopProjectTiltUp(WINDOWS_TILTFILE, "win32", runner)).toEqual([1234, 1236]);
+    expect(calls).toEqual([
+      ["powershell.exe", "-NoProfile", "-Command", expect.any(String)],
+      ["taskkill.exe", "/PID", "1234", "/F"],
+      ["taskkill.exe", "/PID", "1236", "/F"],
+    ]);
   });
 
   it("stopProjectTiltUp sends TERM to each match and tolerates dead processes during kill", () => {
