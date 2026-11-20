@@ -20,6 +20,10 @@ export const mcpCommand = new Command("mcp")
     "--tools <names>",
     "List and allow only these comma-separated tools (env FLISK_MCP_TOOLS)",
   )
+  .option(
+    "--profile <name>",
+    "List and allow only a named tool subset: minimal = status, up, logs (env FLISK_MCP_PROFILE)",
+  )
   .addHelpText(
     "after",
     [
@@ -31,11 +35,12 @@ export const mcpCommand = new Command("mcp")
       "Examples:",
       "  flisk mcp                # started by an MCP client",
       "  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only",
+      "  flisk mcp --profile minimal  # publish only status, up and logs",
       "  flisk mcp --tools status,logs,doctor",
       "  flisk mcp check tools    # check the MCP resource named tools",
     ].join("\n"),
   )
-  .action(async (options: { readOnly?: boolean; tools?: string }) => {
+  .action(async (options: { readOnly?: boolean; tools?: string; profile?: string }) => {
     const tools = createFliskTools();
     const server = createMcpServer(
       tools,

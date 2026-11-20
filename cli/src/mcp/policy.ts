@@ -3,20 +3,40 @@
 import { FliskError } from "../utils/errors.js";
 import type { McpTool, McpToolPolicy } from "./server.js";
 
+/** Small, commonly used subsets for agents that do not need every tool in their context. */
+export const MCP_TOOL_PROFILES = {
+  minimal: ["status", "up", "logs"],
+} as const;
+
+export type McpToolProfile = keyof typeof MCP_TOOL_PROFILES;
+
 export interface McpPolicyOptions {
   readOnly?: boolean;
   /** Comma-separated tool names (the `--tools` value). */
   tools?: string;
+  /** A named tool subset (the `--profile` value). */
+  profile?: string;
 }
 
 function isTruthy(value: string | undefined): boolean {
   return value !== undefined && ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
+function toolProfile(value: string | undefined): McpToolProfile | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  const name = value.trim().toLowerCase();
+  if (name in MCP_TOOL_PROFILES) return name as McpToolProfile;
+  throw new FliskError(
+    `Unknown MCP tool profile: ${value}. Available profiles: ${Object.keys(MCP_TOOL_PROFILES).join(", ")}`,
+    [`Use --profile minimal to publish only ${MCP_TOOL_PROFILES.minimal.join(", ")}`],
+  );
+}
+
 /**
- * Builds the policy for `flisk mcp --read-only` and `--tools a,b`; the environment variables FLISK_MCP_READ_ONLY and
- * FLISK_MCP_TOOLS apply when the flag is absent. Read-only keeps only tools annotated `readOnlyHint`; an allowlist keeps only
- * the named tools; both together keep the read-only tools that are named. Returns null when nothing is restricted.
+ * Builds the policy for `flisk mcp --read-only`, `--profile minimal` and `--tools a,b`; the environment variables
+ * FLISK_MCP_READ_ONLY, FLISK_MCP_PROFILE and FLISK_MCP_TOOLS apply when the flag is absent. Read-only keeps only tools
+ * annotated `readOnlyHint`; a profile or allowlist keeps only the named tools; both together keep the intersection.
+ * Returns null when nothing is restricted, so the default list stays complete.
  */
 export function resolveToolPolicy(
   tools: readonly McpTool[],
@@ -24,7 +44,9 @@ export function resolveToolPolicy(
   env: NodeJS.ProcessEnv = process.env,
 ): McpToolPolicy | null {
   const readOnly = options.readOnly ?? isTruthy(env.FLISK_MCP_READ_ONLY);
-  const rawList = options.tools ?? env.FLISK_MCP_TOOLS;
+  const profile = toolProfile(options.profile ?? env.FLISK_MCP_PROFILE);
+  const rawList =
+    options.tools ?? (profile ? MCP_TOOL_PROFILES[profile].join(",") : env.FLISK_MCP_TOOLS);
   const names = (rawList ?? "")
     .split(",")
     .map((name) => name.trim())
@@ -49,8 +71,16 @@ export function resolveToolPolicy(
       const why =
         readOnly && tool.annotations?.readOnlyHint !== true
           ? "this Flisk MCP server is read-only (started with --read-only or FLISK_MCP_READ_ONLY), so it only runs tools that change nothing"
-          : "this Flisk MCP server only allows an explicit list of tools (--tools or FLISK_MCP_TOOLS)";
-      return `${tool.name} is not available: ${why}. Do not retry it. Ask the user to run the command themselves, or to restart the MCP server without ${readOnly ? "--read-only" : "--tools"} to give you write access.`;
+          : profile
+            ? `this Flisk MCP server publishes only the ${profile} profile (--profile or FLISK_MCP_PROFILE), so it only runs ${MCP_TOOL_PROFILES[profile].join(", ")}`
+            : "this Flisk MCP server only allows an explicit list of tools (--tools or FLISK_MCP_TOOLS)";
+      const without =
+        readOnly && tool.annotations?.readOnlyHint !== true
+          ? "--read-only"
+          : profile
+            ? "--profile"
+            : "--tools";
+      return `${tool.name} is not available: ${why}. Do not retry it. Ask the user to run the command themselves, or to restart the MCP server without ${without} to give you write access.`;
     },
   };
 }

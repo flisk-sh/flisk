@@ -13,6 +13,7 @@ export const mcpCommand = new Command("mcp")
     .addCommand(createMcpCheckCommand())
     .option("--read-only", "List and allow only the tools that change nothing (env FLISK_MCP_READ_ONLY=1)")
     .option("--tools <names>", "List and allow only these comma-separated tools (env FLISK_MCP_TOOLS)")
+    .option("--profile <name>", "List and allow only a named tool subset: minimal = status, up, logs (env FLISK_MCP_PROFILE)")
     .addHelpText("after", [
     "",
     "The server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.",
@@ -22,6 +23,7 @@ export const mcpCommand = new Command("mcp")
     "Examples:",
     "  flisk mcp                # started by an MCP client",
     "  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only",
+    "  flisk mcp --profile minimal  # publish only status, up and logs",
     "  flisk mcp --tools status,logs,doctor",
     "  flisk mcp check tools    # check the MCP resource named tools",
 ].join("\n"))
