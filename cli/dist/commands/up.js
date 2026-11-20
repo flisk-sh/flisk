@@ -45,6 +45,7 @@ import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-own
 import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
+import { secretProviderUsageError } from "../utils/secret-provider.js";
 import { enforceServiceConfigGate, warnModelRunner, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServiceUrl, resolveSubdomainBases, routesAsApi, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
@@ -564,10 +565,31 @@ export const upCommand = new Command("up")
     .addHelpText("after", "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExit codes: 2 for an argument you typed wrong (an unknown --only service, an unknown --profile, an invalid --wait-timeout, a rejected --env-file), 1 for a failure such as a stack that cannot start.\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
     .action(async (stackName, options) => {
     const baseEmit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
-    // A low-disk warning (5 to 15 GiB free) rides along in every successful --json result.
+    const providerError = secretProviderUsageError(process.env);
+    if (providerError) {
+        baseEmit?.({ ok: false }, [
+            {
+                code: "USAGE",
+                message: providerError.message,
+                ...(providerError.suggestions.length > 0
+                    ? { suggestions: providerError.suggestions }
+                    : {}),
+            },
+        ]);
+        console.error(providerError.message);
+        process.exit(providerError.exitCode);
+    }
+    // Non-blocking findings (low disk, secret bridge) ride along in every successful --json result.
     let diskWarning;
+    const projectWarnings = [];
     const emit = baseEmit
-        ? (data, errors) => baseEmit(diskWarning && data.ok === true ? { ...data, diskWarning } : data, errors)
+        ? (data, errors) => baseEmit(data.ok === true
+            ? {
+                ...data,
+                ...(diskWarning ? { diskWarning } : {}),
+                ...(projectWarnings.length > 0 ? { warnings: projectWarnings } : {}),
+            }
+            : data, errors)
         : undefined;
     // Before any build or process starts: fail below the hard threshold, warn below the soft one (#3708).
     const guardDisk = (isDockerRun) => {
@@ -719,6 +741,7 @@ export const upCommand = new Command("up")
         enforceServiceConfigGate(projectRoot, {
             resources: nativeRun.all,
             onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
+            onWarning: (message) => projectWarnings.push(message),
         });
         if (nativeRun.isNewProject && !options.dryRun) {
             writeDefaultProjectConfig(projectRoot);
@@ -907,6 +930,7 @@ export const upCommand = new Command("up")
             enforceServiceConfigGate(foundRoot, {
                 resources: discoveredResources,
                 onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
+                onWarning: (message) => projectWarnings.push(message),
             });
         }
         // A dependsOn name that is no service, stack or shared Postgres is dropped by the Tiltfile; say so instead of starting without it.

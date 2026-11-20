@@ -44,6 +44,8 @@ describe("Flisk generated-file allowlist", () => {
         "TILT_infrastructure_shared.star",
         ".tiltignore",
         "package.json",
+        "AGENTS.md",
+        "CLAUDE.md",
         "shared-platform-engineering/docker-templates",
         "shared-platform-engineering/docker-templates/install-deps.sh",
         "shared-platform-engineering/docker-templates/node/Dockerfile",

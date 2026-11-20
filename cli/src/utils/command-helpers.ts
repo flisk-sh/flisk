@@ -89,7 +89,10 @@ export function routeUsageErrorsToJson<T extends Command>(command: T, hint?: str
 
   command.exitOverride((err) => {
     if (err.exitCode === 0) process.exit(0);
-    if (err.code === "commander.conflictingOption") err.exitCode = 2;
+    // Every parse error is a usage error: an unknown command or option, a missing
+    // argument or option value, extra arguments. The commands report their own value
+    // errors with exit code 2, so a parser error must not exit 1 next to them (#4523).
+    const exitCode = err.exitCode && err.exitCode !== 1 ? err.exitCode : 2;
     if (isJsonRequested(command)) {
       const { message, didYouMean } = splitDidYouMean(rewriteMessage(err.message));
       const suggestions = [
@@ -102,9 +105,31 @@ export function routeUsageErrorsToJson<T extends Command>(command: T, hint?: str
       // Synchronous: a queued pipe write would be lost to process.exit() below.
       writeSync(1, `${JSON.stringify(envelope)}\n`);
     }
-    process.exit(err.exitCode ?? 1);
+    process.exit(exitCode);
   });
 
+  return command;
+}
+
+/** `flisk resource` (create) and `flisk resources` (list) are one letter apart, so a `--list` or `-l`
+ * on the create command points at the listing command instead of only "unknown option" (#4377). */
+export const RESOURCE_LIST_HINT =
+  "To list resources, run `flisk resources` (or `flisk resources --json`).";
+
+export function addResourceListHint<T extends Command>(command: T): T {
+  const baseOutputError = command.configureOutput().outputError;
+  command.configureOutput({
+    outputError: (str: string, write: (str: string) => void) => {
+      const askedForList =
+        str.includes("unknown option '--list'") || str.includes("unknown option '-l'");
+      const message = askedForList ? `${str}\n${RESOURCE_LIST_HINT}\n` : str;
+      if (baseOutputError) {
+        baseOutputError(message, write);
+      } else {
+        write(message);
+      }
+    },
+  });
   return command;
 }
 
@@ -154,6 +179,19 @@ export function attachNoPositionalHint<T extends Command>(
     configurable: true,
     enumerable: true,
   });
+
+  if (commandName === "logs") {
+    const originalError = command.error.bind(command);
+    command.error = (message, options) => {
+      const previous = originalShowHelp;
+      if (options?.code !== "commander.excessArguments") originalShowHelp = false;
+      try {
+        return originalError(message, options);
+      } finally {
+        originalShowHelp = previous;
+      }
+    };
+  }
 
   return routeUsageErrorsToJson(command, hint);
 }
