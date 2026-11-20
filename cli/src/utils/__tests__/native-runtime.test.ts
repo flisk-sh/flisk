@@ -262,6 +262,20 @@ describe("native run planning", () => {
       { name: "bin", program: "./bin/server" },
     ]);
   });
+
+  it("reports the script a missing program came from (#4680)", () => {
+    const plans = planNativeRun([
+      makeResource("shop-api", "bring-your-own", { command: "npm run dev" }),
+    ]).services;
+    expect(
+      findMissingPrograms(
+        plans,
+        (program) => (program === "npm" ? "/usr/bin/npm" : null),
+        undefined,
+        () => JSON.stringify({ scripts: { dev: "bun run --watch src/index.ts" } }),
+      ),
+    ).toEqual([{ name: "shop-api", program: "bun", script: "dev" }]);
+  });
 });
 
 describe("service directory .env expansion (#3141)", () => {

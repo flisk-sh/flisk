@@ -32,6 +32,55 @@ describe("doctor checks for a project of local processes", () => {
     expect(result.message).not.toContain("api");
   });
 
+  it("passes when a package-manager script starts an installed program", () => {
+    const result = checkNativeCommands(
+      [makeResource("shop-api", "bring-your-own", { command: "npm run dev" })],
+      (program) => (["npm", "node"].includes(program) ? "/usr/bin/tool" : null),
+      () => JSON.stringify({ scripts: { dev: "node src/index.js" } }),
+    );
+    expect(result).toMatchObject({ name: "Service commands", didPass: true });
+  });
+
+  it("fails with the service, script and program when a script starts a missing program", () => {
+    const result = checkNativeCommands(
+      [makeResource("shop-api", "bring-your-own", { command: "npm run dev" })],
+      (program) => (program === "npm" ? "/usr/bin/npm" : null),
+      () => JSON.stringify({ scripts: { dev: "bun run --watch src/index.ts" } }),
+    );
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain('shop-api: script "dev" starts bun, which is not installed');
+    expect(result.fix).toContain("https://bun.sh/docs/installation");
+    expect(result.fix).toContain("package.json");
+  });
+
+  it("skips script resolution when the service has no package.json", () => {
+    const result = checkNativeCommands(
+      [makeResource("shop-api", "bring-your-own", { command: "npm run dev" })],
+      (program) => (program === "npm" ? "/usr/bin/npm" : null),
+      () => {
+        throw new Error("ENOENT: package.json");
+      },
+    );
+    expect(result).toEqual({
+      name: "Service commands",
+      didPass: true,
+      message: "Every service command starts a program that is installed",
+    });
+  });
+
+  it("checks the first program of each chained part of a script", () => {
+    const result = checkNativeCommands(
+      [makeResource("shop-api", "bring-your-own", { command: "npm run dev" })],
+      (program) => (["npm", "bun"].includes(program) ? "/usr/bin/tool" : null),
+      () => JSON.stringify({ scripts: { dev: "prisma generate && bun run src/index.ts" } }),
+    );
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain(
+      'shop-api: script "dev" starts prisma, which is not installed',
+    );
+    expect(result.message).not.toContain("starts bun");
+  });
+
   it("fails a dependsOn that is not a service of the project", () => {
     const result = checkNativeDependsOn([
       service("api", { dependsOn: ["postgres"] }),

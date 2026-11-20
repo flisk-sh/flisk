@@ -12,7 +12,7 @@ import { FliskError } from "./errors.js";
 import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
 import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainerName, removeNativeContainers, } from "./native-container.js";
 import { appendNativeLogLine, readLogTail } from "./native-log.js";
-import { commandProgram } from "./native-service.js";
+import { programsForServiceCommand } from "./package-script-programs.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, processStartTime } from "./process-identity.js";
 import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
@@ -195,17 +195,25 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
     }
     return { services, errors, missingVars };
 }
-/** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
-export function findMissingPrograms(plans, find = findOnPath, exists = existsSync) {
+/**
+ * Services whose command starts a program that is not on PATH, including programs
+ * started by a package-manager script one level into the service's own package.json
+ * (#4680). A relative path such as ./bin/api is checked in the service directory.
+ * `script` is set when the program came from a `scripts.<name>` entry, so callers
+ * can report "script \"dev\" starts bun" instead of just "bun".
+ */
+export function findMissingPrograms(plans, find = findOnPath, exists = existsSync, readFile) {
     const missing = [];
     for (const plan of plans) {
-        const program = commandProgram(plan.command);
-        // A shell builtin or an expression we cannot parse is left to the shell to report.
-        if (!program || ["cd", ".", "source", "true", ":"].includes(program))
-            continue;
-        const found = program.includes("/") ? exists(join(plan.cwd, program)) : Boolean(find(program));
-        if (!found)
-            missing.push({ name: plan.name, program });
+        for (const { program, script } of programsForServiceCommand(plan.cwd, plan.command, readFile)) {
+            const found = program.includes("/")
+                ? exists(join(plan.cwd, program))
+                : Boolean(find(program));
+            if (!found)
+                missing.push(script === undefined
+                    ? { name: plan.name, program }
+                    : { name: plan.name, program, script });
+        }
     }
     return missing;
 }
