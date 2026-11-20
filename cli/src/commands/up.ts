@@ -663,8 +663,10 @@ async function tryFastNoopUp(
  * `flisk up --wait`: runs `flisk up --json` detached and waits for its one result line, so a script gets an exit code
  * when the stack is healthy instead of an attached command that never returns.
  */
-async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Promise<void> {
-  const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up --wait") : undefined;
+async function runUpWait(
+  options: { json?: boolean; waitTimeout?: unknown },
+  emit?: JsonEmitter,
+): Promise<void> {
   const timeout = parseWaitTimeout(options.waitTimeout);
   if (!timeout.ok) {
     emit?.({ ok: false }, [
@@ -688,9 +690,10 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
 
   if (outcome.kind === "ready" || outcome.kind === "failed") {
     if (options.json) {
-      console.log(
+      const result = JSON.parse(
         outcome.kind === "failed" ? withLogsInResult(outcome.json, unhealthy) : outcome.json,
-      );
+      ) as { data?: Record<string, unknown>; errors?: JsonError[] };
+      emit?.(result.data ?? {}, result.errors ?? []);
     } else {
       const parsed = JSON.parse(outcome.json) as {
         data?: {
@@ -903,7 +906,7 @@ export const upCommand = new Command("up")
       stackName = undefined;
     }
     if (options.wait) {
-      await runUpWait(options);
+      await runUpWait(options, emit);
       return;
     }
     if (options.json) options.quiet = true;

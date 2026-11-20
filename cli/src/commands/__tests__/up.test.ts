@@ -262,6 +262,38 @@ describe("flisk up success output", () => {
   });
 });
 
+describe("flisk up --wait JSON output", () => {
+  it("uses the command's single JSON exit emitter for the child result", async () => {
+    vi.mocked(upAndWait).mockResolvedValueOnce({
+      kind: "ready",
+      json: JSON.stringify({
+        schemaVersion: 1,
+        data: { ok: true, runtime: "native" },
+        errors: [],
+      }),
+    });
+    const listenersBefore = new Set(process.listeners("exit"));
+    const once = vi.spyOn(process, "once");
+
+    try {
+      await runCommandInProcess(upCommand, ["--wait", "--json"], process.cwd());
+      const addedListeners = process
+        .listeners("exit")
+        .filter((listener) => !listenersBefore.has(listener));
+      expect(once.mock.calls.filter(([event]) => event === "exit")).toHaveLength(1);
+      expect(addedListeners).toHaveLength(1);
+    } finally {
+      for (const listener of process.listeners("exit")) {
+        if (!listenersBefore.has(listener)) process.removeListener("exit", listener);
+      }
+      once.mockRestore();
+      vi.mocked(upAndWait).mockReset();
+      upCommand.setOptionValue("wait", false);
+      upCommand.setOptionValue("json", false);
+    }
+  });
+});
+
 describe("flisk up --wait failure output", () => {
   it("prints failure reasons instead of undefined", async () => {
     vi.mocked(upAndWait).mockResolvedValueOnce({
