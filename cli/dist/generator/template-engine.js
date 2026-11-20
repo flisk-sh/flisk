@@ -1145,9 +1145,7 @@ export function verifyMasterConfigs(projectRoot, options) {
             const relativeCompose = path.join("services", "platform", DATABASE_MANAGEMENT_FEATURE, DOCKER_COMPOSE_FILE);
             const displayPath = relativeCompose.split(path.sep).join("/");
             const composePath = path.join(projectRoot, relativeCompose);
-            const actual = fs.existsSync(composePath)
-                ? fs.readFileSync(composePath, "utf-8")
-                : undefined;
+            const actual = fs.existsSync(composePath) ? fs.readFileSync(composePath, "utf-8") : undefined;
             const expected = generateDatabaseManagementCompose(projectConfig);
             if (actual === undefined) {
                 addDrift(displayPath, actual, expected);
