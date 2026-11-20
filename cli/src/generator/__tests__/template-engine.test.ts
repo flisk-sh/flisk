@@ -1367,6 +1367,50 @@ describe("template-engine", () => {
     }, 20000);
   });
 
+  describe("verifyMasterConfigs platform compose files", () => {
+    it("reports drift for a hand-edited or deleted database-management docker-compose.yml (#3735)", async () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-platform-compose-"));
+      const oldExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
+      process.env.FLISK_EXTENSION_SOURCE = repoRoot;
+      try {
+        const config = projectConfig();
+        config.phases.pre_alpha.enabledStacks = ["database-management"];
+        writeProjectJson(projectRoot, config);
+        await generateMasterConfigs(projectRoot, { quiet: true });
+
+        const composeRel = "services/platform/database-management/docker-compose.yml";
+        const composePath = path.join(projectRoot, "services", "platform", "database-management", "docker-compose.yml");
+        expect(fs.existsSync(composePath)).toBe(true);
+        const ok = verifyMasterConfigs(projectRoot);
+        expect(ok.errors.filter((error) => error.includes(composeRel))).toEqual([]);
+
+        fs.writeFileSync(
+          composePath,
+          fs.readFileSync(composePath, "utf-8").replace("postgres:16-alpine", "postgres:9-evil"),
+        );
+        const edited = verifyMasterConfigs(projectRoot);
+        expect(edited.valid).toBe(false);
+        expect(edited.errors.join("\n")).toContain(`Out of sync: ${composeRel}`);
+        const diff = edited.diffs.find((entry) => entry.file === composeRel)?.diff ?? "";
+        expect(diff).toContain(`--- a/${composeRel}`);
+        expect(diff).toContain("-    image: postgres:9-evil");
+        expect(diff).toContain("+    image: postgres:16-alpine");
+
+        fs.rmSync(composePath);
+        const deleted = verifyMasterConfigs(projectRoot);
+        expect(deleted.valid).toBe(false);
+        expect(deleted.errors.join("\n")).toContain(`Missing file: ${composeRel}`);
+        expect(deleted.diffs.find((entry) => entry.file === composeRel)?.diff).toContain(
+          `+++ b/${composeRel}`,
+        );
+      } finally {
+        if (oldExtensionSource === undefined) delete process.env.FLISK_EXTENSION_SOURCE;
+        else process.env.FLISK_EXTENSION_SOURCE = oldExtensionSource;
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe("verifyMasterConfigs generated resource files", () => {
     it("checks generated files against their snapshots and skips service.yaml and .flisk-contract", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-generated-resource-"));
