@@ -131,6 +131,8 @@ export type StackPortsOptions =
       gateway?: boolean;
       /** Every service runs as a local process (`command` in service.json): no Traefik, each one answers on localhost. */
       native?: boolean;
+      /** The port the running service actually listens on, when a checkout moved it off the declared port (#4047). */
+      runtimePort?: number;
     }
   | ProjectCapabilities
   | boolean;
@@ -159,11 +161,13 @@ export function buildServicePorts(
   const containerPort = resource.port ?? resource.config?.port ?? null;
   if (typeof options === "object" && options !== null && "native" in options && options.native) {
     // A local process has no ingress route, whatever its type: it listens on localhost at its own port.
+    // The running port comes from run.json: a checkout under its own name may hold a free port instead of the declared one.
+    const port = typeof options.runtimePort === "number" ? options.runtimePort : containerPort;
     return {
       url: null,
-      containerPort,
+      containerPort: port,
       hostPort: null,
-      directUrl: containerPort ? `http://localhost:${containerPort}` : null,
+      directUrl: port ? `http://localhost:${port}` : null,
       extraPorts: extraPortsOf(resource, lookup),
     };
   }

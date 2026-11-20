@@ -7,6 +7,7 @@ import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { ensureGeneratedSecrets } from "./generated-secrets.js";
+import { applyChosenNativePorts, perCheckoutName, remapNativeServicePorts, } from "./host-port-plan.js";
 import { isDockerRunning } from "./native-container.js";
 import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeLogLines, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
@@ -124,6 +125,7 @@ export async function runNativeUp(input) {
         console.log(chalk.gray(`Generated ${generatedNames.join(", ")} into the env file (once; existing values unchanged)`));
     }
     const vars = runVariables(projectRoot, input.envFilePath);
+    const checkoutName = input.checkoutName ?? perCheckoutName(projectRoot, vars);
     const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
     if (plan.errors.length > 0)
         fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
@@ -205,6 +207,20 @@ export async function runNativeUp(input) {
     if (containers.length > 0 && !isDockerRunning()) {
         fail("DOCKER_NOT_RUNNING", `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack, Colima or Kiri, then run flisk up again.`);
     }
+    // A checkout under its own name gets a free port at run time when the one in service.json is taken. The plan is the
+    // only thing that changes: service.json is never written back, and a single checkout without a name still fails below.
+    const chosenPorts = new Map();
+    const declaredPorts = new Map(plan.services.flatMap((service) => service.port === undefined ? [] : [[service.name, service.port]]));
+    if (checkoutName) {
+        const remap = await remapNativeServicePorts(plan.services, checkoutName, {
+            isAvailable: input.isPortAvailable ?? (async (port) => !(await isPortListening(port))),
+        });
+        for (const [name, port] of remap.ports)
+            chosenPorts.set(name, port);
+        if (remap.ports.size > 0 && !quiet) {
+            console.log(chalk.yellow(`Checkout "${checkoutName}" moved ${[...remap.ports].map(([name, port]) => `${name}: ${port}`).join(", ")} to free ports (service.json unchanged)`));
+        }
+    }
     for (const service of plan.services) {
         if (service.port !== undefined && (await isPortListening(service.port))) {
             const occupant = findPortOccupant(service.port);
@@ -236,6 +252,9 @@ export async function runNativeUp(input) {
                 if (!service.container) {
                     Object.assign(service.env, localDatabaseEnv(service.dependsOn, databaseNames, service.env));
                 }
+            }
+            if (chosenPorts.size > 0) {
+                applyChosenNativePorts(replanned.services, chosenPorts, declaredPorts);
             }
             return { plans: replanned.services, baseEnv: fresh };
         },
@@ -287,6 +306,14 @@ export async function runNativeUp(input) {
         stack: input.stackName ?? null,
         services: serviceNames,
         ...(input.only ? { requested: input.only, dependencies: input.dependencies } : {}),
+        ...(chosenPorts.size > 0
+            ? {
+                remappedPorts: [...chosenPorts].map(([service, port]) => ({
+                    service,
+                    port,
+                })),
+            }
+            : {}),
         urls: nativeUrlChecks(plan.services, "readyStatuses" in supervisor && typeof supervisor.readyStatuses === "function"
             ? supervisor.readyStatuses()
             : undefined),

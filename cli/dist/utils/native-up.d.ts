@@ -43,6 +43,13 @@ export interface NativeUpInput {
         command: string;
         script: string;
     };
+    /**
+     * The name this checkout runs under. When set, a busy declared port is moved to a free one at run time (#4047).
+     * Derived from `FLISK_CHECKOUT_NAME` or the checkout metadata in project.json when omitted.
+     */
+    checkoutName?: string;
+    /** Port probe for the checkout remap; tests inject a deterministic one. */
+    isPortAvailable?: (port: number) => Promise<boolean>;
 }
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
 /** What a local process starts with: the project .env (or --env-file), overridden by the shell. */

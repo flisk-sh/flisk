@@ -93,11 +93,13 @@ export function buildServicePorts(resource, ingressHttp, options, lookup) {
     const containerPort = resource.port ?? resource.config?.port ?? null;
     if (typeof options === "object" && options !== null && "native" in options && options.native) {
         // A local process has no ingress route, whatever its type: it listens on localhost at its own port.
+        // The running port comes from run.json: a checkout under its own name may hold a free port instead of the declared one.
+        const port = typeof options.runtimePort === "number" ? options.runtimePort : containerPort;
         return {
             url: null,
-            containerPort,
+            containerPort: port,
             hostPort: null,
-            directUrl: containerPort ? `http://localhost:${containerPort}` : null,
+            directUrl: port ? `http://localhost:${port}` : null,
             extraPorts: extraPortsOf(resource, lookup),
         };
     }

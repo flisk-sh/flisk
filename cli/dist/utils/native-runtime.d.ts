@@ -119,6 +119,13 @@ export interface NativeRunState {
 }
 export declare function nativeRunStatePath(projectRoot: string): string;
 export declare function nativeLogPath(projectRoot: string, service: string): string;
+/**
+ * The real ports of a native run, as recorded by the supervisor. A checkout running under its own name can hold a
+ * different port from the one in service.json; status must report the port the service actually listens on (#4047).
+ */
+export declare function nativeRuntimePorts(state: NativeRunState | null): Map<string, number>;
+/** The URLs a native run really serves, in service name order as recorded in run.json. */
+export declare function nativeRuntimeUrls(state: NativeRunState | null): string[];
 export declare function readNativeRunState(projectRoot: string): NativeRunState | null;
 /** True only when the supervisor pid still belongs to the process recorded for this native run. */
 export declare function isNativeRunSupervisorAlive(state: NativeRunState | null): Promise<boolean>;

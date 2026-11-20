@@ -28,9 +28,12 @@ In each agent's worktree, ensure `.flisk/project.json` contains a unique project
   }
 }
 ```
-This isolates Docker container names (`flisk-my-app-agent-auth-<service>`) and volume names (`my-app-agent-auth_pgdata`).
+This isolates Docker container names (`flisk-my-app-agent-auth-<service>`) and volume names (`my-app-agent-auth_pgdata`). It also gives the checkout a name for local-process port remapping (#4047): an agent may set `FLISK_CHECKOUT_NAME` in its environment, or use `worktree.name` / `checkout.name` in the same file. A plain project with no checkout name keeps the old behavior: a busy declared port is an error.
 
-### 2. Configure Distinct Host Ports
+### 2. Let Local Processes Move Off Busy Ports
+For projects whose services declare `command` (no Tilt), a checkout running under its own name picks a free port near the port in `service.json` when that port is taken. Flisk injects the real port as `PORT`, rewrites loopback URLs in the service and its dependents, and reports the real port and URL through `flisk status --json` and `flisk up --json`. It never writes the new port back to the manifest. In a single checkout, a busy port still fails loudly.
+
+### 3. Configure Distinct Host Ports
 Override the standard Flisk ports in the worktree's `.env` file:
 ```dotenv
 # Worktree Agent 1
@@ -50,6 +53,6 @@ FLISK_POSTGRES_PORT=15434
 PORT=3002
 ```
 
-### 3. Run Verification Workloads Sequentially
+### 4. Run Verification Workloads Sequentially
 If modifying `.flisk/project.json` or `.env` is undesirable during automated agent runs, configure the orchestration harness to run `flisk up`, verify test suites, and run `flisk down` sequentially per worktree rather than in parallel.
 

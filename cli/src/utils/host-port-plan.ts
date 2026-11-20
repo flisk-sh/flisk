@@ -4,7 +4,9 @@
 import { createServer } from "node:net";
 import type { HostPortPlan } from "../types/index.js";
 import { FliskError } from "./errors.js";
+import type { NativeServicePlan } from "./native-runtime.js";
 import { hasLocalListener } from "./port-listener-probe.js";
+import { readProjectJson } from "./project-reader.js";
 
 export interface HostPortPlanOptions {
   env?: NodeJS.ProcessEnv;
@@ -183,4 +185,149 @@ export function withoutGatewayPorts(plan: HostPortPlan): HostPortPlan {
       ingressHttps: GATEWAY_DISABLED_REASON,
     },
   };
+}
+
+/**
+ * The name a checkout was started under, when one was given. A plain project has none: its services keep the fixed ports
+ * in service.json and a busy port is still an error. A worktree (or an orchestrator) supplies the name either as
+ * `FLISK_CHECKOUT_NAME` in the run environment or as `worktree.name` / `checkout.name` in `.flisk/project.json` (#3117).
+ * Names are normalised the same way as checkout folder names: lowercase, `[a-z0-9-]`.
+ */
+export function perCheckoutName(
+  projectRoot: string,
+  vars: Readonly<Record<string, string | undefined>> = process.env,
+): string | undefined {
+  const json = readProjectJson(projectRoot);
+  const worktree = json?.worktree as Record<string, unknown> | undefined;
+  const checkout = json?.checkout as Record<string, unknown> | undefined;
+  const candidates = [vars.FLISK_CHECKOUT_NAME, worktree?.name, checkout?.name];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const name = candidate
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (name) return name;
+  }
+  return undefined;
+}
+
+/** How far past a service's declared port to look for a free one when the checkout's port is taken. */
+export const CHECKOUT_PORT_MAX_OFFSET = 100;
+
+export interface LocalPortRemapOptions {
+  /** Port probe; defaults to a local listener check plus a bind on 127.0.0.1. */
+  isAvailable?: (port: number) => Promise<boolean>;
+  /** Ports already chosen earlier in this run (a restart reuses them instead of probing). */
+  chosenPorts?: ReadonlyMap<string, number>;
+  maxOffset?: number;
+}
+
+export interface LocalPortRemap {
+  /** Service name to the port chosen for it, only for services whose declared port was busy. */
+  ports: Map<string, number>;
+}
+
+/** Replace a port in a loopback URL, including a hostname such as `api.shop.localhost:4100`. */
+function rewriteLoopbackPort(
+  text: string | undefined,
+  oldPort: number,
+  newPort: number,
+): string | undefined {
+  if (text === undefined || oldPort === newPort) return text;
+  return text.replace(
+    new RegExp(`((?:localhost|127\\.0\\.0\\.1):)${oldPort}(?![0-9])`, "g"),
+    `$1${newPort}`,
+  );
+}
+
+/**
+ * Apply previously chosen ports to a fresh plan (a `flisk restart` re-plans from service.json). Synchronous on purpose:
+ * `NativeSupervisor`'s reload hook cannot await. No port is probed here; the ports were claimed when the run started.
+ */
+export function applyChosenNativePorts(
+  plans: NativeServicePlan[],
+  chosenPorts: ReadonlyMap<string, number>,
+  declaredPorts: ReadonlyMap<string, number>,
+): void {
+  const byOldPort = new Map<number, number>();
+  for (const plan of plans) {
+    const chosen = chosenPorts.get(plan.name);
+    const declaredPort = declaredPorts.get(plan.name) ?? plan.port;
+    if (chosen === undefined || declaredPort === undefined || chosen === plan.port) continue;
+    byOldPort.set(declaredPort, chosen);
+    plan.port = chosen;
+    plan.env.PORT = String(chosen);
+    plan.url = rewriteLoopbackPort(plan.url, declaredPort, chosen);
+    plan.healthUrl = rewriteLoopbackPort(plan.healthUrl, declaredPort, chosen);
+  }
+  for (const plan of plans) {
+    for (const [key, value] of Object.entries(plan.env)) {
+      if (key === "PORT") continue;
+      let rewritten = value;
+      for (const [oldPort, newPort] of byOldPort) {
+        rewritten = rewriteLoopbackPort(rewritten, oldPort, newPort) ?? rewritten;
+      }
+      plan.env[key] = rewritten;
+    }
+  }
+}
+
+/**
+ * Remap a local process's declared port at run time when this checkout is running under its own name. The declared port
+ * is left alone when it is free; only a busy one moves. Nothing is written to service.json: the new port lives in the
+ * plan (and then in `.flisk/native/run.json`), `PORT` is injected into the service, and loopback URLs in its own and its
+ * dependents' env are rewritten to the real address. Without a checkout name the plan is untouched, so a single checkout
+ * still fails loudly in `runNativeUp`.
+ */
+export async function remapNativeServicePorts(
+  plans: NativeServicePlan[],
+  checkoutName: string | undefined,
+  options: LocalPortRemapOptions = {},
+): Promise<LocalPortRemap> {
+  const ports = new Map<string, number>();
+  if (!checkoutName) return { ports };
+
+  const isAvailable = options.isAvailable ?? isHostPortAvailable;
+  const maxOffset = options.maxOffset ?? CHECKOUT_PORT_MAX_OFFSET;
+  const declaredByName = new Map(
+    plans.flatMap((plan) => (plan.port === undefined ? [] : [[plan.name, plan.port] as const])),
+  );
+  const declaredPorts = new Set(
+    plans.flatMap((plan) => (plan.port === undefined ? [] : [plan.port])),
+  );
+  const reserved = new Set([...declaredPorts, ...(options.chosenPorts?.values() ?? [])]);
+
+  for (const plan of plans) {
+    if (plan.port === undefined || plan.container) continue;
+    const declaredPort = plan.port;
+    let chosen = options.chosenPorts?.get(plan.name);
+    if (chosen === undefined && (await isAvailable(declaredPort))) continue;
+    if (chosen === undefined) {
+      for (let offset = 1; offset <= maxOffset; offset++) {
+        const candidate = declaredPort + offset;
+        if (candidate > 65535) break;
+        if (reserved.has(candidate)) continue;
+        if (await isAvailable(candidate)) {
+          chosen = candidate;
+          break;
+        }
+      }
+    }
+    if (chosen === undefined) {
+      throw new FliskError(
+        `No free port for service "${plan.name}" near ${declaredPort} in checkout "${checkoutName}".`,
+        [
+          `Free a port between ${declaredPort + 1} and ${Math.min(65535, declaredPort + maxOffset)}`,
+          "Stop the other checkout, or give this service a different fixed port in service.json",
+        ],
+      );
+    }
+    reserved.add(chosen);
+    ports.set(plan.name, chosen);
+  }
+
+  applyChosenNativePorts(plans, ports, declaredByName);
+  return { ports };
 }
