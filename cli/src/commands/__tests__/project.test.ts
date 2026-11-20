@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -604,6 +604,49 @@ describe("project command action", () => {
 
     expect(mocks.showSuccess).toHaveBeenCalledWith("Created: .env (the defaults work as-is)");
     expect(mocks.showSuccess).toHaveBeenCalledWith("Added to .gitignore: .env");
+  });
+});
+
+describe("non-interactive project creation cleanup", () => {
+  const noInputMessage = "No input available to answer the prompt. Run this in a terminal.";
+
+  it("removes the .flisk directory it created when the wizard cannot prompt", async () => {
+    mocks.promptText.mockRejectedValueOnce(new Error(noInputMessage));
+
+    await expect(runProject({ check: false, force: false, yes: false })).rejects.toThrow(
+      noInputMessage,
+    );
+
+    expect(existsSync(join(root, ".flisk"))).toBe(false);
+  });
+
+  it("keeps a pre-existing .flisk directory intact when the wizard cannot prompt", async () => {
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(join(root, ".flisk", "notes.txt"), "user file");
+    mocks.promptText.mockRejectedValueOnce(new Error(noInputMessage));
+
+    await expect(runProject({ check: false, force: false, yes: false })).rejects.toThrow(
+      noInputMessage,
+    );
+
+    expect(readFileSync(join(root, ".flisk", "notes.txt"), "utf-8")).toBe("user file");
+  });
+
+  it("keeps the .flisk directory when the wizard completes", async () => {
+    mocks.promptText
+      .mockResolvedValueOnce("wizard-app")
+      .mockResolvedValueOnce("1.0.0-alpha")
+      .mockResolvedValueOnce("services/*/*");
+    mocks.promptMultiSelect
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await runProject({ check: false, force: false, yes: false });
+
+    expect(existsSync(projectJsonPath())).toBe(true);
+    expect(readProjectConfig().project.name).toBe("wizard-app");
   });
 });
 
