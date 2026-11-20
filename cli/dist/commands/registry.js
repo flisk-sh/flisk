@@ -26,6 +26,7 @@ import { runtimeCommand } from "./runtime.js";
 import { stackCommand } from "./stack.js";
 import { stacksCommand } from "./stacks.js";
 import { statusCommand } from "./status.js";
+import { testCommand } from "./test.js";
 import { toolCommand } from "./tool.js";
 import { uiCommand } from "./ui.js";
 import { upCommand } from "./up.js";
@@ -65,6 +66,7 @@ export function getRegisteredCommands() {
         agentCommand,
         restartCommand,
         runServiceCommand,
+        testCommand,
         distributeCommand,
         reposCommand,
     ];

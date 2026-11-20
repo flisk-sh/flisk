@@ -1,6 +1,6 @@
 ---
 name: flisk-agent-ops
-description: Ground rules and the CLI-to-MCP command map for a coding agent (Claude Code, Cursor, Codex) working in a Flisk project - create services with `flisk resource` instead of hand-writing Dockerfiles, Compose files or manifests, keep the agent resource contract, and drive the stack with `--json` commands or the `flisk mcp` tools (`doctor`, `up`, `status`, `logs`, `resource_restart`, `agent_list`, `agent_sessions`, `down`). Use when about to write container config by hand or when you need the MCP tool for a CLI command. For building a whole app from a request, use flisk-build.
+description: Ground rules and the CLI-to-MCP command map for a coding agent (Claude Code, Cursor, Codex) working in a Flisk project - create services with `flisk resource` instead of hand-writing Dockerfiles, Compose files or manifests, keep the agent resource contract, and drive the stack with `--json` commands or the `flisk mcp` tools (`doctor`, `up`, `status`, `logs`, `resource_restart`, `test`, `agent_list`, `agent_sessions`, `down`). Use when about to write container config by hand or when you need the MCP tool for a CLI command. For building a whole app from a request, use flisk-build.
 license: MIT
 compatibility: Requires the flisk CLI, Docker, and Tilt.
 metadata:
@@ -35,6 +35,7 @@ When building, adding, or modifying services in this workspace, **do not hand-wr
    - Start the stack: `flisk up --json` (or tool `up`)
    - Inspect status: `flisk status --json` (or tool `status`)
    - Check logs: `flisk logs --tail 200 --json` (or tool `logs`)
+   - Before saying a change is done, run `flisk test [stack] --json` (or tool `test`): one result per service, including `skipped` for services that declare no `test` command; a failed row is not done.
    - Restart a service: `flisk restart <resource> --json` (or tool `resource_restart`); add `--rebuild` (tool: `rebuild: true`) when the image or the project `.env` changed
    - List agents: `flisk resources --type agent --json` (or tool `agent_list`)
    - List agent sessions: `flisk agent sessions <resource> --json` (or tool `agent_sessions` with `resource`); add `--session-id <id>` (tool: `sessionId`) to read one session's checkpoint

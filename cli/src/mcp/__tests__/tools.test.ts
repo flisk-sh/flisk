@@ -1056,6 +1056,7 @@ describe("tool list", () => {
       "resource_list",
       "resource_restart",
       "resource_run",
+      "test",
       "agent_list",
       "agent_sessions",
       "stack_list",
@@ -1692,6 +1693,38 @@ describe("tool list", () => {
     expect(result?.isError).toBe(true);
   });
 
+  it('runs the "test" tool with --json and marks a failed service as an error', async () => {
+    const envelope = {
+      schemaVersion: 1,
+      data: {
+        ok: false,
+        stack: "shop",
+        results: [
+          {
+            service: "api",
+            command: "bun test",
+            ok: false,
+            status: "failed",
+            durationMs: 12,
+            outputTail: "boom\n",
+          },
+        ],
+        summary: { passed: 0, failed: 1, skipped: 0 },
+      },
+      errors: [],
+    };
+    const { seen, tools } = recordingTools(`${JSON.stringify(envelope)}\n`, { exitCode: 1 });
+    const result = await tools
+      .find((t) => t.name === "test")
+      ?.handler({ stack: "shop", projectPath: projectDir });
+    expect(seen).toEqual([{ args: ["test", "shop", "--json"], cwd: projectDir }]);
+    expect(result?.isError).toBe(true);
+    const reported = result?.data as
+      | { data: { ok: boolean; summary: { failed: number } } }
+      | undefined;
+    expect(reported?.data).toMatchObject({ ok: false, summary: { failed: 1 } });
+  });
+
   it("keeps the old verb-first names callable without listing them", () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     const aliases = Object.fromEntries(
@@ -1718,6 +1751,7 @@ describe("tool list", () => {
       resource_list: { stack: "shop" },
       resource_restart: { resource: "api" },
       resource_run: { resource: "api", command: ["printenv", "DATABASE_URL"], confirm: true },
+      test: { stack: "shop" },
       agent_list: { stack: "shop" },
       agent_sessions: { resource: "bot", sessionId: "s1" },
       stack_list: { services: true, verbose: true },

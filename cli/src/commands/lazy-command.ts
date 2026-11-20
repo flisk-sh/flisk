@@ -51,6 +51,7 @@ export const LAZY_COMMANDS: Readonly<Record<string, { module: string; exportName
   agent: { module: "./agent.js", exportName: "agentCommand" },
   restart: { module: "./restart.js", exportName: "restartCommand" },
   run: { module: "./run.js", exportName: "runServiceCommand" },
+  test: { module: "./test.js", exportName: "testCommand" },
   distribute: { module: "./distribute.js", exportName: "distributeCommand" },
   repos: { module: "./repos.js", exportName: "reposCommand" },
 };
@@ -160,6 +161,8 @@ async function importLazyModule(name: string, path: string): Promise<CommandModu
       return await import("./restart.js");
     case "run":
       return await import("./run.js");
+    case "test":
+      return await import("./test.js");
     case "distribute":
       return await import("./distribute.js");
     case "repos":

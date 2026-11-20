@@ -110,6 +110,8 @@ export interface ResourceConfigFields {
     env?: Record<string, string>;
     /** Development loop settings (live reload, file watching, test on save). */
     dev?: DevConfig;
+    /** Command run by `flisk test` with this service's stack environment. No alias: `dev.testOnSave` is a Python watcher. */
+    test?: string;
 }
 export interface DevTestOnSaveConfig {
     enabled?: boolean;
