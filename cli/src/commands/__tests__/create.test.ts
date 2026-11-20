@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -692,7 +693,7 @@ describe("flisk create (the real CLI, no terminal)", () => {
     expect(envelope.errors).toEqual([]);
     expect(envelope.data).toMatchObject({
       name: "shop",
-      projectFolder: join(dirOf(), "shop"),
+      projectFolder: join(realpathSync(dirOf()), "shop"),
       dryRun: true,
       commands: expect.arrayContaining([
         "flisk project --yes",
@@ -715,7 +716,7 @@ describe("flisk create (the real CLI, no terminal)", () => {
     expect(envelope.errors).toEqual([]);
     expect(envelope.data).toMatchObject({
       name: "shop",
-      projectFolder: join(dirOf(), "shop"),
+      projectFolder: join(realpathSync(dirOf()), "shop"),
       dryRun: false,
     });
     expect(envelope.data.resources).toEqual([
