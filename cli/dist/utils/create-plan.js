@@ -12,6 +12,7 @@
 import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
 import { DATABASE_FRAMEWORK, DATABASE_RESOURCE_TYPE } from "../types/index.js";
 import { extraCatalog, localRequirements, starterCatalog } from "./create-catalog.js";
+import { starterNeeds } from "./project-templates.js";
 export const CREATE_RUNTIMES = ["local", "docker"];
 /** The stack the Docker route assigns its resources to. */
 export const CREATE_STACK = "app";
@@ -172,11 +173,8 @@ export function asksToStart(answers) {
 }
 /** What the project needs on the machine, in a sentence. Starter requirements come from the starter itself. */
 export function describeRequirements(answers, onPath = () => true) {
-    if (answers.starter) {
-        return starterInfo(answers.starter).local
-            ? "runs on this computer; no Docker, no database"
-            : "Docker (its README says what else)";
-    }
+    if (answers.starter)
+        return starterNeeds(answers.starter);
     if (answers.runtime === "docker")
         return "Docker and Tilt (`flisk doctor` checks what is missing)";
     const programs = localRequirements({

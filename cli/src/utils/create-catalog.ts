@@ -28,7 +28,7 @@ import {
 } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { frameworksOfType, INFRA_PRESETS } from "./infra-presets.js";
-import { PROJECT_TEMPLATES } from "./project-templates.js";
+import { PROJECT_TEMPLATES, runsLocally } from "./project-templates.js";
 
 /** One thing a menu can offer. */
 export interface CatalogOption {
@@ -95,7 +95,7 @@ export function starterCatalog(): CatalogOption[] {
   return Object.entries(PROJECT_TEMPLATES).map(([key, template]) => ({
     id: key,
     ...plainStarterText(key, template.description),
-    local: template.generated !== undefined,
+    local: runsLocally(template),
   }));
 }
 

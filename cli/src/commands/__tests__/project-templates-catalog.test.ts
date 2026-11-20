@@ -6,8 +6,13 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, parseEnvelope, runFlisk } from "../../test-support/index.js";
+import { describeRequirements } from "../../utils/create-plan.js";
 import { FliskError } from "../../utils/errors.js";
-import { listProjectTemplates, PROJECT_TEMPLATES } from "../../utils/project-templates.js";
+import {
+  listProjectTemplates,
+  PROJECT_TEMPLATES,
+  starterNeeds,
+} from "../../utils/project-templates.js";
 import { cloneProjectTemplate, printTemplateCatalog } from "../project.js";
 
 const git = (cwd: string, ...args: string[]): string =>
@@ -47,13 +52,16 @@ describe("flisk project --list", () => {
     expect(rows.map((row: { key: string }) => row.key)).toEqual(Object.keys(PROJECT_TEMPLATES));
     for (const row of rows) {
       expect(Object.keys(row)).toEqual(
-        row.ref ? ["key", "repo", "description", "ref"] : ["key", "repo", "description"],
+        row.ref
+          ? ["key", "repo", "description", "needs", "ref"]
+          : ["key", "repo", "description", "needs"],
       );
     }
     expect(rows.find((row: { key: string }) => row.key === "launch")).toEqual({
       key: "launch",
       repo: "https://github.com/flisk-sh/flisk-template-launch.git",
       description: PROJECT_TEMPLATES.launch.description,
+      needs: starterNeeds("launch"),
       ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
     });
   });
@@ -65,20 +73,52 @@ describe("flisk project --list", () => {
     expect(result.stdout).not.toContain("a JSON array");
   });
 
-  it("prints each template's key, repo, description and ref for a person", () => {
+  it("prints each template's key, repo, description, needs and ref for a person", () => {
     const lines: string[] = [];
     vi.spyOn(console, "log").mockImplementation((line = "") => {
       lines.push(String(line));
     });
     printTemplateCatalog(false);
     const text = lines.join("\n");
-    for (const { key, repo, description, ref } of listProjectTemplates()) {
+    for (const { key, repo, description, needs, ref } of listProjectTemplates()) {
       expect(text).toContain(key);
       expect(text).toContain(repo);
       expect(text).toContain(description);
+      expect(text).toContain(`needs: ${needs}`);
       if (ref) expect(text).toContain(`ref ${ref}`);
     }
     expect(text).not.toContain("ref undefined");
+    expect(text).not.toContain("needs: undefined");
+  });
+
+  it("uses the one needs wording for the list and create's review", () => {
+    for (const { key, needs } of listProjectTemplates()) {
+      expect(
+        describeRequirements({ name: "shop", starter: key, runtime: "docker", extras: [] }),
+      ).toBe(needs);
+      expect(needs).toBe(starterNeeds(key));
+    }
+  });
+
+  it("agrees with create --starter --dry-run for every starter", () => {
+    const result = runFlisk(["project", "--list", "--json"], { cwd: createTempDir() });
+    expect(result.status, result.stderr).toBe(0);
+    const rows = parseEnvelope(result.stdout).data.templates as {
+      key: string;
+      needs: string;
+    }[];
+    expect(rows).toHaveLength(17);
+
+    for (const row of rows) {
+      const dryRun = runFlisk(["create", "shop", "--yes", "--dry-run", "--starter", row.key], {
+        cwd: createTempDir(),
+        timeout: 30_000,
+      });
+      expect(dryRun.status, `${row.key}: ${dryRun.stdout}\n${dryRun.stderr}`).toBe(0);
+      const needs = dryRun.stdout.match(/^needs: (.+)$/m)?.[1];
+      expect(needs, `${row.key} dry run has a needs line`).toBeDefined();
+      expect(needs, `${row.key} dry run and project --list disagree`).toBe(row.needs);
+    }
   });
 });
 
