@@ -29,6 +29,8 @@ export type StackOutcome = {
   data?: Record<string, unknown>;
   /** The message from the stack when it did not come up. */
   error?: string;
+  /** The next commands the stack suggested, e.g. a log command with the port the demo actually used. */
+  suggestions?: string[];
   /** Everything the stack printed, kept for the failure message. */
   raw: string;
 };
@@ -91,7 +93,7 @@ export function initializeProject(
 
 interface MachineEnvelope {
   data?: { ok?: boolean } | null;
-  errors?: { code?: string; message?: string }[];
+  errors?: { code?: string; message?: string; suggestions?: string[] }[];
 }
 
 /** Reads the `{schemaVersion, data, errors}` envelope `flisk up --json` prints when it is done. */
@@ -107,6 +109,7 @@ export function parseStackEnvelope(output: string): StackOutcome | undefined {
         ok,
         data: (parsed.data ?? {}) as Record<string, unknown>,
         error: ok ? undefined : (parsed.errors?.[0]?.message ?? "the stack did not come up"),
+        ...(parsed.errors?.[0]?.suggestions ? { suggestions: parsed.errors[0].suggestions } : {}),
         raw: output,
       };
     } catch {

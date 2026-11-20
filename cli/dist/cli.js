@@ -397,7 +397,9 @@ if (templateArg) {
     logLines.push("--- stack ---", outcome.raw ?? "");
     if (!outcome.ok) {
         const tiltUiUrl = outcome.data?.tiltUrl ?? "http://localhost:10350";
-        stage.fail(firstMachineFailure(outcome.raw) ?? outcome.error ?? "The stack stopped before it was ready.", `Run \`flisk up\` in the project folder, or watch ${tiltUiUrl}.`, writeLog(logLines));
+        // `up` knows the port it selected, so show its log command instead of one that reads the default port (#3958).
+        const logHint = outcome.suggestions?.find((line) => line.includes("flisk logs"));
+        stage.fail(firstMachineFailure(outcome.raw) ?? outcome.error ?? "The stack stopped before it was ready.", logHint ?? `Run \`flisk up\` in the project folder, or watch ${tiltUiUrl}.`, writeLog(logLines));
         stage.stop();
         process.exit(1);
     }
