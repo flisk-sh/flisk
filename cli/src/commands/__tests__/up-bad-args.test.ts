@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Envelope } from "../../test-support/index.js";
 import { createTempProject, fliskBin, parseEnvelope, runFlisk } from "../../test-support/index.js";
+import { unknownServiceSuggestions, upError } from "../up.js";
 
 /**
  * Every argument the user typed wrong stops `flisk up` with the usage exit code and keeps its own error
@@ -181,5 +182,96 @@ describe("flisk up container mode exits 2 for arguments the user typed wrong (#4
     const { status, code } = missingEnvFileRefusal(["--env-file", "nope.env", "--dry-run"]);
     expect(code).toBe("ENV_FILE_INVALID");
     expect(status).toBe(2);
+  });
+});
+
+describe("flisk up --json error shape consistency (#4522)", () => {
+  it("creates up errors with guaranteed suggestions array", () => {
+    expect(upError("CODE", "msg")).toEqual({
+      code: "CODE",
+      message: "msg",
+      suggestions: [],
+    });
+    expect(upError("CODE", "msg", ["hint"])).toEqual({
+      code: "CODE",
+      message: "msg",
+      suggestions: ["hint"],
+    });
+  });
+
+  it("populates unknownServiceSuggestions with closest matches or valid service names", () => {
+    expect(unknownServiceSuggestions(["widgt"], ["widget"], ['Did you mean "widget"?'])).toEqual([
+      'Did you mean "widget"?',
+    ]);
+    expect(unknownServiceSuggestions(["nope"], ["web", "api"])).toEqual(["api", "web"]);
+    expect(unknownServiceSuggestions(["nope", "nah"], ["web", "api"])).toEqual(["api", "web"]);
+    expect(unknownServiceSuggestions(["nope"], [])).toEqual([
+      "Run `flisk resources` to see available services",
+    ]);
+  });
+
+  it("populates suggestions with valid service names for UNKNOWN_SERVICE in native mode", () => {
+    const result = runFlisk(["up", "--json", "--only", "nope", "--dry-run"], { cwd: dir });
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.errors).toHaveLength(1);
+    expect(envelope.errors[0]).toEqual({
+      code: "UNKNOWN_SERVICE",
+      message: "Unknown service nope. Valid names: api, web",
+      suggestions: ["api", "web"],
+    });
+  });
+
+  it("populates suggestions with closest match when available for UNKNOWN_SERVICE", () => {
+    const result = runFlisk(["up", "--json", "--only", "ap", "--dry-run"], { cwd: dir });
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.errors).toHaveLength(1);
+    expect(envelope.errors[0]).toMatchObject({
+      code: "UNKNOWN_SERVICE",
+      suggestions: ['Did you mean "api"?'],
+    });
+  });
+
+  it("populates suggestions with valid service names for UNKNOWN_SERVICE in container mode", () => {
+    const containerDir = createTempProject(CONTAINER_PROJECT);
+    const result = runFlisk(["up", "--json", "--only", "nope", "--dry-run"], {
+      cwd: containerDir,
+    });
+    const envelope = parseEnvelope(result.stdout);
+    expect(envelope.errors).toHaveLength(1);
+    expect(envelope.errors[0]).toEqual({
+      code: "UNKNOWN_SERVICE",
+      message: "Unknown service nope. Valid names: api, web",
+      suggestions: ["api", "web"],
+    });
+  });
+
+  it("populates suggestions with a non-empty example for INVALID_WAIT_TIMEOUT", () => {
+    const result = runFlisk(["up", "--json", "--wait", "--wait-timeout", "0", "--dry-run"], {
+      cwd: dir,
+    });
+    const envelope = firstEnvelope(result.stdout);
+    expect(envelope.errors).toHaveLength(1);
+    expect(envelope.errors[0]).toEqual({
+      code: "INVALID_WAIT_TIMEOUT",
+      message: "--wait-timeout must be a whole number of seconds from 1 to 21600",
+      suggestions: ["--wait-timeout 600"],
+    });
+  });
+
+  it("ensures all errors[] entries carry a non-empty suggestions array across bad arguments", () => {
+    const testCases = [
+      ["--only", "nope", "--dry-run"],
+      ["--profile", "nope", "--dry-run"],
+      ["--wait", "--wait-timeout", "0", "--dry-run"],
+    ];
+    for (const args of testCases) {
+      const result = runFlisk(["up", "--json", ...args], { cwd: dir });
+      const envelope = firstEnvelope(result.stdout);
+      expect(envelope.errors.length).toBeGreaterThan(0);
+      for (const err of envelope.errors) {
+        expect(Array.isArray(err.suggestions)).toBe(true);
+        expect((err.suggestions as string[]).length).toBeGreaterThan(0);
+      }
+    }
   });
 });
