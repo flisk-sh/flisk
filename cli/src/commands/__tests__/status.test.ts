@@ -950,7 +950,8 @@ describe("flisk status", () => {
         }),
       );
 
-      const envelope = JSON.parse(await runStatus(["--json"]));
+      // `--tilt` asks for the live resource list; without it `tilt.resources` is null.
+      const envelope = JSON.parse(await runStatus(["--json", "--tilt"]));
 
       expect(envelope.data.tilt.available).toBe(true);
       expect(envelope.data.tilt.resources).toMatchObject({
