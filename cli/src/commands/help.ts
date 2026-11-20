@@ -69,7 +69,11 @@ export const COMMAND_GROUPS = [
     color: chalk.yellow,
     commands: [
       { name: "resource", desc: "Create a new resource, or register an existing one", alias: "" },
-      { name: "resources", desc: "List all resources with filtering", alias: "--stack <stack>, --ports" },
+      {
+        name: "resources",
+        desc: "List all resources with filtering",
+        alias: "--stack <stack>, --ports",
+      },
       {
         name: "agent",
         desc: "Inspect and operate AI agent resources",
