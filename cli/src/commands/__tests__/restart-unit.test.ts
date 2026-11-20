@@ -80,8 +80,8 @@ vi.mock("../../utils/native-runtime.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/native-runtime.js")>()),
   ...nativeRuntime,
 }));
-vi.mock("../../generator/template-engine.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../generator/template-engine.js")>()),
+vi.mock("../../generator/project-config.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../generator/project-config.js")>()),
   ...orchestration,
 }));
 vi.mock("../../utils/host-port-config.js", async (importOriginal) => ({

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
-import { isTiltfileOrchestration } from "../generator/template-engine.js";
+import { isTiltfileOrchestration } from "../generator/project-config.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import {
   collectSidecarDependents,

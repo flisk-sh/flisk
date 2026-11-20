@@ -1,6 +1,6 @@
 import { PLATFORM_STANDARDS } from "../config/platform-standards.js";
 import type { ProjectConfig } from "../types/index.js";
-import { FliskError } from "../utils/errors.js";
+export { isTiltfileOrchestration, normalizeProjectConfig, ProjectConfigNotFoundError, readProjectConfig, } from "./project-config.js";
 export declare function loadTemplate(filename: string): string;
 interface GeneratorContext {
     version: string;
@@ -78,11 +78,6 @@ export declare class TemplateEngine {
  */
 export declare function wrappedTiltfilePath(orchestration: ProjectConfig["orchestration"] | undefined, projectRoot?: string): string | null;
 /**
- * True when .flisk/project.json makes the project's own Tiltfile its orchestration source (`flisk import tiltfile`), so
- * `flisk up` runs Tilt with the wrapper. False when there is no readable project.json.
- */
-export declare function isTiltfileOrchestration(projectRoot: string): boolean;
-/**
  * True when .flisk/.flisk-out/Tiltfile does not match what project.json selects, so `flisk up` has to regenerate it before
  * starting Tilt: project.json wraps the project's own Tiltfile but the generated one is not that wrapper (missing, or
  * generated before `flisk import tiltfile`), or the generated one is a wrapper but project.json no longer selects one.
@@ -95,20 +90,6 @@ export declare function isWrappedTiltfileStale(projectRoot: string): boolean;
  */
 export declare function areMasterFilesStale(projectRoot: string): boolean;
 export declare function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string;
-/** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
-export declare class ProjectConfigNotFoundError extends FliskError {
-}
-/**
- * Reads, parses, and normalizes `.flisk/project.json` from the given project root.
- *
- * The file is read directly instead of being existence-checked first: `fs.existsSync` swallows
- * filesystem errors and reports an inaccessible config as missing, which hides the real reason.
- * Only a missing file (`ENOENT`) means "not found"; every other read failure keeps its reason.
- *
- * @param projectRoot - Root directory of the Flisk project.
- * @returns The validated and normalized {@link ProjectConfig}.
- */
-export declare function readProjectConfig(projectRoot: string): ProjectConfig;
 export interface GenerateMasterConfigsOptions {
     /**
      * Overwrite a root .tiltignore that carries Flisk's generated header but was edited by hand.
@@ -166,4 +147,3 @@ export declare function verifyMasterConfigs(projectRoot: string, options?: {
  * `flisk up`, which is also what `flisk config verify` asks for.
  */
 export declare function staleServiceOutputs(projectRoot: string): string[];
-export {};
