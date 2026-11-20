@@ -1589,13 +1589,20 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         );
       }
 
+      // Re-registering a resource sees its own port in `allResources`, which would move it to the next free port on every
+      // run (#4183). Keep the port already in its service.json unless --port explicitly asks for a different one.
+      const existingPort =
+        shouldRegisterExisting && hasServiceJson && !options.port && !isInference
+          ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
+          : undefined;
       const nextPort =
         resourceType === "sdk" || isInference || infraPreset || isDatabase
           ? 0
-          : assignPort(
+          : (existingPort ??
+            assignPort(
               resourceType as CreatableResourceType as PortAssignableResourceType,
               allResources,
-            );
+            ));
       if (options.restart !== undefined) {
         if (resourceType !== BRING_YOUR_OWN_TYPE) {
           throw new FliskError("--restart can only be used with --type bring-your-own.", [
@@ -1825,7 +1832,7 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
       // Handle existing resource registration
       if (updatedServiceJson) {
         // Write updated service.json
-        plan.text(existingServiceJsonPath, JSON.stringify(updatedServiceJson, null, 2));
+        plan.text(existingServiceJsonPath, `${JSON.stringify(updatedServiceJson, null, 2)}\n`);
         if (options.dryRun) return preview();
         plan.write();
         clearDiscoveryCache();
