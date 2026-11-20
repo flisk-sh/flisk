@@ -284,6 +284,24 @@ export function planNativeRun(
   return { services, errors, missingVars };
 }
 
+/**
+ * Why a service that gave up never became ready. Exit code 127 is the shell's "command not found": name the
+ * program the service runs so the person sees what to install instead of a generic "kept exiting" (#4678).
+ */
+function missingProgramReason(service: RunningService): string {
+  if (service.lastExitCode === 127) {
+    const program = commandProgram(service.plan.command);
+    if (program) return `runs ${program}, which is not installed`;
+  }
+  return "kept exiting; see its output above";
+}
+
+/** The "command not found" clause for an exit note, empty when the command does not name a single program. */
+function missingProgramNote(service: RunningService): string {
+  const program = commandProgram(service.plan.command);
+  return program ? `: ${service.plan.name} runs ${program}, which is not installed` : "";
+}
+
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
 export function findMissingPrograms(
   plans: readonly NativeServicePlan[],
@@ -869,6 +887,8 @@ interface RunningService {
   /** Passed its readiness check since it last started; recorded so `flisk status` can tell ready from starting. */
   isReady: boolean;
   gaveUp: boolean;
+  /** Exit code of the process that ran most recently (null when a signal ended it), so a failure can name the cause (#4678). */
+  lastExitCode: number | null;
   /** Exited while these dependencies were down; it starts again once they are all ready. */
   waitingFor?: string[];
   /** When the current process started, once read; saved so a later stop can prove the pid is still this process. */
@@ -962,6 +982,7 @@ export class NativeSupervisor {
         quickCrashes: 0,
         gaveUp: false,
         isReady: false,
+        lastExitCode: null,
       });
     }
   }
@@ -1027,7 +1048,7 @@ export class NativeSupervisor {
               reason: service.plan.job
                 ? "the job did not exit 0; see its output above"
                 : service.gaveUp
-                  ? "kept exiting; see its output above"
+                  ? missingProgramReason(service)
                   : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
             });
           }
@@ -1166,6 +1187,7 @@ export class NativeSupervisor {
   ): void {
     if (this.stopping || service.child !== child || service.restarting) return;
     service.isReady = false;
+    service.lastExitCode = code;
     this.saveState();
     const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
     if (service.plan.job) {
@@ -1215,16 +1237,19 @@ export class NativeSupervisor {
     }
     const ranFor = Date.now() - service.startedAt;
     service.quickCrashes = ranFor < QUICK_CRASH_MS ? service.quickCrashes + 1 : 1;
+    // Exit code 127 is the shell's "command not found": say so as soon as it happens, so the first exit
+    // already names the program to install instead of only the give-up note (#4678).
+    const missing = service.lastExitCode === 127 ? missingProgramNote(service) : "";
     if (service.quickCrashes >= MAX_QUICK_CRASHES) {
       service.gaveUp = true;
       this.events.onNote?.(
         service.plan.name,
-        `${how}; it exited ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`,
+        `${how}${missing}; it exited ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`,
       );
       return;
     }
     const delay = (this.options.restartDelayMs ?? 1_000) * 2 ** (service.quickCrashes - 1);
-    this.events.onNote?.(service.plan.name, `${how}; restarting in ${delay / 1000}s`);
+    this.events.onNote?.(service.plan.name, `${how}${missing}; restarting in ${delay / 1000}s`);
     service.restartTimer = setTimeout(() => this.respawn(service), delay);
   }
 

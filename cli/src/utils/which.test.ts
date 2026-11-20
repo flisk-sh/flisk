@@ -9,7 +9,13 @@ import { findOnPath } from "./which.js";
 const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0))
-    rmSync(directory, { recursive: true, force: true });
+    try {
+      rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });
+    } catch (error) {
+      // Windows: the runner can keep a fresh temp dir locked past the test (AV, Search indexer); a leaked
+      // temp dir is less harmful than failing a passing test, so the cleanup stays best-effort there.
+      if (process.platform !== "win32") throw error;
+    }
 });
 
 describe("findOnPath", () => {
