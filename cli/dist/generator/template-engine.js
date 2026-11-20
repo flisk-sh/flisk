@@ -20,6 +20,7 @@ import { describeLayoutProblems, EXTENSION_DIRS, hasExtensionLayout, inspectExte
 import { generatedFieldErrorsForFile, validateServiceManifestFile, } from "../utils/service-manifest.js";
 import { discoverResourcesFromRoot, discoverResourcesWithProblems, discoverServiceManifestPaths, } from "../utils/services.js";
 import { isStackFeatureEnabledInStacks } from "../utils/stack-features.js";
+import { validateProjectName } from "../utils/validation.js";
 import { hasSablierLicense, hasVerdaccioLicense } from "./extension-fetch.js";
 import { compileTemplate } from "./mini-template.js";
 const __filename = fileURLToPath(import.meta.url);
@@ -521,6 +522,10 @@ function normalizeProjectConfig(value) {
     const project = config.project;
     if (typeof project.name !== "string") {
         return fail("project.name", "a string", project.name);
+    }
+    const projectNameResult = validateProjectName(project.name);
+    if (!projectNameResult.valid) {
+        return fail("project.name", "a Docker- and npm-compatible name (lowercase letters, numbers, and hyphens only)", project.name);
     }
     if (typeof project.version !== "string") {
         return fail("project.version", "a string", project.version);
