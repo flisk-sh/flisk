@@ -34,15 +34,19 @@ describe("flisk projects and stacks", () => {
     });
   }
 
-  it.each(["projects", "stacks"])(
-    "fails with a project-root hint when %s runs outside a project",
-    (command) => {
-      const result = runFlisk(createTempDir(), [command]);
+  it("fails with a project-root hint when stacks runs outside a project", () => {
+    const result = runFlisk(createTempDir(), ["stacks"]);
 
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("Could not find project root");
-    },
-  );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Could not find project root");
+  });
+
+  it("lists running projects instead of failing when projects runs outside a project", () => {
+    const result = runFlisk(createTempDir(), ["projects"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toContain("Could not find project root");
+  });
 
   it("prints an empty-state message for a project with no stacks", () => {
     const projectRoot = createTempDir();

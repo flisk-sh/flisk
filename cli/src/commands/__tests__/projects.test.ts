@@ -84,6 +84,73 @@ describe("flisk projects (human-readable)", () => {
     expect(output).not.toContain("Quick commands:");
   });
 
+  it("does not list Tilt master files for a local-process project (#4434)", async () => {
+    const projectRoot = createTempProject({
+      generated: [],
+      resources: {
+        api: { appType: "backend", runtime: "node", command: "node server.js" },
+      },
+    });
+
+    const command = await freshProjectsCommand();
+    const result = await runCommandInProcess(command, [], projectRoot);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stderr).toBe("");
+
+    const output = stripTerminalControls(result.stdout);
+    expect(output).toContain("Project Information");
+    expect(output).toContain("Master Configuration:");
+    expect(output).toContain("Not used: this project runs its services as local processes");
+    for (const file of MASTER_CONFIG_FILES) {
+      expect(output).not.toContain(file);
+      expect(output).not.toContain(`  ✗ ${file} (missing)`);
+    }
+    expect(output).not.toContain("(missing)");
+    expect(output).not.toContain("Project not fully configured!");
+    expect(output).not.toContain('Run "flisk project" to create master config files.');
+  });
+
+  it("exits with status 0 with --check for a local-process project (#4434)", async () => {
+    const projectRoot = createTempProject({
+      generated: [],
+      resources: {
+        api: { appType: "backend", runtime: "node", command: "node server.js" },
+      },
+    });
+
+    const command = await freshProjectsCommand();
+    const result = await runCommandInProcess(command, ["--check"], projectRoot);
+
+    expect(result.status).toBe(0);
+    const output = stripTerminalControls(result.stdout);
+    expect(output).not.toContain("(missing)");
+    expect(output).not.toContain("Project not fully configured!");
+  });
+
+  it("lists the Tilt master files for a Docker project and checks only the ones on disk", async () => {
+    const projectRoot = createTempProject({
+      generated: ["TILT_TECH_STACK.star"],
+      resources: {
+        api: { appType: "backend", runtime: "node" },
+      },
+    });
+
+    const command = await freshProjectsCommand();
+    const result = await runCommandInProcess(command, [], projectRoot);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stderr).toBe("");
+
+    const output = stripTerminalControls(result.stdout);
+    expect(output).toContain("Master Configuration:");
+    expect(output).not.toContain("Not used: this project runs its services as local processes");
+    expect(output).toContain("  ✓ TILT_TECH_STACK.star");
+    expect(output).toContain("  ✗ TILT_RESOURCE_DEFAULTS.star (missing)");
+    expect(output).toContain("  ✗ spec.master (missing)");
+    expect(output).toContain("Project not fully configured!");
+  });
+
   it("exits with status 1 with --check when some master files are missing", async () => {
     const projectRoot = createTempProject({
       generated: ["TILT_TECH_STACK.star"],
@@ -145,10 +212,19 @@ describe("flisk projects (human-readable)", () => {
     expect(checkResult.status).toBe(0);
   });
 
-  it("fails with exit status 1 when running outside a project", async () => {
+  it("lists running projects without a project-root error when running outside a project", async () => {
     const emptyDir = createTempDir("flisk-projects-outside-");
     const command = await freshProjectsCommand();
     const result = await runCommandInProcess(command, [], emptyDir);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stderr).not.toContain("Could not find project root");
+  });
+
+  it("still fails with exit status 1 for --check outside a project", async () => {
+    const emptyDir = createTempDir("flisk-projects-check-outside-");
+    const command = await freshProjectsCommand();
+    const result = await runCommandInProcess(command, ["--check"], emptyDir);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Could not find project root");

@@ -138,7 +138,22 @@ export const TOOL_CATALOG = [
         status: "resource",
         defaultName: "vectors",
         args: ["--type", DATABASE_RESOURCE_TYPE, "--framework", "qdrant"],
-        next: "Pair it with flisk tool add embeddings and flisk tool add llm-api for the full retrieve-then-answer loop.",
+        next: "Pair it with flisk tool add embeddings and flisk tool add llm-api for the full retrieve-then-answer loop. For agent memory over MCP, add the Qdrant MCP server as a bring-your-own resource, one collection per customer: docs/recipes/qdrant-mcp-memory.md.",
+    },
+    {
+        id: "openapi-mcp",
+        title: "OpenAPI-to-MCP gateway",
+        group: "ai",
+        aliases: ["openapi-to-mcp", "openapi-gateway", "swagger-mcp"],
+        status: "manual",
+        defaultName: "gateway",
+        reason: "Flisk has no generator for a gateway that turns an OpenAPI spec into MCP tools, so it runs ckanthony/openapi-mcp as a bring-your-own image pointed at your backend's spec.",
+        steps: [
+            'Add {name}/Dockerfile: FROM ckanthony/openapi-mcp:0.1.0, then CMD ["--spec", "http://<your-backend>:<port>/openapi.json", "--base-url", "http://<your-backend>:<port>", "--port", "4300"]. --base-url is the address the tools call: without it the gateway uses the servers entry of the spec, which is empty or unreachable from a container when it is "/" or localhost',
+            "flisk resource {name} --type bring-your-own --path {name} --port 4300",
+            'In {name}/service.json set "healthCheck": false. The image is distroless (no shell), so the TCP check Flisk generates cannot run in it, and /mcp is a stream, so an HTTP path does not fit; Flisk then counts the gateway ready while its container runs',
+            "flisk up   (each operation in the spec becomes an MCP tool; clients connect to /mcp over HTTP with server-sent events)",
+        ],
     },
     {
         id: "embeddings",

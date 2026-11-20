@@ -98,12 +98,19 @@ describe("frontend framework resolution", () => {
 
   it("fails closed on an unknown id without a handoff", () => {
     try {
+      getFrontendFramework("reakt", "web");
+      expect.unreachable();
+    } catch (e) {
+      expect((e as FliskError).suggestions[0]).toBe('Did you mean "react"?');
+    }
+    try {
       getFrontendFramework("not-a-framework", "web");
       expect.unreachable();
     } catch (e) {
       const err = e as FliskError;
       expect(err.message).toContain("react, vue");
       expect(JSON.stringify(err)).not.toContain("bring-your-own");
+      expect(err.suggestions.some((s) => s.startsWith("Did you mean"))).toBe(false);
     }
   });
 });

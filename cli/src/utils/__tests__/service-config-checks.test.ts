@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearDiscoveryCache } from "../discovery-context.js";
+import { FliskError } from "../errors.js";
 import {
   checkCircularDependencies,
   checkCustomDockerfiles,
@@ -819,6 +820,79 @@ describe("checkRequiredSecrets", () => {
     expect(
       checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "infisical" }).didPass,
     ).toBe(true);
+  });
+
+  it("warns per required name with infisical when this build has no bridge", () => {
+    service("api", { secrets: { required: ["A_KEY", "B_KEY"] } });
+    service("worker", { secrets: { required: ["C_KEY"] } }, "app/worker");
+    const result = checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "infisical" });
+    expect(result.didPass).toBe(true);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain("this build has no Infisical client");
+    expect(result.message).toContain("A_KEY, B_KEY, C_KEY");
+    expect(result.fix).toContain("FLISK_SECRET_PROVIDER=env-file");
+  });
+
+  it("keeps the existing behavior when infisical has a bridge", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    const result = checkRequiredSecrets(root, undefined, {
+      FLISK_SECRET_PROVIDER: "infisical",
+      FLISK_SECRET_BRIDGE: "1",
+    });
+    expect(result.didPass).toBe(true);
+    expect(result.isWarning).toBeUndefined();
+    expect(result.message).toBe("Secrets are left to the secret provider");
+  });
+
+  it("accepts env-file (or unset) and case/whitespace variants of a known provider", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    expect(checkRequiredSecrets(root, undefined, {}).didPass).toBe(false);
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: " env-file " }).didPass,
+    ).toBe(false);
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: " INFISICAL " }).isWarning,
+    ).toBe(true);
+  });
+
+  it("rejects an unknown provider with a usage error naming the value and valid ones", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    let caught: unknown;
+    try {
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "keychan" });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(FliskError);
+    expect((caught as FliskError).exitCode).toBe(2);
+    expect((caught as FliskError).message).toContain('"keychan"');
+    expect((caught as FliskError).message).toContain("env-file");
+    expect((caught as FliskError).message).toContain("infisical");
+  });
+
+  it("passes a non-blocking provider warning to the gate instead of failing it", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const saved = process.env.FLISK_SECRET_PROVIDER;
+    const warnings: string[] = [];
+    const failures: string[] = [];
+    const exit = vi.fn((code: number) => {
+      throw new Error(`exit ${code}`);
+    }) as unknown as (code: number) => never;
+    process.env.FLISK_SECRET_PROVIDER = "infisical";
+    try {
+      enforceServiceConfigGate(
+        root,
+        { onInvalid: (m) => failures.push(m), onWarning: (m) => warnings.push(m) },
+        exit,
+      );
+    } finally {
+      if (saved === undefined) delete process.env.FLISK_SECRET_PROVIDER;
+      else process.env.FLISK_SECRET_PROVIDER = saved;
+    }
+    expect(failures).toHaveLength(0);
+    expect(exit).not.toHaveBeenCalled();
+    expect(warnings.join("\n")).toContain("A_KEY will be empty");
   });
 
   it("is part of the gate, so flisk up refuses it before Tilt starts", () => {

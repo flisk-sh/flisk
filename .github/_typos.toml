@@ -41,3 +41,9 @@ aer = "aer"
 braket = "braket"
 # Intentional mistyped starter name in the "did you mean" test.
 resturant = "resturant"
+# Intentional mistyped framework/language names in the "did you mean" tests.
+expres = "expres"
+reakt = "reakt"
+pythn = "pythn"
+# Intentional invalid FLISK_SECRET_PROVIDER value in the #4706 usage-error tests.
+keychan = "keychan"

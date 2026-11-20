@@ -19,6 +19,8 @@ export interface DoctorReport {
     ready: boolean;
     inProject: boolean;
     checks: CheckResult[];
+    /** Non-blocking warning messages, in check order; also present as isWarning entries in checks. */
+    warnings?: string[];
     capabilities?: string[];
     commit?: string;
     commitSha?: string;
@@ -48,6 +50,12 @@ export interface DoctorReport {
 
 type DoctorCheck = () => CheckResult | Promise<CheckResult>;
 
+export async function timeDoctorCheck(check: DoctorCheck): Promise<CheckResult> {
+  const start = performance.now();
+  const result = await check();
+  return { ...result, durationMs: Math.round(performance.now() - start) };
+}
+
 /** Wait for concurrent probes to finish even if one throws, so they can release resources. */
 export async function collectDoctorChecks(
   machineChecks: DoctorCheck[],
@@ -63,13 +71,11 @@ export async function collectDoctorChecks(
         message: result.reason instanceof Error ? result.reason.message : String(result.reason),
       });
   };
-  for (const result of await Promise.allSettled(
-    machineChecks.map((check) => Promise.resolve().then(check)),
-  )) {
+  for (const result of await Promise.allSettled(machineChecks.map(timeDoctorCheck))) {
     append(result);
   }
   for (const check of projectChecks) {
-    for (const result of await Promise.allSettled([Promise.resolve().then(check)])) append(result);
+    for (const result of await Promise.allSettled([timeDoctorCheck(check)])) append(result);
   }
   return { checks, errors };
 }
@@ -105,6 +111,7 @@ export function createDoctorReport(
   commit?: string,
 ): DoctorReport {
   const fixFirst = rankDoctorFixes(checks);
+  const warnings = checks.filter((check) => check.isWarning).map((check) => check.message);
   const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
   const detectedBuildCache =
     buildCache ??
@@ -125,7 +132,8 @@ export function createDoctorReport(
         errors.length === 0 &&
         checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
       inProject,
-      checks,
+      checks: checks.map((check) => ({ durationMs: 0, ...check })),
+      ...(warnings.length > 0 ? { warnings } : {}),
       ...(capabilities ? { capabilities } : {}),
       ...(observedOwner ? { observed: observedOwner } : {}),
       ...(fixFirst.length > 0 ? { fixFirst } : {}),

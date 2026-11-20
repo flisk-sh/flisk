@@ -9,6 +9,7 @@ export const RUST_DEV_COMMAND = "cargo run";
 export const rustBackendProvider = {
     id: "rust",
     label: "Rust (axum)",
+    serverFrameworks: ["axum", "actix"],
     devCommand: RUST_DEV_COMMAND,
     watch: ["src/**/*.rs", "Cargo.toml", "Cargo.lock"],
     installHint: "cargo build   # optional: Docker builds the image for you",

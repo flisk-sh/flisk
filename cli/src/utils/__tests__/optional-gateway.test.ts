@@ -409,7 +409,7 @@ describe("optional gateway capability", () => {
     ])("rejects capabilities that is %s", (_label, capabilities) => {
       const { root, cleanup } = makeTempProject({ ...validProject, capabilities } as never);
       try {
-        expect(() => readProjectConfig(root)).toThrow(/Invalid project\.json/);
+        expect(() => readProjectConfig(root)).toThrow(/\.flisk\/project\.json\.capabilities/);
       } finally {
         cleanup();
       }
