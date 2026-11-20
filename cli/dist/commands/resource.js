@@ -683,13 +683,19 @@ function printFrameworkInventory(options, isTypeExplicit) {
     }
     if (listing.type !== "backend")
         return;
-    for (const f of listBackendFrameworks(options.language)) {
+    const frameworks = listBackendFrameworks(options.language);
+    for (const f of frameworks) {
         // The compatibility cell names the language it is judged against, so it is never a bare
         // "compatible" that could be read against a different language.
         const compatibility = f.compatible
             ? `compatible with ${listing.language}`
             : `incompatible with --language ${listing.language}`;
         console.log(`${f.id}\t${f.label}\t${f.languages.join(", ")}\t${compatibility}\t${f.command}`);
+    }
+    if (listing.language &&
+        frameworks.length > 0 &&
+        !frameworks.some((framework) => framework.compatible)) {
+        console.error(`No listed backend framework is compatible with --language ${listing.language}; scaffold it without --framework.`);
     }
 }
 /**

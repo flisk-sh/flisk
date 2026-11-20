@@ -45,6 +45,29 @@ describe("printFrameworkInventory", () => {
     expect(listMocks.listBackendFrameworks).toHaveBeenCalledWith(undefined);
   });
 
+  it("explains an entirely incompatible backend list on stderr", async () => {
+    listMocks.listBackendFrameworks.mockReturnValue([
+      {
+        id: "hono",
+        label: "Bun + Hono",
+        languages: ["bun"],
+        compatible: false,
+        command: "flisk resource api",
+      },
+    ]);
+    const result = await runFrameworkListing([
+      "--type",
+      "backend",
+      "--language",
+      "python",
+      "--frameworks",
+    ]);
+    expect(result.stdout).not.toContain("No listed");
+    expect(result.stderr).toContain(
+      "No listed backend framework is compatible with --language python",
+    );
+  });
+
   it("prints two backend inventory entries as tab-separated rows", async () => {
     listMocks.listBackendFrameworks.mockReturnValue([
       {
