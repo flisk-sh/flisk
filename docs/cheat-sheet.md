@@ -325,13 +325,17 @@ flisk stack --remove --resources orders-api --yes
 | `--yes` | Skip the confirmation prompt |
 | `--json` | One JSON object on stdout. Implies `--yes`; needs `--list` or a stack name with `--resources` |
 
-### `flisk stacks` (alias `ls`)
+### `flisk stacks [stack]` (alias `ls`)
 
 | Flag | Effect |
 | --- | --- |
+| `[stack]` | Show only this stack, in text or `--json` |
+| `--stack <name>` | Same filter as the positional argument |
 | `--services` | Include each stack's resources |
 | `-v`, `--verbose` | More detail per stack |
 | `--json` | Versioned JSON report |
+
+`flisk stacks app` and `flisk stacks --stack app` show one stack. To list the resources inside it, run `flisk resources --stack app`.
 
 ## ▶️ Lifecycle
 
