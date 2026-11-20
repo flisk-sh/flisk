@@ -7,7 +7,7 @@ import { addYesOption } from "../utils/command-helpers.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
-import { npxInvocation, safePackageSpec, } from "../utils/npx-invocation.js";
+import { packageRunnerError, packageRunnerInvocation, safePackageSpec, } from "../utils/npx-invocation.js";
 import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
@@ -113,7 +113,12 @@ export function checkCoreVersion(currentVersion = getPackageVersion(), args = []
 }
 export function importInvocation(args, env = process.env, platform = process.platform, runtime = {}) {
     const pkg = safePackageSpec(env.FLISK_IMPORT_PACKAGE, IMPORT_PACKAGE);
-    return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
+    const invocation = packageRunnerInvocation([pkg, ...args], {
+        ...runtime,
+        platform,
+        pathEnv: runtime.pathEnv ?? env.PATH ?? env.Path,
+    });
+    return { ...invocation, pkg };
 }
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersion) {
@@ -130,7 +135,7 @@ export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersio
             windowsVerbatimArguments: invocation.windowsVerbatimArguments,
         });
         child.on("error", (err) => {
-            console.error(`flisk import: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`);
+            console.error(packageRunnerError("flisk import", err.message));
             resolve(127);
         });
         child.on("close", (code) => resolve(code ?? 1));
@@ -138,7 +143,7 @@ export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersio
 }
 /**
  * Runs flisk-import with its output piped instead of the caller's terminal and no stdin, so it can never prompt, and
- * resolves to what it printed and its exit code. A refusal of the core version gate or a missing npx is a run too.
+ * resolves to what it printed and its exit code. A refusal of the core version gate or a missing package runner is a run too.
  */
 export function runImportCaptured(args, spawnFn = spawn, getVersionFn = getPackageVersion) {
     const check = checkCoreVersion(getVersionFn(), args);
@@ -164,7 +169,7 @@ export function runImportCaptured(args, spawnFn = spawn, getVersionFn = getPacka
             resolve({
                 exitCode: 127,
                 stdout,
-                stderr: `flisk import: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`,
+                stderr: packageRunnerError("flisk import", err.message),
             });
         });
         child.on("close", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
@@ -234,7 +239,7 @@ export function importFailure(run, commandName = "flisk import") {
             lines(run.stdout).pop() ||
             `flisk-import exited with code ${run.exitCode}`);
     const fallback = run.exitCode === 127
-        ? "Install Node.js 22.12 or later, which provides npx, then run the command again"
+        ? "Install Node.js (npx) or Bun (bunx), then run the command again"
         : `Run \`${commandName} --dry-run\` to see the plan without writing anything`;
     const suggestions = hints.length > 0 ? hints : [fallback];
     return new JsonCommandError("IMPORT_FAILED", message, suggestions, run.exitCode);

@@ -19,6 +19,7 @@ vi.mock("../../utils/discovery-context.js", async (importOriginal) => ({
 }));
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createTempDir, npxArgs, runCommandInProcess } from "../../test-support/index.js";
 import {
@@ -56,6 +57,21 @@ function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
   return { calls, spawnFn };
 }
 
+/** Runs a check with a PATH that contains only the named fake programs (#3744). */
+async function withSimulatedPath<T>(programs: string[], fn: () => T | Promise<T>): Promise<T> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-runner-path-"));
+  for (const program of programs) fs.writeFileSync(path.join(dir, program), "");
+  const original = process.env.PATH;
+  process.env.PATH = dir;
+  try {
+    return await fn();
+  } finally {
+    if (original === undefined) delete process.env.PATH;
+    else process.env.PATH = original;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 describe("flisk import", () => {
   // These runs stand for a person at a terminal; a run without one is refused (see "flisk import without a terminal").
   const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
@@ -74,6 +90,49 @@ describe("flisk import", () => {
       args: ["--yes", IMPORT_PACKAGE, ".", "--dry-run", "--force"],
       shell: false,
       windowsVerbatimArguments: false,
+    });
+  });
+
+  it("uses npx when it is on PATH, even when bunx is too", async () => {
+    await withSimulatedPath(["npx", "bunx"], () => {
+      const inv = importInvocation([".", "--dry-run"], {}, "linux");
+      expect(inv.command).toBe("npx");
+      expect(inv.args.slice(0, 2)).toEqual(["--yes", IMPORT_PACKAGE]);
+    });
+  });
+
+  it("uses bunx without --yes when only bunx is on PATH (#3744)", async () => {
+    await withSimulatedPath(["bunx"], () => {
+      expect(importInvocation([".", "--dry-run"], {}, "linux")).toEqual({
+        command: "bunx",
+        args: [IMPORT_PACKAGE, ".", "--dry-run"],
+        shell: false,
+        windowsVerbatimArguments: false,
+        pkg: IMPORT_PACKAGE,
+      });
+    });
+  });
+
+  it("uses bunx.cmd through cmd.exe on Windows when npx is absent (#3744)", async () => {
+    await withSimulatedPath(["bunx"], () => {
+      const inv = importInvocation(["a&b"], {}, "win32", {
+        execPath: "C:\\tools\\flisk.exe",
+        comSpec: "cmd.exe",
+      });
+      expect(inv.command).toBe("cmd.exe");
+      expect(inv.shell).toBe(false);
+      expect(inv.windowsVerbatimArguments).toBe(true);
+      expect(inv.args.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
+      expect(inv.args[3]).toContain("bunx.cmd");
+      expect(inv.args[3]).toContain("a^^^&b");
+    });
+  });
+
+  it("keeps npx as the fallback when no runner is on PATH", async () => {
+    await withSimulatedPath([], () => {
+      const inv = importInvocation(["."], {}, "linux");
+      expect(inv.command).toBe("npx");
+      expect(inv.args[0]).toBe("--yes");
     });
   });
 
@@ -129,7 +188,7 @@ describe("flisk import", () => {
     const { spawnFn } = fakeSpawn({ error: new Error("ENOENT") });
     expect(await runImport([], spawnFn, () => "1.3.182")).toBe(127);
     expect(err).toHaveBeenCalledWith(
-      "flisk import: could not run npx (ENOENT). Install Node.js 22.12 or later, which provides npx, and retry.",
+      "flisk import: could not run npx or bunx (ENOENT). Install Node.js (npx) or Bun (bunx) and retry.",
     );
     err.mockRestore();
   });
@@ -581,7 +640,7 @@ describe("flisk import --json", () => {
     const run = await runImportCaptured(["."], missing.spawnFn, () => "1.3.200");
     expect(run.exitCode).toBe(127);
     expect(run.stderr).toBe(
-      "flisk import: could not run npx (ENOENT). Install Node.js 22.12 or later, which provides npx, and retry.",
+      "flisk import: could not run npx or bunx (ENOENT). Install Node.js (npx) or Bun (bunx) and retry.",
     );
     expect(
       (await runImportCaptured(["."], fakeCapturedSpawn({ code: null }).spawnFn)).exitCode,
@@ -644,7 +703,7 @@ describe("flisk import --json", () => {
     ).toBe("Nothing to import: no service in docker-compose.yml could be mapped.");
     expect(importFailure({ exitCode: 127, stdout: "", stderr: "" })).toMatchObject({
       message: "flisk-import exited with code 127",
-      suggestions: [expect.stringContaining("npx")],
+      suggestions: [expect.stringContaining("Install Node.js (npx) or Bun (bunx)")],
     });
   });
 

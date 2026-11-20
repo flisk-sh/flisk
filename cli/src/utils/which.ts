@@ -4,8 +4,10 @@ import { existsSync } from "node:fs";
 import { delimiter, extname, join } from "node:path";
 import { isWindows, pathLookups } from "./platform.js";
 
-export function findOnPath(command: string): string | null {
-  const pathEnv = process.env.PATH ?? process.env.Path ?? "";
+export function findOnPath(
+  command: string,
+  pathEnv: string | undefined = process.env.PATH ?? process.env.Path ?? "",
+): string | null {
   const windows = isWindows();
   const names = pathLookups(command, windows);
   if (windows && !extname(command)) {

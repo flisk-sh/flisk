@@ -1,7 +1,7 @@
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
 import { JsonCommandError } from "../utils/json-command.js";
-import { type NpxInvocation, type NpxRuntime } from "../utils/npx-invocation.js";
+import { type NpxInvocation, type PackageRunnerRuntime } from "../utils/npx-invocation.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
@@ -42,7 +42,7 @@ export declare function checkCoreVersion(currentVersion?: string, args?: string[
     ok: boolean;
     message?: string;
 };
-export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<NpxRuntime, "platform">): NpxInvocation & {
+export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<PackageRunnerRuntime, "platform">): NpxInvocation & {
     pkg: string;
 };
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
@@ -55,7 +55,7 @@ export interface ImportRun {
 }
 /**
  * Runs flisk-import with its output piped instead of the caller's terminal and no stdin, so it can never prompt, and
- * resolves to what it printed and its exit code. A refusal of the core version gate or a missing npx is a run too.
+ * resolves to what it printed and its exit code. A refusal of the core version gate or a missing package runner is a run too.
  */
 export declare function runImportCaptured(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<ImportRun>;
 export declare function buildForwardedImportArgs(args: string[], options?: {

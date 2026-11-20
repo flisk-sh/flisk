@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { existsSync } from "node:fs";
 import { win32 } from "node:path";
+import { findOnPath } from "./which.js";
 /**
  * Builds the npx call for `flisk export` and `flisk import` (#4004).
  *
@@ -41,6 +42,45 @@ export function npxInvocation(npxArgs, runtime = {}) {
         shell: false,
         windowsVerbatimArguments: true,
     };
+}
+/**
+ * Picks the package runner for `flisk import` and `flisk export`: npx when installed, otherwise bunx. When neither is
+ * on PATH, npx stays the fallback so the existing spawn error and install hint are reported (#3744).
+ */
+export function findPackageRunner(pathEnv) {
+    const npx = pathEnv === undefined ? findOnPath("npx") : findOnPath("npx", pathEnv);
+    if (npx)
+        return "npx";
+    const bunx = pathEnv === undefined ? findOnPath("bunx") : findOnPath("bunx", pathEnv);
+    if (bunx)
+        return "bunx";
+    return "npx";
+}
+/**
+ * Builds the package-runner call: npx keeps its `--yes` flag and Windows handling, while bunx has no `--yes` and is a
+ * batch file on Windows, so it goes through cmd.exe with every argument quoted.
+ */
+export function packageRunnerInvocation(packageArgs, runtime = {}) {
+    if (findPackageRunner(runtime.pathEnv) === "npx") {
+        return npxInvocation(["--yes", ...packageArgs], runtime);
+    }
+    const args = [...packageArgs];
+    if ((runtime.platform ?? process.platform) !== "win32") {
+        return { command: "bunx", args, shell: false, windowsVerbatimArguments: false };
+    }
+    // The same cmd.exe quoting as npxInvocation: environment values must not choose the program that is spawned.
+    const comSpec = runtime.comSpec ?? "cmd.exe";
+    const line = ["bunx.cmd", ...args.map(quoteCmdArgument)].join(" ");
+    return {
+        command: comSpec,
+        args: ["/d", "/s", "/c", `"${line}"`],
+        shell: false,
+        windowsVerbatimArguments: true,
+    };
+}
+/** The user-facing error when neither npx nor bunx could be started. */
+export function packageRunnerError(command, cause) {
+    return `${command}: could not run npx or bunx (${cause}). Install Node.js (npx) or Bun (bunx) and retry.`;
 }
 const CMD_META_CHARS = /([()\][%!^"`<>&|;, *?])/g;
 /**

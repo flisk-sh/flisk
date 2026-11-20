@@ -5,7 +5,7 @@
  */
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
-import { type NpxInvocation, type NpxRuntime } from "../utils/npx-invocation.js";
+import { type NpxInvocation, type PackageRunner, type PackageRunnerRuntime } from "../utils/npx-invocation.js";
 /**
  * The generators live in their own repo (flisk-sh/flisk-export) so they can ship without a CLI release, and are run
  * from npm at a pinned version so a push to its main branch cannot change what `flisk export` does. Move the pin
@@ -13,11 +13,11 @@ import { type NpxInvocation, type NpxRuntime } from "../utils/npx-invocation.js"
  */
 export declare const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.10.0";
 type SpawnFn = (command: string, args: string[], options: SpawnOptions) => ReturnType<typeof spawn>;
-export declare function exportInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<NpxRuntime, "platform">): NpxInvocation & {
+export declare function exportInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform, runtime?: Omit<PackageRunnerRuntime, "platform">): NpxInvocation & {
     pkg: string;
 };
-/** The extra line printed when the exporter exits non-zero, in case npx could not fetch it at all. */
-export declare function unavailableHint(pkg: string, exitCode: number): string;
+/** The extra line printed when the exporter exits non-zero, in case the runner could not fetch it at all. */
+export declare function unavailableHint(pkg: string, exitCode: number, runner?: PackageRunner): string;
 /** Runs flisk-export with the caller's terminal and resolves to its exit code. */
 export declare function runExport(args: string[], spawnFn?: SpawnFn, env?: NodeJS.ProcessEnv): Promise<number>;
 /** Every argument goes to flisk-export as given; --dry-run is declared here so it shows in help and is put back. */
