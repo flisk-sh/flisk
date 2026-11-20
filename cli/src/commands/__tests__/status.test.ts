@@ -577,6 +577,14 @@ describe("flisk status", () => {
       expect(resources.map((r) => r.status)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
     });
 
+    it("names each resource folder relative to the project root in JSON", async () => {
+      const output = JSON.parse(await runStatus(["--json"]));
+      const paths = (output.data.resources as Array<{ path: string }>)
+        .map((resource) => resource.path)
+        .sort();
+      expect(paths).toEqual(FIXTURE_SERVICES.map((service) => service.dir).sort());
+    });
+
     it("lists service states in the human output and names the failed dependency", async () => {
       vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
       const output = await runStatus();
