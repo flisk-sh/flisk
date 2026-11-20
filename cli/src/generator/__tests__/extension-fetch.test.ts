@@ -289,10 +289,11 @@ describe("applyPremiumOverlay", () => {
 
     const idFile = join(projectRoot, ".flisk", ".project-id");
     expect(existsSync(idFile)).toBe(true);
-    const persistedId = readFileSync(idFile, "utf-8").trim();
+    const persisted = JSON.parse(readFileSync(idFile, "utf-8")) as { id: string; path: string };
 
+    expect(persisted.id).toMatch(/^[0-9a-f]{8}$/);
     expect(new Set(seenProjectIds).size).toBe(1);
-    expect(seenProjectIds[0]).toBe(persistedId);
+    expect(seenProjectIds[0]).toBe(persisted.id);
   });
 
   it("caches a successful fetch and does not re-fetch within the TTL", async () => {

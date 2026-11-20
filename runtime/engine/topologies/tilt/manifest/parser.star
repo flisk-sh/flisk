@@ -83,8 +83,6 @@ _ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 _PATH_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789/-"
 _GENERATED_STRING_RULES = [
     # (field path, allowed characters, required first character or "")
-    (['healthCheckPath'], _PATH_CHARS, '/'),
-    (['healthCheck', 'path'], _PATH_CHARS, '/'),
     (['traefik', 'host'], _ALPHANUM + '.-', ''),
     (['traefik', 'pathPrefix'], _PATH_CHARS, '/'),
     (['traefik', 'healthCheck'], _PATH_CHARS, '/'),
@@ -139,6 +137,52 @@ def _image_default_ok(default):
     for c in default.elems():
         if c not in _IMAGE_CHARS:
             return False
+    return True
+
+
+def _health_path_default_ok(default):
+    for c in default.elems():
+        if c not in _PATH_CHARS:
+            return False
+    return True
+
+
+def health_path_ok(value):
+    """
+    An HTTP health check path starting with `/` that may contain `${NAME}` or `${NAME:-default}`
+    (with safe path characters in literals and defaults), matching HEALTH_PATH_PATTERN in
+    cli/src/utils/service-manifest.ts.
+    """
+    if type(value) != "string" or not value.startswith("/"):
+        return False
+    rest = value[1:]
+    for _ in range(len(value)):
+        if not rest:
+            return True
+        start = rest.find("${")
+        literal = rest if start < 0 else rest[:start]
+        for c in literal.elems():
+            if c not in _PATH_CHARS:
+                return False
+        if start < 0:
+            return True
+        end = rest.find("}", start)
+        if end < 0:
+            return False
+        body = rest[start + 2:end]
+        i = 0
+        for c in body.elems():
+            if c not in _VARIABLE_CHARS:
+                break
+            i += 1
+        name = body[:i]
+        if not name or name[0].isdigit():
+            return False
+        tail = body[i:]
+        if tail != "":
+            if not tail.startswith(":-") or not _health_path_default_ok(tail[2:]):
+                return False
+        rest = rest[end + 1:]
     return True
 
 
@@ -249,6 +293,20 @@ def generated_string_error(manifest, resource_path=""):
         for c in value.elems():
             if c not in allowed:
                 return "MANIFEST ERROR: '{}' has characters that are not allowed (no spaces, line breaks or YAML syntax){}".format(field, where)
+    for keys in [['healthCheckPath'], ['healthCheck', 'path']]:
+        value = manifest
+        for key in keys:
+            value = value.get(key) if type(value) == "dict" else None
+        if value == None or value == "":
+            continue
+        field = '.'.join(keys)
+        where = " in " + resource_path if resource_path else ""
+        if type(value) != "string":
+            return "MANIFEST ERROR: '{}' must be a string{}".format(field, where)
+        if not value.startswith('/'):
+            return "MANIFEST ERROR: '{}' must start with '/'{}".format(field, where)
+        if not health_path_ok(value):
+            return "MANIFEST ERROR: '{}' has characters that are not allowed (no spaces, line breaks or YAML syntax){}".format(field, where)
     image = manifest.get('image')
     if image != None and image != "":
         where = " in " + resource_path if resource_path else ""

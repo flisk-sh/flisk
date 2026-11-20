@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
+import { exportCheckoutEnv } from "../utils/checkout-id.js";
 import { formatBytes, trimColimaAndMeasure } from "../utils/colima-disk.js";
 import { addYesOption, attachNoPositionalHint, handleDryRun } from "../utils/command-helpers.js";
 import {
@@ -548,6 +549,8 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
       if (!idle && options.verbose && !options.json) {
         console.log(chalk.gray("Running: tilt down -f .flisk/.flisk-out/Tiltfile"));
       }
+
+      if (!idle) exportCheckoutEnv(projectRoot);
 
       // Idle with a purge/prune flag: skip the Tiltfile load and go straight to the cleanup steps.
       const result = idle

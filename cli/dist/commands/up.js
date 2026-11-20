@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { areMasterFilesStale, ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isVendoredEngineStale, isWrappedTiltfileStale, ProjectConfigNotFoundError, readProjectConfig, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, projectNeedsDatabaseKeys, } from "../utils/capabilities.js";
+import { exportCheckoutEnv } from "../utils/checkout-id.js";
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { coldStartNotice } from "../utils/cold-start.js";
 import { handleDryRun } from "../utils/command-helpers.js";
@@ -1200,6 +1201,7 @@ export const upCommand = new Command("up")
             return;
         }
         exportHostPortPlan(hostPortPlan);
+        exportCheckoutEnv(projectRoot);
         const basePort = STANDARD_PORTS.tiltUi;
         const watchedPort = configuredTiltPort ?? basePort;
         const candidatePorts = options.only ? [...new Set([basePort, watchedPort])] : [watchedPort];

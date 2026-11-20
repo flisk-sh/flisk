@@ -17,15 +17,13 @@ export declare function isNativeContainerService(resource: DiscoveredResource): 
 export declare function nativeContainerName(projectName: string, service: string): string;
 /** Quotes one word for /bin/sh. */
 export declare function shellQuote(word: string): string;
-/**
- * The `docker run` arguments for one container service, without the program name. `env` keys are passed by name only
- * (`-e KEY`), so their values reach the container from the environment of the `docker` process and never show in `ps`.
- * Returns the errors that stop the run instead of guessing (a bind mount that leaves the project).
- */
 export declare function dockerRunArgs(resource: DiscoveredResource, options: {
     projectName: string;
     projectRoot: string;
     envKeys: readonly string[];
+    envVars?: Readonly<Record<string, string | undefined>>;
+    /** Receives each `${VAR}` that resolved to nothing and had no default, so `flisk up` can warn about it. */
+    onMissing?: (name: string) => void;
 }): {
     args: string[];
     errors: string[];

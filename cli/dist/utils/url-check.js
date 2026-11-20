@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
+import { expandEnvValue } from "./env-expand.js";
+import { healthCheckPathOf } from "./service-manifest.js";
 import { isRoutedBringYourOwn, resolveServiceUrl } from "./service-urls.js";
 /** Per-request timeout: short, because the stack already reported ready and a live route answers in milliseconds. */
 export const URL_PROBE_TIMEOUT_MS = 3_000;
@@ -69,7 +71,8 @@ export function healthUrlOf(url) {
 export function printedHealthUrl(resource, url) {
     if (!isRoutedBringYourOwn(resource))
         return healthUrlOf(url);
-    const path = resource.config?.healthCheckPath;
+    const rawPath = healthCheckPathOf(resource.config);
+    const path = rawPath ? expandEnvValue(rawPath, process.env) : undefined;
     if (!path || path === "/")
         return null;
     try {

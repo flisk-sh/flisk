@@ -769,7 +769,7 @@
             "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
             "startPeriod": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds after the container starts before failed probes count (Compose start_period), for an app that is slow to boot." },
             "retries": { "type": "integer", "minimum": 0, "description": "Failed container probes before the container is unhealthy." },
-            "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "description": "HTTP path to probe; replaces healthCheckPath." },
+            "path": { "type": "string", "pattern": "^/(?:[a-z0-9/-]|\\$\\{[A-Za-z_][A-Za-z0-9_]*(?::-[a-z0-9/-]*)?\\})*$", "description": "HTTP path to probe; replaces healthCheckPath. Supports ${VAR} and ${VAR:-default} expansion (such as ${FLISK_CHECKOUT_ID})." },
             "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Ready when this TCP port accepts a connection, for a service with no HTTP route (a gRPC server, a database proxy). Replaces the HTTP probe." },
             "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Ready when this command exits 0, such as [\"grpc_health_probe\", \"-addr=:9090\"]. It runs inside the container (exec form, no shell), or on the host from the service folder for a local process. Replaces the HTTP probe." }
           },
@@ -786,8 +786,8 @@
     },
     "healthCheckPath": {
       "default": "/health",
-      "description": "HTTP endpoint for health checks. Must return 200 OK. Optional for bring-your-own: omit it for a service that does not speak HTTP (Postgres, Redis, SMTP, ...), and Flisk then skips the HTTP health probes for it.",
-      "pattern": "^/[a-z0-9/-]*$",
+      "description": "HTTP endpoint for health checks. Must return 200 OK. Optional for bring-your-own: omit it for a service that does not speak HTTP (Postgres, Redis, SMTP, ...), and Flisk then skips the HTTP health probes for it. Supports ${VAR} and ${VAR:-default} expansion (such as ${FLISK_CHECKOUT_ID}).",
+      "pattern": "^/(?:[a-z0-9/-]|\\$\\{[A-Za-z_][A-Za-z0-9_]*(?::-[a-z0-9/-]*)?\\})*$",
       "type": "string"
     },
     "dependsOn": {

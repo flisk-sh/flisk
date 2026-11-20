@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { isAbsolute, relative, resolve } from "node:path";
 import type { DiscoveredResource } from "../types/index.js";
+import { expandEnvValue } from "./env-expand.js";
 
 /**
  * Containers in a local-process run (mixed runtime). A project whose app runs as local processes often keeps its database and
@@ -61,9 +62,29 @@ const STRING_LIST_OPTIONS: Record<string, string> = {
  * (`-e KEY`), so their values reach the container from the environment of the `docker` process and never show in `ps`.
  * Returns the errors that stop the run instead of guessing (a bind mount that leaves the project).
  */
+/** Expands `${VAR}` / `${VAR:-default}` while keeping Compose `$$` as a literal `$`. Unresolved names without a default are reported through `onMissing`, like every other native-run expansion. */
+function expandContainerWord(
+  word: string,
+  envVars: Readonly<Record<string, string | undefined>> | undefined,
+  onMissing: (name: string) => void = () => {},
+): string {
+  if (!envVars) return word.replace(/\$\$/g, "$");
+  return word
+    .split("$$")
+    .map((part) => expandEnvValue(part, envVars, onMissing))
+    .join("$");
+}
+
 export function dockerRunArgs(
   resource: DiscoveredResource,
-  options: { projectName: string; projectRoot: string; envKeys: readonly string[] },
+  options: {
+    projectName: string;
+    projectRoot: string;
+    envKeys: readonly string[];
+    envVars?: Readonly<Record<string, string | undefined>>;
+    /** Receives each `${VAR}` that resolved to nothing and had no default, so `flisk up` can warn about it. */
+    onMissing?: (name: string) => void;
+  },
 ): { args: string[]; errors: string[] } {
   const config = (resource.config ?? {}) as Record<string, unknown>;
   const name = nativeContainerName(options.projectName, resource.name);
@@ -126,15 +147,21 @@ export function dockerRunArgs(
   if (container.readOnly === true) args.push("--read-only");
   if (typeof container.user === "string") args.push("--user", container.user);
   if (typeof container.shmSize === "string") args.push("--shm-size", container.shmSize);
-  const entrypoint = stringList(container.entrypoint);
+  const rawEntrypoint = stringList(container.entrypoint);
+  const entrypoint = rawEntrypoint?.map((word) =>
+    expandContainerWord(word, options.envVars, options.onMissing),
+  );
   // `docker run --entrypoint` takes one program; the rest of an entrypoint list goes in front of the command.
   if (entrypoint) args.push("--entrypoint", entrypoint[0] ?? "");
 
   args.push(String(config.image));
   if (entrypoint) args.push(...entrypoint.slice(1));
-  // Compose reads `$$VAR` as a literal `$VAR`; docker run does no interpolation, so undo the escaping.
+  // Compose reads `$$VAR` as a literal `$VAR` and expands `${VAR}`; docker run does neither, so mirror Compose here.
   const command = stringList(container.command);
-  if (command) args.push(...command.map((word) => word.replace(/\$\$/g, "$")));
+  if (command)
+    args.push(
+      ...command.map((word) => expandContainerWord(word, options.envVars, options.onMissing)),
+    );
   return { args, errors };
 }
 

@@ -819,6 +819,39 @@ describe("service manifest compatibility", () => {
     expect(result.errors).toEqual([]);
   });
 
+  it("accepts variable references and fallbacks in healthCheckPath and healthCheck.path while rejecting unsafe syntax", () => {
+    const checkoutRef = ["$", "{", "FLISK_CHECKOUT_ID", "}"].join("");
+    const fallbackRef = ["$", "{", "FLISK_CHECKOUT_NAME:-local", "}"].join("");
+
+    expect(
+      validateServiceManifest(
+        { ...manifestBase(), healthCheckPath: `/health/${checkoutRef}` },
+        "service.json",
+      ).errors,
+    ).toEqual([]);
+    expect(
+      validateServiceManifest(
+        { ...manifestBase(), healthCheck: { path: `/health/${fallbackRef}` } },
+        "service.json",
+      ).errors,
+    ).toEqual([]);
+
+    const badVar = ["$", "{", "BAD-VAR", "}"].join("");
+    const badDefault = ["$", "{", "FLISK_CHECKOUT_ID:-a b", "}"].join("");
+    expect(
+      validateServiceManifest(
+        { ...manifestBase(), healthCheckPath: `/health/${badVar}` },
+        "service.json",
+      ).errors,
+    ).not.toEqual([]);
+    expect(
+      validateServiceManifest(
+        { ...manifestBase(), healthCheck: { path: `/health/${badDefault}` } },
+        "service.json",
+      ).errors,
+    ).not.toEqual([]);
+  });
+
   it("treats empty generated-output values as unset", () => {
     const result = validateServiceManifest(
       { ...manifestBase(), traefik: { pathPrefix: "/api", healthCheck: "" } },

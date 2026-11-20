@@ -4,6 +4,8 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { DiscoveredResource } from "../types/index.js";
+import { expandEnvValue } from "./env-expand.js";
+import { healthCheckPathOf } from "./service-manifest.js";
 import { isRoutedBringYourOwn, resolveServiceUrl } from "./service-urls.js";
 
 /**
@@ -139,7 +141,8 @@ export function healthUrlOf(url: string): string {
  */
 export function printedHealthUrl(resource: DiscoveredResource, url: string): string | null {
   if (!isRoutedBringYourOwn(resource)) return healthUrlOf(url);
-  const path = resource.config?.healthCheckPath;
+  const rawPath = healthCheckPathOf(resource.config);
+  const path = rawPath ? expandEnvValue(rawPath, process.env) : undefined;
   if (!path || path === "/") return null;
   try {
     const parsed = new URL(url);

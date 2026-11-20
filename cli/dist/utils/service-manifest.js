@@ -24,6 +24,12 @@ export const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json
  */
 export const BASE_PATH_PATTERN = /^\/[a-z0-9/-]*$/;
 /**
+ * HTTP health check path (`healthCheckPath` and `healthCheck.path`). Allows safe path characters and
+ * `${VAR}` / `${VAR:-default}` references (such as `${FLISK_CHECKOUT_ID}`), while rejecting spaces,
+ * quotes, line breaks, and YAML syntax. Mirrors `health_path_ok` in `runtime/engine/topologies/tilt/manifest/parser.star`.
+ */
+export const HEALTH_PATH_PATTERN = /^\/(?:[a-z0-9/-]|\$\{[A-Za-z_][A-Za-z0-9_]*(?::-[a-z0-9/-]*)?\})*$/;
+/**
  * Fields that are still read, or still tolerated, but should not be used. The warning says what replaces each one. `jwtSecret` is
  * ignored outright: a secret must not be committed (see docs/environment.md).
  */
@@ -95,8 +101,12 @@ const KNOWN_SERVICE_FIELDS = new Set([
  * `tilt up` reads service.json without this CLI, so engine/topologies/tilt/manifest/parser.star enforces the same rules.
  */
 const GENERATED_STRING_FIELDS = [
-    { path: ["healthCheckPath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /health" },
-    { path: ["healthCheck", "path"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /health" },
+    { path: ["healthCheckPath"], pattern: HEALTH_PATH_PATTERN, expected: "a path such as /health" },
+    {
+        path: ["healthCheck", "path"],
+        pattern: HEALTH_PATH_PATTERN,
+        expected: "a path such as /health",
+    },
     { path: ["apiPath"], pattern: /^\/[A-Za-z0-9._~/-]*$/, expected: "a path such as /api/v1" },
     { path: ["apiBasePath"], pattern: /^\/[A-Za-z0-9._~/-]*$/, expected: "a path such as /api/v1" },
     {
@@ -510,7 +520,7 @@ export function healthCheckErrors(manifest, displayPath) {
         if (typeof hc.path !== "string") {
             errors.push(`${displayPath}.healthCheck.path: expected a string`);
         }
-        else if (!/^\/[a-z0-9/-]*$/.test(hc.path)) {
+        else if (!HEALTH_PATH_PATTERN.test(hc.path)) {
             errors.push(`${displayPath}.healthCheck.path: must be a path such as /health (no spaces, line breaks or YAML syntax)`);
         }
     }

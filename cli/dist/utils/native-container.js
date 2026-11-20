@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { isAbsolute, relative, resolve } from "node:path";
+import { expandEnvValue } from "./env-expand.js";
 /**
  * Containers in a local-process run (mixed runtime). A project whose app runs as local processes often keeps its database and
  * cache in Docker: Postgres and Redis from a Compose file, the API and the website with `npm run dev`. A service with an `image`
@@ -41,6 +42,15 @@ const STRING_LIST_OPTIONS = {
  * (`-e KEY`), so their values reach the container from the environment of the `docker` process and never show in `ps`.
  * Returns the errors that stop the run instead of guessing (a bind mount that leaves the project).
  */
+/** Expands `${VAR}` / `${VAR:-default}` while keeping Compose `$$` as a literal `$`. Unresolved names without a default are reported through `onMissing`, like every other native-run expansion. */
+function expandContainerWord(word, envVars, onMissing = () => { }) {
+    if (!envVars)
+        return word.replace(/\$\$/g, "$");
+    return word
+        .split("$$")
+        .map((part) => expandEnvValue(part, envVars, onMissing))
+        .join("$");
+}
 export function dockerRunArgs(resource, options) {
     const config = (resource.config ?? {});
     const name = nativeContainerName(options.projectName, resource.name);
@@ -105,17 +115,18 @@ export function dockerRunArgs(resource, options) {
         args.push("--user", container.user);
     if (typeof container.shmSize === "string")
         args.push("--shm-size", container.shmSize);
-    const entrypoint = stringList(container.entrypoint);
+    const rawEntrypoint = stringList(container.entrypoint);
+    const entrypoint = rawEntrypoint?.map((word) => expandContainerWord(word, options.envVars, options.onMissing));
     // `docker run --entrypoint` takes one program; the rest of an entrypoint list goes in front of the command.
     if (entrypoint)
         args.push("--entrypoint", entrypoint[0] ?? "");
     args.push(String(config.image));
     if (entrypoint)
         args.push(...entrypoint.slice(1));
-    // Compose reads `$$VAR` as a literal `$VAR`; docker run does no interpolation, so undo the escaping.
+    // Compose reads `$$VAR` as a literal `$VAR` and expands `${VAR}`; docker run does neither, so mirror Compose here.
     const command = stringList(container.command);
     if (command)
-        args.push(...command.map((word) => word.replace(/\$\$/g, "$")));
+        args.push(...command.map((word) => expandContainerWord(word, options.envVars, options.onMissing)));
     return { args, errors };
 }
 function stringList(value) {
