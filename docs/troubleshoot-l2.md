@@ -388,11 +388,11 @@ A new release is listed in the package metadata a few minutes before the registr
 
 - It skips versions published in the last day (`bun install --minimum-release-age=86400`), so a range resolves to the newest release that is at least a day old.
 - When a dependency pins a version newer than that (`"rollup": "4.67.3"`), it installs again without the minimum age.
-- It retries a tarball 404, a 408, 429 or 5xx answer, a dropped connection, or a stalled install, up to three attempts, waiting 15 s and then 30 s.
+- It retries a tarball 404, a 408, 429 or 5xx answer, a dropped connection (`FailedToOpenSocket` included), or a stalled install, up to three attempts, waiting 2 s and then 5 s.
 - A 404 for package metadata (a package that does not exist) fails at once.
 - When the attempts run out on a registry error, the build log says so and suggests running `flisk up` again in a few minutes.
 
-Generated images use these defaults. A custom Dockerfile that runs `install-deps.sh` can set `FLISK_MIN_RELEASE_AGE_SECONDS` (seconds, `0` turns the minimum off), `FLISK_INSTALL_ATTEMPTS` (default `3`) and `FLISK_INSTALL_RETRY_DELAY` (seconds, multiplied by the attempt number; default `15`) in the environment of that `RUN` step.
+Generated images use these defaults. A custom Dockerfile that runs `install-deps.sh` can set `FLISK_MIN_RELEASE_AGE_SECONDS` (seconds, `0` turns the minimum off), `FLISK_INSTALL_ATTEMPTS` (default `3`) and `FLISK_INSTALL_RETRY_DELAY` (seconds, overrides every pause; unset uses 2 s then 5 s, and `0` retries immediately) in the environment of that `RUN` step.
 
 ## Related documentation
 
