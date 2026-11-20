@@ -22,6 +22,12 @@ describe("rewriteUnknownCommandMessage (#4491)", () => {
     expect(rewriteUnknownCommandMessage("error: unknown command 'services'")).toBe(
       "error: unknown command 'services'\n(Did you mean one of resources, status?)",
     );
+    expect(rewriteUnknownCommandMessage("error: unknown command 'kill'")).toBe(
+      "error: unknown command 'kill'\n(Did you mean down?)",
+    );
+    expect(rewriteUnknownCommandMessage("error: unknown command 'run'")).toBe(
+      "error: unknown command 'run'\n(Did you mean up?)",
+    );
   });
 
   it("leaves spelling-based suggestions intact for unmapped commands", () => {
@@ -61,10 +67,22 @@ describe("CLI unknown command suggestions (#4491)", () => {
     ]);
   });
 
-  it("suggests down for `flisk stop` and keeps spelling suggestion for `flisk nope`", () => {
-    const stopResult = runFlisk(["stop"], { cwd: process.cwd() });
-    expect(stopResult.status).toBe(2);
-    expect(stopResult.stderr).toContain("(Did you mean down?)");
+  it("suggests down for `flisk stop|kill`, up for `flisk start`, and keeps spelling suggestions for typos", () => {
+    for (const [command, target] of [
+      ["stop", "down"],
+      ["kill", "down"],
+      ["start", "up"],
+    ]) {
+      const result = runFlisk([command], { cwd: process.cwd() });
+      expect(result.status, `${command}: ${result.stderr}`).toBe(2);
+      expect(result.stderr).toContain(`(Did you mean ${target}?)`);
+    }
+
+    // `run` is a real command (one-off command in a resource environment), so it never reaches the
+    // unknown-command handler even though the synonym table lists it for future CLI variants.
+    const runResult = runFlisk(["run"], { cwd: process.cwd() });
+    expect(runResult.status).toBe(2);
+    expect(runResult.stderr).toContain("missing required argument");
 
     const nopeResult = runFlisk(["nope"], { cwd: process.cwd() });
     expect(nopeResult.status).toBe(2);

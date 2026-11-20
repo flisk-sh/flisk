@@ -13,6 +13,8 @@ export const UNKNOWN_COMMAND_SUGGESTIONS = {
     ps: ["resources", "status"],
     start: ["up"],
     stop: ["down"],
+    kill: ["down"],
+    run: ["up"],
     build: ["up"],
 };
 export function formatDidYouMean(targets) {
