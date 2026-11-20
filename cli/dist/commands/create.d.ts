@@ -12,6 +12,22 @@ export interface CreateOptions {
     yes?: boolean;
     dryRun?: boolean;
     start?: boolean;
+    json?: boolean;
+}
+/** One resource create actually wrote, read back from its service.json. */
+export interface CreateJsonResource {
+    name: string;
+    type: string;
+    port?: number;
+}
+/** The data in create's `--json` envelope, for both a plan and a completed run. */
+export interface CreateJsonData {
+    name: string;
+    projectFolder: string;
+    dryRun: boolean;
+    commands: string[];
+    resources: CreateJsonResource[];
+    nextSteps: string[];
 }
 /** Whether the command may ask questions: a terminal on both ends, and no `--yes`. */
 export declare function isInteractive(options: CreateOptions, tty: {
