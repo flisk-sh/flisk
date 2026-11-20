@@ -327,9 +327,16 @@ export function findStaleDisabledResources(
  * (e.g. not run from inside a project), so callers degrade to today's
  * behavior rather than erroring.
  */
-export function getDeferredResourceNames(resources?: DiscoveredResource[]): Set<string> {
+export function getDeferredResourceNames(
+  resources?: DiscoveredResource[],
+  projectRoot?: string | null,
+): Set<string> {
+  // A caller that selected no project cannot have deferred resources; skip
+  // discovery entirely so the check (and its unit tests) read no host state.
+  if (projectRoot === null) return new Set();
   try {
-    const list = resources ?? discoverResources();
+    const list =
+      resources ?? (projectRoot ? discoverResourcesFromRoot(projectRoot) : discoverResources());
     return new Set(
       list
         .filter((svc) => svc.config?.sablier?.enable && svc.config?.sablier?.deferStart)
@@ -1096,7 +1103,7 @@ export function checkTiltResourceHealth(
 
   let parsed: ReturnType<typeof parseTiltResourceFailures>;
   try {
-    parsed = parseTiltResourceFailures(jsonText, getDeferredResourceNames());
+    parsed = parseTiltResourceFailures(jsonText, getDeferredResourceNames(undefined, projectRoot));
   } catch {
     return {
       name: "Tilt Resources",
@@ -1115,7 +1122,7 @@ export function checkTiltResourceHealth(
     };
   }
 
-  const staleDisabled = findStaleDisabledResources(jsonText);
+  const staleDisabled = findStaleDisabledResources(jsonText, projectRoot);
 
   if (parsed.failures.length === 0) {
     if (staleDisabled.length > 0) {

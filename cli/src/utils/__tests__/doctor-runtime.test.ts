@@ -308,7 +308,9 @@ describe("doctor-runtime utilities", () => {
     });
 
     it("skips when Tilt returns an unparseable resource status response", () => {
-      const result = checkTiltResourceHealth((() => "not valid JSON") as never);
+      const result = checkTiltResourceHealth((() => "not valid JSON") as never, {
+        projectRoot: null,
+      });
 
       expect(result.didPass).toBe(true);
       expect(result.isSkipped).toBe(true);
@@ -316,7 +318,9 @@ describe("doctor-runtime utilities", () => {
     });
 
     it("skips when Tilt reports no resources", () => {
-      const result = checkTiltResourceHealth((() => JSON.stringify({ items: [] })) as never);
+      const result = checkTiltResourceHealth((() => JSON.stringify({ items: [] })) as never, {
+        projectRoot: null,
+      });
 
       expect(result.didPass).toBe(true);
       expect(result.isSkipped).toBe(true);
