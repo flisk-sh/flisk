@@ -127,7 +127,12 @@ networks:
 YAML
   start_stack app
   wait_status_url "$SERVICE"
-  docker network inspect "$ext_net" >/dev/null 2>&1 \
+  # `flisk up` spends seconds in preflight and generation before Tilt starts init-networks, and
+  # wait_status_url passes as soon as status lists the URL (the field is derived from the manifest,
+  # not from a running stack), so a single inspect here races the up and fails before Tilt even
+  # started. Poll for the network until the ready timeout instead.
+  poll_until "init-networks creates $ext_net" "$READY_TIMEOUT" \
+    bash -c "docker network inspect '$ext_net' >/dev/null 2>&1" \
     || { bp_diagnostics bp5; die "BP5: init-networks did not create external network $ext_net"; }
   run bp5-down down --prune-networks
   [ "$RC" -eq 0 ] || die "BP5: flisk down --prune-networks exited $RC"
