@@ -996,7 +996,7 @@ const PROJECT_JSON = {
  */
 function rmTreeBestEffort(dir: string): void {
   try {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 60, retryDelay: 500 });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   } catch (error) {
     if (process.platform !== "win32" && existsSync(dir)) {
       throw error;
