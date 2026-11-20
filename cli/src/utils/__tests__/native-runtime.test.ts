@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
 import { expandEnvValue } from "../env-expand.js";
@@ -332,6 +332,87 @@ writeFileSync("out.txt", process.env.GREETING + "|" + process.env.OTHER);`,
 });
 
 describe("native supervisor", () => {
+  it("separates three runs and selects current, previous and an explicit id (#4693)", () => {
+    const root = createTempDir();
+    const path = nativeLogPath(root, "api");
+    mkdirSync(dirname(path), { recursive: true });
+    const at = (ms: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, 0, ms)).toISOString();
+    writeFileSync(
+      path,
+      `${[
+        `${at(1)} [flisk] run 1 started (pid 111)`,
+        `${at(2)} first run`,
+        `${at(3)} [flisk] run 1 exited (code 0)`,
+        `${at(4)} [flisk] run 2 started (pid 222)`,
+        `${at(5)} second run`,
+        `${at(6)} [flisk] run 2 exited (code 1)`,
+        `${at(7)} [flisk] run 3 started (pid 333)`,
+        `${at(8)} third run`,
+        `${at(9)} [flisk] run 3 exited (code 0)`,
+      ].join("\n")}\n`,
+    );
+
+    const all = readNativeLogLines(root, ["api"], { tail: 100 });
+    expect(all.map((line) => [line.text, line.run])).toEqual([
+      ["first run", "1"],
+      ["second run", "2"],
+      ["third run", "3"],
+    ]);
+    expect(
+      readNativeLogLines(root, ["api"], { tail: 100, run: "current" }).map((line) => line.text),
+    ).toEqual(["third run"]);
+    expect(
+      readNativeLogLines(root, ["api"], { tail: 100, run: "previous" }).map((line) => line.text),
+    ).toEqual(["second run"]);
+    expect(
+      readNativeLogLines(root, ["api"], { tail: 100, run: "1" }).map((line) => line.text),
+    ).toEqual(["first run"]);
+  });
+
+  it("marks every spawn and respawn of a crash loop with increasing run ids (#4693)", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "crash.mjs"), 'console.log("boom"); process.exit(1);\n');
+    const port = await freePort();
+    const plan = planNativeRun([
+      nativeService(root, "crasher", {
+        command: `${NODE} crash.mjs`,
+        port,
+        healthCheckPath: "/health",
+      }),
+    ]);
+    // A crash loop never becomes ready; a short readiness window lets the restarts continue in the background.
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      {},
+      {
+        readyTimeoutMs: 50,
+        restartDelayMs: 10,
+      },
+    );
+    supervisors.push(supervisor);
+    await supervisor.start();
+    const path = nativeLogPath(root, "crasher");
+    await waitFor(() => {
+      try {
+        return (readFileSync(path, "utf-8").match(/\[flisk\] run \d+ started/g) ?? []).length >= 2;
+      } catch {
+        return false;
+      }
+    });
+
+    const raw = readFileSync(path, "utf-8");
+    const starts = [...raw.matchAll(/\[flisk\] run (\d+) started \(pid (\d+)\)/g)].map((match) =>
+      Number(match[1]),
+    );
+    expect(starts.length).toBeGreaterThanOrEqual(2);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    for (const run of starts) expect(raw).toContain(`[flisk] run ${run} exited (code 1)`);
+    expect(readNativeLogLines(root, ["crasher"], { tail: 100 }).map((line) => line.run)).toEqual(
+      starts.map(String),
+    );
+  });
+
   it("redacts default and selected env secrets before terminal output and private log writes", async () => {
     const root = createTempDir();
     const jwt = "NATIVE_JWT_SECRET_DO_NOT_LOG_12345";

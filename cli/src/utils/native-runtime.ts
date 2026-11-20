@@ -33,7 +33,15 @@ import {
   nativeContainerName,
   removeNativeContainers,
 } from "./native-container.js";
-import { appendNativeLogLine, readLogTail } from "./native-log.js";
+import {
+  appendNativeLogLine,
+  appendNativeRunExit,
+  appendNativeRunStart,
+  latestNativeRunId,
+  nativeRunIds,
+  readNativeLogEntries,
+  readNativeRunLog,
+} from "./native-log.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, type ProcessStartTimeReader, processStartTime } from "./process-identity.js";
@@ -748,39 +756,59 @@ export function nativeServiceStates(
   );
 }
 
-/** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
+/** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line, plus its run id). */
 export interface NativeLogLine {
   time: string | null;
   resource: string;
   level: null;
   source: null;
   text: string;
+  run: string | null;
+}
+
+/** Resolves `current`, `previous` and an explicit id against one service's run ids. */
+function selectedRunIds(path: string, selector: string | undefined): Set<string> | null {
+  if (selector === undefined) return null;
+  const ids = nativeRunIds(path);
+  if (selector === "current") return new Set(ids.slice(-1));
+  if (selector === "previous") return new Set(ids.slice(-2, -1));
+  return new Set([String(Number(selector))]);
 }
 
 /**
  * The last `tail` lines the given services wrote, oldest first, merged across services by time. `sinceMs` drops lines older
- * than that many milliseconds. A service that wrote nothing yet has no log file and contributes no lines.
+ * than that many milliseconds. `run` selects one run per service (`current`, `previous` or an id); without it every run is
+ * returned, as before. A service that wrote nothing yet has no log file and contributes no lines. Supervisor markers are
+ * never returned as output (#4693).
  */
 export function readNativeLogLines(
   projectRoot: string,
   services: readonly string[],
-  options: { tail: number; sinceMs?: number; now?: number },
+  options: { tail: number; sinceMs?: number; now?: number; run?: string },
 ): NativeLogLine[] {
   const cutoff =
     options.sinceMs === undefined ? null : (options.now ?? Date.now()) - options.sinceMs;
   const lines: NativeLogLine[] = [];
   for (const resource of services) {
-    let raws: string[];
-    try {
-      // Only the end of the file is read: each service gives at most `tail` lines to the merge (#3720).
-      raws = readLogTail(nativeLogPath(projectRoot, resource), options.tail, cutoff);
-    } catch {
-      continue;
-    }
-    for (const raw of raws) {
-      const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (.*)$/.exec(raw);
-      const time = match?.[1] ?? null;
-      lines.push({ time, resource, level: null, source: null, text: match?.[2] ?? raw });
+    const path = nativeLogPath(projectRoot, resource);
+    const selected = selectedRunIds(path, options.run);
+    // With no run selector only the current file is read, as before; a selected previous run may live in the rotated one.
+    const entries = options.run === undefined ? readNativeLogEntries(path) : readNativeRunLog(path);
+    const kept = entries
+      .filter((entry) => selected === null || (entry.run !== null && selected.has(entry.run)))
+      .filter(
+        (entry) => cutoff === null || (entry.time !== null && Date.parse(entry.time) >= cutoff),
+      )
+      .slice(-options.tail);
+    for (const entry of kept) {
+      lines.push({
+        time: entry.time,
+        resource,
+        level: null,
+        source: null,
+        text: entry.text,
+        run: entry.run,
+      });
     }
   }
   // Stable sort: lines of one service keep their order when two share a millisecond.
@@ -923,6 +951,8 @@ export class NativeSupervisor {
   private readonly services = new Map<string, RunningService>();
   /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
   private readonly logSizes = new Map<string, number>();
+  /** Last run id handed out per service; seeded from the log files so a new `up` continues the sequence (#4693). */
+  private readonly runIds = new Map<string, number>();
   private readonly migratorOutputs = new Map<string, Record<string, string>>();
   private readonly redactLine: (line: string) => string;
   private readonly startedAt = new Date().toISOString();
@@ -1108,6 +1138,31 @@ export class NativeSupervisor {
     }
   }
 
+  /** The next short, per-service run id, surviving a supervisor restart through the markers in the log files. */
+  private nextRunId(name: string, path: string): string {
+    const last = latestNativeRunId(path);
+    const next = Math.max(this.runIds.get(name) ?? 0, last === null ? 0 : Number(last) || 0) + 1;
+    this.runIds.set(name, next);
+    return String(next);
+  }
+
+  /** A full disk must not turn a run marker into a reason for the service to stop. */
+  private writeRunStart(path: string, runId: string, pid: number | undefined): void {
+    try {
+      appendNativeRunStart(path, runId, pid, this.logSizes);
+    } catch {
+      // The terminal note and the service still work without the marker.
+    }
+  }
+
+  private writeRunExit(path: string, runId: string, code: number | null): void {
+    try {
+      appendNativeRunExit(path, runId, code, this.logSizes);
+    } catch {
+      // The terminal note and the service still work without the marker.
+    }
+  }
+
   private spawn(service: RunningService): void {
     const { plan } = service;
     if (plan.job) {
@@ -1118,6 +1173,7 @@ export class NativeSupervisor {
     // `command` is a shell command line the project owner wrote in their own service.json (`PORT=1 node s.js`, `$PORT`,
     // `a && b`), run with the same trust as an npm script or a Procfile entry; nothing from outside the project reaches it.
     const shell = shellInvocation(plan.command);
+    const logPath = nativeLogPath(this.projectRoot, plan.name);
     const child = spawn(shell.file, shell.args, {
       cwd: plan.cwd,
       env: { ...(this.baseEnv ?? process.env), ...plan.env },
@@ -1133,6 +1189,15 @@ export class NativeSupervisor {
     service.startTime = undefined;
     service.identityReady = undefined;
     const pid = child.pid;
+    const runId = this.nextRunId(plan.name, logPath);
+    this.writeRunStart(logPath, runId, pid);
+    let exitRecorded = false;
+    // Both a normal exit and a spawn error close the run; `once` on each avoids two markers when Node emits both.
+    const recordExit = (code: number | null): void => {
+      if (exitRecorded) return;
+      exitRecorded = true;
+      this.writeRunExit(logPath, runId, code);
+    };
     if (pid !== undefined) {
       service.identityReady = this.readStartTime(pid).then((startTime) => {
         // Saved only while this is still the service's process: a restart in the meantime reads its own.
@@ -1142,8 +1207,14 @@ export class NativeSupervisor {
       });
     }
     service.exited = new Promise((resolve) => {
-      child.once("exit", (code) => resolve(code));
-      child.once("error", () => resolve(null));
+      child.once("exit", (code) => {
+        recordExit(code);
+        resolve(code);
+      });
+      child.once("error", () => {
+        recordExit(null);
+        resolve(null);
+      });
     });
     this.events.onNote?.(
       plan.name,

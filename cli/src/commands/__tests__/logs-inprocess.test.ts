@@ -55,12 +55,13 @@ vi.mock("../../utils/secret-redaction.js", async (importOriginal) => ({
 import { logsCommand } from "../logs.js";
 
 const ok = (stdout: string) => ({ exitCode: 0, stdout, stderr: "" });
-const line = (resource: string, text: string): NativeLogLine => ({
+const line = (resource: string, text: string, run: string | null = null): NativeLogLine => ({
   time: "2026-10-31T10:00:00.000Z",
   resource,
   level: null,
   source: null,
   text,
+  run,
 });
 const NATIVE = [
   makeResource("api", "backend", { command: "node api.js" }),
@@ -126,6 +127,7 @@ describe("flisk logs (in-process)", () => {
         {
           tail: 50,
           sinceMs: undefined,
+          run: undefined,
         },
       );
       expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
@@ -227,7 +229,42 @@ describe("flisk logs (in-process)", () => {
       expect(nativeRuntime.readNativeLogLines).toHaveBeenCalledWith("/project", ["frontend"], {
         tail: 200,
         sinceMs: 300_000,
+        run: undefined,
       });
+    });
+
+    it("--run previous asks for the previous run and reports the selector in --json", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([
+        line("api", "the failure", "2"),
+        line("frontend", "still up", "2"),
+      ]);
+
+      const result = await runLogs(["--json", "--service", "api", "--run", "previous"]);
+      const envelope = parseEnvelope(result.stdout);
+
+      expect(result.status).toBeUndefined();
+      expect(envelope.data).toMatchObject({
+        run: "previous",
+        lines: [
+          { resource: "api", text: "the failure", run: "2" },
+          { resource: "frontend", text: "still up", run: "2" },
+        ],
+      });
+      expect(nativeRuntime.readNativeLogLines).toHaveBeenCalledWith("/project", ["api"], {
+        tail: 200,
+        sinceMs: undefined,
+        run: "previous",
+      });
+    });
+
+    it("rejects a --run value that is not current, previous or a run id", async () => {
+      const result = await runLogs(["--json", "--run", "latest"]);
+      const envelope = parseEnvelope(result.stdout);
+
+      expect(result.status).toBe(2);
+      expect(envelope.errors[0]).toMatchObject({ code: "USAGE" });
+      expect(envelope.errors[0]?.message).toContain("--run must be current, previous or a run id");
+      expect(nativeRuntime.readNativeLogLines).not.toHaveBeenCalled();
     });
 
     it("--unhealthy reports all healthy without reading log files when every service is ready", async () => {
@@ -242,11 +279,22 @@ describe("flisk logs (in-process)", () => {
         services: ["api"],
         tail: 200,
         since: null,
+        run: null,
         lines: [],
         unhealthy: [],
       });
       expect(nativeRuntime.readNativeLogLines).not.toHaveBeenCalled();
     });
+  });
+
+  it("rejects --run for a Docker project before asking Tilt", async () => {
+    const result = await runLogs(["--json", "--run", "2"]);
+    const envelope = parseEnvelope(result.stdout);
+
+    expect(result.status).toBe(2);
+    expect(envelope.errors[0]).toMatchObject({ code: "RUN_UNSUPPORTED" });
+    expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
+    expect(tilt.runTilt).not.toHaveBeenCalled();
   });
 
   it("prints a text-mode usage error without suggestions and exits 2", async () => {

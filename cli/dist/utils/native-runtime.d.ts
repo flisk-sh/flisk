@@ -177,22 +177,26 @@ export declare function nativeServiceStates(projectRoot: string, services: reado
     status: "ready" | "pending" | "error" | "unknown";
     reason?: string;
 }>;
-/** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
+/** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line, plus its run id). */
 export interface NativeLogLine {
     time: string | null;
     resource: string;
     level: null;
     source: null;
     text: string;
+    run: string | null;
 }
 /**
  * The last `tail` lines the given services wrote, oldest first, merged across services by time. `sinceMs` drops lines older
- * than that many milliseconds. A service that wrote nothing yet has no log file and contributes no lines.
+ * than that many milliseconds. `run` selects one run per service (`current`, `previous` or an id); without it every run is
+ * returned, as before. A service that wrote nothing yet has no log file and contributes no lines. Supervisor markers are
+ * never returned as output (#4693).
  */
 export declare function readNativeLogLines(projectRoot: string, services: readonly string[], options: {
     tail: number;
     sinceMs?: number;
     now?: number;
+    run?: string;
 }): NativeLogLine[];
 /** Reports from the supervisor, so `flisk up` decides what reaches the terminal. */
 export interface SupervisorEvents {
@@ -246,6 +250,8 @@ export declare class NativeSupervisor {
     private readonly services;
     /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
     private readonly logSizes;
+    /** Last run id handed out per service; seeded from the log files so a new `up` continues the sequence (#4693). */
+    private readonly runIds;
     private readonly migratorOutputs;
     private readonly redactLine;
     private readonly startedAt;
@@ -292,6 +298,11 @@ export declare class NativeSupervisor {
     /** Parsed outputs produced by finished migrators (for inspection and tests). */
     outputsOf(migratorName: string): Record<string, string> | undefined;
     private resolveServiceEnv;
+    /** The next short, per-service run id, surviving a supervisor restart through the markers in the log files. */
+    private nextRunId;
+    /** A full disk must not turn a run marker into a reason for the service to stop. */
+    private writeRunStart;
+    private writeRunExit;
     private spawn;
     private onExit;
     /** Starts a service again after it exited, and reports when it is ready again. */

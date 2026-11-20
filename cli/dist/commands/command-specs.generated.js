@@ -440,6 +440,10 @@ export const COMMAND_SPECS = [
                 description: "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
             },
             {
+                flags: "--run <run>",
+                description: "Only one run of each local-process service: current, previous, or a run id",
+            },
+            {
                 flags: "--unhealthy",
                 description: "Only services that are failing or still starting",
                 defaultValue: false,
@@ -461,7 +465,7 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",
+                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --service orders-api --run previous\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",
             ],
         },
         subcommands: [],

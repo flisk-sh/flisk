@@ -4,7 +4,16 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "no
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createTempDir } from "../../test-support/index.js";
-import { appendNativeLogLine, NATIVE_LOG_MAX_BYTES, readLogTail } from "../native-log.js";
+import {
+  appendNativeLogLine,
+  appendNativeRunExit,
+  appendNativeRunStart,
+  latestNativeRunId,
+  NATIVE_LOG_KEEP_RUNS,
+  NATIVE_LOG_MAX_BYTES,
+  readLogTail,
+  readNativeRunLog,
+} from "../native-log.js";
 import { nativeLogPath, readNativeLogLines } from "../native-runtime.js";
 
 const stamp = (index: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, 0, index)).toISOString();
@@ -115,5 +124,57 @@ describe("appendNativeLogLine (#3720)", () => {
     appendNativeLogLine(path, "fresh\n", new Map(), 50);
     expect(readFileSync(path, "utf-8")).toBe("fresh\n");
     expect(readFileSync(`${path}.1`, "utf-8")).toBe("x".repeat(100));
+  });
+});
+
+describe("native run markers (#4693)", () => {
+  it("writes a start and exit marker for a spawn and hides both from log entries", () => {
+    const path = join(createTempDir("flisk-run-"), "api.log");
+    const sizes = new Map<string, number>();
+    appendNativeRunStart(path, "7", 4321, sizes);
+    appendNativeLogLine(path, `${stamp(1)} listening\n`, sizes);
+    appendNativeRunExit(path, "7", 1, sizes);
+
+    const raw = readFileSync(path, "utf-8");
+    expect(raw).toContain(" [flisk] run 7 started (pid 4321)\n");
+    expect(raw).toContain(" [flisk] run 7 exited (code 1)\n");
+    expect(latestNativeRunId(path)).toBe("7");
+    expect(readNativeRunLog(path).map((entry) => ({ text: entry.text, run: entry.run }))).toEqual([
+      { text: "listening", run: "7" },
+    ]);
+  });
+
+  it("keeps the current run's start marker with its lines when rotation happens mid-run", () => {
+    const path = join(createTempDir("flisk-run-"), "api.log");
+    const sizes = new Map<string, number>();
+    const cap = 120;
+    appendNativeRunStart(path, "1", 10, sizes, cap);
+    for (let i = 0; i < 8; i += 1) {
+      appendNativeLogLine(path, `${stamp(i)} line ${i}\n`, sizes, cap);
+    }
+
+    expect(existsSync(`${path}.1`)).toBe(true);
+    // Several rotations may have happened; each fresh file still opens with the current run's marker.
+    expect(readFileSync(path, "utf-8")).toContain("[flisk] run 1 started (pid 10)");
+    const entries = readNativeRunLog(path);
+    expect(entries.map((entry) => entry.text)).toEqual(["line 6", "line 7"]);
+    expect(entries.every((entry) => entry.run === "1")).toBe(true);
+  });
+
+  it(`keeps the start markers of the last ${NATIVE_LOG_KEEP_RUNS} runs across rotations`, () => {
+    const path = join(createTempDir("flisk-run-"), "api.log");
+    const sizes = new Map<string, number>();
+    for (let run = 1; run <= 7; run += 1) {
+      appendNativeRunStart(path, String(run), run, sizes, 100);
+      appendNativeLogLine(path, `${stamp(run)} output ${run}\n`, sizes, 100);
+      appendNativeRunExit(path, String(run), 0, sizes, 100);
+    }
+
+    const current = readFileSync(path, "utf-8");
+    for (const run of [3, 4, 5, 6, 7]) {
+      expect(current).toContain(`[flisk] run ${run} started (pid ${run})`);
+    }
+    expect(current).not.toContain("[flisk] run 1 started");
+    expect(latestNativeRunId(path)).toBe("7");
   });
 });

@@ -163,7 +163,7 @@ All inspection and lifecycle commands support `--json`:
 - `flisk up --json`: Success indicated by `data.ok`; failures reported through `errors` and `data.failures`.
 - `flisk up <git-url>`: Clones the repository (shallow) into `./<repo name>`, reusing an existing checkout there, then starts it like `flisk up` run in that folder. A URL is any `https://`, `ssh://`, `git://`, `file://` or `git@host:org/repo` argument; stack names never contain `:`.
 - `flisk status --json`: Reports detailed container state, URLs, and Tilt readiness.
-- `flisk logs --json --service <name> --source runtime --tail <n>`: Bounded log snapshots.
+- `flisk logs --json --service <name> --source runtime --tail <n> [--run current|previous|<id>]`: Bounded log snapshots; `--run` reads one local-process run.
 - `flisk down --json`: Confirms clean container shutdown.
 - `flisk project --json`, `flisk resource <name> --json`, `flisk stack <stack-name> --resources <names...> --json`, `flisk import [dir] --json` and `flisk eject --json`: Report what they created, assigned, imported or wrote. `--json` never prompts: it takes the defaults `--yes` takes.
 - `flisk config regenerate --json`, `flisk config migrate --json`, `flisk config enable-infra <service> --json` and `flisk config disable-infra <service> --json`: Report the changed files or setting.
