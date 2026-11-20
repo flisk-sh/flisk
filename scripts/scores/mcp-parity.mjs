@@ -32,6 +32,7 @@ export const HUMAN_ONLY = {
 	export: "writes deploy files (render.yaml, wrangler.toml) for a person to review and commit; the export scope agreed in AGENTS.md keeps it opt-in and off MCP",
 	distribute: "writes listing text and a channel grid that a person reviews and submits by hand",
 	repos: "clones external git repositories; an opt-in developer action or run by flisk up",
+	secret: "stores values from a hidden terminal prompt or a pipe; an agent must never handle the raw value, which an MCP tool call would put in tool-call logs",
 };
 
 // Whether a command path ("maintainers check") belongs to a human-only command.
