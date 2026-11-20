@@ -18,6 +18,7 @@ import { binaryAssetName, executableName, isWindows } from "../utils/platform.js
 import { promptConfirm } from "../utils/prompt.js";
 import { startSpinner } from "../utils/spinner.js";
 import { extractTarball } from "../utils/tar.js";
+import { cleanupStaleUpgradeArtifacts, isWindowsBusyError, staleBackupPathFor, } from "../utils/upgrade-cleanup.js";
 import { findAllOnPath, findOnPath } from "../utils/which.js";
 /** Homebrew and Scoop own the files they install, so only they may replace them. */
 function managedMethodForPath(path) {
@@ -353,7 +354,10 @@ export function isWritable(path) {
     }
 }
 /** @internal Exported for unit tests only; not part of the package API. */
-export async function upgradeViaBinary(fliskPath, release) {
+export async function upgradeViaBinary(fliskPath, release, deps = {}) {
+    const windowsMode = (deps.isWindows ?? isWindows)();
+    const remove = deps.rmSync ?? rmSync;
+    const rename = deps.renameSync ?? renameSync;
     // Never shells out to sudo - if the install dir isn't user-writable, fail
     // fast with the manual curl command instead of downloading first and
     // elevating automatically. The user runs that curl themselves.
@@ -361,7 +365,7 @@ export async function upgradeViaBinary(fliskPath, release) {
     if (!isWritable(installDir)) {
         console.log(chalk.yellow(`\n🔒 ${installDir} isn't writable by your user.`));
         console.log(chalk.yellow("💡 Upgrade manually instead:"));
-        if (isWindows()) {
+        if (windowsMode) {
             console.log(chalk.cyan("   Install Flisk in a user-writable directory, then retry the upgrade."));
         }
         else {
@@ -370,13 +374,21 @@ export async function upgradeViaBinary(fliskPath, release) {
         }
         return false;
     }
+    // Clean up any leftover .old binaries or stale .flisk-upgrade-* folders from prior runs.
+    cleanupStaleUpgradeArtifacts(installDir, {
+        binaryName: basename(fliskPath),
+        rmSync: remove,
+    });
     const spinner = startSpinner(`Downloading ${release.assetName} (${release.tag})...`);
     const tempDir = join(installDir, `.flisk-upgrade-${process.pid}-${Date.now()}`);
     const tmpPath = join(tempDir, release.assetName);
     const engineTmpPath = join(tempDir, "engine.tar.gz");
     const engineDir = join(installDir, "flisk-cli");
     const engineStageDir = join(tempDir, "flisk-cli");
-    const binaryBackup = join(tempDir, `${basename(fliskPath)}.previous`);
+    const preferredWindowsBackup = staleBackupPathFor(fliskPath);
+    const binaryBackup = windowsMode && !existsSync(preferredWindowsBackup)
+        ? preferredWindowsBackup
+        : join(tempDir, `${basename(fliskPath)}.previous`);
     const engineBackup = join(tempDir, "flisk-cli.previous");
     try {
         mkdirSync(tempDir, { recursive: true });
@@ -427,36 +439,53 @@ export async function upgradeViaBinary(fliskPath, release) {
         verifyChecksum(engineTmpPath, ENGINE_ASSET_NAME, sums, false);
         // writeFileSync creates the file 0644; without this the swapped-in binary
         // is not executable and the shell reports "Permission denied".
-        if (!isWindows())
+        if (!windowsMode)
             chmodSync(tmpPath, 0o755);
         mkdirSync(engineStageDir, { recursive: true });
         extractTarball(engineBuffer, engineStageDir);
         if (existsSync(fliskPath))
-            renameSync(fliskPath, binaryBackup);
+            rename(fliskPath, binaryBackup);
         try {
-            renameSync(tmpPath, fliskPath);
+            rename(tmpPath, fliskPath);
         }
         catch (err) {
             if (existsSync(binaryBackup))
-                renameSync(binaryBackup, fliskPath);
+                rename(binaryBackup, fliskPath);
             throw err;
         }
         if (existsSync(engineDir))
-            renameSync(engineDir, engineBackup);
+            rename(engineDir, engineBackup);
         try {
-            renameSync(engineStageDir, engineDir);
+            rename(engineStageDir, engineDir);
         }
         catch (err) {
             if (existsSync(engineBackup))
-                renameSync(engineBackup, engineDir);
+                rename(engineBackup, engineDir);
             if (existsSync(binaryBackup)) {
-                rmSync(fliskPath, { force: true });
-                renameSync(binaryBackup, fliskPath);
+                remove(fliskPath, { force: true });
+                rename(binaryBackup, fliskPath);
             }
             throw err;
         }
-        rmSync(binaryBackup, { force: true });
-        rmSync(engineBackup, { recursive: true, force: true });
+        // Windows allows renaming a running executable but refuses to unlink it until the process
+        // exits (EPERM/EBUSY). Treat locked backup removal as non-fatal on Windows; the next flisk
+        // invocation, upgrade, or doctor run cleans it up.
+        try {
+            remove(binaryBackup, { force: true });
+        }
+        catch (err) {
+            if (!windowsMode || !isWindowsBusyError(err))
+                throw err;
+            logVerbose(`Deferred removal of in-use binary backup ${binaryBackup}`, err);
+        }
+        try {
+            remove(engineBackup, { recursive: true, force: true });
+        }
+        catch (err) {
+            if (!windowsMode || !isWindowsBusyError(err))
+                throw err;
+            logVerbose(`Deferred removal of engine backup ${engineBackup}`, err);
+        }
         spinner.succeed(`Upgraded to ${release.tag}`);
         return true;
     }
@@ -467,7 +496,12 @@ export async function upgradeViaBinary(fliskPath, release) {
         return false;
     }
     finally {
-        rmSync(tempDir, { recursive: true, force: true });
+        try {
+            remove(tempDir, { recursive: true, force: true });
+        }
+        catch (err) {
+            logVerbose(`Deferred removal of upgrade temp directory ${tempDir}`, err);
+        }
     }
 }
 /** @internal Exported for unit tests only; not part of the package API. */
@@ -945,6 +979,11 @@ export function createUpgradeCommand() {
         let latestVersion = null;
         let binaryRelease = null;
         if (installInfo.method === "binary" && installInfo.path) {
+            if (!options.dryRun) {
+                cleanupStaleUpgradeArtifacts(dirname(installInfo.path), {
+                    binaryName: basename(installInfo.path),
+                });
+            }
             console.log(chalk.blue("📦 Standalone binary installation detected"));
             binaryRelease = await getLatestBinaryRelease();
             if (!binaryRelease) {

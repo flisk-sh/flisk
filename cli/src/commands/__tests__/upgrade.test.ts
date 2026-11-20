@@ -411,6 +411,148 @@ describe("upgradeViaBinary", () => {
       chmodSync(installDir, 0o755);
     }
   });
+
+  describe("Windows locked executable cleanup (#4007)", () => {
+    it("moves the running exe to flisk.exe.old, ignores EPERM on backup delete, removes engine backup and tempDir, and reports success", async () => {
+      const winFliskPath = join(installDir, "flisk.exe");
+      const winRelease: BinaryRelease = {
+        ...release,
+        assetName: "flisk-windows-amd64.exe",
+        downloadUrl: "https://example.test/flisk-windows-amd64.exe",
+      };
+      checksums = [
+        `${sha256(BINARY_BYTES)}  flisk-windows-amd64.exe`,
+        `${sha256(ENGINE_BYTES)}  flisk-cli-engine.tar.gz`,
+      ].join("\n");
+      writeFileSync(winFliskPath, "running old exe");
+      const engineDir = join(installDir, "flisk-cli");
+      mkdirSync(engineDir);
+      writeFileSync(join(engineDir, "old-engine-file"), "old");
+
+      const rmCalls: string[] = [];
+      const injectedRmSync = ((
+        targetPath: Parameters<typeof rmSync>[0],
+        opts?: Parameters<typeof rmSync>[1],
+      ) => {
+        const strPath = String(targetPath);
+        rmCalls.push(strPath);
+        if (strPath === `${winFliskPath}.old`) {
+          throw Object.assign(new Error("EPERM: operation not permitted, unlink"), {
+            code: "EPERM",
+          });
+        }
+        rmSync(targetPath, opts);
+      }) as typeof rmSync;
+
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      try {
+        const ok = await upgradeViaBinary(winFliskPath, winRelease, {
+          isWindows: () => true,
+          rmSync: injectedRmSync,
+        });
+
+        expect(ok).toBe(true);
+        expect(readFileSync(winFliskPath, "utf-8")).toBe(BINARY_BYTES);
+        expect(readFileSync(join(engineDir, "engine-marker"), "utf-8")).toBe("extracted");
+        expect(existsSync(join(engineDir, "old-engine-file"))).toBe(false);
+        expect(existsSync(`${winFliskPath}.old`)).toBe(true);
+        // Engine backup and the .flisk-upgrade-* temp dir were both removed cleanly.
+        expect(rmCalls.some((p) => p.endsWith("flisk-cli.previous"))).toBe(true);
+        const leftovers = readdirSync(installDir).filter((name) =>
+          name.startsWith(".flisk-upgrade-"),
+        );
+        expect(leftovers).toEqual([]);
+        expect(logSpy.mock.calls.flat().join("\n")).not.toContain("Binary upgrade failed");
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it("still succeeds when fallback backup and tempDir removal throw EBUSY/EPERM on Windows", async () => {
+      const winFliskPath = join(installDir, "flisk.exe");
+      const winRelease: BinaryRelease = {
+        ...release,
+        assetName: "flisk-windows-amd64.exe",
+        downloadUrl: "https://example.test/flisk-windows-amd64.exe",
+      };
+      checksums = [
+        `${sha256(BINARY_BYTES)}  flisk-windows-amd64.exe`,
+        `${sha256(ENGINE_BYTES)}  flisk-cli-engine.tar.gz`,
+      ].join("\n");
+      writeFileSync(winFliskPath, "running old exe");
+      // Simulate an already-locked flisk.exe.old from a previous run so backup falls back into tempDir.
+      writeFileSync(`${winFliskPath}.old`, "still locked from prior run");
+
+      const injectedRmSync = ((
+        targetPath: Parameters<typeof rmSync>[0],
+        opts?: Parameters<typeof rmSync>[1],
+      ) => {
+        const strPath = String(targetPath);
+        if (
+          strPath.endsWith(".old") ||
+          strPath.endsWith(".previous") ||
+          /\.flisk-upgrade-\d+-\d+$/.test(strPath)
+        ) {
+          throw Object.assign(new Error("EBUSY: resource busy or locked"), { code: "EBUSY" });
+        }
+        rmSync(targetPath, opts);
+      }) as typeof rmSync;
+
+      const ok = await upgradeViaBinary(winFliskPath, winRelease, {
+        isWindows: () => true,
+        rmSync: injectedRmSync,
+      });
+
+      expect(ok).toBe(true);
+      expect(readFileSync(winFliskPath, "utf-8")).toBe(BINARY_BYTES);
+    });
+
+    it("cleans up stale flisk.exe.old and dead .flisk-upgrade-* folders at the start of the next upgrade", async () => {
+      const winFliskPath = join(installDir, "flisk.exe");
+      const winRelease: BinaryRelease = {
+        ...release,
+        assetName: "flisk-windows-amd64.exe",
+        downloadUrl: "https://example.test/flisk-windows-amd64.exe",
+      };
+      checksums = [
+        `${sha256(BINARY_BYTES)}  flisk-windows-amd64.exe`,
+        `${sha256(ENGINE_BYTES)}  flisk-cli-engine.tar.gz`,
+      ].join("\n");
+      writeFileSync(winFliskPath, "previous exe");
+      writeFileSync(`${winFliskPath}.old`, "stale old exe");
+      const staleDir = join(installDir, ".flisk-upgrade-999999999-1700000000000");
+      mkdirSync(staleDir);
+      writeFileSync(join(staleDir, "flisk.exe.previous"), "stale");
+
+      const ok = await upgradeViaBinary(winFliskPath, winRelease, {
+        isWindows: () => true,
+      });
+
+      expect(ok).toBe(true);
+      expect(existsSync(staleDir)).toBe(false);
+      expect(existsSync(`${winFliskPath}.old`)).toBe(false);
+    });
+
+    it("keeps EPERM on backup delete fatal on non-Windows platforms", async () => {
+      writeFileSync(fliskPath, "old binary");
+      const injectedRmSync = ((
+        targetPath: Parameters<typeof rmSync>[0],
+        opts?: Parameters<typeof rmSync>[1],
+      ) => {
+        if (String(targetPath).endsWith(".previous")) {
+          throw Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM" });
+        }
+        rmSync(targetPath, opts);
+      }) as typeof rmSync;
+
+      const ok = await upgradeViaBinary(fliskPath, release, {
+        isWindows: () => false,
+        rmSync: injectedRmSync,
+      });
+
+      expect(ok).toBe(false);
+    });
+  });
 });
 
 describe("package-manager upgrade failures", () => {

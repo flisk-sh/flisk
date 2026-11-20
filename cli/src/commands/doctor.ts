@@ -162,6 +162,7 @@ import {
 import { getProjectName } from "../utils/service-urls.js";
 import { MIN_BUN_VERSION, MIN_TILT_VERSION, versionMeetsMinimum } from "../utils/tool-versions.js";
 import { checkToolchains } from "../utils/toolchain.js";
+import { cleanupRunningBinaryArtifacts } from "../utils/upgrade-cleanup.js";
 import {
   checkWindowsDockerMode,
   checkWindowsHostConfiguration,
@@ -318,6 +319,10 @@ export const doctorCommand = new Command("doctor")
       console.error(message);
       process.exit(2);
       return;
+    }
+
+    if (!options.dryRun) {
+      cleanupRunningBinaryArtifacts();
     }
 
     // A project whose services all declare `command` runs as local processes: doctor checks only what they need (#2231).
