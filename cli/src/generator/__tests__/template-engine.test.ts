@@ -176,9 +176,11 @@ describe("template-engine", () => {
       expect(missingMaster.errors).toContain(
         "Missing file: .flisk/.flisk-out/Tiltfile (run 'flisk config regenerate')",
       );
-      expect(missingMaster.diffs.find(({ file }) => file.endsWith("Tiltfile"))?.diff).toContain(
-        "+++ b/.flisk/.flisk-out/Tiltfile",
-      );
+      expect(missingMaster.diffs.find(({ file }) => file.endsWith("Tiltfile"))).toMatchObject({
+        state: "missing",
+        linesAdded: expect.any(Number),
+        linesRemoved: 0,
+      });
 
       fs.writeFileSync(serviceJsonPath, serviceJson.replace('"port": 4000', '"port": 4001'));
       const stale = verifyMasterConfigs(projectRoot);

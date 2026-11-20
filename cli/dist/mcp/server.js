@@ -155,7 +155,7 @@ export function createMcpServer(allTools, info, policy) {
                 try {
                     const result = await tool.handler((args ?? {}));
                     return reply(message.id, {
-                        content: [{ type: "text", text: JSON.stringify(result.data) }],
+                        content: [{ type: "text", text: result.text ?? JSON.stringify(result.data) }],
                         structuredContent: result.data,
                         isError: result.isError,
                     });

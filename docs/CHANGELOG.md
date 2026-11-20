@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk config verify --json` and the `config_verify` MCP tool now lead with a small report: every error line plus each drifted file's path, state (`missing` or `different`) and line counts, instead of whole generated files as diffs. The MCP text part is a short human summary rather than a second copy of the JSON, so a project with several missing files stays under 4 KB. Full diffs are opt-in with `flisk config verify --diff <file>` or the tool's `diffFiles` argument, capped at 200 lines per file with a note when cut (#4205).
+
 ## 1.4.70 (2026-11-20)
 
 - `flisk tool add openapi-mcp` prints the steps to run an OpenAPI-to-MCP gateway as a bring-your-own image, and `flisk tool add rag` points at a new recipe for the Qdrant MCP server with one collection per customer. A second recipe shows a policy check that refuses a `pay` tool call above a limit (#4060).

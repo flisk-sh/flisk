@@ -1402,10 +1402,17 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
             flags: "--json",
             description: "Emit a machine-readable verification report",
           },
+          {
+            flags: "--diff <file>",
+            description:
+              "Include a capped diff for this reported file (repeatable, max 200 lines per file)",
+          },
         ],
         arguments: [],
         helpTexts: {
-          after: ["\nExamples:\n  flisk config verify\n  flisk config verify --json"],
+          after: [
+            "\nExamples:\n  flisk config verify\n  flisk config verify --json\n  flisk config verify --diff Tiltfile --json",
+          ],
         },
         subcommands: [],
       },

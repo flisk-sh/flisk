@@ -77,7 +77,7 @@ flisk resource <name> --type mcp --stack <stack>
   - `project_info`: Show the project root, whether the generated master files exist, and resource and stack counts.
   - `project_templates`: List the starter templates `project_init` can clone (`data.templates`: key, repo, description, and the pinned commit `ref` when set); the same rows as `flisk project --list --json`.
   - `network_list`: List the Traefik URL of every frontend and API service and whether it answers (`stack` optional).
-  - `config_verify`: Check that the generated files match `.flisk/project.json` and that every `service.json` is valid.
+  - `config_verify`: Check that the generated files match `.flisk/project.json` and that every `service.json` is valid. The default result is a small summary (every error line and each drifted file's state and line counts); pass `diffFiles` for capped diffs of named files (CLI: `flisk config verify --diff <file>`).
   - `config_explain`: Say whether a project file is generated or user-owned and what editing it does on `up` (`file` required).
   - `runtime_check`: Check that the installed CLI has its bundled runtime assets (a source checkout reports `ok: false`).
   - `config_regenerate`: Regenerate the master config files; a dry run unless `dryRun` is `false`, and a real run discards hand edits in them.

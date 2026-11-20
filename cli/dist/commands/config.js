@@ -6,7 +6,7 @@ import { join, relative, sep } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
-import { generateMasterConfigs, readProjectConfig, staleServiceOutputs, TemplateEngine, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { generateMasterConfigs, readProjectConfig, staleServiceOutputs, TemplateEngine, VERIFY_DIFF_LINE_LIMIT, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { isMasterConfigFileName } from "../types/index.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { explainConfigFile } from "../utils/config-explain.js";
@@ -45,6 +45,10 @@ export function regeneratePlan(projectRoot) {
             lineDiff: next.split("\n").length - current.split("\n").length,
         };
     });
+}
+/** Repeatable `--diff <file>`: opt in to a capped diff for one drifted file at a time. */
+function collectDiffFiles(value, previous) {
+    return [...(previous ?? []), value];
 }
 /** Human wording for `flisk config explain`, one line per drift outcome. */
 const DRIFT_LABELS = {
@@ -322,7 +326,8 @@ export const configCommand = new Command("config")
     .description("Verify that generated files match .flisk/project.json")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Emit a machine-readable verification report")
-    .addHelpText("after", `\nExamples:\n  flisk config verify\n  flisk config verify --json`)
+    .option("--diff <file>", `Include a capped diff for this reported file (repeatable, max ${VERIFY_DIFF_LINE_LIMIT} lines per file)`, collectDiffFiles)
+    .addHelpText("after", `\nExamples:\n  flisk config verify\n  flisk config verify --json\n  flisk config verify --diff Tiltfile --json`)
     .action(async (options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
@@ -338,7 +343,10 @@ export const configCommand = new Command("config")
             ...resources.map((r) => r.configPath),
             ...problems.map((p) => p.path),
         ];
-        const verified = verifyMasterConfigs(projectRoot, { manifestPaths });
+        const verified = verifyMasterConfigs(projectRoot, {
+            manifestPaths,
+            diffFiles: options.diff ?? [],
+        });
         // Warnings only: Postgres 18+ with a volume at the pre-18 path is valid config that will not start, and two
         // routed resources on one port still run (each in its own container) but is usually a copied service.json.
         const duplicatePorts = checkDuplicateResourcePorts(projectRoot, resources);
@@ -379,6 +387,7 @@ export const configCommand = new Command("config")
                 ],
                 warnings: result.warnings,
                 diffs: result.diffs,
+                diffLineLimit: result.diffLineLimit,
                 state: result.state,
                 sharedPlatformPostgres: sharedPostgres,
             })));
@@ -425,13 +434,18 @@ export const configCommand = new Command("config")
             for (const error of result.errors) {
                 console.log(chalk.gray(`   - ${error}`));
             }
-            for (const { diff } of result.diffs)
-                console.log(chalk.gray(`\n${diff}`));
+            for (const { diff } of result.diffs) {
+                if (diff)
+                    console.log(chalk.gray(`\n${diff}`));
+            }
             const schemaErrors = result.errors.filter((error) => error.includes(".schemaVersion:"));
             if (schemaErrors.length > 0) {
                 console.log(chalk.gray("\nRun `flisk config migrate` to fix schemaVersion."));
             }
             if (result.diffs.length > 0) {
+                if (!options.diff?.length) {
+                    console.log(chalk.gray(`\nRun \`flisk config verify --diff <file>\` to see one file's diff (max ${VERIFY_DIFF_LINE_LIMIT} lines).`));
+                }
                 console.log(chalk.gray("\nRun `flisk config regenerate` to fix generated files."));
             }
             process.exit(1);
