@@ -337,6 +337,7 @@ All **read from source, not reproduced**.
 | `Tilt reports N failed resource(s):` | A Tilt resource failed to update | Read the resource's log in the Tilt UI or `flisk logs` | `doctor-runtime.ts` |
 | `Private npm registry (Verdaccio) is not reachable at ...` | Verdaccio is expected by the project but not answering | Start it as the Fix line says. Verdaccio needs a Premium licence ([features](FEATURES.md)) | `doctor-runtime.ts` |
 | `Tilt is not running - skipped resource status check` (a skip, not a failure) | You have not run `flisk up` | `flisk up` | `doctor-runtime.ts` |
+| `a Tilt for <path> is running on <port>; this project is not running` (a skip, not a failure) | Another project's Tilt owns the Tilt UI port this project would use, so its resources are not queried | `flisk up` in this project; `TILT_PORT` guidance applies only to that port | `doctor-runtime.ts` |
 
 ### `container is running, but its health check is failing`, and the probe says `curl: not found`
 

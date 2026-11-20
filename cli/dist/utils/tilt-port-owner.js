@@ -52,6 +52,19 @@ export function isOwnTilt(owner, projectRoot) {
 export function isForeignTilt(owner, projectRoot) {
     return owner !== null && canonical(owner.root) !== canonical(projectRoot);
 }
+/**
+ * The one "which project owns the Tilt on this port" lookup shared by `status` and `doctor`.
+ * Null means this project's Tilt, an unknown owner, or no project to compare against; callers
+ * must not treat it as proof that this project is running.
+ */
+export function findForeignTiltOnPort(port, projectRoot, ownerOf = findTiltPortOwner) {
+    if (!projectRoot)
+        return null;
+    const owner = ownerOf(port);
+    if (!owner || !isForeignTilt(owner, projectRoot))
+        return null;
+    return { port, root: owner.root };
+}
 /** Split the candidate Tilt UI ports that answer into this project's and other projects'. */
 export async function classifyTiltPorts(candidatePorts, projectRoot, isServing, ownerOf = findTiltPortOwner) {
     const result = { running: [], foreign: [] };

@@ -5,6 +5,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 ## Unreleased
 
 - The Claude Code plugin starts its MCP server through a shipped Node launcher instead of a `#!/bin/sh` script, so the plugin works on native Windows and on machines without `/bin/sh` (#4012).
+- `flisk doctor` no longer fails the "Tilt Resources" check with another project's failing resources when that project's Tilt owns the UI port. It skips the check, names the foreign project, and points at `flisk up` for this project; `flisk status` and doctor now share the same Tilt-port ownership lookup (#4016).
 
 ## 1.4.70 (2026-11-20)
 

@@ -649,7 +649,9 @@ export const doctorCommand = new Command("doctor")
         return checkCrashLoopingContainers(getProjectName(), secrets);
       }),
       // When Tilt is up, surface red resources (Traefik/apps never started).
-      requiresContainerRuntime("Tilt Resources", checkTiltResourceHealth),
+      requiresContainerRuntime("Tilt Resources", () =>
+        checkTiltResourceHealth(execSync, { projectRoot }),
+      ),
     ];
 
     const machineChecks = nativeResources

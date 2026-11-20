@@ -25,7 +25,7 @@ import { groupServicesByStack, hasNoOwnProcess, healthCountedResources, unhealth
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
-import { findTiltPortOwner } from "../utils/tilt-port-owner.js";
+import { findForeignTiltOnPort, findTiltPortOwner } from "../utils/tilt-port-owner.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { evaluateTiltReadiness, tiltGetUiResources } from "../utils/up-readiness.js";
 /**
@@ -249,18 +249,17 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         let serviceStates = nativeStates;
         let staleDisabled = [];
         const tiltPort = (projectRoot
-            ? resolveRuntimeTiltPort(projectRoot, { envPort: process.env.TILT_PORT })
+            ? resolveRuntimeTiltPort(projectRoot, {
+                envPort: process.env.TILT_PORT,
+                ownerOf: findTiltPortOwner,
+            })
             : null) ?? getTiltPollingPort(process.env.TILT_PORT);
-        // Detect if another project's Tilt is on this port.
-        let foreignTilt = false;
-        let foreignTiltRoot = null;
-        if (tiltAvailable && projectRoot) {
-            const portOwner = findTiltPortOwner(tiltPort);
-            if (portOwner && portOwner.root !== projectRoot) {
-                foreignTilt = true;
-                foreignTiltRoot = portOwner.root;
-            }
-        }
+        // Detect if another project's Tilt is on this port, with the same helper doctor uses.
+        const foreignTiltOnPort = tiltAvailable
+            ? findForeignTiltOnPort(tiltPort, projectRoot, findTiltPortOwner)
+            : null;
+        let foreignTilt = foreignTiltOnPort !== null;
+        let foreignTiltRoot = foreignTiltOnPort?.root ?? null;
         // Port plan is best effort; service URLs are shown in both JSON and terminal output.
         let portPlan = null;
         try {
