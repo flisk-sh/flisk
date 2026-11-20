@@ -8,7 +8,11 @@ function isKebabCase(value) {
 export const MAX_NAME_LENGTH = 63;
 const KEBAB_RULE = "Use lowercase letters, numbers, and hyphens only";
 function invalidNameMessage(label, value) {
-    const example = label === "Resource name" ? "my-service" : "my-stack";
+    const example = label === "Resource name"
+        ? "my-service"
+        : label === "Stack name"
+            ? "my-stack"
+            : "my-project";
     return `${label} "${value}" is not valid. ${KEBAB_RULE}, e.g. "${example}".`;
 }
 function tooLongMessage(label, value) {
@@ -37,6 +41,37 @@ export function validateStackName(name) {
         return { valid: false, error: tooLongMessage("Stack name", name) };
     }
     return { valid: true };
+}
+export function validateProjectName(name) {
+    if (!name.trim()) {
+        return { valid: false, error: "Project name is required" };
+    }
+    if (!isKebabCase(name)) {
+        return { valid: false, error: invalidNameMessage("Project name", name) };
+    }
+    if (name.length > MAX_NAME_LENGTH) {
+        return { valid: false, error: tooLongMessage("Project name", name) };
+    }
+    return { valid: true };
+}
+/**
+ * Derive a Docker- and npm-compatible project name from a folder name.
+ * Lowercase, spaces and dots become `-`, anything else is stripped.
+ * Falls back to `my-project` when nothing valid remains.
+ */
+export function deriveProjectName(folderName) {
+    let name = folderName
+        .toLowerCase()
+        .replace(/[ .]+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    if (!name)
+        return "my-project";
+    if (name.length > MAX_NAME_LENGTH) {
+        name = name.slice(0, MAX_NAME_LENGTH).replace(/-+$/g, "");
+    }
+    return name || "my-project";
 }
 export function createKebabCaseValidator(context) {
     const validate = context === "resource" ? validateResourceName : validateStackName;

@@ -4,12 +4,14 @@ import { describe, expect, it } from "vitest";
 import { VALID_RESOURCE_TYPES } from "../constants.js";
 import {
   createKebabCaseValidator,
+  deriveProjectName,
   includes,
   isPathSafe,
   isTargetDirSafe,
   isValidPort,
   sanitizeForShell,
   validateOptionalInfraService,
+  validateProjectName,
   validateResourceName,
   validateStackName,
 } from "../validation.js";
@@ -280,6 +282,48 @@ describe("name length (found by FALSIFIER: a 64-character name was scaffolded)",
       expect(result.valid).toBe(false);
       expect(result.error).toContain("64 characters");
     }
+  });
+});
+
+describe("deriveProjectName", () => {
+  it("derives a safe name from spaces, capitals and dots", () => {
+    expect(deriveProjectName("My App.v2")).toBe("my-app-v2");
+  });
+
+  it("keeps already-valid names", () => {
+    expect(deriveProjectName("my-project")).toBe("my-project");
+    expect(deriveProjectName("service123")).toBe("service123");
+  });
+
+  it("falls back to my-project for all-symbols folder names", () => {
+    expect(deriveProjectName("!!!")).toBe("my-project");
+    expect(deriveProjectName("...")).toBe("my-project");
+  });
+
+  it("lowercases capital letters", () => {
+    expect(deriveProjectName("MyProject")).toBe("myproject");
+  });
+
+  it("falls back for empty input", () => {
+    expect(deriveProjectName("")).toBe("my-project");
+    expect(deriveProjectName("   ")).toBe("my-project");
+  });
+});
+
+describe("validateProjectName", () => {
+  it("accepts valid project names", () => {
+    expect(validateProjectName("my-project")).toEqual({ valid: true });
+    expect(validateProjectName("a")).toEqual({ valid: true });
+  });
+
+  it("rejects invalid project names", () => {
+    expect(validateProjectName("My App.v2")).toEqual({
+      valid: false,
+      error:
+        'Project name "My App.v2" is not valid. Use lowercase letters, numbers, and hyphens only, e.g. "my-project".',
+    });
+    expect(validateProjectName("Bad_Name").valid).toBe(false);
+    expect(validateProjectName("").valid).toBe(false);
   });
 });
 

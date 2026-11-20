@@ -21,6 +21,7 @@ import {
   TILTIGNORE_FILE,
 } from "../utils/constants.js";
 import { FliskError } from "../utils/errors.js";
+import { validateProjectName } from "../utils/validation.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
 import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
@@ -652,6 +653,14 @@ function normalizeProjectConfig(value: unknown): NormalizedProjectConfig {
   const project = config.project as Record<string, unknown>;
   if (typeof project.name !== "string") {
     return fail("project.name", "a string", project.name);
+  }
+  const projectNameResult = validateProjectName(project.name);
+  if (!projectNameResult.valid) {
+    return fail(
+      "project.name",
+      "a Docker- and npm-compatible name (lowercase letters, numbers, and hyphens only)",
+      project.name,
+    );
   }
   if (typeof project.version !== "string") {
     return fail("project.version", "a string", project.version);
