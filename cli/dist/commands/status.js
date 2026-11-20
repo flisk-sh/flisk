@@ -17,6 +17,7 @@ import { isNativeRunSupervisorAlive, nativeServiceStates, readNativeRunState, } 
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
+import { readinessFromNativeStates, strictNotReady, } from "../utils/service-readiness.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { sampleServiceUsage, } from "../utils/service-usage.js";
 import { skippedServiceFiles } from "../utils/services.js";
@@ -28,20 +29,8 @@ import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
 import { findTiltPortOwner } from "../utils/tilt-port-owner.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { evaluateTiltReadiness, tiltGetUiResources } from "../utils/up-readiness.js";
-/**
- * The services `--strict` fails on: the failing or still starting ones. Null when nothing of the project is running (no state
- * at all, or every service with a process of its own is unknown), which `--strict` fails on too. A project with no services
- * has nothing to wait for.
- */
-export function strictNotReady(resources, states) {
-    const counted = healthCountedResources(resources, states);
-    if (counted.length === 0)
-        return [];
-    if (!counted.some((resource) => (states?.[resource.name]?.status ?? "unknown") !== "unknown")) {
-        return null;
-    }
-    return unhealthyServiceNames(resources, states);
-}
+/** Kept here for callers that already import the gate from the command; the implementation is shared with `wait`. */
+export { strictNotReady };
 /** `--strict` turns the answer into the exit code (#3826): output is unchanged, one line on stderr says why it is 1. */
 function failStrictStatus(notReady) {
     if (notReady === null) {
@@ -335,19 +324,8 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             const foreignCode = foreignTilt ? "TILT_FOREIGN_PROJECT" : "TILT_STATUS_UNAVAILABLE";
             const errors = queryError ? [{ code: foreignCode, message: queryError }] : [];
             // A native run answers the readiness question agents poll (data.tilt.readiness.ready) from its own run state.
-            if (nativeStates) {
-                const states = Object.entries(nativeStates);
-                const isRunning = states.some(([, state]) => state.status !== "unknown");
-                readiness = isRunning
-                    ? {
-                        ready: states.every(([, state]) => state.status === "ready"),
-                        failures: [],
-                        pending: states.filter(([, state]) => state.status !== "ready").length,
-                        timedOut: false,
-                        enabled: states.map(([name]) => name),
-                    }
-                    : null;
-            }
+            if (nativeStates)
+                readiness = readinessFromNativeStates(nativeStates);
             // Name the follow-up so an agent reads the cause (runtime output, not build steps) instead of guessing.
             const readinessOut = readiness
                 ? {

@@ -44,6 +44,7 @@ import { toolCommand } from "./tool.js";
 import { uiCommand } from "./ui.js";
 import { upCommand } from "./up.js";
 import { upgradeCommand } from "./upgrade.js";
+import { waitCommand } from "./wait.js";
 import { versionCommand } from "./version.js";
 
 /** Every command the CLI registers, in the order `flisk --help` lists them. */
@@ -57,6 +58,7 @@ export function getRegisteredCommands(): readonly Command[] {
     mcpCommand,
     connectCommand,
     logsCommand,
+    waitCommand,
     ejectCommand,
     exportCommand,
     importCommand,

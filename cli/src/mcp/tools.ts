@@ -30,6 +30,7 @@ import {
   redactValue,
 } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
+import { DEFAULT_WAIT_TIMEOUT_SECONDS, parseTimeoutSeconds } from "../utils/up-wait.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
@@ -517,6 +518,21 @@ export function buildStatusArgs(args: Record<string, unknown>): string[] {
   return out;
 }
 
+/** `flisk wait [services...] --timeout=<seconds> --json` for the `wait` tool. */
+export function buildWaitArgs(args: Record<string, unknown>): string[] {
+  const services = names(args.services, "services");
+  const parsed = parseTimeoutSeconds(args.timeoutSeconds, "timeoutSeconds");
+  if (!parsed.ok) throw new FliskError(parsed.message);
+  return ["wait", ...services, `--timeout=${parsed.seconds}`, "--json"];
+}
+
+/** A tool call may wait longer than the usual CLI timeout: give the command its full window plus a little slack. */
+export function waitCliTimeoutMs(args: Record<string, unknown>): number {
+  const parsed = parseTimeoutSeconds(args.timeoutSeconds, "timeoutSeconds");
+  const seconds = parsed.ok ? parsed.seconds : DEFAULT_WAIT_TIMEOUT_SECONDS;
+  return seconds * 1000 + 30_000;
+}
+
 export function buildLogsArgs(args: Record<string, unknown>): string[] {
   const out = ["logs", "--json"];
   if (flag(args.unhealthy, "unhealthy")) out.push("--unhealthy");
@@ -754,6 +770,7 @@ const WRITES_LOCALLY: McpToolAnnotations = {
 const TOOL_ANNOTATIONS: Record<string, McpToolAnnotations> = {
   doctor: READ_ONLY,
   status: READ_ONLY,
+  wait: READ_ONLY,
   logs: READ_ONLY,
   resource_list: READ_ONLY,
   agent_list: READ_ONLY,
@@ -943,6 +960,26 @@ export function createFliskTools(
         const result = await viaCli(buildStatusArgs)(args);
         return flag(args.unhealthy, "unhealthy") ? trimStatusToUnhealthy(result) : result;
       },
+    },
+    {
+      name: "wait",
+      description:
+        "Block until the named services (or every service when services is omitted) are healthy, using the same readiness rule as `up --wait` and `status`. Read-only: it changes no files and starts nothing. Returns one envelope with each service's state; a failure names the service and carries its last log lines. Optionally select the project with projectPath.",
+      inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
+        services: {
+          type: "array",
+          items: { type: "string" },
+          description: "Only wait for these services; omit to wait for every service",
+        },
+        timeoutSeconds: {
+          type: "integer",
+          minimum: 1,
+          maximum: 21600,
+          description: "How long to wait before giving up (default 1800, at most 21600)",
+        },
+      }),
+      handler: async (args) => viaCli(buildWaitArgs, { timeoutMs: waitCliTimeoutMs(args) })(args),
     },
     {
       name: "logs",

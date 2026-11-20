@@ -133,18 +133,22 @@ export function detachedUpArgs(argv) {
         out.push("--json");
     return out;
 }
-/** Parses `--wait-timeout`: a whole number of seconds from 1 to 21600 (6 hours), or the default when omitted. */
-export function parseWaitTimeout(value) {
+/** Parses a wait timeout: a whole number of seconds from 1 to 21600 (6 hours), or the default when omitted. */
+export function parseTimeoutSeconds(value, flag) {
     if (value === undefined)
         return { ok: true, seconds: DEFAULT_WAIT_TIMEOUT_SECONDS };
     const seconds = typeof value === "number" ? value : Number(String(value));
     if (!Number.isInteger(seconds) || seconds < 1 || seconds > 21_600) {
         return {
             ok: false,
-            message: "--wait-timeout must be a whole number of seconds from 1 to 21600",
+            message: `${flag} must be a whole number of seconds from 1 to 21600`,
         };
     }
     return { ok: true, seconds };
+}
+/** Parses `--wait-timeout` with the same rule every other wait timeout uses. */
+export function parseWaitTimeout(value) {
+    return parseTimeoutSeconds(value, "--wait-timeout");
 }
 /**
  * The last LOG_TAIL_CHARS of a log, masked before it is cut: cutting first could keep the end of a secret without its start,
