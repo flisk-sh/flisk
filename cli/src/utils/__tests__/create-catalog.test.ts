@@ -15,6 +15,7 @@ import {
   backendCatalog,
   extraCatalog,
   frontendCatalog,
+  localBackendInstall,
   localRequirements,
   plainStarterText,
   starterCatalog,
@@ -174,5 +175,27 @@ describe("plainStarterText", () => {
       title: "demo",
       hint: "A demo with no lead",
     });
+  });
+});
+
+describe("localBackendInstall", () => {
+  it("installs a package.json language and the shared scaffold with npm", () => {
+    // The node provider owns a package.json; the bun provider uses the shared scaffold, which starts through `npm run dev`.
+    expect(localBackendInstall("node")).toBe("npm install");
+    expect(localBackendInstall("bun")).toBe("npm install");
+  });
+
+  it("installs any other language with its own hint, without the optional note", () => {
+    for (const [id, provider] of Object.entries(BACKEND_LANGUAGES)) {
+      if (id === "node" || id === "bun") continue;
+      const own = provider.createFiles?.("app").some((file) => file.filename === "package.json");
+      if (own || !provider.devCommand) continue;
+      expect(localBackendInstall(id)).toBe(provider.installHint.split("#")[0]?.trim());
+      expect(localBackendInstall(id)).not.toContain("#");
+    }
+  });
+
+  it("answers nothing for an unknown language", () => {
+    expect(localBackendInstall("not-a-language")).toBeUndefined();
   });
 });

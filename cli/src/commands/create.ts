@@ -38,6 +38,7 @@ import {
   extraCatalog,
   frontendCatalog,
   type LanguageOption,
+  localBackendInstall,
   starterCatalog,
 } from "../utils/create-catalog.js";
 import {
@@ -823,6 +824,28 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
     for (const step of steps) {
       const where = step.inProject ? chalk.gray(`(in ./${answers.name})`) : "";
       console.log(`${renderStep(step)} ${where}`.trimEnd());
+    }
+    if (options.start && !answers.starter) {
+      console.log("\nAfter scaffolding:");
+      if (answers.runtime === "local") {
+        const installs: Array<{ dir: string; command: string }> = [];
+        if (answers.frontend) installs.push({ dir: LOCAL_FRONTEND_DIR, command: "npm install" });
+        if (answers.backend) {
+          const command = localBackendInstall(answers.backend.language);
+          if (command) installs.push({ dir: LOCAL_BACKEND_DIR, command });
+        }
+        for (const { dir, command } of installs) {
+          const program = splitCommand(command)[0];
+          const missing = program && !findOnPath(program) ? ` (missing: ${program})` : "";
+          console.log(`(cd ./${answers.name}/${dir} && ${command})${missing}`);
+        }
+        console.log(`(cd ./${answers.name} && flisk up)`);
+      } else {
+        console.log("Install dependencies for generated services with package.json.");
+        console.log(`(cd ./${answers.name} && flisk up app)`);
+      }
+    } else if (options.start && answers.starter) {
+      console.log("This starter does not start automatically. Follow its README after creation.");
     }
     console.log(chalk.gray("\nDry run: nothing was written."));
     return;

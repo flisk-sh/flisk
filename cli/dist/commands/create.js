@@ -16,7 +16,7 @@ import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languag
 import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../utils/arrow-prompt.js";
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
-import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
+import { backendCatalog, extraCatalog, frontendCatalog, localBackendInstall, starterCatalog, } from "../utils/create-catalog.js";
 import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, projectNameError, starterInfo, toProjectName, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
@@ -657,6 +657,32 @@ async function runCreate(nameArg, options) {
         for (const step of steps) {
             const where = step.inProject ? chalk.gray(`(in ./${answers.name})`) : "";
             console.log(`${renderStep(step)} ${where}`.trimEnd());
+        }
+        if (options.start && !answers.starter) {
+            console.log("\nAfter scaffolding:");
+            if (answers.runtime === "local") {
+                const installs = [];
+                if (answers.frontend)
+                    installs.push({ dir: LOCAL_FRONTEND_DIR, command: "npm install" });
+                if (answers.backend) {
+                    const command = localBackendInstall(answers.backend.language);
+                    if (command)
+                        installs.push({ dir: LOCAL_BACKEND_DIR, command });
+                }
+                for (const { dir, command } of installs) {
+                    const program = splitCommand(command)[0];
+                    const missing = program && !findOnPath(program) ? ` (missing: ${program})` : "";
+                    console.log(`(cd ./${answers.name}/${dir} && ${command})${missing}`);
+                }
+                console.log(`(cd ./${answers.name} && flisk up)`);
+            }
+            else {
+                console.log("Install dependencies for generated services with package.json.");
+                console.log(`(cd ./${answers.name} && flisk up app)`);
+            }
+        }
+        else if (options.start && answers.starter) {
+            console.log("This starter does not start automatically. Follow its README after creation.");
         }
         console.log(chalk.gray("\nDry run: nothing was written."));
         return;
