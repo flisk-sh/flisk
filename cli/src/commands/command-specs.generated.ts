@@ -2221,7 +2221,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   {
     name: "repos",
     path: ["repos"],
-    description: "Clone the Git repositories listed in .flisk/project.json",
+    description: "List or clone the Git repositories configured in .flisk/project.json",
     aliases: [],
     hidden: false,
     hasAction: false,
@@ -2233,6 +2233,27 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [],
     helpTexts: {},
     subcommands: [
+      {
+        name: "list",
+        path: ["repos", "list"],
+        description: "List configured repositories without cloning",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+          {
+            flags: "--json",
+            description: "Print one JSON report",
+          },
+        ],
+        arguments: [],
+        helpTexts: {},
+        subcommands: [],
+      },
       {
         name: "clone",
         path: ["repos", "clone"],

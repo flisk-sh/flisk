@@ -229,6 +229,12 @@ Clones the missing service repositories configured in `.flisk/project.json`. Eac
 
 See [layout](layout.md) for the `repos` array.
 
+### `flisk repos list [--json]`
+
+List the repositories configured in `.flisk/project.json` and whether each
+destination already contains a Git checkout. The list does not clone anything.
+Run `flisk repos clone` to fetch any missing repositories.
+
 For optional infrastructure toggles, add `--dry-run` to preview the change without
 writing `.flisk/project.json`. Add `--json` for the machine-readable plan.
 
