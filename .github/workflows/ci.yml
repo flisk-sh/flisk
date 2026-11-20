@@ -260,8 +260,14 @@ jobs:
         env:
           SELECT_DIR: ${{ runner.temp }}/unit-select
         run: |
-          mapfile -t related < "$SELECT_DIR/related.txt"
-          mapfile -t spawning < "$SELECT_DIR/spawn.txt"
+          related=()
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then related+=("$line"); fi
+          done < "$SELECT_DIR/related.txt"
+          spawning=()
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then spawning+=("$line"); fi
+          done < "$SELECT_DIR/spawn.txt"
           status=0
           # The tests that import a changed file, then the tests that start the built CLI (they run cli/dist as a child process,
           # which the import graph cannot see).
@@ -323,8 +329,14 @@ jobs:
           SELECT_DIR: ${{ runner.temp }}/unit-select
           FLISK_REQUIRE_TILT: '1'
         run: |
-          mapfile -t related < "$SELECT_DIR/related.txt"
-          mapfile -t spawning < "$SELECT_DIR/spawn.txt"
+          related=()
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then related+=("$line"); fi
+          done < "$SELECT_DIR/related.txt"
+          spawning=()
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then spawning+=("$line"); fi
+          done < "$SELECT_DIR/spawn.txt"
           status=0
           # The tests that import a changed file, then the tests that start the built CLI (they run cli/dist as a child process,
           # which the import graph cannot see).
