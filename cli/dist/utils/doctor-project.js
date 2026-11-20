@@ -8,6 +8,7 @@ import { checkDockerBuildCache } from "./docker-build-cache.js";
 import { checkDockerFileSharing } from "./docker-file-sharing.js";
 import { checkStarlarkLoadExports } from "./doctor-starlark.js";
 import { formatCount } from "./formatting.js";
+import { declaresCommand } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { checkPublicEnvSecrets } from "./public-env-secrets.js";
 import { discoverResourcesFromRoot } from "./services.js";
@@ -154,11 +155,37 @@ export function checkGeneratedProjectRuntimeAssets() {
         fix: "Run `flisk project --yes` (or `flisk config regenerate`) with an updated Flisk. `flisk up` also refreshes these assets before starting Tilt.",
     };
 }
+/**
+ * True when the service declares its own Dockerfile, at the top level or in the
+ * `build.dockerfile` spelling. That file owns the image build, so Flisk's
+ * generated build steps and the scripts they call do not apply.
+ */
+function declaresOwnDockerfile(config) {
+    if (!config || typeof config !== "object")
+        return false;
+    const record = config;
+    if (typeof record.dockerfile === "string" && record.dockerfile.trim() !== "")
+        return true;
+    const build = record.build;
+    if (!build || typeof build !== "object")
+        return false;
+    const dockerfile = build.dockerfile;
+    return typeof dockerfile === "string" && dockerfile.trim() !== "";
+}
 export function checkStartupScripts() {
     const projectRoot = findProjectRoot() ?? process.cwd();
     const resources = discoverResourcesFromRoot(projectRoot);
     const problems = [];
     for (const resource of resources) {
+        // A native service runs the `command` from its service.json as a local
+        // process, and a service with its own Dockerfile builds its image itself.
+        // Neither path calls a package.json script, so there is nothing to require.
+        if (declaresCommand(resource.config)) {
+            continue;
+        }
+        if (declaresOwnDockerfile(resource.config)) {
+            continue;
+        }
         const packageJsonPath = join(resource.path, PACKAGE_JSON);
         if (!existsSync(packageJsonPath)) {
             continue;

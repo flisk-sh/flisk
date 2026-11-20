@@ -103,6 +103,12 @@ export const RESOURCE_CREATE_TYPE_VALUES = [
     MAIL_RESOURCE_TYPE,
     PAYMENT_RESOURCE_TYPE,
 ];
+/** True when `flisk resource --type <type>` accepts the value, including the `sdk` and `byo` aliases. */
+export function isResourceCreateType(type) {
+    return (RESOURCE_CREATE_TYPE_VALUES.includes(type) ||
+        type === "sdk" ||
+        type === "byo");
+}
 export function isCreatableResourceType(value) {
     return (typeof value === "string" && CREATABLE_RESOURCE_TYPES.includes(value));
 }

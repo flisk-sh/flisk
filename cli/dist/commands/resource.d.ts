@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate } from "../backend-languages/bun.js";
 import type { FrontendFrameworkFile } from "../frontend-frameworks/types.js";
 import type { AgentConfig, CreatableResourceType, InfraFramework, InfraResourceType, PortAssignableResourceType } from "../types/index.js";
+import { FliskError } from "../utils/errors.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 export declare const BASE_TEMPLATE: {
     readonly port: 0;
@@ -234,7 +235,7 @@ export declare function infraFrameworkListing(type: InfraResourceType): {
 export declare function frameworkInventoryReport(options: {
     type?: string;
     language?: string;
-}, isTypeExplicit: boolean): Record<string, unknown>;
+}): Record<string, unknown>;
 /**
  * What `flisk resource <name> --json` reports. `action` is `registered` for a directory that already had a
  * service.json. `port` is null for an SDK. `discovered` is whether discovery.paths covers `path`, so `flisk up` starts it.
@@ -249,5 +250,12 @@ export interface ResourceReport {
     framework: string | null;
     language: string | null;
     discovered: boolean;
+    /** Non-fatal notes, such as a stack name that looks like a typo of an existing one (#4378). */
+    warnings?: string[];
 }
+/**
+ * Turns a prompt that could not read input into an error that names the flags which avoid the
+ * stack prompt. The suggestions travel with both the printed error and the `--json` envelope.
+ */
+export declare function resourceNoInputError(cause: unknown): FliskError;
 export declare const resourceCommand: Command;

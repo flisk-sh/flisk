@@ -11,6 +11,8 @@ export declare function frontendCatalog(): CatalogOption[];
 export interface LanguageOption extends CatalogOption {
     /** The backend frameworks this language can be combined with; empty when the language owns its runtime. */
     frameworks: CatalogOption[];
+    /** The frameworks this language is usually served with, for a `--backend` hint (`fastapi` for Python). */
+    serverFrameworks: string[];
 }
 /** The backend languages, each with the frameworks it can be combined with, the registry's default first. */
 export declare function backendCatalog(): LanguageOption[];

@@ -4,14 +4,17 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { projectNeedsContainerFiles } from "../generator/template-engine.js";
 import { addYesOption, attachNoPositionalHint } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
+import { findRunningFliskProjects } from "../utils/down-cleanup.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { formatCount } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { promptConfirm } from "../utils/prompt.js";
+import { discoverResourcesFromRoot } from "../utils/services.js";
 import {
   findStaleProjects,
   pruneStaleProjects,
@@ -194,13 +197,35 @@ export const projectsCommand = attachNoPositionalHint(addYesOption(new Command("
         return;
       }
 
-      const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+      const root = findProjectRoot();
+      if (!root && !options.check) {
+        const projects = findRunningFliskProjects().map((path) => {
+          const stacks = new Set(
+            discoverResourcesFromRoot(path)
+              .map((resource) => resource.stack)
+              .filter(Boolean),
+          );
+          return { path, stackCount: stacks.size, state: "running" as const };
+        });
+        if (options.json) console.log(JSON.stringify(createMachineEnvelope({ projects })));
+        else if (!projects.length) console.log("No Flisk projects are running.");
+        else
+          for (const project of projects)
+            console.log(`${project.path}\t${project.stackCount} stacks\t${project.state}`);
+        return;
+      }
+      const projectRoot = root ?? (options.json ? undefined : requireProjectRoot());
       if (!projectRoot) {
         throw errorFactories.notInProject();
       }
 
       const outDir = join(projectRoot, ".flisk", ".flisk-out");
-      const missing = MASTER_CONFIG_FILES.filter((file) => !existsSync(join(outDir, file)));
+      // A local-process project never gets the Tilt master configs (#4434): `flisk up` runs its services on the
+      // host, so asking for them would report a project as unconfigured over files it must never have.
+      const needsMasterConfigs = projectNeedsContainerFiles(projectRoot);
+      const missing = needsMasterConfigs
+        ? MASTER_CONFIG_FILES.filter((file) => !existsSync(join(outDir, file)))
+        : [];
 
       if (options.json) {
         const discovery = createDiscoveryContext();
@@ -233,11 +258,12 @@ export const projectsCommand = attachNoPositionalHint(addYesOption(new Command("
       console.log();
 
       console.log(chalk.bold("Master Configuration:"));
-      if (missing.length === 0) {
-        for (const file of MASTER_CONFIG_FILES) {
-          console.log(chalk.green(`  ✓ ${file}`));
-        }
+      if (!needsMasterConfigs) {
+        console.log(
+          chalk.gray("  Not used: this project runs its services as local processes (no Tilt)"),
+        );
       } else {
+        // One source of truth for the check mark: the file is on disk.
         for (const file of MASTER_CONFIG_FILES) {
           const exists = !missing.includes(file);
           if (exists) {

@@ -82,6 +82,7 @@ function nativeResources(projectRoot) {
 export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .description("Print a bounded snapshot of recent logs from the running stack")
     .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
+    .option("-f, --follow", "Live follow is unavailable; use flisk ui or repeat with --since")
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
     .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
@@ -111,6 +112,9 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         }
         return showErrorAndExit(message, exitCode);
     };
+    if (options.follow) {
+        fail("FOLLOW_NOT_SUPPORTED", "flisk logs prints a snapshot; live follow is not supported. Use flisk ui or repeat with --since 10s.");
+    }
     if (!isValidTail(options.tail))
         fail("USAGE", `--tail must be an integer from 1 to ${MAX_LOG_TAIL}`, 2);
     if (options.since !== undefined && !isValidSince(options.since)) {
@@ -165,9 +169,15 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 const error = errorFactories.unknownServices(unknown, known);
                 fail("UNKNOWN_SERVICE", error.message, error.exitCode, error.suggestions);
             }
+            // A local-process project has no Tilt to reach, so an idle run is not a "Tilt not running" error.
+            // Report the actual state instead, with a runtime-neutral code and command to start the stack.
+            const states = nativeServiceStates(projectRoot, known);
+            const reported = states ? Object.values(states) : [];
+            if (reported.length > 0 && reported.every((state) => state.status === "unknown")) {
+                fail("SERVICES_NOT_RUNNING", "No services of this project are running. Start them with: flisk up");
+            }
             let selected = services.length > 0 ? services : known;
             if (options.unhealthy) {
-                const states = nativeServiceStates(projectRoot, known);
                 const bad = new Set(unhealthyServiceNames(resources, states));
                 selected = selected.filter((name) => bad.has(name));
                 if (selected.length === 0)

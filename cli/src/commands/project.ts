@@ -140,6 +140,9 @@ export const ACTION_WORD_HINTS: Readonly<Record<string, string>> = {
   validate: "flisk project --check",
   check: "flisk project --check",
   verify: "flisk project --check",
+  info: "flisk info",
+  list: "flisk resources",
+  status: "flisk status",
 };
 
 /** Looks up an action word's hint; own keys only, so `constructor` and `__proto__` never match. */
@@ -561,8 +564,8 @@ export function writeDefaultProjectConfig(projectRoot: string): void {
 }
 
 /**
- * Prints the template catalog: with `json`, one stable JSON array on stdout (the same rows as the `project_templates`
- * MCP tool); otherwise one block per template for a person to read.
+ * Prints the template catalog: with `json`, the usual envelope with the templates in `data.templates` (the same rows
+ * as the `project_templates` MCP tool); otherwise one block per template for a person to read.
  */
 export function printTemplateCatalog(json: boolean): void {
   const templates = listProjectTemplates();
@@ -599,7 +602,7 @@ export const projectCommand = addYesOption(new Command("project"))
   )
   .option(
     "--list",
-    "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array",
+    "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
     false,
   )
   .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)

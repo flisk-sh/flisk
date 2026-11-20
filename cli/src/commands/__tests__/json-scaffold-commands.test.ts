@@ -107,8 +107,8 @@ describe("flisk eject --json", () => {
     expect(envelope.errors).toEqual([
       expect.objectContaining({
         code: "COMMAND_FAILED",
-        message: expect.stringContaining("Generated Tilt files are missing"),
-        suggestions: expect.arrayContaining(["flisk project --yes"]),
+        message: expect.stringContaining("Generated Tilt files are not created yet"),
+        suggestions: expect.arrayContaining(["flisk config regenerate"]),
       }),
     ]);
   }, 120_000);
@@ -226,7 +226,9 @@ describe("flisk resource --json", () => {
 
   it("prints the framework inventory with --frameworks", () => {
     const root = createTempDir();
-    const frontend = parseEnvelope(json(["resource", "--frameworks"], root).stdout).data;
+    const frontend = parseEnvelope(
+      json(["resource", "--type", "frontend", "--frameworks"], root).stdout,
+    ).data;
     expect(frontend.type).toBe("frontend");
     expect(frontend.frameworks).toContainEqual(expect.objectContaining({ id: "react" }));
     const backend = parseEnvelope(

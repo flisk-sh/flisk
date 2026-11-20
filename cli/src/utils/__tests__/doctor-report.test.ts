@@ -17,7 +17,12 @@ describe("doctor report contract", () => {
     const report = createDoctorReport(checks, true);
     expect(report).toEqual({
       schemaVersion: 1,
-      data: { ready: true, inProject: true, checks },
+      data: {
+        ready: true,
+        inProject: true,
+        checks: checks.map((check) => ({ durationMs: 0, ...check })),
+        warnings: ["Move from /mnt/c"],
+      },
       errors: [],
     });
     expect(getDoctorExitCode(report)).toBe(0);
