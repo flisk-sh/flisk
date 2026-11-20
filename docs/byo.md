@@ -468,7 +468,7 @@ routed through Traefik.
 | `storage` | `minio` | `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` | 9000 | `/data` | `MINIO_ENDPOINT`, `AWS_ENDPOINT_URL_S3` (`http://<name>:9000`), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
 | `database` | `mlflow` | `ghcr.io/mlflow/mlflow:v3.17.2` | 5000 | `/data` | `MLFLOW_TRACKING_URI=http://<name>:5000` |
 | `database` | `mysql` | `mysql:8.4` | 3306 | `/var/lib/mysql` | `MYSQL_URL=mysql://root:flisk@<name>:3306/app` |
-| `database` | `mongodb` | `mongo:8.0` | 27017 | `/data/db` | `MONGODB_URL=mongodb://<name>:27017` |
+| `database` | `mongodb` | `mongo:8.0.38` | 27017 | `/data/db` | `MONGODB_URL=mongodb://<name>:27017` |
 | `database` | `clickhouse` | `clickhouse/clickhouse-server:25.8-alpine` | 8123 | `/var/lib/clickhouse` | `CLICKHOUSE_URL=http://<name>:8123`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DB` |
 | `queue` | `nats` (default) | `nats:2.11.8-alpine` | 4222 | `/data` | `NATS_URL=nats://<name>:4222` |
 | `queue` | `rabbitmq` | `rabbitmq:4.4-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
