@@ -14,10 +14,7 @@ import {
   runCommandInProcess,
   runFlisk,
 } from "../../test-support/index.js";
-import {
-  JSON_OPTION_DESCRIPTION,
-  YES_OPTION_DESCRIPTION,
-} from "../../utils/command-helpers.js";
+import { JSON_OPTION_DESCRIPTION, YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
 import { agentCommand } from "../agent.js";
 import { configCommand } from "../config.js";
 import { connectCommand } from "../connect.js";
