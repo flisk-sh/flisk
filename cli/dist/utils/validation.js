@@ -4,6 +4,8 @@ export const KEBAB_CASE_REGEX = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 function isKebabCase(value) {
     return KEBAB_CASE_REGEX.test(value);
 }
+// Names Windows keeps for devices: a folder called con or com1 cannot be created there.
+export const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 // A resource or stack name becomes a container hostname, and a DNS label is at most 63 characters.
 export const MAX_NAME_LENGTH = 63;
 const KEBAB_RULE = "Use lowercase letters, numbers, and hyphens only";
@@ -14,12 +16,18 @@ function invalidNameMessage(label, value) {
 function tooLongMessage(label, value) {
     return `${label} "${value.slice(0, 20)}..." is ${value.length} characters; the limit is ${MAX_NAME_LENGTH} (it becomes a container hostname).`;
 }
+function windowsReservedMessage(label, value) {
+    return `${label} "${value}" is not valid: Windows reserves it for a device (con, prn, aux, nul, com1-com9, lpt1-lpt9), so the folder cannot exist there. Pick another name, e.g. "console".`;
+}
 export function validateResourceName(name) {
     if (!name.trim()) {
         return { valid: false, error: "Resource name is required" };
     }
     if (!isKebabCase(name)) {
         return { valid: false, error: invalidNameMessage("Resource name", name) };
+    }
+    if (WINDOWS_RESERVED.test(name)) {
+        return { valid: false, error: windowsReservedMessage("Resource name", name) };
     }
     if (name.length > MAX_NAME_LENGTH) {
         return { valid: false, error: tooLongMessage("Resource name", name) };
@@ -32,6 +40,9 @@ export function validateStackName(name) {
     }
     if (!isKebabCase(name)) {
         return { valid: false, error: invalidNameMessage("Stack name", name) };
+    }
+    if (WINDOWS_RESERVED.test(name)) {
+        return { valid: false, error: windowsReservedMessage("Stack name", name) };
     }
     if (name.length > MAX_NAME_LENGTH) {
         return { valid: false, error: tooLongMessage("Stack name", name) };

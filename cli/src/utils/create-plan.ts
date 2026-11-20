@@ -14,6 +14,7 @@
 import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
 import { DATABASE_FRAMEWORK, DATABASE_RESOURCE_TYPE } from "../types/index.js";
 import { extraCatalog, localRequirements, starterCatalog } from "./create-catalog.js";
+import { WINDOWS_RESERVED } from "./validation.js";
 
 export type CreateRuntime = "local" | "docker";
 export const CREATE_RUNTIMES: readonly CreateRuntime[] = ["local", "docker"];
@@ -58,9 +59,6 @@ export const LOCAL_BACKEND_DIR = "api";
 const POSTGRES_EXTRA = `${DATABASE_RESOURCE_TYPE}:${DATABASE_FRAMEWORK}`;
 
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-
-/** Names Windows keeps for devices: a folder called con or com1 cannot be created there. */
-const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 
 /** Returns true when `name` is a usable project folder name. */
 export function isValidProjectName(name: string): boolean {

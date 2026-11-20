@@ -47,6 +47,36 @@ describe("validateResourceName", () => {
   });
 });
 
+describe("Windows reserved device names", () => {
+  const reserved = [
+    "con",
+    "prn",
+    "aux",
+    "nul",
+    ...Array.from({ length: 9 }, (_, i) => `com${i + 1}`),
+    ...Array.from({ length: 9 }, (_, i) => `lpt${i + 1}`),
+  ];
+
+  it.each(reserved)("rejects %s as a resource name", (name) => {
+    expect(validateResourceName(name)).toEqual({
+      valid: false,
+      error: `Resource name "${name}" is not valid: Windows reserves it for a device (con, prn, aux, nul, com1-com9, lpt1-lpt9), so the folder cannot exist there. Pick another name, e.g. "console".`,
+    });
+  });
+
+  it.each(reserved)("rejects %s as a stack name", (name) => {
+    const result = validateStackName(name);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("Windows reserves it for a device");
+    expect(result.error).toContain(name);
+  });
+
+  it.each(["console", "nulls", "connect"])("still accepts %s", (name) => {
+    expect(validateResourceName(name)).toEqual({ valid: true });
+    expect(validateStackName(name)).toEqual({ valid: true });
+  });
+});
+
 describe("createKebabCaseValidator", () => {
   it("should return true for valid resource names", () => {
     const validator = createKebabCaseValidator("resource");
