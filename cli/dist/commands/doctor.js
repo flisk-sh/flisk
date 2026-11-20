@@ -25,7 +25,7 @@ import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTil
 import { checkAdvertisedEndpoints, checkContainerResourceHealth, checkContainerResourceHealthFor, checkServiceHealth, checkServiceSmoke, DEFAULT_PING_TIMEOUT_MS, } from "../utils/doctor-services.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkBun, checkDockerVersions, checkTilt } from "../utils/doctor-tools.js";
-import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkInfraFrameworks, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
+import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkInfraFrameworks, checkLiteralPorts, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
 import { execAsync } from "../utils/exec-async.js";
 import { cacheExecAsync, createAsyncCommandCache, createHostCommandCache, } from "../utils/host-command-cache.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
@@ -352,6 +352,7 @@ export const doctorCommand = new Command("doctor")
     const schemaAndPortChecks = [
         () => checkSchemaVersions(undefined, options.strict),
         () => checkDuplicateResourcePorts(),
+        () => checkLiteralPorts(checkDir, nativeResources ?? undefined),
     ];
     const envHygieneChecks = [
         () => checkPublicEnvSecrets(checkDir, options.strict),
