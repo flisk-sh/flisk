@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
 import { type SelectedEnvFile } from "../utils/env-selection.js";
-import { type JsonEmitter } from "../utils/json-output.js";
+import { type JsonEmitter, type JsonError } from "../utils/json-output.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
 import { type FastNoopFlags, tryFastNoop } from "../utils/up-fast-noop.js";
 import { checkPrintedUrls, type UrlCheck } from "../utils/url-check.js";
@@ -66,6 +66,18 @@ export declare function waitForTiltUi(port: number, timeoutMs?: number): Promise
  * @throws FliskError when the file cannot be used; the run stops before it starts
  */
 export declare function selectRunEnvFile(projectRoot: string | null, requested: string | undefined): SelectedEnvFile | undefined;
+/**
+ * Shared error builder for `up --json` (#4522).
+ * Ensures `suggestions` is always a present string[] array.
+ */
+export declare function upError(code: string, message: string, suggestions?: readonly string[]): JsonError;
+/**
+ * Ensures UNKNOWN_SERVICE carries helpful suggestions: closest matches when available,
+ * otherwise the list of valid service names (#4522).
+ */
+export declare function unknownServiceSuggestions(unknown: readonly string[], validNames: readonly string[], closestSuggestions?: readonly string[]): string[];
+/** Converts any thrown or returned error to an up MachineError with suggestions array (#4522). */
+export declare function toUpError(error: unknown): JsonError;
 /** A selection `flisk up` runs as local processes. */
 export interface NativeUpSelection {
     projectRoot: string;

@@ -18,7 +18,7 @@ import { enforceBuildCacheCeiling } from "../utils/docker-build-cache.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
 import { applyEnvFileSelection, assertEngineSupportsEnvFile, EnvFileError, envFileWarning, PROJECT_ENV_FILE_VAR, selectEnvFile, } from "../utils/env-selection.js";
 import { completeEnvFile } from "../utils/env-validator.js";
-import { errorFactories, FliskError, getErrorMessage, requireProjectBeforeDocker, requireProjectRoot, runCommand, showError, showErrorAndExit, withTiltCheck, } from "../utils/errors.js";
+import { errorFactories, FliskError, getErrorMessage, requireProjectBeforeDocker, requireProjectRoot, runCommand, showError, showErrorAndExit, UnknownResourceError, withTiltCheck, } from "../utils/errors.js";
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { formatCount } from "../utils/formatting.js";
@@ -28,7 +28,6 @@ import { exportHostPortPlan, getHostPortPlan, readSavedTiltPort, writeSavedHostP
 import { formatHostPortPlan, isHostPortAvailable } from "../utils/host-port-plan.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
-import { toMachineError } from "../utils/machine-output.js";
 import { collectRequiredModels, runModelPreflight } from "../utils/model-preflight.js";
 import { findFreePort } from "../utils/native-demo.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
@@ -52,6 +51,7 @@ import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks,
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, explainFailures, formatStartupReport, isStartupStalled, machineProblemFixes, withLoggedReasons, } from "../utils/startup-report.js";
+import { rankByDistance } from "../utils/suggestions.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 import { findProjectTiltPorts, findTiltPortOwner, stopOwnedTiltOnPort, } from "../utils/tilt-port-owner.js";
@@ -244,15 +244,52 @@ export function selectRunEnvFile(projectRoot, requested) {
     assertEngineSupportsEnvFile(projectRoot);
     return selection;
 }
+/**
+ * Shared error builder for `up --json` (#4522).
+ * Ensures `suggestions` is always a present string[] array.
+ */
+export function upError(code, message, suggestions = []) {
+    return {
+        code,
+        message,
+        suggestions: [...suggestions],
+    };
+}
+/**
+ * Ensures UNKNOWN_SERVICE carries helpful suggestions: closest matches when available,
+ * otherwise the list of valid service names (#4522).
+ */
+export function unknownServiceSuggestions(unknown, validNames, closestSuggestions = []) {
+    if (closestSuggestions.length > 0) {
+        return [...closestSuggestions];
+    }
+    const ordered = unknown.length === 1 && unknown[0] !== undefined
+        ? rankByDistance(unknown[0], validNames)
+        : [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    if (ordered.length > 0) {
+        return ordered;
+    }
+    return ["Run `flisk resources` to see available services"];
+}
+/** Converts any thrown or returned error to an up MachineError with suggestions array (#4522). */
+export function toUpError(error) {
+    if (error instanceof FliskError) {
+        return upError(error instanceof UnknownResourceError ? error.code : "COMMAND_FAILED", error.message, error.suggestions);
+    }
+    if (typeof error === "object" && error !== null) {
+        const err = error;
+        const code = typeof err.code === "string" ? err.code : "INTERNAL";
+        const message = typeof err.message === "string" ? err.message : String(error);
+        const suggestions = Array.isArray(err.suggestions) ? err.suggestions : [];
+        return upError(code, message, suggestions);
+    }
+    return upError("INTERNAL", error instanceof Error ? error.message : String(error), []);
+}
 /** The machine-readable failure of a refused `--env-file`, and the exit code it stops the run with. */
 function envFileFailure(error) {
     const suggestions = error instanceof FliskError ? error.suggestions : [];
     return {
-        failure: {
-            code: error instanceof EnvFileError ? error.code : "ENV_FILE_INVALID",
-            message: getErrorMessage(error),
-            ...(suggestions.length > 0 ? { suggestions } : {}),
-        },
+        failure: upError(error instanceof EnvFileError ? error.code : "ENV_FILE_INVALID", getErrorMessage(error), suggestions),
         exitCode: error instanceof FliskError ? error.exitCode : 2,
     };
 }
@@ -299,8 +336,10 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
     if (only) {
         const unknown = findUnknownServices(only, requested);
         if (unknown.length > 0) {
-            const error = errorFactories.unknownServices(unknown, requested.map((service) => service.name));
-            fail("UNKNOWN_SERVICE", error.message, error.suggestions, error.exitCode);
+            const validNames = requested.map((service) => service.name);
+            const error = errorFactories.unknownServices(unknown, validNames);
+            const suggestions = unknownServiceSuggestions(unknown, validNames, error.suggestions);
+            fail("UNKNOWN_SERVICE", error.message, suggestions, error.exitCode);
         }
     }
     // A process cannot start before what it depends on, so a stack or --only selection always brings its dependsOn closure.
@@ -420,13 +459,15 @@ async function tryFastNoopUp(options, stackName, configuredTiltPort, emit, befor
  * when the stack is healthy instead of an attached command that never returns.
  */
 async function runUpWait(options) {
-    const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up --wait") : undefined;
+    const baseEmit = options.json ? createJsonEmitter("UP_FAILED", "flisk up --wait") : undefined;
+    const emit = baseEmit
+        ? (data, errors = []) => baseEmit(data, errors.map((err) => upError(err.code, err.message, err.suggestions)))
+        : undefined;
     const timeout = parseWaitTimeout(options.waitTimeout);
     if (!timeout.ok) {
-        emit?.({ ok: false }, [
-            { code: "INVALID_WAIT_TIMEOUT", message: timeout.message, suggestions: [] },
-        ]);
-        showErrorAndExit(timeout.message, 2, []);
+        const suggestions = ["--wait-timeout 600"];
+        emit?.({ ok: false }, [upError("INVALID_WAIT_TIMEOUT", timeout.message, suggestions)]);
+        showErrorAndExit(timeout.message, 2, suggestions);
     }
     const outcome = await upAndWait(process.argv.slice(2), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
     // A failed or timed-out wait names what was unhealthy with the last lines of its log, the reason (a traceback, a
@@ -472,7 +513,7 @@ async function runUpWait(options) {
         : [];
     const failures = withUnhealthyLogs([], unhealthy);
     emit?.(failures.length > 0 ? { ok: false, failures } : { ok: false }, [
-        { code, message: reason, suggestions },
+        upError(code, reason, suggestions),
     ]);
     if (!options.json) {
         const logs = formatUnhealthyLogTails(unhealthy);
@@ -568,13 +609,7 @@ export const upCommand = new Command("up")
     const providerError = secretProviderUsageError(process.env);
     if (providerError) {
         baseEmit?.({ ok: false }, [
-            {
-                code: "USAGE",
-                message: providerError.message,
-                ...(providerError.suggestions.length > 0
-                    ? { suggestions: providerError.suggestions }
-                    : {}),
-            },
+            upError("USAGE", providerError.message, providerError.suggestions),
         ]);
         console.error(providerError.message);
         process.exit(providerError.exitCode);
@@ -583,13 +618,13 @@ export const upCommand = new Command("up")
     let diskWarning;
     const projectWarnings = [];
     const emit = baseEmit
-        ? (data, errors) => baseEmit(data.ok === true
+        ? (data, errors = []) => baseEmit(data.ok === true
             ? {
                 ...data,
                 ...(diskWarning ? { diskWarning } : {}),
                 ...(projectWarnings.length > 0 ? { warnings: projectWarnings } : {}),
             }
-            : data, errors)
+            : data, errors.map((err) => upError(err.code, err.message, err.suggestions)))
         : undefined;
     // Before any build or process starts: fail below the hard threshold, warn below the soft one (#3708).
     const guardDisk = (isDockerRun) => {
@@ -615,7 +650,7 @@ export const upCommand = new Command("up")
         catch (error) {
             if (error instanceof FliskError) {
                 if (emit)
-                    emit({ ok: false }, [toMachineError(error).error]);
+                    emit({ ok: false }, [toUpError(error)]);
                 return error.exit();
             }
             throw error;
@@ -631,9 +666,7 @@ export const upCommand = new Command("up")
     const portSetting = parseTiltPort(process.env.TILT_PORT);
     if (!portSetting.ok) {
         const suggestions = upFailureHints({ kind: "invalid-tilt-port" });
-        emit?.({ ok: false }, [
-            { code: "INVALID_TILT_PORT", message: portSetting.message, suggestions },
-        ]);
+        emit?.({ ok: false }, [upError("INVALID_TILT_PORT", portSetting.message, suggestions)]);
         showErrorAndExit(portSetting.message, 1, suggestions);
     }
     const configuredTiltPort = portSetting.port;
@@ -658,10 +691,7 @@ export const upCommand = new Command("up")
         enforceVersionFloor(versionRoot, {
             ignoreVersion: options.ignoreVersion,
             onFail: (message, status) => emit?.({ ok: false }, [
-                {
-                    code: status === "mismatch" ? "FLISK_VERSION_MISMATCH" : "FLISK_VERSION_TOO_OLD",
-                    message,
-                },
+                upError(status === "mismatch" ? "FLISK_VERSION_MISMATCH" : "FLISK_VERSION_TOO_OLD", message),
             ]),
         });
     }
@@ -677,7 +707,7 @@ export const upCommand = new Command("up")
             catch (error) {
                 if (error instanceof FliskError) {
                     if (emit)
-                        emit({ ok: false }, [toMachineError(error).error]);
+                        emit({ ok: false }, [toUpError(error)]);
                     return error.exit();
                 }
                 throw error;
@@ -712,10 +742,8 @@ export const upCommand = new Command("up")
     }
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated
     // files (#2229). Decided before any Docker or Tilt check; a project without `command` services never enters this branch.
-    const nativeRun = selectNativeRun(stackName, options.only, (code, message, suggestions, exitCode = 1) => {
-        emit?.({ ok: false }, [
-            { code, message, ...(suggestions && suggestions.length > 0 ? { suggestions } : {}) },
-        ]);
+    const nativeRun = selectNativeRun(stackName, options.only, (code, message, suggestions = [], exitCode = 1) => {
+        emit?.({ ok: false }, [upError(code, message, suggestions)]);
         return showErrorAndExit(message, exitCode, suggestions);
     });
     // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
@@ -735,12 +763,12 @@ export const upCommand = new Command("up")
         if (!nativeRun.isNewProject) {
             enforceSchemaVersionGate(projectRoot, {
                 resources: nativeRun.all,
-                onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+                onInvalid: (message) => emit?.({ ok: false }, [upError("INVALID_SCHEMA_VERSION", message)]),
             });
         }
         enforceServiceConfigGate(projectRoot, {
             resources: nativeRun.all,
-            onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
+            onInvalid: (message) => emit?.({ ok: false }, [upError("INVALID_SERVICE_CONFIG", message)]),
             onWarning: (message) => projectWarnings.push(message),
         });
         if (nativeRun.isNewProject && !options.dryRun) {
@@ -777,7 +805,7 @@ export const upCommand = new Command("up")
         showErrorAndExit(platformRefusal);
     // Find the project before pruning images, trimming build cache, or probing Docker (#4282).
     const envFileRoot = requireProjectBeforeDocker(() => versionRoot ?? findProjectRoot(), (error) => {
-        emit?.({ ok: false }, [toMachineError(error).error]);
+        emit?.({ ok: false }, [toUpError(error)]);
         return error.exit();
     });
     // The env file of the run. `--env-file` replaces the project .env for this run, so the file is
@@ -810,7 +838,7 @@ export const upCommand = new Command("up")
     }
     const hostRefusal = options.dryRun ? null : await hostUpRefusal();
     if (hostRefusal) {
-        emit?.({ ok: false }, [{ code: "HOST_UNSUPPORTED", message: hostRefusal }]);
+        emit?.({ ok: false }, [upError("HOST_UNSUPPORTED", hostRefusal)]);
         showErrorAndExit(hostRefusal);
     }
     // The shared build cache has a size ceiling (20 GiB; FLISK_BUILD_CACHE_MAX_GIB): trim it first, so the disk check sees the space.
@@ -842,7 +870,7 @@ export const upCommand = new Command("up")
         if (initialDiscovery) {
             enforceSchemaVersionGate(schemaRoot, {
                 resources: initialDiscovery.resources,
-                onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+                onInvalid: (message) => emit?.({ ok: false }, [upError("INVALID_SCHEMA_VERSION", message)]),
             });
         }
     }
@@ -862,11 +890,7 @@ export const upCommand = new Command("up")
                 : undefined;
             if (refusal) {
                 emit?.({ ok: false }, [
-                    {
-                        code: "PROJECT_NAME_IN_USE",
-                        message: refusal.message,
-                        suggestions: refusal.suggestions,
-                    },
+                    upError("PROJECT_NAME_IN_USE", refusal.message, refusal.suggestions),
                 ]);
                 showErrorAndExit(refusal.message, 1, refusal.suggestions);
             }
@@ -880,7 +904,7 @@ export const upCommand = new Command("up")
         if (foundRoot && hasClonedRepos) {
             enforceSchemaVersionGate(foundRoot, {
                 resources: discoveredResources,
-                onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+                onInvalid: (message) => emit?.({ ok: false }, [upError("INVALID_SCHEMA_VERSION", message)]),
             });
         }
         let discoveredStacks;
@@ -893,7 +917,7 @@ export const upCommand = new Command("up")
         if (options.only) {
             if (stackName && !stackExists(stackName, discoveredResources)) {
                 const error = errorFactories.stackNotFound(stackName, discoveredStackNames);
-                emit?.({ ok: false }, [toMachineError(error).error]);
+                emit?.({ ok: false }, [toUpError(error)]);
                 error.exit();
             }
             const candidates = stackName
@@ -910,13 +934,8 @@ export const upCommand = new Command("up")
             else if (unknown.length > 0) {
                 const validNames = candidates.map((service) => service.name);
                 const error = errorFactories.unknownServices(unknown, validNames);
-                emit?.({ ok: false }, [
-                    {
-                        code: "UNKNOWN_SERVICE",
-                        message: error.message,
-                        ...(error.suggestions.length > 0 ? { suggestions: error.suggestions } : {}),
-                    },
-                ]);
+                const suggestions = unknownServiceSuggestions(unknown, validNames, error.suggestions);
+                emit?.({ ok: false }, [upError("UNKNOWN_SERVICE", error.message, suggestions)]);
                 error.exit();
             }
         }
@@ -925,14 +944,14 @@ export const upCommand = new Command("up")
             enforceDriftGate(foundRoot, {
                 ignoreDrift: options.ignoreDrift,
                 resources: discoveredResources,
-                onDrift: (message) => emit?.({ ok: false }, [{ code: "DRIFT_DETECTED", message }]),
+                onDrift: (message) => emit?.({ ok: false }, [upError("DRIFT_DETECTED", message)]),
             });
         }
         // Duplicate names, circular dependsOn and invalid ports are refused before anything starts, dry run included.
         if (foundRoot) {
             enforceServiceConfigGate(foundRoot, {
                 resources: discoveredResources,
-                onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
+                onInvalid: (message) => emit?.({ ok: false }, [upError("INVALID_SERVICE_CONFIG", message)]),
                 onWarning: (message) => projectWarnings.push(message),
             });
         }
@@ -1076,7 +1095,7 @@ export const upCommand = new Command("up")
             servicesToStart = getResourcesForStack(stackName, discoveredResources);
             if (servicesToStart.length === 0) {
                 const error = errorFactories.stackNotFound(stackName, discoveredStackNames);
-                emit?.({ ok: false }, [toMachineError(error).error]);
+                emit?.({ ok: false }, [toUpError(error)]);
                 error.exit();
             }
             focusServiceNames = servicesToStart.map((s) => s.name);
@@ -1119,9 +1138,7 @@ export const upCommand = new Command("up")
             !hasPendingClone &&
             !isTiltfileOrchestration(projectRoot)) {
             const error = errorFactories.noResources();
-            emit?.({ ok: false }, [
-                { code: "NO_RESOURCES", message: error.message, suggestions: error.suggestions },
-            ]);
+            emit?.({ ok: false }, [upError("NO_RESOURCES", error.message, error.suggestions)]);
             error.exit();
         }
         if (!options.quiet) {
@@ -1215,7 +1232,7 @@ export const upCommand = new Command("up")
         if (foreign.length > 0 && configuredTiltPort !== undefined) {
             const other = foreign[0];
             const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run flisk down in that project.`;
-            emit?.({ ok: false }, [{ code: "TILT_PORT_IN_USE", message }]);
+            emit?.({ ok: false }, [upError("TILT_PORT_IN_USE", message)]);
             showErrorAndExit(message);
         }
         if (!options.quiet) {
@@ -1225,7 +1242,7 @@ export const upCommand = new Command("up")
         }
         if (options.force && unknownSaved.length > 0) {
             const message = `Tilt on saved port ${unknownSaved.join(", ")} cannot be identified as this project's, so --force will not stop it and will not start a second Tilt beside it. Run flisk down, or stop that Tilt yourself, then run flisk up again.`;
-            emit?.({ ok: false }, [{ code: "TILT_OWNER_UNKNOWN", message }]);
+            emit?.({ ok: false }, [upError("TILT_OWNER_UNKNOWN", message)]);
             showErrorAndExit(message);
         }
         // --force replaces this project's Tilt; it must never stop another project's. `running` holds only this project's
@@ -1242,7 +1259,7 @@ export const upCommand = new Command("up")
             // silently - say so instead of reporting a run that never happened.
             if (envFileSelection) {
                 const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --env-file applies to a new run only: run \`flisk down\` first, or pass --force to replace the running stack.`;
-                emit?.({ ok: false }, [{ code: "ENV_FILE_ALREADY_RUNNING", message }]);
+                emit?.({ ok: false }, [upError("ENV_FILE_ALREADY_RUNNING", message)]);
                 showErrorAndExit(message);
             }
             const runningPort = decision.ports[0] ?? watchedPort;
@@ -1251,10 +1268,11 @@ export const upCommand = new Command("up")
                 ? parseWaitTimeout(options.waitTimeout)
                 : undefined;
             if (emit && parsedWaitTimeout && !parsedWaitTimeout.ok) {
+                const suggestions = ["--wait-timeout 600"];
                 emit({ ok: false }, [
-                    { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
+                    upError("INVALID_WAIT_TIMEOUT", parsedWaitTimeout.message, suggestions),
                 ]);
-                showErrorAndExit(parsedWaitTimeout.message, 2, []);
+                showErrorAndExit(parsedWaitTimeout.message, 2, suggestions);
             }
             // Keep the running Tilt's port saved once refusal checks pass, so the next `flisk up` (and status, logs, restart) finds it again.
             hostPortPlan.tiltUi = runningPort;
@@ -1280,11 +1298,7 @@ export const upCommand = new Command("up")
                         if (urlChecks.some((check) => !check.didAnswer)) {
                             clearFastNoopState(projectRoot);
                             emit({ ok: false, alreadyRunning: true, tiltUrl, urls: urlChecks }, [
-                                {
-                                    code: "UP_URL_UNREACHABLE",
-                                    message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
-                                    suggestions: urlFailureSuggestions(urlChecks),
-                                },
+                                upError("UP_URL_UNREACHABLE", `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`, urlFailureSuggestions(urlChecks)),
                             ]);
                             process.exitCode = 1;
                             return;
@@ -1314,7 +1328,7 @@ export const upCommand = new Command("up")
                 else {
                     clearFastNoopState(projectRoot);
                     emit({ ok: false, alreadyRunning: true, tiltUrl, failures }, [
-                        { code: report.code, message: report.message, suggestions: report.suggestions },
+                        upError(report.code, report.message, report.suggestions),
                     ]);
                     process.exitCode = 1;
                 }
@@ -1340,7 +1354,7 @@ export const upCommand = new Command("up")
         }
         if (decision.action === "only-blocked") {
             const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --only cannot change a running stack's services: run \`flisk down\` first, or pass --force to replace it.`;
-            emit?.({ ok: false }, [{ code: "TILT_ALREADY_RUNNING", message }]);
+            emit?.({ ok: false }, [upError("TILT_ALREADY_RUNNING", message)]);
             showErrorAndExit(message);
         }
         if (options.only && force) {
@@ -1391,7 +1405,7 @@ export const upCommand = new Command("up")
             const stillServing = await waitForTiltPortsToStop(savedRunning, (candidate) => tiltGetUiResources(candidate).then((resources) => resources !== null));
             if (stillServing.length > 0) {
                 const message = `Tilt on port ${stillServing.join(", ")} is still running after --force tried to stop it, so flisk up did not start a second Tilt. Run flisk down, then run flisk up again.`;
-                emit?.({ ok: false }, [{ code: "TILT_STOP_FAILED", message }]);
+                emit?.({ ok: false }, [upError("TILT_STOP_FAILED", message)]);
                 showErrorAndExit(message);
             }
         }
@@ -1424,7 +1438,7 @@ export const upCommand = new Command("up")
                         preflightResult.error,
                         "Verify Docker Model Runner is active and reachable, or pull the model manually.",
                     ];
-                    emit?.({ ok: false }, [{ code: "MODEL_PULL_FAILED", message, suggestions }]);
+                    emit?.({ ok: false }, [upError("MODEL_PULL_FAILED", message, suggestions)]);
                     showErrorAndExit(message, 1, suggestions);
                 }
             }
@@ -1496,11 +1510,7 @@ export const upCommand = new Command("up")
                             jsonReady = false;
                             startupFailed = true;
                             emit({ ok: false, tiltUrl: `http://localhost:${port}`, urls: urlChecks }, [
-                                {
-                                    code: "UP_URL_UNREACHABLE",
-                                    message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
-                                    suggestions: urlFailureSuggestions(urlChecks),
-                                },
+                                upError("UP_URL_UNREACHABLE", `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`, urlFailureSuggestions(urlChecks)),
                             ]);
                         }
                     }
@@ -1515,16 +1525,12 @@ export const upCommand = new Command("up")
                         ? ` (${readiness.stillBuilding.join(", ")} still building)`
                         : "";
                     emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures }, [
-                        {
-                            code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
-                            message: `${readiness.timedOut ? `Timed out waiting for resources${stillBuildingMsg}` : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
-                            suggestions: upFailureHints({
-                                kind: "services",
-                                failed: readiness.failures.map((failure) => failure.name),
-                                timedOut: readiness.timedOut,
-                                stillBuilding: readiness.stillBuilding,
-                            }),
-                        },
+                        upError(readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED", `${readiness.timedOut ? `Timed out waiting for resources${stillBuildingMsg}` : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`, upFailureHints({
+                            kind: "services",
+                            failed: readiness.failures.map((failure) => failure.name),
+                            timedOut: readiness.timedOut,
+                            stillBuilding: readiness.stillBuilding,
+                        })),
                     ]);
                 }
             }
@@ -1658,11 +1664,7 @@ export const upCommand = new Command("up")
                     const suggestions = upFailureHints({ kind: "smoke", failed: smokeFailures });
                     showError("A smoke check failed; Tilt was stopped", undefined, suggestions);
                     emit?.({ ok: false }, [
-                        {
-                            code: "UP_SMOKE_FAILED",
-                            message: "A smoke check failed; Tilt was stopped",
-                            suggestions,
-                        },
+                        upError("UP_SMOKE_FAILED", "A smoke check failed; Tilt was stopped", suggestions),
                     ]);
                 }
             }
@@ -1779,6 +1781,6 @@ function assertKnownProfiles(requested, resources, emit) {
             ? `Profiles in this project: ${known.join(", ")}`
             : 'No service has "profiles" in its service.json yet',
     ];
-    emit?.({ ok: false }, [{ code: "UNKNOWN_PROFILE", message, suggestions }]);
+    emit?.({ ok: false }, [upError("UNKNOWN_PROFILE", message, suggestions)]);
     showErrorAndExit(message, 2, suggestions);
 }
