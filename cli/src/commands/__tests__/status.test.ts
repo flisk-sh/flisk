@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/index.js";
+import type { PlatformServiceReport } from "../../utils/capabilities.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { sampleServiceUsage } from "../../utils/service-usage.js";
 import { isTiltAvailable, runTilt } from "../../utils/tilt.js";
@@ -245,10 +246,9 @@ describe("flisk status", () => {
     });
     // The Docker fixture keeps its platform-service report; a regression that empties it for every runtime must fail
     // here, not only pass the local-process tests below (which assert it is empty by design).
-    expect(output.data.platformServices.map((service) => service.capability)).toEqual([
-      "gateway",
-      "database",
-    ]);
+    expect(
+      output.data.platformServices.map((service: PlatformServiceReport) => service.capability),
+    ).toEqual(["gateway", "database"]);
   });
 
   it("prints Tilt availability, resource and stack counts, and next steps by default", async () => {
