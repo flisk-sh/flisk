@@ -58,6 +58,26 @@ export declare function shadowedEnvKeys(projectRoot: string, envFilePath?: strin
  * that does not exist and never goes healthy (#4456). A service that does depend on the database keeps the value.
  */
 export declare function localDatabaseEnv(dependsOn: readonly string[], databaseNames?: readonly string[], declaredEnv?: Readonly<Record<string, string>>): Record<string, string>;
+/** A problem `flisk up` can detect before starting anything, in both a real run and a dry run. */
+export interface UpPreflightProblem {
+    code: string;
+    message: string;
+    suggestions?: string[];
+}
+/**
+ * The static preflight shared by `flisk up` and `flisk up --dry-run`: an invalid plan (including two services on one
+ * port), a binding toolchain mismatch and a command whose program is not installed. Everything here only reads, so a
+ * dry run reports these problems with `ok: false` and exits 1 instead of printing a plan a real run would refuse.
+ */
+export declare function nativeUpPreflight(selected: readonly DiscoveredResource[], plan: {
+    services: readonly NativeServicePlan[];
+    errors: string[];
+}): UpPreflightProblem[];
+/**
+ * The host-port half of the same preflight. A real run calls it only after an already-running stack has been reported,
+ * since that stack legitimately holds its own ports; a dry run calls it before printing its plan.
+ */
+export declare function nativeUpPortPreflight(services: readonly NativeServicePlan[]): Promise<UpPreflightProblem[]>;
 /**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).
