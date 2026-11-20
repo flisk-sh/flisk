@@ -3,6 +3,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { isTiltfileOrchestration } from "../generator/template-engine.js";
+import { jsonOption } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { collectSidecarDependents, isGeneratedComposeContainer, parseEnabledTiltResourceNames, restartContainer, } from "../utils/container-restart.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
@@ -24,7 +25,7 @@ export const restartCommand = new Command("restart")
     .option("--rebuild", "Rebuild the image through Tilt instead of restarting the container", false)
     .option("--project <path>", "Restart resources for the Flisk project in this folder (default: the current project)")
     .option("--wait <seconds>", "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)", "60")
-    .option("--json", "Output one JSON object and exit", false)
+    .addOption(jsonOption())
     .addHelpText("after", "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild")
     .showHelpAfterError("\nRun `flisk resources` to see the resource names you can restart.")
     .action(async (resourceName, options, command) => {

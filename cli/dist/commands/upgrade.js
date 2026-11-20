@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
 import { LEGACY_PACKAGE } from "../utils/cli-command.js";
-import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
+import { addYesOption, handleDryRun, jsonOption } from "../utils/command-helpers.js";
 import { PACKAGE_JSON } from "../utils/constants.js";
 import { FliskError, getErrorMessage, logVerbose, showErrorAndExit } from "../utils/errors.js";
 import { showCancelled } from "../utils/formatting.js";
@@ -887,7 +887,7 @@ export function createUpgradeCommand() {
         .option("-f, --force", "Upgrade even if already on the latest version", false)
         .option("--all", "Upgrade every Flisk installation found on PATH", false)
         .option("--dry-run", "Show what would be upgraded without actually doing it", false)
-        .option("--json", "Print the dry-run result as a JSON envelope", false)
+        .addOption(jsonOption())
         .addHelpText("after", "\nExamples:\n  flisk upgrade\n  flisk upgrade --dry-run\n  flisk upgrade --dry-run --json\n  flisk upgrade --all")
         .action(async (options) => {
         if (options.json) {

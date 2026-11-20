@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { homedir } from "node:os";
 import path from "node:path";
 import chalk from "chalk";
@@ -11,6 +12,7 @@ import {
   connectAgentHost,
   resolveConnectHost,
 } from "../utils/agent-connect.js";
+import { jsonOption } from "../utils/command-helpers.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -91,7 +93,7 @@ export const connectCommand = new Command("connect")
   .option("--global", "Write the MCP entry to the host's user config instead (no skills)")
   .option("--dry-run", "Print what would be written, without changing any file", false)
   .option("--force", "Replace an existing, different flisk entry or edited Flisk skill", false)
-  .option("--json", "Print the result as a JSON envelope")
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global",

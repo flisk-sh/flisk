@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 /**
  * `flisk os`: starts FliskOS, the local desktop app for Flisk projects, coding agents and Flisk apps.
  *
@@ -13,6 +14,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { jsonOption } from "../utils/command-helpers.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -429,11 +431,7 @@ export const osCommand = new Command("os")
     "Also look for Flisk projects under this folder (repeatable)",
     collect,
   )
-  .option(
-    "--json",
-    "Print one JSON envelope on stdout once FliskOS is up; FliskOS keeps running until it stops",
-    false,
-  )
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     `

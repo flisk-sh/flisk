@@ -11,7 +11,7 @@ import { generateMasterConfigs, readProjectConfig } from "../generator/template-
 import type { DiscoveredResource, JsonCommandResult, ProjectConfig } from "../types/index.js";
 import { installAgentSkills } from "../utils/agent-skills.js";
 import type { RuntimePrerequisiteStatus } from "../utils/cold-preflight.js";
-import { addYesOption } from "../utils/command-helpers.js";
+import { addYesOption, jsonOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { completeEnvFile, ensureEnvFile, validateEnvFile } from "../utils/env-validator.js";
@@ -605,7 +605,7 @@ export const projectCommand = addYesOption(new Command("project"))
     "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
     false,
   )
-  .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check",

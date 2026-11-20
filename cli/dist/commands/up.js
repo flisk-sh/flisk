@@ -10,7 +10,7 @@ import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_M
 import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, projectNeedsDatabaseKeys, } from "../utils/capabilities.js";
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { coldStartNotice } from "../utils/cold-start.js";
-import { handleDryRun } from "../utils/command-helpers.js";
+import { handleDryRun, jsonOption } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
 import { diskWarningField, enforceDiskGuard, readDockerVmFreeGib } from "../utils/disk-guard.js";
@@ -559,7 +559,7 @@ export const upCommand = new Command("up")
     .option("--profile <names...>", 'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)')
     .option("--env-file <path>", "Use this project env file for the run instead of .env (for example: --env-file .env.integration)")
     .option("--no-gateway", 'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it')
-    .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
+    .addOption(jsonOption())
     .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
     .addHelpText("after", "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")

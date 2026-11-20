@@ -4,7 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
-import { attachNoPositionalHint } from "../utils/command-helpers.js";
+import { attachNoPositionalHint, jsonOption } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -123,7 +123,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     "--project <path>",
     "View logs for the Flisk project in this folder (default: the current project)",
   )
-  .option("--json", "Output one JSON object and exit", false)
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",

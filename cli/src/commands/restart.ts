@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import chalk from "chalk";
 import { Command } from "commander";
 import { isTiltfileOrchestration } from "../generator/template-engine.js";
+import { jsonOption } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import {
   collectSidecarDependents,
@@ -48,7 +50,7 @@ export const restartCommand = new Command("restart")
     "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)",
     "60",
   )
-  .option("--json", "Output one JSON object and exit", false)
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",

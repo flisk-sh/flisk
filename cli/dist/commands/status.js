@@ -3,7 +3,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { describePlatformServices, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
-import { attachNoPositionalHint } from "../utils/command-helpers.js";
+import { attachNoPositionalHint, jsonOption } from "../utils/command-helpers.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -94,7 +94,7 @@ function usageTargets(resources, nativeStates, nativeRunServices, projectName) {
 }
 export const statusCommand = attachNoPositionalHint(new Command("status"))
     .description("Show status of resources and stacks")
-    .option("--json", "Output a versioned JSON status report", false)
+    .addOption(jsonOption())
     .option("-v, --verbose", "Show detailed information", false)
     .option("--stacks", "Show stack information (default)", true)
     .option("--stack <name>", "Only report services in this stack")

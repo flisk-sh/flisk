@@ -15,7 +15,7 @@ import {
 } from "../generator/template-engine.js";
 import type { JsonCommandResult, ProjectConfig } from "../types/index.js";
 import { isMasterConfigFileName } from "../types/index.js";
-import { assertValid, handleDryRun } from "../utils/command-helpers.js";
+import { assertValid, handleDryRun, jsonOption } from "../utils/command-helpers.js";
 import { type ConfigFileDrift, explainConfigFile } from "../utils/config-explain.js";
 import {
   MASTER_CONFIG_FILES,
@@ -108,11 +108,7 @@ export const configCommand = new Command("config")
         "Continue even if the CLI does not match the project's version requirements",
         false,
       )
-      .option(
-        "--json",
-        "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)",
-        false,
-      )
+      .addOption(jsonOption())
       .action(async (options) => {
         if (options.json) {
           await runJsonCommand("REGENERATE_FAILED", "flisk config regenerate", async () => {
@@ -334,7 +330,7 @@ export const configCommand = new Command("config")
         "Continue even if the CLI does not match the project's version requirements",
         false,
       )
-      .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
+      .addOption(jsonOption())
       .addHelpText("after", `\nExamples:\n  flisk config migrate\n  flisk config migrate --json`)
       .action(async (options) => {
         const action = async (): Promise<JsonCommandResult> => {
@@ -458,7 +454,7 @@ export const configCommand = new Command("config")
         "Continue even if the CLI does not match the project's version requirements",
         false,
       )
-      .option("--json", "Emit a machine-readable verification report")
+      .addOption(jsonOption())
       .addHelpText("after", `\nExamples:\n  flisk config verify\n  flisk config verify --json`)
       .action(async (options) => {
         const action = async (): Promise<void> => {
@@ -622,7 +618,7 @@ export const configCommand = new Command("config")
         "Explain whether a project file is Flisk-generated and what editing it does on flisk up",
       )
       .argument("<file>", "Project file to explain, relative to the current directory or absolute")
-      .option("--json", "Emit a machine-readable explanation")
+      .addOption(jsonOption())
       .addHelpText(
         "after",
         `\nExamples:\n  flisk config explain Tiltfile\n  flisk config explain services/orders-api/service.json\n  flisk config explain Tiltfile --json`,
@@ -833,11 +829,7 @@ function infraToggleCommand(name: "enable-infra" | "disable-infra", enabled: boo
       "Continue even if the CLI does not match the project's version requirements",
       false,
     )
-    .option(
-      "--json",
-      "Print one JSON envelope on stdout with the service and its previous state",
-      false,
-    )
+    .addOption(jsonOption())
     .action(
       async (
         service: string,

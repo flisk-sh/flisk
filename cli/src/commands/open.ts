@@ -3,6 +3,7 @@
 
 import chalk from "chalk";
 import { Command } from "commander";
+import { jsonOption } from "../utils/command-helpers.js";
 import { probeHostPort } from "../utils/doctor-runtime.js";
 import { FliskError } from "../utils/errors.js";
 import { showDetail, showStep } from "../utils/formatting.js";
@@ -242,7 +243,7 @@ export const openCommand = new Command("open")
   .description("Open the first ready frontend in your browser, or the frontend you name")
   .argument("[resource]", "Frontend to open; defaults to the first ready one")
   .option("--print", "Print the frontend URL without opening a browser")
-  .option("--json", "Print one JSON envelope on stdout; implies --print", false)
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     "\nExamples:\n  flisk open\n  flisk open web2\n  flisk open --print\n  flisk open web2 --print\n  flisk open --print --json\n  flisk open --json",

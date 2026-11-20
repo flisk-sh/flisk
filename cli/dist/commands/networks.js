@@ -4,7 +4,7 @@ import { execFileSync, spawn } from "node:child_process";
 import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
-import { attachNoPositionalHint } from "../utils/command-helpers.js";
+import { attachNoPositionalHint, jsonOption } from "../utils/command-helpers.js";
 import { getStackEmoji } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, logVerbose, requireProjectRoot } from "../utils/errors.js";
@@ -180,7 +180,7 @@ export const networksCommand = attachNoPositionalHint(new Command("networks"))
     .alias("urls")
     .alias("traefik")
     .option("-s, --stack <stack>", "Filter by stack name")
-    .option("--json", "Output a versioned JSON response")
+    .addOption(jsonOption())
     .option("--json-legacy", "Output the legacy JSON array (deprecated)")
     .option("--raw", "Output raw URLs only")
     .action(async (options) => {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
+import { jsonOption } from "../utils/command-helpers.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
@@ -106,7 +107,7 @@ export function createMcpCheckCommand() {
         .argument("<target>", "An https URL of the MCP endpoint, or the name of a resource in this project")
         .option("--call", "Also call each tool once with sample arguments (a call can reach the network)", false)
         .option("--no-icon", "Skip the icon-512.png check")
-        .option("--json", "Print the report as a JSON envelope", false)
+        .addOption(jsonOption())
         .action(async (targetArg, options) => {
         const run = async () => {
             const target = await resolveMcpCheckTarget(targetArg);
