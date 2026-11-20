@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync, rmdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, win32 } from "node:path";
 import { cwd, execPath } from "node:process";
 import { fileURLToPath } from "node:url";
@@ -80,6 +80,20 @@ export function enableDiscoveredStacks(projectRoot, resources) {
         writeJsonFile(projectJsonPath, projectConfig);
     }
     return enabled;
+}
+/**
+ * Removes a `.flisk/` directory only when this invocation created it and it is
+ * still empty. A pre-existing directory, or anything written into it in the
+ * meantime, is left alone.
+ */
+function removeEmptyCreatedDirectory(dirPath) {
+    try {
+        if (readdirSync(dirPath).length === 0)
+            rmdirSync(dirPath);
+    }
+    catch {
+        // Cleanup is best-effort: never mask the error that aborted the command.
+    }
 }
 /**
  * Get core infrastructure services from PROJECT_FEATURES that are enabled by default
@@ -609,8 +623,10 @@ export const projectCommand = addYesOption(new Command("project"))
             showCommandHeader("Project Configuration");
             showDetail(`Project root: ${projectRoot}\n`, 0);
         }
+        let createdFliskDir = false;
         if (!existsSync(fliskDir)) {
             ensureDirectory(fliskDir);
+            createdFliskDir = true;
             if (!quiet)
                 showSuccess("Created: .flisk/ directory");
         }
@@ -682,113 +698,120 @@ export const projectCommand = addYesOption(new Command("project"))
         }
         let projectConfig;
         const discoveredStacks = discoverExistingServiceStacks(projectRoot);
-        if (options.configFile) {
-            const configFilePath = resolve(options.configFile);
-            if (!existsSync(configFilePath)) {
-                throw new FliskError(`Config file not found: ${configFilePath}`, [
-                    "Pass the path of an existing project.json to --config-file",
-                    "Or drop --config-file to use the defaults",
-                ]);
+        try {
+            if (options.configFile) {
+                const configFilePath = resolve(options.configFile);
+                if (!existsSync(configFilePath)) {
+                    throw new FliskError(`Config file not found: ${configFilePath}`, [
+                        "Pass the path of an existing project.json to --config-file",
+                        "Or drop --config-file to use the defaults",
+                    ]);
+                }
+                const configContent = readFileSync(configFilePath, "utf-8");
+                projectConfig = JSON.parse(configContent);
+                if (!quiet)
+                    showSuccess(`Loaded config from: ${configFilePath}`);
             }
-            const configContent = readFileSync(configFilePath, "utf-8");
-            projectConfig = JSON.parse(configContent);
-            if (!quiet)
-                showSuccess(`Loaded config from: ${configFilePath}`);
-        }
-        else if (yes) {
-            projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-            projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
-            if (!quiet)
-                console.log(chalk.gray("Using default configuration (non-interactive mode)"));
-        }
-        else {
-            showStep("📝 Project Setup Wizard\n");
-            const projectName = await promptText({
-                message: "Project name:",
-                initial: projectRoot.split("/").pop() || "my-project",
-                validate: (input) => input.trim() !== "" || "Project name is required",
-            });
-            const projectVersion = await promptText({
-                message: "Project version:",
-                initial: "1.0.0-alpha",
-            });
-            const corePreAlphaFeatures = Object.values(PROJECT_FEATURES).filter((f) => f.category === "core" && f.phase === "pre_alpha");
-            const corePreAlphaNames = new Set(corePreAlphaFeatures.map((f) => f.name));
-            const preAlphaStacks = await promptMultiSelect({
-                message: "Select Pre-Alpha enabled stacks (core infrastructure):",
-                choices: [
-                    ...corePreAlphaFeatures.map((f) => ({
+            else if (yes) {
+                projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
+                projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
+                if (!quiet)
+                    console.log(chalk.gray("Using default configuration (non-interactive mode)"));
+            }
+            else {
+                showStep("📝 Project Setup Wizard\n");
+                const projectName = await promptText({
+                    message: "Project name:",
+                    initial: projectRoot.split("/").pop() || "my-project",
+                    validate: (input) => input.trim() !== "" || "Project name is required",
+                });
+                const projectVersion = await promptText({
+                    message: "Project version:",
+                    initial: "1.0.0-alpha",
+                });
+                const corePreAlphaFeatures = Object.values(PROJECT_FEATURES).filter((f) => f.category === "core" && f.phase === "pre_alpha");
+                const corePreAlphaNames = new Set(corePreAlphaFeatures.map((f) => f.name));
+                const preAlphaStacks = await promptMultiSelect({
+                    message: "Select Pre-Alpha enabled stacks (core infrastructure):",
+                    choices: [
+                        ...corePreAlphaFeatures.map((f) => ({
+                            title: f.description,
+                            value: f.name,
+                            selected: f.enabled_by_default,
+                        })),
+                        // Exclude discovered stacks that duplicate a core feature name (e.g. a
+                        // "database-management" service dir) - otherwise the same value shows
+                        // up as two checked boxes and accepting defaults writes it twice into
+                        // project.json, which the generator later emits as a duplicate
+                        // Starlark dict key and Tilt refuses to parse.
+                        ...discoveredStacks
+                            .filter((stack) => !corePreAlphaNames.has(stack))
+                            .map((stack) => ({
+                            title: `${stack} (discovered service stack)`,
+                            value: stack,
+                            selected: true,
+                        })),
+                    ],
+                });
+                const alphaStacks = await promptMultiSelect({
+                    message: "Select Alpha enabled stacks (core business):",
+                    choices: [
+                        { title: "api (Backend API)", value: "api" },
+                        { title: "app (Frontend app)", value: "app" },
+                    ],
+                });
+                const betaStacks = await promptMultiSelect({
+                    message: "Select Beta enabled stacks (extended features):",
+                    choices: [
+                        { title: "worker (Background jobs)", value: "worker" },
+                        { title: "migrator (Database migrations)", value: "migrator" },
+                    ],
+                });
+                const optionalInfra = await promptMultiSelect({
+                    message: "Enable optional infrastructure (high resource):",
+                    choices: Object.values(PROJECT_FEATURES)
+                        .filter((f) => f.category === "optional")
+                        .concat(Object.values(PROJECT_FEATURES).filter((f) => f.category === "premium"))
+                        .map((f) => ({
                         title: f.description,
                         value: f.name,
                         selected: f.enabled_by_default,
                     })),
-                    // Exclude discovered stacks that duplicate a core feature name (e.g. a
-                    // "database-management" service dir) - otherwise the same value shows
-                    // up as two checked boxes and accepting defaults writes it twice into
-                    // project.json, which the generator later emits as a duplicate
-                    // Starlark dict key and Tilt refuses to parse.
-                    ...discoveredStacks
-                        .filter((stack) => !corePreAlphaNames.has(stack))
-                        .map((stack) => ({
-                        title: `${stack} (discovered service stack)`,
-                        value: stack,
-                        selected: true,
-                    })),
-                ],
-            });
-            const alphaStacks = await promptMultiSelect({
-                message: "Select Alpha enabled stacks (core business):",
-                choices: [
-                    { title: "api (Backend API)", value: "api" },
-                    { title: "app (Frontend app)", value: "app" },
-                ],
-            });
-            const betaStacks = await promptMultiSelect({
-                message: "Select Beta enabled stacks (extended features):",
-                choices: [
-                    { title: "worker (Background jobs)", value: "worker" },
-                    { title: "migrator (Database migrations)", value: "migrator" },
-                ],
-            });
-            const optionalInfra = await promptMultiSelect({
-                message: "Enable optional infrastructure (high resource):",
-                choices: Object.values(PROJECT_FEATURES)
-                    .filter((f) => f.category === "optional")
-                    .concat(Object.values(PROJECT_FEATURES).filter((f) => f.category === "premium"))
-                    .map((f) => ({
-                    title: f.description,
-                    value: f.name,
-                    selected: f.enabled_by_default,
-                })),
-            });
-            showStep("\n📂 Service discovery");
-            showDetail("What: folder patterns Flisk scans for a service.json in each match.");
-            showDetail("Where: type one or more globs, comma-separated.");
-            showDetail("How: saved as discovery.paths in .flisk/project.json - editable later.");
-            showDetail(`Example: ${DEFAULT_PROJECT_JSON.discovery.paths.join(", ")}\n`);
-            const discoveryPaths = await promptText({
-                message: "Folders to scan:",
-                initial: DEFAULT_PROJECT_JSON.discovery.paths.join(", "),
-            });
-            projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-            projectConfig.project.name = projectName;
-            projectConfig.project.version = projectVersion;
-            projectConfig.phases.pre_alpha.enabledStacks = Array.from(new Set(preAlphaStacks));
-            projectConfig.phases.alpha.enabledStacks = Array.from(new Set(alphaStacks));
-            projectConfig.phases.beta.enabledStacks = Array.from(new Set(betaStacks));
-            projectConfig.optional_infra.monitoring = optionalInfra.includes("monitoring");
-            projectConfig.optional_infra.elk = optionalInfra.includes("elk");
-            projectConfig.optional_infra.debezium = optionalInfra.includes("debezium");
-            projectConfig.optional_infra.golden_image = optionalInfra.includes("golden_image");
-            projectConfig.optional_infra.verdaccio = optionalInfra.includes("verdaccio");
-            const parsedDiscoveryPaths = discoveryPaths
-                .split(",")
-                .map((p) => p.trim())
-                .filter((p) => p.length > 0);
-            projectConfig.discovery.paths =
-                parsedDiscoveryPaths.length > 0
-                    ? parsedDiscoveryPaths
-                    : DEFAULT_PROJECT_JSON.discovery.paths;
+                });
+                showStep("\n📂 Service discovery");
+                showDetail("What: folder patterns Flisk scans for a service.json in each match.");
+                showDetail("Where: type one or more globs, comma-separated.");
+                showDetail("How: saved as discovery.paths in .flisk/project.json - editable later.");
+                showDetail(`Example: ${DEFAULT_PROJECT_JSON.discovery.paths.join(", ")}\n`);
+                const discoveryPaths = await promptText({
+                    message: "Folders to scan:",
+                    initial: DEFAULT_PROJECT_JSON.discovery.paths.join(", "),
+                });
+                projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
+                projectConfig.project.name = projectName;
+                projectConfig.project.version = projectVersion;
+                projectConfig.phases.pre_alpha.enabledStacks = Array.from(new Set(preAlphaStacks));
+                projectConfig.phases.alpha.enabledStacks = Array.from(new Set(alphaStacks));
+                projectConfig.phases.beta.enabledStacks = Array.from(new Set(betaStacks));
+                projectConfig.optional_infra.monitoring = optionalInfra.includes("monitoring");
+                projectConfig.optional_infra.elk = optionalInfra.includes("elk");
+                projectConfig.optional_infra.debezium = optionalInfra.includes("debezium");
+                projectConfig.optional_infra.golden_image = optionalInfra.includes("golden_image");
+                projectConfig.optional_infra.verdaccio = optionalInfra.includes("verdaccio");
+                const parsedDiscoveryPaths = discoveryPaths
+                    .split(",")
+                    .map((p) => p.trim())
+                    .filter((p) => p.length > 0);
+                projectConfig.discovery.paths =
+                    parsedDiscoveryPaths.length > 0
+                        ? parsedDiscoveryPaths
+                        : DEFAULT_PROJECT_JSON.discovery.paths;
+            }
+        }
+        catch (error) {
+            if (createdFliskDir)
+                removeEmptyCreatedDirectory(fliskDir);
+            throw error;
         }
         const autoEnabledStacks = syncDiscoveredStacksToPreAlpha(projectConfig, discoveredStacks);
         if (autoEnabledStacks.length > 0 && !quiet) {
