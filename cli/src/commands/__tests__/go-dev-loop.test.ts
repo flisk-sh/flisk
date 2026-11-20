@@ -209,7 +209,7 @@ if 'ENV FLISK_GO_TEST_ON_SAVE' in plain: fail('no test-on-save env without a sco
 if 'ENV FLISK_GO_TEST_ON_SAVE=changed' not in armed: fail('changed scope env missing')
 if 'ENV FLISK_GO_TEST_ON_SAVE=./...' not in full: fail('pattern scope env missing')
 if 'ENV FLISK_GO_TEST_ON_SAVE' in nodev: fail('no development stage means no test-on-save env')
-if 'flisk-go-watch' not in nodev: fail('the watcher itself must stay out of the default target')
+if 'flisk-go-watch' in nodev: fail('the watcher itself must stay out of the default target')
 `,
     });
     expect(result.status, result.stderr).toBe(0);
