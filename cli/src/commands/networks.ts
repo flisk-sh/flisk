@@ -22,6 +22,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
+import { relativeResourceFolder } from "../utils/resource-relative-path.js";
 import {
   isRoutableService,
   isWebUiBringYourOwn,
@@ -274,6 +275,7 @@ export const networksCommand = attachNoPositionalHint(new Command("networks"))
           return {
             name: s.name,
             stack: s.stack,
+            path: relativeResourceFolder(projectRoot, s.configPath),
             basePath,
             url,
             // A web UI is routed by Host header, so an IP URL would never reach its router.
