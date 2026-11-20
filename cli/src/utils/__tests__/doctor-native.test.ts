@@ -120,10 +120,7 @@ describe("checkNativeServiceScripts", () => {
 
   it("checks dev.command too", () => {
     const result = checkNativeServiceScripts([
-      withPkg(
-        { dev: "bun dev" },
-        { command: "node server.js", dev: { command: "npm run watch" } },
-      ),
+      withPkg({ dev: "bun dev" }, { command: "node server.js", dev: { command: "npm run watch" } }),
     ]);
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("npm run watch");
@@ -133,7 +130,13 @@ describe("checkNativeServiceScripts", () => {
   it("covers npm run, pnpm run, yarn run, yarn script, and bun script names", () => {
     const dir = createTempDir();
     writeFileSync(join(dir, "package.json"), JSON.stringify({ scripts: { start: "node ." } }));
-    for (const command of ["npm run worker", "pnpm run worker", "yarn run worker", "yarn worker", "bun worker"]) {
+    for (const command of [
+      "npm run worker",
+      "pnpm run worker",
+      "yarn run worker",
+      "yarn worker",
+      "bun worker",
+    ]) {
       const resource = makeResource("svc", "backend", { command });
       resource.path = dir;
       const result = checkNativeServiceScripts([resource]);

@@ -242,9 +242,7 @@ function readPackageScripts(dir: string): Record<string, string> | null {
 }
 
 /** Each service command/dev command that invokes a package.json script must refer to a script that exists. */
-export function checkNativeServiceScripts(
-  resources: readonly DiscoveredResource[],
-): CheckResult {
+export function checkNativeServiceScripts(resources: readonly DiscoveredResource[]): CheckResult {
   const problems: string[] = [];
   for (const resource of resources) {
     const config = resource.config;
