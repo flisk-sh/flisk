@@ -398,6 +398,20 @@ describe.concurrent("flisk resource --framework on a backend", () => {
     expect(`${unknown.stdout}${unknown.stderr}`).toMatch(/Unknown backend framework "sinatra"/);
     expect(existsSync(dir("bad-api"))).toBe(false);
 
+    const nearMiss = await flisk(
+      ["resource", "typo-api", "--type", "backend", "--framework", "expres", "--stack", "shop"],
+      projectRoot,
+    );
+    expect(`${nearMiss.stdout}${nearMiss.stderr}`).toContain('Did you mean "express"?');
+    expect(existsSync(dir("typo-api"))).toBe(false);
+
+    const languageTypo = await flisk(
+      ["resource", "lang-api", "--type", "backend", "--language", "pythn", "--stack", "shop"],
+      projectRoot,
+    );
+    expect(`${languageTypo.stdout}${languageTypo.stderr}`).toContain('Did you mean "python"?');
+    expect(existsSync(dir("lang-api"))).toBe(false);
+
     const python = await flisk(
       [
         "resource",

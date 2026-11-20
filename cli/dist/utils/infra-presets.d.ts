@@ -123,7 +123,7 @@ export declare const INFRA_PRESETS: {
     readonly mongodb: {
         readonly type: "database";
         readonly description: "MongoDB document database";
-        readonly image: "mongo:8.0";
+        readonly image: "mongo:8.0.38";
         readonly port: 27017;
         readonly healthCheck: {
             readonly command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"];

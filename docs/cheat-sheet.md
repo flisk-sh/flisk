@@ -229,6 +229,9 @@ Clones the missing service repositories configured in `.flisk/project.json`. Eac
 
 See [layout](layout.md) for the `repos` array.
 
+For optional infrastructure toggles, add `--dry-run` to preview the change without
+writing `.flisk/project.json`. Add `--json` for the machine-readable plan.
+
 ## 📦 Resources
 
 ### `flisk resource [name]`
@@ -241,7 +244,7 @@ flisk resource api --type backend --framework fastify --yes
 flisk resource api --type backend --language python --yes
 flisk resource api --type backend --feature prisma --yes
 flisk resource web --type frontend --framework vue --yes
-flisk resource --frameworks                                     # list frontend frameworks
+flisk resource --frameworks                                     # list backend frameworks (the default)
 flisk resource --type frontend --frameworks                     # list frontend frameworks
 flisk resource --type backend --frameworks                      # list backend frameworks and their language
 flisk resource --type backend --language python --frameworks     # list backend frameworks, marking the incompatible ones

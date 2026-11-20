@@ -235,7 +235,7 @@ export declare function infraFrameworkListing(type: InfraResourceType): {
 export declare function frameworkInventoryReport(options: {
     type?: string;
     language?: string;
-}, isTypeExplicit: boolean): Record<string, unknown>;
+}): Record<string, unknown>;
 /**
  * What `flisk resource <name> --json` reports. `action` is `registered` for a directory that already had a
  * service.json. `port` is null for an SDK. `discovered` is whether discovery.paths covers `path`, so `flisk up` starts it.
@@ -250,6 +250,8 @@ export interface ResourceReport {
     framework: string | null;
     language: string | null;
     discovered: boolean;
+    /** Non-fatal notes, such as a stack name that looks like a typo of an existing one (#4378). */
+    warnings?: string[];
 }
 /**
  * Turns a prompt that could not read input into an error that names the flags which avoid the

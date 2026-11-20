@@ -5,10 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearDiscoveryCache } from "../discovery-context.js";
+import { FliskError } from "../errors.js";
 import {
   checkCircularDependencies,
   checkCustomDockerfiles,
   checkDependsOnShape,
+  checkDockerfilePorts,
   checkGpuRuntime,
   checkModelRunner,
   checkNetworkPorts,
@@ -527,6 +529,186 @@ describe("checkCustomDockerfiles", () => {
   });
 });
 
+describe("checkDockerfilePorts", () => {
+  function dockerfile(portText: string, healthPort?: string): void {
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    const health = healthPort
+      ? `HEALTHCHECK --interval=10s CMD bun -e "fetch('http://localhost:${healthPort}/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"\n`
+      : "";
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      `FROM oven/bun:1.3\n${health}ENV PORT=${portText}\nEXPOSE ${portText}\nCMD ["bun", "run", "start"]\n`,
+    );
+  }
+
+  it("passes when service.json, PORT, EXPOSE and the healthcheck agree", () => {
+    service("api", { port: 4010, healthCheckPath: "/health" });
+    dockerfile("4010", "4010");
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("names the resource, both ports and the files on a mismatch", () => {
+    service("api", { port: 4011, healthCheckPath: "/health" });
+    dockerfile("4010", "4010");
+    const result = checkDockerfilePorts(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain(join("services", "app", "api", "service.json"));
+    expect(result.message).toContain(join("services", "app", "api", "Dockerfile"));
+    expect(result.message).toContain("4011");
+    expect(result.message).toContain("4010");
+    expect(result.fix).toContain("port");
+  });
+
+  it("detects a healthcheck-only port mismatch", () => {
+    service("api", { port: 4011, healthCheckPath: "/health" });
+    dockerfile("4011", "4010");
+    const result = checkDockerfilePorts(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("healthcheck");
+    expect(result.message).toContain("4010");
+  });
+
+  it("skips resources with no Dockerfile (local processes)", () => {
+    service("api", { port: 4011, healthCheckPath: "/health" });
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("skips a resource with no port, even with a Dockerfile", () => {
+    service("api", { port: undefined });
+    dockerfile("4010");
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("skips an out-of-range port that checkServicePorts already reports", () => {
+    service("api", { port: 70000 });
+    dockerfile("4010");
+    const result = checkDockerfilePorts(root);
+    expect(result.didPass).toBe(true);
+    expect(result.message).not.toContain("port mismatch");
+  });
+
+  it("skips a native image resource with no Dockerfile to compare", () => {
+    service("api", { port: 4011, image: "ghcr.io/example/app:1" });
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("uses dockerfile and buildContext from service.json", () => {
+    service("api", { port: 4011, dockerfile: "Dockerfile.dev", buildContext: "ctx" });
+    const dir = join(root, "services", "app", "api", "ctx");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "Dockerfile.dev"), "FROM scratch\nENV PORT=4010\nEXPOSE 4010\n");
+    expect(checkDockerfilePorts(root).message).toContain("4010");
+    expect(checkDockerfilePorts(root).didPass).toBe(false);
+  });
+
+  it("uses build.dockerfile and build.context from service.json", () => {
+    service("api", { port: 4011, build: { dockerfile: "Dockerfile.prod", context: "docker" } });
+    const dir = join(root, "services", "app", "api", "docker");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "Dockerfile.prod"), "FROM scratch\nENV PORT=4010\nEXPOSE 4010\n");
+    expect(checkDockerfilePorts(root).didPass).toBe(false);
+    expect(checkDockerfilePorts(root).message).toContain("4010");
+  });
+
+  it("treats a directory named like the Dockerfile as missing", () => {
+    service("api", { port: 4011, dockerfile: "Dockerfile.dev" });
+    mkdirSync(join(root, "services", "app", "api", "Dockerfile.dev"), { recursive: true });
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("inspects only the final stage of a multi-stage Dockerfile", () => {
+    service("api", { port: 4010 });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "FROM node:20 AS build\nENV PORT=3000\nEXPOSE 3000\nFROM node:20\nENV PORT=4010\nEXPOSE 4010\n",
+    );
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("uses the configured target stage instead of the final one", () => {
+    service("api", { port: 4010, target: "production" });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "FROM node:20 AS production\nENV PORT=4010\nEXPOSE 4010\nFROM node:20 AS debug\nENV PORT=3000\nEXPOSE 3000\n",
+    );
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("joins backslash continuations and ignores comments before FROM", () => {
+    service("api", { port: 4010 });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "# ENV PORT=9999\nFROM node:20\nHEALTHCHECK --interval=10s \\\n  CMD nc -z localhost 4010\nENV PORT=4010\nEXPOSE 4010\n",
+    );
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("never reports localhost ports outside HEALTHCHECK", () => {
+    service("api", { port: 4010 });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "FROM node:20\n# HEALTHCHECK CMD curl http://localhost:9999\nENV UPSTREAM_URL=http://localhost:9999\nRUN curl http://localhost:9999\nENV PORT=4010\nEXPOSE 4010\nHEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:4010/health\n",
+    );
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("detects a 127.0.0.1 healthcheck port and ignores interval and timeout flags", () => {
+    service("api", { port: 4011 });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "FROM node:20\nENV PORT=4011\nEXPOSE 4011\nHEALTHCHECK --interval=10s --timeout=2s CMD curl http://127.0.0.1:4010/health\n",
+    );
+    const result = checkDockerfilePorts(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("healthcheck 4010");
+  });
+
+  it("keeps the final effective ENV PORT in the stage", () => {
+    service("api", { port: 4010 });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "FROM node:20\nENV PORT=3000\nENV PORT=4010\nEXPOSE 4010\n",
+    );
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("reads ENV PORT with a space, quotes and among multiple variables", () => {
+    service("api", { port: 4010 });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "FROM node:20\nENV PORT 4010\nENV OTHER_PORT=9999\nENV FOO=1 PORT=4010 NODE_ENV=production # keep\nENV QUOTED='4010'\nEXPOSE 4010\n",
+    );
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+
+  it("reads multiple EXPOSE ports with protocols and trailing comments", () => {
+    service("api", { port: 4010 });
+    const dir = join(root, "services", "app", "api");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "Dockerfile"),
+      "FROM node:20\nENV PORT=4010\nEXPOSE 80 443 4010/tcp 9090 # extra ports\n",
+    );
+    expect(checkDockerfilePorts(root).message).not.toContain("EXPOSE 80");
+    expect(checkDockerfilePorts(root).didPass).toBe(true);
+  });
+});
+
 describe("the gate accepts what `flisk import` writes for a Compose app", () => {
   // Found by the compose-import journey: the gate refused buildContext "../../../api" (a Dockerfile that stays where the Compose
   // file had it, outside the service directory), `flisk up` exited before starting anything and the journey timed out.
@@ -638,6 +820,79 @@ describe("checkRequiredSecrets", () => {
     expect(
       checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "infisical" }).didPass,
     ).toBe(true);
+  });
+
+  it("warns per required name with infisical when this build has no bridge", () => {
+    service("api", { secrets: { required: ["A_KEY", "B_KEY"] } });
+    service("worker", { secrets: { required: ["C_KEY"] } }, "app/worker");
+    const result = checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "infisical" });
+    expect(result.didPass).toBe(true);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain("this build has no Infisical client");
+    expect(result.message).toContain("A_KEY, B_KEY, C_KEY");
+    expect(result.fix).toContain("FLISK_SECRET_PROVIDER=env-file");
+  });
+
+  it("keeps the existing behavior when infisical has a bridge", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    const result = checkRequiredSecrets(root, undefined, {
+      FLISK_SECRET_PROVIDER: "infisical",
+      FLISK_SECRET_BRIDGE: "1",
+    });
+    expect(result.didPass).toBe(true);
+    expect(result.isWarning).toBeUndefined();
+    expect(result.message).toBe("Secrets are left to the secret provider");
+  });
+
+  it("accepts env-file (or unset) and case/whitespace variants of a known provider", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    expect(checkRequiredSecrets(root, undefined, {}).didPass).toBe(false);
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: " env-file " }).didPass,
+    ).toBe(false);
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: " INFISICAL " }).isWarning,
+    ).toBe(true);
+  });
+
+  it("rejects an unknown provider with a usage error naming the value and valid ones", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    let caught: unknown;
+    try {
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "keychan" });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(FliskError);
+    expect((caught as FliskError).exitCode).toBe(2);
+    expect((caught as FliskError).message).toContain('"keychan"');
+    expect((caught as FliskError).message).toContain("env-file");
+    expect((caught as FliskError).message).toContain("infisical");
+  });
+
+  it("passes a non-blocking provider warning to the gate instead of failing it", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const saved = process.env.FLISK_SECRET_PROVIDER;
+    const warnings: string[] = [];
+    const failures: string[] = [];
+    const exit = vi.fn((code: number) => {
+      throw new Error(`exit ${code}`);
+    }) as unknown as (code: number) => never;
+    process.env.FLISK_SECRET_PROVIDER = "infisical";
+    try {
+      enforceServiceConfigGate(
+        root,
+        { onInvalid: (m) => failures.push(m), onWarning: (m) => warnings.push(m) },
+        exit,
+      );
+    } finally {
+      if (saved === undefined) delete process.env.FLISK_SECRET_PROVIDER;
+      else process.env.FLISK_SECRET_PROVIDER = saved;
+    }
+    expect(failures).toHaveLength(0);
+    expect(exit).not.toHaveBeenCalled();
+    expect(warnings.join("\n")).toContain("A_KEY will be empty");
   });
 
   it("is part of the gate, so flisk up refuses it before Tilt starts", () => {

@@ -14,6 +14,7 @@ import { checkColima } from "../../utils/colima.js";
 import { probeHostPort } from "../../utils/doctor-runtime.js";
 import { ProcessExitError } from "../../utils/errors.js";
 import { getHostPortPlan } from "../../utils/host-port-config.js";
+import { isProcessAlive, readNativeRunState } from "../../utils/native-runtime.js";
 import { discoverResourcesWithProblems } from "../../utils/services.js";
 import { openUrl } from "../../utils/url-actions.js";
 import { findReadyFrontend, isFrontendReady, openCommand, openFirstFrontend } from "../open.js";
@@ -39,6 +40,11 @@ vi.mock("../../utils/colima.js", async (importOriginal) => ({
 vi.mock("../../utils/url-actions.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/url-actions.js")>()),
   openUrl: vi.fn(),
+}));
+vi.mock("../../utils/native-runtime.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/native-runtime.js")>()),
+  isProcessAlive: vi.fn(),
+  readNativeRunState: vi.fn(),
 }));
 
 const PLAN = { ingressHttp: 8080 } as HostPortPlan;
@@ -100,6 +106,8 @@ beforeEach(() => {
     stderr += `${lines.map(String).join(" ")}\n`;
   });
   vi.mocked(getHostPortPlan).mockClear().mockResolvedValue(PLAN);
+  vi.mocked(readNativeRunState).mockReturnValue(null);
+  vi.mocked(isProcessAlive).mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -179,6 +187,67 @@ describe("openFirstFrontend, in process", () => {
     expect(stderr).toContain("No frontend answered yet.");
     expect(stdout).toContain("The stack is not serving the frontend yet.");
     expect(stdout).toContain("Start the stack in another terminal: flisk up");
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("waits when a local-process supervisor is active", async () => {
+    const root = createTempProject({ projectJson: { project: { name: "native-shop" } } });
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    vi.mocked(readNativeRunState).mockReturnValue({
+      pid: 123,
+      startedAt: "2026-11-19T00:00:00.000Z",
+      services: {},
+    });
+    vi.mocked(isProcessAlive).mockReturnValue(true);
+    let calls = 0;
+    answer(() => (++calls > 2 ? 200 : 503));
+
+    expect(await open(root)).toBe("http://localhost:5173");
+
+    expect(isProcessAlive).toHaveBeenCalledWith(123);
+    expect(openUrl).toHaveBeenCalledWith("http://localhost:5173");
+  });
+
+  it("fails promptly for a local-process project with no active run and avoids Docker advice", async () => {
+    const root = createTempProject({ projectJson: { project: { name: "native-shop" } } });
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    answer(() => 503);
+
+    expect(await open(root)).toBeNull();
+
+    expect(readNativeRunState).toHaveBeenCalledWith(root);
+    expect(isProcessAlive).not.toHaveBeenCalled();
+    expect(probeHostPort).not.toHaveBeenCalled();
+    expect(stdout).toContain("No frontend is answering at http://localhost:5173.");
+    expect(stdout).not.toContain("Docker");
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("avoids Docker advice when an active local-process run never answers", async () => {
+    const root = createTempProject({ projectJson: { project: { name: "native-shop" } } });
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    vi.mocked(readNativeRunState).mockReturnValue({
+      pid: 123,
+      startedAt: "2026-11-19T00:00:00.000Z",
+      services: {},
+    });
+    vi.mocked(isProcessAlive).mockReturnValue(true);
+    answer(() => 503);
+
+    expect(await open(root)).toBeNull();
+
+    expect(probeHostPort).not.toHaveBeenCalled();
+    expect(stdout).toContain("No frontend is answering at http://localhost:5173.");
+    expect(stdout).not.toContain("Docker");
     expect(openUrl).not.toHaveBeenCalled();
   });
 
@@ -272,6 +341,20 @@ describe("flisk open, in process", () => {
       process.chdir(cwd);
     }
   }
+
+  it("fails promptly with --print when a local project has no active run", async () => {
+    const root = createTempProject({ projectJson: { project: { name: "native-shop" } } });
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    answer(() => 503);
+
+    await print(root);
+
+    expect(stderr).toContain("No frontend is answering at http://localhost:5173.");
+    expect(process.exitCode).toBe(1);
+  });
 
   it("prints only the first ready frontend URL without opening a browser", async () => {
     const root = shopProject();
@@ -371,6 +454,27 @@ describe("flisk open, in process", () => {
     expect(openUrl).not.toHaveBeenCalled();
   });
 
+  it("sets a failing exit code when the default browser command has no ready frontend", async () => {
+    const root = createTempProject({ projectJson: { project: { name: "native-shop" } } });
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    answer(() => 503);
+    const cwd = process.cwd();
+    process.chdir(root);
+    try {
+      const pending = openCommand.parseAsync([], { from: "user" });
+      await vi.runAllTimersAsync();
+      await pending;
+    } finally {
+      process.chdir(cwd);
+    }
+    expect(process.exitCode).toBe(1);
+    expect(stdout).toContain("No frontend is answering at http://localhost:5173.");
+    expect(stdout).not.toContain("Docker");
+  });
+
   it("opens the first frontend of the project it runs in", async () => {
     const root = shopProject();
     answer(() => 200);
@@ -456,6 +560,22 @@ describe("flisk open, in process", () => {
       expect(envelope.errors[0]?.code).toBe("UNKNOWN_FRONTEND");
       expect(stdout).toContain("Frontends: admin, storefront");
       expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("returns a prompt FRONTEND_NOT_READY envelope for a local project with no active run", async () => {
+      const root = createTempProject({ projectJson: { project: { name: "native-shop" } } });
+      vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+        resources: [makeResource("web", "frontend", { command: "npm run dev", port: 5173 })],
+        problems: [],
+      } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+      answer(() => 503);
+
+      const { envelope, status } = await runWithJson(root, ["--json"]);
+
+      expect(status).toBe(1);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0]?.code).toBe("FRONTEND_NOT_READY");
+      expect(envelope.errors[0]?.message).toContain("http://localhost:5173");
     });
 
     it("outputs FRONTEND_NOT_READY error in machine envelope and exits 1 when no frontend answers", async () => {

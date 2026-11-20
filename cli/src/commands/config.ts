@@ -45,6 +45,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import {
   checkCircularDependencies,
   checkDependsOnShape,
+  checkDockerfilePorts,
   checkServicePorts,
   postgresVolumeWarnings,
 } from "../utils/service-config-checks.js";
@@ -500,6 +501,7 @@ export const configCommand = new Command("config")
             checkDependsOnShape(projectRoot, resources),
             checkCircularDependencies(projectRoot, resources),
             checkServicePorts(projectRoot, resources),
+            checkDockerfilePorts(projectRoot, resources),
           ]
             .filter((check) => !check.didPass)
             .map((check) =>
@@ -671,34 +673,39 @@ export const configCommand = new Command("config")
           ]);
         }
 
-        const editor = process.env.EDITOR || "vi";
+        // A pipe, script or CI job cannot answer an editor, and vi would wait on the closed stdin.
+        if (!process.stdin.isTTY || !process.stdout.isTTY) {
+          throw new FliskError("config edit needs a terminal; edit .flisk/project.json directly", [
+            `Edit it in your own editor: ${projectJsonPath}`,
+            "Then run `flisk config regenerate` to apply the changes.",
+          ]);
+        }
+
+        // $VISUAL comes first, as in most editors; an unset or blank value falls through to $EDITOR.
+        const editor = process.env.VISUAL?.trim() || process.env.EDITOR?.trim() || "vi";
         console.log(chalk.blue(`Opening ${projectJsonPath} in ${editor}...`));
 
-        const editorParts = editor.trim().split(/\s+/);
+        // Split into a command and its arguments instead of handing the string to a shell.
+        const editorParts = editor.split(/\s+/);
         const editorCmd = editorParts[0] || "vi";
         const editorArgs = [...editorParts.slice(1), projectJsonPath];
+        const editorResult = spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+        if (editorResult.error || editorResult.status !== 0) {
+          throw new FliskError(`Editor "${editorCmd}" failed`, [
+            editorResult.error?.message ??
+              (editorResult.signal
+                ? `Terminated by ${editorResult.signal}`
+                : `Exited with status ${editorResult.status ?? 1}`),
+          ]);
+        }
 
-        const allowedEditors = [
-          "vi",
-          "vim",
-          "nano",
-          "emacs",
-          "code",
-          "subl",
-          "atom",
-          "mate",
-          "pico",
-          "micro",
-          "hx",
-        ];
-        const editorBase = editorCmd.replace(/.*\//, ""); // Remove path prefix for validation
-        if (!allowedEditors.includes(editorBase)) {
-          console.error(
-            chalk.yellow(`Warning: Unknown editor "${editorCmd}". Using 'vi' instead.`),
-          );
-          spawnSync("vi", [projectJsonPath], { stdio: "inherit" });
-        } else {
-          spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
+        try {
+          readProjectConfig(projectRoot);
+        } catch (error) {
+          throw new FliskError("Editor saved an invalid .flisk/project.json", [
+            "Fix .flisk/project.json before running `flisk config regenerate`.",
+            error instanceof Error ? error.message : String(error),
+          ]);
         }
 
         console.log(chalk.green("\n✅ Editor closed."));
@@ -721,7 +728,7 @@ function isOptionalInfraKey(
 async function toggleInfraService(
   service: string,
   enabled: boolean,
-  options: { json?: boolean; ignoreVersion?: boolean } = {},
+  options: { json?: boolean; ignoreVersion?: boolean; dryRun?: boolean } = {},
 ): Promise<JsonCommandResult> {
   const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
   if (!projectRoot) throw errorFactories.notInProject();
@@ -769,6 +776,17 @@ async function toggleInfraService(
   }
 
   const wasEnabled = config.optional_infra[service];
+  const changes = Boolean(wasEnabled) !== enabled;
+  if (options.dryRun) {
+    console.log(
+      changes
+        ? `Would ${enabled ? "enable" : "disable"} ${service}.`
+        : `No change: ${service} is already ${enabled ? "enabled" : "disabled"}.`,
+    );
+    return {
+      data: { dryRun: true, service, enabled, wasEnabled: Boolean(wasEnabled), changed: changes },
+    };
+  }
 
   const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
   const rawProjectValue: unknown = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
@@ -811,6 +829,7 @@ function infraToggleCommand(name: "enable-infra" | "disable-infra", enabled: boo
   return new Command(name)
     .description(`${enabled ? "Enable" : "Disable"} optional infrastructure service`)
     .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
+    .option("--dry-run", "Show the planned change without writing project.json")
     .option(
       "--ignore-version",
       "Continue even if the CLI does not match the project's version requirements",
@@ -821,14 +840,19 @@ function infraToggleCommand(name: "enable-infra" | "disable-infra", enabled: boo
       "Print one JSON envelope on stdout with the service and its previous state",
       false,
     )
-    .action(async (service: string, options: { json?: boolean; ignoreVersion?: boolean }) => {
-      const action = () => toggleInfraService(service, enabled, options);
-      if (options.json) {
-        await runJsonCommand("INFRA_TOGGLE_FAILED", `flisk config ${name}`, action);
-        return;
-      }
-      await runCommand(action);
-    });
+    .action(
+      async (
+        service: string,
+        options: { json?: boolean; ignoreVersion?: boolean; dryRun?: boolean },
+      ) => {
+        const action = () => toggleInfraService(service, enabled, options);
+        if (options.json) {
+          await runJsonCommand("INFRA_TOGGLE_FAILED", `flisk config ${name}`, action);
+          return;
+        }
+        await runCommand(action);
+      },
+    );
 }
 
 configCommand

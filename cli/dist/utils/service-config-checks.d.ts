@@ -67,6 +67,13 @@ export declare function warnModelRunner(projectRoot: string, resources?: Discove
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export declare function checkServicePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**
+ * A resource's own Dockerfile can drift from its service.json after a re-registration (#3738) or a hand edit:
+ * `ENV PORT`, `EXPOSE` and the healthcheck keep the old number while `port` moves on. `flisk up` then publishes the
+ * new port to a container that still listens on the old one, and only the healthcheck reveals the mismatch. Local
+ * process resources have no Dockerfile, so they are skipped.
+ */
+export declare function checkDockerfilePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+/**
  * A service.json with no schemaVersion is how every project began, so this is a warning: it keeps working, and only
  * `flisk config migrate` writes the field. A version this flisk does not know is reported the same way, with a different fix.
  */
@@ -76,7 +83,7 @@ export declare function warnSchemaVersions(projectRoot: string, resources?: Disc
 /**
  * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
  * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
- * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ * With `FLISK_SECRET_PROVIDER=infisical` the names are left to a bridge; the free build has none, so it warns per name.
  */
 export declare function checkRequiredSecrets(projectRoot?: string, resources?: DiscoveredResource[], env?: NodeJS.ProcessEnv): CheckResult;
 /** Prints each secret that a literal in `params` or `env` overrides. A warning: such a project still starts. */
@@ -87,5 +94,6 @@ export declare function warnSecretConflicts(projectRoot: string, resources?: Dis
  */
 export declare function enforceServiceConfigGate(projectRoot: string, options?: {
     onInvalid?: (message: string) => void;
+    onWarning?: (message: string) => void;
     resources?: DiscoveredResource[];
 }, exit?: (code: number) => never): void;

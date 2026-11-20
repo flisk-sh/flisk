@@ -178,7 +178,7 @@ jobs:
         with:
           fetch-depth: 0 # the secret scan reads the commits between the base and the head
           persist-credentials: false
-      - uses: crate-ci/typos@4c8b7f51ca60df14e3c5ca82770dfbbe6c3dae85 # v1.52.0
+      - uses: crate-ci/typos@276087d9a4f06398b3e04825487805e2d7375888 # v1.52.2
         with:
           config: ./.github/_typos.toml
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -210,7 +210,7 @@ jobs:
             echo "Add a sign-off with: git commit --amend -s (or git rebase --signoff $BASE_SHA)"
             exit 1
           fi
-      - uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
+      - uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         with:
           base: ${{ github.event.pull_request.base.sha }}
