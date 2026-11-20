@@ -104,7 +104,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
     .option("--unhealthy", "Show only services that are failing or still starting", false)
     .option("--strict", "Exit 1 when any service is not ready or nothing is running", false)
     .option("--usage", "Show CPU, memory and process usage per service", false)
-    .option("--project <path>", "Show status for the Flisk project in this folder (default: the current project)")
+    .option("--project <path>", "Path to the Flisk project to report on (default: the current project)")
     .addHelpText("after", "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --usage\n  flisk status --json\n  flisk status --strict")
     .action(async (options, command) => {
     const project = options.project ?? command.optsWithGlobals().project;

@@ -139,7 +139,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
   .option("--usage", "Show CPU, memory and process usage per service", false)
   .option(
     "--project <path>",
-    "Show status for the Flisk project in this folder (default: the current project)",
+    "Path to the Flisk project to report on (default: the current project)",
   )
   .addHelpText(
     "after",

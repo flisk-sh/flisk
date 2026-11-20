@@ -88,7 +88,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
     .option("--unhealthy", "Only services that are failing or still starting", false)
     .option("--port <n>", "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)")
-    .option("--project <path>", "View logs for the Flisk project in this folder (default: the current project)")
+    .option("--project <path>", "Path to the Flisk project whose logs to read (default: the current project)")
     .option("--json", "Output one JSON object and exit", false)
     .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json")
     .action(async (options, command) => {

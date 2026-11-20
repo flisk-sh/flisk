@@ -66,6 +66,7 @@ vi.mock("../../utils/tilt.js", async (importOriginal) => {
 });
 
 import { runCommandInProcess } from "../../test-support/index.js";
+import { shellQuote } from "../../utils/native-container.js";
 import { downCommand } from "../down.js";
 import { logsCommand } from "../logs.js";
 import { restartCommand } from "../restart.js";
@@ -124,7 +125,7 @@ describe("CLI project resolution (Issue #4347)", () => {
       expect(result.status).toBe(1);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toContain(testProject);
-      expect(combined).toContain(`flisk logs --project ${testProject}`);
+      expect(combined).toContain(`flisk logs --project ${shellQuote(testProject)}`);
     });
 
     it("flisk logs outside a project with multiple running projects lists all of them", async () => {
@@ -137,8 +138,8 @@ describe("CLI project resolution (Issue #4347)", () => {
         expect(result.status).toBe(1);
         const combined = `${result.stdout}\n${result.stderr}`;
         expect(combined).toContain("2 Flisk projects are running");
-        expect(combined).toContain(`flisk logs --project ${testProject}`);
-        expect(combined).toContain(`flisk logs --project ${proj2}`);
+        expect(combined).toContain(`flisk logs --project ${shellQuote(testProject)}`);
+        expect(combined).toContain(`flisk logs --project ${shellQuote(proj2)}`);
       } finally {
         rmSync(proj2, { recursive: true, force: true });
       }
@@ -152,7 +153,7 @@ describe("CLI project resolution (Issue #4347)", () => {
       expect(result.status).toBe(1);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toContain(testProject);
-      expect(combined).toContain(`flisk restart --project ${testProject}`);
+      expect(combined).toContain(`flisk restart --project ${shellQuote(testProject)}`);
     });
 
     it("flisk status outside a project with one running project lists running project suggestion", async () => {
@@ -163,7 +164,7 @@ describe("CLI project resolution (Issue #4347)", () => {
       expect(result.status).toBe(1);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toContain(testProject);
-      expect(combined).toContain(`flisk status --project ${testProject}`);
+      expect(combined).toContain(`flisk status --project ${shellQuote(testProject)}`);
     });
   });
 
@@ -342,7 +343,7 @@ describe("CLI project resolution (Issue #4347)", () => {
 
       expect(result.status).toBe(1);
       expect(`${result.stdout}\n${result.stderr}`).toContain(
-        "flisk logs --project '/work/my app/it'\\''s'",
+        `flisk logs --project ${shellQuote("/work/my app/it's")}`,
       );
     });
   });
