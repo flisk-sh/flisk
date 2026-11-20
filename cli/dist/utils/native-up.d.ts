@@ -1,4 +1,5 @@
 import type { DiscoveredResource } from "../types/index.js";
+import type { AutoPortReport } from "./auto-ports.js";
 import type { JsonEmitter } from "./json-output.js";
 import { type NativeServicePlan } from "./native-runtime.js";
 export interface NativeFailure {
@@ -34,6 +35,8 @@ export interface NativeUpInput {
     dryRun?: boolean;
     quiet?: boolean;
     force?: boolean;
+    /** Resolved run-time ports for `up --json`, when auto ports were used. */
+    autoPortReport?: AutoPortReport;
     emit?: JsonEmitter;
     /** Overrides for tests. */
     readyTimeoutMs?: number;

@@ -1,4 +1,5 @@
 import type { DiscoveredResource } from "../types/index.js";
+import type { AutoPortReport } from "./auto-ports.js";
 import { type TiltPortOwner } from "./tilt-port-owner.js";
 import { evaluateTiltReadiness } from "./up-readiness.js";
 import { type UrlCheck, type UrlTarget } from "./url-check.js";
@@ -16,6 +17,7 @@ export interface FastNoopFlags {
     profile?: string[];
     database?: boolean;
     gateway?: boolean;
+    autoPort?: boolean;
     stackName?: string;
     /** The port the caller configured; a different one from the recorded run needs the normal path. */
     configuredTiltPort: number | undefined;
@@ -32,6 +34,8 @@ export interface FastNoopState {
     services: string[];
     ingressPort: number | null;
     urls: string[];
+    /** Resolved ports of the recorded run, replayed in the fast no-op `--json` report. */
+    autoPortReport?: AutoPortReport;
 }
 /**
  * Where a run records its fingerprint. It lives under `~/.flisk/`, away from the generated files Tilt watches, so

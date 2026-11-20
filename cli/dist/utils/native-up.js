@@ -110,8 +110,9 @@ export async function runNativeUp(input) {
     const { projectRoot, selected, emit } = input;
     const exit = input.exit ?? ((code) => process.exit(code));
     const quiet = Boolean(input.quiet);
+    const autoPortFields = input.autoPortReport ? { ...input.autoPortReport } : {};
     const fail = (code, message, data = {}) => {
-        emit?.({ ok: false, runtime: "native", ...data }, [{ code, message }]);
+        emit?.({ ok: false, runtime: "native", ...autoPortFields, ...data }, [{ code, message }]);
         showError(message);
         return exit(1);
     };
@@ -157,7 +158,13 @@ export async function runNativeUp(input) {
         if (running && running.pid !== process.pid && isProcessAlive(running.pid)) {
             if (!input.force) {
                 const message = `This project is already running as local processes (flisk up, pid ${running.pid}).`;
-                emit?.({ ok: true, alreadyRunning: true, runtime: "native", pid: running.pid });
+                emit?.({
+                    ok: true,
+                    alreadyRunning: true,
+                    runtime: "native",
+                    ...autoPortFields,
+                    pid: running.pid,
+                });
                 if (!quiet) {
                     console.log(chalk.green(message));
                     console.log(chalk.gray("Stop it with flisk down, or pass --force to restart it."));
@@ -191,6 +198,7 @@ export async function runNativeUp(input) {
             ok: true,
             dryRun: true,
             runtime: "native",
+            ...autoPortFields,
             ...(input.inferred ? { inferred: input.inferred } : {}),
             stack: input.stackName ?? null,
             services: serviceNames,
@@ -274,7 +282,9 @@ export async function runNativeUp(input) {
             ]),
             `Output of every service: ${join(NATIVE_DIR, "logs")}/<service>.log`,
         ].join("\n");
-        emit?.({ ok: false, runtime: "native", failures }, [{ code: "UP_RESOURCE_FAILED", message }]);
+        emit?.({ ok: false, runtime: "native", ...autoPortFields, failures }, [
+            { code: "UP_RESOURCE_FAILED", message },
+        ]);
         showError(message);
         await supervisor.stop();
         exit(1);
@@ -283,6 +293,7 @@ export async function runNativeUp(input) {
     emit?.({
         ok: true,
         runtime: "native",
+        ...autoPortFields,
         ...(input.inferred ? { inferred: true } : {}),
         stack: input.stackName ?? null,
         services: serviceNames,

@@ -10,6 +10,7 @@
 load("../../../../../../../discovery/registry.star", "get_app_resources", "get_resource_by_name")
 load("../../../../../platform/docker/networking/traefik_helpers.star", "cli_api_path")
 load("../../../../common/dependencies.star", "declared_dependencies")
+load("../../../../manifest/port_values.star", "manifest_port")
 
 def _find_backend_resource(resource_name):
     """Find a discovered resource by its own name, e.g. "api".
@@ -116,7 +117,8 @@ def resolve_resource_port(resource_name):
     resource = _find_backend_resource(resource_name)
     if not resource:
         return None
-    return resource.get("_manifest", {}).get("port")
+    # An auto port stays a `${...}` placeholder in generated env files; flisk up exports the chosen value (#4683).
+    return manifest_port(resource.get("_manifest", {}), 4000, resource_name)
 
 
 def resolve_dependency_api_urls(manifest):

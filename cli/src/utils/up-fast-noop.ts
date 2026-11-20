@@ -12,6 +12,8 @@ import {
   verifyMasterConfigs,
 } from "../generator/template-engine.js";
 import type { DiscoveredResource } from "../types/index.js";
+import type { AutoPortReport } from "./auto-ports.js";
+import { autoPortReportFromResources } from "./auto-ports.js";
 import { writeTextFileAtomic } from "./atomic-write.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "./doctor-runtime.js";
 import { isNativeService } from "./native-service.js";
@@ -45,6 +47,7 @@ export interface FastNoopFlags {
   profile?: string[];
   database?: boolean;
   gateway?: boolean;
+  autoPort?: boolean;
   stackName?: string;
   /** The port the caller configured; a different one from the recorded run needs the normal path. */
   configuredTiltPort: number | undefined;
@@ -62,6 +65,8 @@ export interface FastNoopState {
   services: string[];
   ingressPort: number | null;
   urls: string[];
+  /** Resolved ports of the recorded run, replayed in the fast no-op `--json` report. */
+  autoPortReport?: AutoPortReport;
 }
 
 /** Environment variables that change what the generated stack runs, so a changed value is not a no-op. */
@@ -239,6 +244,7 @@ export function isPlainUp(flags: FastNoopFlags): boolean {
     !flags.only?.length &&
     flags.envFile === undefined &&
     !flags.profile?.length &&
+    !flags.autoPort &&
     flags.database !== false &&
     flags.gateway !== false &&
     flags.stackName === undefined

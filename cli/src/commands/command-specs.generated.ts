@@ -224,6 +224,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         flags: "--wait-timeout <seconds>",
         description: "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)",
       },
+      {
+        flags: "--auto-port",
+        description:
+          'Pick a free port for every service in this run (as if "port" were "auto" in each service.json), without editing files',
+        defaultValue: false,
+      },
     ],
     arguments: [
       {

@@ -24,6 +24,7 @@ import {
   isContainerHost,
   WEBCONTAINER_UP_MESSAGE,
 } from "../utils/agent-host.js";
+import { autoPortReportFromResources, resolveAutoPorts } from "../utils/auto-ports.js";
 import {
   assertGatewayOptOutIsConfigured,
   disableDatabaseCapability,
@@ -554,6 +555,7 @@ export function fastNoopFlags(
     only: options.only as string[] | undefined,
     envFile: options.envFile as string | undefined,
     profile: options.profile as string[] | undefined,
+    autoPort: options.autoPort as boolean | undefined,
     database: options.database as boolean | undefined,
     gateway: options.gateway as boolean | undefined,
     stackName,
@@ -580,6 +582,7 @@ export function printFastNoopResult(
       alreadyRunning: true,
       stack: state.stack,
       services,
+      ...(state.autoPortReport ?? {}),
       tiltUrl,
       ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
       // The same per-URL objects a normal start reports, so `data.urls` parsers keep working.
@@ -635,6 +638,9 @@ function recordHealthyRun(details: {
     services: resources.map((r) => r.name),
     ingressPort,
     urls,
+    ...(autoPortReportFromResources(resources).autoPorts.length > 0
+      ? { autoPortReport: autoPortReportFromResources(resources) }
+      : {}),
   });
   return urls;
 }
@@ -863,6 +869,11 @@ export const upCommand = new Command("up")
     "--wait-timeout <seconds>",
     "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)",
   )
+  .option(
+    "--auto-port",
+    'Pick a free port for every service in this run (as if "port" were "auto" in each service.json), without editing files',
+    false,
+  )
   .addHelpText(
     "after",
     "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
@@ -1066,11 +1077,19 @@ export const upCommand = new Command("up")
       if (nativeProfiles.skipped.length > 0 && !options.quiet) {
         console.log(chalk.gray(skippedProfilesNote(nativeProfiles.skipped)));
       }
+      // "port": "auto" and --auto-port are resolved here, never in service.json. Fixed ports keep their conflict errors.
+      const nativeAuto = await resolveAutoPorts(nativeProfiles.kept, projectRoot, {
+        force: options.autoPort,
+        all: nativeRun.all,
+        claim: options.dryRun ? () => true : createPortClaimer(projectRoot),
+        dryRun: options.dryRun,
+      });
       guardDisk(false);
       await runNativeUp({
         projectRoot,
-        selected: nativeProfiles.kept,
+        selected: nativeAuto.resources,
         dependencies: nativeRun.dependencies,
+        autoPortReport: nativeAuto.report,
         stackName,
         only: options.only,
         envFilePath,
@@ -1495,6 +1514,16 @@ export const upCommand = new Command("up")
         focusServiceNames = servicesToStart.map((s) => s.name);
         if (!options.quiet) console.log(chalk.gray(skippedProfilesNote(profileSelection.skipped)));
       }
+      // Resolve run-time ports after the selection is known. The resolved numbers reach reports and the Tilt/CreateProcess
+      // environment; generated Compose/Traefik files keep only ${FLISK_SERVICE_*_PORT} placeholders.
+      const autoPortResolution = await resolveAutoPorts(servicesToStart, projectRoot, {
+        force: options.autoPort,
+        all: discoveredResources,
+        claim: claimPort ?? (() => true),
+        dryRun: options.dryRun,
+      });
+      servicesToStart = autoPortResolution.resources;
+      for (const [name, value] of Object.entries(autoPortResolution.env)) process.env[name] = value;
 
       if (options.verbose && !options.quiet) {
         console.log(
@@ -1605,6 +1634,7 @@ export const upCommand = new Command("up")
           dryRun: true,
           stack: stackName ?? null,
           services: serviceNames,
+          ...autoPortResolution.report,
           ...(options.only
             ? { requested: options.only, declaredDependencies: dependencyNames }
             : {}),
@@ -1710,7 +1740,7 @@ export const upCommand = new Command("up")
               );
               if (urlChecks.some((check) => !check.didAnswer)) {
                 clearFastNoopState(projectRoot);
-                emit({ ok: false, alreadyRunning: true, tiltUrl, urls: urlChecks }, [
+                emit({ ok: false, alreadyRunning: true, tiltUrl, urls: urlChecks, ...autoPortResolution.report }, [
                   {
                     code: "UP_URL_UNREACHABLE",
                     message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
@@ -1738,12 +1768,13 @@ export const upCommand = new Command("up")
               ok: true,
               alreadyRunning: true,
               tiltUrl,
+              ...autoPortResolution.report,
               ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
               ...(attachedUrlChecks.length > 0 ? { urls: attachedUrlChecks } : {}),
             });
           } else {
             clearFastNoopState(projectRoot);
-            emit({ ok: false, alreadyRunning: true, tiltUrl, failures }, [
+            emit({ ok: false, alreadyRunning: true, tiltUrl, failures, ...autoPortResolution.report }, [
               { code: report.code, message: report.message, suggestions: report.suggestions },
             ]);
             process.exitCode = 1;
@@ -2159,6 +2190,7 @@ export const upCommand = new Command("up")
             ok: true,
             stack: stackName ?? null,
             services: startedServices,
+            ...autoPortResolution.report,
             ...(options.only ? { requested: options.only, dependencies: startedDependencies } : {}),
             tiltUrl: `http://localhost:${port}`,
             ...(urlChecks ? { urls: urlChecks } : {}),

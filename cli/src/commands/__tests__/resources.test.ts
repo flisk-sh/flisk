@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { isResourceCreateType } from "../../types/index.js";
+import { autoPortStatePath } from "../../utils/auto-ports.js";
 import { VALID_RESOURCE_TYPES } from "../../utils/constants.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { resourcesCommand } from "../resources.js";
@@ -28,7 +29,7 @@ describe("resources command", () => {
   });
 
   function setupProject(
-    resources: Array<{ name: string; type: string; stack?: string; port?: number }>,
+    resources: Array<{ name: string; type: string; stack?: string; port?: number | "auto" }>,
   ) {
     mkdirSync(join(tempDir, ".flisk"), { recursive: true });
     writeFileSync(
@@ -199,6 +200,24 @@ describe("resources command", () => {
     expect(envelope.data.resources).toHaveLength(4);
     const names = envelope.data.resources.map((r: { name: string }) => r.name).sort();
     expect(names).toEqual(["orders", "orphan", "web", "worker"]);
+    logSpy.mockRestore();
+  });
+
+  it("reports the saved port for an auto service in --json", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: "auto" }]);
+    mkdirSync(join(tempDir, ".flisk", "local"), { recursive: true });
+    writeFileSync(
+      autoPortStatePath(tempDir),
+      JSON.stringify({ version: 1, ports: { orders: { port: 4123, appType: "backend" } } }),
+    );
+    clearDiscoveryCache();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await resourcesCommand.parseAsync(["node", "flisk", "--json"], { from: "node" });
+
+    const envelope = parseEnvelope(logSpy.mock.calls.map((c) => c.join(" ")).join("\n"));
+    expect(envelope.data.resources).toHaveLength(1);
+    expect(envelope.data.resources[0]).toMatchObject({ name: "orders", port: 4123 });
     logSpy.mockRestore();
   });
 

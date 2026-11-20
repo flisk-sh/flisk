@@ -754,7 +754,10 @@ export function appTypeAndPortErrors(
   if (
     port !== undefined &&
     port !== null &&
-    !(typeof port === "number" && Number.isInteger(port) && port >= PORT_MIN && port <= PORT_MAX)
+    !(
+      port === "auto" ||
+      (typeof port === "number" && Number.isInteger(port) && port >= PORT_MIN && port <= PORT_MAX)
+    )
   ) {
     errors.push(
       `${displayPath}.port: expected an integer from ${PORT_MIN} to ${PORT_MAX}${echoValue(port) ? `, got${echoValue(port)}` : ""}`,

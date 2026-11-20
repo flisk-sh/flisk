@@ -229,8 +229,11 @@ def _validate_values(manifest, context):
         port = manifest['port']
         app_type = manifest.get('appType', 'backend')
         
+        if port == 'auto':
+            # A run-time value resolved by the CLI; the range is chosen when the port is picked (#4683).
+            pass
         # Check basic range
-        if port < 1024 or port > 65535:
+        elif port < 1024 or port > 65535:
             errors.append(ManifestErrors.new(
                 message="Port {} is outside valid range [1024, 65535]".format(port),
                 category=ManifestErrors.CATEGORY['VALIDATION'],
@@ -451,7 +454,7 @@ def _validate_cross_resource(manifest, context):
             app_names[name] = m
         
         port = m.get('port')
-        if port:
+        if port and port != 'auto':
             if port not in ports:
                 ports[port] = []
             ports[port].append(name)

@@ -833,17 +833,26 @@
       "type": "boolean"
     },
     "port": {
-      "description": "External dev port (internal always 3000).\nAssignments:\n• 4000: user\n• 4001: service\n• 4002: order\n• 4003: team\n• 4004: auth\nbring-your-own: the port the container itself listens on (1-65535), for example 3000 for an imported Compose app or 5432 for Postgres. Nothing is published on the host; Traefik reaches the container on the stack network.",
+      "description": "External dev port (internal always 3000).\nUse \"auto\" to pick a free port in the appType's range at start time; the choice is kept for this checkout only and never written back to service.json.\nAssignments:\n• 4000: user\n• 4001: service\n• 4002: order\n• 4003: team\n• 4004: auth\nbring-your-own: the port the container itself listens on (1-65535), for example 3000 for an imported Compose app or 5432 for Postgres. Nothing is published on the host; Traefik reaches the container on the stack network.",
+      "anyOf": [
+        {
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "const": "auto",
+          "type": "string"
+        }
+      ],
       "examples": [
         4000,
         4001,
         4002,
         4003,
-        4004
-      ],
-      "maximum": 65535,
-      "minimum": 1,
-      "type": "integer"
+        4004,
+        "auto"
+      ]
     },
     "profiles": {
       "description": "Opt-in profiles. A service that lists profiles is left out of flisk up unless --profile names one of them (or --only names the service), so heavy parts that are not needed every day (an admin UI, dashboards, a workflow engine) stay off by default. A service without profiles always starts.",

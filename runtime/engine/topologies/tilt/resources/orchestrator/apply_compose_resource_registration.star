@@ -18,6 +18,7 @@ load('../../../platform/docker/index.star', 'Docker')
 load('../../../platform/docker/build/frontend_build_plan.star', 'frontend_build_plan')
 load('../../../platform/docker/constants.star', 'PlatformDockerConstants')
 load('../../../tilt/manifest/constants.star', 'BASE_PORT_FRONTEND', 'BASE_PORT_BACKEND')
+load('../../../tilt/manifest/port_values.star', 'manifest_port')
 load('../../../platform/docker/networking/traefik_static_routes.star', 'generate_static_wake_route', 'normalize_abs_path')
 load('../../../platform/docker/networking/sablier_container_cycle.star', 'sablier_middleware_suffix')
 # Shared platform Postgres force-start path. infra-loader.star must not load
@@ -1448,6 +1449,8 @@ def _process_frontend_resource(res, manifest, full_res_path, resource_path, reso
     target_path = res.get('target_path', manifest.get('target_path', '/usr/share/nginx/html'))
     use_nginx = 'nginx' in target_path or target_path == '/usr/share/nginx/html'
     port = res.get('port', manifest.get('port', BASE_PORT_FRONTEND))
+    if port == 'auto':
+        port = manifest_port(manifest, BASE_PORT_FRONTEND, res['name'])
     service_dir = (project_root.rstrip('/') + '/' if project_root else '') + full_res_path
     plan = frontend_build_plan(service_dir + '/package.json')
     Docker.frontend(
@@ -1640,6 +1643,8 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
             # resolved via the manifest's own `dependsOn` below.
             if resource_defers_start(manifest) and write_file:
                 internal_port = res.get('port', manifest.get('port', BASE_PORT_BACKEND))
+                if internal_port == 'auto':
+                    internal_port = manifest_port(manifest, BASE_PORT_BACKEND, res['name'])
                 static_route_path = PlatformDockerConstants.TRAEFIK_DYNAMIC_DIR_REL + '/' + res['name'] + '.yml'
                 compose_invocation = _wake_compose_invocation(
                     ctx.get('project_root', ''), resource_path, res['name'], resource_name,

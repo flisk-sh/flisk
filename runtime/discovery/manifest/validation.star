@@ -68,6 +68,9 @@ def validate_manifest(manifest):
     if port == None:
         if app_type not in ['infra', 'database']:
             issues.append("Missing required field: port")
+    elif port == 'auto':
+        # Resolved at start time from the appType range; never written back to service.json (#4683).
+        pass
     elif type(port) != 'int':
         issues.append("Invalid port: " + str(port) + ". Must be an integer")
     elif app_type == 'bring-your-own':

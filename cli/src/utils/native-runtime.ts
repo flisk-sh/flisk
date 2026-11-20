@@ -13,7 +13,11 @@ import {
 import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
-import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
+import type {
+  DiscoveredResource,
+  DiscoveredResourceConfig,
+  ResourceConfig,
+} from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
@@ -89,7 +93,9 @@ export interface NativeServicePlan {
 }
 
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
-export function isOneShotJob(config: ResourceConfig | undefined): boolean {
+export function isOneShotJob(
+  config: DiscoveredResourceConfig | ResourceConfig | undefined,
+): boolean {
   if (!config) return false;
   if (config.appType === "migrator") return true;
   return config.appType === "bring-your-own" && config.restart === "no";
@@ -201,7 +207,9 @@ export function planNativeRun(
       }
     }
     const port = typeof config.port === "number" ? config.port : undefined;
-    if (port !== undefined) {
+    // A run-time auto port is chosen to be unique; only declared fixed ports keep the duplicate-port error.
+    const autoPort = resource.autoPort === true || resource.declaredPort === "auto";
+    if (port !== undefined && !autoPort) {
       const owner = portOwners.get(port);
       if (owner) errors.push(`services "${owner}" and "${resource.name}" both use port ${port}`);
       else portOwners.set(port, resource.name);
@@ -223,6 +231,28 @@ export function planNativeRun(
       env[key] = expandEnvValue(String(value), { ...serviceDotenv, ...vars, ...env }, (name) =>
         missingVars.push(`${resource.name}: ${name}`),
       );
+    }
+    // A dependency's URL in `env` still names the port from service.json. Point it at the port this run resolved.
+    const rewrites = new Map<number, number>();
+    for (const candidate of selected) {
+      if (candidate.autoPort !== true || candidate.name === resource.name) continue;
+      const before =
+        candidate.portBeforeAuto ??
+        (typeof candidate.declaredPort === "number" ? candidate.declaredPort : undefined);
+      const after =
+        candidate.port ?? (typeof candidate.config?.port === "number" ? candidate.config.port : undefined);
+      if (typeof before === "number" && typeof after === "number" && before !== after) {
+        rewrites.set(before, after);
+      }
+    }
+    for (const [key, value] of Object.entries(env)) {
+      let rewritten = value;
+      for (const [before, after] of rewrites) {
+        rewritten = rewritten
+          .replaceAll(`localhost:${before}`, `localhost:${after}`)
+          .replaceAll(`127.0.0.1:${before}`, `127.0.0.1:${after}`);
+      }
+      env[key] = rewritten;
     }
     const containerName = isNativeContainerService(resource)
       ? nativeContainerName(containerProject, resource.name)

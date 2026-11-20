@@ -9,6 +9,7 @@
 
 load('../../../../discovery/registry.star', 'get_app_resources', 'get_resource_aliases')
 load("../common/dependencies.star", "declared_dependencies")
+load("../manifest/port_values.star", "manifest_port_number")
 
 
 def _extract_referer_pattern(base_path, stack):
@@ -60,7 +61,7 @@ def _get_backend_port(backend_name, fallback = 4000):
                 app_type = manifest.get('appType', resource.get('app_type', 'backend'))
                 if app_type == 'backend':
                     return manifest.get('containerPort', 3000)
-                return resource.get('port', fallback)
+                return manifest_port_number(manifest, fallback)
     return fallback
 
 
@@ -90,7 +91,7 @@ def get_backend_routing_map(frontend_manifest = None):
             if app_type == 'backend':
                 port = manifest.get('containerPort', 3000)
             else:
-                port = resource.get('port', 4000)
+                port = manifest_port_number(manifest, 4000)
             
             base_path = manifest.get('basePath', '')
             stack = manifest.get('stack', stack_name)

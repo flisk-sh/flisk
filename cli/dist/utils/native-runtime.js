@@ -110,7 +110,9 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
             }
         }
         const port = typeof config.port === "number" ? config.port : undefined;
-        if (port !== undefined) {
+        // A run-time auto port is chosen to be unique; only declared fixed ports keep the duplicate-port error.
+        const autoPort = resource.autoPort === true || resource.declaredPort === "auto";
+        if (port !== undefined && !autoPort) {
             const owner = portOwners.get(port);
             if (owner)
                 errors.push(`services "${owner}" and "${resource.name}" both use port ${port}`);
@@ -135,6 +137,27 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
         const serviceDotenv = readServiceDotenv(resource.path);
         for (const [key, value] of Object.entries(config.env ?? {})) {
             env[key] = expandEnvValue(String(value), { ...serviceDotenv, ...vars, ...env }, (name) => missingVars.push(`${resource.name}: ${name}`));
+        }
+        // A dependency's URL in `env` still names the port from service.json. Point it at the port this run resolved.
+        const rewrites = new Map();
+        for (const candidate of selected) {
+            if (candidate.autoPort !== true || candidate.name === resource.name)
+                continue;
+            const before = candidate.portBeforeAuto ??
+                (typeof candidate.declaredPort === "number" ? candidate.declaredPort : undefined);
+            const after = candidate.port ?? (typeof candidate.config?.port === "number" ? candidate.config.port : undefined);
+            if (typeof before === "number" && typeof after === "number" && before !== after) {
+                rewrites.set(before, after);
+            }
+        }
+        for (const [key, value] of Object.entries(env)) {
+            let rewritten = value;
+            for (const [before, after] of rewrites) {
+                rewritten = rewritten
+                    .replaceAll(`localhost:${before}`, `localhost:${after}`)
+                    .replaceAll(`127.0.0.1:${before}`, `127.0.0.1:${after}`);
+            }
+            env[key] = rewritten;
         }
         const containerName = isNativeContainerService(resource)
             ? nativeContainerName(containerProject, resource.name)

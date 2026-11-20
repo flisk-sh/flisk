@@ -4,6 +4,7 @@ import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource } from "../types/index.js";
+import type { AutoPortReport } from "./auto-ports.js";
 import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
@@ -119,6 +120,8 @@ export interface NativeUpInput {
   dryRun?: boolean;
   quiet?: boolean;
   force?: boolean;
+  /** Resolved run-time ports for `up --json`, when auto ports were used. */
+  autoPortReport?: AutoPortReport;
   emit?: JsonEmitter;
   /** Overrides for tests. */
   readyTimeoutMs?: number;
@@ -182,8 +185,9 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   const { projectRoot, selected, emit } = input;
   const exit = input.exit ?? ((code: number) => process.exit(code));
   const quiet = Boolean(input.quiet);
+  const autoPortFields = input.autoPortReport ? { ...input.autoPortReport } : {};
   const fail = (code: string, message: string, data: Record<string, unknown> = {}): never => {
-    emit?.({ ok: false, runtime: "native", ...data }, [{ code, message }]);
+    emit?.({ ok: false, runtime: "native", ...autoPortFields, ...data }, [{ code, message }]);
     showError(message);
     return exit(1);
   };
@@ -250,7 +254,13 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
     if (running && running.pid !== process.pid && isProcessAlive(running.pid)) {
       if (!input.force) {
         const message = `This project is already running as local processes (flisk up, pid ${running.pid}).`;
-        emit?.({ ok: true, alreadyRunning: true, runtime: "native", pid: running.pid });
+        emit?.({
+          ok: true,
+          alreadyRunning: true,
+          runtime: "native",
+          ...autoPortFields,
+          pid: running.pid,
+        });
         if (!quiet) {
           console.log(chalk.green(message));
           console.log(chalk.gray("Stop it with flisk down, or pass --force to restart it."));
@@ -289,6 +299,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       ok: true,
       dryRun: true,
       runtime: "native",
+      ...autoPortFields,
       ...(input.inferred ? { inferred: input.inferred } : {}),
       stack: input.stackName ?? null,
       services: serviceNames,
@@ -396,7 +407,9 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       ]),
       `Output of every service: ${join(NATIVE_DIR, "logs")}/<service>.log`,
     ].join("\n");
-    emit?.({ ok: false, runtime: "native", failures }, [{ code: "UP_RESOURCE_FAILED", message }]);
+    emit?.({ ok: false, runtime: "native", ...autoPortFields, failures }, [
+      { code: "UP_RESOURCE_FAILED", message },
+    ]);
     showError(message);
     await supervisor.stop();
     exit(1);
@@ -406,6 +419,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   emit?.({
     ok: true,
     runtime: "native",
+    ...autoPortFields,
     ...(input.inferred ? { inferred: true } : {}),
     stack: input.stackName ?? null,
     services: serviceNames,

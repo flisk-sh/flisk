@@ -180,6 +180,7 @@ export function isPlainUp(flags) {
         !flags.only?.length &&
         flags.envFile === undefined &&
         !flags.profile?.length &&
+        !flags.autoPort &&
         flags.database !== false &&
         flags.gateway !== false &&
         flags.stackName === undefined);

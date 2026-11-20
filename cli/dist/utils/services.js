@@ -140,13 +140,22 @@ function parseResource(serviceJsonPath) {
     if (Array.isArray(parsedConfig.dependsOn) && dependsOnNames)
         config.dependsOn = dependsOnNames;
     const resourceDir = dirname(serviceJsonPath);
+    // A manifest "auto" is not a port yet. Keep it in declaredPort and leave config.port unset so every consumer
+    // still sees a number (or nothing); resolution overlays a copy of this resource at start time (#4683).
+    const declaredPort = config.port;
+    let discoveredConfig = config;
+    if (declaredPort === "auto") {
+        const { port: _auto, ...withoutAutoPort } = config;
+        discoveredConfig = withoutAutoPort;
+    }
     return {
         name: config.appName,
         path: resourceDir,
         configPath: serviceJsonPath,
-        config,
+        config: discoveredConfig,
         stack: config.stack,
-        port: config.port,
+        ...(typeof declaredPort === "number" ? { port: declaredPort } : {}),
+        ...(declaredPort !== undefined ? { declaredPort } : {}),
         type: config.appType,
     };
 }
