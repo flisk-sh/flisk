@@ -488,7 +488,7 @@ export function writeDefaultProjectConfig(projectRoot) {
 }
 /**
  * Prints the template catalog: with `json`, the usual envelope with the templates in `data.templates` (the same rows
- * as the `project_templates` MCP tool); otherwise one block per template for a person to read.
+ * as the `project_templates` MCP tool); otherwise one block per template with its key, description, repo, needs and ref.
  */
 export function printTemplateCatalog(json) {
     const templates = listProjectTemplates();
@@ -497,9 +497,10 @@ export function printTemplateCatalog(json) {
         return;
     }
     console.log(chalk.bold("Starter templates (flisk project <key>):\n"));
-    for (const { key, repo, description, ref } of templates) {
+    for (const { key, repo, description, needs, ref } of templates) {
         console.log(`  ${chalk.cyan(key)}  ${description}`);
         console.log(chalk.gray(`    ${repo}`));
+        console.log(chalk.gray(`    needs: ${needs}`));
         if (ref)
             console.log(chalk.gray(`    ref ${ref}`));
     }
@@ -514,7 +515,7 @@ export const projectCommand = addYesOption(new Command("project"))
     .option("--config-file <path>", "Load project config from existing JSON file")
     .option("-q, --quiet", "Only print what fails; used by `flisk demo`", false)
     .option("--no-agent-skills", "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md")
-    .option("--list", "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates", false)
+    .option("--list", "List the starter templates (key, repo, description, needs, pinned ref); with --json, the usual envelope with them in data.templates", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
     .addHelpText("after", "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check")
     .action(async (template, options) => {

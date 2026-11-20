@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createFliskTools } from "../../mcp/tools.js";
 import { captureExit, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { isResourceCreateType } from "../../types/index.js";
 import { autoPortStatePath } from "../../utils/auto-ports.js";
@@ -30,10 +31,11 @@ describe("resources command", () => {
 
   function setupProject(
     resources: Array<{ name: string; type: string; stack?: string; port?: number | "auto" }>,
+    root = tempDir,
   ) {
-    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
+    mkdirSync(join(root, ".flisk"), { recursive: true });
     writeFileSync(
-      join(tempDir, ".flisk", "project.json"),
+      join(root, ".flisk", "project.json"),
       JSON.stringify({
         version: "1.0.0",
         project: { name: "test-proj", version: "1.0.0" },
@@ -46,8 +48,8 @@ describe("resources command", () => {
 
     for (const r of resources) {
       const resourceDir = r.stack
-        ? join(tempDir, "services", r.stack, r.name)
-        : join(tempDir, "services", r.name);
+        ? join(root, "services", r.stack, r.name)
+        : join(root, "services", r.name);
       mkdirSync(resourceDir, { recursive: true });
       writeFileSync(
         join(resourceDir, "service.json"),
@@ -219,6 +221,61 @@ describe("resources command", () => {
     expect(envelope.data.resources).toHaveLength(1);
     expect(envelope.data.resources[0]).toMatchObject({ name: "orders", port: 4123 });
     logSpy.mockRestore();
+  });
+
+  it("emits byte-identical JSON for the same project under two different parent folders", () => {
+    const resources = [
+      { name: "orders", type: "backend", stack: "shop", port: 4001 },
+      { name: "web", type: "frontend", stack: "shop", port: 3000 },
+      { name: "orphan", type: "backend", port: 4002 },
+    ];
+    const firstRoot = join(tempDir, "first-parent", "same-project");
+    const secondRoot = join(tempDir, "second-parent-with-a-different-name", "same-project");
+    setupProject(resources, firstRoot);
+    setupProject(resources, secondRoot);
+
+    const first = runFlisk(["resources", "--json"], { cwd: firstRoot });
+    const second = runFlisk(["resources", "--json"], { cwd: secondRoot });
+
+    expect(first.status).toBe(0);
+    expect(second.status).toBe(0);
+    expect(first.stdout).toBe(second.stdout);
+    expect(first.stdout).not.toContain(firstRoot);
+    expect(first.stdout).not.toContain(secondRoot);
+  });
+
+  it("reports a relative folder that exists and keeps the manifest in its own field", () => {
+    setupProject([
+      { name: "orders", type: "backend", stack: "shop", port: 4001 },
+      { name: "orphan", type: "backend", port: 4002 },
+    ]);
+
+    const result = runFlisk(["resources", "--json"], { cwd: tempDir });
+    expect(result.status).toBe(0);
+    const data = parseEnvelope(result.stdout).data;
+    expect(data.resources).toHaveLength(2);
+    for (const resource of data.resources as Array<{ path: string; manifest: string }>) {
+      expect(isAbsolute(resource.path)).toBe(false);
+      expect(resource.path).not.toMatch(/service\.json$/);
+      expect(statSync(join(tempDir, resource.path)).isDirectory()).toBe(true);
+      expect(resource.manifest).toBe(`${resource.path}/service.json`);
+      expect(statSync(join(tempDir, resource.manifest)).isFile()).toBe(true);
+    }
+  });
+
+  it("returns the same JSON envelope from the resource_list MCP tool as from the CLI", async () => {
+    setupProject([{ name: "orders", type: "backend", stack: "shop", port: 4001 }]);
+    const cli = runFlisk(["resources", "--json"], { cwd: tempDir });
+    expect(cli.status).toBe(0);
+
+    const tool = createFliskTools(async (args, options) => {
+      const result = runFlisk(args, { cwd: options?.cwd ?? tempDir });
+      return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+    }).find((candidate) => candidate.name === "resource_list");
+    const result = await tool?.handler({ projectPath: tempDir });
+
+    expect(result?.isError).toBe(false);
+    expect(result?.data).toEqual(JSON.parse(cli.stdout));
   });
 
   it("filters resources by type in JSON output", async () => {

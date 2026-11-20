@@ -17,6 +17,10 @@ import {
 } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import {
+  relativeResourceFolder,
+  relativeResourceManifest,
+} from "../utils/resource-relative-path.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
 
@@ -31,12 +35,9 @@ export interface ListResourcesOptions {
 
 export async function runResourcesList(options: ListResourcesOptions): Promise<void> {
   const action = async (): Promise<void> => {
-    if (options.json) {
-      if (!findProjectRoot()) {
-        writeMachineError(errorFactories.notInProject());
-      }
-    } else {
-      requireProjectRoot();
+    const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+    if (!projectRoot) {
+      writeMachineError(errorFactories.notInProject());
     }
 
     if (options.type !== undefined && !includes(VALID_RESOURCE_TYPES, options.type)) {
@@ -88,7 +89,8 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
         stack: resource.stack ?? null,
         type: resource.config?.appType ?? resource.type ?? "unknown",
         port: resource.port ?? null,
-        path: resource.configPath,
+        path: relativeResourceFolder(projectRoot, resource.configPath),
+        manifest: relativeResourceManifest(projectRoot, resource.configPath),
       }));
       console.log(
         JSON.stringify(

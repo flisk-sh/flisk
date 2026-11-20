@@ -558,6 +558,8 @@ export interface CheckResult {
 export interface ServiceUrl {
   name: string;
   stack?: string;
+  /** Resource folder relative to the project root (POSIX-style separators). */
+  path?: string;
   basePath: string;
   url: string;
   loopbackUrl?: string;
