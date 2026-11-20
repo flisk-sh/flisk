@@ -4,9 +4,9 @@
  * Warning for Flisk projects that have been up for days. Each one keeps its own Traefik, Postgres and apps running, so
  * forgetting a few projects fills the host disk and memory long before anyone runs `flisk down` (#4296).
  */
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { execFileSync } from "node:child_process";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { formatBytes } from "./formatting.js";
 import { shellQuote } from "./native-container.js";
@@ -90,8 +90,7 @@ export function checkIdleProjects(options = {}) {
             volumes: 0,
         };
     });
-    const dockerOutput = options.dockerOutput ??
-        safeRun(runner, "docker", ["ps", "--format", '{{.Names}}\t{{.Size}}']);
+    const dockerOutput = options.dockerOutput ?? safeRun(runner, "docker", ["ps", "--format", "{{.Names}}\t{{.Size}}"]);
     for (const line of dockerOutput.split(/\r?\n/)) {
         const [name, size] = line.trim().split(/\s+/);
         if (!name)
@@ -116,7 +115,8 @@ export function checkIdleProjects(options = {}) {
         if (!name)
             continue;
         for (const project of projects) {
-            if (projectLabel?.toLowerCase() === project.key || name.toLowerCase().startsWith(project.key)) {
+            if (projectLabel?.toLowerCase() === project.key ||
+                name.toLowerCase().startsWith(project.key)) {
                 project.volumes += 1;
             }
         }
