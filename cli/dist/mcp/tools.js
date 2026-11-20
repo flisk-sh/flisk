@@ -785,7 +785,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "down",
-            description: "Stop the running stack.",
+            description: "Stop the running stack without changing project files.",
             inputSchema: OBJECT({ projectPath: PROJECT_PATH, dryRun: { type: "boolean" } }),
             handler: viaCli((args) => [
                 "down",
@@ -928,7 +928,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         {
             name: "agent_list",
             aliases: ["list_agents"],
-            description: "List AI agent resources in the project.",
+            description: "List the AI agent resources in the project.",
             inputSchema: OBJECT({ projectPath: PROJECT_PATH, stack: { type: "string" } }),
             handler: viaCli((args) => {
                 const stack = optionalName(args.stack, "stack");
@@ -1048,7 +1048,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "resource_create",
-            description: "Scaffold a service non-interactively.",
+            description: "Scaffold a new service non-interactively.",
             inputSchema: {
                 ...OBJECT({
                     projectPath: PROJECT_PATH,
