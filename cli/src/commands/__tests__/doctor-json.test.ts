@@ -396,6 +396,26 @@ describe("doctor JSON command", () => {
     }
   });
 
+  it("rejects an unknown FLISK_SECRET_PROVIDER with a USAGE JSON report and exit 2", async () => {
+    const saved = process.env.FLISK_SECRET_PROVIDER;
+    const { log, exit } = captureOutput();
+    process.env.FLISK_SECRET_PROVIDER = "keychan";
+    try {
+      await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
+      expect(exit).toHaveBeenCalledWith(2);
+      const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
+      expect(report.data).toBeNull();
+      expect(report.errors[0].code).toBe("USAGE");
+      expect(report.errors[0].message).toContain('"keychan"');
+      expect(report.errors[0].message).toContain("env-file, infisical");
+    } finally {
+      if (saved === undefined) delete process.env.FLISK_SECRET_PROVIDER;
+      else process.env.FLISK_SECRET_PROVIDER = saved;
+      log.mockRestore();
+      exit.mockRestore();
+    }
+  });
+
   it("handles Commander unknown options with USAGE JSON report via exitOverride", async () => {
     const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const { log, exit } = captureOutput();
@@ -504,6 +524,7 @@ describe("doctor JSON command", () => {
       });
       expect(report.data.checks[1].message).toContain("NEXT_PUBLIC_STRIPE (.env)");
       expect(report.data.checks[1].message).not.toContain(secretKey);
+      expect(report.data.warnings).toContain(report.data.checks[1].message);
     } finally {
       Object.defineProperty(process, "platform", platform);
       doctorCommand.setOptionValue("json", false);

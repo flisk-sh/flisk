@@ -14,6 +14,8 @@ export interface DoctorReport {
         ready: boolean;
         inProject: boolean;
         checks: CheckResult[];
+        /** Non-blocking warning messages, in check order; also present as isWarning entries in checks. */
+        warnings?: string[];
         capabilities?: string[];
         commit?: string;
         commitSha?: string;

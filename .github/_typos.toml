@@ -45,3 +45,5 @@ resturant = "resturant"
 expres = "expres"
 reakt = "reakt"
 pythn = "pythn"
+# Intentional invalid FLISK_SECRET_PROVIDER value in the #4706 usage-error tests.
+keychan = "keychan"
