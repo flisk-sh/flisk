@@ -53,12 +53,19 @@ Deleting them also removes what the Tiltfile needs.
 To go back to Flisk: install the version named by \`pinnedFliskVersion\` in \`.flisk/project.json\` (if set), then run \`flisk config regenerate\`.
 `;
 /**
+ * Escapes text for a GFM table cell: collapses newlines to spaces, escapes backslashes first
+ * so literal `\` does not defeat the following pipe escape, then escapes `|` as `\|`.
+ */
+function escapeMarkdownTableCell(value) {
+    return value.replace(/\r?\n/g, " ").replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+}
+/**
  * Wraps a command or value in an inline Markdown code span safe for a GFM table cell.
- * GFM splits table cells on unescaped `|` even inside backticks, so pipes must be escaped as `\|`,
- * newlines collapsed to spaces, and the fence widened if the text contains backticks.
+ * GFM splits table cells on unescaped `|` even inside backticks, so backslashes and pipes must be
+ * escaped, newlines collapsed to spaces, and the fence widened if the text contains backticks.
  */
 function formatMarkdownTableCode(value) {
-    const escaped = value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|");
+    const escaped = escapeMarkdownTableCell(value);
     const runs = escaped.match(/`+/g);
     const fence = "`".repeat((runs ? Math.max(...runs.map((r) => r.length)) : 0) + 1);
     const padded = escaped.startsWith("`") || escaped.endsWith("`") ? ` ${escaped} ` : escaped;
@@ -80,7 +87,7 @@ export function nativeEjectedContent(services) {
                 ? `docker run -p 127.0.0.1:${portTrimmed}:${portTrimmed} ${service.image}`
                 : `docker run ${service.image}`
             : (service.command ?? "");
-        const portCell = service.port.replace(/\r?\n/g, " ").replace(/\|/g, "\\|");
+        const portCell = escapeMarkdownTableCell(service.port);
         return `| ${formatMarkdownTableCode(service.name)} | ${formatMarkdownTableCode(runCommand)} | ${portCell} |`;
     })
         .join("\n");

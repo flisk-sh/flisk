@@ -148,13 +148,13 @@ describe("flisk eject with a local-process project", () => {
     expect(text).toContain("not set");
   });
 
-  it("escapes pipes in shell commands so the Markdown table keeps its port column", async () => {
+  it("escapes backslashes before pipes in shell commands and ports so the Markdown table keeps its columns", async () => {
     const projectRoot = project([
       {
         appName: "api",
         appType: "backend",
-        command: "node api.js | tee api.log",
-        port: 4000,
+        command: "node C:\\app\\api.js \\| tee api.log",
+        port: "4000\\|4001",
         stack: "app",
       },
     ]);
@@ -171,16 +171,18 @@ describe("flisk eject with a local-process project", () => {
             config: {
               appName: "api",
               appType: "backend",
-              command: "node api.js | tee api.log",
-              port: 4000,
+              command: "node C:\\app\\api.js \\| tee api.log",
+              port: "4000\\|4001",
             },
           },
-        ] as DiscoveredResource[],
+        ] as unknown as DiscoveredResource[],
     );
 
     await run();
     const text = readFileSync(join(projectRoot, "EJECTED.md"), "utf-8");
-    expect(text).toContain("| `api` | `node api.js \\| tee api.log` | 4000 |");
+    expect(text).toContain(
+      "| `api` | `node C:\\\\app\\\\api.js \\\\\\| tee api.log` | 4000\\\\\\|4001 |",
+    );
   });
 
   it("tells users to set service.json env map keys without copying their values", async () => {
