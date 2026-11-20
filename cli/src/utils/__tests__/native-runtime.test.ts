@@ -624,7 +624,10 @@ describe("native supervisor", () => {
     const root = createTempDir();
     // The shell cannot find this program, so the service exits 127 on every start.
     const plan = planNativeRun([
-      nativeService(root, "shop-api", { command: "definitely-missing-flisk-program --watch", port: await freePort() }),
+      nativeService(root, "shop-api", {
+        command: "definitely-missing-flisk-program --watch",
+        port: await freePort(),
+      }),
     ]);
     const notes: string[] = [];
     const supervisor = new NativeSupervisor(
