@@ -1143,8 +1143,27 @@ export function verifyMasterConfigs(projectRoot, options) {
             isDatabaseCapabilityEnabled(projectRoot) &&
             isStackFeatureEnabledInStacks(projectConfig.phases, DATABASE_MANAGEMENT_FEATURE)) {
             const relativeCompose = path.join("services", "platform", DATABASE_MANAGEMENT_FEATURE, DOCKER_COMPOSE_FILE);
+            const displayPath = relativeCompose.split(path.sep).join("/");
             const composePath = path.join(projectRoot, relativeCompose);
-            addDrift(relativeCompose.split(path.sep).join("/"), fs.existsSync(composePath) ? fs.readFileSync(composePath, "utf-8") : undefined, generateDatabaseManagementCompose(projectConfig));
+            const actual = fs.existsSync(composePath)
+                ? fs.readFileSync(composePath, "utf-8")
+                : undefined;
+            const expected = generateDatabaseManagementCompose(projectConfig);
+            if (actual === undefined) {
+                addDrift(displayPath, actual, expected);
+            }
+            else if (actual !== expected) {
+                // The Tilt engine also generates this SYSTEM-GENERATED platform compose with a
+                // different (runtime-driven) shape. Accept that form to avoid false drift in
+                // flows that boot via Tilt, while still detecting CLI-generated drift/edits.
+                const engineGenerated = actual.includes(FLISK_GENERATED_MARKER) &&
+                    actual.includes("# Stack feature: database-management") &&
+                    actual.includes('stacks.*.services includes "database-management"') &&
+                    !actual.includes("# Regenerate with: flisk config regenerate");
+                if (!engineGenerated) {
+                    addDrift(displayPath, actual, expected);
+                }
+            }
         }
     }
     for (const manifestPath of manifestPaths) {

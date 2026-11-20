@@ -1379,7 +1379,13 @@ describe("template-engine", () => {
         await generateMasterConfigs(projectRoot, { quiet: true });
 
         const composeRel = "services/platform/database-management/docker-compose.yml";
-        const composePath = path.join(projectRoot, "services", "platform", "database-management", "docker-compose.yml");
+        const composePath = path.join(
+          projectRoot,
+          "services",
+          "platform",
+          "database-management",
+          "docker-compose.yml",
+        );
         expect(fs.existsSync(composePath)).toBe(true);
         const ok = verifyMasterConfigs(projectRoot);
         expect(ok.errors.filter((error) => error.includes(composeRel))).toEqual([]);
