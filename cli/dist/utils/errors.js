@@ -181,12 +181,15 @@ export async function runCommand(action, options) {
 }
 export async function withTiltCheck(action, options) {
     const problems = [];
-    const runtime = getContainerRuntimeStatus();
-    if (runtime === "unresponsive") {
-        problems.push(errorFactories.dockerNotResponding());
-    }
-    else if (runtime === "missing") {
-        problems.push(errorFactories.dockerNotAvailable());
+    // `down` can already know Docker answered from its idle probe; asking `docker ps` again is redundant (#4173).
+    if (!options?.skipRuntimeCheck) {
+        const runtime = getContainerRuntimeStatus();
+        if (runtime === "unresponsive") {
+            problems.push(errorFactories.dockerNotResponding());
+        }
+        else if (runtime === "missing") {
+            problems.push(errorFactories.dockerNotAvailable());
+        }
     }
     if (!(await isTiltAvailable())) {
         problems.push(errorFactories.tiltNotInstalled());

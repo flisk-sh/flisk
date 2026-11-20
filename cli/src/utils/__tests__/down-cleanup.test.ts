@@ -12,6 +12,7 @@ import {
   fliskNetworkPrefixes,
   lookupProjectTiltUpPids,
   planProjectNetworkPrune,
+  probeProjectIdle,
   projectComposeProjects,
   projectNetworkNames,
   pruneProjectNetworks,
@@ -168,6 +169,87 @@ describe("pruneProjectNetworks", () => {
     const result = pruneProjectNetworks("shop", runner);
     expect(result.removed).toEqual([]);
     expect(result.kept).toEqual([{ name: "shop_backend", reason: "daemon connection failed" }]);
+  });
+
+  it("prunes from a prefetched network list without asking Docker to list again (#4173)", () => {
+    const runner = vi.fn((_cmd: string, args: string[]) => {
+      if (args[1] === "ls") throw new Error("network ls should not run again");
+      return "";
+    });
+
+    expect(pruneProjectNetworks("shop", runner, ["shop_backend"]).removed).toEqual([
+      "shop_backend",
+    ]);
+    expect(runner.mock.calls.some(([, args]) => args[1] === "ls")).toBe(false);
+  });
+});
+
+describe("probeProjectIdle (#4173)", () => {
+  const root = "/work/shop";
+
+  it("starts ps, docker ps -a and docker network ls together and asks for containers once", async () => {
+    const calls: Array<[string, string[]]> = [];
+    let releasePs!: () => void;
+    const psGate = new Promise<void>((resolve) => {
+      releasePs = resolve;
+    });
+    const commandRunner = vi.fn(async (command: string, args: string[]) => {
+      calls.push([command, args]);
+      if (command === "ps") await psGate;
+      if (command === "docker" && args[0] === "network") return "shop_backend\n";
+      // No container belongs to this project; the blank line is what `docker ps -a --format` prints.
+      return "\t\n";
+    });
+
+    const probe = probeProjectIdle(root, TILTFILE, {
+      platform: "darwin",
+      listNetworks: true,
+      commandRunner,
+    });
+    // If the calls were serial, ps would wait for the gate before the other two could start.
+    await vi.waitFor(() => expect(calls).toHaveLength(3));
+    releasePs();
+
+    expect(await probe).toEqual({ idle: true, networkNames: ["shop_backend"] });
+    expect(calls.filter(([command]) => command === "ps")).toHaveLength(1);
+    expect(
+      calls.filter(([command, args]) => command === "docker" && args[0] === "ps"),
+    ).toHaveLength(1);
+    expect(
+      calls.filter(([command, args]) => command === "docker" && args[0] === "network"),
+    ).toHaveLength(1);
+  });
+
+  it("treats a failed container list as not idle, even when the networks were read", async () => {
+    const commandRunner = vi.fn(async (command: string, args: string[]) => {
+      if (command === "docker" && args[0] === "ps") throw new Error("daemon gone");
+      if (command === "docker" && args[0] === "network") return "shop_backend\n";
+      return "";
+    });
+
+    expect(
+      await probeProjectIdle(root, TILTFILE, {
+        platform: "darwin",
+        listNetworks: true,
+        commandRunner,
+      }),
+    ).toEqual({ idle: false, networkNames: ["shop_backend"] });
+  });
+
+  it("treats an unreadable process list as not idle", async () => {
+    const commandRunner = vi.fn(async (command: string) => {
+      if (command === "ps") throw new Error("no ps");
+      return "\t\n";
+    });
+
+    expect(
+      (
+        await probeProjectIdle(root, TILTFILE, {
+          platform: "darwin",
+          commandRunner,
+        })
+      ).idle,
+    ).toBe(false);
   });
 });
 

@@ -1,14 +1,26 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { join, relative as relativePath, resolve as resolvePath, sep } from "node:path";
+import { promisify } from "node:util";
 import { toComposeProjectName } from "./compose-project-name.js";
 
 type CommandRunner = (command: string, args: string[]) => string;
+type AsyncCommandRunner = (command: string, args: string[]) => Promise<string>;
 
 const run: CommandRunner = (command, args) =>
   execFileSync(command, args, { encoding: "utf-8", stdio: "pipe", windowsHide: true });
+
+// Unlike `run`, this lets the independent `down` probes overlap instead of blocking the event loop (#4173).
+const execFileAsync = promisify(execFile);
+const runAsync: AsyncCommandRunner = async (command, args) => {
+  const { stdout } = await execFileAsync(command, args, {
+    encoding: "utf-8",
+    windowsHide: true,
+  });
+  return stdout;
+};
 
 /** Network names the engine creates per project (see engine/.../docker/constants.star and init-networks). */
 const PROJECT_NETWORK_SUFFIXES = [
@@ -59,21 +71,29 @@ export interface PruneNetworksResult {
   kept: { name: string; reason: string }[];
 }
 
+function parseNetworkNames(output: string): string[] {
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/** The names from `docker network ls`, for callers that already listed networks before pruning (#4173). */
+export function listProjectNetworks(commandRunner: CommandRunner = run): string[] {
+  return parseNetworkNames(commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"]));
+}
+
 /**
  * Remove this project's own networks. Only the exact names the engine creates are touched, and `docker network rm`
  * itself refuses a network that still has containers attached, so another project's networks and in-use networks
- * are never removed.
+ * are never removed. `existingNetworks` reuses a list read earlier on the idle path, avoiding a second network ls.
  */
 export function pruneProjectNetworks(
   projectName: string,
   commandRunner: CommandRunner = run,
+  existingNetworks?: readonly string[],
 ): PruneNetworksResult {
-  const existing = new Set(
-    commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"])
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean),
-  );
+  const existing = new Set(existingNetworks ?? listProjectNetworks(commandRunner));
   const result: PruneNetworksResult = { removed: [], kept: [] };
   for (const name of projectNetworkNames(projectName)) {
     if (!existing.has(name)) continue;
@@ -106,12 +126,7 @@ export function planProjectNetworkPrune(
   commandRunner: CommandRunner = run,
   stoppedByDown: readonly string[] = [],
 ): PruneNetworksPlan {
-  const existing = new Set(
-    commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"])
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean),
-  );
+  const existing = new Set(listProjectNetworks(commandRunner));
   const stopped = new Set(stoppedByDown);
   const plan: PruneNetworksPlan = { remove: [], keep: [] };
   for (const name of projectNetworkNames(projectName)) {
@@ -148,22 +163,7 @@ export function planProjectNetworkPrune(
   return plan;
 }
 
-/**
- * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
- * so a caller can tell "no tilt up" from "could not look".
- */
-export function lookupProjectTiltUpPids(
-  tiltfilePath: string,
-  platform = process.platform,
-  commandRunner: CommandRunner = run,
-): number[] | null {
-  if (platform === "win32") return null;
-  let output: string;
-  try {
-    output = commandRunner("ps", ["-axo", "pid=,command="]);
-  } catch {
-    return null;
-  }
+function parseTiltUpPids(output: string, tiltfilePath: string): number[] {
   const pids: number[] = [];
   for (const line of output.split(/\r?\n/)) {
     const match = /^\s*(\d+)\s+(.*)$/.exec(line);
@@ -183,6 +183,25 @@ export function lookupProjectTiltUpPids(
     }
   }
   return pids;
+}
+
+/**
+ * Like {@link findProjectTiltUpPids}, but null when the process list cannot be read (`ps` fails, or the platform has none),
+ * so a caller can tell "no tilt up" from "could not look".
+ */
+export function lookupProjectTiltUpPids(
+  tiltfilePath: string,
+  platform = process.platform,
+  commandRunner: CommandRunner = run,
+): number[] | null {
+  if (platform === "win32") return null;
+  let output: string;
+  try {
+    output = commandRunner("ps", ["-axo", "pid=,command="]);
+  } catch {
+    return null;
+  }
+  return parseTiltUpPids(output, tiltfilePath);
 }
 
 /**
@@ -287,6 +306,26 @@ function isFliskComposeDir(root: string, dir: string): boolean {
   );
 }
 
+/** The container-list args shared by `projectComposeProjects` and the concurrent idle probe. */
+const CONTAINER_LIST_ARGS = [
+  "ps",
+  "-a",
+  "--format",
+  '{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}',
+] as const;
+
+function parseProjectComposeProjects(output: string, projectRoot: string): string[] {
+  const root = realPathOrSelf(projectRoot);
+  const names = new Set<string>();
+  for (const line of output.split(/\r?\n/)) {
+    const [name, workingDir] = line.split("\t");
+    if (!name || !workingDir) continue;
+    const dir = realPathOrSelf(workingDir.trim());
+    if (isFliskComposeDir(root, dir)) names.add(name.trim());
+  }
+  return [...names].sort();
+}
+
 /**
  * The Compose projects Flisk generated for this project, read from the containers' `com.docker.compose.project.working_dir`
  * label (the folder of the first compose file). Matching the folder, not the project name, keeps a project named `shop`
@@ -296,21 +335,55 @@ export function projectComposeProjects(
   projectRoot: string,
   commandRunner: CommandRunner = run,
 ): string[] {
-  const root = realPathOrSelf(projectRoot);
-  const output = commandRunner("docker", [
-    "ps",
-    "-a",
-    "--format",
-    '{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}',
+  const output = commandRunner("docker", [...CONTAINER_LIST_ARGS]);
+  return parseProjectComposeProjects(output, projectRoot);
+}
+
+export interface ProjectIdleProbe {
+  idle: boolean;
+  /** The network list read alongside the idle checks, when the caller asked for it. */
+  networkNames?: string[];
+}
+
+/**
+ * Read the independent inputs of `down`'s idle decision together (#4173): the process list, the Docker container list,
+ * and (when asked) the Docker network list. Each failure keeps the old meaning: an unreadable process list or a failed
+ * container list means "not idle", and a failed network list leaves pruning to warn later as before.
+ */
+export async function probeProjectIdle(
+  projectRoot: string,
+  tiltfilePath: string,
+  options: {
+    platform?: NodeJS.Platform;
+    listNetworks?: boolean;
+    commandRunner?: AsyncCommandRunner;
+  } = {},
+): Promise<ProjectIdleProbe> {
+  const platform = options.platform ?? process.platform;
+  const commandRunner = options.commandRunner ?? runAsync;
+  const [pids, composeProjects, networkNames] = await Promise.all([
+    platform === "win32"
+      ? Promise.resolve(null)
+      : commandRunner("ps", ["-axo", "pid=,command="])
+          .then((output) => parseTiltUpPids(output, tiltfilePath))
+          .catch(() => null),
+    commandRunner("docker", [...CONTAINER_LIST_ARGS])
+      .then((output) => parseProjectComposeProjects(output, projectRoot))
+      .catch(() => undefined),
+    options.listNetworks
+      ? commandRunner("docker", ["network", "ls", "--format", "{{.Name}}"])
+          .then(parseNetworkNames)
+          .catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
-  const names = new Set<string>();
-  for (const line of output.split(/\r?\n/)) {
-    const [name, workingDir] = line.split("\t");
-    if (!name || !workingDir) continue;
-    const dir = realPathOrSelf(workingDir.trim());
-    if (isFliskComposeDir(root, dir)) names.add(name.trim());
-  }
-  return [...names].sort();
+  return {
+    idle:
+      pids !== null &&
+      pids.length === 0 &&
+      composeProjects !== undefined &&
+      composeProjects.length === 0,
+    ...(networkNames ? { networkNames } : {}),
+  };
 }
 
 /**

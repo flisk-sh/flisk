@@ -23,6 +23,11 @@ const tilt = vi.hoisted(() => ({
 const cleanup = vi.hoisted(() => ({
   lookupProjectTiltUpPids: vi.fn((): number[] | null => []),
   projectComposeProjects: vi.fn((): string[] => []),
+  probeProjectIdle: vi.fn(
+    async (): Promise<{ idle: boolean; networkNames?: string[] }> => ({
+      idle: false,
+    }),
+  ),
   findRunningFliskProjects: vi.fn((): string[] => []),
   pruneProjectNetworks: vi.fn(),
   stopProjectComposeProjects: vi.fn(),
@@ -127,6 +132,7 @@ describe("flisk down (in-process)", () => {
     cleanup.lookupProjectTiltUpPids.mockReturnValue([]);
     // Something runs by default, so `down` reaches `tilt down`; the idle cases say otherwise.
     cleanup.projectComposeProjects.mockReturnValue(["demo-traefik"]);
+    cleanup.probeProjectIdle.mockResolvedValue({ idle: false });
     cleanup.stopProjectTiltUp.mockReturnValue([]);
     cleanup.waitForTiltUpExit.mockResolvedValue(true);
     native.readNativeRunState.mockReturnValue(null);
@@ -147,6 +153,19 @@ describe("flisk down (in-process)", () => {
   describe("a Docker project with nothing running (#3768)", () => {
     beforeEach(() => {
       cleanup.projectComposeProjects.mockReturnValue([]);
+      cleanup.probeProjectIdle.mockResolvedValue({ idle: true });
+    });
+
+    it("asks Docker for containers exactly once and skips the docker ps liveness check (#4173)", async () => {
+      await runDown([]);
+
+      expect(cleanup.probeProjectIdle).toHaveBeenCalledTimes(1);
+      expect(cleanup.probeProjectIdle).toHaveBeenCalledWith(
+        root,
+        join(root, ".flisk/.flisk-out/Tiltfile"),
+        { listNetworks: true },
+      );
+      expect(docker.getContainerRuntimeStatus).not.toHaveBeenCalled();
     });
 
     it("says so and never loads the Tiltfile with tilt down", async () => {
@@ -209,6 +228,7 @@ describe("flisk down (in-process)", () => {
 
     it("still runs tilt down when a container of the project exists", async () => {
       cleanup.projectComposeProjects.mockReturnValue(["demo-traefik"]);
+      cleanup.probeProjectIdle.mockResolvedValue({ idle: false });
 
       await runDown([]);
 
@@ -217,6 +237,7 @@ describe("flisk down (in-process)", () => {
 
     it("still runs tilt down when a tilt up of the project is alive", async () => {
       cleanup.lookupProjectTiltUpPids.mockReturnValue([777]);
+      cleanup.probeProjectIdle.mockResolvedValue({ idle: false });
 
       await runDown([]);
 
@@ -225,6 +246,7 @@ describe("flisk down (in-process)", () => {
 
     it("runs tilt down when the process list cannot be read, as a tilt up may be alive", async () => {
       cleanup.lookupProjectTiltUpPids.mockReturnValue(null);
+      cleanup.probeProjectIdle.mockResolvedValue({ idle: false });
 
       await runDown([]);
 
@@ -235,6 +257,7 @@ describe("flisk down (in-process)", () => {
       cleanup.projectComposeProjects.mockImplementation(() => {
         throw new Error("Cannot connect to the Docker daemon");
       });
+      cleanup.probeProjectIdle.mockResolvedValue({ idle: false });
 
       await runDown([]);
 
