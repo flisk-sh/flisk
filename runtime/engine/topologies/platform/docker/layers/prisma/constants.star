@@ -59,10 +59,13 @@ MIGRATE_SH_FILE = "migrate.sh"
 MIGRATE_SH_ABS_PATH = APP_DIR + "/" + MIGRATE_SH_FILE
 
 L3_MIGRATION_BUILD_STAGE = "l3_migration_build"
-# Where l3_production_purger keeps the pinned Prisma CLI package for the backend runtime image.
-# Deliberately not under /tmp: a /tmp path in a stage that parallel builds share through one BuildKit cache
-# was reported "not found" by the runtime stage's COPY --from although the cp step had run (flisk#4226).
-PRISMA_CLI_STASH_DIR = "/opt/flisk-prisma-cli"
+# Name of the directory where l3_production_purger keeps the pinned Prisma CLI package.
+# It lives inside the stage's WORKDIR (/app/<res_path>), the same committed tree the
+# runtime stage already COPYs from. /tmp and /opt are outside that tree; with parallel
+# Prisma backends sharing one BuildKit cache the runtime COPY could see a snapshot
+# where the stash step's directory was missing (flisk#4226). The full path is built by
+# prisma_cli_stash_dir() below, the one helper the stash and the runtime COPY both use.
+PRISMA_CLI_STASH_DIR_NAME = ".flisk-prisma-cli"
 
 ROOT_USER = "root"
 BUN_USER = RUNTIME
@@ -118,6 +121,15 @@ DB_URL_FROM_COMPONENTS = "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$
 
 def app_resource_dir(res_path):
     return APP_DIR + "/" + res_path
+
+
+def prisma_cli_stash_dir(res_path):
+    """Single source of truth for the pinned CLI stash inside the purger stage's work directory.
+
+    Both the `cp` in l3_production_purger and the runtime `COPY --from=l3_production_purger`
+    call this, so the two instructions cannot drift apart (flisk#4226).
+    """
+    return app_resource_dir(res_path) + "/" + PRISMA_CLI_STASH_DIR_NAME
 
 
 def resource_node_modules_dir(res_path):

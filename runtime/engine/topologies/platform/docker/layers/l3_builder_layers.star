@@ -34,7 +34,7 @@ load('./prisma/prisma_build.star',
 # Infisical is opt-in: use_infisical defaults to False and nothing in the free engine passes True, so the generator behind this
 # (tilt/generators/infisical/secrets_generator.star) is not on the default path. It is an older contract with fixed secret names and
 # ports. Do not wire `secrets.required` through it; the default provider is platform/docker/secrets/env_secrets.star.
-load('./prisma/constants.star', 'PRISMA_CLI_STASH_DIR')
+load('./prisma/constants.star', 'prisma_cli_stash_dir')
 load('./infisical/infisical_docker.star', 'InfisicalDocker')
 
 # Load project name for dynamic golden image naming
@@ -218,8 +218,10 @@ def L3_generate_production_purger(res_path, use_golden = True, pin_prisma_cli = 
     prisma_cli = (
         prisma_cli_pin_step()
         + "# Keep the pinned CLI aside: the prune below would strip it, and the runtime image copies it from here.\n"
+        + "# Inside WORKDIR (/app/<res_path>), not /tmp or /opt: this is the tree the runtime stage already\n"
+        + "# copies from, so a shared BuildKit cache cannot hand it a snapshot without the stash (flisk#4226).\n"
         + "# -L: with the isolated linker node_modules/prisma is a symlink; copying it as-is leaves a dangling link in the stash.\n"
-        + "RUN cp -aL node_modules/prisma " + PRISMA_CLI_STASH_DIR + "\n"
+        + "RUN cp -aL node_modules/prisma " + prisma_cli_stash_dir(res_path) + "\n"
     ) if pin_prisma_cli else ""
 
     return (

@@ -26,7 +26,7 @@ load(
     'APP_DIR',
     'BUN_USER',
     'L3_MIGRATION_BUILD_STAGE',
-    'PRISMA_CLI_STASH_DIR',
+    'prisma_cli_stash_dir',
     'DEFAULT_GOLDEN_L4_MIGRATOR_IMAGE',
     'MIGRATE_SH_ABS_PATH',
     'PRISMA_CONFIG_WORKDIR_PATH',
@@ -75,7 +75,8 @@ def prisma_cli_runtime_copy(res_path):
     healthcheck (and so blocks Traefik routing) on a slow network.
 
     l3_production_purger installs the CLI at the version of the installed @prisma/client
-    (before it prunes node_modules) and keeps a copy aside, so reuse that instead of fetching at runtime.
+    (before it prunes node_modules) and keeps a copy inside its WORKDIR, so reuse that instead of
+    fetching at runtime. prisma_cli_stash_dir() is also what the stash step uses (flisk#4226).
 
     Args:
         res_path: Service directory relative to /app (e.g. 'services/app/dashboard-api')
@@ -84,7 +85,7 @@ def prisma_cli_runtime_copy(res_path):
     return (
         "# Prisma CLI at the version pinned in package.json - the entrypoint runs\n"
         + "# migrations with it instead of `bunx prisma`, which would fetch prisma@latest.\n"
-        + "COPY --from=l3_production_purger " + PRISMA_CLI_STASH_DIR
+        + "COPY --from=l3_production_purger " + prisma_cli_stash_dir(res_path)
         + " ./" + PRISMA_PACKAGE_REL_PATH + "\n"
         # bunx resolves a command against node_modules/.bin BEFORE considering a
         # registry fetch - without this symlink it can't tell the CLI is already
