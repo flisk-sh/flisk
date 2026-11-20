@@ -1600,7 +1600,9 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
       // Re-running `flisk resource <existing>` without --port must keep the current service.json port (#3738).
       // The "next free port" helper counts this resource's own port as taken, which would flip it on every run.
       const previousResourcePort =
-        shouldRegisterExisting && hasServiceJson ? readServiceJsonPort(existingServiceJsonPath) : undefined;
+        shouldRegisterExisting && hasServiceJson
+          ? readServiceJsonPort(existingServiceJsonPath)
+          : undefined;
       if (options.restart !== undefined) {
         if (resourceType !== BRING_YOUR_OWN_TYPE) {
           throw new FliskError("--restart can only be used with --type bring-your-own.", [
@@ -1631,14 +1633,9 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         ]);
       }
       // Registering an existing inference server without --port keeps the port its service.json already has.
-      const existingInferencePort =
-        isInference && !options.port ? previousResourcePort : undefined;
+      const existingInferencePort = isInference && !options.port ? previousResourcePort : undefined;
       const existingAssignedPort =
-        !isInference &&
-        !infraPreset &&
-        resourceType !== "sdk" &&
-        !isDatabase &&
-        !options.port
+        !isInference && !infraPreset && resourceType !== "sdk" && !isDatabase && !options.port
           ? previousResourcePort
           : undefined;
       if (infraPreset) assertInfraPresetOptions(infraPreset, options);
@@ -1649,12 +1646,12 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
           : resourceType === "sdk" || isDatabase
             ? 0
             : (existingAssignedPort ??
-                resolveResourcePort(
-                  resourceType as PortAssignableResourceType,
-                  options.port,
-                  nextPort,
-                  allResources,
-                ));
+              resolveResourcePort(
+                resourceType as PortAssignableResourceType,
+                options.port,
+                nextPort,
+                allResources,
+              ));
       // --local: on your own computer the port has to be free right now, not only unassigned in this project (another
       // program may already listen on 3000). Picked here so the details, the confirmation and the JSON report all show
       // the port the service really gets. An explicit --port is kept as it is.

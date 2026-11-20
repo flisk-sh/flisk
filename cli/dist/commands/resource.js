@@ -1178,7 +1178,9 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
         // Re-running `flisk resource <existing>` without --port must keep the current service.json port (#3738).
         // The "next free port" helper counts this resource's own port as taken, which would flip it on every run.
-        const previousResourcePort = shouldRegisterExisting && hasServiceJson ? readServiceJsonPort(existingServiceJsonPath) : undefined;
+        const previousResourcePort = shouldRegisterExisting && hasServiceJson
+            ? readServiceJsonPort(existingServiceJsonPath)
+            : undefined;
         if (options.restart !== undefined) {
             if (resourceType !== BRING_YOUR_OWN_TYPE) {
                 throw new FliskError("--restart can only be used with --type bring-your-own.", [
@@ -1208,11 +1210,7 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         }
         // Registering an existing inference server without --port keeps the port its service.json already has.
         const existingInferencePort = isInference && !options.port ? previousResourcePort : undefined;
-        const existingAssignedPort = !isInference &&
-            !infraPreset &&
-            resourceType !== "sdk" &&
-            !isDatabase &&
-            !options.port
+        const existingAssignedPort = !isInference && !infraPreset && resourceType !== "sdk" && !isDatabase && !options.port
             ? previousResourcePort
             : undefined;
         if (infraPreset)
