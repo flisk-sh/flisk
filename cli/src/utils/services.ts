@@ -128,7 +128,9 @@ const FIX_SERVICE_JSON = [
   "Check every service.json with: flisk config verify",
 ];
 
-class InvalidServiceJsonError extends FliskError {
+export class InvalidServiceJsonError extends FliskError {
+  public readonly code = "CONFIG_INVALID" as const;
+
   constructor(
     readonly reason: string,
     suggestions: string[] = [],

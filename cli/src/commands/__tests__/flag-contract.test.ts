@@ -480,7 +480,7 @@ describe("flag contract: --json for commands that change the project", () => {
       expect(result.stderr).not.toMatch(/^\{/m);
       const envelope = parseOneEnvelope(result.stdout);
       expect(envelope.data).toBeNull();
-      expect(envelope.errors).toEqual([expect.objectContaining({ code: "COMMAND_FAILED" })]);
+      expect(envelope.errors).toEqual([expect.objectContaining({ code: "NOT_IN_PROJECT" })]);
     },
   );
 });

@@ -54,7 +54,7 @@ describe("missing project root errors", () => {
         data: null,
         errors: [
           {
-            code: "COMMAND_FAILED",
+            code: "NOT_IN_PROJECT",
             message: "Could not find project root (no .flisk/project.json found)",
           },
         ],

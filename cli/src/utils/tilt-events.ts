@@ -38,6 +38,8 @@ const TILT_ERROR_HELP = [
 ];
 
 export class TiltEventsLoadError extends FliskError {
+  public readonly code = "TILT_EVENTS_LOAD_ERROR" as const;
+
   constructor(
     message: string,
     readonly kind: TiltEventsFailureKind,

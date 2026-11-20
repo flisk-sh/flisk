@@ -129,7 +129,7 @@ describe("stackCommand", () => {
     expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it("emits COMMAND_FAILED JSON envelope when run outside a project with --json", async () => {
+  it("emits NOT_IN_PROJECT JSON envelope when run outside a project with --json", async () => {
     let stdoutData = "";
     vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
       stdoutData += String(chunk);
@@ -144,7 +144,7 @@ describe("stackCommand", () => {
 
     expect(exit).toHaveBeenCalled();
     const envelope = parseEnvelope(stdoutData);
-    expect(envelope.errors[0]?.code).toBe("COMMAND_FAILED");
+    expect(envelope.errors[0]?.code).toBe("NOT_IN_PROJECT");
   });
 
   it("rejects stack assignment when the CLI does not match pinnedFliskVersion", async () => {

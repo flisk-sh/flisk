@@ -8,6 +8,7 @@ const TILT_ERROR_HELP = [
 ];
 export class TiltEventsLoadError extends FliskError {
     kind;
+    code = "TILT_EVENTS_LOAD_ERROR";
     constructor(message, kind, suggestions = []) {
         super(message, suggestions);
         this.kind = kind;

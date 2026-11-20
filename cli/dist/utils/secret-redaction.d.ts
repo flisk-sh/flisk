@@ -2,6 +2,7 @@ import { FliskError } from "./errors.js";
 export declare const REDACTED = "[REDACTED]";
 export declare class EnvUnreadableError extends FliskError {
     readonly path: string;
+    readonly code: "ENV_UNREADABLE";
     constructor(path: string, reason: string, suggestions?: string[]);
 }
 /**

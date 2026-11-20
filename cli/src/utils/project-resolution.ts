@@ -5,7 +5,7 @@ import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import chalk from "chalk";
 import { findRunningFliskProjects } from "./down-cleanup.js";
-import { errorFactories, FliskError } from "./errors.js";
+import { errorFactories, FliskError, NotInProjectError } from "./errors.js";
 import { writeMachineError } from "./machine-output.js";
 import { shellQuote } from "./native-container.js";
 import { findProjectRoot } from "./paths.js";
@@ -99,7 +99,7 @@ export function resolveCommandProject(options: ResolveProjectOptions): string {
             ? "1 Flisk project is running"
             : `${running.length} Flisk projects are running`;
         return fail(
-          new FliskError(
+          new NotInProjectError(
             `Not in a Flisk project, and ${countText}`,
             running.map((root) => `flisk ${commandName} --project ${shellQuote(root)}`),
           ),
@@ -112,7 +112,7 @@ export function resolveCommandProject(options: ResolveProjectOptions): string {
             `Or name the project to stop from anywhere: flisk ${commandName} --project <path>`,
           );
         }
-        return fail(new FliskError(notInProject.message, suggestions, notInProject.exitCode));
+        return fail(new NotInProjectError(notInProject.message, suggestions, notInProject.exitCode));
       }
     }
   }

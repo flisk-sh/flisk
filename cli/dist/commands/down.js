@@ -9,7 +9,7 @@ import { addYesOption, attachNoPositionalHint, handleDryRun } from "../utils/com
 import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
 import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
-import { errorFactories, FliskError, handleTiltFailure, requireProjectBeforeDocker, withTiltCheck, } from "../utils/errors.js";
+import { errorFactories, FliskError, handleTiltFailure, NotInProjectError, requireProjectBeforeDocker, withTiltCheck, } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { writeMachineError } from "../utils/machine-output.js";
@@ -109,10 +109,10 @@ async function resolveDownProject(options) {
         return root;
     }
     if (running.length > 1) {
-        return fail(new FliskError(`Not in a Flisk project, and ${running.length} Flisk projects are running`, running.map((root) => `flisk down --project ${root}`)));
+        return fail(new NotInProjectError(`Not in a Flisk project, and ${running.length} Flisk projects are running`, running.map((root) => `flisk down --project ${root}`)));
     }
     const notInProject = errorFactories.notInProject();
-    return fail(new FliskError(notInProject.message, [
+    return fail(new NotInProjectError(notInProject.message, [
         ...notInProject.suggestions,
         "Or name the project to stop from anywhere: flisk down --project <path>",
     ]));

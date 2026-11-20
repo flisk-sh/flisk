@@ -130,6 +130,6 @@ describe("flisk projects --json", () => {
     expect(result.stdout).not.toContain("\u001b[");
     const body = JSON.parse(result.stdout);
     expect(body.data).toBeNull();
-    expect(body.errors[0].code).toBe("COMMAND_FAILED");
+    expect(body.errors[0].code).toBe("NOT_IN_PROJECT");
   }, 30_000);
 });

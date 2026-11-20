@@ -82,8 +82,9 @@ const FIX_SERVICE_JSON = [
     "Fix that service.json",
     "Check every service.json with: flisk config verify",
 ];
-class InvalidServiceJsonError extends FliskError {
+export class InvalidServiceJsonError extends FliskError {
     reason;
+    code = "CONFIG_INVALID";
     constructor(reason, suggestions = []) {
         super(reason, suggestions);
         this.reason = reason;

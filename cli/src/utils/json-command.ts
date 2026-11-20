@@ -46,25 +46,15 @@ export function failureFromStderr(
 }
 
 function describeFailure(error: unknown): { error: MachineError; exitCode: number } {
-  if (error instanceof JsonCommandError) {
-    return {
-      error: {
-        code: error.code,
-        message: error.message,
-        ...(error.suggestions.length > 0 ? { suggestions: error.suggestions } : {}),
-      },
-      exitCode: error.exitCode,
-    };
-  }
   return toMachineError(error);
 }
 
 /**
  * Runs a command's action for `--json`. While it runs, colour is off and everything a person would read
  * (`console.log`, `console.info`, `console.debug`, `process.stdout.write`) goes to stderr, so stdout carries exactly one
- * envelope: the action's `data` on success, or `data: null` and one error on failure. A thrown FliskError becomes
- * COMMAND_FAILED with its suggestions (a JsonCommandError keeps its own code), anything else INTERNAL (exit 2). A
- * `process.exit` from deeper code becomes `failureCode`, with the message that code printed through `showError`.
+ * envelope: the action's `data` on success, or `data: null` and one error on failure. A thrown FliskError becomes its
+ * specific error code (or COMMAND_FAILED) with its suggestions (a JsonCommandError keeps its own code), anything else
+ * INTERNAL (exit 2). A `process.exit` from deeper code becomes `failureCode`, with the message that code printed through `showError`.
  */
 export async function runJsonCommand(
   failureCode: string,

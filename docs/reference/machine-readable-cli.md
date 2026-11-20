@@ -112,7 +112,7 @@ Example output for `flisk upgrade --dry-run --json` on a git install:
 }
 ```
 
-For `project`, `resource`, `stack`, `import`, `eject` and the `config` subcommands above, the human output goes to stderr without colour and stdout carries the envelope only. Outside a project each prints `data: null` and one `COMMAND_FAILED` error with `suggestions`, and exits `1`. When a deeper check stops the command before it can report (for example the machine check of `flisk project`), the error code is the command's own failure code (`PROJECT_FAILED`, `RESOURCE_FAILED`, `STACK_FAILED`, `IMPORT_FAILED`, `EJECT_FAILED`, `REGENERATE_FAILED`, `MIGRATE_FAILED`, `INFRA_TOGGLE_FAILED`) with the message the check printed.
+For `project`, `resource`, `stack`, `import`, `eject` and the `config` subcommands above, the human output goes to stderr without colour and stdout carries the envelope only. Outside a project each prints `data: null` and one `NOT_IN_PROJECT` error with `suggestions`, and exits `1`. When a deeper check stops the command before it can report (for example the machine check of `flisk project`), the error code is the command's own failure code (`PROJECT_FAILED`, `RESOURCE_FAILED`, `STACK_FAILED`, `IMPORT_FAILED`, `EJECT_FAILED`, `REGENERATE_FAILED`, `MIGRATE_FAILED`, `INFRA_TOGGLE_FAILED`) with the message the check printed.
 
 Example output for `flisk resource orders-api --type backend --stack shop --json` in a project with no other backend:
 
@@ -184,7 +184,7 @@ The master configuration files are `TILT_TECH_STACK.star`, `TILT_RESOURCE_DEFAUL
 
 Without `--check`, `flisk projects --json` exits `0` in both cases, so read `data.configured`. With `--check`, the same response is printed and the exit code is `0` when every master file exists and `1` when any is missing, which makes it usable as a CI gate: `flisk projects --json --check`. `--check` only looks for the master files. It does not validate `service.json` files (use `flisk config verify --json` for that) or check that the containers are healthy.
 
-Outside a project, `flisk projects --json` (with or without `--check`) prints `data: null` and one `COMMAND_FAILED` error that includes `suggestions`, writes the message to stderr and exits `1`:
+Outside a project, `flisk projects --json` (with or without `--check`) prints `data: null` and one `NOT_IN_PROJECT` error that includes `suggestions`, writes the message to stderr and exits `1`:
 
 ```json
 {
@@ -192,7 +192,7 @@ Outside a project, `flisk projects --json` (with or without `--check`) prints `d
   "data": null,
   "errors": [
     {
-      "code": "COMMAND_FAILED",
+      "code": "NOT_IN_PROJECT",
       "message": "Could not find project root (no .flisk/project.json found)",
       "suggestions": [
         "Run this from within a Flisk project",
@@ -406,6 +406,6 @@ A failed shutdown is reported in the same envelope. If `tilt down` exits with a 
 }
 ```
 
-When the command printed an error before it stopped (for example `Could not find project root`), `message` is that error and `suggestions` lists its hints, so a script gets the real reason from the JSON alone. Otherwise `message` ends with the exit code of the command. A failed shutdown has no `stoppedTilt` or network fields, and containers may still be running, so run `flisk status --json` or `flisk doctor --json` to see what is left. Outside a project, `flisk down --json` does not use this shape: `data` is `null`, `errors` has one `COMMAND_FAILED` entry with `suggestions`, and the exit code is `1`.
+When the command printed an error before it stopped (for example `Could not find project root`), `message` is that error and `suggestions` lists its hints, so a script gets the real reason from the JSON alone. Otherwise `message` ends with the exit code of the command. A failed shutdown has no `stoppedTilt` or network fields, and containers may still be running, so run `flisk status --json` or `flisk doctor --json` to see what is left. Outside a project, `flisk down --json` does not use this shape: `data` is `null`, `errors` has one `NOT_IN_PROJECT` entry with `suggestions`, and the exit code is `1`.
 
 New resources created by `flisk resource` include a per-file `$schema` reference to the hosted service manifest schema. VS Code's JSON language service uses that reference for completion and validation; the generator leaves `.vscode/settings.json` untouched, so existing project editor settings remain intact. Resource registration adds the reference only when one is absent and preserves a user's existing `$schema` value.
