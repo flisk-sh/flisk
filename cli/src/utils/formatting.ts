@@ -53,6 +53,7 @@ function getStatusCategory(status: StatusValue): StatusCategory {
 
   if (
     lowerStatus === "error" ||
+    lowerStatus === "unhealthy" ||
     lowerStatus === "failed" ||
     lowerStatus === "critical" ||
     lowerStatus === "stopped"

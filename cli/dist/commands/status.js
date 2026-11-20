@@ -498,7 +498,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     else if (state.status === "ready") {
                         mark = chalk.green("✓");
                     }
-                    else if (state.status === "error") {
+                    else if (state.status === "error" || state.status === "unhealthy") {
                         mark = chalk.red("✗");
                     }
                     const ports = buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup);

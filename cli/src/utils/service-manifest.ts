@@ -532,6 +532,7 @@ export interface ParsedHealthCheckConfig {
   retries?: number;
   startPeriod?: number;
   path?: string;
+  onFailure?: "report" | "restart";
 }
 
 const HEALTH_CHECK_CONFIG_KEYS = new Set([
@@ -543,6 +544,7 @@ const HEALTH_CHECK_CONFIG_KEYS = new Set([
   "path",
   "port",
   "command",
+  "onFailure",
 ]);
 
 /**
@@ -566,7 +568,7 @@ export function healthCheckErrors(
   for (const key of Object.keys(hc)) {
     if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
       errors.push(
-        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")`,
+        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", "command", or "onFailure")`,
       );
     }
   }
@@ -626,6 +628,9 @@ export function healthCheckErrors(
         `${displayPath}.healthCheck.command: expected the program and its arguments, such as ["grpc_health_probe", "-addr=:9090"]`,
       );
     }
+  }
+  if (hc.onFailure !== undefined && hc.onFailure !== "report" && hc.onFailure !== "restart") {
+    errors.push(`${displayPath}.healthCheck.onFailure: expected "report" or "restart"`);
   }
   const probes = (["path", "port", "command"] as const).filter((key) => hc[key] !== undefined);
   if (probes.length > 1) {
@@ -701,7 +706,7 @@ export function parseHealthCheckConfig(
   options: { defaultPath?: string } = {},
 ): ParsedHealthCheckConfig {
   if (isHealthCheckDisabled(manifest)) return { enabled: false };
-  const { interval, timeout, retries, startPeriod } = healthCheckObject(manifest);
+  const { interval, timeout, retries, startPeriod, onFailure } = healthCheckObject(manifest);
   const path = healthCheckPathOf(manifest, options.defaultPath);
   return {
     enabled: true,
@@ -710,6 +715,7 @@ export function parseHealthCheckConfig(
     ...(timeout !== undefined ? { timeout } : {}),
     ...(retries !== undefined ? { retries } : {}),
     ...(startPeriod !== undefined ? { startPeriod } : {}),
+    ...(onFailure !== undefined ? { onFailure } : {}),
   };
 }
 

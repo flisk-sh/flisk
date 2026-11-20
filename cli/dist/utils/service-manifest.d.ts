@@ -51,6 +51,7 @@ export interface ParsedHealthCheckConfig {
     retries?: number;
     startPeriod?: number;
     path?: string;
+    onFailure?: "report" | "restart";
 }
 /**
  * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object

@@ -342,6 +342,34 @@ describe("argument building", () => {
     expect(out.isError).toBe(false);
   });
 
+  it("keeps a service whose periodic re-probe reported it unhealthy in the status tool", () => {
+    const full = {
+      data: {
+        resourceCount: 2,
+        unhealthy: ["api"],
+        resources: [
+          {
+            name: "api",
+            status: "unhealthy",
+            statusReason: "GET /health failed 3 consecutive probes",
+          },
+          { name: "web", status: "ready" },
+        ],
+      },
+      errors: [],
+    };
+    const out = trimStatusToUnhealthy({ data: full, isError: false });
+    const data = (out.data as { data: Record<string, unknown> }).data;
+    expect(data.resources).toEqual([
+      {
+        name: "api",
+        status: "unhealthy",
+        statusReason: "GET /health failed 3 consecutive probes",
+      },
+    ]);
+    expect(data.unhealthy).toEqual(["api"]);
+  });
+
   it("returns an empty resource list, not an error, when every service is healthy", () => {
     const out = trimStatusToUnhealthy({
       data: {

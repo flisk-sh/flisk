@@ -99,10 +99,10 @@ describe("health check manifest validation", () => {
       "service.json",
     );
     expect(errors).toContain(
-      'service.json.healthCheck: unexpected key "foo" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
+      'service.json.healthCheck: unexpected key "foo" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", "command", or "onFailure")',
     );
     expect(errors).toContain(
-      'service.json.healthCheck: unexpected key "extra" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
+      'service.json.healthCheck: unexpected key "extra" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", "command", or "onFailure")',
     );
   });
 
@@ -120,6 +120,16 @@ describe("health check manifest validation", () => {
   it("rejects invalid retries counts", () => {
     const errors = healthCheckErrors({ healthCheck: { retries: -1 } }, "service.json");
     expect(errors).toContain("service.json.healthCheck.retries: expected a non-negative integer");
+  });
+
+  it("accepts onFailure report or restart and rejects other values", () => {
+    expect(healthCheckErrors({ healthCheck: { onFailure: "report" } }, "service.json")).toEqual([]);
+    expect(healthCheckErrors({ healthCheck: { onFailure: "restart" } }, "service.json")).toEqual(
+      [],
+    );
+    expect(healthCheckErrors({ healthCheck: { onFailure: "ignore" } }, "service.json")).toContain(
+      'service.json.healthCheck.onFailure: expected "report" or "restart"',
+    );
   });
 
   it("rejects invalid path format in healthCheck object", () => {
@@ -158,6 +168,14 @@ describe("health check configuration parsing", () => {
   it("parses a complete healthCheck object", () => {
     const healthCheck = { enabled: true, interval: 5, timeout: 2, retries: 3, path: "/livez" };
     expect(parseHealthCheckConfig(manifestBase({ healthCheck }))).toEqual(healthCheck);
+  });
+
+  it("keeps onFailure from a healthCheck object", () => {
+    expect(
+      parseHealthCheckConfig(
+        manifestBase({ healthCheck: { interval: 5, retries: 2, onFailure: "restart" } }),
+      ),
+    ).toEqual({ enabled: true, interval: 5, retries: 2, onFailure: "restart" });
   });
 
   it("inherits healthCheckPath when healthCheck.path is omitted", () => {

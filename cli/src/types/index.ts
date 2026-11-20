@@ -38,6 +38,8 @@ export interface HealthCheckObjectConfig {
   port?: number;
   /** Ready when this command exits 0: the program and its arguments (#2875). */
   command?: string[];
+  /** What a native process does when periodic re-probes find it unhealthy (#4692). Defaults to "report". */
+  onFailure?: "report" | "restart";
 }
 
 export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
@@ -332,7 +334,7 @@ export function isCreatableResourceType(value: unknown): value is CreatableResou
   );
 }
 
-export type ResourceStatus = "ready" | "pending" | "error" | "unknown";
+export type ResourceStatus = "ready" | "pending" | "error" | "unhealthy" | "unknown";
 
 export interface ResourceMetadata {
   name: string;

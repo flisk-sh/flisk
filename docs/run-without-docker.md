@@ -112,6 +112,7 @@ A missing service `.env` is ignored. So `"PORT_API": "${API_PORT:-4000}"` picks 
 ## What `flisk up` does
 
 - **Order.** It starts services in `dependsOn` order. A service starts once every service it depends on is ready. Ready means the health URL answers; without `healthCheckPath`, that the port accepts connections; without a port, that the process is still running after a second. It waits up to 60 seconds per service.
+- **Stays honest.** A ready process keeps being probed with the same signal every `healthCheck.interval` seconds (default 5). After `healthCheck.retries` consecutive failures (default 3) `flisk status`, `--unhealthy`, `flisk logs --unhealthy` and MCP `status` report `unhealthy` with the reason; one success makes it `ready` again. `healthCheck.onFailure: "restart"` restarts it under the same five-restart limit, and `healthCheck: false` disables re-probing.
 - **Logs.** Each line of output is prefixed with the service name. Lines are also written, with a timestamp, to `.flisk/native/logs/<service>.log`, which is what `flisk logs` reads.
 - **Restarts.** A process that exits is started again after 1 second, then 2, 4, 8. After five quick exits in a row Flisk stops restarting it and says so. Set `"restart": "no"` for a one-shot job.
 - **Checks before it starts.** It refuses to start when a command's program is not installed, a port is already in use (it names the process that holds it), two services share a port, or a `dependsOn` name is not a service with a command.

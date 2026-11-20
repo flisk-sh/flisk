@@ -36,6 +36,15 @@ export interface NativeServicePlan {
     healthCheckDisabled?: boolean;
     /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
     readiness?: ReadinessProbe;
+    /**
+     * How often to re-probe an already-ready local process, and when to call it unhealthy (#4692). Absent means the defaults:
+     * every 5 seconds, after 3 consecutive failures, `report`. Never set when `healthCheck: false` disabled the checks.
+     */
+    reprobe?: {
+        intervalMs: number;
+        retries: number;
+        onFailure: "report" | "restart";
+    };
     /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
     job?: boolean;
     /** The container name when the service is a ready-made `image` that `docker run` starts in a mixed run. */
@@ -113,6 +122,8 @@ export interface NativeRunState {
         container?: string;
         /** The dependencies a service exited without is waiting for before it starts again. */
         waitingFor?: string[];
+        /** Why a ready process failed its periodic re-probe enough times to be reported unhealthy (#4692). */
+        unhealthy?: string;
         /** The supervisor stopped restarting it (it kept crashing, or a job exited non-zero); only a restart or a new `up` revives it. */
         failed?: boolean;
     }>;
@@ -171,10 +182,11 @@ export declare function stopNativeRun(projectRoot: string, options?: {
 }): Promise<NativeStopResult>;
 /**
  * Each service's state from the run on record, in the shape `flisk status` reports Tilt's: ready once it passed its readiness
- * check, pending while it starts or the supervisor restarts it, unknown when nothing runs.
+ * check, unhealthy when periodic re-probes keep failing, pending while it starts or the supervisor restarts it, unknown when
+ * nothing runs.
  */
 export declare function nativeServiceStates(projectRoot: string, services: readonly string[]): Record<string, {
-    status: "ready" | "pending" | "error" | "unknown";
+    status: "ready" | "pending" | "error" | "unhealthy" | "unknown";
     reason?: string;
 }>;
 /** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
@@ -296,6 +308,15 @@ export declare class NativeSupervisor {
     private onExit;
     /** Starts a service again after it exited, and reports when it is ready again. */
     private respawn;
+    /**
+     * Re-probe an already-ready local process with the very same readiness signal used at startup (#4692). Containers keep their
+     * Compose health check and one-shot jobs have nothing to probe after they finish.
+     */
+    private startReprobe;
+    private stopReprobe;
+    private reprobeOnce;
+    /** Restarts an unhealthy process under the same MAX_QUICK_CRASHES limit as a process that exits. */
+    private restartUnhealthy;
     /**
      * The dependencies of this run that are not ready now but may come back (restarting, or waiting themselves). One that gave up
      * never comes back, so a dependent is not made to wait for it: it counts its crashes and gives up with a visible message.
