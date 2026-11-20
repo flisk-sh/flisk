@@ -105,6 +105,41 @@ describe("flisk --help", () => {
     }
   });
 
+  it("lists the one-command demo in flisk --help", () => {
+    const dir = createTempDir("flisk-help-demo-");
+    try {
+      const res = runFlisk(["--help"], { cwd: dir });
+      expect(res.status).toBe(0);
+      expect(res.stdout).toMatch(/demo\s+Clone, boot and open a small app/);
+      expect(res.stdout).toContain("--no-docker");
+      expect(res.stdout).toContain("--project <dir>");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("prints the demo's own help for flisk demo --help and flisk help demo", () => {
+    const dir = createTempDir("flisk-demo-help-");
+    try {
+      for (const args of [
+        ["demo", "--help"],
+        ["help", "demo"],
+      ]) {
+        const res = runFlisk(args, { cwd: dir });
+        expect(res.status).toBe(0);
+        expect(res.stdout).toContain("Usage: flisk demo [options]");
+        expect(res.stdout).toContain("--no-docker");
+        expect(res.stdout).toContain("--project <dir>");
+        expect(res.stdout).toContain("~/.flisk/flisk-demo");
+        expect(res.stdout).toMatch(/remove|delete/i);
+        expect(res.stdout).not.toContain("Project Level");
+        expect(res.stdout).not.toContain("Quick start:");
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects unknown commands with exit code 2", () => {
     const dir = createTempDir("flisk-unknown-cmd-");
     try {
