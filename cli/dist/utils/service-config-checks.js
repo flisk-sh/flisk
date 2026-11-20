@@ -560,7 +560,7 @@ function withoutTrailingComment(value) {
     }
     return value.trim();
 }
-/** Each `FROM` starts a stage; a named stage is `FROM image AS name` (case-insensitive `AS`). */
+/** Each `FROM` starts a stage; a named stage uses `FROM <base> AS <name>` (case-insensitive `AS`). */
 function dockerfileStages(instructions) {
     const stages = [];
     for (const instruction of instructions) {
