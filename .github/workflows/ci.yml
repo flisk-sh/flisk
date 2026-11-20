@@ -257,7 +257,6 @@ jobs:
       - name: Run the unit tests this queue entry affects
         if: ${{ steps.select.outputs.mode == 'selected' }}
         shell: bash
-        shell: bash
         env:
           SELECT_DIR: ${{ runner.temp }}/unit-select
         run: |
