@@ -85,8 +85,7 @@ export function applyLocalScaffold(input) {
     else if (backendLanguage?.devCommand && !taskNamed(tasks, "package.json")) {
         command = backendLanguage.devCommand;
     }
-    else if (resourceType === "backend" &&
-        /^bun(\s|$)/.test(packageJson?.scripts?.dev ?? "")) {
+    else if (resourceType === "backend" && /^bun(\s|$)/.test(packageJson?.scripts?.dev ?? "")) {
         // The shared scaffold's dev script runs Bun (`bun run --watch src/index.ts`). Going through
         // `npm run dev` would hide that from `flisk up`'s PATH check, which then reports a generic
         // "kept exiting" instead of naming the missing program (#4678).
