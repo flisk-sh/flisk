@@ -263,8 +263,9 @@ function connectHostsOf(shell: Shell): string[] {
       return (source.match(/'1:host:\(([^)]*)\)'/)?.[1] ?? "").split(/\s+/).filter(Boolean);
     case "fish":
       return (
-        source
-          .match(/complete -c flisk -f -n '__fish_seen_subcommand_from connect' -a '([^']+)'/)?.[1] ?? ""
+        source.match(
+          /complete -c flisk -f -n '__fish_seen_subcommand_from connect' -a '([^']+)'/,
+        )?.[1] ?? ""
       )
         .split(/\s+/)
         .filter(Boolean);
