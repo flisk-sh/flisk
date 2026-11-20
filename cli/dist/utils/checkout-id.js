@@ -16,8 +16,9 @@ const CHECKOUT_ID_PATTERN = /^[0-9a-f]{8}$/;
 export function sanitizeCheckoutName(rawName) {
     const sanitized = rawName
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
+        .join("-");
     return sanitized || "checkout";
 }
 /**

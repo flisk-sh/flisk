@@ -189,7 +189,11 @@ describe("flisk up with local processes (no Docker, no Tilt)", () => {
     // Docker and Tilt were never called, and Flisk wrote no framework, build or proxy files.
     expect(existsSync(machine.calls)).toBe(false);
     expect(readdirSync(dir).sort()).toEqual([".flisk", "api", "web"]);
-    expect(readdirSync(join(dir, ".flisk")).sort()).toEqual(["native", "project.json"]);
+    expect(readdirSync(join(dir, ".flisk")).sort()).toEqual([
+      ".project-id",
+      "native",
+      "project.json",
+    ]);
     expect(readdirSync(join(dir, "api")).sort()).toEqual(["server.js", "service.json"]);
     expect(readdirSync(join(dir, "web")).sort()).toEqual(["server.js", "service.json"]);
   }, 90_000);
