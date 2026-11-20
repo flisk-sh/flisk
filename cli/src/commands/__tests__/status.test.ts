@@ -243,6 +243,12 @@ describe("flisk status", () => {
       hostPort: port,
       purpose: "Tilt UI",
     });
+    // The Docker fixture keeps its platform-service report; a regression that empties it for every runtime must fail
+    // here, not only pass the local-process tests below (which assert it is empty by design).
+    expect(output.data.platformServices.map((service) => service.capability)).toEqual([
+      "gateway",
+      "database",
+    ]);
   });
 
   it("prints Tilt availability, resource and stack counts, and next steps by default", async () => {
