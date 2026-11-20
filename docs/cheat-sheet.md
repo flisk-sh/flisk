@@ -231,6 +231,9 @@ Clones the missing service repositories configured in `.flisk/project.json`. Eac
 
 See [layout](layout.md) for the `repos` array.
 
+For optional infrastructure toggles, add `--dry-run` to preview the change without
+writing `.flisk/project.json`. Add `--json` for the machine-readable plan.
+
 ## 📦 Resources
 
 ### `flisk resource [name]`
@@ -243,7 +246,7 @@ flisk resource api --type backend --framework fastify --yes
 flisk resource api --type backend --language python --yes
 flisk resource api --type backend --feature prisma --yes
 flisk resource web --type frontend --framework vue --yes
-flisk resource --frameworks                                     # list frontend frameworks
+flisk resource --frameworks                                     # list backend frameworks (the default)
 flisk resource --type frontend --frameworks                     # list frontend frameworks
 flisk resource --type backend --frameworks                      # list backend frameworks and their language
 flisk resource --type backend --language python --frameworks     # list backend frameworks, marking the incompatible ones
@@ -701,7 +704,7 @@ Checks that `MAINTAINERS.md` (or `[file]`) lists 3 maintainers from 2 companies.
 
 Commands with `--json`: `projects`, `resources`, `stacks`, `status`, `up`, `down`, `logs`, `networks`, `doctor`, `runtime`, `agent sessions`, `config verify`, `config explain`.
 
-`flisk agent sessions --watch --json` is refused: it exits 1 with `USAGE` in the JSON envelope, not a command failure.
+`flisk agent sessions --watch --json` is refused: it exits 2 with `USAGE` in the JSON envelope, not a command failure.
 
 | Exit code | Meaning |
 | --- | --- |

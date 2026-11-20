@@ -439,6 +439,10 @@ export const COMMAND_SPECS = [
                 description: "Only these services (names as in flisk resources)",
             },
             {
+                flags: "-f, --follow",
+                description: "Live follow is unavailable; use flisk ui or repeat with --since",
+            },
+            {
                 flags: "--tail <n>",
                 description: "Number of most recent lines to return",
                 defaultValue: "200",
@@ -774,11 +778,16 @@ export const COMMAND_SPECS = [
                 description: "Exit 1 when any service is not ready or nothing is running",
                 defaultValue: false,
             },
+            {
+                flags: "--usage",
+                description: "Show CPU, memory and process usage per service",
+                defaultValue: false,
+            },
         ],
         arguments: [],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict",
+                "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --usage\n  flisk status --json\n  flisk status --strict",
             ],
         },
         subcommands: [],
@@ -836,6 +845,12 @@ export const COMMAND_SPECS = [
                 description: "Stack name to assign to resources",
                 required: false,
                 variadic: false,
+            },
+            {
+                name: "extra",
+                description: "Additional positional inputs (resource names use --resources)",
+                required: false,
+                variadic: true,
             },
         ],
         helpTexts: {
@@ -1047,7 +1062,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--list",
-                description: "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array",
+                description: "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
                 defaultValue: false,
             },
             {
@@ -1139,7 +1154,7 @@ export const COMMAND_SPECS = [
     {
         name: "tool",
         path: ["tool"],
-        description: "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud is rejected); list with flisk tool list",
+        description: "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list",
         aliases: [],
         hidden: false,
         hasAction: false,
@@ -1395,6 +1410,10 @@ export const COMMAND_SPECS = [
                 allowExcessArguments: false,
                 options: [
                     {
+                        flags: "--dry-run",
+                        description: "Show the planned change without writing project.json",
+                    },
+                    {
                         flags: "--ignore-version",
                         description: "Continue even if the CLI does not match the project's version requirements",
                         defaultValue: false,
@@ -1428,6 +1447,10 @@ export const COMMAND_SPECS = [
                 positionalOptions: false,
                 allowExcessArguments: false,
                 options: [
+                    {
+                        flags: "--dry-run",
+                        description: "Show the planned change without writing project.json",
+                    },
                     {
                         flags: "--ignore-version",
                         description: "Continue even if the CLI does not match the project's version requirements",
@@ -1902,6 +1925,7 @@ export const COMMAND_SPECS = [
         description: "Restart a running resource in the stack",
         aliases: [],
         hidden: false,
+        showHelpAfterError: "\nRun `flisk resources` to see the resource names you can restart.",
         hasAction: true,
         allowUnknown: false,
         passThrough: false,
@@ -2049,6 +2073,11 @@ export const COMMAND_SPECS = [
                         description: "Overwrite an existing kit",
                         defaultValue: false,
                     },
+                    {
+                        flags: "--json",
+                        description: "Output one JSON envelope with the kit result",
+                        defaultValue: false,
+                    },
                 ],
                 arguments: [
                     {
@@ -2060,7 +2089,7 @@ export const COMMAND_SPECS = [
                 ],
                 helpTexts: {
                     after: [
-                        "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force",
+                        "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force\n  flisk distribute kit my-resource --json",
                     ],
                 },
                 subcommands: [],

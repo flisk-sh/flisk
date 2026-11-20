@@ -215,6 +215,33 @@ describe("applyPremiumOverlay", () => {
     ).toContain("REAL premium c4 diagram generator");
   });
 
+  it("prints routine bundle diagnostics only when enabled", async () => {
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    fixtureTarball ??= buildFixtureTarball();
+    const tarball = fixtureTarball;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => new Response(new Uint8Array(tarball))),
+    );
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    const { applyPremiumOverlay } = await import("../extension-fetch.js");
+    try {
+      vi.stubEnv("FLISK_PREMIUM_DIAGNOSTICS", "0");
+      expect(await applyPremiumOverlay(projectRoot, destDir)).toBe(true);
+      expect(log.mock.calls.flat().join("\n")).not.toMatch(/Premium bundle (cache|contents)/);
+      expect(log.mock.calls.flat().join("\n")).toContain("Premium bundle missing mapped files");
+
+      log.mockClear();
+      vi.stubEnv("FLISK_PREMIUM_DIAGNOSTICS", "1");
+      expect(await applyPremiumOverlay(projectRoot, destDir)).toBe(true);
+      expect(log.mock.calls.flat().join("\n")).toContain("Premium bundle cache: hit");
+      expect(log.mock.calls.flat().join("\n")).toContain("Premium bundle contents:");
+    } finally {
+      log.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("uses custom FLISK_PREMIUM_ENDPOINT when specified in environment", async () => {
     process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     process.env.FLISK_PREMIUM_ENDPOINT = "https://custom-dist.internal/v1/bundle.tar.gz";

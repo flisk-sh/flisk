@@ -24,6 +24,7 @@ import {
 } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers, type Leftovers } from "../utils/down-leftovers.js";
 import {
+  errorFactories,
   FliskError,
   handleTiltFailure,
   requireProjectBeforeDocker,
@@ -101,11 +102,22 @@ function isNativeRun(projectRoot: string): boolean {
   }
 }
 
+/** Quote a path for a shell hint such as `cd <path> && flisk down`. */
+function quoteForShell(path: string): string {
+  return `'${path.replace(/'/g, `'\\''`)}'`;
+}
+
 /**
  * The project to stop: the one at `--project`, else the one around the current folder, else the only Flisk project with
  * a `tilt up` running. Exits with the project-root error when none is found, and lists them when several are running.
  */
-function resolveDownProject(options: { project?: string; json?: boolean }): string {
+async function resolveDownProject(options: {
+  project?: string;
+  json?: boolean;
+  yes?: boolean;
+  force?: boolean;
+  dryRun?: boolean;
+}): Promise<string> {
   const fail = (error: FliskError): never => {
     if (options.json) writeMachineError(error);
     return error.exit();
@@ -122,37 +134,52 @@ function resolveDownProject(options: { project?: string; json?: boolean }): stri
         ),
     );
   }
-  return requireProjectBeforeDocker(
-    () => {
-      const here = findProjectRoot();
-      if (here) return here;
 
-      const running = findRunningFliskProjects();
-      if (running.length === 1) {
-        const root = running[0] as string;
-        if (!options.json)
-          console.log(
-            chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`),
-          );
-        return root;
+  const here = findProjectRoot();
+  if (here) return here;
+
+  const running = findRunningFliskProjects();
+  if (running.length === 1) {
+    const root = running[0] as string;
+    const consented = Boolean(options.yes || options.force);
+    // Dry-run only previews what would stop, so it does not need shutdown consent.
+    if (!consented && !options.dryRun) {
+      let confirmed = false;
+      if (!options.json && process.stdin.isTTY) {
+        confirmed = await promptConfirm({
+          message: `Not in a Flisk project; stop the one that is running at ${root}?`,
+          initial: false,
+        }).catch(() => false);
       }
-      if (running.length > 1) {
+      if (!confirmed) {
+        const quoted = quoteForShell(root);
         return fail(
-          new FliskError(
-            `Not in a Flisk project, and ${running.length} Flisk projects are running`,
-            running.map((root) => `flisk down --project ${root}`),
-          ),
+          new FliskError(`Not in a Flisk project; a different project is running: ${root}`, [
+            `cd ${quoted} && flisk down`,
+            `Or run flisk down --project ${quoted} to stop it explicitly, or pass --yes.`,
+          ]),
         );
       }
-      return null;
-    },
-    (notInProject) =>
-      fail(
-        new FliskError(notInProject.message, [
-          ...notInProject.suggestions,
-          "Or name the project to stop from anywhere: flisk down --project <path>",
-        ]),
+    }
+    if (!options.json)
+      console.log(chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`));
+    return root;
+  }
+  if (running.length > 1) {
+    return fail(
+      new FliskError(
+        `Not in a Flisk project, and ${running.length} Flisk projects are running`,
+        running.map((root) => `flisk down --project ${root}`),
       ),
+    );
+  }
+
+  const notInProject = errorFactories.notInProject();
+  return fail(
+    new FliskError(notInProject.message, [
+      ...notInProject.suggestions,
+      "Or name the project to stop from anywhere: flisk down --project <path>",
+    ]),
   );
 }
 
@@ -338,7 +365,7 @@ export const downCommand = addProjectOption(
     // The root program also defines `--project` (the one-command template flow), and Commander gives a root option to
     // the root wherever it appears, so `flisk down --project <path>` arrives in the global options.
     const project: string | undefined = options.project ?? command.optsWithGlobals().project;
-    const resolvedRoot = resolveDownProject({ ...options, project });
+    const resolvedRoot = await resolveDownProject({ ...options, project });
 
     const shouldPruneCache = Boolean(options.pruneCache);
     const rawCacheUntil =

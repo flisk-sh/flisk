@@ -49,6 +49,7 @@ export const restartCommand = addProjectOption(new Command("restart"), "restart"
     "after",
     "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
   )
+  .showHelpAfterError("\nRun `flisk resources` to see the resource names you can restart.")
   .action(async (resourceName: string, options, command: Command) => {
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText)) {

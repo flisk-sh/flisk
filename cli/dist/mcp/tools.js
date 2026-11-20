@@ -236,11 +236,17 @@ export const defaultUpDeps = {
 export function buildUpArgs(args) {
     const stack = optionalName(args.stack, "stack");
     const only = names(args.only, "only");
+    const profile = names(args.profile, "profile");
+    const envFile = optionalPath(args.envFile, "envFile");
     const out = ["up"];
     if (stack)
         out.push(stack);
     if (only.length > 0)
         out.push(...only.map((name) => `--only=${name}`));
+    if (profile.length > 0)
+        out.push(...profile.map((name) => `--profile=${name}`));
+    if (envFile)
+        out.push(`--env-file=${envFile}`);
     if (flag(args.force, "force"))
         out.push("--force");
     if (flag(args.dryRun, "dryRun"))
@@ -387,8 +393,54 @@ export async function startUp(args, deps = defaultUpDeps) {
         isError: false,
     };
 }
+/**
+ * `flisk status --json --unhealthy` still lists every service (the flag only shortens the text output, and the envelope
+ * carries the names in `data.unhealthy`). For an agent that wants the broken services only, drop the others from
+ * `data.resources` and from each stack's `resources`, and say so in `data.filteredTo`. Counts keep describing the whole project.
+ */
+export function trimStatusToUnhealthy(result) {
+    const envelope = result.data;
+    const data = envelope?.data;
+    if (!data || !Array.isArray(data.resources))
+        return result;
+    // A bare Node project reports one resource with a status and no `unhealthy` list: anything not ready is broken.
+    const resourceList = data.resources;
+    const broken = Array.isArray(data.unhealthy)
+        ? new Set(data.unhealthy)
+        : data.inferred === true
+            ? new Set(resourceList.filter((r) => r.status !== "ready").map((r) => String(r.name)))
+            : null;
+    if (!broken)
+        return result;
+    const trimmed = {
+        ...data,
+        resources: data.resources.filter((r) => broken.has(String(r.name))),
+        filteredTo: "unhealthy",
+    };
+    if (!Array.isArray(data.unhealthy))
+        trimmed.unhealthy = [...broken];
+    if (Array.isArray(data.stacks)) {
+        trimmed.stacks = data.stacks.map((stack) => ({
+            ...stack,
+            resources: (stack.resources ?? []).filter((name) => broken.has(name)),
+        }));
+    }
+    return { ...result, data: { ...envelope, data: trimmed } };
+}
+/** `flisk status --json`, narrowed by `unhealthy` and `stack` the way the CLI does. */
+export function buildStatusArgs(args) {
+    const out = ["status", "--json"];
+    if (flag(args.unhealthy, "unhealthy"))
+        out.push("--unhealthy");
+    const stack = optionalName(args.stack, "stack");
+    if (stack)
+        out.push(`--stack=${stack}`);
+    return out;
+}
 export function buildLogsArgs(args) {
     const out = ["logs", "--json"];
+    if (flag(args.unhealthy, "unhealthy"))
+        out.push("--unhealthy");
     for (const name of names(args.services, "services"))
         out.push(`--service=${name}`);
     if (args.tail !== undefined) {
@@ -719,6 +771,15 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                     items: { type: "string" },
                     description: "Start only these services plus what they depend on and shared infrastructure",
                 },
+                profile: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Also start the services whose profiles in service.json include one of these names (without it they are left out)",
+                },
+                envFile: {
+                    type: "string",
+                    description: "Use this project env file for the run instead of .env, for example .env.integration",
+                },
                 force: {
                     type: "boolean",
                     description: "Replace a Tilt that is already running",
@@ -756,19 +817,36 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "status",
-            description: "Show the live state of the stack: its stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers). Read-only. Poll it after `up`. For the services a project defines whether or not they run use `resource_list`; for URLs only use `network_list`; for host checks use `doctor`. Optionally select the project with projectPath.",
-            inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
-            handler: viaCli(() => ["status", "--json"]),
+            description: "Show the live state of the stack: its stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers). Read-only. Poll it after `up`; after a failed `up` call it first with unhealthy: true to see only the broken services (data.resources and each stack's resources then hold only those; data.unhealthy names them and data.filteredTo says it was trimmed). For the services a project defines whether or not they run use `resource_list`; for URLs only use `network_list`; for host checks use `doctor`. Optionally select the project with projectPath.",
+            inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
+                unhealthy: {
+                    type: "boolean",
+                    description: "Only the services that are failing or still starting. The first call after a failed `up`; with every service healthy it returns an empty list, not an error.",
+                },
+                stack: {
+                    type: "string",
+                    description: "Only report the services in this stack",
+                },
+            }),
+            handler: async (args) => {
+                const result = await viaCli(buildStatusArgs)(args);
+                return flag(args.unhealthy, "unhealthy") ? trimStatusToUnhealthy(result) : result;
+            },
         },
         {
             name: "logs",
-            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. Use `status` first to find which service is failing, then pass services to narrow the output and source `runtime` to skip image build output and read why it failed.",
+            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. After a failed `up`, call it first with unhealthy: true to read only the failing or still-starting services. Otherwise use `status` first to find which service is failing, then pass services to narrow the output and source `runtime` to skip image build output and read why it failed.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 services: {
                     type: "array",
                     items: { type: "string" },
                     description: "Only these services",
+                },
+                unhealthy: {
+                    type: "boolean",
+                    description: "Only the logs of failing or still-starting services. The first call after a failed `up`; with every service healthy it returns nothing, not an error.",
                 },
                 tail: { type: "integer", minimum: 1, maximum: 10000 },
                 since: {

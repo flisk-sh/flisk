@@ -45,6 +45,7 @@ import {
 import {
   CREATABLE_RESOURCE_TYPES,
   isCreatableResourceType,
+  isResourceCreateType,
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../../types/index.js";
 import { FliskError } from "../../utils/errors.js";
@@ -915,12 +916,39 @@ describe("parseResourceType", () => {
     );
   });
 
+  it("keeps the creation hint helper aligned with resource type validation", () => {
+    for (const type of [...RESOURCE_CREATE_TYPE_VALUES, "sdk", "byo"]) {
+      expect(isResourceCreateType(type), type).toBe(true);
+      expect(() => parseResourceType(type), type).not.toThrow();
+    }
+    for (const type of ["library", "migrator"]) {
+      expect(isResourceCreateType(type), type).toBe(false);
+      expect(() => parseResourceType(type), type).toThrow();
+    }
+  });
+
   it("rejects an unknown type with the supported list instead of prompting", () => {
     expect(() => parseResourceType("bogus")).toThrow(FliskError);
     expect(() => parseResourceType("bogus")).toThrow(
       /Unknown resource type "bogus"\. Supported types: backend, frontend/,
     );
     expect(() => parseResourceType("")).toThrow(/Unknown resource type/);
+  });
+  it("explains how to create a migrator instead of calling it an unknown type", () => {
+    let error: unknown;
+    try {
+      parseResourceType("migrator");
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(FliskError);
+    const { message, suggestions } = error as FliskError;
+    expect(message).not.toContain("Unknown resource type");
+    expect(suggestions.join("\n")).toContain("new API");
+    expect(suggestions.join("\n")).toContain("--feature prisma");
+    expect(suggestions.join("\n")).toContain("--type bring-your-own");
+    expect(suggestions.join("\n")).toContain("--restart no");
+    expect(suggestions.join("\n")).toContain("--path");
   });
 });
 

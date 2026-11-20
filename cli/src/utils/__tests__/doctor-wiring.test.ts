@@ -100,6 +100,13 @@ describe("checkResourcePackageJson", () => {
     expect(result.message).not.toContain("without");
   });
 
+  it("does not require a package.json for a database resource, which has no code to build", () => {
+    resource("app", "db", { appType: "database", framework: "postgres" }, {});
+    const result = checkResourcePackageJson(root);
+    expect(result.didPass).toBe(true);
+    expect(result.message).not.toContain("without");
+  });
+
   it.each(["backend", "frontend", "worker", "migrator", "mcp", "library", "sdk"])(
     "still fails a %s without a package.json, even next to a bring-your-own resource",
     (appType) => {

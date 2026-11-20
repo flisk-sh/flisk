@@ -6,7 +6,7 @@ import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_DOCS, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
-import { getEnabledCapabilities, isDatabaseCapabilityEnabled, isGatewayEnabled, } from "../utils/capabilities.js";
+import { isDatabaseCapabilityEnabled, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
 import { checkColimaDisk } from "../utils/colima-disk.js";
 import { CONTAINER_RUNTIME_CHECK } from "../utils/constants.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
@@ -33,14 +33,16 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { NATIVE_WINDOWS_NEXT_STEP } from "../utils/native-windows.js";
 import { findProjectRoot, getBuildCommit } from "../utils/paths.js";
+import { isWsl } from "../utils/platform.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
 import { addProjectOption } from "../utils/project-resolution.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
+import { secretProviderUsageError } from "../utils/secret-provider.js";
 import { EnvUnreadableError, envSecretValues, OUTPUT_WITHHELD, projectSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
-import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
+import { checkCircularDependencies, checkDependsOnShape, checkGpuRuntime, checkModelRunner, checkNetworkPorts, checkPostgresVolumes, checkRequiredSecrets, checkSchemaVersions, checkServicePorts, checkSidecars, checkVolumes, } from "../utils/service-config-checks.js";
 import { getProjectName } from "../utils/service-urls.js";
 import { MIN_BUN_VERSION, MIN_TILT_VERSION, versionMeetsMinimum } from "../utils/tool-versions.js";
 import { checkToolchains } from "../utils/toolchain.js";
@@ -88,6 +90,14 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
     .option("--ping-timeout <ms>", "Per-service ping timeout in milliseconds", String(DEFAULT_PING_TIMEOUT_MS))
     .addHelpText("after", "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --fix --dry-run\n  flisk doctor --json")
     .action(async (options) => {
+    const providerError = secretProviderUsageError(process.env);
+    if (providerError) {
+        if (options.json)
+            console.log(JSON.stringify(createDoctorUsageReport([{ code: "USAGE", message: providerError.message }])));
+        console.error(providerError.message);
+        process.exit(providerError.exitCode);
+        return;
+    }
     // Validate before running any probe; parseInt would silently accept "100ms" or "1.5".
     const pingTimeout = Number(options.pingTimeout);
     if (!/^\d+$/.test(options.pingTimeout) ||
@@ -136,11 +146,14 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
             fix: NATIVE_WINDOWS_NEXT_STEP,
         };
         // Keep Windows diagnostics behind the win32 platform check (Linux/macOS unchanged).
+        const windowsRoot = findProjectRoot();
         const windowsChecks = [
             nativeWindowsFinding,
             checkWindowsRuntimeTools(),
             checkWindowsDockerMode(),
             await checkWindowsHostConfiguration(),
+            // The Windows report returns early; the secret-bridge warning still applies in a project.
+            ...(windowsRoot ? [checkRequiredSecrets(windowsRoot, undefined, process.env)] : []),
         ];
         let windowsPortPlan = null;
         try {
@@ -150,7 +163,7 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
             /* The native-Windows platform finding remains the primary failure. */
         }
         if (options.json) {
-            console.log(JSON.stringify(createDoctorReport(windowsChecks, Boolean(findProjectRoot()), [], windowsPortPlan, {
+            console.log(JSON.stringify(createDoctorReport(windowsChecks, Boolean(windowsRoot), [], windowsPortPlan, {
                 ...host,
                 canUp: false,
             }, undefined, undefined, getBuildCommit())));
@@ -236,7 +249,8 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
     // `.flisk/project.json` and the --no-gateway / --no-database flags decide which shared containers are checked.
     const dbEnabled = isDatabaseCapabilityEnabled(projectRoot, options);
     const gatewayEnabled = isGatewayEnabled(projectRoot, options);
-    const enabledCapabilities = getEnabledCapabilities(projectRoot, options);
+    // A project of local processes starts neither shared container, so it reports no capability (#3873).
+    const enabledCapabilities = reportedCapabilities(projectRoot, nativeResources ?? [], options);
     const portCaps = { gateway: gatewayEnabled, database: dbEnabled };
     // One cache per doctor run, so checks that ask Docker the same question share one answer.
     const hostCommandCache = createHostCommandCache();
@@ -258,6 +272,7 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
             portPlanError = error instanceof Error ? error.message : String(error);
         }
     }
+    const includeWslChecks = isWsl();
     const containerMachineChecks = [
         () => {
             if (hostPortPlan) {
@@ -309,12 +324,14 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
         requiresContainerRuntime("Docker Compose", () => checkDockerCompose(cachedExec)),
         requiresContainerRuntime("Docker Versions", () => checkDockerVersions(cachedExec)),
         checkBun,
-        () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
+        ...(includeWslChecks
+            ? [() => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict)]
+            : []),
         () => checkPublishedBindAddress(process.env, options.strict),
         // Each project needs several networks; a full address pool fails `flisk up` late.
         requiresContainerRuntime("Docker Network Pool", () => checkDockerNetworkCapacity()),
         requiresContainerRuntime("Docker File Sharing", () => checkDockerFileSharing()),
-        () => checkDockerWslIntegration(),
+        ...(includeWslChecks ? [() => checkDockerWslIntegration()] : []),
         () => checkDuplicateFliskInstalls(),
         () => checkLatestFliskVersion(),
     ];
@@ -327,6 +344,7 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
     const declarationChecks = [
         () => checkDuplicateResourceNames(),
         () => checkDependsOnShape(),
+        () => checkRequiredSecrets(checkDir, undefined, process.env),
     ];
     const graphChecks = [
         () => checkCircularDependencies(),
@@ -412,7 +430,9 @@ export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
             () => checkNativeRuntime(nativeResources),
             () => checkNativeCommands(nativeResources),
             () => checkToolchains(nativeResources),
-            () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
+            ...(includeWslChecks
+                ? [() => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict)]
+                : []),
             () => checkDuplicateFliskInstalls(),
         ]
         : containerMachineChecks;

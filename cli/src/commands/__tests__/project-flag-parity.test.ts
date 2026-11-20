@@ -46,6 +46,7 @@ describe("shared --project option parity", () => {
     args: string[];
     json: boolean;
     expectFailure?: string;
+    isolatePath?: boolean;
   }> = [
     { name: "stacks", args: ["stacks", "--json"], json: true },
     { name: "resources", args: ["resources", "--json"], json: true },
@@ -82,8 +83,9 @@ describe("shared --project option parity", () => {
       name: "down",
       args: ["down", "--dry-run", "--json"],
       json: false,
-      // The dry run still checks Tilt before it stops anything. Reaching the
-      // Tilt check means --project resolved the fixture project root.
+      isolatePath: true,
+      // With an isolated PATH (no tilt binary), reaching the Tilt check proves
+      // --project resolved the fixture project root without touching real Docker/Tilt.
       expectFailure: "Tilt CLI is not installed",
     },
     {
@@ -97,17 +99,21 @@ describe("shared --project option parity", () => {
       name: "logs",
       args: ["logs", "--json"],
       json: false,
+      isolatePath: true,
       expectFailure: "Tilt is not installed",
     },
     { name: "connect", args: ["connect", "claude", "--dry-run", "--json"], json: true },
     { name: "up", args: ["up", "--dry-run", "--json"], json: true },
   ];
 
-  for (const { name, args, json, expectFailure } of cases) {
+  for (const { name, args, json, expectFailure, isolatePath } of cases) {
     it(`flisk ${name} --project <path> resolves another project's root`, () => {
       const root = realpath(project());
       const cwd = realpath(outside());
-      const result = runFlisk([...args, "--project", root], { cwd });
+      const result = runFlisk([...args, "--project", root], {
+        cwd,
+        ...(isolatePath ? { env: { PATH: outside() } } : {}),
+      });
       const combined = `${result.stdout}\n${result.stderr}`;
 
       expect(combined, combined).not.toContain("unknown option");
@@ -211,9 +217,11 @@ describe("shared --project option parity", () => {
     const root = project();
     const cwd = outside();
     const rel = relative(cwd, root);
+    // Isolate PATH so CI runners with Tilt/Docker installed fail fast after project resolution
+    // rather than launching real containers and leaving orphan processes.
     const result = runFlisk(["up", "--wait", "--project", rel, "--json"], {
       cwd,
-      env: { FLISK_UP_WAIT_TIMEOUT: "1" },
+      env: { PATH: outside(), FLISK_UP_WAIT_TIMEOUT: "1" },
       timeout: 20_000,
     });
     const combined = `${result.stdout}\n${result.stderr}`;
@@ -254,7 +262,7 @@ describe("shared --project option parity", () => {
     );
     const result = runFlisk(["up", "--wait", "--project", "./nested/app", "--json"], {
       cwd: parent,
-      env: { FLISK_UP_WAIT_TIMEOUT: "1" },
+      env: { PATH: outside(), FLISK_UP_WAIT_TIMEOUT: "1" },
       timeout: 20_000,
     });
     const combined = `${result.stdout}\n${result.stderr}`;

@@ -25,6 +25,7 @@ export const restartCommand = addProjectOption(new Command("restart"), "restart"
     .option("--wait <seconds>", "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)", "60")
     .option("--json", "Output one JSON object and exit", false)
     .addHelpText("after", "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild")
+    .showHelpAfterError("\nRun `flisk resources` to see the resource names you can restart.")
     .action(async (resourceName, options, command) => {
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText)) {
