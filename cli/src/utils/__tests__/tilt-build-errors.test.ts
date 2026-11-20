@@ -101,18 +101,15 @@ describe("summarizeTiltBuildError: dependency installation failures", () => {
   it("points script not found and exec format errors at CRLF line endings", () => {
     for (const raw of [
       'exec "/usr/local/bin/install-deps.sh": exec format error',
-      '/bin/sh: scripts/prisma-normalize-client.sh: not found',
+      "/bin/sh: scripts/prisma-normalize-client.sh: not found",
     ]) {
       expect(isRegistryRelatedBuildError(raw)).toBe(false);
-      expect(summarizeTiltBuildError(raw)).toContain(
-        "line endings: run flisk config regenerate",
-      );
+      expect(summarizeTiltBuildError(raw)).toContain("line endings: run flisk config regenerate");
     }
   });
 
   it("still blames the registry when install-deps.sh fails with a network marker", () => {
-    const raw =
-      "install-deps.sh failed: ConnectionRefused downloading package manifest @flisk/sdk";
+    const raw = "install-deps.sh failed: ConnectionRefused downloading package manifest @flisk/sdk";
     const summary = summarizeTiltBuildError(raw);
     expect(summary).toContain("@flisk/sdk");
     expect(summary).toContain("Verdaccio (:4873)");
