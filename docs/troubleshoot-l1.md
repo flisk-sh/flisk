@@ -70,6 +70,8 @@ failed to connect to the docker API at unix:///Users/<user>/.docker/run/docker.s
 ✗ Docker Desktop is open, but its engine is not responding
 ℹ Fix: Quit Docker Desktop completely (whale icon > Quit Docker Desktop), reopen it, and wait until it shows Running. If it keeps getting stuck, check free disk space. Then retry: flisk doctor
 ```
+If Docker's CLI reports that it cannot reach the API (`failed to connect to the docker API at …` or `dial unix …: connect: no such file or directory`), `flisk doctor` skips the `Docker File Sharing` check instead of suggesting file-sharing settings. Restart the engine first, then re-run the check.
+
 Or when running `flisk up`:
 ```text
 $ flisk up

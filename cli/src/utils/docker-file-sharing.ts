@@ -35,7 +35,11 @@ const DOCKER_RUN_PRE_START_CODES = new Set([125, 126, 127]);
  * daemon, so the exit code alone would read that as the probe's own write failing.
  */
 const DOCKER_PRE_START =
-  /cannot connect to the docker daemon|error during connect|error response from daemon|unable to find image|pull access denied|while trying to connect to the docker daemon/i;
+  /cannot connect to the docker daemon|error during connect|error response from daemon|unable to find image|pull access denied|while trying to connect to the docker daemon|failed to connect to the docker api|is the docker daemon running|dial unix|connect: no such file or directory|connection refused/i;
+
+/** Daemon-unreachable wordings, including Docker 28+/29's "failed to connect to the docker API at …". */
+const DOCKER_DAEMON_UNREACHABLE =
+  /cannot connect to the docker daemon|failed to connect to the docker api|error during connect|is the docker daemon running|dial unix|connect: no such file or directory|connection refused/i;
 
 /** True when the probe container started and its write into the mount failed (a read-only or denied mount). */
 function probeStartedAndFailed(error: unknown, detail: string): boolean {
@@ -127,15 +131,22 @@ export async function checkDockerFileSharing(
       // If docker run fails (e.g. Docker explicitly denies the mount), check if the file was created
       if (!existsSync(probeHostPath)) {
         const detail = probeErrorText(error);
-        if (!probeStartedAndFailed(error, detail) && !MOUNT_DENIED.test(detail)) {
-          // The probe container never ran (the image could not be pulled, the engine refused it, it timed out), so this
-          // says nothing about file sharing. Reporting it as a sharing failure sent WSL2 users to a setting that does not
-          // apply to them while their bind mounts worked.
+        const daemonUnreachable = DOCKER_DAEMON_UNREACHABLE.test(detail);
+        if (
+          daemonUnreachable ||
+          (!probeStartedAndFailed(error, detail) && !MOUNT_DENIED.test(detail))
+        ) {
+          // The probe container never ran (the image could not be pulled, the engine refused it, it timed out, or Docker
+          // could not reach the daemon), so this says nothing about file sharing. Reporting it as a sharing failure sent
+          // WSL2 users to a setting that does not apply to them while their bind mounts worked.
+          const cause = daemonUnreachable
+            ? "Docker daemon is unreachable"
+            : "Could not run the file sharing probe";
           return {
             name: DOCKER_FILE_SHARING_CHECK,
             didPass: true,
             isSkipped: true,
-            message: `Could not run the file sharing probe (${summarizeLines(detail) || "docker run failed"}); file sharing was not tested`,
+            message: `${cause} (${summarizeLines(detail) || "docker run failed"}); file sharing was not tested`,
           };
         }
         return {
