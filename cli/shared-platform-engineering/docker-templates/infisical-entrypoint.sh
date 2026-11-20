@@ -112,7 +112,7 @@ apply_tilt_overrides() {
   
   for var_name in $TILT_OVERRIDE_VARS; do
     tilt_var="TILT_${var_name}"
-    tilt_value=$(eval echo \$$tilt_var)
+    tilt_value=$(printenv "$tilt_var" 2>/dev/null || true)
     
     if [ -n "$tilt_value" ]; then
       log_success "   ✓ TILT_${var_name} overrides ${var_name}"
@@ -313,6 +313,104 @@ run_prisma_migrations() {
 }
     
 # =============================================================================
+# SAFE SECRET LOADING (NO EVAL, POSIX SH COMPATIBLE)
+# =============================================================================
+
+# Validate a POSIX environment variable name without invoking eval.
+is_valid_env_key() {
+  case "$1" in
+    ""|[0-9]*|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_]*)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+# Export KEY=VALUE only when KEY is not already set (preserving TILT_* overrides).
+export_secret_if_unset() {
+  local key="$1"
+  local value="$2"
+  local current_val
+  current_val=$(printenv "$key" 2>/dev/null || true)
+  if [ -z "$current_val" ]; then
+    export "${key}=${value}"
+    secrets_exported=$((secrets_exported + 1))
+  fi
+}
+
+# Remove the temporary plaintext secrets file if it still exists.
+cleanup_temp_secrets() {
+  if [ -n "${temp_secrets:-}" ]; then
+    rm -f "$temp_secrets"
+    temp_secrets=""
+  fi
+}
+
+# Parse KEY=VALUE output from `infisical secrets --plain` without eval.
+# Skips blank lines, lines without '=', and keys that are not valid identifiers.
+# Reassembles multi-line PEM blocks (-----BEGIN ...----- through -----END ...-----).
+load_infisical_secrets_file() {
+  local secrets_file="$1"
+  local in_pem=0
+  local pem_key=""
+  local pem_val=""
+  local newline="
+"
+  local line key value
+  secrets_exported=0
+  [ -s "$secrets_file" ] || return 0
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [ "$in_pem" -eq 1 ]; then
+      pem_val="${pem_val}${newline}${line}"
+      case "$line" in
+        "-----END "*"-----")
+          export_secret_if_unset "$pem_key" "$pem_val"
+          in_pem=0
+          pem_key=""
+          pem_val=""
+          ;;
+      esac
+      continue
+    fi
+
+    [ -z "$line" ] && continue
+
+    case "$line" in
+      *=*) ;;
+      *) continue ;;
+    esac
+
+    key="${line%%=*}"
+    value="${line#*=}"
+
+    if ! is_valid_env_key "$key"; then
+      log_warn "Skipping secret with invalid variable name"
+      continue
+    fi
+
+    case "$value" in
+      "-----BEGIN "*"-----"*"-----END "*"-----"*)
+        ;;
+      "-----BEGIN "*"-----")
+        in_pem=1
+        pem_key="$key"
+        pem_val="$value"
+        continue
+        ;;
+    esac
+
+    export_secret_if_unset "$key" "$value"
+  done < "$secrets_file"
+
+  if [ "$in_pem" -eq 1 ] && [ -n "$pem_key" ]; then
+    export_secret_if_unset "$pem_key" "$pem_val"
+  fi
+}
+
+# =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
@@ -414,10 +512,10 @@ main() {
   log_info "Fetching secrets from Infisical..."
   
   # Fetch secrets in plain format (KEY=VALUE per line)
-  # Use a temporary file to capture output safely
+  # Use a temporary file and remove it before exec (EXIT traps do not fire across exec)
   temp_secrets=$(mktemp)
-  trap "rm -f $temp_secrets" EXIT
-  
+  trap cleanup_temp_secrets EXIT INT TERM
+
   infisical secrets \
     --domain="$INFISICAL_SITE_URL" \
     --projectId="$INFISICAL_PROJECT_ID" \
@@ -429,29 +527,14 @@ main() {
 
   # Only export secrets that aren't already set in the environment
   # This preserves TILT_DATABASE_URL -> DATABASE_URL override
-  secrets_exported=0
-  if [ -s "$temp_secrets" ]; then
-    while IFS= read -r line; do
-      # Skip empty lines
-      [ -z "$line" ] && continue
-      
-      # Split on first = only (in case value contains =)
-      key="${line%%=*}"
-      value="${line#*=}"
-      
-      # Only export if not already set in environment
-      eval "current_val=\$$key"
-      if [ -z "$current_val" ]; then
-        export "${key}=${value}"
-        secrets_exported=$((secrets_exported + 1))
-      fi
-    done < "$temp_secrets"
-  fi
-  
+  load_infisical_secrets_file "$temp_secrets"
+  cleanup_temp_secrets
+  trap - EXIT INT TERM
+
   log_success "Injected ${secrets_exported} secret(s) from Infisical (preserving ${TILT_OVERRIDES_APPLIED} TILT override(s))"
   log_info "🎯 Final DATABASE_URL: ${DATABASE_URL:-not-set}"
   log_success "🎉 Service ${SERVICE_NAME} starting with Database Virtualization!"
-  
+
   exec "$@"
 }
 
