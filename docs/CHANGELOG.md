@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- Binary releases no longer publish the redundant `flisk-cli-<tag>-binaries.zip`. The five platform binaries, `flisk-cli-engine.tar.gz` and `checksums.txt` remain, and `checksums.txt` still covers every file the installers download (#4189).
 - The Claude Code plugin starts its MCP server through a shipped Node launcher instead of a `#!/bin/sh` script, so the plugin works on native Windows and on machines without `/bin/sh` (#4012).
 
 ## 1.4.70 (2026-11-20)

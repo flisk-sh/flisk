@@ -103,17 +103,13 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
   (
     cd "${RELEASE_DIR}"
     # Fixed filename (no version/tag in the name) so install.sh can always
-    # find it via the stable /releases/latest/download/ URL, unlike the zip
-    # below whose name embeds the tag and changes every release.
+    # find it via the stable /releases/latest/download/ URL.
     tar -czf flisk-cli-engine.tar.gz flisk-cli
     # install.sh and `flisk upgrade` verify the binary and the engine tarball
     # against this file before installing them.
     shasum -a 256 flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
       flisk-windows-amd64.exe \
       flisk-cli-engine.tar.gz > checksums.txt
-    zip -qr "flisk-cli-${RELEASE_TAG}-binaries.zip" \
-      flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 flisk-windows-amd64.exe \
-      flisk-cli checksums.txt
   )
 
 fi
@@ -126,7 +122,7 @@ validate_release_assets() {
     flisk-darwin-arm64
     flisk-windows-amd64.exe
     flisk-cli-engine.tar.gz
-    "flisk-cli-${RELEASE_TAG}-binaries.zip"
+    checksums.txt
   )
   local asset
 
@@ -158,21 +154,6 @@ validate_release_assets() {
     cd "${RELEASE_DIR}"
     shasum -a 256 -c checksums.txt
   )
-
-  local zip_contents
-  zip_contents="$(unzip -Z1 "${RELEASE_DIR}/flisk-cli-${RELEASE_TAG}-binaries.zip")"
-  for asset in \
-    flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
-    flisk-windows-amd64.exe checksums.txt; do
-    if ! grep -Fxq "${asset}" <<<"${zip_contents}"; then
-      echo "Binary ZIP is missing ${asset}" >&2
-      return 1
-    fi
-  done
-  if ! grep -Eq '^flisk-cli/' <<<"${zip_contents}"; then
-    echo "Binary ZIP is missing the flisk-cli/ engine directory" >&2
-    return 1
-  fi
 }
 
 validate_release_assets
@@ -189,7 +170,7 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 # Upload actual files only - flisk-cli/ is a directory (the bundled engine),
-# already packed inside the zip, and `gh release upload` can't take a
+# published as flisk-cli-engine.tar.gz; `gh release upload` can't take a
 # directory as an asset.
 readonly ASSETS=(
   "${RELEASE_DIR}/flisk-linux-amd64"
@@ -198,7 +179,6 @@ readonly ASSETS=(
   "${RELEASE_DIR}/flisk-darwin-arm64"
   "${RELEASE_DIR}/flisk-windows-amd64.exe"
   "${RELEASE_DIR}/checksums.txt"
-  "${RELEASE_DIR}/flisk-cli-${RELEASE_TAG}-binaries.zip"
   "${RELEASE_DIR}/flisk-cli-engine.tar.gz"
 )
 
@@ -290,8 +270,7 @@ verify_dir="$(mktemp -d)"
 trap 'rm -rf "${verify_dir}"' EXIT
 for asset in \
   flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
-  flisk-windows-amd64.exe flisk-cli-engine.tar.gz checksums.txt \
-  "flisk-cli-${RELEASE_TAG}-binaries.zip"; do
+  flisk-windows-amd64.exe flisk-cli-engine.tar.gz checksums.txt; do
   if ! grep -Fxq "${asset}" <<<"${remote_assets}"; then
     echo "Published release is missing required asset: ${asset}" >&2
     exit 1

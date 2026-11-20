@@ -13,6 +13,16 @@ const SCRIPT_PATH = fileURLToPath(new URL("release-binaries.sh", import.meta.url
 const ROOT_DIR = dirname(dirname(SCRIPT_PATH));
 const SCRIPT_SOURCE = readFileSync(SCRIPT_PATH, "utf8");
 
+const RELEASE_BINARIES = [
+  "flisk-linux-amd64",
+  "flisk-linux-arm64",
+  "flisk-darwin-amd64",
+  "flisk-darwin-arm64",
+  "flisk-windows-amd64.exe",
+];
+// Every asset the official install.sh (and install.ps1) downloads before using it.
+const INSTALL_DOWNLOADS = [...RELEASE_BINARIES, "flisk-cli-engine.tar.gz"];
+
 function getBash() {
   if (process.platform === "win32") {
     const candidates = [
@@ -70,6 +80,40 @@ function extractFunction(source, fnName) {
   return source.slice(start, end);
 }
 
+function shellArrayItems(source, declaration) {
+  const match = source.match(
+    new RegExp(`^[ \\t]*(?:readonly[ \\t]+)?${declaration}=\\(([\\s\\S]*?)^[ \\t]*\\)`, "m"),
+  );
+  assert.ok(match, `${declaration} array must exist in release-binaries.sh`);
+  return match[1]
+    .split("\n")
+    .map((line) => line.replace(/#.*$/, "").trim())
+    .filter(Boolean)
+    .map((item) => item.replace(/^["']|["']$/g, ""))
+    .map((item) => item.replace(/^\$\{RELEASE_DIR\}\//, ""));
+}
+
+function shellForItems(source, marker) {
+  const from = source.indexOf(marker);
+  assert.ok(from >= 0, `${marker} must exist in release-binaries.sh`);
+  const listStart = source.indexOf("for asset in \\", from);
+  assert.ok(listStart >= 0, `${marker} must be followed by a for asset list`);
+  const listEnd = source.indexOf("; do", listStart);
+  assert.ok(listEnd >= 0, `${marker} asset list must end with ; do`);
+  return source
+    .slice(listStart + "for asset in \\".length, listEnd)
+    .split("\n")
+    .flatMap((line) => line.replace(/#.*$/, "").replace(/\\$/, "").trim().split(/\s+/))
+    .filter(Boolean)
+    .map((item) => item.replace(/^["']|["']$/g, ""));
+}
+
+function checksummedAssets(source) {
+  const match = source.match(/shasum -a 256 ([\s\S]*?)> checksums\.txt/);
+  assert.ok(match, "release-binaries.sh must write checksums.txt with shasum -a 256");
+  return match[1].split(/\s+/).filter((item) => item && item !== "\\");
+}
+
 test("release-binaries.sh defines expected targets, output names, and release repository", () => {
   assert.match(
     SCRIPT_SOURCE,
@@ -94,8 +138,55 @@ test("release-binaries.sh defines expected targets, output names, and release re
   }
 
   assert.match(SCRIPT_SOURCE, /tar -czf flisk-cli-engine\.tar\.gz flisk-cli/);
-  assert.match(SCRIPT_SOURCE, /flisk-cli-\$\{RELEASE_TAG\}-binaries\.zip/);
   assert.match(SCRIPT_SOURCE, /> checksums\.txt/);
+  assert.doesNotMatch(SCRIPT_SOURCE, /binaries\.zip/);
+});
+
+test("published and validated assets are only the installable files (#4189)", () => {
+  const expected = [...INSTALL_DOWNLOADS, "checksums.txt"].sort();
+
+  assert.deepEqual(shellArrayItems(SCRIPT_SOURCE, "readonly ASSETS").sort(), expected);
+  assert.deepEqual(shellArrayItems(SCRIPT_SOURCE, "local required").sort(), expected);
+  assert.deepEqual(shellForItems(SCRIPT_SOURCE, "remote_assets=").sort(), expected);
+  assert.doesNotMatch(
+    SCRIPT_SOURCE,
+    /binaries\.zip|zip -qr|unzip -Z1/,
+    "the redundant ZIP must not be built, required, uploaded, or verified",
+  );
+});
+
+test("checksums.txt covers every file install.sh downloads (#4189)", () => {
+  assert.deepEqual(checksummedAssets(SCRIPT_SOURCE).sort(), [...INSTALL_DOWNLOADS].sort());
+  assert.deepEqual(
+    shellArrayItems(SCRIPT_SOURCE, "readonly ASSETS").sort(),
+    [...INSTALL_DOWNLOADS, "checksums.txt"].sort(),
+  );
+
+  const installDocs = readFileSync(join(ROOT_DIR, "docs/install/binary.md"), "utf8");
+  assert.match(
+    installDocs,
+    /flisk-cli-engine\.tar\.gz/,
+    "the manual install docs download the engine archive",
+  );
+  assert.match(installDocs, /checksums\.txt/, "the manual install docs download the checksum list");
+});
+
+test("release documentation no longer promises a binaries ZIP (#4189)", () => {
+  const docs = [
+    "openspec/changes/publish-windows-amd64-release/proposal.md",
+    "openspec/changes/publish-windows-amd64-release/tasks.md",
+    "openspec/changes/publish-windows-amd64-release/specs/windows-release-readiness/spec.md",
+    "openspec/changes/flisk-windows-first-class-support/tasks.md",
+    "openspec/changes/flisk-windows-first-class-support/design.md",
+    "openspec/changes/flisk-windows-first-class-support/specs/windows-release-distribution/spec.md",
+  ];
+  for (const doc of docs) {
+    assert.doesNotMatch(
+      readFileSync(join(ROOT_DIR, doc), "utf8"),
+      /binary ZIP|binaries ZIP|binaries zip|ZIP membership/i,
+      `${doc} must not promise a binaries ZIP`,
+    );
+  }
 });
 
 test("release-binaries.sh fails with clear error when bun is missing", (t) => {
@@ -262,7 +353,7 @@ test("validate_release_assets validates PE MZ signature on Windows binary", (t) 
       "flisk-darwin-arm64",
       "flisk-windows-amd64.exe",
       "flisk-cli-engine.tar.gz",
-      "flisk-cli-v0.2.0-binaries.zip",
+      "checksums.txt",
     ];
 
     for (const file of requiredFiles) {

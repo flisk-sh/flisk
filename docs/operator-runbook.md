@@ -101,7 +101,7 @@ The normal release is the workflow, from a release branch (see the publish gate 
 3. The workflow signs the checksums, then opens a `Release <version> (automatic version bump)` PR so `main` matches npm; merging it tags `v<version>` and publishes the checksums release. If a step fails after publication, follow [Repair a half-finished release](releasing.md#repair-a-half-finished-release) instead of re-dispatching.
 4. The installer verifies each binary against `checksums.txt`.
 
-To build a binary by hand, without publishing, run `scripts/release-binaries.sh`. It writes `flisk-linux-{amd64,arm64}`, `flisk-darwin-{amd64,arm64}`, `flisk-windows-amd64.exe`, `flisk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`. `scripts/release-binaries.sh --publish` creates a draft release, downloads every asset, compares bytes with the local build, and only then publishes it as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
+To build a binary by hand, without publishing, run `scripts/release-binaries.sh`. It writes `flisk-linux-{amd64,arm64}`, `flisk-darwin-{amd64,arm64}`, `flisk-windows-amd64.exe`, `flisk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`. No versioned binaries ZIP is published; installers download the individual assets. `scripts/release-binaries.sh --publish` creates a draft release, downloads every asset, compares bytes with the local build, and only then publishes it as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
 
 ### Publish gate
 

@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Windows AMD64 binary release
-The release pipeline SHALL produce `flisk-windows-amd64.exe` from Bun's `bun-windows-x64` target, include it in checksums and the binary ZIP, and preserve all existing Unix asset names and the `flisk-cli-engine.tar.gz` engine archive. CI SHALL confirm the resulting Windows executable is non-empty and has the PE `MZ` signature.
+The release pipeline SHALL produce `flisk-windows-amd64.exe` from Bun's `bun-windows-x64` target, include it in checksums, and preserve all existing Unix asset names and the `flisk-cli-engine.tar.gz` engine archive. CI SHALL confirm the resulting Windows executable is non-empty and has the PE `MZ` signature.
 
 #### Scenario: Release asset is built and packaged
 - **WHEN** the binary release script completes
-- **THEN** the Windows AMD64 executable exists, is checksummed, and is included in the binary ZIP
+- **THEN** the Windows AMD64 executable exists and is checksummed
 
 #### Scenario: Windows binary signature check
 - **WHEN** the cross-compiled executable is checked in CI

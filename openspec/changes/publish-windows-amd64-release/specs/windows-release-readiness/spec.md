@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Windows executable is a required release asset
-Each release promoted as latest SHALL include `flisk-windows-amd64.exe`, `flisk-cli-engine.tar.gz`, `checksums.txt`, the versioned binary ZIP, and the four existing Unix binaries. The executable SHALL be non-empty, begin with the PE `MZ` signature, have a SHA-256 entry in `checksums.txt`, and appear in the ZIP. The published GitHub release asset list SHALL include the executable before the release is promoted as latest.
+Each release promoted as latest SHALL include `flisk-windows-amd64.exe`, `flisk-cli-engine.tar.gz`, `checksums.txt`, and the four existing Unix binaries. The executable SHALL be non-empty, begin with the PE `MZ` signature, and have a SHA-256 entry in `checksums.txt`. The published GitHub release asset list SHALL include the executable before the release is promoted as latest.
 
 #### Scenario: Candidate assets pass validation
 - **WHEN** the release candidate is prepared for publication
-- **THEN** every required asset exists, the executable is non-empty and begins with `MZ`, and its checksum and ZIP entries are present
+- **THEN** every required asset exists, the executable is non-empty and begins with `MZ`, and its checksum entry is present
 
 #### Scenario: Release asset verification fails
 - **WHEN** a required Windows asset check fails or the published release listing omits the executable
