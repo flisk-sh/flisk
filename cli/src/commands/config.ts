@@ -42,6 +42,7 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import {
   checkCircularDependencies,
   checkDependsOnShape,
@@ -98,7 +99,7 @@ const DRIFT_LABELS: Record<ConfigFileDrift, string> = {
   unknown: "unknown",
 };
 
-export const configCommand = new Command("config")
+export const configCommand = addProjectOption(new Command("config"), "config")
   .description("Manage project configuration and regenerate master files")
   .addCommand(
     new Command("regenerate")

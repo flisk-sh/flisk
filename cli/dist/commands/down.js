@@ -19,6 +19,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import { findForeignContainerOwners, findOtherRecordedFolders, purgeOwnerRefusal, } from "../utils/project-owner.js";
 import { countArtifacts, listProjectArtifacts, removeProjectArtifacts, } from "../utils/project-purge.js";
 import { projectNameAt, readProjectRecords } from "../utils/project-registry.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { discoverResources, discoverResourcesFromRoot, discoverStacks } from "../utils/services.js";
 import { buildTiltDownArgs, getTiltfilePath, runTilt } from "../utils/tilt.js";
@@ -223,7 +224,7 @@ function purgeOrWarn(projectRoot, json) {
     }
     return result;
 }
-export const downCommand = attachNoPositionalHint(addYesOption(new Command("down")))
+export const downCommand = addProjectOption(attachNoPositionalHint(addYesOption(new Command("down"))), "down")
     .description("Stop every running service of this project (local processes or Docker/Tilt)")
     .option("-v, --verbose", "Enable verbose output", false)
     .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)
@@ -234,7 +235,6 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
     .option("--purge", "Also delete this project's Docker volumes (database data), networks and images, so nothing of it is left in Docker", false)
     .option("--dry-run", "Show what would be stopped without stopping", false)
     .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
-    .option("--project <path>", "Stop the Flisk project in this folder (default: the current project, or the only running one)")
     .addHelpText("after", "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose")
     .action(async (options, command) => {
     // Check for inferred Node project first, before resolveDownProject tries to find a Flisk project

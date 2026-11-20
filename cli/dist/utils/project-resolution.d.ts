@@ -1,4 +1,21 @@
+import type { Command } from "commander";
 import { FliskError } from "./errors.js";
+/** The one --project declaration shared by every command that reads project state. */
+export declare const PROJECT_OPTION_FLAGS = "--project <path>";
+export declare const PROJECT_OPTION_DESCRIPTION = "Use the Flisk project in this folder (default: the current project)";
+/**
+ * Declares the shared --project option and resolves the target project before the action runs.
+ * Only an explicit --project is resolved, so commands keep their existing behaviour without it.
+ * The value is replaced with an absolute path so commands that resolve it again stay correct.
+ */
+export declare function addProjectOption(command: Command, commandName?: string, flags?: string): Command;
+/**
+ * Rewrites an explicit relative `--project <path>` in a child CLI invocation to the absolute path.
+ * `addProjectOption` changes the working directory to the resolved project root before the action
+ * runs, so a detached child started with the caller's raw argv would resolve the same relative
+ * path a second time from the new directory and target the wrong project.
+ */
+export declare function absoluteProjectArgs(argv: readonly string[], cwd?: string, resolvedProject?: string): string[];
 export interface ResolveProjectOptions {
     /** Name of the command requesting resolution (e.g. "logs", "restart", "status"). */
     commandName: string;

@@ -36,6 +36,7 @@ import { findProjectRoot, getBuildCommit } from "../utils/paths.js";
 import { isWsl } from "../utils/platform.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
@@ -66,7 +67,7 @@ export const NATIVE_WINDOWS_DOCTOR_MESSAGE = `Native Windows cannot boot a Docke
 // Generated-project checks live in utils/doctor-project.ts; re-exported for existing importers.
 // Running-service checks live in utils/doctor-services.ts; re-exported for existing importers.
 export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, checkColima, checkContainerEngine, checkContainerResourceHealth, checkContainerResourceHealthFor, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, checkDockerVersions, checkFliskVersion, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkLatestFliskVersion, checkPublishedBindAddress, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTilt, checkTypeScriptTypeDependencies, checkWslProjectLocation, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, MIN_BUN_VERSION, MIN_TILT_VERSION, orderDoctorResults, renderDoctorOutput, requiresContainerRuntime, runChecks, versionMeetsMinimum, WSL2_DOCTOR_MESSAGE, };
-export const doctorCommand = new Command("doctor")
+export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
     .description("Check environment readiness for Flisk")
     .option("--all", "Run every check and show Machine and Project sections with a summary", false)
     .option("--json", "Output a versioned JSON readiness report", false)

@@ -100,6 +100,7 @@ import {
 import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-owner.js";
 import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
+import { absoluteProjectArgs, addProjectOption } from "../utils/project-resolution.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { secretProviderUsageError } from "../utils/secret-provider.js";
 import {
@@ -664,7 +665,11 @@ async function tryFastNoopUp(
  * `flisk up --wait`: runs `flisk up --json` detached and waits for its one result line, so a script gets an exit code
  * when the stack is healthy instead of an attached command that never returns.
  */
-async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Promise<void> {
+async function runUpWait(options: {
+  json?: boolean;
+  project?: string;
+  waitTimeout?: unknown;
+}): Promise<void> {
   const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up --wait") : undefined;
   const timeout = parseWaitTimeout(options.waitTimeout);
   if (!timeout.ok) {
@@ -674,7 +679,11 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
     showErrorAndExit(timeout.message, 2, []);
   }
   const outcome = await upAndWait(
-    process.argv.slice(2),
+    absoluteProjectArgs(
+      process.argv.slice(2),
+      process.cwd(),
+      typeof options.project === "string" ? options.project : undefined,
+    ),
     timeout.seconds,
     defaultUpWaitDeps(cliInvocation),
     process.cwd(),
@@ -810,7 +819,7 @@ function missingDeclaredRepoDirs(projectRoot: string | null): string[] {
   return (repos ?? []).map((repo) => repo.dir).filter((dir) => !existsSync(join(projectRoot, dir)));
 }
 
-export const upCommand = new Command("up")
+export const upCommand = addProjectOption(new Command("up"), "up")
   .description(
     "Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster",
   )

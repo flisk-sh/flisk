@@ -13,7 +13,7 @@ import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
-import { resolveCommandProject } from "../utils/project-resolution.js";
+import { addProjectOption, resolveCommandProject } from "../utils/project-resolution.js";
 import {
   EnvUnreadableError,
   envSecretValues,
@@ -104,7 +104,7 @@ function nativeResources(projectRoot: string): DiscoveredResource[] | null {
   }
 }
 
-export const logsCommand = attachNoPositionalHint(new Command("logs"))
+export const logsCommand = addProjectOption(attachNoPositionalHint(new Command("logs")), "logs")
   .description("Print a bounded snapshot of recent logs from the running stack")
   .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
   .option("-f, --follow", "Live follow is unavailable; use flisk ui or repeat with --since")
@@ -118,10 +118,6 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
   .option(
     "--port <n>",
     "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
-  )
-  .option(
-    "--project <path>",
-    "View logs for the Flisk project in this folder (default: the current project)",
   )
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(

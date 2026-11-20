@@ -7,9 +7,10 @@ import { errorFactories, runCommand } from "../utils/errors.js";
 import { formatCount, showDetail, showEmptyState, showStep } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import { skippedServiceFiles } from "../utils/services.js";
 
-export const stacksCommand = new Command("stacks")
+export const stacksCommand = addProjectOption(new Command("stacks"), "stacks")
   .description("List all stacks and their resources")
   .alias("ls") // Keep 'flisk ls' as shorthand
   .option("-v, --verbose", "Show detailed information about each stack", false)

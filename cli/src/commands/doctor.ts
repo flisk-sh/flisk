@@ -134,6 +134,7 @@ import { findProjectRoot, getBuildCommit } from "../utils/paths.js";
 import { isWsl } from "../utils/platform.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
+import { addProjectOption } from "../utils/project-resolution.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
@@ -240,7 +241,7 @@ export {
   WSL2_DOCTOR_MESSAGE,
 };
 
-export const doctorCommand = new Command("doctor")
+export const doctorCommand = addProjectOption(new Command("doctor"), "doctor")
   .description("Check environment readiness for Flisk")
   .option("--all", "Run every check and show Machine and Project sections with a summary", false)
   .option("--json", "Output a versioned JSON readiness report", false)

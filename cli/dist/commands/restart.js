@@ -12,17 +12,16 @@ import { createMachineEnvelope, toMachineError, writeMachineError, } from "../ut
 import { requestNativeRestart } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { withFailureLogs } from "../utils/native-up.js";
-import { resolveCommandProject } from "../utils/project-resolution.js";
+import { addProjectOption, resolveCommandProject } from "../utils/project-resolution.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
 import { isValidPort } from "../utils/validation.js";
-export const restartCommand = new Command("restart")
+export const restartCommand = addProjectOption(new Command("restart"), "restart")
     .description("Restart a running resource in the stack")
     .argument("<resource>", "Name of the resource (service) to restart")
     .option("--port <n>", "Tilt UI port (default: TILT_PORT or 10350)")
     .option("--rebuild", "Rebuild the image through Tilt instead of restarting the container", false)
-    .option("--project <path>", "Restart resources for the Flisk project in this folder (default: the current project)")
     .option("--wait <seconds>", "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)", "60")
     .option("--json", "Output one JSON object and exit", false)
     .addHelpText("after", "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild" +
