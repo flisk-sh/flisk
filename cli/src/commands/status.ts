@@ -27,6 +27,7 @@ import {
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
+import { relativeResourceFolder } from "../utils/resource-relative-path.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import {
   type ServiceUsage,
@@ -458,6 +459,9 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             stack: resource.stack ?? null,
             type: resource.type ?? "unknown",
             port: resource.port ?? null,
+            ...(projectRoot
+              ? { path: relativeResourceFolder(projectRoot, resource.configPath) }
+              : {}),
             ...buildServicePorts(
               resource,
               portPlan?.ingressHttp,
