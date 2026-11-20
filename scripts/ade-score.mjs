@@ -162,9 +162,15 @@ const CHECKS = [
 		area: "machine-interface",
 		weight: 3,
 		title: "status and doctor have --json",
-		run: (r) => ({
-			pass: ["status", "doctor"].every((c) => read(r, `cli/src/commands/${c}.ts`).includes('"--json')),
-		}),
+		run: (r) => {
+			const bodies = ["status", "doctor"].map((c) => read(r, `cli/src/commands/${c}.ts`));
+			// #4265 routes every --json registration through one helper; either spelling still ships the flag.
+			const literal = bodies.every((body) => body.includes('"--json'));
+			const helper = read(r, "cli/src/utils/command-helpers.ts");
+			const shared =
+				helper.includes('JSON_OPTION_FLAGS = "--json"') && bodies.every((body) => /jsonOption\(/.test(body));
+			return { pass: literal || shared };
+		},
 	},
 	{
 		id: "agent-sessions",
