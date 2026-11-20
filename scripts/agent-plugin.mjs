@@ -12,8 +12,9 @@
 //   .claude-plugin/marketplace.json            marketplace for Claude Code, pointing at plugins/flisk-claude (and Copilot CLI, which reads it too)
 //   .agents/plugins/marketplace.json           marketplace for Codex
 //   .cursor-plugin/marketplace.json            marketplace for Cursor
-//   plugins/flisk-claude/                      the Claude Code plugin: the same skills and nothing else (no MCP server, no script),
-//                                              which the Claude directory accepts from an organization that is not Verified
+//   plugins/flisk-claude/.mcp.json             the same server for Claude Code, through a portable Node launcher
+//   plugins/flisk-claude/scripts/flisk-mcp.mjs  that launcher: starts `flisk mcp` on POSIX and native Windows alike
+//   plugins/flisk-claude/                      the Claude Code plugin: the same skills and the launcher above
 //   gemini-extension.json                      Gemini CLI extension (it must sit at the repository root)
 // plugins/flisk/README.md, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
 //   node scripts/agent-plugin.mjs [--root <repo dir>]                 write everything
@@ -76,11 +77,11 @@ export const OPENAI_INTERFACE = {
 // The server every host starts: the Flisk CLI's own stdio server, run in the user's project.
 const SERVER = { command: "flisk", args: ["mcp"] };
 
-// The Claude directory refuses a plugin from an organization that is not Verified when it ships an MCP server that runs
-// on the user's computer, or any file that is not Markdown, text, JSON, YAML or an image (a shell launcher included).
-// `flisk mcp` is a local stdio server, so the Claude Code plugin (plugins/flisk-claude) carries the skills only, and the
-// skills drive the CLI. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`. Claude Code users who
-// want the server add it themselves: claude mcp add flisk -- flisk mcp
+// The Claude plugin cannot use a shell launcher: Windows does not read a `#!` line and not every machine has /bin/sh.
+// It starts the same server through `node` (a CLI prerequisite) and a small launcher shipped with the plugin. On Windows
+// npm installs a flisk.cmd shim, so the launcher spawns through a shell there. The other hosts, the MCP Registry and
+// Glama keep the plain `flisk mcp`. A Claude Code user who installs the server by hand can still run:
+// claude mcp add flisk -- flisk mcp
 
 // What the Claude plugin directory shows on the listing. It reads these from plugin.json; without them it guesses
 // (the first docs link in the README, the last issue template) and has no privacy policy.
@@ -91,6 +92,36 @@ const CLAUDE_LISTING = {
   supportUrl: "https://github.com/flisk-sh/flisk/issues",
   privacyPolicyUrl: "https://github.com/flisk-sh/flisk/blob/main/docs/security.md#what-flisk-sends-over-the-network",
 };
+
+// The Claude Code MCP config names the runtime, not a POSIX script: Node is already required by the CLI (22.12+).
+const CLAUDE_SERVER = { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/scripts/flisk-mcp.mjs"] };
+
+// Written next to the config so the launch code stays reviewable in the plugin tree. `shell` is needed on Windows
+// because npm installs flisk as flisk.cmd there, which Node cannot spawn directly on current Node versions.
+const CLAUDE_LAUNCHER = `// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+// Written by scripts/agent-plugin.mjs. Starts the Flisk CLI's own stdio server in the folder the agent started in.
+// Needs Node 22.12+ and the Flisk CLI: npm install -g @flisk-sh/flisk. Reads no credential and uses no network.
+import { spawn } from "node:child_process";
+
+const options = { stdio: "inherit" };
+// npm installs flisk.cmd on Windows; Node can start .cmd files only through a shell.
+if (process.platform === "win32") options.shell = true;
+const child = spawn("flisk", ["mcp"], options);
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => child.kill(signal));
+}
+
+child.on("error", (error) => {
+  console.error(\`flisk mcp could not start: \${error.message}\`);
+  process.exitCode = 1;
+});
+
+child.on("exit", (code) => {
+  process.exitCode = code ?? 1;
+});
+`;
 
 // The name the MCP Registry lists Flisk under. The io.github.flisk-sh/ namespace is proven by publishing from a
 // flisk-sh GitHub Actions run, and the registry checks that the npm package's mcpName (root package.json) matches it.
@@ -174,6 +205,8 @@ export function plan(root) {
   );
   add(inPlugin(".cursor-plugin/plugin.json"), json({ ...PLUGIN, logo: "assets/logo.svg" }));
   add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json({ ...PLUGIN, ...CLAUDE_LISTING }));
+  add(`${CLAUDE_PLUGIN_DIR}/.mcp.json`, json({ mcpServers: { flisk: CLAUDE_SERVER } }));
+  add(`${CLAUDE_PLUGIN_DIR}/scripts/flisk-mcp.mjs`, CLAUDE_LAUNCHER);
   for (const name of skillNames(root)) {
     const source = absoluteDocLinks(readFileSync(path.join(root, SKILLS_SOURCE, name, "SKILL.md"), "utf8"));
     add(inPlugin(`skills/${name}/SKILL.md`), source);
@@ -233,8 +266,8 @@ function staleSkills(root, files) {
   });
 }
 
-/** Files an earlier version generated in the Claude Code plugin that the directory refuses now: { rel } of each present, to delete. */
-const REFUSED_CLAUDE_FILES = [`${CLAUDE_PLUGIN_DIR}/.mcp.json`, `${CLAUDE_PLUGIN_DIR}/scripts`];
+/** The old POSIX launcher an earlier version shipped: { rel } if present, to delete. */
+const OBSOLETE_CLAUDE_FILES = [`${CLAUDE_PLUGIN_DIR}/scripts/flisk-mcp.sh`];
 
 /** Write (write: true) or compare everything. Returns the repo-relative paths that were or are out of date. */
 export function run(root, { write }) {
@@ -249,7 +282,7 @@ export function run(root, { write }) {
       writeFileSync(target, contents);
     }
   }
-  for (const rel of [...staleSkills(root, files), ...REFUSED_CLAUDE_FILES.filter((f) => existsSync(path.join(root, f)))]) {
+  for (const rel of [...staleSkills(root, files), ...OBSOLETE_CLAUDE_FILES.filter((f) => existsSync(path.join(root, f)))]) {
     changed.push(rel);
     if (write) rmSync(path.join(root, rel), { recursive: true, force: true });
   }

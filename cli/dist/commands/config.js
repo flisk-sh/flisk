@@ -21,7 +21,7 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { checkCircularDependencies, checkDependsOnShape, checkServicePorts, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
+import { checkCircularDependencies, checkDependsOnShape, checkDockerfilePorts, checkServicePorts, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
 import { describeSharedPostgresUsers, evaluateSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
@@ -364,6 +364,7 @@ export const configCommand = new Command("config")
             checkDependsOnShape(projectRoot, resources),
             checkCircularDependencies(projectRoot, resources),
             checkServicePorts(projectRoot, resources),
+            checkDockerfilePorts(projectRoot, resources),
         ]
             .filter((check) => !check.didPass)
             .map((check) => check.fix ? `${check.message}\n    Fix: ${check.fix}` : check.message);

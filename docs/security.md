@@ -53,7 +53,7 @@ Every third-party image that Flisk generates or ships, with the tag in the sourc
 | `docker` | `29.9.2-cli` | Release image (Docker CLI) | Exact version plus digest; official |
 | `redis` | `7.4-alpine` | `flisk resource` infra presets | Minor line; official |
 | `mysql` | `8.4` | `flisk resource` infra presets | LTS line; official |
-| `mongo` | `8.0` | `flisk resource` infra presets | Major line; official |
+| `mongo` | `8.0.38` | `flisk resource` infra presets | Exact version: earlier 8.0 patches exit on Linux 6.19+ runners (#4755); official |
 | `rabbitmq` | `4.4-management-alpine` | `flisk resource` infra presets | Minor line; official |
 | `nats` | `2.11.8-alpine` | `flisk resource` infra presets | Exact version; official |
 | `clickhouse/clickhouse-server` | `25.8-alpine` | `flisk resource` infra presets | Minor line; the vendor's own image |

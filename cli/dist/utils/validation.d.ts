@@ -3,6 +3,13 @@ export declare const KEBAB_CASE_REGEX: RegExp;
 export declare const MAX_NAME_LENGTH = 63;
 export declare function validateResourceName(name: string): ValidationResult;
 export declare function validateStackName(name: string): ValidationResult;
+export declare function validateProjectName(name: string): ValidationResult;
+/**
+ * Derive a Docker- and npm-compatible project name from a folder name.
+ * Lowercase, spaces and dots become `-`, anything else is stripped.
+ * Falls back to `my-project` when nothing valid remains.
+ */
+export declare function deriveProjectName(folderName: string): string;
 export declare function createKebabCaseValidator(context: "resource" | "stack"): (input: string) => true | string;
 export declare function validateOptionalInfraService(service: string): ValidationResult;
 /**
