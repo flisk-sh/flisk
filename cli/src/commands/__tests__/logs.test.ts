@@ -35,7 +35,9 @@ const webviewDump = (segments: Array<Record<string, unknown>>, services = ["api"
   ok(
     JSON.stringify({
       logList: {
-        spans: Object.fromEntries(services.map((name) => [`runtime:${name}`, { manifestName: name }])),
+        spans: Object.fromEntries(
+          services.map((name) => [`runtime:${name}`, { manifestName: name }]),
+        ),
         segments,
       },
     }),
