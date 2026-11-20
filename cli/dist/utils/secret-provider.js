@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { FliskError } from "./errors.js";
 /** The providers this CLI build understands. `""` means the default, `env-file`. */
-export const SECRET_PROVIDERS = ["env-file", "infisical"];
+export const SECRET_PROVIDERS = ["env-file", "infisical", "keychain"];
 /**
  * Whether this build has a real secret-provider bridge. The free CLI ships only the
  * Infisical stub, so a build that replaces it with a working client opts in explicitly.

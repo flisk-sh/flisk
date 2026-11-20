@@ -4,6 +4,8 @@ export declare function runTilt(command: string, args?: string[], options?: {
     quiet?: boolean;
     inheritStdio?: boolean;
     timeoutMs?: number;
+    /** Environment for the child (e.g. resolved secrets); values are never logged. */
+    env?: NodeJS.ProcessEnv;
 }): Promise<TiltCommandResult>;
 export declare function isTiltAvailable(): Promise<boolean>;
 export declare function getTiltfilePath(): string;

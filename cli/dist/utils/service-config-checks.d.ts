@@ -1,4 +1,5 @@
 import type { CheckResult, DiscoveredResource } from "../types/index.js";
+import type { Keychain } from "./keychain.js";
 /** A dependsOn that is not a list of service names cannot be followed, so say so instead of failing later. */
 export declare function checkDependsOnShape(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /** Services that wait on each other can never both start. A dependsOn name that is not a service is left to the unknown-name check. */
@@ -73,12 +74,20 @@ export declare function checkServicePorts(projectRoot?: string, resources?: Disc
 export declare function checkSchemaVersions(projectRoot?: string, strict?: boolean, resources?: DiscoveredResource[]): CheckResult;
 /** Prints the schemaVersion warning once. It never stops anything: the project keeps working as it is. */
 export declare function warnSchemaVersions(projectRoot: string, resources?: DiscoveredResource[]): void;
+export interface RequiredSecretsOptions {
+    /** Inject a fake keychain, so the check can be tested without `security` / `secret-tool`. */
+    keychain?: Keychain;
+    platform?: NodeJS.Platform;
+    onUnsupported?: (message: string) => void;
+}
 /**
- * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
- * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
- * With `FLISK_SECRET_PROVIDER=infisical` the names are left to a bridge; the free build has none, so it warns per name.
+ * `secrets.required` names that neither the env file of the run, the environment nor the selected
+ * provider holds a value for. Compose refuses to interpolate such a name, and that fails the whole
+ * Tiltfile, so every service stops, not only the one that needs the secret. With
+ * `FLISK_SECRET_PROVIDER=infisical` the names are left to a bridge; the free build has none, so it
+ * warns per name. `keychain` looks the names up in the OS keychain through the shared resolver.
  */
-export declare function checkRequiredSecrets(projectRoot?: string, resources?: DiscoveredResource[], env?: NodeJS.ProcessEnv): CheckResult;
+export declare function checkRequiredSecrets(projectRoot?: string, resources?: DiscoveredResource[], env?: NodeJS.ProcessEnv, options?: RequiredSecretsOptions): CheckResult;
 /** Prints each secret that a literal in `params` or `env` overrides. A warning: such a project still starts. */
 export declare function warnSecretConflicts(projectRoot: string, resources?: DiscoveredResource[]): void;
 /**
@@ -89,4 +98,6 @@ export declare function enforceServiceConfigGate(projectRoot: string, options?: 
     onInvalid?: (message: string) => void;
     onWarning?: (message: string) => void;
     resources?: DiscoveredResource[];
+    /** Silence the Windows keychain notice when the caller owns stdout (e.g. `--json`). */
+    onUnsupported?: (message: string) => void;
 }, exit?: (code: number) => never): void;

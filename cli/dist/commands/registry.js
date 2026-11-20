@@ -23,6 +23,7 @@ import { resourcesCommand } from "./resources.js";
 import { restartCommand } from "./restart.js";
 import { runServiceCommand } from "./run.js";
 import { runtimeCommand } from "./runtime.js";
+import { secretCommand } from "./secret.js";
 import { stackCommand } from "./stack.js";
 import { stacksCommand } from "./stacks.js";
 import { statusCommand } from "./status.js";
@@ -67,5 +68,6 @@ export function getRegisteredCommands() {
         runServiceCommand,
         distributeCommand,
         reposCommand,
+        secretCommand,
     ];
 }

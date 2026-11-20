@@ -9,6 +9,7 @@ import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { ensureGeneratedSecrets } from "./generated-secrets.js";
 import type { JsonEmitter } from "./json-output.js";
+import type { Keychain } from "./keychain.js";
 import { isDockerRunning } from "./native-container.js";
 import {
   dependencyWaves,
@@ -27,6 +28,9 @@ import {
 } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
+import { readSecretProvider } from "./secret-provider.js";
+import { declaredSecretNames, resolveSecrets } from "./secret-resolution.js";
+import { discoverResourcesFromRoot } from "./services.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 import { attachedUpInCiWarning } from "./up-hints.js";
@@ -127,17 +131,45 @@ export interface NativeUpInput {
   inferred?: { command: string; script: string };
 }
 
-/** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
-/** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
-export function runVariables(projectRoot: string, envFilePath?: string): Record<string, string> {
+export interface RunVariablesOptions {
+  /** Names the selected services declare; defaults to every secret in the project. */
+  secretNames?: readonly string[];
+  env?: NodeJS.ProcessEnv;
+  /** Inject a fake keychain in tests. */
+  keychain?: Keychain;
+  platform?: NodeJS.Platform;
+  onUnsupported?: (message: string) => void;
+}
+
+/**
+ * What a local process starts with: the project .env (or --env-file), overridden by the shell, then
+ * filled from the selected secret provider for the names the services declare. Values are never logged.
+ */
+export function runVariables(
+  projectRoot: string,
+  envFilePath?: string,
+  options: RunVariablesOptions = {},
+): Record<string, string> {
   const path = envFilePath ?? join(projectRoot, ".env");
   const fromFile = existsSync(path) ? Object.fromEntries(readEnvFileValues(path)) : {};
+  const shell = options.env ?? process.env;
   const fromShell = Object.fromEntries(
-    Object.entries(process.env).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined,
-    ),
+    Object.entries(shell).filter((entry): entry is [string, string] => entry[1] !== undefined),
   );
-  return { ...fromFile, ...fromShell };
+  const names = options.secretNames ?? declaredSecretNamesFromRoot(projectRoot);
+  const resolved = resolveSecrets(readSecretProvider(shell).raw, projectRoot, names, {
+    env: shell,
+    envFilePath: path,
+    ...(options.keychain ? { keychain: options.keychain } : {}),
+    ...(options.platform ? { platform: options.platform } : {}),
+    ...(options.onUnsupported ? { onUnsupported: options.onUnsupported } : {}),
+  });
+  return { ...fromFile, ...fromShell, ...resolved };
+}
+
+/** Project-wide secret names when the caller does not pass the selected services' names. */
+function declaredSecretNamesFromRoot(projectRoot: string): string[] {
+  return declaredSecretNames(discoverResourcesFromRoot(projectRoot));
 }
 
 /**
@@ -200,7 +232,12 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       ),
     );
   }
-  const vars = runVariables(projectRoot, input.envFilePath);
+  const secretNames = declaredSecretNames(selected);
+  const runVariableOptions = {
+    secretNames,
+    ...(quiet ? { onUnsupported: () => {} } : {}),
+  };
+  const vars = runVariables(projectRoot, input.envFilePath, runVariableOptions);
   const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
   if (plan.errors.length > 0) fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
   const databaseNames = databaseResourceNames(selected);
@@ -334,7 +371,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       extraEnvPaths: input.envFilePath ? [input.envFilePath] : [],
       // A restart (`flisk restart`, the MCP resource_restart) re-reads the .env, so a repaired value takes effect.
       reload: () => {
-        const fresh = runVariables(projectRoot, input.envFilePath);
+        const fresh = runVariables(projectRoot, input.envFilePath, runVariableOptions);
         const shadowed = shadowedEnvKeys(projectRoot, input.envFilePath);
         if (shadowed.length > 0 && !quiet) {
           console.log(

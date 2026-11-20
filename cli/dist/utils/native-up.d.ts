@@ -1,5 +1,6 @@
 import type { DiscoveredResource } from "../types/index.js";
 import type { JsonEmitter } from "./json-output.js";
+import type { Keychain } from "./keychain.js";
 import { type NativeServicePlan } from "./native-runtime.js";
 export interface NativeFailure {
     name: string;
@@ -44,9 +45,20 @@ export interface NativeUpInput {
         script: string;
     };
 }
-/** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
-/** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
-export declare function runVariables(projectRoot: string, envFilePath?: string): Record<string, string>;
+export interface RunVariablesOptions {
+    /** Names the selected services declare; defaults to every secret in the project. */
+    secretNames?: readonly string[];
+    env?: NodeJS.ProcessEnv;
+    /** Inject a fake keychain in tests. */
+    keychain?: Keychain;
+    platform?: NodeJS.Platform;
+    onUnsupported?: (message: string) => void;
+}
+/**
+ * What a local process starts with: the project .env (or --env-file), overridden by the shell, then
+ * filled from the selected secret provider for the names the services declare. Values are never logged.
+ */
+export declare function runVariables(projectRoot: string, envFilePath?: string, options?: RunVariablesOptions): Record<string, string>;
 /**
  * Names (never values) of variables the .env sets that the shell overrides with a different value. A restart
  * re-reads the .env but the shell of the running `flisk up` still wins, so an edit to these has no effect.

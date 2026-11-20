@@ -1,4 +1,5 @@
 import { FliskError } from "./errors.js";
+import type { Keychain } from "./keychain.js";
 export declare const REDACTED = "[REDACTED]";
 export declare class EnvUnreadableError extends FliskError {
     readonly path: string;
@@ -16,7 +17,10 @@ export declare const MIN_REDACTED_VALUE_LENGTH = 8;
  * `params` entries of a service whose name says it is a secret (PASSWORD, TOKEN, KEY ...). Throws when an env file exists but
  * cannot be read: continuing without the values would print secrets unmasked.
  */
-export declare function envSecretValues(projectRoot: string, extraEnvPaths?: readonly string[]): string[];
+export declare function envSecretValues(projectRoot: string, extraEnvPaths?: readonly string[], options?: {
+    keychain?: Keychain;
+    env?: NodeJS.ProcessEnv;
+}): string[];
 /**
  * Secret shapes masked wherever they appear, whether or not the value is in an env file: a token an application printed from
  * its own memory, a connection string, a key pair. Each pattern keeps its non-secret part (`Bearer `, `postgres://user:`) so

@@ -1,6 +1,6 @@
 import { FliskError } from "./errors.js";
 /** The providers this CLI build understands. `""` means the default, `env-file`. */
-export declare const SECRET_PROVIDERS: readonly ["env-file", "infisical"];
+export declare const SECRET_PROVIDERS: readonly ["env-file", "infisical", "keychain"];
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 /**
  * Whether this build has a real secret-provider bridge. The free CLI ships only the

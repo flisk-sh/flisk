@@ -101,7 +101,8 @@ import { findForeignContainerOwners, upOwnerRefusal } from "../utils/project-own
 import { projectNameAt, recordProjectRoot } from "../utils/project-registry.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
-import { secretProviderUsageError } from "../utils/secret-provider.js";
+import { readSecretProvider, secretProviderUsageError } from "../utils/secret-provider.js";
+import { declaredSecretNames, resolveSecrets } from "../utils/secret-resolution.js";
 import {
   enforceServiceConfigGate,
   warnModelRunner,
@@ -1048,6 +1049,8 @@ export const upCommand = new Command("up")
         onInvalid: (message) =>
           emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
         onWarning: (message) => projectWarnings.push(message),
+        // Validation is silent; the resolver below prints the notice once when the run starts.
+        onUnsupported: () => {},
       });
       if (nativeRun.isNewProject && !options.dryRun) {
         writeDefaultProjectConfig(projectRoot);
@@ -1271,6 +1274,8 @@ export const upCommand = new Command("up")
           onInvalid: (message) =>
             emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
           onWarning: (message) => projectWarnings.push(message),
+          // Validation is silent; the resolver below prints the notice once when the run starts.
+          onUnsupported: () => {},
         });
       }
       // A dependsOn name that is no service, stack or shared Postgres is dropped by the Tiltfile; say so instead of starting without it.
@@ -1891,10 +1896,25 @@ export const upCommand = new Command("up")
       // project's once the folder is deleted (Docker records no folder on a volume).
       recordProjectRoot(projectRoot, { stacks: recordableStacks(projectRoot) });
 
+      // The resolver supplies keychain values to Tilt's environment: Compose still keeps
+      // `${NAME}` in the generated files and interpolates from this process. Nothing is written
+      // to a generated file, and no value is printed.
+      const resolvedSecretEnv = resolveSecrets(
+        readSecretProvider().raw,
+        projectRoot,
+        declaredSecretNames(servicesToStart),
+        {
+          // The selected env file must win over the keychain, including with `--env-file`.
+          envFilePath: envFileSelection?.path,
+          // Machine-readable output stays valid JSON; the notice is for human runs only.
+          ...(options.json || options.quiet ? { onUnsupported: () => {} } : {}),
+        },
+      );
       const tiltRun = runTilt("up", tiltArgs, {
         verbose: options.verbose && !options.json,
         quiet: options.quiet,
         inheritStdio: !options.quiet, // Suppress tilt output in quiet mode
+        env: { ...process.env, ...resolvedSecretEnv },
       });
 
       // Services that declare `smoke` are checked through the public URL once Tilt is up. A miss stops Tilt (containers stay for

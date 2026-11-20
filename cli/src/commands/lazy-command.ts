@@ -53,6 +53,7 @@ export const LAZY_COMMANDS: Readonly<Record<string, { module: string; exportName
   run: { module: "./run.js", exportName: "runServiceCommand" },
   distribute: { module: "./distribute.js", exportName: "distributeCommand" },
   repos: { module: "./repos.js", exportName: "reposCommand" },
+  secret: { module: "./secret.js", exportName: "secretCommand" },
 };
 
 /**
@@ -164,6 +165,8 @@ async function importLazyModule(name: string, path: string): Promise<CommandModu
       return await import("./distribute.js");
     case "repos":
       return await import("./repos.js");
+    case "secret":
+      return await import("./secret.js");
     default:
       throw new FliskError(`No lazy import for command "${name}" (${path}).`, [
         "Reinstall Flisk, then try the command again.",

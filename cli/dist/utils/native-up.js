@@ -11,6 +11,9 @@ import { isDockerRunning } from "./native-container.js";
 import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeLogLines, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
+import { readSecretProvider } from "./secret-provider.js";
+import { declaredSecretNames, resolveSecrets } from "./secret-resolution.js";
+import { discoverResourcesFromRoot } from "./services.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 import { attachedUpInCiWarning } from "./up-hints.js";
@@ -68,13 +71,28 @@ export function withFailureLogs(projectRoot, failures, sinceEpochMs) {
         return logs.length > 0 ? { ...failure, logs } : failure;
     });
 }
-/** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
-/** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
-export function runVariables(projectRoot, envFilePath) {
+/**
+ * What a local process starts with: the project .env (or --env-file), overridden by the shell, then
+ * filled from the selected secret provider for the names the services declare. Values are never logged.
+ */
+export function runVariables(projectRoot, envFilePath, options = {}) {
     const path = envFilePath ?? join(projectRoot, ".env");
     const fromFile = existsSync(path) ? Object.fromEntries(readEnvFileValues(path)) : {};
-    const fromShell = Object.fromEntries(Object.entries(process.env).filter((entry) => entry[1] !== undefined));
-    return { ...fromFile, ...fromShell };
+    const shell = options.env ?? process.env;
+    const fromShell = Object.fromEntries(Object.entries(shell).filter((entry) => entry[1] !== undefined));
+    const names = options.secretNames ?? declaredSecretNamesFromRoot(projectRoot);
+    const resolved = resolveSecrets(readSecretProvider(shell).raw, projectRoot, names, {
+        env: shell,
+        envFilePath: path,
+        ...(options.keychain ? { keychain: options.keychain } : {}),
+        ...(options.platform ? { platform: options.platform } : {}),
+        ...(options.onUnsupported ? { onUnsupported: options.onUnsupported } : {}),
+    });
+    return { ...fromFile, ...fromShell, ...resolved };
+}
+/** Project-wide secret names when the caller does not pass the selected services' names. */
+function declaredSecretNamesFromRoot(projectRoot) {
+    return declaredSecretNames(discoverResourcesFromRoot(projectRoot));
 }
 /**
  * Names (never values) of variables the .env sets that the shell overrides with a different value. A restart
@@ -123,7 +141,12 @@ export async function runNativeUp(input) {
     if (generatedNames.length > 0 && !quiet && !input.dryRun) {
         console.log(chalk.gray(`Generated ${generatedNames.join(", ")} into the env file (once; existing values unchanged)`));
     }
-    const vars = runVariables(projectRoot, input.envFilePath);
+    const secretNames = declaredSecretNames(selected);
+    const runVariableOptions = {
+        secretNames,
+        ...(quiet ? { onUnsupported: () => { } } : {}),
+    };
+    const vars = runVariables(projectRoot, input.envFilePath, runVariableOptions);
     const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
     if (plan.errors.length > 0)
         fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
@@ -224,7 +247,7 @@ export async function runNativeUp(input) {
         extraEnvPaths: input.envFilePath ? [input.envFilePath] : [],
         // A restart (`flisk restart`, the MCP resource_restart) re-reads the .env, so a repaired value takes effect.
         reload: () => {
-            const fresh = runVariables(projectRoot, input.envFilePath);
+            const fresh = runVariables(projectRoot, input.envFilePath, runVariableOptions);
             const shadowed = shadowedEnvKeys(projectRoot, input.envFilePath);
             if (shadowed.length > 0 && !quiet) {
                 console.log(chalk.yellow(`[flisk] ${shadowed.join(", ")} set in .env but overridden by the shell that started \`flisk up\`; a restart keeps the shell value. Unset it and run \`flisk down\` then \`flisk up\`.`));
