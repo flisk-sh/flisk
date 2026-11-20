@@ -3,6 +3,7 @@
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
+import { checkoutEnvVars } from "./checkout-id.js";
 import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
@@ -74,7 +75,7 @@ export function runVariables(projectRoot, envFilePath) {
     const path = envFilePath ?? join(projectRoot, ".env");
     const fromFile = existsSync(path) ? Object.fromEntries(readEnvFileValues(path)) : {};
     const fromShell = Object.fromEntries(Object.entries(process.env).filter((entry) => entry[1] !== undefined));
-    return { ...fromFile, ...fromShell };
+    return { ...fromFile, ...fromShell, ...checkoutEnvVars(projectRoot) };
 }
 /**
  * Names (never values) of variables the .env sets that the shell overrides with a different value. A restart

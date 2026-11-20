@@ -14,6 +14,12 @@ export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.serv
  */
 export declare const BASE_PATH_PATTERN: RegExp;
 /**
+ * HTTP health check path (`healthCheckPath` and `healthCheck.path`). Allows safe path characters and
+ * `${VAR}` / `${VAR:-default}` references (such as `${FLISK_CHECKOUT_ID}`), while rejecting spaces,
+ * quotes, line breaks, and YAML syntax. Mirrors `health_path_ok` in `runtime/engine/topologies/tilt/manifest/parser.star`.
+ */
+export declare const HEALTH_PATH_PATTERN: RegExp;
+/**
  * Errors for generated-output fields whose values could change the generated YAML. The value itself is not echoed, because it may
  * contain the newline that makes it dangerous.
  */

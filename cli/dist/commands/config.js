@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
 import { generateMasterConfigs, readProjectConfig, staleServiceOutputs, TemplateEngine, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { isMasterConfigFileName } from "../types/index.js";
+import { getCheckoutIdentity } from "../utils/checkout-id.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { explainConfigFile } from "../utils/config-explain.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON, RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE, } from "../utils/constants.js";
@@ -372,6 +373,7 @@ export const configCommand = new Command("config")
         if (options.json) {
             console.log(JSON.stringify(createMachineEnvelope({
                 valid: result.valid && sharedPostgresErrors.length === 0 && prismaConsistency.didPass,
+                checkout: getCheckoutIdentity(projectRoot),
                 errors: [
                     ...result.errors,
                     ...sharedPostgresErrors,

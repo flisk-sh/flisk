@@ -166,7 +166,11 @@ describe("native run planning", () => {
         command: "node s.js",
         cwd: "/tmp/api",
         port: 4100,
-        env: { PORT: "4100" },
+        env: {
+          PORT: "4100",
+          FLISK_CHECKOUT_ID: expect.stringMatching(/^[0-9a-f]{8}$/),
+          FLISK_CHECKOUT_NAME: expect.stringMatching(/^[a-z0-9-]+$/),
+        },
         dependsOn: [],
         healthUrl: localUrl(4100, "/health"),
         url: localUrl(4100),
@@ -174,12 +178,142 @@ describe("native run planning", () => {
       },
       expect.objectContaining({
         name: "web",
-        env: { API_URL: localUrl(4100), TOKEN: "s3", PORT: "3100" },
+        env: {
+          API_URL: localUrl(4100),
+          TOKEN: "s3",
+          PORT: "3100",
+          FLISK_CHECKOUT_ID: expect.stringMatching(/^[0-9a-f]{8}$/),
+          FLISK_CHECKOUT_NAME: expect.stringMatching(/^[a-z0-9-]+$/),
+        },
         dependsOn: ["api"],
         healthUrl: undefined,
         restart: true,
       }),
     ]);
+  });
+
+  it("injects FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME and expands them in env, command, and healthCheck", () => {
+    const root = createTempDir("flisk-WT_Alpha-");
+    const plan = planNativeRun(
+      [
+        nativeService(root, "api", {
+          command: `node server.js --checkout ${ref("FLISK_CHECKOUT_ID")} --name ${ref("FLISK_CHECKOUT_NAME")}`,
+          port: 4101,
+          env: {
+            COOKIE_NAME: `sid_${ref("FLISK_CHECKOUT_ID")}`,
+            BUCKET: `${ref("FLISK_CHECKOUT_NAME")}-assets`,
+          },
+          healthCheck: {
+            path: `/health/${ref("FLISK_CHECKOUT_ID")}`,
+          },
+        }),
+        nativeService(root, "worker", {
+          command: `node worker.js --id ${ref("FLISK_CHECKOUT_ID")}`,
+          healthCheck: {
+            command: ["probe", "--checkout", ref("FLISK_CHECKOUT_ID"), ref("FLISK_CHECKOUT_NAME")],
+          },
+        }),
+      ],
+      {},
+      root,
+    );
+
+    expect(plan.errors).toEqual([]);
+    expect(plan.missingVars).toEqual([]);
+
+    const api = plan.services.find((s) => s.name === "api");
+    const worker = plan.services.find((s) => s.name === "worker");
+    expect(api).toBeDefined();
+    expect(worker).toBeDefined();
+
+    const checkoutId = api?.env.FLISK_CHECKOUT_ID ?? "";
+    const checkoutName = api?.env.FLISK_CHECKOUT_NAME ?? "";
+    expect(checkoutId).toMatch(/^[0-9a-f]{8}$/);
+    expect(checkoutName).toMatch(/^flisk-wt-alpha-/);
+
+    expect(api?.env.COOKIE_NAME).toBe(`sid_${checkoutId}`);
+    expect(api?.env.BUCKET).toBe(`${checkoutName}-assets`);
+    expect(api?.command).toBe(`node server.js --checkout ${checkoutId} --name ${checkoutName}`);
+    expect(api?.healthUrl).toBe(localUrl(4101, `/health/${checkoutId}`));
+
+    expect(worker?.env.FLISK_CHECKOUT_ID).toBe(checkoutId);
+    expect(worker?.env.FLISK_CHECKOUT_NAME).toBe(checkoutName);
+    expect(worker?.command).toBe(`node worker.js --id ${checkoutId}`);
+    expect(worker?.readiness).toEqual({
+      kind: "command",
+      command: ["probe", "--checkout", checkoutId, checkoutName],
+    });
+  });
+
+  it("passes FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME to mixed docker run containers and expands container.command", () => {
+    const root = createTempDir("flisk-mixed-");
+    const plan = planNativeRun(
+      [
+        makeResource("cache", "bring-your-own", {
+          image: "redis:7-alpine",
+          port: 6379,
+          env: { KEY_PREFIX: `${ref("FLISK_CHECKOUT_NAME")}:${ref("FLISK_CHECKOUT_ID")}` },
+          container: {
+            command: ["redis-server", "--save", "", "--syslog-ident", ref("FLISK_CHECKOUT_ID")],
+          },
+          healthCheck: { command: ["redis-cli", "ping", ref("FLISK_CHECKOUT_ID")] },
+        }),
+        nativeService(root, "api", { command: "node s.js", dependsOn: ["cache"] }),
+      ],
+      {},
+      root,
+      "shop",
+    );
+
+    expect(plan.errors).toEqual([]);
+    const cache = plan.services.find((s) => s.name === "cache");
+    const id = cache?.env.FLISK_CHECKOUT_ID ?? "";
+    const name = cache?.env.FLISK_CHECKOUT_NAME ?? "";
+    expect(id).toMatch(/^[0-9a-f]{8}$/);
+    expect(name).toMatch(/^flisk-mixed-/);
+    expect(cache?.env.KEY_PREFIX).toBe(`${name}:${id}`);
+    expect(cache?.command).toContain("-e FLISK_CHECKOUT_ID -e FLISK_CHECKOUT_NAME");
+    expect(cache?.command).toContain(`--syslog-ident ${id}`);
+    expect(cache?.readiness).toEqual({
+      kind: "command",
+      command: ["docker", "exec", "flisk-shop-cache", "redis-cli", "ping", id],
+    });
+  });
+
+  it("delivers FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME into a spawned local process environment", async () => {
+    const root = createTempDir("flisk-live-checkout-");
+    writeFileSync(
+      join(root, "dump-env.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync("checkout.json", JSON.stringify({
+  id: process.env.FLISK_CHECKOUT_ID,
+  name: process.env.FLISK_CHECKOUT_NAME,
+  arg: process.argv[2],
+}));`,
+    );
+    const plan = planNativeRun(
+      [
+        nativeService(root, "job", {
+          command: `${NODE} dump-env.mjs ${ref("FLISK_CHECKOUT_ID")}`,
+          restart: "no",
+        }),
+      ],
+      {},
+      root,
+    );
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    const failures = await supervisor.start();
+    expect(failures).toEqual([]);
+    await waitFor(() => existsSync(join(root, "checkout.json")));
+    const written = JSON.parse(readFileSync(join(root, "checkout.json"), "utf-8")) as {
+      id: string;
+      name: string;
+      arg: string;
+    };
+    expect(written.id).toBe(plan.services[0]?.env.FLISK_CHECKOUT_ID);
+    expect(written.name).toBe(plan.services[0]?.env.FLISK_CHECKOUT_NAME);
+    expect(written.arg).toBe(written.id);
   });
 
   it("refuses a dependsOn on infrastructure the native runtime cannot start, and a shared port", () => {

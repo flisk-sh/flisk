@@ -76,6 +76,48 @@ def project_env_file(project_root=''):
     return (project_root + '/.env') if project_root else '.env'
 
 
+_CHECKOUT_NAME_ALNUM = 'abcdefghijklmnopqrstuvwxyz0123456789'
+
+
+def _sanitize_checkout_name(raw_name):
+    """Sanitize a folder name into lowercase [a-z0-9-] for FLISK_CHECKOUT_NAME."""
+    lowered = raw_name.lower()
+    parts = []
+    current = ''
+    for c in lowered.elems():
+        if c in _CHECKOUT_NAME_ALNUM:
+            current += c
+        elif current:
+            parts.append(current)
+            current = ''
+    if current:
+        parts.append(current)
+    return '-'.join(parts) if parts else 'checkout'
+
+
+def _load_checkout_env(project_root=''):
+    """Ensure FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME are set in os.environ.
+
+    `flisk up` exports both before starting Tilt. When Tilt evaluates a Tiltfile directly,
+    this reads `.flisk/.project-id` (if present) and derives the sanitized folder name from
+    `project_root` so Compose interpolation still receives them.
+    """
+    if not project_root:
+        return
+    if not os.environ.get('FLISK_CHECKOUT_ID', ''):
+        id_path = project_root.rstrip('/\\') + '/.flisk/.project-id'
+        raw = str(read_file(id_path, default='')).strip()
+        if raw.startswith('{'):
+            parsed = decode_json(raw)
+            if type(parsed) == 'dict' and type(parsed.get('id')) == 'string' and parsed.get('id'):
+                os.environ['FLISK_CHECKOUT_ID'] = parsed['id']
+    if not os.environ.get('FLISK_CHECKOUT_NAME', ''):
+        normalized = project_root.replace('\\', '/').rstrip('/')
+        folder = normalized.rsplit('/', 1)[-1] if normalized else ''
+        if folder and folder != '.' and folder != '..':
+            os.environ['FLISK_CHECKOUT_NAME'] = _sanitize_checkout_name(folder)
+
+
 def load_dotenv(project_root=''):
     """Load the project env file of this run into os.environ.
 
@@ -88,6 +130,7 @@ def load_dotenv(project_root=''):
     """
     if not project_root:
         project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    _load_checkout_env(project_root)
     env_path = project_env_file(project_root)
     content = str(read_file(env_path, default=''))
     if not content:

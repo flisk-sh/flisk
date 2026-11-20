@@ -56,6 +56,17 @@ export {
   Cache,
   createCacheValidator,
 } from "./utils/cache.js";
+export type { CheckoutIdentity } from "./utils/checkout-id.js";
+export {
+  CHECKOUT_ID_ENV,
+  CHECKOUT_NAME_ENV,
+  checkoutEnvVars,
+  exportCheckoutEnv,
+  getCheckoutId,
+  getCheckoutIdentity,
+  getCheckoutName,
+  sanitizeCheckoutName,
+} from "./utils/checkout-id.js";
 export {
   assertValid,
   confirmAction,

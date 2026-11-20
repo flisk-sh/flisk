@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import { engineFile, evaluateStarlark, tiltAvailable } from "../../test-support/
 const star = (...parts: string[]) => engineFile(...parts);
 const envStar = star("topologies", "tilt", "resources", "orchestrator", "generators", "env.star");
 const composeStar = star("topologies", "platform", "docker", "compose", "compose.star");
+const parserStar = star("topologies", "tilt", "manifest", "parser.star");
 const utilsStar = star("topologies", "tilt", "common", "utils.star");
 
 const hasTilt = tiltAvailable();
@@ -181,6 +182,69 @@ if 'STRIPE_KEY=' in entry: fail('with the infisical provider the secret must not
     });
     expect(result.status).not.toBe(0);
     expect(`${result.stdout}${result.stderr}`).toContain("bad name");
+  });
+
+  it("exposes FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME through Compose interpolation without writing literal ids", () => {
+    const frontend = toStarlark({
+      appType: "frontend",
+      stack: "app",
+      port: 3000,
+      appName: "orders-web",
+    });
+    const loadBoth = `load(${JSON.stringify(composeStar)}, 'generate_backend_compose_entry', 'generate_frontend_compose')`;
+    const checkoutIdRef = ["$", "{", "FLISK_CHECKOUT_ID:-", "}"].join("");
+    const checkoutNameRef = ["$", "{", "FLISK_CHECKOUT_NAME:-", "}"].join("");
+    expectPasses(
+      `${loadBoth}
+backend_entry = generate_backend_compose_entry('services/app', 'orders-api', {'name': 'orders-api', '_resource_path': 'services/app/orders-api'}, ${withManifest()})
+frontend_entry = generate_frontend_compose('services/app', 'orders-web', {'name': 'orders-web', '_resource_path': 'services/app/orders-web'}, ${frontend})
+for label, text in [('backend', backend_entry), ('frontend', frontend_entry)]:
+    if '- FLISK_CHECKOUT_ID=${checkoutIdRef}' not in text:
+        fail(label + ' missing FLISK_CHECKOUT_ID interpolation: ' + text)
+    if '- FLISK_CHECKOUT_NAME=${checkoutNameRef}' not in text:
+        fail(label + ' missing FLISK_CHECKOUT_NAME interpolation: ' + text)
+    if 'deadbeef' in text or 'my-worktree' in text:
+        fail(label + ' leaked literal checkout values into generated Compose: ' + text)
+`,
+      { FLISK_CHECKOUT_ID: "deadbeef", FLISK_CHECKOUT_NAME: "my-worktree" },
+    );
+  });
+
+  it("loads checkout id and sanitized folder name in load_dotenv when not already exported", () => {
+    const dir = mkdtempSync(join(tmpdir(), "Flisk_WT.Demo-"));
+    temporaryDirs.push(dir);
+    mkdirSync(join(dir, ".flisk"), { recursive: true });
+    writeFileSync(
+      join(dir, ".flisk", ".project-id"),
+      `${JSON.stringify({ id: "a1b2c3d4", path: dir })}\n`,
+    );
+    expectPasses(
+      `load(${JSON.stringify(utilsStar)}, 'Utils')
+Utils.load_dotenv(${JSON.stringify(dir)})
+if os.environ.get('FLISK_CHECKOUT_ID', '') != 'a1b2c3d4':
+    fail('expected FLISK_CHECKOUT_ID=a1b2c3d4, got: ' + os.environ.get('FLISK_CHECKOUT_ID', ''))
+name = os.environ.get('FLISK_CHECKOUT_NAME', '')
+if not name.startswith('flisk-wt-demo-'):
+    fail('expected sanitized FLISK_CHECKOUT_NAME, got: ' + name)
+`,
+      { FLISK_CHECKOUT_ID: "", FLISK_CHECKOUT_NAME: "" },
+    );
+  });
+
+  it("accepts checkout variable references in healthCheckPath and healthCheck.path in parser.star while rejecting unsafe values", () => {
+    const checkoutRef = ["$", "{", "FLISK_CHECKOUT_ID", "}"].join("");
+    const fallbackRef = ["$", "{", "FLISK_CHECKOUT_NAME:-dev", "}"].join("");
+    const badVar = ["$", "{", "BAD-VAR", "}"].join("");
+    expectPasses(`load(${JSON.stringify(parserStar)}, 'ManifestParser')
+if ManifestParser.generated_string_error({'healthCheckPath': '/health/${checkoutRef}'}) != None:
+    fail('expected valid checkout id ref in healthCheckPath')
+if ManifestParser.generated_string_error({'healthCheck': {'path': '/health/${fallbackRef}'}}) != None:
+    fail('expected valid fallback ref in healthCheck.path')
+if ManifestParser.generated_string_error({'healthCheckPath': '/health/${badVar}'}) == None:
+    fail('expected invalid var ref in healthCheckPath to fail')
+if ManifestParser.generated_string_error({'healthCheck': {'path': '/health\\nprivileged: true'}}) == None:
+    fail('expected newline in healthCheck.path to fail')
+`);
   });
 });
 

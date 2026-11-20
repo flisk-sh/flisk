@@ -4,6 +4,7 @@ import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource } from "../types/index.js";
+import { checkoutEnvVars } from "./checkout-id.js";
 import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
@@ -137,7 +138,7 @@ export function runVariables(projectRoot: string, envFilePath?: string): Record<
       (entry): entry is [string, string] => entry[1] !== undefined,
     ),
   );
-  return { ...fromFile, ...fromShell };
+  return { ...fromFile, ...fromShell, ...checkoutEnvVars(projectRoot) };
 }
 
 /**

@@ -25,10 +25,10 @@
 // the real implementations transparently. See
 // flisk-extension-dist/src/index.ts for the server-side enforcement and
 // flisk-extension-dist/src/project-limit.ts for the project-limit logic.
-import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { getCheckoutId } from "../utils/checkout-id.js";
 import { FliskError } from "../utils/errors.js";
 import { extractTarball } from "../utils/tar.js";
 // The worker keeps its pre-rename name (tdk-extension-dist, see wrangler.toml
@@ -74,19 +74,6 @@ function getLicenseKey() {
 }
 function getEndpoint() {
     return process.env.FLISK_PREMIUM_ENDPOINT?.trim() || DEFAULT_ENDPOINT;
-}
-// A stable per-project id for the worker's project-limit tracking - not a
-// device or user id. Generated once and persisted alongside the rest of
-// the project's .flisk/ state.
-function getOrCreateProjectId(projectRoot) {
-    const idPath = join(projectRoot, ".flisk", ".project-id");
-    if (existsSync(idPath)) {
-        return readFileSync(idPath, "utf-8").trim();
-    }
-    const id = randomUUID();
-    mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
-    writeFileSync(idPath, `${id}\n`);
-    return id;
 }
 function cacheTarballPath(key) {
     // Cache is per-key (not shared across different keys on the same
@@ -166,7 +153,7 @@ export async function applyPremiumOverlay(projectRoot, destDir) {
     if (!isCacheFresh(tarballPath)) {
         if (diagnostics)
             console.info("🔎 Premium bundle cache: miss; requesting bundle from distribution service");
-        const projectId = getOrCreateProjectId(projectRoot);
+        const projectId = getCheckoutId(projectRoot);
         const bundle = await fetchPremiumBundle(key, projectId);
         if (!bundle) {
             console.warn("⚠️  No premium resources unlocked for this key - using free tier only.");
@@ -263,7 +250,7 @@ async function hasLiveResourceLicense(projectRoot, resource, options = {}) {
             "Preview without --ddd, or first verify the license with a normal licensed command.",
         ]);
     }
-    const projectId = getOrCreateProjectId(projectRoot);
+    const projectId = getCheckoutId(projectRoot);
     let granted = false;
     try {
         const res = await fetchPremium(key, resource, projectId);

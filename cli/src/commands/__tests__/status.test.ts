@@ -148,6 +148,10 @@ describe("flisk status", () => {
       const output = JSON.parse(await runStatus(["--json"]));
 
       expect(sampleServiceUsage).not.toHaveBeenCalled();
+      expect(output.data.checkout).toEqual({
+        id: expect.stringMatching(/^[0-9a-f]{8}$/),
+        name: expect.stringMatching(/^flisk-status-/),
+      });
       for (const resource of output.data.resources as Array<Record<string, unknown>>) {
         expect(resource).not.toHaveProperty("usage");
       }

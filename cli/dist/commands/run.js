@@ -63,7 +63,7 @@ export function resolveRunTarget(projectRoot, serviceName, command, options = { 
     }
     if (isNativeService(resource)) {
         const vars = runVariables(projectRoot);
-        const plan = planNativeRun([resource], vars).services[0];
+        const plan = planNativeRun([resource], vars, projectRoot).services[0];
         return {
             service: serviceName,
             runtime: "native",

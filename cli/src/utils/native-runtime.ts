@@ -14,6 +14,7 @@ import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
+import { checkoutEnvVars } from "./checkout-id.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
@@ -173,8 +174,10 @@ export function planNativeRun(
   projectRoot?: string,
   projectName?: string,
 ): NativeRunPlan {
-  const root = projectRoot ?? findProjectRoot(selected[0]?.path ?? process.cwd()) ?? process.cwd();
+  const detectedRoot = projectRoot ?? findProjectRoot(selected[0]?.path ?? process.cwd());
+  const root = detectedRoot ?? process.cwd();
   const containerProject = projectName ?? basename(root);
+  const checkoutEnv = checkoutEnvVars(root, { persist: detectedRoot !== null });
   const errors: string[] = [];
   const missingVars: string[] = [];
   const names = new Set(selected.map((resource) => resource.name));
@@ -218,34 +221,54 @@ export function planNativeRun(
     }
     const env: Record<string, string> = {};
     // `vars` is already shell over project .env; the service directory's .env ranks below both and above the default.
+    // Checkout identity vars always reflect the current checkout so stale inherited values from another checkout never leak.
     const serviceDotenv = readServiceDotenv(resource.path);
+    const baseExpansionVars = { ...serviceDotenv, ...vars, ...checkoutEnv };
+    const reportMissing = (name: string) => missingVars.push(`${resource.name}: ${name}`);
     for (const [key, value] of Object.entries(config.env ?? {})) {
-      env[key] = expandEnvValue(String(value), { ...serviceDotenv, ...vars, ...env }, (name) =>
-        missingVars.push(`${resource.name}: ${name}`),
-      );
+      env[key] = expandEnvValue(String(value), { ...baseExpansionVars, ...env }, reportMissing);
     }
+    if (!("FLISK_CHECKOUT_ID" in env)) env.FLISK_CHECKOUT_ID = checkoutEnv.FLISK_CHECKOUT_ID;
+    if (!("FLISK_CHECKOUT_NAME" in env)) env.FLISK_CHECKOUT_NAME = checkoutEnv.FLISK_CHECKOUT_NAME;
     const containerName = isNativeContainerService(resource)
       ? nativeContainerName(containerProject, resource.name)
       : undefined;
-    let command = String(config.command);
-    if (containerName) {
-      const run = dockerRunArgs(resource, {
-        projectName: containerProject,
-        projectRoot: root,
-        envKeys: Object.keys(env),
-      });
-      errors.push(...run.errors);
-      command = dockerRunLine(run.args, containerName);
-    }
     const job = isOneShotJob(config) && port === undefined;
     if (job) {
       env.FLISK_OUTPUT = getMigratorOutputPath(root, resource.name);
     }
     if (port !== undefined && !containerName) env.PORT = String(port);
+    const expandScope = { ...baseExpansionVars, ...env };
+    let command = containerName
+      ? String(config.command)
+      : expandEnvValue(String(config.command), expandScope, reportMissing);
+    if (containerName) {
+      const run = dockerRunArgs(resource, {
+        projectName: containerProject,
+        projectRoot: root,
+        envKeys: Object.keys(env),
+        envVars: expandScope,
+      });
+      errors.push(...run.errors);
+      command = dockerRunLine(run.args, containerName);
+    }
     // Without a health path a service is ready once its port listens, which is what gates its dependents.
     const healthDisabled = isHealthCheckDisabled(config);
-    const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
-    const probe = readinessProbeOf(config);
+    const rawHealthPath = healthDisabled ? undefined : healthCheckPathOf(config);
+    const healthPath =
+      rawHealthPath !== undefined
+        ? expandEnvValue(rawHealthPath, expandScope, reportMissing)
+        : undefined;
+    const rawProbe = readinessProbeOf(config);
+    const probe =
+      rawProbe?.kind === "command"
+        ? {
+            kind: "command" as const,
+            command: rawProbe.command.map((part) =>
+              expandEnvValue(part, expandScope, reportMissing),
+            ),
+          }
+        : rawProbe;
     // A container's healthCheck.command runs inside it, as the Compose health check does.
     const readiness =
       containerName && probe?.kind === "command"

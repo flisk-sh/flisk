@@ -15,6 +15,7 @@ import {
 } from "../generator/template-engine.js";
 import type { JsonCommandResult, ProjectConfig } from "../types/index.js";
 import { isMasterConfigFileName } from "../types/index.js";
+import { getCheckoutIdentity } from "../utils/checkout-id.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { type ConfigFileDrift, explainConfigFile } from "../utils/config-explain.js";
 import {
@@ -519,6 +520,7 @@ export const configCommand = new Command("config")
                 createMachineEnvelope({
                   valid:
                     result.valid && sharedPostgresErrors.length === 0 && prismaConsistency.didPass,
+                  checkout: getCheckoutIdentity(projectRoot),
                   errors: [
                     ...result.errors,
                     ...sharedPostgresErrors,

@@ -174,6 +174,8 @@ def generate_frontend_compose(resource_path, resource_name, res, manifest=None):
       - {env_file_rel_path}
     environment:
         - VITE_APP_ENV=development
+        - FLISK_CHECKOUT_ID=${{FLISK_CHECKOUT_ID:-}}
+        - FLISK_CHECKOUT_NAME=${{FLISK_CHECKOUT_NAME:-}}
     labels:
 {traefik_labels}
     networks:
@@ -443,6 +445,8 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {infisical_env}
       - RESOURCE_NAME={stack}
 {port_env}{health_env}{agent_env}{migrator_output_env}      - INSTANCE_ID={instance_label}
+      - FLISK_CHECKOUT_ID=${{FLISK_CHECKOUT_ID:-}}
+      - FLISK_CHECKOUT_NAME=${{FLISK_CHECKOUT_NAME:-}}
 {platform_env}{auth_env}{secrets_env}{byo_env}
 {agent_volume_section}{byo_volume_section}{byo_model_section}{byo_secrets_configs_section}    labels:
 {traefik_labels}

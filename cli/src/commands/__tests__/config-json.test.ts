@@ -42,7 +42,13 @@ describe("flisk config verify --json", () => {
     const report = parseEnvelope(result.stdout);
     expect(report).toMatchObject({
       schemaVersion: 1,
-      data: { valid: false },
+      data: {
+        valid: false,
+        checkout: {
+          id: expect.stringMatching(/^[0-9a-f]{8}$/),
+          name: expect.stringMatching(/^[a-z0-9-]+$/),
+        },
+      },
       errors: [],
     });
     expect(report.data.errors).toContain(

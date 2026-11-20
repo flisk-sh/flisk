@@ -3,6 +3,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { describePlatformServices, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
+import { getCheckoutId, getCheckoutIdentity, getCheckoutName } from "../utils/checkout-id.js";
 import { attachNoPositionalHint } from "../utils/command-helpers.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
@@ -145,6 +146,10 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     console.log(JSON.stringify(createMachineEnvelope({
                         runtime: "native",
                         inferred: true,
+                        checkout: {
+                            id: getCheckoutId(stateRoot),
+                            name: getCheckoutName(process.cwd()),
+                        },
                         tilt: {
                             available: false,
                             resourcesQueried: false,
@@ -360,6 +365,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             const data = {
                 // Only a project of local processes says so; a container project's report keeps its shape.
                 ...(nativeStates ? { runtime: "native" } : {}),
+                ...(projectRoot ? { checkout: getCheckoutIdentity(projectRoot) } : {}),
                 tilt: {
                     available: tiltAvailable,
                     // The project the Tilt data belongs to: this one, or null when no Tilt of ours answered.
