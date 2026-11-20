@@ -13,7 +13,11 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { writeTextFileAtomic } from "../atomic-write.js";
+import {
+  replaceDirectoryAtomic,
+  replaceDirectoryAtomicSync,
+  writeTextFileAtomic,
+} from "../atomic-write.js";
 
 const renameFailure = vi.hoisted(() => ({ fail: false }));
 
@@ -120,5 +124,65 @@ describe("writeTextFileAtomic", () => {
     writeTextFileAtomic(target, "step 3\n");
     expect(readFileSync(target, "utf-8")).toBe("step 3\n");
     expect(readdirSync(dir)).toEqual(["sequential.txt"]);
+  });
+});
+
+describe("replaceDirectoryAtomic", () => {
+  it("creates a new directory and leaves no sibling staging directories", () => {
+    const target = join(dir, "assets");
+    replaceDirectoryAtomicSync(target, (stageDir) => {
+      writeFileSync(join(stageDir, "a.sh"), "#!/bin/sh\n");
+    });
+
+    expect(readFileSync(join(target, "a.sh"), "utf-8")).toBe("#!/bin/sh\n");
+    expect(readdirSync(dir)).toEqual(["assets"]);
+  });
+
+  it("replaces an existing directory and drops stale files without leaving temp dirs", async () => {
+    const target = join(dir, "ext");
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, "stale.test.ts"), "old\n");
+
+    await replaceDirectoryAtomic(target, async (stageDir) => {
+      writeFileSync(join(stageDir, "Tiltfile"), "fresh\n");
+    });
+
+    expect(readdirSync(target)).toEqual(["Tiltfile"]);
+    expect(readFileSync(join(target, "Tiltfile"), "utf-8")).toBe("fresh\n");
+    expect(readdirSync(dir)).toEqual(["ext"]);
+  });
+
+  it("preserves the existing directory and cleans up stageDir when populate fails", async () => {
+    const target = join(dir, "ext");
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, "keep.txt"), "keep\n");
+
+    await expect(
+      replaceDirectoryAtomic(target, async (stageDir) => {
+        writeFileSync(join(stageDir, "partial.txt"), "partial\n");
+        throw new Error("copy failed");
+      }),
+    ).rejects.toThrow("copy failed");
+
+    expect(readFileSync(join(target, "keep.txt"), "utf-8")).toBe("keep\n");
+    expect(readdirSync(dir)).toEqual(["ext"]);
+  });
+
+  it("succeeds under concurrent replacements without leaving leftover directories", async () => {
+    const target = join(dir, "shared");
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, "initial.txt"), "0\n");
+
+    await Promise.all(
+      Array.from({ length: 8 }, (_, idx) =>
+        replaceDirectoryAtomic(target, async (stageDir) => {
+          writeFileSync(join(stageDir, "version.txt"), `${idx}\n`);
+          await new Promise((resolve) => setTimeout(resolve, (idx % 3) * 5));
+        }),
+      ),
+    );
+
+    expect(readdirSync(target)).toEqual(["version.txt"]);
+    expect(readdirSync(dir)).toEqual(["shared"]);
   });
 });
