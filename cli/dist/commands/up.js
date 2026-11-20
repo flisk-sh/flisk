@@ -51,7 +51,7 @@ import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBring
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
-import { buildStartupReport, explainFailures, formatStartupReport, isStartupStalled, machineProblemFixes, withLoggedReasons, } from "../utils/startup-report.js";
+import { buildStartupReport, explainFailures, formatFailureDetail, formatStartupReport, isStartupStalled, machineProblemFixes, withLoggedReasons, } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 import { findProjectTiltPorts, findTiltPortOwner, stopOwnedTiltOnPort, } from "../utils/tilt-port-owner.js";
@@ -1505,21 +1505,25 @@ export const upCommand = new Command("up")
                 else {
                     startupFailed = true;
                     const failures = await explainFailures(readiness.failures, (name) => tiltResourceLogs(port, name));
-                    const detail = failures
-                        .map((f) => `${f.name}: ${f.message}${f.fix ? `. ${f.fix}` : ""}`)
-                        .join("; ");
+                    const detail = formatFailureDetail(failures);
                     const stillBuildingMsg = readiness.stillBuilding && readiness.stillBuilding.length > 0
                         ? ` (${readiness.stillBuilding.join(", ")} still building)`
                         : "";
+                    // The build's `ERROR:` line is the last line of a non-timeout failure: repeating six shell templates or
+                    // hiding the reason behind "inspect Tilt" sent the demo user in the wrong direction (#3958).
+                    const message = readiness.timedOut
+                        ? `Timed out waiting for resources${stillBuildingMsg}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`
+                        : `Resources failed. Tilt is still running; inspect it or run: flisk down${detail ? `\n${detail}` : ""}`;
                     emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures }, [
                         {
                             code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
-                            message: `${readiness.timedOut ? `Timed out waiting for resources${stillBuildingMsg}` : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
+                            message,
                             suggestions: upFailureHints({
                                 kind: "services",
                                 failed: readiness.failures.map((failure) => failure.name),
                                 timedOut: readiness.timedOut,
                                 stillBuilding: readiness.stillBuilding,
+                                tiltPort: port,
                             }),
                         },
                     ]);
@@ -1579,6 +1583,7 @@ export const upCommand = new Command("up")
                             failed: report.failed.map((failure) => failure.name),
                             timedOut: readiness.timedOut,
                             stillBuilding: readiness.stillBuilding,
+                            tiltPort: port,
                         }));
                     }
                 }

@@ -41,6 +41,18 @@ describe("upFailureHints", () => {
     expect(hints).toContain(`Troubleshooting: ${UP_HINT_DOCS.unhealthy}`);
   });
 
+  it("puts the selected Tilt port in the log suggestion when it is not the default (#3958)", () => {
+    const hints = upFailureHints({
+      kind: "services",
+      failed: ["floor-app-image"],
+      tiltPort: 10351,
+    });
+    expect(hints[0]).toBe(
+      "See why floor-app-image failed: flisk logs -s floor-app-image --port 10351",
+    );
+    expect(logsCommand.options.map((option) => option.long)).toContain("--port");
+  });
+
   it("still gives a next command when no service is named (a timeout)", () => {
     expect(upFailureHints({ kind: "services", failed: [] })[0]).toBe(
       "Check the whole stack: flisk doctor",

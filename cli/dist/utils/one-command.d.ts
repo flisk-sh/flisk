@@ -9,6 +9,8 @@ export type StackOutcome = {
     data?: Record<string, unknown>;
     /** The message from the stack when it did not come up. */
     error?: string;
+    /** The next commands the stack suggested, e.g. a log command with the port the demo actually used. */
+    suggestions?: string[];
     /** Everything the stack printed, kept for the failure message. */
     raw: string;
 };
