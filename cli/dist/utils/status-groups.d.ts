@@ -1,7 +1,7 @@
 import { type DiscoveredResource, type DiscoveredStack, type ServiceRuntimeState } from "../types/index.js";
 /** Label of the group that holds services declared without a stack. */
 export declare const NO_STACK_LABEL = "(no stack)";
-/** A service that is failing or still starting. Unknown (not running, starts on request) is neither. */
+/** A service that is failing, no longer answering probes, or still starting. Unknown (not running) is neither. */
 export declare function isUnhealthyState(state: ServiceRuntimeState | undefined): boolean;
 /**
  * A database resource that nothing reports on: it lives inside a Postgres the stack runs, so it has no process of its own and

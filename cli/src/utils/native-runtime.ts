@@ -41,6 +41,7 @@ import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
+  parseHealthCheckConfig,
   type ReadinessProbe,
   readinessProbeOf,
 } from "./service-manifest.js";
@@ -82,6 +83,11 @@ export interface NativeServicePlan {
   healthCheckDisabled?: boolean;
   /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
   readiness?: ReadinessProbe;
+  /**
+   * How often to re-probe an already-ready local process, and when to call it unhealthy (#4692). Absent means the defaults:
+   * every 5 seconds, after 3 consecutive failures, `report`. Never set when `healthCheck: false` disabled the checks.
+   */
+  reprobe?: { intervalMs: number; retries: number; onFailure: "report" | "restart" };
   /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
   job?: boolean;
   /** The container name when the service is a ready-made `image` that `docker run` starts in a mixed run. */
@@ -105,6 +111,9 @@ const STOP_TIMEOUT_MS = 5_000;
 const MAX_QUICK_CRASHES = 5;
 /** A process that ran at least this long before exiting crashed "slowly": its restart delay starts over. */
 const QUICK_CRASH_MS = 10_000;
+/** Defaults for the periodic re-probe of a ready local process (#4692). */
+const DEFAULT_REPROBE_INTERVAL_MS = 5_000;
+const DEFAULT_REPROBE_RETRIES = 3;
 
 /** `http://localhost:<port>` for display and health checks. Built here so callers never hold a URL literal. */
 export function localUrl(port: number, path = ""): string {
@@ -251,6 +260,20 @@ export function planNativeRun(
       containerName && probe?.kind === "command"
         ? { kind: "command" as const, command: ["docker", "exec", containerName, ...probe.command] }
         : probe;
+    // Only a manifest that actually configures re-probe timing needs a plan field; otherwise the supervisor uses the defaults.
+    // `healthCheck: false` parses as disabled, so such a service is never re-probed.
+    const healthCheck = parseHealthCheckConfig(config);
+    const reprobe =
+      healthCheck.enabled &&
+      (healthCheck.interval !== undefined ||
+        healthCheck.retries !== undefined ||
+        healthCheck.onFailure !== undefined)
+        ? {
+            intervalMs: (healthCheck.interval ?? DEFAULT_REPROBE_INTERVAL_MS / 1000) * 1000,
+            retries: healthCheck.retries ?? DEFAULT_REPROBE_RETRIES,
+            onFailure: healthCheck.onFailure ?? "report",
+          }
+        : undefined;
     // A one-shot job with no port (every migrator, and a "restart": "no" process that serves nothing) is ready once it exits 0.
     // One that has a port keeps the port or health check as its readiness, like any other service.
     return {
@@ -272,6 +295,7 @@ export function planNativeRun(
       restart: config.restart !== "no" && !job,
       ...(healthDisabled ? { healthCheckDisabled: true } : {}),
       ...(readiness ? { readiness } : {}),
+      ...(reprobe ? { reprobe } : {}),
       ...(job ? { job: true } : {}),
       ...(containerName ? { container: containerName } : {}),
     };
@@ -401,6 +425,21 @@ function notReadyReason(plan: NativeServicePlan): string {
     : `nothing listening on port ${plan.port}`;
 }
 
+/** Why a ready service was reported unhealthy after its periodic re-probes kept failing (#4692). */
+function reprobeFailureReason(plan: NativeServicePlan, failures: number): string {
+  if (plan.readiness?.kind === "port") {
+    return `nothing listening on port ${plan.readiness.port} (${failures} consecutive probes)`;
+  }
+  if (plan.readiness?.kind === "command") {
+    return `healthCheck.command never exited 0: ${plan.readiness.command.join(" ")} (${failures} consecutive probes)`;
+  }
+  if (plan.healthUrl) {
+    const path = new URL(plan.healthUrl).pathname;
+    return `GET ${path} failed ${failures} consecutive probes`;
+  }
+  return `nothing listening on port ${plan.port} (${failures} consecutive probes)`;
+}
+
 /** How long one run of a `healthCheck.command` may take before it counts as a failed probe. */
 const READINESS_COMMAND_TIMEOUT_MS = 10_000;
 
@@ -456,6 +495,8 @@ export interface NativeRunState {
       container?: string;
       /** The dependencies a service exited without is waiting for before it starts again. */
       waitingFor?: string[];
+      /** Why a ready process failed its periodic re-probe enough times to be reported unhealthy (#4692). */
+      unhealthy?: string;
       /** The supervisor stopped restarting it (it kept crashing, or a job exited non-zero); only a restart or a new `up` revives it. */
       failed?: boolean;
     }
@@ -711,12 +752,16 @@ export async function stopNativeRun(
 
 /**
  * Each service's state from the run on record, in the shape `flisk status` reports Tilt's: ready once it passed its readiness
- * check, pending while it starts or the supervisor restarts it, unknown when nothing runs.
+ * check, unhealthy when periodic re-probes keep failing, pending while it starts or the supervisor restarts it, unknown when
+ * nothing runs.
  */
 export function nativeServiceStates(
   projectRoot: string,
   services: readonly string[],
-): Record<string, { status: "ready" | "pending" | "error" | "unknown"; reason?: string }> {
+): Record<
+  string,
+  { status: "ready" | "pending" | "error" | "unhealthy" | "unknown"; reason?: string }
+> {
   const state = readNativeRunState(projectRoot);
   const isUp = state !== null && isProcessAlive(state.pid);
   return Object.fromEntries(
@@ -740,6 +785,9 @@ export function nativeServiceStates(
           ];
         }
         return [name, { status: "pending", reason: "restarting" }];
+      }
+      if (service.unhealthy) {
+        return [name, { status: "unhealthy", reason: service.unhealthy }];
       }
       return service.ready
         ? [name, { status: "ready" }]
@@ -882,6 +930,12 @@ interface RunningService {
   exited?: Promise<number | null>;
   /** HTTP status code returned by the service's health check when it became ready. */
   readyStatus?: number;
+  /** Consecutive failed periodic re-probes since the service last answered (#4692). */
+  reprobeFailures: number;
+  /** The reason a ready process was last reported unhealthy; cleared by one successful re-probe. */
+  unhealthyReason?: string;
+  /** The timer that re-probes an already-ready process. */
+  reprobeTimer?: NodeJS.Timeout;
 }
 
 /** Starts and supervises the planned services. One instance per `flisk up`. */
@@ -962,6 +1016,7 @@ export class NativeSupervisor {
         quickCrashes: 0,
         gaveUp: false,
         isReady: false,
+        reprobeFailures: 0,
       });
     }
   }
@@ -1020,6 +1075,7 @@ export class NativeSupervisor {
             service.isReady = true;
             this.saveState();
             this.events.onNote?.(name, "ready");
+            this.startReprobe(service);
             this.resumeDependents(name);
           } else if (!this.stopping) {
             failures.push({
@@ -1054,6 +1110,7 @@ export class NativeSupervisor {
         wave.map(async (name) => {
           const service = this.services.get(name) as RunningService;
           if (service.restartTimer) clearTimeout(service.restartTimer);
+          this.stopReprobe(service);
           const pid = service.child?.pid;
           if (pid && service.child?.exitCode === null && service.child.signalCode === null) {
             await stopProcessGroup(pid, this.options.stopTimeoutMs);
@@ -1110,6 +1167,10 @@ export class NativeSupervisor {
 
   private spawn(service: RunningService): void {
     const { plan } = service;
+    this.stopReprobe(service);
+    service.reprobeFailures = 0;
+    service.unhealthyReason = undefined;
+    service.isReady = false;
     if (plan.job) {
       plan.env.FLISK_OUTPUT = prepareMigratorOutputFile(this.projectRoot, plan.name);
       this.migratorOutputs.delete(plan.name);
@@ -1165,6 +1226,7 @@ export class NativeSupervisor {
     signal: NodeJS.Signals | null,
   ): void {
     if (this.stopping || service.child !== child || service.restarting) return;
+    this.stopReprobe(service);
     service.isReady = false;
     this.saveState();
     const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
@@ -1242,8 +1304,115 @@ export class NativeSupervisor {
       service.isReady = true;
       this.saveState();
       this.events.onNote?.(service.plan.name, "ready again");
+      this.startReprobe(service);
       this.resumeDependents(service.plan.name);
     });
+  }
+
+  /**
+   * Re-probe an already-ready local process with the very same readiness signal used at startup (#4692). Containers keep their
+   * Compose health check and one-shot jobs have nothing to probe after they finish.
+   */
+  private startReprobe(service: RunningService): void {
+    this.stopReprobe(service);
+    if (
+      this.stopping ||
+      service.plan.healthCheckDisabled ||
+      service.plan.job ||
+      service.plan.container
+    ) {
+      return;
+    }
+    const settings = service.plan.reprobe ?? {
+      intervalMs: DEFAULT_REPROBE_INTERVAL_MS,
+      retries: DEFAULT_REPROBE_RETRIES,
+      onFailure: "report",
+    };
+    service.reprobeTimer = setInterval(() => {
+      void this.reprobeOnce(service, settings);
+    }, settings.intervalMs);
+    service.reprobeTimer.unref();
+  }
+
+  private stopReprobe(service: RunningService): void {
+    if (service.reprobeTimer) clearInterval(service.reprobeTimer);
+    service.reprobeTimer = undefined;
+  }
+
+  private async reprobeOnce(
+    service: RunningService,
+    settings: { intervalMs: number; retries: number; onFailure: "report" | "restart" },
+  ): Promise<void> {
+    if (this.stopping || service.restarting || !isChildRunning(service.child)) return;
+    const child = service.child;
+    const status = await probeServiceReady(service.plan);
+    // A restart or exit happened while the probe was in flight: its answer belongs to the old process.
+    if (this.stopping || service.child !== child || !isChildRunning(service.child)) return;
+    if (status !== null) {
+      if (service.reprobeFailures === 0 && !service.unhealthyReason) return;
+      service.reprobeFailures = 0;
+      service.unhealthyReason = undefined;
+      service.isReady = true;
+      this.saveState();
+      this.events.onNote?.(service.plan.name, "ready again");
+      this.resumeDependents(service.plan.name);
+      return;
+    }
+    service.reprobeFailures += 1;
+    // One note and one action per unhealthy episode: keep probing so a single success can return it to ready.
+    if (service.reprobeFailures < Math.max(1, settings.retries) || service.unhealthyReason) return;
+    const reason = reprobeFailureReason(service.plan, service.reprobeFailures);
+    service.unhealthyReason = reason;
+    service.isReady = false;
+    this.saveState();
+    this.events.onNote?.(service.plan.name, `unhealthy: ${reason}`);
+    if (settings.onFailure === "restart" && service.plan.restart) {
+      this.restartUnhealthy(service, reason);
+    }
+  }
+
+  /** Restarts an unhealthy process under the same MAX_QUICK_CRASHES limit as a process that exits. */
+  private restartUnhealthy(service: RunningService, reason: string): void {
+    this.stopReprobe(service);
+    if (!service.plan.restart) {
+      this.events.onNote?.(
+        service.plan.name,
+        `unhealthy (${reason}); not restarting ("restart": "no")`,
+      );
+      return;
+    }
+    const ranFor = Date.now() - service.startedAt;
+    service.quickCrashes = ranFor < QUICK_CRASH_MS ? service.quickCrashes + 1 : 1;
+    if (service.quickCrashes >= MAX_QUICK_CRASHES) {
+      service.gaveUp = true;
+      this.saveState();
+      this.events.onNote?.(
+        service.plan.name,
+        `${reason}; it was unhealthy ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`,
+      );
+      return;
+    }
+    const delay = (this.options.restartDelayMs ?? 1_000) * 2 ** (service.quickCrashes - 1);
+    this.events.onNote?.(
+      service.plan.name,
+      `unhealthy (${reason}); restarting in ${delay / 1000}s`,
+    );
+    service.restartTimer = setTimeout(() => {
+      service.restartTimer = undefined;
+      if (this.stopping) return;
+      service.restarting = true;
+      const child = service.child;
+      void (async () => {
+        try {
+          const pid = child?.pid;
+          if (pid && isChildRunning(child)) await stopProcessGroup(pid, this.options.stopTimeoutMs);
+          if (!this.stopping) this.respawn(service);
+        } finally {
+          // The old process's exit is expected: onExit ignores it while `restarting` is set.
+          service.restarting = false;
+        }
+      })();
+    }, delay);
   }
 
   /**
@@ -1421,6 +1590,7 @@ export class NativeSupervisor {
       service.isReady = true;
       this.saveState();
       this.events.onNote?.(name, "ready again");
+      this.startReprobe(service);
       this.resumeDependents(name);
       return finish({ state: "ready", pid: service.child?.pid });
     }
@@ -1465,6 +1635,7 @@ export class NativeSupervisor {
         ...(service.plan.job ? { job: true } : {}),
         ...(service.plan.container ? { container: service.plan.container } : {}),
         ...(service.waitingFor ? { waitingFor: service.waitingFor } : {}),
+        ...(service.unhealthyReason ? { unhealthy: service.unhealthyReason } : {}),
         ...(service.gaveUp ? { failed: true } : {}),
       };
     }

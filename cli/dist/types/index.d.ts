@@ -22,6 +22,8 @@ export interface HealthCheckObjectConfig {
     port?: number;
     /** Ready when this command exits 0: the program and its arguments (#2875). */
     command?: string[];
+    /** What a native process does when periodic re-probes find it unhealthy (#4692). Defaults to "report". */
+    onFailure?: "report" | "restart";
 }
 export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
 export interface ContainerConfig {
@@ -238,7 +240,7 @@ export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESO
 /** True when `flisk resource --type <type>` accepts the value, including the `sdk` and `byo` aliases. */
 export declare function isResourceCreateType(type: string): boolean;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
-export type ResourceStatus = "ready" | "pending" | "error" | "unknown";
+export type ResourceStatus = "ready" | "pending" | "error" | "unhealthy" | "unknown";
 export interface ResourceMetadata {
     name: string;
     stack?: string;

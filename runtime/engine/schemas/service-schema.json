@@ -756,7 +756,7 @@
       "type": "string"
     },
     "healthCheck": {
-      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0), and, for container services, interval, timeout and startPeriod in seconds and retries for the Docker health check.",
+      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, no periodic re-probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0). interval, timeout and startPeriod are seconds; retries is the number of failed probes. For a local process that was ready, the supervisor re-probes with the same probe every interval seconds (default 5) and reports unhealthy after retries consecutive failures (default 3); onFailure can be report (default) or restart.",
       "oneOf": [
         {
           "type": "boolean"
@@ -765,10 +765,11 @@
           "type": "object",
           "properties": {
             "enabled": { "description": "Whether health checks are enabled; false disables them, like healthCheck: false.", "type": "boolean" },
-            "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between container health probes." },
+            "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between health probes: the Compose probe for a container, and the periodic re-probe of an already-ready local process (default 5)." },
             "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
             "startPeriod": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds after the container starts before failed probes count (Compose start_period), for an app that is slow to boot." },
-            "retries": { "type": "integer", "minimum": 0, "description": "Failed container probes before the container is unhealthy." },
+            "retries": { "type": "integer", "minimum": 0, "description": "Consecutive failed probes before the container is unhealthy, or a ready local process is reported unhealthy (default 3)." },
+            "onFailure": { "type": "string", "enum": ["report", "restart"], "default": "report", "description": "For a ready local process that becomes unhealthy: keep reporting it (default), or stop and restart it with the existing crash-loop limit. Containers keep using their Compose restart policy." },
             "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "description": "HTTP path to probe; replaces healthCheckPath." },
             "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Ready when this TCP port accepts a connection, for a service with no HTTP route (a gRPC server, a database proxy). Replaces the HTTP probe." },
             "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Ready when this command exits 0, such as [\"grpc_health_probe\", \"-addr=:9090\"]. It runs inside the container (exec form, no shell), or on the host from the service folder for a local process. Replaces the HTTP probe." }

@@ -50,6 +50,10 @@ describe("the healthy count", () => {
     ).toBe("1/2");
   });
 
+  it("does not count a service whose re-probes stopped answering as healthy", () => {
+    expect(summary([web, api], { web: state("ready"), api: state("unhealthy") })).toBe("1/2");
+  });
+
   it("still counts a service that has not started", () => {
     expect(summary([web, api], { web: state("ready"), api: state("unknown") })).toBe("1/2");
   });
@@ -75,5 +79,14 @@ describe("unhealthyServiceNames", () => {
     expect(unhealthyServiceNames([web, db], { web: state("ready"), db: state("unknown") })).toEqual(
       [],
     );
+  });
+
+  it("names a service reported unhealthy by its periodic re-probe", () => {
+    expect(
+      unhealthyServiceNames([web, api], {
+        web: state("ready"),
+        api: { status: "unhealthy", reason: "GET /health failed 3 consecutive probes" },
+      }),
+    ).toEqual(["api"]);
   });
 });

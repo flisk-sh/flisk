@@ -10,9 +10,9 @@ import {
 /** Label of the group that holds services declared without a stack. */
 export const NO_STACK_LABEL = "(no stack)";
 
-/** A service that is failing or still starting. Unknown (not running, starts on request) is neither. */
+/** A service that is failing, no longer answering probes, or still starting. Unknown (not running) is neither. */
 export function isUnhealthyState(state: ServiceRuntimeState | undefined): boolean {
-  return state?.status === "error" || state?.status === "pending";
+  return state?.status === "error" || state?.status === "unhealthy" || state?.status === "pending";
 }
 
 /**

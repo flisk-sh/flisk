@@ -24,7 +24,7 @@ export declare function toTextResult(run: FliskRun): McpToolResult;
 /** What the supervising `flisk up` has on record while it is still starting the local processes of a project. */
 export interface NativeUpSnapshot {
     services: Record<string, {
-        status: "ready" | "pending" | "error" | "unknown";
+        status: "ready" | "pending" | "error" | "unhealthy" | "unknown";
         reason?: string;
     }>;
     /** The last lines (own output, secrets masked) of each service that is not ready. */

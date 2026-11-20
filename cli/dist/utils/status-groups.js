@@ -3,9 +3,9 @@
 import { DATABASE_RESOURCE_TYPE, } from "../types/index.js";
 /** Label of the group that holds services declared without a stack. */
 export const NO_STACK_LABEL = "(no stack)";
-/** A service that is failing or still starting. Unknown (not running, starts on request) is neither. */
+/** A service that is failing, no longer answering probes, or still starting. Unknown (not running) is neither. */
 export function isUnhealthyState(state) {
-    return state?.status === "error" || state?.status === "pending";
+    return state?.status === "error" || state?.status === "unhealthy" || state?.status === "pending";
 }
 /**
  * A database resource that nothing reports on: it lives inside a Postgres the stack runs, so it has no process of its own and

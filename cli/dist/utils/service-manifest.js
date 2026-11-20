@@ -458,6 +458,7 @@ const HEALTH_CHECK_CONFIG_KEYS = new Set([
     "path",
     "port",
     "command",
+    "onFailure",
 ]);
 /**
  * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object
@@ -478,7 +479,7 @@ export function healthCheckErrors(manifest, displayPath) {
     const hc = value;
     for (const key of Object.keys(hc)) {
         if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
-            errors.push(`${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")`);
+            errors.push(`${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", "command", or "onFailure")`);
         }
     }
     if (hc.enabled !== undefined && typeof hc.enabled !== "boolean") {
@@ -528,6 +529,9 @@ export function healthCheckErrors(manifest, displayPath) {
             !hc.command.every((part) => typeof part === "string" && part.length > 0)) {
             errors.push(`${displayPath}.healthCheck.command: expected the program and its arguments, such as ["grpc_health_probe", "-addr=:9090"]`);
         }
+    }
+    if (hc.onFailure !== undefined && hc.onFailure !== "report" && hc.onFailure !== "restart") {
+        errors.push(`${displayPath}.healthCheck.onFailure: expected "report" or "restart"`);
     }
     const probes = ["path", "port", "command"].filter((key) => hc[key] !== undefined);
     if (probes.length > 1) {
@@ -582,7 +586,7 @@ export function healthCheckPathOf(manifest, fallback) {
 export function parseHealthCheckConfig(manifest, options = {}) {
     if (isHealthCheckDisabled(manifest))
         return { enabled: false };
-    const { interval, timeout, retries, startPeriod } = healthCheckObject(manifest);
+    const { interval, timeout, retries, startPeriod, onFailure } = healthCheckObject(manifest);
     const path = healthCheckPathOf(manifest, options.defaultPath);
     return {
         enabled: true,
@@ -591,6 +595,7 @@ export function parseHealthCheckConfig(manifest, options = {}) {
         ...(timeout !== undefined ? { timeout } : {}),
         ...(retries !== undefined ? { retries } : {}),
         ...(startPeriod !== undefined ? { startPeriod } : {}),
+        ...(onFailure !== undefined ? { onFailure } : {}),
     };
 }
 // App types whose Bun image runs the `dev` script under a watcher (mirrors BUN_LIVE_RELOAD_APP_TYPES in language_dockerfile.star).

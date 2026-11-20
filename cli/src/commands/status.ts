@@ -611,7 +611,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
               mark = chalk.dim("-");
             } else if (state.status === "ready") {
               mark = chalk.green("✓");
-            } else if (state.status === "error") {
+            } else if (state.status === "error" || state.status === "unhealthy") {
               mark = chalk.red("✗");
             }
             const ports = buildServicePorts(

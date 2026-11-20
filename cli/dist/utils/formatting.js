@@ -38,6 +38,7 @@ function getStatusCategory(status) {
         return "success";
     }
     if (lowerStatus === "error" ||
+        lowerStatus === "unhealthy" ||
         lowerStatus === "failed" ||
         lowerStatus === "critical" ||
         lowerStatus === "stopped") {
