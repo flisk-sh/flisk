@@ -1,6 +1,11 @@
 # GitHub's CodeQL code scanning (free for public repos). Findings appear under Security > Code scanning.
 name: 🔀 PR | Security | CodeQL
 
+# Trigger set, kept small on purpose (regression test: scripts/check-codeql-triggers.test.mjs):
+# - pull_request: Scorecard grades SAST coverage per merged PR commit, and PR runs keep CodeQL alert history.
+# - merge_group: scans the exact tree the queue may merge, so the queued result covers the final commit.
+# - schedule: catches new queries in old code once a week.
+# No `push:` trigger to main: those commits were already scanned by their PR and merge-group runs.
 on:
   pull_request:
   merge_group:
