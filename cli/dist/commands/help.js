@@ -12,6 +12,11 @@ export const COMMAND_GROUPS = [
         color: chalk.blue,
         commands: [
             {
+                name: "demo",
+                desc: "Run the demo stack with one command (local processes without Docker)",
+                alias: "[--template <name>] [--project <dir>]",
+            },
+            {
                 name: "create",
                 desc: "Pick a stack with a few questions and get a project that runs",
                 alias: "[name] --frontend react --runtime docker --extras queue:nats",
@@ -45,7 +50,7 @@ export const COMMAND_GROUPS = [
             {
                 name: "export",
                 desc: "Write render.yaml, wrangler.toml or docker-compose.yml from service.json (runs flisk-export; never deploys)",
-                alias: "render|wrangler|compose --dry-run",
+                alias: "wrangler --resource <name> --dry-run",
             },
         ],
     },
@@ -62,7 +67,7 @@ export const COMMAND_GROUPS = [
         color: chalk.yellow,
         commands: [
             { name: "resource", desc: "Create a new resource, or register an existing one", alias: "" },
-            { name: "resources", desc: "List all resources with filtering", alias: "--stack, --ports" },
+            { name: "resources", desc: "List all resources with filtering", alias: "--stack <stack>, --ports" },
             {
                 name: "agent",
                 desc: "Inspect and operate AI agent resources",
@@ -102,7 +107,7 @@ export const COMMAND_GROUPS = [
             {
                 name: "networks, traefik",
                 desc: "Show Traefik-routed URLs for all services",
-                alias: "--stack, --json",
+                alias: "--stack <stack>, --json",
             },
         ],
     },
@@ -118,7 +123,7 @@ export const COMMAND_GROUPS = [
             {
                 name: "os",
                 desc: "Start FliskOS, the local desktop app for projects and agents",
-                alias: "--port, --no-open",
+                alias: "--port=4300 --no-open",
             },
             {
                 name: "config",
@@ -129,13 +134,13 @@ export const COMMAND_GROUPS = [
             {
                 name: "distribute",
                 desc: "Board, listing kit and channel status for getting an app to users",
-                alias: "board, kit, status",
+                alias: "board, kit <resource>, status",
             },
             { name: "mcp", desc: "Run an MCP server over stdio for coding agents", alias: "" },
             {
                 name: "mcp check",
                 desc: "Check an MCP server's protocol, local or remote (read-only)",
-                alias: "<url|resource> --call, --json",
+                alias: "<url|resource> --call --json",
             },
             {
                 name: "connect",

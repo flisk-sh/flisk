@@ -1,19 +1,24 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import type { Command, Option } from "commander";
-import { describe, expect, it } from "vitest";
+import type { Command } from "commander";
+import { describe, expect, it, vi } from "vitest";
 import { createProgram } from "../../program.js";
-import { COMMAND_GROUPS } from "../help.js";
+import { parseDemoRootOptions } from "../../utils/demo-args.js";
+import { buildForwardedExportArgs } from "../export.js";
+import { COMMAND_GROUPS, showHelp } from "../help.js";
 
 /** A value that stands in for a placeholder such as `<resource>` or `[dir]`. */
 const SAMPLE_VALUE = "example";
+
+/** Rows dispatched before Commander reaches a subcommand: `demo` is the one-command flow (`cli.ts`), `help` is Commander's own. */
+const DISPATCHED_SEPARATELY = new Set(["demo", "help"]);
 
 interface ParsedExample {
   /** Command path the help row names, for example `tool add` or `create`. */
   label: string;
   /** The example exactly as the help table prints it. */
   example: string;
-  /** Arguments handed to the command's own option parser. */
+  /** Arguments handed to the CLI after the command path. */
   argv: string[];
 }
 
@@ -22,26 +27,23 @@ function commandPath(name: string): string[] {
   return name.split(",")[0].trim().split(/\s+/).filter(Boolean);
 }
 
-/** Splits a run of comma-separated alternatives (`--stack, --ports`) into one list each. */
+/** Splits comma-separated alternatives (`--stack <stack>, --json`) into one token list each; a comma ends one alternative, which may hold several tokens (`kit <resource>`). */
 function commaVariants(tokens: string[]): string[][] {
-  const index = tokens.findIndex((token) => token.endsWith(","));
-  if (index === -1) return [tokens];
+  const groups: string[][] = [];
+  let current: string[] = [];
 
-  const alternatives: string[] = [];
-  let end = index;
-  while (end < tokens.length && tokens[end].endsWith(",")) {
-    alternatives.push(tokens[end].replace(/,+$/, ""));
-    end++;
+  for (const token of tokens) {
+    if (token.endsWith(",")) {
+      current.push(token.replace(/,+$/, ""));
+      groups.push(current);
+      current = [];
+    } else {
+      current.push(token);
+    }
   }
-  if (end < tokens.length) alternatives.push(tokens[end++]);
+  if (current.length > 0) groups.push(current);
 
-  return alternatives.flatMap((alternative) =>
-    commaVariants(tokens.slice(end)).map((tail) => [
-      ...tokens.slice(0, index),
-      alternative,
-      ...tail,
-    ]),
-  );
+  return groups.length > 0 ? groups : [[]];
 }
 
 /** Expands one `a|b|c` token (`render|wrangler|compose`) into one list per value. */
@@ -67,58 +69,25 @@ function replacePlaceholders(tokens: string[]): string[] {
   );
 }
 
-/** Walks the registered subcommands that the argument list starts with. */
-function resolveCommand(program: Command, tokens: string[]): { command: Command; rest: string[] } {
-  let command = program;
-  let index = 0;
-
-  while (index < tokens.length) {
-    const token = tokens[index];
-    if (token.startsWith("-")) break;
-    const child = command.commands.find(
-      (candidate) => candidate.name() === token || candidate.aliases().includes(token),
-    );
-    if (!child) break;
-    command = child;
-    index++;
-  }
-
-  return { command, rest: tokens.slice(index) };
-}
-
-function findOption(command: Command, token: string): Option | undefined {
-  const flag = token.replace(/=.*$/, "");
-  return command.options.find((option) => option.short === flag || option.long === flag);
-}
-
-/** Parses one example the way commander does, and rejects anything the command does not define. */
-function assertExampleParses(command: Command, rest: string[]): void {
-  const { unknown } = command.parseOptions(rest);
-  const unknownOption = unknown.find((token) => token.startsWith("-"));
-  if (unknownOption) throw new Error(`unknown option '${unknownOption}'`);
-}
-
-/** Adds a sample value when an option that takes one is printed without a value. */
-function fillRequiredValues(command: Command, rest: string[]): string[] {
-  const filled: string[] = [];
-
-  for (let index = 0; index < rest.length; index++) {
-    const token = rest[index];
-    filled.push(token);
-    if (!token.startsWith("-") || token === "-" || token === "--") continue;
-
-    const option = findOption(command, token);
-    const next = rest[index + 1];
-    if (option?.required && (next === undefined || next.startsWith("-"))) {
-      filled.push(SAMPLE_VALUE);
-    }
-  }
-
-  return filled;
+/**
+ * A program whose every action is a stub, so a full parse validates an example without running it.
+ * Commander's dispatch then checks everything the real CLI checks: that the row names registered
+ * commands and subcommands, that required positional arguments are present, and that every option
+ * is known and carries a value when it needs one.
+ */
+function buildSilentProgram(): Command {
+  const program = createProgram();
+  const stub = (command: Command): void => {
+    // Errors on a subcommand must throw, not exit the test process.
+    command.exitOverride();
+    command.action(() => {});
+    for (const child of command.commands) stub(child);
+  };
+  stub(program);
+  return program;
 }
 
 function collectExamples(): ParsedExample[] {
-  const program = createProgram();
   const examples: ParsedExample[] = [];
 
   for (const group of COMMAND_GROUPS) {
@@ -131,11 +100,11 @@ function collectExamples(): ParsedExample[] {
 
       for (const variant of variants) {
         const tokens = [...path, ...variant.filter(Boolean)];
-        const { command, rest } = resolveCommand(program, tokens);
         examples.push({
           label: path.join(" "),
           example: alias ? `flisk ${path.join(" ")} ${alias}` : `flisk ${path.join(" ")}`,
-          argv: fillRequiredValues(command, rest),
+          // The example must be runnable as printed: no value is added that the row does not show.
+          argv: variant.filter(Boolean),
         });
       }
     }
@@ -145,7 +114,9 @@ function collectExamples(): ParsedExample[] {
 }
 
 describe("flisk --help examples", () => {
-  const examples = collectExamples();
+  const examples = collectExamples().filter(
+    (example) => !DISPATCHED_SEPARATELY.has(example.label.split(" ")[0] ?? ""),
+  );
 
   it("covers every command the help table lists", () => {
     const listed = COMMAND_GROUPS.flatMap((group) => group.commands.map((entry) => entry.name));
@@ -155,32 +126,95 @@ describe("flisk --help examples", () => {
   it("names a registered command for every row", () => {
     const program = createProgram();
     const registered = new Set(program.commands.map((command) => command.name()));
-    // `help` is commander's built-in help command, not one the CLI registers.
-    const builtIn = new Set(["help"]);
 
     for (const group of COMMAND_GROUPS) {
       for (const entry of group.commands) {
         const [first] = commandPath(entry.name);
-        if (builtIn.has(first)) continue;
+        if (DISPATCHED_SEPARATELY.has(first)) continue;
         expect(registered, `${entry.name} is not a registered command`).toContain(first);
       }
     }
   });
 
   it.each(examples)("parses the example for $label: $example", ({ label, argv }) => {
-    const program = createProgram();
-    const resolved = resolveCommand(program, [...label.split(" "), ...argv]);
+    const program = buildSilentProgram();
 
-    expect(() => assertExampleParses(resolved.command, resolved.rest)).not.toThrow();
+    expect(() => program.parse([...label.split(" "), ...argv], { from: "user" })).not.toThrow();
   });
 
   it("rejects an example with an option its command does not define", () => {
-    const program = createProgram();
-    const create = program.commands.find((command) => command.name() === "create");
-    expect(create).toBeDefined();
+    const program = buildSilentProgram();
 
     expect(() =>
-      assertExampleParses(create as Command, ["example", "--kind", "web", "--extras", "queue"]),
+      program.parse(["create", "example", "--kind", "web", "--extras", "queue"], { from: "user" }),
     ).toThrowError(/unknown option '--kind'/);
+  });
+
+  it("rejects an example that names an unknown subcommand", () => {
+    const program = buildSilentProgram();
+
+    // `tool` takes no positional arguments of its own, so Commander rejects the unknown
+    // subcommand either as an unknown command or as an unexpected positional.
+    expect(() => program.parse(["tool", "ad", "example"], { from: "user" })).toThrowError(
+      /unknown command 'ad'|too many arguments/i,
+    );
+  });
+
+  it("rejects an example that omits a required positional argument", () => {
+    const program = buildSilentProgram();
+
+    expect(() => program.parse(["agent", "sessions"], { from: "user" })).toThrowError(
+      /missing required argument/i,
+    );
+  });
+
+  it("keeps the wrangler example valid for flisk-export, which the wrapper cannot check", () => {
+    // `flisk export` is an allowUnknownOption passthrough, so the parser cannot validate the
+    // delegated exporter's own requirements; the wrangler mode of the pinned flisk-export needs
+    // --resource, and the help row is the only place that example is shown.
+    const exportRow = COMMAND_GROUPS.flatMap((group) => group.commands).find(
+      (entry) => entry.name === "export",
+    );
+    expect(exportRow).toBeDefined();
+
+    const tokens = (exportRow?.alias ?? "").split(/\s+/).filter(Boolean);
+    expect(tokens[0]).toBe("wrangler");
+    const resourceIndex = tokens.indexOf("--resource");
+    expect(resourceIndex, "the wrangler example must pass --resource").toBeGreaterThan(-1);
+    const resourceValue = tokens[resourceIndex + 1];
+    expect(resourceValue, "--resource must carry a value").toBeDefined();
+    expect(resourceValue).not.toMatch(/^-/);
+
+    const forwarded = buildForwardedExportArgs(tokens, { dryRun: true });
+    expect(forwarded).toContain("--resource");
+    expect(resourceValue && forwarded.includes(resourceValue)).toBe(true);
+    expect(forwarded).toContain("--dry-run");
+  });
+
+  describe("the demo row", () => {
+    it("lists demo in the main help output without starting the demo", () => {
+      const lines: string[] = [];
+      const log = vi.spyOn(console, "log").mockImplementation((line: unknown) => {
+        lines.push(String(line));
+      });
+      try {
+        showHelp();
+      } finally {
+        log.mockRestore();
+      }
+
+      const text = lines.join("\n");
+      expect(text).toContain("demo");
+      expect(text).toContain("Run the demo stack with one command");
+    });
+
+    it("dispatches through the pre-Commander path the row documents", () => {
+      // `flisk demo` is answered in cli.ts before Commander dispatch: parseDemoRootOptions must
+      // recognise it so `flisk demo --help` shows the demo's own help, not the command table.
+      // argv is process.argv-shaped: the interpreter and the script path come before "demo".
+      const options = parseDemoRootOptions(["node", "flisk.js", "demo", "--help"]);
+      expect(options.template).toBe("demo");
+      expect(options.help).toBe(true);
+    });
   });
 });
