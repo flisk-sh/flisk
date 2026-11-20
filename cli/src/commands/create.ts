@@ -627,8 +627,8 @@ export function generatedServices(projectDir: string, answers: CreateAnswers): G
 }
 
 /**
- * Programs that must be installed before --start can run the app. npm stays required even when Bun is installed:
- * the generated services run `npm run dev`, so `flisk up` would stop without it.
+ * Programs that must be installed before --start can run the app. A Bun API needs both npm and Bun: the generated
+ * service starts through `npm run dev`, whose script calls `bun run --watch` (#4678).
  */
 export function startBlockers(
   answers: CreateAnswers,

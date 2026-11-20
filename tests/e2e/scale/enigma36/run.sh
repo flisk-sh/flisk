@@ -63,6 +63,33 @@ contract() { # <entry json>
   esac
 }
 
+# When one contract times out, name what the resource actually did: its status entry, matching containers (with logs) and
+# the HTTP response for HTTP kinds. `poll_until` prints the up.log tail and every container; a healthy Hono container with a
+# 404 route, or a restarting MongoDB with a kernel error, otherwise looks identical in that output (#4755).
+contract_response() { # <name> <path>
+  local response
+  response="$(traefik_request "$1" "$2" -o /dev/null -w '%{http_code}')" \
+    || { echo "request to $1$2 failed" >&2; return 0; }
+  echo "$1$2 returned HTTP $response" >&2
+}
+contract_diagnostics() { # <entry json>
+  local name kind variant c
+  name="$(field "$1" name)"; kind="$(field "$1" kind)"; variant="$(field "$1" variant)"
+  echo "::group::contract diagnostics for $name ($kind, $variant)" >&2
+  status_json | jq --arg n "$name" '.data.resources[] | select(.name == $n)' >&2 2>/dev/null || true
+  for c in $(resource_containers "$name"); do
+    echo "container $c:" >&2
+    docker inspect -f '{{.State.Status}} (health={{if .State.Health}}{{.State.Health.Status}}{{end}})' "$c" >&2 2>/dev/null || true
+    docker logs --tail 60 "$c" >&2 2>&1 || true
+  done
+  case "$kind" in
+    backend | mcp | bring-your-own) contract_response "$name" /health ;;
+    agent) contract_response "$name" /ready ;;
+    frontend) contract_response "$name" / ;;
+  esac
+  echo "::endgroup::" >&2
+}
+
 # A bring-your-own resource is traefik/whoami told to listen on the port flisk assigned; whoami answers /health with 200.
 scaffold_byo() { # <name> <stack>
   run "scaffold-$1" resource "$1" --type bring-your-own --stack "$2" --dockerfile Dockerfile --json
@@ -143,7 +170,10 @@ K5() { # each resource keeps its type's contract while all the others run beside
   local e name
   while read -r e; do
     name="$(field "$e" name)"
-    poll_until "$name ($(field "$e" kind), $(field "$e" variant)) meets its contract" "$READY_TIMEOUT" contract "$e"
+    if ! poll_until "$name ($(field "$e" kind), $(field "$e" variant)) meets its contract" "$READY_TIMEOUT" contract "$e"; then
+      contract_diagnostics "$e"
+      return 1
+    fi
     echo "ok $name"
   done < <(entries)
 }
