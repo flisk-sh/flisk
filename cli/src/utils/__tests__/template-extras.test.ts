@@ -98,5 +98,11 @@ describe("starter catalog", () => {
         expect.arrayContaining(["SALES_PITCH.md", "DEMO_GUIDE.md"]),
       );
     }
+    expect(PROJECT_TEMPLATES.fullstack?.omit, "fullstack").toEqual(
+      expect.arrayContaining(["docs/demo.gif", "docs/demo.mp4"]),
+    );
+    expect(PROJECT_TEMPLATES.launch?.omit, "launch").toEqual(
+      expect.arrayContaining(["docs/demo.gif", "video/shots"]),
+    );
   });
 });

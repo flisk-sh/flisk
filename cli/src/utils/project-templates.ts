@@ -107,6 +107,7 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
     ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
     description:
       "Launch page: a ready-to-publish website with a search-friendly page, icons and a small data feed",
+    omit: ["docs/demo.gif", "video/shots"],
   },
   portal: {
     repo: "https://github.com/flisk-sh/flisk-template-portal.git",
@@ -120,6 +121,7 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
     ref: "fff53f3c77d0daea1f34498c70fe48a9e372b682",
     description:
       "Full app to build on: a website, the part behind it, background jobs and a database",
+    omit: ["docs/demo.gif", "docs/demo.mp4"],
   },
 };
 
