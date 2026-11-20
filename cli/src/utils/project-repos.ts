@@ -43,9 +43,22 @@ export const defaultGitRunner: GitRunner = async (args, options) => {
 export interface CloneRepoResult {
   url: string;
   dir: string;
+  branch?: string;
   cloned: boolean;
   skipped: boolean;
   reason?: string;
+}
+
+/** One decision from the read-only plan shared by `repos clone --dry-run` and a real clone. */
+export interface RepoClonePlanEntry {
+  repo: RepoConfig;
+  url: string;
+  dir: string;
+  branch?: string;
+  action: "clone" | "keep";
+  reason?: string;
+  targetPath: string;
+  createdParents: string[];
 }
 
 function firstLine(error: unknown): string {
@@ -278,43 +291,92 @@ function cleanupCreatedParents(paths: string[]): void {
  * Clones a single repository if its destination directory does not already exist.
  * Leaves existing directories untouched.
  */
-export async function cloneRepo(
-  repo: RepoConfig,
-  projectRoot: string,
-  runner: GitRunner = defaultGitRunner,
-): Promise<CloneRepoResult> {
-  const dirValidation = validateRepoDir(repo.dir, projectRoot);
-  if (!dirValidation.valid || !dirValidation.targetPath) {
-    throw new FliskError(`Invalid repository destination "${repo.dir}": ${dirValidation.reason}`, [
-      "Specify a path relative to the project root, such as services/shop/orders-api",
-    ]);
-  }
-  const urlValidation = validateRepoUrl(repo.url);
-  if (!urlValidation.valid) {
-    throw new FliskError(`Invalid repository URL "${repo.url}": ${urlValidation.reason}`, [
-      "Specify a valid git clone URL, such as git@github.com:org/repo.git or https://github.com/org/repo.git",
+/**
+ * Builds the read-only clone plan shared by `flisk repos clone --dry-run` and the real run.
+ * It validates every repository, then decides from the filesystem which destinations are missing.
+ * No directory is created and no git process is started.
+ */
+export function planRepoClones(projectRoot: string, repos?: RepoConfig[]): RepoClonePlanEntry[] {
+  const repoList = repos ?? readProjectConfig(projectRoot).repos ?? [];
+  if (repoList.length === 0) return [];
+
+  const listValidation = validateRepoList(repoList, projectRoot);
+  if (!listValidation.valid) {
+    throw new FliskError(`Invalid repos configuration in project: ${listValidation.reason}`, [
+      "Review the repos entry in .flisk/project.json",
     ]);
   }
 
-  const targetPath = dirValidation.targetPath;
-  if (existsSync(targetPath)) {
-    if (!statSync(targetPath).isDirectory()) {
+  return repoList.map((repo) => {
+    const dirValidation = validateRepoDir(repo.dir, projectRoot);
+    if (!dirValidation.valid || !dirValidation.targetPath) {
       throw new FliskError(
-        `Cannot clone "${redactRepoUrl(repo.url)}": "${repo.dir}" exists and is not a directory`,
-        ["Move or remove the file, then run flisk repos clone again"],
+        `Invalid repository destination "${repo.dir}": ${dirValidation.reason}`,
+        ["Specify a path relative to the project root, such as services/shop/orders-api"],
       );
     }
-    return {
+    const urlValidation = validateRepoUrl(repo.url);
+    if (!urlValidation.valid) {
+      throw new FliskError(`Invalid repository URL "${repo.url}": ${urlValidation.reason}`, [
+        "Specify a valid git clone URL, such as git@github.com:org/repo.git or https://github.com/org/repo.git",
+      ]);
+    }
+    const branchValidation = validateRepoBranch(repo.branch);
+    if (!branchValidation.valid) {
+      throw new FliskError(
+        `Invalid repository branch "${repo.branch}": ${branchValidation.reason}`,
+        ["Specify a branch name without option prefixes or shell metacharacters"],
+      );
+    }
+
+    const targetPath = dirValidation.targetPath;
+    const identity = {
+      repo,
       url: repo.url,
       dir: repo.dir,
+      ...(repo.branch ? { branch: repo.branch } : {}),
+      targetPath,
+    };
+    if (existsSync(targetPath)) {
+      if (!statSync(targetPath).isDirectory()) {
+        throw new FliskError(
+          `Cannot clone "${redactRepoUrl(repo.url)}": "${repo.dir}" exists and is not a directory`,
+          ["Move or remove the file, then run flisk repos clone again"],
+        );
+      }
+      return {
+        ...identity,
+        action: "keep" as const,
+        reason: "destination directory already exists",
+        createdParents: [],
+      };
+    }
+    return {
+      ...identity,
+      action: "clone" as const,
+      createdParents: missingAncestors(targetPath, projectRoot),
+    };
+  });
+}
+
+/** Runs one planned clone. All validation and the present/missing decision already happened in the plan. */
+async function clonePlannedRepo(
+  entry: RepoClonePlanEntry,
+  projectRoot: string,
+  runner: GitRunner,
+): Promise<CloneRepoResult> {
+  if (entry.action === "keep") {
+    return {
+      url: entry.url,
+      dir: entry.dir,
+      ...(entry.branch ? { branch: entry.branch } : {}),
       cloned: false,
       skipped: true,
       reason: "destination directory already exists",
     };
   }
 
-  const createdParents = missingAncestors(targetPath, projectRoot);
-
+  const { repo, targetPath, createdParents } = entry;
   try {
     mkdirSync(dirname(targetPath), { recursive: true });
   } catch (error) {
@@ -356,8 +418,9 @@ export async function cloneRepo(
     // Another process created the destination while this clone ran; keep its copy.
     rmSync(tempPath, { recursive: true, force: true });
     return {
-      url: repo.url,
-      dir: repo.dir,
+      url: entry.url,
+      dir: entry.dir,
+      ...(entry.branch ? { branch: entry.branch } : {}),
       cloned: false,
       skipped: true,
       reason: "destination directory already exists",
@@ -365,37 +428,47 @@ export async function cloneRepo(
   }
   renameSync(tempPath, targetPath);
   return {
-    url: repo.url,
-    dir: repo.dir,
+    url: entry.url,
+    dir: entry.dir,
+    ...(entry.branch ? { branch: entry.branch } : {}),
     cloned: true,
     skipped: false,
   };
 }
 
+/** Applies a clone plan. Only this function starts git; planning and `--dry-run` never do. */
+export async function applyRepoClonePlan(
+  plan: RepoClonePlanEntry[],
+  projectRoot: string,
+  runner: GitRunner = defaultGitRunner,
+): Promise<CloneRepoResult[]> {
+  const results: CloneRepoResult[] = [];
+  for (const entry of plan) {
+    results.push(await clonePlannedRepo(entry, projectRoot, runner));
+  }
+  return results;
+}
+
+/** Clones a single repository if its destination directory does not already exist. */
+export async function cloneRepo(
+  repo: RepoConfig,
+  projectRoot: string,
+  runner: GitRunner = defaultGitRunner,
+): Promise<CloneRepoResult> {
+  const entry = planRepoClones(projectRoot, [repo])[0];
+  if (!entry) throw new FliskError("No repository was configured");
+  return clonePlannedRepo(entry, projectRoot, runner);
+}
+
 /**
- * Clones all missing repositories configured in the project.
+ * Clones all missing repositories configured in the project, using the same plan as `--dry-run`.
  */
 export async function cloneMissingRepos(
   projectRoot: string,
   repos?: RepoConfig[],
   runner: GitRunner = defaultGitRunner,
 ): Promise<CloneRepoResult[]> {
-  const repoList = repos ?? readProjectConfig(projectRoot).repos ?? [];
-  if (repoList.length === 0) return [];
-
-  const listValidation = validateRepoList(repoList, projectRoot);
-  if (!listValidation.valid) {
-    throw new FliskError(`Invalid repos configuration in project: ${listValidation.reason}`, [
-      "Review the repos entry in .flisk/project.json",
-    ]);
-  }
-
-  const results: CloneRepoResult[] = [];
-  for (const repo of repoList) {
-    const result = await cloneRepo(repo, projectRoot, runner);
-    results.push(result);
-  }
-  return results;
+  return applyRepoClonePlan(planRepoClones(projectRoot, repos), projectRoot, runner);
 }
 
 /**

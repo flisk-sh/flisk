@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -10,6 +10,7 @@ import { generateMasterConfigs, readProjectConfig, staleServiceOutputs, Template
 import { isMasterConfigFileName } from "../types/index.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { explainConfigFile } from "../utils/config-explain.js";
+import { applyMigrationPlan, buildMigrationPlan } from "../utils/config-migrate.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON, RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE, } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkDuplicateResourceNames, checkDuplicateResourcePorts, checkPrismaConsistency, } from "../utils/doctor-wiring.js";
@@ -21,8 +22,8 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkCircularDependencies, checkDependsOnShape, checkServicePorts, postgresVolumeWarnings, } from "../utils/service-config-checks.js";
-import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
-import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
+import { SERVICE_MANIFEST_SCHEMA_VERSION } from "../utils/service-manifest.js";
+import { discoverResourcesWithProblems, warnAboutSkippedFiles } from "../utils/services.js";
 import { describeSharedPostgresUsers, evaluateSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
 /** The change `flisk config regenerate` makes to each master file, from the same generator its dry run compares with. */
@@ -223,8 +224,9 @@ export const configCommand = new Command("config")
     .addCommand(new Command("migrate")
     .description("Migrate service.json files to the current schema version")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
+    .option("--dry-run", "List the service.json files that would be rewritten, without writing", false)
     .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
-    .addHelpText("after", `\nExamples:\n  flisk config migrate\n  flisk config migrate --json`)
+    .addHelpText("after", `\nExamples:\n  flisk config migrate\n  flisk config migrate --dry-run\n  flisk config migrate --json`)
     .action(async (options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
@@ -234,51 +236,22 @@ export const configCommand = new Command("config")
             ignoreVersion: options.ignoreVersion,
             json: options.json,
         });
-        const warnings = [];
-        const failures = [];
-        const pendingMigrations = [];
-        const manifestPaths = discoverServiceManifestPaths(projectRoot);
-        const totalFiles = manifestPaths.length;
-        for (const filePath of manifestPaths) {
-            let manifest;
-            try {
-                manifest = JSON.parse(readFileSync(filePath, "utf-8"));
-            }
-            catch (error) {
-                failures.push(`${filePath}: ${error instanceof Error ? error.message : String(error)}`);
-                continue;
-            }
-            if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
-                failures.push(`${filePath}: expected a JSON object`);
-                continue;
-            }
-            const record = manifest;
-            if (record.appType === undefined && typeof record.type === "string") {
-                record.appType = record.type;
-            }
-            if (record.schemaVersion === SERVICE_MANIFEST_SCHEMA_VERSION)
-                continue;
-            if (record.schemaVersion !== undefined) {
-                failures.push(`${filePath}.schemaVersion: cannot migrate unsupported version ${String(record.schemaVersion)} automatically`);
-                continue;
-            }
-            const validation = validateServiceManifest({ ...record, schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION }, filePath);
-            if (validation.errors.length > 0) {
-                failures.push(...validation.errors);
-                continue;
-            }
-            for (const warning of validation.warnings) {
-                warnings.push(warning);
-                console.warn(chalk.yellow(`⚠️  ${warning}`));
-            }
-            record.schemaVersion = SERVICE_MANIFEST_SCHEMA_VERSION;
-            pendingMigrations.push({ filePath, manifest: record });
-        }
+        // One read-only plan feeds both the dry run and the real run, so their file lists agree.
+        const plan = buildMigrationPlan(projectRoot);
+        const files = plan.pending.map(({ filePath }) => relative(projectRoot, filePath).split(sep).join("/"));
+        const report = (dryRun) => ({
+            data: {
+                dryRun,
+                schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+                migrated: files,
+                warnings: plan.warnings,
+            },
+        });
         // Nothing is written when one file fails, so a failed run leaves every service.json as it was.
-        if (options.json && failures.length > 0) {
+        if (options.json && plan.failures.length > 0) {
             return {
                 data: null,
-                errors: failures.map((message) => ({
+                errors: plan.failures.map((message) => ({
                     code: "MIGRATE_FAILED",
                     message,
                     suggestions: ["Fix the file, then run `flisk config migrate` again"],
@@ -286,31 +259,34 @@ export const configCommand = new Command("config")
                 exitCode: 1,
             };
         }
-        for (const failure of failures)
+        for (const failure of plan.failures)
             showError(failure);
-        if (failures.length > 0)
+        if (plan.failures.length > 0)
             process.exit(1);
-        for (const migration of pendingMigrations) {
-            writeFileSync(migration.filePath, `${JSON.stringify(migration.manifest, null, 2)}\n`);
+        for (const warning of plan.warnings) {
+            console.warn(chalk.yellow(`⚠️  ${warning}`));
         }
-        if (pendingMigrations.length > 0) {
+        if (handleDryRun(options, `${plan.pending.length} service.json file${plan.pending.length === 1 ? "" : "s"} to schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}`, "flisk config migrate")) {
+            for (const file of files)
+                console.log(`Would rewrite: ${file}`);
+            if (files.length === 0)
+                console.log("Nothing to migrate.");
+            console.log("No files were written.");
+            return report(true);
+        }
+        applyMigrationPlan(plan);
+        if (plan.pending.length > 0) {
             clearDiscoveryCache();
         }
-        const migrated = pendingMigrations.length;
+        const migrated = plan.pending.length;
         if (migrated === 0) {
-            console.log(chalk.green(`All ${totalFiles} service.json files are already on schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}. Nothing to migrate.`));
+            console.log(chalk.green(`All ${plan.totalFiles} service.json files are already on schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}. Nothing to migrate.`));
         }
         else {
             console.log(chalk.green(`✅ Migrated ${migrated} service.json file${migrated === 1 ? "" : "s"} to schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}.`));
             console.log(chalk.yellow("Review the diff; unknown fields were preserved."));
         }
-        return {
-            data: {
-                schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
-                migrated: pendingMigrations.map(({ filePath }) => relative(projectRoot, filePath).split(sep).join("/")),
-                warnings,
-            },
-        };
+        return report(false);
     };
     if (options.json) {
         await runJsonCommand("MIGRATE_FAILED", "flisk config migrate", action);

@@ -22,6 +22,7 @@ import { downCommand } from "../down.js";
 import { ejectCommand } from "../eject.js";
 import { networksCommand } from "../networks.js";
 import { projectsCommand } from "../projects.js";
+import { reposCommand } from "../repos.js";
 import { resourceCommand } from "../resource.js";
 import { resourcesCommand } from "../resources.js";
 import { stacksCommand } from "../stacks.js";
@@ -163,6 +164,34 @@ const DRY_RUN_MATRIX: Array<{
     expect: "Files written:",
   },
   { site: "up --dry-run", command: ["up"], project: CONFIGURED_PROJECT, expect: "Dry run" },
+  {
+    site: "config migrate --dry-run",
+    command: ["config", "migrate"],
+    project: {
+      projectJson: VALID_PROJECT_JSON,
+      resources: { "shop/api": { type: "backend", stack: "core", port: 4100 } },
+    },
+    expect: "Would rewrite: services/shop/api/service.json",
+  },
+  {
+    site: "repos clone --dry-run",
+    command: ["repos", "clone"],
+    project: {
+      projectJson: {
+        ...VALID_PROJECT_JSON,
+        repos: [
+          {
+            url: "https://github.com/acme/orders.git",
+            dir: "services/orders",
+            branch: "main",
+          },
+          { url: "https://github.com/acme/present.git", dir: "services/present" },
+        ],
+      },
+      files: { "services/present/.keep": "" },
+    },
+    expect: "Would clone: https://github.com/acme/orders.git into services/orders (branch: main)",
+  },
   {
     site: "config enable-infra --dry-run",
     command: ["config", "enable-infra"],
@@ -577,6 +606,8 @@ const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
   down: { command: downCommand, args: [] },
   eject: { command: ejectCommand, args: [] },
   up: { command: upCommand, args: [] },
+  "config migrate": { command: configCommand, args: ["migrate"] },
+  "repos clone": { command: reposCommand, args: ["clone"] },
   "config enable-infra": { command: configCommand, args: ["enable-infra", "monitoring"] },
   "config disable-infra": { command: configCommand, args: ["disable-infra", "monitoring"] },
 };

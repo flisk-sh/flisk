@@ -334,6 +334,7 @@ describe("flisk config --json", () => {
     const result = json(["config", "migrate"], root);
     expect(result.status).toBe(0);
     expect(parseEnvelope(result.stdout).data).toEqual({
+      dryRun: false,
       schemaVersion: 1,
       migrated: ["services/api/gateway/service.json"],
       warnings: [],
