@@ -14,6 +14,7 @@ import {
   parseEnvelope,
   runFlisk,
 } from "../../test-support/index.js";
+import { deriveProjectName } from "../../utils/validation.js";
 import { TILT_UP_COMMAND } from "../eject.js";
 
 const VALID_PROJECT_JSON = {
@@ -250,7 +251,7 @@ describe("flisk project --json", () => {
     expect(parseEnvelope(created.stdout).data).toMatchObject({
       action: "created",
       projectRoot: dir,
-      projectName: basename(dir),
+      projectName: deriveProjectName(basename(dir)),
       generatedFiles: ["TILT_TECH_STACK.star", "TILT_RESOURCE_DEFAULTS.star", "spec.master"],
       env: { created: true, added: [] },
       agentSkills: [],
