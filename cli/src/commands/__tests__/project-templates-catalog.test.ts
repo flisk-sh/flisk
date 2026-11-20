@@ -58,6 +58,13 @@ describe("flisk project --list", () => {
     });
   });
 
+  it("documents the envelope, not a bare array, in the --list help", () => {
+    const result = runFlisk(["project", "--help"], { cwd: createTempDir() });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("data.templates");
+    expect(result.stdout).not.toContain("a JSON array");
+  });
+
   it("prints each template's key, repo, description and ref for a person", () => {
     const lines: string[] = [];
     vi.spyOn(console, "log").mockImplementation((line = "") => {

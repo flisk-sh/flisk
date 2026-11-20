@@ -9,7 +9,7 @@ import { addYesOption, attachNoPositionalHint, handleDryRun } from "../utils/com
 import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
 import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
-import { FliskError, handleTiltFailure, requireProjectBeforeDocker, withTiltCheck, } from "../utils/errors.js";
+import { errorFactories, FliskError, handleTiltFailure, requireProjectBeforeDocker, withTiltCheck, } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { writeMachineError } from "../utils/machine-output.js";
@@ -60,11 +60,15 @@ function isNativeRun(projectRoot) {
         return false;
     }
 }
+/** Quote a path for a shell hint such as `cd <path> && flisk down`. */
+function quoteForShell(path) {
+    return `'${path.replace(/'/g, `'\\''`)}'`;
+}
 /**
  * The project to stop: the one at `--project`, else the one around the current folder, else the only Flisk project with
  * a `tilt up` running. Exits with the project-root error when none is found, and lists them when several are running.
  */
-function resolveDownProject(options) {
+async function resolveDownProject(options) {
     const fail = (error) => {
         if (options.json)
             writeMachineError(error);
@@ -76,25 +80,42 @@ function resolveDownProject(options) {
             "Pass the folder of a Flisk project: flisk down --project <path>",
         ])));
     }
-    return requireProjectBeforeDocker(() => {
-        const here = findProjectRoot();
-        if (here)
-            return here;
-        const running = findRunningFliskProjects();
-        if (running.length === 1) {
-            const root = running[0];
-            if (!options.json)
-                console.log(chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`));
-            return root;
+    const here = findProjectRoot();
+    if (here)
+        return here;
+    const running = findRunningFliskProjects();
+    if (running.length === 1) {
+        const root = running[0];
+        const consented = Boolean(options.yes || options.force);
+        // Dry-run only previews what would stop, so it does not need shutdown consent.
+        if (!consented && !options.dryRun) {
+            let confirmed = false;
+            if (!options.json && process.stdin.isTTY) {
+                confirmed = await promptConfirm({
+                    message: `Not in a Flisk project; stop the one that is running at ${root}?`,
+                    initial: false,
+                }).catch(() => false);
+            }
+            if (!confirmed) {
+                const quoted = quoteForShell(root);
+                return fail(new FliskError(`Not in a Flisk project; a different project is running: ${root}`, [
+                    `cd ${quoted} && flisk down`,
+                    `Or run flisk down --project ${quoted} to stop it explicitly, or pass --yes.`,
+                ]));
+            }
         }
-        if (running.length > 1) {
-            return fail(new FliskError(`Not in a Flisk project, and ${running.length} Flisk projects are running`, running.map((root) => `flisk down --project ${root}`)));
-        }
-        return null;
-    }, (notInProject) => fail(new FliskError(notInProject.message, [
+        if (!options.json)
+            console.log(chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`));
+        return root;
+    }
+    if (running.length > 1) {
+        return fail(new FliskError(`Not in a Flisk project, and ${running.length} Flisk projects are running`, running.map((root) => `flisk down --project ${root}`)));
+    }
+    const notInProject = errorFactories.notInProject();
+    return fail(new FliskError(notInProject.message, [
         ...notInProject.suggestions,
         "Or name the project to stop from anywhere: flisk down --project <path>",
-    ])));
+    ]));
 }
 /**
  * True only when it is certain nothing of this project runs: no `tilt up` for its Tiltfile and no container of its
@@ -245,7 +266,7 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
     // The root program also defines `--project` (the one-command template flow), and Commander gives a root option to
     // the root wherever it appears, so `flisk down --project <path>` arrives in the global options.
     const project = options.project ?? command.optsWithGlobals().project;
-    const resolvedRoot = resolveDownProject({ ...options, project });
+    const resolvedRoot = await resolveDownProject({ ...options, project });
     const shouldPruneCache = Boolean(options.pruneCache);
     const rawCacheUntil = typeof options.pruneCache === "string" ? options.pruneCache : options.cacheUntil || "24h";
     if (shouldPruneCache && !validateCacheUntil(rawCacheUntil)) {

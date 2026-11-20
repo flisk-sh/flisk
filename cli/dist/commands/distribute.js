@@ -58,8 +58,9 @@ const kitCommand = new Command("kit")
     .option("--out <dir>", "Folder to write the kit to (default: distribution/<resource>)")
     .option("--dry-run", "Print the kit and write nothing", false)
     .option("--force", "Overwrite an existing kit", false)
+    .option("--json", "Output one JSON envelope with the kit result", false)
     .action(async (resourceName, options) => {
-    await run(false, async () => {
+    await run(Boolean(options.json), async () => {
         const root = projectRootOrThrow();
         const resources = discoverResourcesFromRoot(root);
         const resource = resources.find((r) => r.name === resourceName);
@@ -73,6 +74,34 @@ const kitCommand = new Command("kit")
         }
         const kit = buildKit(resource, readDistribution(root));
         const outDir = path.resolve(options.out ?? path.join(root, "distribution", resource.name));
+        const didExist = kit.files.some((file) => fs.existsSync(path.join(outDir, file.path)));
+        if (options.json) {
+            if (options.dryRun) {
+                console.log(JSON.stringify(createMachineEnvelope({
+                    resource: resource.name,
+                    outDir: path.relative(root, outDir) || outDir,
+                    didExist,
+                    writtenFiles: [],
+                    plannedFiles: kit.files.map((file) => ({
+                        path: path.relative(root, path.join(outDir, file.path)) || file.path,
+                        content: file.content,
+                    })),
+                    warnings: kit.warnings,
+                })));
+            }
+            else {
+                const written = writeKit(kit, outDir, Boolean(options.force));
+                console.log(JSON.stringify(createMachineEnvelope({
+                    resource: resource.name,
+                    outDir: path.relative(root, outDir) || outDir,
+                    didExist,
+                    writtenFiles: written.map((file) => path.relative(root, file) || file),
+                    plannedFiles: [],
+                    warnings: kit.warnings,
+                })));
+            }
+            return;
+        }
         if (options.dryRun) {
             console.log(`Dry run - would write ${formatCount(kit.files.length, "file")} to ${outDir}:`);
             for (const file of kit.files) {
@@ -90,7 +119,7 @@ const kitCommand = new Command("kit")
             console.log(`⚠️  ${warning}`);
     });
 })
-    .addHelpText("after", "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force");
+    .addHelpText("after", "\nExamples:\n  flisk distribute kit my-resource --dry-run\n  flisk distribute kit my-resource --out ./listing\n  flisk distribute kit my-resource --force\n  flisk distribute kit my-resource --json");
 function describeAdditions(baseline, next) {
     const lines = [];
     const oldApps = baseline?.apps ?? {};

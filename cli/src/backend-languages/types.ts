@@ -11,6 +11,11 @@ export interface BackendLanguageProvider {
   id: string;
   label: string;
   /**
+   * The web frameworks this language is usually served with (`fastapi` for Python, `gin` for Go), so `--backend fastapi`
+   * can point at `--language python`. Hints only: the files are generated from `createFiles`.
+   */
+  serverFrameworks?: string[];
+  /**
    * Language-owned files for a new backend. `undefined` means the provider uses the shared
    * Bun/TypeScript scaffold in `resource.ts`; Bun is the only provider that does.
    */

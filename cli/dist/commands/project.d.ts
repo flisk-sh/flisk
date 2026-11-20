@@ -31,8 +31,8 @@ export declare function cloneProjectTemplate(templateName: string, targetDir: st
  */
 export declare function writeDefaultProjectConfig(projectRoot: string): void;
 /**
- * Prints the template catalog: with `json`, one stable JSON array on stdout (the same rows as the `project_templates`
- * MCP tool); otherwise one block per template for a person to read.
+ * Prints the template catalog: with `json`, the usual envelope with the templates in `data.templates` (the same rows
+ * as the `project_templates` MCP tool); otherwise one block per template for a person to read.
  */
 export declare function printTemplateCatalog(json: boolean): void;
 export declare const projectCommand: Command;

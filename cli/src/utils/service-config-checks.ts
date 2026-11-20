@@ -14,6 +14,11 @@ import { formatCount } from "./formatting.js";
 import { generateEntries } from "./generated-secrets.js";
 import { findProjectRoot } from "./paths.js";
 import {
+  hasSecretBridge,
+  readSecretProvider,
+  secretProviderUsageError,
+} from "./secret-provider.js";
+import {
   envFileErrors,
   providersOf,
   SERVICE_MANIFEST_SCHEMA_VERSION,
@@ -650,21 +655,51 @@ export function warnSchemaVersions(projectRoot: string, resources?: DiscoveredRe
 /**
  * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
  * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
- * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ * With `FLISK_SECRET_PROVIDER=infisical` the names are left to a bridge; the free build has none, so it warns per name.
  */
 export function checkRequiredSecrets(
   projectRoot = findProjectRoot() ?? process.cwd(),
   resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
   env: NodeJS.ProcessEnv = process.env,
 ): CheckResult {
-  const provider = (env.FLISK_SECRET_PROVIDER ?? "").trim().toLowerCase();
-  if (provider !== "" && provider !== "env-file") {
+  const usageError = secretProviderUsageError(env);
+  if (usageError) throw usageError;
+  const { value: provider } = readSecretProvider(env);
+
+  if (provider === "infisical") {
+    if (hasSecretBridge(env)) {
+      return {
+        name: "Required secrets",
+        didPass: true,
+        message: "Secrets are left to the secret provider",
+      };
+    }
+    // Nothing injects these names in this build: even a value in .env stays unused.
+    const names = [
+      ...new Set(
+        resources.flatMap((resource) => {
+          const required = (resource.config?.secrets as { required?: unknown } | undefined)
+            ?.required;
+          return Array.isArray(required)
+            ? required.filter(
+                (name): name is string =>
+                  typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name),
+              )
+            : [];
+        }),
+      ),
+    ];
     return {
       name: "Required secrets",
       didPass: true,
-      message: "Secrets are left to the secret provider",
+      isWarning: true,
+      message: names.length
+        ? `FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; ${names.join(", ")} will be empty`
+        : "FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; no required secrets to inject",
+      fix: "Set FLISK_SECRET_PROVIDER=env-file and add the names to the project .env, or use a build with a secret bridge",
     };
   }
+
   const envFile = env[PROJECT_ENV_FILE_VAR] || join(projectRoot, ".env");
   let fileValues = new Map<string, string>();
   try {
@@ -737,11 +772,15 @@ export function warnSecretConflicts(projectRoot: string, resources?: DiscoveredR
  */
 export function enforceServiceConfigGate(
   projectRoot: string,
-  options: { onInvalid?: (message: string) => void; resources?: DiscoveredResource[] } = {},
+  options: {
+    onInvalid?: (message: string) => void;
+    onWarning?: (message: string) => void;
+    resources?: DiscoveredResource[];
+  } = {},
   exit: (code: number) => never = process.exit,
 ): void {
   const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
-  const failed = [
+  const checks = [
     checkDuplicateResourceNames(projectRoot, resources),
     checkServiceFields(projectRoot, resources),
     checkCustomDockerfiles(projectRoot, resources),
@@ -751,7 +790,13 @@ export function enforceServiceConfigGate(
     checkServicePorts(projectRoot, resources),
     checkSidecars(projectRoot, resources),
     checkVolumes(projectRoot, resources),
-  ].filter((check) => !check.didPass);
+  ];
+  for (const check of checks.filter((entry) => entry.isWarning)) {
+    options.onWarning?.(check.message);
+    console.warn(chalk.yellow(`⚠ ${check.message}`));
+    if (check.fix) console.warn(chalk.gray(`  Fix: ${check.fix}`));
+  }
+  const failed = checks.filter((check) => !check.didPass && !check.isWarning);
   if (failed.length === 0) return;
 
   const text = failed

@@ -27,38 +27,17 @@ function rows(output: string): string[][] {
 }
 
 describe("flisk resource --frameworks", () => {
-  it("lists the frontend frameworks when no --type is given", () => {
+  it("lists backend by default and names the type on stderr", () => {
     const result = flisk(["resource", "--frameworks"]);
-
     expect(result.status, result.stderr).toBe(0);
-    const listed = rows(result.stdout);
-    expect(listed.map((row) => row[0])).toEqual(Object.keys(FRONTEND_FRAMEWORKS));
-    // The historical columns stay: id, label, kind, verification, command.
-    const verified = new Map(listFrontendFrameworks().map((entry) => [entry.id, entry.verified]));
-    for (const row of listed) {
-      expect(row).toHaveLength(5);
-      // Next.js is the one server provider; every other registered framework is a Vite SPA.
-      expect(row[2]).toBe(row[0] === "next" ? "server" : "vite-spa");
-      // The verification comes from the registry, so an unverified provider does not break the test.
-      expect(row[3]).toBe(verified.get(row[0]) ? "verified" : "unverified");
-      expect(row[4]).toBe(`flisk resource <name> --type frontend --framework ${row[0]}`);
-    }
+    expect(result.stderr).toContain("Listing backend frameworks");
+    expect(rows(result.stdout).map((row) => row[0])).toEqual(Object.keys(BACKEND_FRAMEWORKS));
   });
 
-  it("lists the same frontend frameworks for --type frontend", () => {
+  it("still lists frontend frameworks when requested explicitly", () => {
     const result = flisk(["resource", "--type", "frontend", "--frameworks"]);
-
     expect(result.status, result.stderr).toBe(0);
-    expect(rows(result.stdout)).toEqual(rows(flisk(["resource", "--frameworks"]).stdout));
-  });
-
-  it("keeps the frontend listing when --language is given without --type", () => {
-    const result = flisk(["resource", "--language", "python", "--frameworks"]);
-
-    // `--language` is a backend option: without an explicit `--type` the listing stays the
-    // historical frontend one and exits successfully, as it did before the listing was type aware.
-    expect(result.status, result.stderr).toBe(0);
-    expect(rows(result.stdout)).toEqual(rows(flisk(["resource", "--frameworks"]).stdout));
+    expect(rows(result.stdout).map((row) => row[0])).toEqual(Object.keys(FRONTEND_FRAMEWORKS));
   });
 
   it("lists every registered backend framework with its language and command", () => {

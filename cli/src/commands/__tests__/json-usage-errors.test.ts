@@ -18,7 +18,7 @@ function usageError(args: string[]): { status: number; stderr: string; error: Us
 describe("usage errors with --json return the envelope on stdout (#4246)", () => {
   it("an unknown command carries the did-you-mean hint as a suggestion", () => {
     const { status, stderr, error } = usageError(["nope", "--json"]);
-    expect(status).toBe(1);
+    expect(status).toBe(2);
     expect(stderr).toBe("");
     expect(error.code).toBe("USAGE");
     expect(error.message).toBe("error: unknown command 'nope'");
@@ -27,7 +27,7 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
 
   it("an unknown subcommand of a command group does the same", () => {
     const { status, error } = usageError(["config", "verifyx", "--json"]);
-    expect(status).toBe(1);
+    expect(status).toBe(2);
     expect(error.code).toBe("USAGE");
     expect(error.message).toBe("error: unknown command 'verifyx'");
     expect(error.suggestions).toEqual(["Did you mean verify?"]);
@@ -35,7 +35,7 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
 
   it("a missing required argument", () => {
     const { status, stderr, error } = usageError(["config", "explain", "--json"]);
-    expect(status).toBe(1);
+    expect(status).toBe(2);
     expect(stderr).toBe("");
     expect(error.code).toBe("USAGE");
     expect(error.message).toBe("error: missing required argument 'file'");
@@ -44,13 +44,26 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
 
   it("an unknown option on a command without its own JSON routing", () => {
     const { status, error } = usageError(["doctor", "--json", "--bogus"]);
-    expect(status).toBe(1);
+    expect(status).toBe(2);
     expect(error.message).toBe("error: unknown option '--bogus'");
+  });
+
+  it("an unknown option exits 2 on the commands that report value errors with 2 (#4523)", () => {
+    for (const args of [
+      ["logs", "--bogus", "--json"],
+      ["down", "--bogus", "--json"],
+      ["status", "--bogus", "--json"],
+    ]) {
+      const { status, error } = usageError(args);
+      expect(status, args.join(" ")).toBe(2);
+      expect(error.code).toBe("USAGE");
+      expect(error.message).toBe("error: unknown option '--bogus'");
+    }
   });
 
   it("an unknown help target fails before parsing still uses the envelope", () => {
     const { status, stderr, error } = usageError(["help", "nope", "--json"]);
-    expect(status).toBe(1);
+    expect(status).toBe(2);
     expect(stderr).toBe("");
     expect(error.code).toBe("USAGE");
     expect(error.message).toBe("error: unknown command 'nope'");
@@ -58,7 +71,7 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
 
   it("an option whose value is missing", () => {
     const { status, error } = usageError(["up", "--json", "--only"]);
-    expect(status).toBe(1);
+    expect(status).toBe(2);
     expect(error.message).toContain("argument missing");
   });
 });
@@ -66,7 +79,7 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
 describe("usage errors without --json keep the plain text (#4246)", () => {
   it("an unknown command still prints the message and hint on stderr", () => {
     const result = runFlisk(["nope"], { cwd: process.cwd() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("error: unknown command 'nope'");
     expect(result.stderr).toContain("(Did you mean open?)");
@@ -74,7 +87,7 @@ describe("usage errors without --json keep the plain text (#4246)", () => {
 
   it("--json after -- belongs to the forwarded command, not to flisk", () => {
     const result = runFlisk(["nope", "--", "--json"], { cwd: process.cwd() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("error: unknown command 'nope'");
   });

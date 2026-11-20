@@ -18,10 +18,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
-  # One job, one runner: CodeQL analyzes both languages in a single init/analyze (each keeps its own
-  # /language:<name> category, which the main ruleset's code-scanning rule waits for), then the Starlark analyzer runs.
+  # Keep one result category per language: the main ruleset requires both CodeQL analyses.
   analyze:
-    name: 🔬 Analyze
+    name: 🔬 Analyze (${{ matrix.language }})
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript]
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     permissions:
@@ -51,10 +54,12 @@ jobs:
           echo "run=$run" >> "$GITHUB_OUTPUT"
       - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
-          languages: javascript-typescript,actions
+          languages: ${{ matrix.language }}
           build-mode: none
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}
       # Starlark (Tiltfiles, *.star) has no CodeQL extractor. This unofficial community analyzer reports through SARIF into
       # the same Code scanning view. Pinned to a full commit like every other action here.
-      - if: ${{ !cancelled() && steps.changed.outputs.run == 'true' }}
+      - if: ${{ !cancelled() && steps.changed.outputs.run == 'true' && matrix.language == 'actions' }}
         uses: flisk-sh/codeql-starlark@2dfbd614fa9097279c0938e3469b86bc43930dfc # v0.2.2

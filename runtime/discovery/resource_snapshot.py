@@ -189,6 +189,21 @@ def find_project_root(start: Optional[str] = None) -> Path:
     return here
 
 
+def watcher_should_stop(initial_ppid: int, project_root: Optional[Path] = None) -> bool:
+    """True when the daemon lost its parent or its project, so a stray watch must exit.
+
+    Tilt starts the watcher through a shell. When the shell does not `exec` Python, stopping Tilt
+    kills only the shell and the Python child is re-parented to PID 1, scanning the project every
+    few seconds forever (#4014). Checking the parent PID also cleans up watchers left behind by
+    older Tiltfiles. A deleted project (no `.flisk/project.json`) is the other signal that the
+    stack is gone, for parents that were re-used by the OS.
+    """
+    if os.getppid() != initial_ppid:
+        return True
+    root = project_root or find_project_root()
+    return not (root / ".flisk" / "project.json").is_file()
+
+
 def discovery_scan_roots() -> List[str]:
     """Directories to scan for service.json, from `discovery.paths` in .flisk/project.json (globs like `services/*/*`)."""
     patterns: List[str] = []
@@ -382,6 +397,8 @@ def main():
         import time
         
         scan_interval = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+        initial_ppid = os.getppid()
+        project_root = find_project_root()
         
         print(f"👁️  Starting continuous monitoring (interval: {scan_interval}s)")
         print("   Press Ctrl+C to stop")
@@ -395,6 +412,9 @@ def main():
         
         try:
             while True:
+                if watcher_should_stop(initial_ppid, project_root):
+                    print("\nParent Tilt exited or project was removed; stopping monitoring")
+                    break
                 old = load_snapshot()
                 current = get_current_services()
                 added, removed, modified = diff_snapshots(old, current, use_hashes=True)

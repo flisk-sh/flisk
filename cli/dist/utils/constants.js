@@ -32,6 +32,9 @@ export const RESOURCE_DEFAULTS_FILE = "TILT_RESOURCE_DEFAULTS.star";
 export const PROJECT_JSON = "project.json";
 // Manifest file name for Node / JavaScript packages and root workspace.
 export const PACKAGE_JSON = "package.json";
+// Agent documentation Flisk writes on project setup: created only when missing, never overwritten.
+export const AGENTS_FILE = "AGENTS.md";
+export const CLAUDE_FILE = "CLAUDE.md";
 export const MASTER_CONFIG_FILES = [
     TECH_STACK_FILE,
     RESOURCE_DEFAULTS_FILE,
@@ -54,10 +57,15 @@ export const VALID_RESOURCE_TYPES = [
 // migrator processes are run in production via `<runtime> run start`.
 // bring-your-own doesn't generate application code, and a database resource
 // has no code at all, so neither needs scripts.
+//
+// A migrator needs only "start": it runs `prisma migrate deploy` once and exits.
+// The generated Dockerfile replaces its backend compiler stage with the migration
+// engine (L3_generate_migration_engine) and sets migrate.sh as its entrypoint, so
+// nothing calls its "dev" or "build" script - the starters ship neither (#4577).
 export const REQUIRED_PACKAGE_SCRIPTS = {
     backend: ["dev", "build", "start"],
     worker: ["dev", "build", "start"],
-    migrator: ["dev", "build", "start"],
+    migrator: ["start"],
     mcp: ["dev", "build", "start"],
     agent: ["dev", "build", "start"],
     frontend: ["dev", "build"],

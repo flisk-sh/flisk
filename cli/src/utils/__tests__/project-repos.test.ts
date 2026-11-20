@@ -3,7 +3,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -238,7 +237,112 @@ describe("project-repos utility", () => {
       ).rejects.toThrow(FliskError);
 
       expect(existsSync(targetDir)).toBe(false);
-      expect(readdirSync(join(tempDir, "services"))).toEqual([]);
+      expect(existsSync(join(tempDir, "services"))).toBe(false);
+    });
+
+    it("removes parent directories created by a failed clone", async () => {
+      const parentDir = join(tempDir, "ext");
+      const runner = vi.fn().mockRejectedValue(new Error("fatal: repository not found"));
+
+      const error = await cloneRepo(
+        { url: "https://github.com/acme/does-not-exist.git", dir: "ext/x" },
+        tempDir,
+        runner,
+      ).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(FliskError);
+      expect((error as FliskError).message).toContain(
+        'Failed to clone repository "https://github.com/acme/does-not-exist.git" into "ext/x"',
+      );
+      expect(existsSync(parentDir)).toBe(false);
+    });
+
+    it("keeps a parent directory that existed before a failed clone", async () => {
+      const parentDir = join(tempDir, "ext");
+      mkdirSync(parentDir, { recursive: true });
+      writeFileSync(join(parentDir, "keep.txt"), "keep");
+      const runner = vi.fn().mockRejectedValue(new Error("fatal: authentication failed"));
+
+      await expect(
+        cloneRepo({ url: "https://github.com/acme/private.git", dir: "ext/x" }, tempDir, runner),
+      ).rejects.toThrow(/Failed to clone repository/);
+
+      expect(existsSync(parentDir)).toBe(true);
+      expect(existsSync(join(parentDir, "keep.txt"))).toBe(true);
+    });
+
+    it("removes all newly-created nested parent directories on failure", async () => {
+      const runner = vi.fn().mockRejectedValue(new Error("fatal: repository not found"));
+
+      await expect(
+        cloneRepo(
+          { url: "https://github.com/acme/does-not-exist.git", dir: "a/b/c/x" },
+          tempDir,
+          runner,
+        ),
+      ).rejects.toThrow(FliskError);
+
+      expect(existsSync(join(tempDir, "a"))).toBe(false);
+      expect(existsSync(join(tempDir, "a/b/c"))).toBe(false);
+    });
+
+    it("keeps the outermost existing ancestor when nested parents are created and a clone fails", async () => {
+      mkdirSync(join(tempDir, "a"), { recursive: true });
+      writeFileSync(join(tempDir, "a", "keep.txt"), "keep");
+      const runner = vi.fn().mockRejectedValue(new Error("fatal: repository not found"));
+
+      await expect(
+        cloneRepo(
+          { url: "https://github.com/acme/does-not-exist.git", dir: "a/b/c/x" },
+          tempDir,
+          runner,
+        ),
+      ).rejects.toThrow(FliskError);
+
+      expect(existsSync(join(tempDir, "a", "keep.txt"))).toBe(true);
+      expect(existsSync(join(tempDir, "a/b"))).toBe(false);
+    });
+
+    it("removes a shared new parent folder when a multi-entry clone fails on the first entry", async () => {
+      const runner = vi.fn().mockRejectedValue(new Error("fatal: repository not found"));
+
+      await expect(
+        cloneMissingRepos(
+          tempDir,
+          [
+            { url: "https://github.com/acme/does-not-exist.git", dir: "ext/a" },
+            { url: "https://github.com/acme/also-missing.git", dir: "ext/b" },
+          ],
+          runner,
+        ),
+      ).rejects.toThrow(FliskError);
+
+      expect(existsSync(join(tempDir, "ext"))).toBe(false);
+    });
+
+    it("keeps successful clones and their parent folder when a later clone fails", async () => {
+      const runner = vi.fn().mockImplementation(async (args: string[]) => {
+        const tempPath = args[args.length - 1] as string;
+        if (tempPath.includes("a.flisk-clone-")) {
+          mkdirSync(tempPath, { recursive: true });
+          return "";
+        }
+        throw new Error("fatal: repository not found");
+      });
+
+      await expect(
+        cloneMissingRepos(
+          tempDir,
+          [
+            { url: "https://github.com/acme/present.git", dir: "ext/a" },
+            { url: "https://github.com/acme/missing.git", dir: "ext/b" },
+          ],
+          runner,
+        ),
+      ).rejects.toThrow(FliskError);
+
+      expect(existsSync(join(tempDir, "ext/a"))).toBe(true);
+      expect(existsSync(join(tempDir, "ext"))).toBe(true);
     });
 
     it("throws FliskError when the destination exists as a file", async () => {
