@@ -10,6 +10,8 @@ export declare const TECH_STACK_FILE = "TILT_TECH_STACK.star";
 export declare const RESOURCE_DEFAULTS_FILE = "TILT_RESOURCE_DEFAULTS.star";
 export declare const PROJECT_JSON = "project.json";
 export declare const PACKAGE_JSON = "package.json";
+export declare const AGENTS_FILE = "AGENTS.md";
+export declare const CLAUDE_FILE = "CLAUDE.md";
 export declare const MASTER_CONFIG_FILES: readonly ["TILT_TECH_STACK.star", "TILT_RESOURCE_DEFAULTS.star", "spec.master"];
 export declare const VALID_RESOURCE_TYPES: ResourceType[];
 export declare const REQUIRED_PACKAGE_SCRIPTS: Record<ResourceType, readonly string[]>;

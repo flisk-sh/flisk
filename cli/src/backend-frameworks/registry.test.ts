@@ -85,6 +85,19 @@ describe("getBackendFramework", () => {
       "Omit --framework to use hono",
     ]);
   });
+
+  it("puts the closest framework first for a near miss", () => {
+    try {
+      getBackendFramework("expres");
+      expect.unreachable();
+    } catch (caught) {
+      expect((caught as FliskError).suggestions).toEqual([
+        'Did you mean "express"?',
+        "Use one of: hono, express, elysia, fastify, h3, koa, nestjs",
+        "Omit --framework to use hono",
+      ]);
+    }
+  });
 });
 
 describe("listBackendFrameworks", () => {

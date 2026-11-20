@@ -6,7 +6,7 @@ export declare function getStatusColor(status: StatusValue): string;
 export declare function getStatusIcon(status: StatusValue): string;
 export declare function colorizeByStatus(text: string, status: StatusValue): string;
 type EmptyStateItemType = "resources" | "stacks" | "services" | "stack-services";
-export declare function showEmptyState(itemType: EmptyStateItemType, filterContext?: string): void;
+export declare function showEmptyState(itemType: EmptyStateItemType, filterContext?: string, typeFilter?: string): void;
 export declare function showCancelled(message?: string): void;
 export declare function showCommandHeader(title: string): void;
 export declare function showAllSatisfyCondition(items: string, condition: string): void;

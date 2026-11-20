@@ -17,6 +17,12 @@ export declare function getMcpIndexTemplate(name: string, _durability?: string, 
  */
 export declare function getMcpTestTemplate(name: string): string;
 /**
+ * A policy example for a generated MCP server: a plain check that runs before a `pay` tool does anything, and refuses an
+ * amount above a limit. It is the whole of the idea: decide first, in code you can read and test, then call. Nothing in the
+ * scaffold imports it; docs/recipes/mcp-tool-policy.md shows it (a test keeps the two the same) and wires it to a tool.
+ */
+export declare function getMcpPolicyExampleTemplate(): string;
+/**
  * The scaffold for \`--type mcp\`. It is not in BACKEND_FRAMEWORKS: \`mcp\` is a resource type of its own, not a \`--framework\`
  * choice for a backend.
  */

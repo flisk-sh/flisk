@@ -273,6 +273,45 @@ describe("resource scaffolding preview", () => {
     });
   });
 
+  it("reports the requested alias, not the normalized type, when --type inference hits a backend", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, ["--type", "inference", "--path", "existing"]);
+    expect(preview.resource).toMatchObject({
+      type: "backend",
+      requestedType: "inference",
+      ignoredType: "inference",
+      preservedPort: 4100,
+    });
+    const text = runFlisk(
+      [
+        "resource",
+        "sample",
+        "--type",
+        "inference",
+        "--path",
+        "existing",
+        "--stack",
+        "shop",
+        "--dry-run",
+        "--yes",
+      ],
+      { cwd: root, input: "" },
+    );
+    expect(text.status, text.stderr).toBe(0);
+    expect(text.stdout).toContain(
+      'Requested type "inference" conflicts with existing type "backend"',
+    );
+  });
+
   it("does not give a portless existing sdk a port when worker is requested", () => {
     const root = createTempProject({
       files: {
@@ -321,6 +360,35 @@ describe("resource scaffolding preview", () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr + result.stdout).toContain("already used by other/service.json");
     expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8")).port).toBe(4100);
+  });
+
+  it("re-registers a preset that shares its internal port with another preset of the same framework", () => {
+    const redis = {
+      appName: "sample",
+      appType: "bring-your-own",
+      framework: "redis",
+      stack: "shop",
+      port: 6379,
+    };
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify(redis),
+        "other/service.json": JSON.stringify({ ...redis, appName: "other" }),
+      },
+    });
+    const args = ["--type", "database", "--framework", "redis", "--path", "existing"];
+    const preview = runResourceCommand(root, args);
+    expect(preview.resource).toMatchObject({
+      action: "registered",
+      type: "bring-your-own",
+      port: 6379,
+    });
+    runResourceCommand(root, args, false);
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject({
+      appType: "bring-your-own",
+      framework: "redis",
+      port: 6379,
+    });
   });
 
   it("leaves existing BYO Dockerfiles and instructions out of the write plan", () => {
