@@ -26,14 +26,14 @@ The MCP server runs in the folder your agent was started in. Start the agent in 
 
 ## What is in this folder
 
-One set of files for every agent format, all written by [`scripts/agent-plugin.mjs`](../../scripts/agent-plugin.mjs) from [`cli/templates/agent-skills`](../../cli/templates/agent-skills). Change those and run `node scripts/agent-plugin.mjs`; do not edit the copies here.
+One set of files for every agent format. The skill copies come from [`cli/templates/agent-skills`](../../cli/templates/agent-skills); the manifests, hooks and verifier agent are written by [`scripts/agent-plugin.mjs`](../../scripts/agent-plugin.mjs). Change the sources and run `node scripts/agent-plugin.mjs`; do not edit the copies here.
 
 | File | Read by |
 | --- | --- |
 | `plugin.json`, `mcp.json` | The open [Agent Plugins](https://agent-plugins.org) format: Codex and ChatGPT, Cursor, GitHub Copilot CLI |
 | `.mcp.json` | Older Codex and Copilot builds that predate the open format |
-| `../flisk-claude/` | Claude Code: the same skills and a portable Node launcher for the server. It runs `flisk mcp` on POSIX and native Windows, without `/bin/sh`; for a server you add yourself, run `claude mcp add flisk -- flisk mcp` |
-| `.claude-plugin/plugin.json` | Claude Code |
+| `../flisk-claude/` | Claude Code: the same skills and a portable Node launcher for the server. It runs `flisk mcp` on POSIX and native Windows, without `/bin/sh`; for a server you add yourself, run `flisk connect claude` or `claude mcp add flisk -- flisk mcp` |
+| `.claude-plugin/plugin.json`, `hooks/`, `agents/` | Claude Code: the self-hosted plugin also ships hooks that refuse edits to Flisk-generated files and run `flisk config verify --json` after a `service.json` edit, plus the read-only `flisk-verifier` subagent. The directory-listed `flisk-claude` plugin does not run commands, so it ships none of these |
 | `.codex-plugin/plugin.json` | Codex builds that predate the open format |
 | `.cursor-plugin/plugin.json` | Cursor marketplace |
 | `skills/` | Every agent above |

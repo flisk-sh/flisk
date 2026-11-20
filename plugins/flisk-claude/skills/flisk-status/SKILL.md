@@ -23,3 +23,7 @@ Read the state from the CLI rather than guessing from Docker output.
 
 - Report only what the output shows. Say so when a field is missing.
 - Do not stop containers by name pattern. Identify the stack first.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

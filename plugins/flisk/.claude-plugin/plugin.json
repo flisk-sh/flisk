@@ -18,5 +18,6 @@
     "tilt",
     "mcp",
     "agents"
-  ]
+  ],
+  "hooks": "./hooks/hooks.json"
 }

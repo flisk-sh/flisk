@@ -99,3 +99,7 @@ FLISK_EXTENSION_SOURCE=<flisk-checkout> bun <flisk-checkout>/cli/bin/flisk.js pr
 - Do not stop containers by broad name patterns, and do not kill another project's Tilt.
 - Do not polish a proxy metric (image size) when the user's problem is time, CPU or a frozen machine; measure what hurts. For memory and scale numbers, use the flisk-benchmark skill.
 - Give short status lines during long builds; silence reads as "nothing works".
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.
