@@ -8,7 +8,7 @@ import { makeResource } from "../../test-support/index.js";
 import type { DiscoveredResource, ProjectConfig } from "../../types/index.js";
 import { MASTER_CONFIG_FILES } from "../../utils/constants.js";
 import { FliskError } from "../../utils/errors.js";
-import { enableDiscoveredStacks, projectCommand } from "../project.js";
+import { enableDiscoveredStacks, projectCommand, writeDefaultProjectConfig } from "../project.js";
 
 const mocks = vi.hoisted(() => ({
   assertMachineReadyOrExit: vi.fn(async () => {}),
@@ -249,6 +249,16 @@ function writeMasterConfigs() {
 }
 
 describe("project command action", () => {
+  it("derives a Docker- and npm-compatible name for a folder with spaces and dots", () => {
+    const weirdRoot = join(root, "My App.v2");
+    mkdirSync(join(weirdRoot, ".flisk"), { recursive: true });
+    writeDefaultProjectConfig(weirdRoot);
+    const config = JSON.parse(
+      readFileSync(join(weirdRoot, ".flisk", "project.json"), "utf-8"),
+    ) as ProjectConfig;
+    expect(config.project.name).toBe("my-app-v2");
+  });
+
   it("reports a complete configuration in --check mode", async () => {
     writeProjectConfig(projectConfig(["platform"]));
     writeMasterConfigs();
