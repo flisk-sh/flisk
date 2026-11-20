@@ -263,37 +263,57 @@ describe("flisk up success output", () => {
 });
 
 describe("flisk up --wait JSON output", () => {
-  it("uses the command's single JSON exit emitter for the child result", async () => {
-    vi.mocked(upAndWait).mockResolvedValueOnce({
-      kind: "ready",
-      json: JSON.stringify({
+  it.each([
+    [
+      "ready",
+      { schemaVersion: 1, data: { ok: true, runtime: "native" }, errors: [] },
+      0,
+    ],
+    [
+      "failed",
+      {
         schemaVersion: 1,
-        data: { ok: true, runtime: "native" },
-        errors: [],
-      }),
-    });
-    const listenersBefore = new Set(process.listeners("exit"));
-    const once = vi.spyOn(process, "once");
-
-    try {
-      await runCommandInProcess(upCommand, ["--wait", "--json"], process.cwd());
-      const addedListeners = process
-        .listeners("exit")
-        .filter((listener) => !listenersBefore.has(listener));
-      expect(once.mock.calls.filter(([event]) => event === "exit")).toHaveLength(1);
-      expect(addedListeners).toHaveLength(1);
-    } finally {
-      for (const listener of process.listeners("exit")) {
-        if (!listenersBefore.has(listener)) process.removeListener("exit", listener);
+        data: { ok: false, failures: [{ name: "api", reason: "container exited" }] },
+        errors: [{ code: "UP_RESOURCE_FAILED", message: "Resources failed" }],
+      },
+      1,
+    ],
+  ] as const)(
+    "emits one %s result and suppresses the exit fallback",
+    async (kind, envelope, exitCode) => {
+      const originalWriteSync = vi.mocked(writeSync).getMockImplementation();
+      vi.mocked(writeSync).mockClear();
+      let output = "";
+      vi.mocked(writeSync).mockImplementation(((fd: number, data: string) => {
+        if (fd === 1) output += data;
+        return data.length;
+      }) as never);
+      vi.mocked(upAndWait).mockResolvedValueOnce({ kind, json: JSON.stringify(envelope) });
+      const listenersBefore = new Set(process.listeners("exit"));
+      const once = vi.spyOn(process, "once");
+      try {
+        const result = await runCommandInProcess(upCommand, ["--wait", "--json"], process.cwd());
+        expect(result.status).toBe(exitCode);
+        const documents = output.trim().split("\n");
+        expect(documents).toHaveLength(1);
+        expect(JSON.parse(documents[0] as string)).toEqual(envelope);
+        const exitHandler = once.mock.calls.find(([event]) => event === "exit")?.[1];
+        expect(exitHandler).toBeTypeOf("function");
+        (exitHandler as NodeJS.ExitListener)(exitCode);
+        expect(output.trim().split("\n")).toHaveLength(1);
+      } finally {
+        for (const listener of process.listeners("exit")) {
+          if (!listenersBefore.has(listener)) process.removeListener("exit", listener);
+        }
+        once.mockRestore();
+        vi.mocked(upAndWait).mockReset();
+        if (originalWriteSync) vi.mocked(writeSync).mockImplementation(originalWriteSync);
+        upCommand.setOptionValue("wait", false);
+        upCommand.setOptionValue("json", false);
       }
-      once.mockRestore();
-      vi.mocked(upAndWait).mockReset();
-      upCommand.setOptionValue("wait", false);
-      upCommand.setOptionValue("json", false);
-    }
-  });
+    },
+  );
 });
-
 describe("flisk up --wait failure output", () => {
   it("prints failure reasons instead of undefined", async () => {
     vi.mocked(upAndWait).mockResolvedValueOnce({
