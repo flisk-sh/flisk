@@ -79,6 +79,40 @@ describe("choosing the native runtime for flisk up", () => {
     });
   });
 
+  it("does not apply local overrides to image-based container dependencies", () => {
+    const root = createTempProject({
+      projectJson: {
+        version: "1.0",
+        project: { name: "native-with-db", version: "1.0.0" },
+        discovery: { paths: ["services/*/*"] },
+      },
+      files: {
+        "services/app/api/service.json": JSON.stringify(native("api", { stack: "app", port: 8080 })),
+        "services/app/api/service.local.json": JSON.stringify({ port: 9100 }),
+        "services/app/postgres/service.json": JSON.stringify({
+          appName: "postgres",
+          appType: "backend",
+          stack: "app",
+          schemaVersion: 1,
+          image: "postgres:16",
+          port: 5432,
+          env: { KEEP: "committed" },
+        }),
+        "services/app/postgres/service.local.json": JSON.stringify({
+          port: 6000,
+          env: { KEEP: "local", ADDED: "yes" },
+        }),
+      },
+    });
+
+    const selection = selectNativeRun(undefined, undefined, fail, root);
+    expect(selection?.all.find((resource) => resource.name === "postgres")).toMatchObject({
+      port: 5432,
+      config: { port: 5432, env: { KEEP: "committed" } },
+    });
+    expect(selection?.overrides).toEqual([{ service: "api", field: "port" }]);
+  });
+
   it("brings the dependsOn closure of a stack or --only selection", () => {
     const root = createTempProject({
       files: {

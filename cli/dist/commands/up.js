@@ -315,11 +315,16 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
             .map((service) => service.name);
         fail("MIXED_RUNTIME", formatMixedRuntimeRefusal(mixed, containerNames));
     }
-    // Native path chosen: now read per-machine files and apply them only to the local-process selection.
+    // Native path chosen: now read per-machine files. A native stack may still depend on image-based
+    // containers (Postgres, Redis); those are not local processes, so their committed runtime config
+    // must stay untouched even if a service.local.json sits beside them.
     let all;
     let overrides;
     try {
-        ({ resources: all, overrides } = applyServiceLocalOverrides(committed));
+        const applied = applyServiceLocalOverrides(committed.filter(isNativeService));
+        const overridden = new Map(applied.resources.map((resource) => [resource.name, resource]));
+        all = committed.map((resource) => overridden.get(resource.name) ?? resource);
+        overrides = applied.overrides;
     }
     catch (error) {
         fail("INVALID_SERVICE_CONFIG", error instanceof Error ? error.message : String(error));

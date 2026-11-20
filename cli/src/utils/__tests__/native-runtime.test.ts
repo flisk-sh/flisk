@@ -356,6 +356,46 @@ describe("native supervisor", () => {
     }
   });
 
+  it("masks secret env values introduced by service.local.json, including multiline values", async () => {
+    const root = createTempDir();
+    const localToken = "LOCAL_API_TOKEN_DO_NOT_LOG_13579";
+    const multiline = `FIRST_HALF_OF_LOCAL_SECRET\nSECOND_HALF_OF_LOCAL_SECRET`;
+    writeFileSync(
+      join(root, "leaker.mjs"),
+      [
+        "console.log(`token=${process.env.API_TOKEN}`);",
+        "console.log(process.env.PRIVATE_NOTES);",
+      ].join("\n"),
+    );
+    const plan = planNativeRun(
+      [
+        nativeService(root, "leaker", {
+          appType: "migrator",
+          command: `${NODE} leaker.mjs`,
+          env: { API_TOKEN: localToken, PRIVATE_NOTES: multiline },
+        }),
+      ],
+      {},
+      root,
+    );
+    const lines: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onLine: (_name, line) => lines.push(line),
+    });
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+    await waitFor(() => lines.length >= 2);
+
+    expect(lines).toContain("token=[REDACTED]");
+    expect(lines).toContain("[REDACTED]");
+    expect(lines.join("\n")).not.toContain(localToken);
+    expect(lines.join("\n")).not.toContain("FIRST_HALF_OF_LOCAL_SECRET");
+    expect(lines.join("\n")).not.toContain("SECOND_HALF_OF_LOCAL_SECRET");
+    const stored = readFileSync(nativeLogPath(root, "leaker"), "utf-8");
+    expect(stored).not.toContain(localToken);
+    expect(stored).not.toContain("FIRST_HALF_OF_LOCAL_SECRET");
+  });
+
   it("masks secret shapes and a printed private key before output and the stored log", async () => {
     const root = createTempDir();
     writeFileSync(

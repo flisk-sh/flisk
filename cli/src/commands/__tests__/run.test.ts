@@ -85,7 +85,8 @@ describe("flisk run (#2872)", () => {
     expect(target.env).toMatchObject({ GREETING: "hi", PORT: "4567", FROM_DOT_ENV: "yes" });
   });
 
-  it("keeps a container target on the docker exec path despite a local command override", () => {
+  /** A container-service project with a local command override that must not move it onto the host. */
+  function containerProject(): string {
     const root = createTempDir();
     mkdirSync(join(root, ".flisk"), { recursive: true });
     writeFileSync(
@@ -105,14 +106,29 @@ describe("flisk run (#2872)", () => {
       }),
     );
     writeFileSync(join(dir, "service.local.json"), JSON.stringify({ command: "node host.js" }));
+    return root;
+  }
 
-    let target: { runtime?: string } | null = null;
-    try {
-      target = resolveRunTarget(root, "api", ["printenv"]);
-    } catch {
-      // No Docker here: the point is that runtime selection never chose the host.
-    }
-    expect(target?.runtime).not.toBe("native");
+  it("keeps a container target on the docker exec path despite a local command override", () => {
+    const target = resolveRunTarget(containerProject(), "api", ["printenv", "DATABASE_URL"], {
+      interactive: false,
+      docker: docker("abc123\n"),
+    });
+    expect(target).toEqual({
+      service: "api",
+      runtime: "container",
+      file: "docker",
+      args: ["exec", "abc123", "printenv", "DATABASE_URL"],
+    });
+  });
+
+  it("reports a Docker failure instead of falling back to the host", () => {
+    expect(() =>
+      resolveRunTarget(containerProject(), "api", ["printenv"], {
+        interactive: false,
+        docker: docker("", 1),
+      }),
+    ).toThrow(/Docker is not answering/);
   });
 
   it("passes the command's exit code through, and --json reports it with the output", () => {

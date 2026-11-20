@@ -81,7 +81,12 @@ export function resolveRunTarget(
   projectRoot: string,
   serviceName: string,
   command: string[],
-  options: { interactive: boolean; resources?: DiscoveredResource[] } = { interactive: false },
+  options: {
+    interactive: boolean;
+    resources?: DiscoveredResource[];
+    /** Injectable for tests: a fake `docker ps` runner with a known container id. */
+    docker?: (args: string[]) => SpawnSyncReturns<string>;
+  } = { interactive: false },
 ): RunTarget {
   const discovered = options.resources ?? discoverResourcesFromRoot(projectRoot);
   // Runtime comes from the committed manifest: a local `command` must never move a container target to the host.
@@ -126,7 +131,11 @@ export function resolveRunTarget(
       "Check the service's stack and .flisk/project.json with: flisk doctor",
     ]);
   }
-  const container = runningContainer(composeProjectFor(projectName, stack), serviceName);
+  const container = runningContainer(
+    composeProjectFor(projectName, stack),
+    serviceName,
+    options.docker,
+  );
   if (!container) {
     throw new FliskError(
       `"${serviceName}" is not running, so there is no container to run the command in.`,

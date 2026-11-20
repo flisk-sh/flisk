@@ -165,6 +165,20 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         const nativeStates = projectRoot && nativeProject
             ? nativeServiceStates(projectRoot, launchResources.map((resource) => resource.name))
             : null;
+        // Native launch skips locally disabled services, so they have no runtime state. Counting them
+        // would make `status --strict` fail and `unhealthy` lie about a service that was never started.
+        // They stay in the discovery inventory for informational output.
+        const healthResources = nativeStates ? launchResources : discovery.resources;
+        const healthNames = new Set(healthResources.map((resource) => resource.name));
+        const healthStacks = nativeStates
+            ? discovery.stacks.map((stack) => ({
+                ...stack,
+                resources: stack.resources.filter((resource) => healthNames.has(resource.name)),
+            }))
+            : discovery.stacks;
+        const healthUnassigned = nativeStates
+            ? discovery.unassignedResources.filter((resource) => healthNames.has(resource.name))
+            : discovery.unassignedResources;
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
         const platformServices = describePlatformServices(projectRoot, discovery.resources, options);
         // `extraPorts` published through ${VAR:-default} resolve from the shell and the project .env, like Compose.
@@ -336,13 +350,15 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                         : {}),
                 })),
                 ports: buildStackPorts(portPlan, tiltPort, { gateway: gatewayEnabled }),
-                stacks: discovery.stacks.map((stack) => ({
+                stacks: discovery.stacks.map((stack, index) => ({
                     name: stack.name,
                     resourceCount: stack.resourceCount,
                     resources: stack.resources.map((resource) => resource.name),
-                    healthyCount: stack.resources.filter((resource) => serviceStates?.[resource.name]?.status === "ready").length,
-                    // What healthyCount is out of: resourceCount less any database with no process of its own.
-                    healthTotal: healthCountedResources(stack.resources, serviceStates).length,
+                    healthyCount: stack.resources.filter((resource) => healthNames.has(resource.name) &&
+                        serviceStates?.[resource.name]?.status === "ready").length,
+                    // What healthyCount is out of: countable resources less any database with no process of
+                    // its own, and less locally disabled services that the native launch never starts.
+                    healthTotal: healthCountedResources(healthStacks[index]?.resources ?? stack.resources, serviceStates).length,
                 })),
                 unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
                 // The service.json files discovery skipped (invalid JSON or fields), so `resources` is not silently short.
@@ -353,7 +369,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 platformServices,
                 capabilities: getEnabledCapabilities(projectRoot, options),
                 // Names of the failing or pending services, so a caller need not filter `resources` itself.
-                unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
+                unhealthy: unhealthyServiceNames(healthResources, serviceStates),
             };
             console.log(JSON.stringify(createMachineEnvelope(data, errors)));
             if (errors.length > 0) {
@@ -361,7 +377,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 process.exit(1);
             }
             if (options.strict) {
-                failStrictStatus(strictNotReady(discovery.resources, serviceStates));
+                failStrictStatus(strictNotReady(healthResources, serviceStates));
             }
             return;
         }
@@ -423,11 +439,11 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             const states = serviceStates;
             console.log();
             console.log(chalk.bold(unhealthyOnly ? "Unhealthy services:" : "Services:"));
-            const unhealthy = new Set(unhealthyServiceNames(discovery.resources, states));
+            const unhealthy = new Set(unhealthyServiceNames(healthResources, states));
             if (unhealthyOnly && unhealthy.size === 0) {
                 showDetail(chalk.green("All services are healthy."));
             }
-            for (const group of groupServicesByStack(discovery.stacks, discovery.unassignedResources, states)) {
+            for (const group of groupServicesByStack(healthStacks, healthUnassigned, states)) {
                 const shown = group.resources.filter((resource) => states[resource.name] && (!unhealthyOnly || unhealthy.has(resource.name)));
                 if (unhealthyOnly && shown.length === 0)
                     continue;
@@ -494,7 +510,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         showDetail('Run "flisk stacks" to see all stacks.');
         showDetail('Run "flisk up <stack-name>" to start a stack.');
         if (options.strict) {
-            failStrictStatus(strictNotReady(discovery.resources, serviceStates));
+            failStrictStatus(strictNotReady(healthResources, serviceStates));
         }
     };
     if (options.json) {

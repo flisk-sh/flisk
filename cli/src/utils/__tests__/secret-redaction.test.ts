@@ -13,6 +13,7 @@ import {
   REDACTED,
   redactSecrets,
   redactValue,
+  secretValuesFromEnv,
 } from "../secret-redaction.js";
 
 const dirs: string[] = [];
@@ -140,6 +141,37 @@ describe("redactSecrets", () => {
     expect(redactSecrets("url postgresql://app:secretsecret@db/app", secrets)).toBe(
       `url ${REDACTED}`,
     );
+  });
+});
+
+const envRef = (name: string) => "${" + name + "}";
+
+describe("secretValuesFromEnv", () => {
+  it("collects secret-named values, variable expansions and multiline values line by line", () => {
+    const token = "LOCAL_API_TOKEN_DO_NOT_LOG_24680";
+    const expanded = "EXPANDED_LOCAL_SECRET_13579";
+    const multiline = "FIRST_HALF_OF_LOCAL_SECRET\nSECOND_HALF_OF_LOCAL_SECRET";
+    const values = secretValuesFromEnv(
+      {
+        API_TOKEN: token,
+        ACCESS_KEY: envRef("SOURCE_VAR"),
+        PRIVATE_NOTES: multiline,
+        PUBLIC_NOTE: "a harmless note",
+      },
+      { SOURCE_VAR: expanded },
+    );
+
+    expect(values).toContain(token);
+    expect(values).toContain(expanded);
+    expect(values).toContain("FIRST_HALF_OF_LOCAL_SECRET");
+    expect(values).toContain("SECOND_HALF_OF_LOCAL_SECRET");
+    expect(values).not.toContain("a harmless note");
+
+    const redact = createEnvRedactor(projectWithEnv(undefined), [], values);
+    expect(redact(`token=${token}`)).toBe(`token=${REDACTED}`);
+    expect(redact(`key=${expanded}`)).toBe(`key=${REDACTED}`);
+    expect(redact("FIRST_HALF_OF_LOCAL_SECRET")).toBe(REDACTED);
+    expect(redact("SECOND_HALF_OF_LOCAL_SECRET")).toBe(REDACTED);
   });
 });
 

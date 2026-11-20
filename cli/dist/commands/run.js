@@ -86,7 +86,7 @@ export function resolveRunTarget(projectRoot, serviceName, command, options = { 
             "Check the service's stack and .flisk/project.json with: flisk doctor",
         ]);
     }
-    const container = runningContainer(composeProjectFor(projectName, stack), serviceName);
+    const container = runningContainer(composeProjectFor(projectName, stack), serviceName, options.docker);
     if (!container) {
         throw new FliskError(`"${serviceName}" is not running, so there is no container to run the command in.`, [`Start it with: flisk up ${stack}`, "Then run the command again"]);
     }

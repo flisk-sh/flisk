@@ -16,7 +16,14 @@ export declare const MIN_REDACTED_VALUE_LENGTH = 8;
  * `params` entries of a service whose name says it is a secret (PASSWORD, TOKEN, KEY ...). Throws when an env file exists but
  * cannot be read: continuing without the values would print secrets unmasked.
  */
-export declare function envSecretValues(projectRoot: string, extraEnvPaths?: readonly string[]): string[];
+export declare function envSecretValues(projectRoot: string, extraEnvPaths?: readonly string[], extraSecretValues?: readonly string[]): string[];
+/**
+ * Secret values held by an `env`-shaped map, using the same rules as a service.json `env`/`params`:
+ * only secret-looking names are masked, `${VAR}` is expanded the way the process receives it, and a
+ * multiline value is also kept line by line. Local overrides pass their env through here too, so a
+ * secret introduced by service.local.json is masked just like one from service.json.
+ */
+export declare function secretValuesFromEnv(entries: Readonly<Record<string, unknown>> | undefined, vars?: Readonly<Record<string, string | undefined>>): string[];
 /**
  * Secret shapes masked wherever they appear, whether or not the value is in an env file: a token an application printed from
  * its own memory, a connection string, a key pair. Each pattern keeps its non-secret part (`Bearer `, `postgres://user:`) so
@@ -52,7 +59,7 @@ export declare function redactValue<T>(value: T, secrets: readonly string[]): T;
  * `extraEnvPaths` are the other env files of the run (the file `flisk up --env-file` selected): their values are secrets as
  * much as the ones in the project .env.
  */
-export declare function createEnvRedactor(projectRoot: string, extraEnvPaths?: readonly string[]): (text: string) => string;
+export declare function createEnvRedactor(projectRoot: string, extraEnvPaths?: readonly string[], extraSecretValues?: readonly string[]): (text: string) => string;
 /** What replaces output that cannot be masked because the project's env files cannot be read. */
 export declare const OUTPUT_WITHHELD = "[output withheld: the project's env files could not be read]";
 /**

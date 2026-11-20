@@ -164,8 +164,14 @@ describe("local overrides in command output", () => {
     expect(result.status).toBe(0);
     const data = parseEnvelope(result.stdout).data as {
       tilt: { readiness: { ready: boolean } | null };
+      unhealthy: string[];
     };
     expect(data.tilt.readiness).toMatchObject({ ready: true });
+    // The disabled worker has no runtime state; it must not be reported as unhealthy or fail --strict.
+    expect(data.unhealthy).toEqual([]);
+
+    const strict = runFlisk(["status", "--strict"], { cwd: root, timeout: 30_000 });
+    expect(strict.status).toBe(0);
   });
 
   it("prints one line about active overrides on a native up dry run", () => {

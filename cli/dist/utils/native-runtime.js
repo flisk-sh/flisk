@@ -16,7 +16,7 @@ import { appendNativeLogLine, readLogTail } from "./native-log.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, processStartTime } from "./process-identity.js";
-import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
+import { createEnvRedactor, createPrivateKeyLineGuard, secretValuesFromEnv, } from "./secret-redaction.js";
 import { healthCheckPathOf, isHealthCheckDisabled, readinessProbeOf, } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
@@ -645,7 +645,14 @@ export class NativeSupervisor {
         this.events = events;
         this.options = options;
         this.baseEnv = options.baseEnv;
-        this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
+        // Local overrides are applied to the plans, not written to service.json, so the discovery-based
+        // redactor cannot see them. Mask their secret-named env values with the same rules (including
+        // ${VAR} expansions and multiline values kept line by line) before any output is written.
+        const overrideSecrets = plans.flatMap((plan) => [
+            ...secretValuesFromEnv(plan.rawEnv),
+            ...secretValuesFromEnv(plan.env),
+        ]);
+        this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths, overrideSecrets);
         for (const plan of plans) {
             this.services.set(plan.name, {
                 plan,
