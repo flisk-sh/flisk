@@ -70,6 +70,7 @@
 
 ## Recipes and examples
 
+- [All starters](starters.md): every `flisk project <key>` with a one-line description, Docker requirements and an example command
 - [Examples and starter repositories](examples/README.md): `flisk project <template>` starters, their stacks and services, and manifest patterns
 - [Recipes](recipes/): using Flisk next to other tools. [moon](recipes/moon.md), [Rsbuild](recipes/rsbuild.md)
 - [Bring-your-own examples](../examples/byo/README.md): one folder per framework, each with its own README and a check command

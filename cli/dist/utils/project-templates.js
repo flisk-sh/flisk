@@ -2,6 +2,20 @@
 // SPDX-License-Identifier: MIT
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+/** True when a starter is written by the CLI and runs as local processes, with no Docker. */
+export function runsLocally(template) {
+    return template.generated !== undefined;
+}
+/**
+ * The one wording for what a starter needs, shared by `flisk project --list` and the `needs:` line of
+ * `flisk create --starter <key> --dry-run`. Both read the same fact about the starter from this catalog.
+ */
+export function starterNeeds(key) {
+    const template = PROJECT_TEMPLATES[key];
+    return template && runsLocally(template)
+        ? "runs on this computer; no Docker, no database"
+        : "Docker (its README says what else)";
+}
 /** Public starter repositories plus the bundled default product example. */
 export const PROJECT_TEMPLATES = {
     demo: {
@@ -85,12 +99,13 @@ export const PROJECT_TEMPLATES = {
         description: "Full app to build on: a website, the part behind it, background jobs and a database",
     },
 };
-/** The template catalog in registration order: key, repo, description and, for a pinned template, its ref. */
+/** The template catalog in registration order: key, repo, description, needs and, for a pinned template, its ref. */
 export function listProjectTemplates() {
     return Object.entries(PROJECT_TEMPLATES).map(([key, template]) => ({
         key,
         repo: template.repo,
         description: template.description,
+        needs: starterNeeds(key),
         ...(template.ref ? { ref: template.ref } : {}),
     }));
 }
