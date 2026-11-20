@@ -458,6 +458,8 @@ export interface NativeRunState {
       waitingFor?: string[];
       /** The supervisor stopped restarting it (it kept crashing, or a job exited non-zero); only a restart or a new `up` revives it. */
       failed?: boolean;
+      /** Last exit code of the service's process, null when a signal ended it; absent while it has not exited. */
+      lastExitCode?: number | null;
     }
   >;
 }
@@ -716,34 +718,49 @@ export async function stopNativeRun(
 export function nativeServiceStates(
   projectRoot: string,
   services: readonly string[],
-): Record<string, { status: "ready" | "pending" | "error" | "unknown"; reason?: string }> {
+): Record<
+  string,
+  {
+    status: "ready" | "pending" | "error" | "unknown";
+    reason?: string;
+    exitCode?: number | null;
+  }
+> {
   const state = readNativeRunState(projectRoot);
   const isUp = state !== null && isProcessAlive(state.pid);
   return Object.fromEntries(
     services.map((name) => {
       const service = state?.services[name];
+      const withExitCode = <T extends object>(value: T) =>
+        service?.lastExitCode === undefined ? value : { ...value, exitCode: service.lastExitCode };
       if (!isUp || !service) return [name, { status: "unknown", reason: "not running" }];
       if (service.failed) {
-        return [name, { status: "error", reason: "exited repeatedly; the supervisor gave up" }];
+        return [
+          name,
+          withExitCode({ status: "error", reason: "exited repeatedly; the supervisor gave up" }),
+        ];
       }
       if (!service.pid || !isProcessAlive(service.pid)) {
         // A one-shot job is not restarted: one that exited 0 is done, one that did not has failed.
         if (service.job) {
           return service.ready
             ? [name, { status: "ready", reason: "finished" }]
-            : [name, { status: "pending", reason: "the job did not exit 0" }];
+            : [name, withExitCode({ status: "pending", reason: "the job did not exit 0" })];
         }
         if (service.waitingFor?.length) {
           return [
             name,
-            { status: "pending", reason: `waiting for ${service.waitingFor.join(", ")}` },
+            withExitCode({
+              status: "pending",
+              reason: `waiting for ${service.waitingFor.join(", ")}`,
+            }),
           ];
         }
-        return [name, { status: "pending", reason: "restarting" }];
+        return [name, withExitCode({ status: "pending", reason: "restarting" })];
       }
       return service.ready
         ? [name, { status: "ready" }]
-        : [name, { status: "pending", reason: "starting" }];
+        : [name, withExitCode({ status: "pending", reason: "starting" })];
     }),
   );
 }
@@ -880,6 +897,8 @@ interface RunningService {
   restarting?: boolean;
   /** Resolves with the exit code of the current process (null when a signal ended it). */
   exited?: Promise<number | null>;
+  /** Last exit code seen, so a startup failure can name the cause (127 means a missing program). */
+  lastExitCode?: number | null;
   /** HTTP status code returned by the service's health check when it became ready. */
   readyStatus?: number;
 }
@@ -984,7 +1003,7 @@ export class NativeSupervisor {
     this.startControlLoop();
     const plans = [...this.services.values()].map((service) => service.plan);
     const ready = new Map<string, Promise<boolean>>();
-    const failures: Array<{ name: string; reason: string }> = [];
+    const failures: Array<{ name: string; reason: string; exitCode?: number | null }> = [];
     for (const name of dependencyWaves(plans).flat()) {
       const service = this.services.get(name) as RunningService;
       ready.set(
@@ -993,7 +1012,11 @@ export class NativeSupervisor {
           const deps = await Promise.all(service.plan.dependsOn.map((dep) => ready.get(dep)));
           if (!deps.every(Boolean)) {
             const blockedBy = service.plan.dependsOn.filter((_dep, index) => !deps[index]);
-            failures.push({ name, reason: `not started: ${blockedBy.join(", ")} did not start` });
+            failures.push({
+              name,
+              reason: `not started: ${blockedBy.join(", ")} did not start`,
+              exitCode: null,
+            });
             return false;
           }
           if (this.stopping) return false;
@@ -1001,7 +1024,7 @@ export class NativeSupervisor {
             this.resolveServiceEnv(service);
           } catch (err) {
             const reason = err instanceof Error ? err.message : String(err);
-            failures.push({ name, reason });
+            failures.push({ name, reason, exitCode: null });
             return false;
           }
           this.spawn(service);
@@ -1025,10 +1048,11 @@ export class NativeSupervisor {
             failures.push({
               name,
               reason: service.plan.job
-                ? "the job did not exit 0; see its output above"
+                ? "the job did not exit 0"
                 : service.gaveUp
-                  ? "kept exiting; see its output above"
+                  ? "kept exiting"
                   : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
+              exitCode: service.lastExitCode ?? null,
             });
           }
           return isReady;
@@ -1166,6 +1190,7 @@ export class NativeSupervisor {
   ): void {
     if (this.stopping || service.child !== child || service.restarting) return;
     service.isReady = false;
+    service.lastExitCode = code;
     this.saveState();
     const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
     if (service.plan.job) {
@@ -1466,6 +1491,7 @@ export class NativeSupervisor {
         ...(service.plan.container ? { container: service.plan.container } : {}),
         ...(service.waitingFor ? { waitingFor: service.waitingFor } : {}),
         ...(service.gaveUp ? { failed: true } : {}),
+        ...(service.lastExitCode !== undefined ? { lastExitCode: service.lastExitCode } : {}),
       };
     }
     writeNativeRunState(this.projectRoot, {

@@ -611,8 +611,8 @@ describe("native supervisor", () => {
       { restartDelayMs: 10 },
     );
     supervisors.push(supervisor);
-    expect(await supervisor.start()).toEqual([
-      { name: "job", reason: "kept exiting; see its output above" },
+    expect(await supervisor.start()).toMatchObject([
+      { name: "job", reason: "kept exiting", exitCode: 3 },
     ]);
     expect(notes.filter((note) => note.startsWith("exited with code 3; restarting"))).toHaveLength(
       4,
@@ -676,9 +676,9 @@ describe("native supervisor", () => {
       onNote: (name, message) => notes.push(`${name}: ${message}`),
     });
     supervisors.push(supervisor);
-    expect(await supervisor.start()).toEqual([
-      { name: "migrate", reason: "the job did not exit 0; see its output above" },
-      { name: "api", reason: "not started: migrate did not start" },
+    expect(await supervisor.start()).toMatchObject([
+      { name: "migrate", reason: "the job did not exit 0", exitCode: 3 },
+      { name: "api", reason: "not started: migrate did not start", exitCode: null },
     ]);
     expect(supervisor.pidOf("api")).toBeUndefined();
     expect(notes).toContain("migrate: exited with code 3; a job is not restarted");
@@ -1067,9 +1067,7 @@ describe("detachesServices", () => {
     const stored = readFileSync(logPath, "utf-8");
     const [failure] = withFailureLogs(root, failures);
 
-    expect(failures).toMatchObject([
-      { name: "crasher", reason: "the job did not exit 0; see its output above" },
-    ]);
+    expect(failures).toMatchObject([{ name: "crasher", reason: "the job did not exit 0" }]);
     expect(lines).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
     expect(stored).toContain("FATAL: API_TOKEN is not set ([REDACTED])");
     expect(stored).not.toContain(token);
@@ -1239,8 +1237,8 @@ createServer((req, res) => {
     supervisors.push(supervisor);
 
     const failures = await supervisor.start();
-    expect(failures).toEqual([
-      { name: "migrator", reason: "the job did not exit 0; see its output above" },
+    expect(failures).toMatchObject([
+      { name: "migrator", reason: "the job did not exit 0" },
       { name: "api", reason: "not started: migrator did not start" },
     ]);
 

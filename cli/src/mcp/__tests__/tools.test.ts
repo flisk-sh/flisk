@@ -915,7 +915,7 @@ describe("startUp states (native)", () => {
   const data = (r: { data: unknown }) =>
     (r.data as { data: Record<string, unknown> }).data as Record<string, any>;
   const snapshot = (
-    services: Record<string, { status: string; reason?: string }>,
+    services: Record<string, { status: string; reason?: string; exitCode?: number | null }>,
     logs: Record<string, string[]> = {},
   ) => ({ services, logs }) as never;
 
@@ -961,7 +961,53 @@ describe("startUp states (native)", () => {
     const r = await startUp({}, deps);
     expect(r.isError).toBe(true);
     expect(data(r)).toMatchObject({ state: "failed", ready: false });
+    expect(data(r).failures).toMatchObject([
+      {
+        name: "api",
+        reason: "exited with code 1",
+        exitCode: 1,
+        code: "CRASH_LOOP",
+        suggestions: expect.arrayContaining([expect.stringContaining("flisk logs --service api")]),
+      },
+    ]);
     expect(JSON.stringify(r.data)).toContain("API_TOKEN is not set");
+  });
+
+  it("keeps structured failure metadata from a CLI missing-program result", async () => {
+    const line = JSON.stringify({
+      schemaVersion: 1,
+      data: {
+        ok: false,
+        runtime: "native",
+        failures: [
+          {
+            name: "api",
+            reason: "kept exiting",
+            exitCode: 127,
+            code: "PROGRAM_NOT_FOUND",
+            program: "bun",
+            logs: ["sh: bun: command not found"],
+          },
+        ],
+      },
+      errors: [{ code: "UP_RESOURCE_FAILED", message: "Local processes did not start" }],
+    });
+    const { deps } = fakeUp({ logs: [line], exitAfter: { atRead: 1, code: 1 } });
+    const r = await startUp({}, deps);
+    expect(r.isError).toBe(true);
+    expect(data(r).failures).toMatchObject([
+      {
+        name: "api",
+        exitCode: 127,
+        code: "PROGRAM_NOT_FOUND",
+        program: "bun",
+        reason: "kept exiting (bun is not on PATH)",
+        suggestions: [
+          "Install bun so it is on PATH, then run `flisk up`",
+          "Run `flisk doctor` to check your machine",
+        ],
+      },
+    ]);
   });
 
   it("reports failed again for a repeated failure, not stale readiness", async () => {
@@ -1003,18 +1049,30 @@ describe("startUp states (native)", () => {
   it("returns TIMEOUT as an error when waitForReady runs out, naming what is pending", async () => {
     const { deps } = fakeUp({ logs: [""] });
     deps.nativeSnapshot = () =>
-      snapshot({
-        base: { status: "ready" },
-        api: { status: "starting", reason: "waiting for base" },
-        web: { status: "starting" },
-      });
+      snapshot(
+        {
+          base: { status: "ready" },
+          api: { status: "error", reason: "kept exiting", exitCode: 127 },
+          web: {
+            status: "starting",
+            reason: "not ready after 3s (no answer from http://localhost:3000/health)",
+          },
+        },
+        { api: ["sh: bun: command not found"] },
+      );
     const r = await startUp({ waitForReady: true, waitSeconds: 3 }, deps);
     expect(r.isError).toBe(true);
     expect(data(r)).toMatchObject({ state: "timeout", ready: false, started: true });
+    expect(data(r).failures).toMatchObject([
+      { name: "api", exitCode: 127, code: "PROGRAM_NOT_FOUND", program: "bun" },
+      { name: "web", exitCode: null, code: "HEALTHCHECK_FAILED" },
+    ]);
     const text = JSON.stringify(r.data);
     expect(text).toContain("UP_NOT_READY_IN_TIME");
-    expect(text).toContain("api (waiting for base)");
-    expect(text).toContain("web (starting)");
+    expect(text).toContain("api (kept exiting)");
+    expect(text).toContain(
+      "web (not ready after 3s (no answer from http://localhost:3000/health))",
+    );
     expect(text).not.toContain("base (");
   });
 

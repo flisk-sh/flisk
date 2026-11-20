@@ -31,6 +31,7 @@ import {
 } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
+import { withUpFailureCodes } from "../utils/up-failure-codes.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
@@ -228,7 +229,14 @@ export function toTextResult(run: FliskRun): McpToolResult {
 
 /** What the supervising `flisk up` has on record while it is still starting the local processes of a project. */
 export interface NativeUpSnapshot {
-  services: Record<string, { status: "ready" | "pending" | "error" | "unknown"; reason?: string }>;
+  services: Record<
+    string,
+    {
+      status: "ready" | "pending" | "error" | "unknown";
+      reason?: string;
+      exitCode?: number | null;
+    }
+  >;
   /** The last lines (own output, secrets masked) of each service that is not ready. */
   logs: Record<string, string[]>;
 }
@@ -244,7 +252,7 @@ export function readNativeUpSnapshot(projectDir: string, since: number): NativeU
     if (state.status === "ready") continue;
     const [withLogs] = withFailureLogs(
       root,
-      [{ name, reason: state.reason ?? state.status }],
+      [{ name, reason: state.reason ?? state.status, exitCode: state.exitCode }],
       since,
     );
     if (withLogs?.logs?.length) logs[name] = withLogs.logs;
@@ -262,13 +270,19 @@ export type UpState = "starting" | "ready" | "failed" | "timeout";
 function withUpState(result: McpToolResult, state: UpState): McpToolResult {
   const envelope = result.data as { data?: Record<string, unknown> | null } | undefined;
   if (!envelope || typeof envelope !== "object") return result;
-  return {
-    ...result,
-    data: {
-      ...envelope,
-      data: { ...(envelope.data ?? {}), state, ready: state === "ready" },
-    },
+  const data: Record<string, unknown> = {
+    ...(envelope.data ?? {}),
+    state,
+    ready: state === "ready",
   };
+  // The CLI already classifies its failures; run the same classifier here so an older CLI, a snapshot-built
+  // result, or an MCP-only path cannot leave `failures[]` without exitCode/code/suggestions.
+  if (Array.isArray(data.failures)) {
+    data.failures = withUpFailureCodes(
+      data.failures as Array<{ name: string; reason?: string; message?: string; logs?: string[] }>,
+    );
+  }
+  return { ...result, data: { ...envelope, data } };
 }
 
 export interface UpDeps {
@@ -434,11 +448,20 @@ export async function startUp(
   );
   const progress = snapshot ? { services: snapshot.services, logs: snapshot.logs } : {};
   if (waitForReady) {
-    const pending = snapshot
-      ? Object.entries(snapshot.services)
-          .filter(([, service]) => service.status !== "ready")
-          .map(([name, service]) => `${name} (${service.reason ?? service.status})`)
+    const notReady = snapshot
+      ? Object.entries(snapshot.services).filter(([, service]) => service.status !== "ready")
       : [];
+    const pending = notReady.map(
+      ([name, service]) => `${name} (${service.reason ?? service.status})`,
+    );
+    const failures = withUpFailureCodes(
+      notReady.map(([name, service]) => ({
+        name,
+        reason: service.reason ?? service.status,
+        ...(service.exitCode === undefined ? {} : { exitCode: service.exitCode }),
+        ...(snapshot?.logs[name] ? { logs: snapshot.logs[name] } : {}),
+      })),
+    );
     return {
       data: createMachineEnvelope(
         {
@@ -449,6 +472,7 @@ export async function startUp(
           pid: child.pid ?? null,
           logFile,
           ...progress,
+          ...(failures.length > 0 ? { failures } : {}),
           next: "It is still starting and keeps running. Poll status until every service is ready, or call down to stop it. Next time pass a longer waitSeconds with waitForReady.",
         },
         [
@@ -864,7 +888,7 @@ export function createFliskTools(
     {
       name: "up",
       description:
-        "Start the stack (or part of it) detached from the optional projectPath. The result carries `state`: `ready` (every local-process service passed its readiness check), `starting` (launched, readiness not confirmed: the default after a short wait; poll `status`, or pass waitForReady), `failed` (a service exited or gave up; the error carries its own output) or `timeout` (waitForReady was set and readiness was not reached in waitSeconds; it keeps starting). `started: true` never means ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
+        "Start the stack (or part of it) detached from the optional projectPath. The result carries `state`: `ready` (every local-process service passed its readiness check), `starting` (launched, readiness not confirmed: the default after a short wait; poll `status`, or pass waitForReady), `failed` (a service exited or gave up; the error carries its own output) or `timeout` (waitForReady was set and readiness was not reached in waitSeconds; it keeps starting). Each `data.failures` entry carries `exitCode`, a machine-readable `code` (PROGRAM_NOT_FOUND, PORT_IN_USE, HEALTHCHECK_FAILED, CRASH_LOOP, DEPENDENCY_FAILED or UNKNOWN) and `suggestions`, the same fields `flisk up --json` reports. `started: true` never means ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         stack: { type: "string", description: "Only this stack" },

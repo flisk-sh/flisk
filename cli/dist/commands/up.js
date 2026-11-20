@@ -57,6 +57,7 @@ import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 import { findProjectTiltPorts, findTiltPortOwner, stopOwnedTiltOnPort, } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import { alreadyRunningReport, parseTiltPort, resolveTiltPort, secondUpAction, stopTiltForUp, waitForTiltPortsToStop, } from "../utils/tilt-startup.js";
+import { withUpFailureCodes } from "../utils/up-failure-codes.js";
 import { clearFastNoopState, fastNoopUrls, isPlainUp, stackFingerprint, tryFastNoop, UP_STATE_VERSION, writeFastNoopState, } from "../utils/up-fast-noop.js";
 import { cloneForUp, isGitRepoArg } from "../utils/up-from-git.js";
 import { attachedUpInCiWarning, upFailureHints } from "../utils/up-hints.js";
@@ -470,7 +471,7 @@ async function runUpWait(options) {
     const suggestions = outcome.kind === "timeout"
         ? ["`flisk status` shows which services are not healthy", "`flisk down` stops the stack"]
         : [];
-    const failures = withUnhealthyLogs([], unhealthy);
+    const failures = withUpFailureCodes(withUnhealthyLogs([], unhealthy));
     emit?.(failures.length > 0 ? { ok: false, failures } : { ok: false }, [
         { code, message: reason, suggestions },
     ]);
@@ -490,7 +491,7 @@ function withLogsInResult(json, unhealthy) {
         const parsed = JSON.parse(json);
         if (!parsed.data)
             return json;
-        parsed.data.failures = withUnhealthyLogs(parsed.data.failures ?? [], unhealthy);
+        parsed.data.failures = withUpFailureCodes(withUnhealthyLogs(parsed.data.failures ?? [], unhealthy));
         return JSON.stringify(parsed);
     }
     catch {
@@ -1266,9 +1267,9 @@ export const upCommand = new Command("up")
                     deferred,
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
                 });
-                const failures = readiness.ready
+                const failures = withUpFailureCodes(readiness.ready
                     ? readiness.failures
-                    : await explainFailures(readiness.failures, (name) => tiltResourceLogs(runningPort, name));
+                    : await explainFailures(readiness.failures, (name) => tiltResourceLogs(runningPort, name)));
                 const report = alreadyRunningReport(runningPort, { ...readiness, failures });
                 if (report.ok) {
                     let attachedUrlChecks = [];
@@ -1504,7 +1505,7 @@ export const upCommand = new Command("up")
                 }
                 else {
                     startupFailed = true;
-                    const failures = await explainFailures(readiness.failures, (name) => tiltResourceLogs(port, name));
+                    const failures = withUpFailureCodes(await explainFailures(readiness.failures, (name) => tiltResourceLogs(port, name)));
                     const detail = failures
                         .map((f) => `${f.name}: ${f.message}${f.fix ? `. ${f.fix}` : ""}`)
                         .join("; ");

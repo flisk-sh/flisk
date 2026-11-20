@@ -271,7 +271,7 @@ describe("flisk up --wait failure output", () => {
         data: {
           ok: false,
           failures: [
-            { name: "lp1-api", reason: "kept exiting; see its output above" },
+            { name: "lp1-api", reason: "kept exiting" },
             { name: "lp1-web", reason: "not started: lp1-api did not start" },
             { name: "lp1-db", message: "Docker could not start" },
             { name: "lp1-worker" },
@@ -286,7 +286,7 @@ describe("flisk up --wait failure output", () => {
       const result = await runCommandInProcess(upCommand, ["--wait"], process.cwd());
       const output = stripVTControlCharacters(result.stderr);
       expect(result.status).toBe(1);
-      expect(output).toContain("lp1-api: kept exiting; see its output above");
+      expect(output).toContain("lp1-api: kept exiting");
       expect(output).toContain("lp1-web: not started: lp1-api did not start");
       expect(output).toContain("lp1-db: Docker could not start");
       expect(output).toContain("lp1-worker: failed");

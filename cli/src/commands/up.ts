@@ -161,6 +161,7 @@ import {
   stopTiltForUp,
   waitForTiltPortsToStop,
 } from "../utils/tilt-startup.js";
+import { withUpFailureCodes } from "../utils/up-failure-codes.js";
 import {
   clearFastNoopState,
   type FastNoopFlags,
@@ -733,7 +734,7 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
     outcome.kind === "timeout"
       ? ["`flisk status` shows which services are not healthy", "`flisk down` stops the stack"]
       : [];
-  const failures = withUnhealthyLogs([], unhealthy);
+  const failures = withUpFailureCodes(withUnhealthyLogs([], unhealthy));
   emit?.(failures.length > 0 ? { ok: false, failures } : { ok: false }, [
     { code, message: reason, suggestions },
   ]);
@@ -753,9 +754,9 @@ function withLogsInResult(json: string, unhealthy: UnhealthyLogTail[]): string {
   try {
     const parsed = JSON.parse(json) as { data?: { failures?: Array<{ name: string }> } | null };
     if (!parsed.data) return json;
-    parsed.data.failures = withUnhealthyLogs(parsed.data.failures ?? [], unhealthy) as Array<{
-      name: string;
-    }>;
+    parsed.data.failures = withUpFailureCodes(
+      withUnhealthyLogs(parsed.data.failures ?? [], unhealthy),
+    ) as Array<{ name: string }>;
     return JSON.stringify(parsed);
   } catch {
     return json;
@@ -1693,11 +1694,13 @@ export const upCommand = new Command("up")
             deferred,
             isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
           });
-          const failures = readiness.ready
-            ? readiness.failures
-            : await explainFailures(readiness.failures, (name) =>
-                tiltResourceLogs(runningPort, name),
-              );
+          const failures = withUpFailureCodes(
+            readiness.ready
+              ? readiness.failures
+              : await explainFailures(readiness.failures, (name) =>
+                  tiltResourceLogs(runningPort, name),
+                ),
+          );
           const report = alreadyRunningReport(runningPort, { ...readiness, failures });
           if (report.ok) {
             let attachedUrlChecks: UrlCheck[] = [];
@@ -1971,8 +1974,8 @@ export const upCommand = new Command("up")
             }
           } else {
             startupFailed = true;
-            const failures = await explainFailures(readiness.failures, (name) =>
-              tiltResourceLogs(port, name),
+            const failures = withUpFailureCodes(
+              await explainFailures(readiness.failures, (name) => tiltResourceLogs(port, name)),
             );
             const detail = failures
               .map((f) => `${f.name}: ${f.message}${f.fix ? `. ${f.fix}` : ""}`)

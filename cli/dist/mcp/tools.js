@@ -16,6 +16,7 @@ import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templa
 import { OUTPUT_WITHHELD, projectSecretValues, redactProjectText, redactValue, } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
+import { withUpFailureCodes } from "../utils/up-failure-codes.js";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
@@ -189,7 +190,7 @@ export function readNativeUpSnapshot(projectDir, since) {
     for (const [name, state] of Object.entries(services)) {
         if (state.status === "ready")
             continue;
-        const [withLogs] = withFailureLogs(root, [{ name, reason: state.reason ?? state.status }], since);
+        const [withLogs] = withFailureLogs(root, [{ name, reason: state.reason ?? state.status, exitCode: state.exitCode }], since);
         if (withLogs?.logs?.length)
             logs[name] = withLogs.logs;
     }
@@ -199,13 +200,17 @@ function withUpState(result, state) {
     const envelope = result.data;
     if (!envelope || typeof envelope !== "object")
         return result;
-    return {
-        ...result,
-        data: {
-            ...envelope,
-            data: { ...(envelope.data ?? {}), state, ready: state === "ready" },
-        },
+    const data = {
+        ...(envelope.data ?? {}),
+        state,
+        ready: state === "ready",
     };
+    // The CLI already classifies its failures; run the same classifier here so an older CLI, a snapshot-built
+    // result, or an MCP-only path cannot leave `failures[]` without exitCode/code/suggestions.
+    if (Array.isArray(data.failures)) {
+        data.failures = withUpFailureCodes(data.failures);
+    }
+    return { ...result, data: { ...envelope, data } };
 }
 export const defaultUpDeps = {
     spawnUp(args, logFile, cwd) {
@@ -355,11 +360,16 @@ export async function startUp(args, deps = defaultUpDeps) {
     const snapshot = deps.nativeSnapshot?.(projectPath(args.projectPath) ?? process.cwd(), launchedAt);
     const progress = snapshot ? { services: snapshot.services, logs: snapshot.logs } : {};
     if (waitForReady) {
-        const pending = snapshot
-            ? Object.entries(snapshot.services)
-                .filter(([, service]) => service.status !== "ready")
-                .map(([name, service]) => `${name} (${service.reason ?? service.status})`)
+        const notReady = snapshot
+            ? Object.entries(snapshot.services).filter(([, service]) => service.status !== "ready")
             : [];
+        const pending = notReady.map(([name, service]) => `${name} (${service.reason ?? service.status})`);
+        const failures = withUpFailureCodes(notReady.map(([name, service]) => ({
+            name,
+            reason: service.reason ?? service.status,
+            ...(service.exitCode === undefined ? {} : { exitCode: service.exitCode }),
+            ...(snapshot?.logs[name] ? { logs: snapshot.logs[name] } : {}),
+        })));
         return {
             data: createMachineEnvelope({
                 ok: false,
@@ -369,6 +379,7 @@ export async function startUp(args, deps = defaultUpDeps) {
                 pid: child.pid ?? null,
                 logFile,
                 ...progress,
+                ...(failures.length > 0 ? { failures } : {}),
                 next: "It is still starting and keeps running. Poll status until every service is ready, or call down to stop it. Next time pass a longer waitSeconds with waitForReady.",
             }, [
                 {
@@ -762,7 +773,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "up",
-            description: "Start the stack (or part of it) detached from the optional projectPath. The result carries `state`: `ready` (every local-process service passed its readiness check), `starting` (launched, readiness not confirmed: the default after a short wait; poll `status`, or pass waitForReady), `failed` (a service exited or gave up; the error carries its own output) or `timeout` (waitForReady was set and readiness was not reached in waitSeconds; it keeps starting). `started: true` never means ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
+            description: "Start the stack (or part of it) detached from the optional projectPath. The result carries `state`: `ready` (every local-process service passed its readiness check), `starting` (launched, readiness not confirmed: the default after a short wait; poll `status`, or pass waitForReady), `failed` (a service exited or gave up; the error carries its own output) or `timeout` (waitForReady was set and readiness was not reached in waitSeconds; it keeps starting). Each `data.failures` entry carries `exitCode`, a machine-readable `code` (PROGRAM_NOT_FOUND, PORT_IN_USE, HEALTHCHECK_FAILED, CRASH_LOOP, DEPENDENCY_FAILED or UNKNOWN) and `suggestions`, the same fields `flisk up --json` reports. `started: true` never means ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 stack: { type: "string", description: "Only this stack" },
