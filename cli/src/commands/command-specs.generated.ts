@@ -39,7 +39,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output a versioned JSON stack report",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -85,7 +85,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output a versioned JSON resource report",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -132,7 +132,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output a versioned JSON response",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
+        defaultValue: false,
       },
     ],
     arguments: [],
@@ -210,8 +211,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description:
-          "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
       {
@@ -303,7 +303,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON object on stdout; implies quiet human output",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
       {
@@ -374,7 +374,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Print the report as a JSON envelope",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -425,7 +425,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print the result as a JSON envelope",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
+        defaultValue: false,
       },
     ],
     arguments: [
@@ -495,7 +496,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output one JSON object and exit",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -538,7 +539,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON envelope on stdout; implies --yes",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -608,7 +609,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON envelope on stdout with the importer's output; implies --yes",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -653,8 +654,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description:
-              "Print one JSON envelope on stdout with the importer's output; implies --yes",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -700,8 +700,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description:
-              "Print one JSON envelope on stdout with the importer's output; implies --yes",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -736,7 +735,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON envelope on stdout; implies --print",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -771,7 +770,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     options: [
       {
         flags: "--json",
-        description: "Output a versioned JSON status report",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
       {
@@ -874,8 +873,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description:
-          "Print one JSON envelope on stdout; implies --yes and needs --list, <stack-name> --resources, or --remove --resources",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -1023,7 +1021,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON envelope on stdout; implies --yes",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -1060,7 +1058,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print the check result as JSON",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
+        defaultValue: false,
       },
     ],
     arguments: [],
@@ -1121,7 +1120,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON envelope on stdout; implies --yes and --quiet",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -1241,7 +1240,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -1280,7 +1279,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout; implies --yes",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -1341,8 +1340,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description:
-              "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -1370,7 +1368,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout with the migrated files",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -1400,7 +1398,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Emit a machine-readable verification report",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
+            defaultValue: false,
           },
         ],
         arguments: [],
@@ -1424,7 +1423,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--json",
-            description: "Emit a machine-readable explanation",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
+            defaultValue: false,
           },
         ],
         arguments: [
@@ -1482,8 +1482,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description:
-              "Print one JSON envelope on stdout with the service and its previous state",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -1522,8 +1521,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description:
-              "Print one JSON envelope on stdout with the service and its previous state",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -1603,8 +1601,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description:
-          "Print one JSON envelope on stdout once FliskOS is up; FliskOS keeps running until it stops",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -1635,7 +1632,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output a versioned JSON envelope",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -1704,7 +1701,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output a versioned JSON readiness report",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
       {
@@ -1832,7 +1829,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print the dry-run result as a JSON envelope",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -1862,7 +1859,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output a versioned JSON response",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
+        defaultValue: false,
       },
       {
         flags: "--json-legacy",
@@ -1928,7 +1926,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Output one JSON object and exit",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -1964,7 +1962,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Output one JSON object and exit",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -2016,7 +2014,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Output one JSON object and exit",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -2049,8 +2047,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     options: [
       {
         flags: "--json",
-        description:
-          "Run without input and print one JSON object with the exit code and the output",
+        description: "Print one versioned JSON envelope on stdout; never prompts",
         defaultValue: false,
       },
     ],
@@ -2106,7 +2103,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--json",
-            description: "Output the board as a versioned JSON envelope",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -2143,7 +2140,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Output one JSON envelope with the kit result",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],
@@ -2176,7 +2173,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--json",
-            description: "Output the grid as a versioned JSON envelope",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
           {
@@ -2226,7 +2223,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--json",
-            description: "Output JSON result",
+            description: "Print one versioned JSON envelope on stdout; never prompts",
             defaultValue: false,
           },
         ],

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
+import { jsonOption } from "../utils/command-helpers.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, runCommand } from "../utils/errors.js";
 import { formatCount, showDetail, showEmptyState, showStep } from "../utils/formatting.js";
@@ -13,7 +14,7 @@ export const stacksCommand = new Command("stacks")
     .alias("ls") // Keep 'flisk ls' as shorthand
     .option("-v, --verbose", "Show detailed information about each stack", false)
     .option("--services", "Include list of services in each stack", false)
-    .option("--json", "Output a versioned JSON stack report", false)
+    .addOption(jsonOption())
     .addHelpText("after", "\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json")
     .action(async (options) => {
     const action = async () => {

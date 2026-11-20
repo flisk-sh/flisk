@@ -5,7 +5,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { formatBytes, trimColimaAndMeasure } from "../utils/colima-disk.js";
-import { addYesOption, attachNoPositionalHint, handleDryRun } from "../utils/command-helpers.js";
+import { addYesOption, attachNoPositionalHint, handleDryRun, jsonOption, } from "../utils/command-helpers.js";
 import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
 import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
@@ -233,7 +233,7 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
     .option("--cache-until <age>", "With --prune-cache: age filter for prune (e.g. 24h, 168h, 7d; default: 24h)")
     .option("--purge", "Also delete this project's Docker volumes (database data), networks and images, so nothing of it is left in Docker", false)
     .option("--dry-run", "Show what would be stopped without stopping", false)
-    .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
+    .addOption(jsonOption())
     .option("--project <path>", "Stop the Flisk project in this folder (default: the current project, or the only running one)")
     .addHelpText("after", "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose")
     .action(async (options, command) => {

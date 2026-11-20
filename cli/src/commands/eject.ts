@@ -6,7 +6,12 @@ import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import type { JsonCommandResult } from "../types/index.js";
-import { addYesOption, confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
+import {
+  addYesOption,
+  confirmOrCancel,
+  handleDryRun,
+  jsonOption,
+} from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
@@ -78,7 +83,7 @@ export const ejectCommand = addYesOption(new Command("eject"))
     "Continue even if the CLI does not match the project's version requirements",
     false,
   )
-  .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
+  .addOption(jsonOption())
   .action(async (options) => {
     const action = async (): Promise<JsonCommandResult> => {
       const projectRoot = findProjectRoot();

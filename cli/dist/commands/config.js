@@ -8,7 +8,7 @@ import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
 import { generateMasterConfigs, readProjectConfig, staleServiceOutputs, TemplateEngine, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { isMasterConfigFileName } from "../types/index.js";
-import { assertValid, handleDryRun } from "../utils/command-helpers.js";
+import { assertValid, handleDryRun, jsonOption } from "../utils/command-helpers.js";
 import { explainConfigFile } from "../utils/config-explain.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON, RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE, } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
@@ -58,7 +58,7 @@ export const configCommand = new Command("config")
     .description("Regenerate all 4 master config files from .flisk/project.json")
     .option("--dry-run", "Show what would change without writing files")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
-    .option("--json", "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)", false)
+    .addOption(jsonOption())
     .action(async (options) => {
     if (options.json) {
         await runJsonCommand("REGENERATE_FAILED", "flisk config regenerate", async () => {
@@ -223,7 +223,7 @@ export const configCommand = new Command("config")
     .addCommand(new Command("migrate")
     .description("Migrate service.json files to the current schema version")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
-    .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
+    .addOption(jsonOption())
     .addHelpText("after", `\nExamples:\n  flisk config migrate\n  flisk config migrate --json`)
     .action(async (options) => {
     const action = async () => {
@@ -321,7 +321,7 @@ export const configCommand = new Command("config")
     .addCommand(new Command("verify")
     .description("Verify that generated files match .flisk/project.json")
     .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
-    .option("--json", "Emit a machine-readable verification report")
+    .addOption(jsonOption())
     .addHelpText("after", `\nExamples:\n  flisk config verify\n  flisk config verify --json`)
     .action(async (options) => {
     const action = async () => {
@@ -452,7 +452,7 @@ export const configCommand = new Command("config")
     .addCommand(new Command("explain")
     .description("Explain whether a project file is Flisk-generated and what editing it does on flisk up")
     .argument("<file>", "Project file to explain, relative to the current directory or absolute")
-    .option("--json", "Emit a machine-readable explanation")
+    .addOption(jsonOption())
     .addHelpText("after", `\nExamples:\n  flisk config explain Tiltfile\n  flisk config explain services/orders-api/service.json\n  flisk config explain Tiltfile --json`)
     .action(async (file, options) => {
     const action = async () => {
@@ -615,7 +615,7 @@ function infraToggleCommand(name, enabled) {
         .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
         .option("--dry-run", "Show the planned change without writing project.json")
         .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
-        .option("--json", "Print one JSON envelope on stdout with the service and its previous state", false)
+        .addOption(jsonOption())
         .action(async (service, options) => {
         const action = () => toggleInfraService(service, enabled, options);
         if (options.json) {

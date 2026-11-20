@@ -4,6 +4,7 @@ import { statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "commander";
 import { findCliAssetRoot, loadTemplate } from "../generator/template-engine.js";
+import { jsonOption } from "../utils/command-helpers.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { describeLayoutProblems, EXTENSION_DIRS, inspectExtensionLayout, resolveExtensionDir, resolveSharedPlatformDir, resolveTiltfile, } from "../utils/runtime-layout.js";
 const SHARED_PLATFORM_TEMPLATES = "shared-platform-engineering/docker-templates";
@@ -43,7 +44,7 @@ const REQUIRED_TEMPLATES = [
 export const runtimeCommand = new Command("runtime")
     .description("Inspect the packaged Flisk runtime assets")
     .option("--check-assets", "Check bundled engine and template assets")
-    .option("--json", "Print the check result as JSON")
+    .addOption(jsonOption())
     .action((options) => {
     if (!options.checkAssets) {
         runtimeCommand.outputHelp();

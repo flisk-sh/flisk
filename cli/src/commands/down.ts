@@ -5,7 +5,12 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { formatBytes, trimColimaAndMeasure } from "../utils/colima-disk.js";
-import { addYesOption, attachNoPositionalHint, handleDryRun } from "../utils/command-helpers.js";
+import {
+  addYesOption,
+  attachNoPositionalHint,
+  handleDryRun,
+  jsonOption,
+} from "../utils/command-helpers.js";
 import {
   normalizeCacheUntil,
   pruneDockerBuildCache,
@@ -326,7 +331,7 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
     false,
   )
   .option("--dry-run", "Show what would be stopped without stopping", false)
-  .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
+  .addOption(jsonOption())
   .option(
     "--project <path>",
     "Stop the Flisk project in this folder (default: the current project, or the only running one)",

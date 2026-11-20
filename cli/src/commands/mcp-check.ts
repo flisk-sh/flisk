@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import chalk from "chalk";
 import { Command } from "commander";
+import { jsonOption } from "../utils/command-helpers.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
@@ -144,7 +146,7 @@ export function createMcpCheckCommand(): Command {
       false,
     )
     .option("--no-icon", "Skip the icon-512.png check")
-    .option("--json", "Print the report as a JSON envelope", false)
+    .addOption(jsonOption())
     .action(async (targetArg: string, options: McpCheckCommandOptions) => {
       const run = async (): Promise<{ report: McpCheckReport; target: McpCheckTarget }> => {
         const target = await resolveMcpCheckTarget(targetArg);

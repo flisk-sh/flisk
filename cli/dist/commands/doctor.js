@@ -8,6 +8,7 @@ import { readProjectConfig } from "../generator/template-engine.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_DOCS, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
 import { checkColimaDisk } from "../utils/colima-disk.js";
+import { jsonOption } from "../utils/command-helpers.js";
 import { CONTAINER_RUNTIME_CHECK } from "../utils/constants.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
@@ -69,7 +70,7 @@ export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, c
 export const doctorCommand = new Command("doctor")
     .description("Check environment readiness for Flisk")
     .option("--all", "Run every check and show Machine and Project sections with a summary", false)
-    .option("--json", "Output a versioned JSON readiness report", false)
+    .addOption(jsonOption())
     .exitOverride((error) => {
     if (error.exitCode === 0)
         process.exit(0);

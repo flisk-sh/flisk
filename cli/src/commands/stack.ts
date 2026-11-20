@@ -7,7 +7,12 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { generateMasterConfigs } from "../generator/template-engine.js";
 import type { JsonCommandResult } from "../types/index.js";
-import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
+import {
+  addYesOption,
+  assertValid,
+  confirmOrCancel,
+  jsonOption,
+} from "../utils/command-helpers.js";
 import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
@@ -77,11 +82,7 @@ export const stackCommand = addYesOption(new Command("stack"))
     "Continue even if the CLI does not match the project's version requirements",
     false,
   )
-  .option(
-    "--json",
-    "Print one JSON envelope on stdout; implies --yes and needs --list, <stack-name> --resources, or --remove --resources",
-    false,
-  )
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     "\nExamples:\n  flisk stack --list\n  flisk stack shop --resources orders-api web\n  flisk stack shop --move --resources orders-api --yes\n  flisk stack --remove --resources orders-api --yes",

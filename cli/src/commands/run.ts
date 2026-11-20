@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 import { type SpawnSyncReturns, spawn, spawnSync } from "node:child_process";
 import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
+import { jsonOption } from "../utils/command-helpers.js";
 import {
   errorFactories,
   FliskError,
@@ -162,11 +164,7 @@ export const runServiceCommand = new Command("run")
   .description("Run a one-off command with the environment a service has in the stack")
   .argument("<service>", "Name of the service whose environment the command gets")
   .argument("[command...]", "The command and its arguments, after --")
-  .option(
-    "--json",
-    "Run without input and print one JSON object with the exit code and the output",
-    false,
-  )
+  .addOption(jsonOption())
   .addHelpText(
     "after",
     "\nExamples:\n  flisk run orders-api -- printenv DATABASE_URL\n  flisk run orders-api -- bun run seed\n  flisk run orders-api -- sh",

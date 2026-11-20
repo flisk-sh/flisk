@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { Command } from "commander";
-import { addYesOption } from "../utils/command-helpers.js";
+import { addYesOption, jsonOption } from "../utils/command-helpers.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
@@ -378,7 +378,7 @@ export const composeCommand = addYesOption(new Command("compose"))
     .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
     .option("-f, --force", "Overwrite an existing service.json", false)
     .option("--dry-run", "Print the plan and write nothing", false)
-    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .addOption(jsonOption())
     .allowUnknownOption()
     .helpOption(false)
     .action(async (args, options, cmd) => {
@@ -394,7 +394,7 @@ export const tiltfileCommand = addYesOption(new Command("tiltfile"))
     .argument("[args...]", "Passed to flisk-import tiltfile: [path] --dry-run --yes --force")
     .option("-f, --force", "Overwrite existing orchestration configuration", false)
     .option("--dry-run", "Print the plan and write nothing", false)
-    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .addOption(jsonOption())
     .allowUnknownOption()
     .helpOption(false)
     .action(async (args, options, cmd) => {
@@ -406,7 +406,7 @@ export const importCommand = addYesOption(new Command("import"))
     .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
     .option("-f, --force", "Overwrite an existing service.json", false)
     .option("--dry-run", "Print the plan and write nothing", false)
-    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .addOption(jsonOption())
     .allowUnknownOption()
     .helpOption(false)
     .addCommand(composeCommand)

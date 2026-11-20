@@ -33,7 +33,7 @@ import {
 } from "../utils/capabilities.js";
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { coldStartNotice } from "../utils/cold-start.js";
-import { handleDryRun } from "../utils/command-helpers.js";
+import { handleDryRun, jsonOption } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
 import { diskWarningField, enforceDiskGuard, readDockerVmFreeGib } from "../utils/disk-guard.js";
@@ -849,11 +849,7 @@ export const upCommand = new Command("up")
     "--no-gateway",
     'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it',
   )
-  .option(
-    "--json",
-    "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet",
-    false,
-  )
+  .addOption(jsonOption())
   .option(
     "--wait",
     "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it",

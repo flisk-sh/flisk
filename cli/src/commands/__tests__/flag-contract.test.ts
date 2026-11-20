@@ -14,7 +14,7 @@ import {
   runCommandInProcess,
   runFlisk,
 } from "../../test-support/index.js";
-import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
+import { JSON_OPTION_DESCRIPTION, YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
 import { agentCommand } from "../agent.js";
 import { configCommand } from "../config.js";
 import { connectCommand } from "../connect.js";
@@ -638,6 +638,19 @@ describe("flag contract: -y/--yes and --force convention", () => {
         .map(() => name),
     );
     expect(missingShort).toEqual([]);
+  });
+
+  it("uses one shared --json description that says it never prompts (#4265)", async () => {
+    const allCommands = (await loadAllCommands()).flatMap((cmd) => collectCommands(cmd));
+    const sites = allCommands.flatMap(({ name, command }) => {
+      const option = command.options.find((candidate) => candidate.long === "--json");
+      return option ? [{ name, description: option.description }] : [];
+    });
+    expect(sites.length).toBeGreaterThan(10);
+    for (const { name, description } of sites) {
+      expect(description.startsWith(JSON_OPTION_DESCRIPTION), `${name}: ${description}`).toBe(true);
+      expect(description, `${name} says --json never prompts`).toContain("never prompts");
+    }
   });
 
   it("uses the shared YES_OPTION_DESCRIPTION across standard --yes commands", async () => {

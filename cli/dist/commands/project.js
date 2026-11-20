@@ -9,7 +9,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
 import { installAgentSkills } from "../utils/agent-skills.js";
-import { addYesOption } from "../utils/command-helpers.js";
+import { addYesOption, jsonOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { completeEnvFile, ensureEnvFile, validateEnvFile } from "../utils/env-validator.js";
@@ -515,7 +515,7 @@ export const projectCommand = addYesOption(new Command("project"))
     .option("-q, --quiet", "Only print what fails; used by `flisk demo`", false)
     .option("--no-agent-skills", "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md")
     .option("--list", "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates", false)
-    .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
+    .addOption(jsonOption())
     .addHelpText("after", "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check")
     .action(async (template, options) => {
     const json = Boolean(options.json);

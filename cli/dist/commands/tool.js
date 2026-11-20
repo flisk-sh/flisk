@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { Command } from "commander";
 import { cliInvocation } from "../utils/cli-invocation.js";
-import { addYesOption } from "../utils/command-helpers.js";
+import { addYesOption, jsonOption } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
@@ -261,7 +261,7 @@ const toolAddCommand = addYesOption(new Command("add"))
     .argument("[tool-and-name...]", "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); use flisk tool list to browse the catalogue")
     .option("-s, --stack <stack>", "Stack to assign the resource to (default: as flisk resource picks it)")
     .option("--dry-run", "Preview the resource without writing files or reserving a port", false)
-    .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
+    .addOption(jsonOption())
     .addHelpText("after", "\nExamples:\n  flisk tool list\n  flisk tool add react\n  flisk tool add postgresql\n  flisk tool add fastapi orders-api --stack shop\n  flisk tool add spring boot\n  flisk tool add rag --dry-run")
     .action(async (words, options) => {
     if (words.length === 0 || words.every((word) => !word.trim())) {
@@ -290,7 +290,7 @@ const toolAddCommand = addYesOption(new Command("add"))
 });
 const toolListCommand = new Command("list")
     .description("List every tool in the catalogue")
-    .option("--json", "Print one JSON envelope on stdout", false)
+    .addOption(jsonOption())
     .addHelpText("after", "\nExamples:\n  flisk tool list\n  flisk tool list --json")
     .action(async (options) => {
     if (options.json) {

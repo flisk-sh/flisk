@@ -119,6 +119,33 @@ test("invalidSkills flags a name that differs from its folder and a thin descrip
 	}
 });
 
+test("json-output accepts a literal flag and the shared jsonOption helper", () => {
+	const literal = fixture({
+		"cli/src/commands/status.ts": 'program.option("--json", "x")\n',
+		"cli/src/commands/doctor.ts": 'program.option("--json", "x")\n',
+	});
+	const sharedHelper = 'export const JSON_OPTION_FLAGS = "--json";\nexport function jsonOption() {}\n';
+	const shared = fixture({
+		"cli/src/utils/command-helpers.ts": sharedHelper,
+		"cli/src/commands/status.ts": 'import { jsonOption } from "../utils/command-helpers.js";\nprogram.addOption(jsonOption());\n',
+		"cli/src/commands/doctor.ts": 'import { jsonOption } from "../utils/command-helpers.js";\nprogram.addOption(jsonOption());\n',
+	});
+	const missing = fixture({
+		"cli/src/utils/command-helpers.ts": sharedHelper,
+		"cli/src/commands/status.ts": 'import { jsonOption } from "../utils/command-helpers.js";\nprogram.addOption(jsonOption());\n',
+		"cli/src/commands/doctor.ts": 'program.option("--stacks", "x")\n',
+	});
+	try {
+		assert.equal(byId(runChecks(literal), "json-output").pass, true);
+		assert.equal(byId(runChecks(shared), "json-output").pass, true);
+		assert.equal(byId(runChecks(missing), "json-output").pass, false);
+	} finally {
+		rmSync(literal, { recursive: true });
+		rmSync(shared, { recursive: true });
+		rmSync(missing, { recursive: true });
+	}
+});
+
 test("worktree-isolation needs a `worktree add` call, not a worktree detector", () => {
 	const detector = fixture({
 		"cli/src/utils/git.ts": "export function isInsideGitWorkTree() {}\n// a linked worktree has a .git file\n",

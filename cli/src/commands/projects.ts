@@ -5,7 +5,7 @@ import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { projectNeedsContainerFiles } from "../generator/template-engine.js";
-import { addYesOption, attachNoPositionalHint } from "../utils/command-helpers.js";
+import { addYesOption, attachNoPositionalHint, jsonOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findRunningFliskProjects } from "../utils/down-cleanup.js";
@@ -75,7 +75,7 @@ export const projectsCommand = attachNoPositionalHint(addYesOption(new Command("
     "With --stale: delete the containers, volumes (database data), networks and images those projects left",
     false,
   )
-  .option("--json", "Output a versioned JSON response")
+  .addOption(jsonOption())
   .action(async (options) => {
     const action = async (): Promise<void> => {
       if (options.prune && !options.stale) {

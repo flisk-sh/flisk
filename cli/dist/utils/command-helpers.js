@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { writeSync } from "node:fs";
+import { Option } from "commander";
 import { rewriteUnknownCommandMessage } from "./command-suggestions.js";
 import { FliskError, showErrorAndExit } from "./errors.js";
 import { showCancelled } from "./formatting.js";
@@ -8,6 +9,13 @@ import { createMachineEnvelope } from "./machine-output.js";
 import { promptConfirm } from "./prompt.js";
 export const YES_OPTION_FLAGS = "-y, --yes";
 export const YES_OPTION_DESCRIPTION = "Skip prompts and confirmations; use defaults";
+export const JSON_OPTION_FLAGS = "--json";
+/** Every `--json` help line starts with this sentence so a user can tell it never prompts (#4265). */
+export const JSON_OPTION_DESCRIPTION = "Print one versioned JSON envelope on stdout; never prompts";
+/** Registers the standard `--json` flag with shared help text and an optional command-specific tail. */
+export function jsonOption(tail) {
+    return new Option(JSON_OPTION_FLAGS, tail ? `${JSON_OPTION_DESCRIPTION}; ${tail}` : JSON_OPTION_DESCRIPTION).default(false);
+}
 export const NO_POSITIONAL_HINTS = {
     down: "Service names are not positional: down stops the whole project. Use: flisk down (or flisk down --project <path>)",
     status: "Service names are not positional: status shows the whole project. Use: flisk status (or flisk logs --service <name>)",

@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { jsonOption } from "../utils/command-helpers.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -301,7 +302,7 @@ export const osCommand = new Command("os")
     .option("--port <port>", "Port FliskOS listens on (default: a free one)")
     .option("--no-open", "Start the server without opening a window or browser")
     .option("--scan-root <dir>", "Also look for Flisk projects under this folder (repeatable)", collect)
-    .option("--json", "Print one JSON envelope on stdout once FliskOS is up; FliskOS keeps running until it stops", false)
+    .addOption(jsonOption())
     .addHelpText("after", `
 Runs the \`${FLISKOS_COMMAND}\` command when it is on PATH, otherwise opens ${FLISKOS_APP}.app (macOS). Flisk never
 installs it: ${FLISKOS_PACKAGE} (npm install --global ${FLISKOS_PACKAGE}) or ${FLISKOS_REPOSITORY}.

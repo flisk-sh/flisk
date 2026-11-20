@@ -565,7 +565,7 @@
 					{
 						"text": {
 							"file": "cli/src/commands/up.ts",
-							"contains": "when the stack is ready or the command fails"
+							"contains": "Start the stack in the background and return once every service is healthy"
 						}
 					},
 					{

@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { formatAge } from "../utils/agent-format.js";
 import { agentSessionListRequest, agentSessionRequest, fetchAgent, parseAgentSessionList, } from "../utils/agent-sessions.js";
+import { jsonOption } from "../utils/command-helpers.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { formatBytes } from "../utils/formatting.js";
@@ -48,7 +49,7 @@ agentCommand
     .option("-s, --stack <stack>", "Filter agent resources by stack name")
     .option("--no-stack", "Show only agent resources without a stack")
     .option("--ports", "Show port assignments", false)
-    .option("--json", "Output one JSON object and exit", false)
+    .addOption(jsonOption())
     .addHelpText("after", "\nExamples:\n  flisk agent list\n  flisk agent list --stack shop\n  flisk agent list --json")
     .action(async (options) => {
     await runResourcesList({ ...options, type: "agent" });
@@ -58,7 +59,7 @@ agentCommand
     .description("List the sessions of a running AI agent resource, or inspect one session's checkpoint")
     .option("--session-id <id>", "Session ID to fetch; without it, list all sessions")
     .option("--watch", "Refresh the output every 2 seconds until interrupted", false)
-    .option("--json", "Output one JSON object and exit", false)
+    .addOption(jsonOption())
     .action(async (resourceName, options) => {
     // JSON mode prints its envelope and exits 1; human mode throws, and runCommand prints the message and hints.
     const fail = ({ code, message, hints }) => {

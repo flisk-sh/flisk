@@ -3,7 +3,7 @@
 import chalk from "chalk";
 import { Command, Option } from "commander";
 import { isResourceCreateType } from "../types/index.js";
-import { routeUsageErrorsToJson } from "../utils/command-helpers.js";
+import { jsonOption, routeUsageErrorsToJson } from "../utils/command-helpers.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
@@ -137,7 +137,7 @@ export const resourcesCommand = routeUsageErrorsToJson(new Command("resources"))
     .option("-t, --type <type>", "Filter resources by type")
     .addOption(noStackOption)
     .option("--ports", "Show port assignments in text view (JSON output is unchanged)", false)
-    .option("--json", "Output a versioned JSON resource report", false)
+    .addOption(jsonOption())
     .addHelpText("after", "\nExamples:\n  flisk resources\n  flisk resources --type database\n  flisk resources --ports")
     .action(async (options) => {
     await runResourcesList(options);

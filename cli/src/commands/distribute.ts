@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
 /**
  * `flisk distribute`: how an app gets to its users. Reads service.json files and distribution.json,
  * and writes local files only. It never submits a listing, calls a marketplace or cloud API, or deploys.
@@ -7,6 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
+import { jsonOption } from "../utils/command-helpers.js";
 import {
   buildBoard,
   buildKit,
@@ -56,7 +58,7 @@ const boardCommand = new Command("board")
   .description(
     "Print the Zachman board: six perspectives (Planner to User) by six questions, each cell read from service.json or distribution.json",
   )
-  .option("--json", "Output the board as a versioned JSON envelope", false)
+  .addOption(jsonOption())
   .action(async (options: { json?: boolean }) => {
     await run(Boolean(options.json), async () => {
       const root = projectRootOrThrow();
@@ -77,7 +79,7 @@ const kitCommand = new Command("kit")
   .option("--out <dir>", "Folder to write the kit to (default: distribution/<resource>)")
   .option("--dry-run", "Print the kit and write nothing", false)
   .option("--force", "Overwrite an existing kit", false)
-  .option("--json", "Output one JSON envelope with the kit result", false)
+  .addOption(jsonOption())
   .action(
     async (
       resourceName: string,
@@ -160,7 +162,7 @@ const kitCommand = new Command("kit")
 
 const statusSubcommand = new Command("status")
   .description(`Print the channel grid from ${DISTRIBUTION_FILE}`)
-  .option("--json", "Output the grid as a versioned JSON envelope", false)
+  .addOption(jsonOption())
   .option("--init", `Write an empty ${DISTRIBUTION_FILE} for the project's resources`, false)
   .option(
     "--force",

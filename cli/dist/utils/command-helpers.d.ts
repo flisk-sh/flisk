@@ -1,7 +1,12 @@
-import type { Command } from "commander";
+import { type Command, Option } from "commander";
 import type { ValidationResult } from "../types/index.js";
 export declare const YES_OPTION_FLAGS = "-y, --yes";
 export declare const YES_OPTION_DESCRIPTION = "Skip prompts and confirmations; use defaults";
+export declare const JSON_OPTION_FLAGS = "--json";
+/** Every `--json` help line starts with this sentence so a user can tell it never prompts (#4265). */
+export declare const JSON_OPTION_DESCRIPTION = "Print one versioned JSON envelope on stdout; never prompts";
+/** Registers the standard `--json` flag with shared help text and an optional command-specific tail. */
+export declare function jsonOption(tail?: string): Option;
 export declare const NO_POSITIONAL_HINTS: Readonly<Record<string, string>>;
 /**
  * Routes a command's usage errors (unknown option or command, missing argument or option
