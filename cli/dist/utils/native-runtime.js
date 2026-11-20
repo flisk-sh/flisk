@@ -209,17 +209,33 @@ export function findMissingPrograms(plans, find = findOnPath, exists = existsSyn
     }
     return missing;
 }
-/** True when something accepts TCP connections on localhost:port. */
+/**
+ * True when something accepts TCP connections on localhost:port. The probe ends the socket
+ * cleanly after connecting: an immediate destroy can make a server that has already written a
+ * greeting log a connection reset, which looks like a failure to the person running `flisk up`.
+ */
 export function isPortListening(port, timeoutMs = 1_000) {
     return new Promise((resolve) => {
         const socket = connect({ host: "localhost", port });
-        const finish = (listening) => {
-            socket.destroy();
+        let settled = false;
+        const finish = (listening, graceful) => {
+            if (settled)
+                return;
+            settled = true;
+            if (graceful && !socket.destroyed) {
+                socket.end();
+                // Drain anything the server sent so its write finishes before we let go of the socket.
+                socket.resume();
+                socket.once("close", () => socket.destroy());
+            }
+            else {
+                socket.destroy();
+            }
             resolve(listening);
         };
-        socket.setTimeout(timeoutMs, () => finish(false));
-        socket.once("connect", () => finish(true));
-        socket.once("error", () => finish(false));
+        socket.setTimeout(timeoutMs, () => finish(false, false));
+        socket.once("connect", () => finish(true, true));
+        socket.once("error", () => finish(false, false));
     });
 }
 async function healthCheckStatus(url) {
@@ -231,6 +247,24 @@ async function healthCheckStatus(url) {
     catch {
         return null;
     }
+}
+/**
+ * The single readiness probe used while starting, restarting or waiting for a local process.
+ * When the plan has an HTTP health URL the first probe is a real HTTP GET, so an HTTP server
+ * never sees a bare connect that it would log as a reset. TCP and command checks keep their
+ * own probe. This is shared by `up`, `status` and `--wait` through `waitForServiceReady`.
+ */
+export async function probeServiceReady(plan) {
+    const readiness = plan.healthCheckDisabled ? undefined : plan.readiness;
+    if (readiness?.kind === "port") {
+        return (await isPortListening(readiness.port)) ? 0 : null;
+    }
+    if (readiness?.kind === "command") {
+        return (await readinessCommandPasses(readiness.command, plan)) ? 0 : null;
+    }
+    if (plan.healthUrl)
+        return healthCheckStatus(plan.healthUrl);
+    return plan.port !== undefined && (await isPortListening(plan.port)) ? 0 : null;
 }
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
 export async function waitForServiceReady(plan, options) {
@@ -244,19 +278,12 @@ export async function waitForServiceReady(plan, options) {
     while (Date.now() < deadline) {
         if (!options.isAlive())
             return false;
-        const ready = readiness?.kind === "port"
-            ? await isPortListening(readiness.port)
-            : readiness?.kind === "command"
-                ? await readinessCommandPasses(readiness.command, plan)
-                : plan.healthUrl
-                    ? await healthCheckStatus(plan.healthUrl).then((status) => {
-                        if (status !== null)
-                            options.onStatus?.(status);
-                        return status !== null;
-                    })
-                    : await isPortListening(plan.port);
-        if (ready)
+        const status = await probeServiceReady(plan);
+        if (status !== null) {
+            if (status > 0)
+                options.onStatus?.(status);
             return true;
+        }
         await sleep(interval);
     }
     return false;
