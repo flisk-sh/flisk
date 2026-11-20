@@ -281,6 +281,8 @@ There is no unscoped `flisk` package, and the release does not try to publish on
 
 ## Building binaries by hand
 
+The npm entries call `bash scripts/release-binaries.sh ...`, so on Windows run them from Git Bash or Ubuntu on WSL2 with `bash` on `PATH`. Native `cmd.exe` cannot execute `.sh` files; the `bash` prefix makes that requirement explicit instead of hiding it behind a `'scripts' is not recognized` error.
+
 ```bash
 scripts/release-binaries.sh                    # build only: release-dist-<version>/
 scripts/release-binaries.sh --publish          # build, create a draft release, verify bytes, publish

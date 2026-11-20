@@ -18,6 +18,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const rootPackagePath = fileURLToPath(new URL("../package.json", import.meta.url));
+const installerPath = fileURLToPath(new URL("./install-git-hooks.mjs", import.meta.url));
 const prepareCommand = JSON.parse(readFileSync(rootPackagePath, "utf8")).scripts.prepare;
 const TIMEOUT_MS = 30_000;
 // npm is a .cmd shim on Windows, so only there does it need a shell; the command and arguments are literals, never input.
@@ -31,9 +32,16 @@ function withCheckout({ gitRepo = true, hooksDirectory = false, globalHooksPath 
     mkdirSync(scripts, { recursive: true });
     writeFileSync(
       join(root, "package.json"),
-      JSON.stringify({ name: "flisk-hooks-fixture", version: "1.0.0", scripts: { prepare: prepareCommand } }),
+      JSON.stringify({
+        name: "flisk-hooks-fixture",
+        version: "1.0.0",
+        scripts: { prepare: prepareCommand },
+      }),
     );
-    copyFileSync(fileURLToPath(new URL("./install-git-hooks.sh", import.meta.url)), join(scripts, "install-git-hooks.sh"));
+    copyFileSync(
+      fileURLToPath(new URL("./install-git-hooks.mjs", import.meta.url)),
+      join(scripts, "install-git-hooks.mjs"),
+    );
     if (hooksDirectory) {
       mkdirSync(join(root, ".githooks"));
       writeFileSync(join(root, ".githooks", "pre-commit"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
@@ -41,12 +49,16 @@ function withCheckout({ gitRepo = true, hooksDirectory = false, globalHooksPath 
 
     const globalConfig = join(tmp, "global-gitconfig");
     writeFileSync(globalConfig, "");
-    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+    );
     env.GIT_CONFIG_GLOBAL = globalConfig;
     env.GIT_CONFIG_NOSYSTEM = "1";
     env.GIT_CEILING_DIRECTORIES = tmp;
     if (globalHooksPath) {
-      execFileSync("git", ["config", "--file", globalConfig, "core.hooksPath", globalHooksPath], { env });
+      execFileSync("git", ["config", "--file", globalConfig, "core.hooksPath", globalHooksPath], {
+        env,
+      });
     }
     if (gitRepo) {
       execFileSync("git", ["init", "-q"], { cwd: root, env, stdio: "pipe", timeout: TIMEOUT_MS });
@@ -61,7 +73,11 @@ function withCheckout({ gitRepo = true, hooksDirectory = false, globalHooksPath 
         ...NPM_SPAWN_OPTIONS,
       });
     const gitConfig = (...args) =>
-      spawnSync("git", ["-C", root, "config", ...args], { env, encoding: "utf8", timeout: TIMEOUT_MS });
+      spawnSync("git", ["-C", root, "config", ...args], {
+        env,
+        encoding: "utf8",
+        timeout: TIMEOUT_MS,
+      });
     return fn({ root, globalConfig, runInstall, gitConfig });
   } finally {
     rmSync(tmp, { recursive: true, force: true });
@@ -69,15 +85,18 @@ function withCheckout({ gitRepo = true, hooksDirectory = false, globalHooksPath 
 }
 
 test("package install does not override hooks when the checkout has no .githooks directory", () => {
-  withCheckout({ hooksDirectory: false, globalHooksPath: "user-hooks" }, ({ root, runInstall, gitConfig }) => {
-    const result = runInstall();
-    assert.equal(result.status, 0, result.error?.message || result.stderr);
-    assert.equal(existsSync(join(root, ".githooks")), false);
-    const localHooksPath = gitConfig("--local", "--get", "core.hooksPath");
-    assert.equal(localHooksPath.status, 1, localHooksPath.stderr);
-    const effectiveHooksPath = gitConfig("--get", "core.hooksPath");
-    assert.equal(effectiveHooksPath.stdout.trim(), "user-hooks");
-  });
+  withCheckout(
+    { hooksDirectory: false, globalHooksPath: "user-hooks" },
+    ({ root, runInstall, gitConfig }) => {
+      const result = runInstall();
+      assert.equal(result.status, 0, result.error?.message || result.stderr);
+      assert.equal(existsSync(join(root, ".githooks")), false);
+      const localHooksPath = gitConfig("--local", "--get", "core.hooksPath");
+      assert.equal(localHooksPath.status, 1, localHooksPath.stderr);
+      const effectiveHooksPath = gitConfig("--get", "core.hooksPath");
+      assert.equal(effectiveHooksPath.stdout.trim(), "user-hooks");
+    },
+  );
 });
 
 test("package install uses .githooks when the checkout ships that directory", () => {
@@ -98,4 +117,16 @@ test("package install exits cleanly and changes no git config outside a checkout
     assert.equal(existsSync(join(root, ".git")), false);
     assert.equal(readFileSync(globalConfig, "utf8"), "");
   });
+});
+
+test("hook installer stays silent and exits zero when git is unavailable", () => {
+  const result = spawnSync(process.execPath, [installerPath], {
+    cwd: tmpdir(),
+    env: { ...process.env, PATH: "" },
+    encoding: "utf8",
+    timeout: TIMEOUT_MS,
+  });
+  assert.equal(result.status, 0, result.error?.message || result.stderr);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "");
 });
