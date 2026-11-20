@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -216,7 +216,9 @@ for label, text in [('backend', backend_entry), ('frontend', frontend_entry)]:
     mkdirSync(join(dir, ".flisk"), { recursive: true });
     writeFileSync(
       join(dir, ".flisk", ".project-id"),
-      `${JSON.stringify({ id: "a1b2c3d4", path: dir })}\n`,
+      // The canonical absolute path, the way getCheckoutId persists it (realpathSync), so the record's
+      // path matches the current checkout — a record naming another path must not be trusted.
+      `${JSON.stringify({ id: "a1b2c3d4", path: realpathSync(dir) })}\n`,
     );
     expectPasses(
       `load(${JSON.stringify(utilsStar)}, 'Utils')

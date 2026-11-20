@@ -3,6 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
+import { ensureCheckoutRecordIgnored } from "./file-helpers.js";
 /** Environment variable exposing the stable per-checkout 8-hex identifier. */
 export const CHECKOUT_ID_ENV = "FLISK_CHECKOUT_ID";
 /** Environment variable exposing the sanitized per-checkout folder name. */
@@ -77,7 +78,10 @@ function deterministicFallbackId(canonicalPath) {
  * The file records both the id and the canonical absolute path it was created
  * for. If the recorded path differs from the current path (the folder was
  * copied or moved), a fresh id is generated and persisted so two copies never
- * share one.
+ * share one. First-time creation is exclusive (`wx`): when two processes start
+ * the same checkout while the file is missing, the one that loses the race
+ * adopts the winner's id instead of overwriting it, so both report and inject
+ * the same `FLISK_CHECKOUT_ID`.
  */
 export function getCheckoutId(projectRoot, options = {}) {
     const currentPath = canonicalCheckoutPath(projectRoot);
@@ -90,10 +94,30 @@ export function getCheckoutId(projectRoot, options = {}) {
         return deterministicFallbackId(currentPath);
     }
     const nextId = generateHexId(persisted?.id);
+    const contents = `${JSON.stringify({ id: nextId, path: currentPath })}\n`;
     try {
         mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
-        const record = { id: nextId, path: currentPath };
-        writeFileSync(idPath, `${JSON.stringify(record)}\n`, "utf-8");
+        // The record names this machine's path, so it must not be committable wherever it is written.
+        ensureCheckoutRecordIgnored(projectRoot);
+        if (persisted) {
+            // A record for another path (the folder was copied or moved): replace it so this checkout gets its own id.
+            writeFileSync(idPath, contents, "utf-8");
+        }
+        else {
+            try {
+                writeFileSync(idPath, contents, { encoding: "utf-8", flag: "wx" });
+            }
+            catch (error) {
+                if (error.code !== "EEXIST")
+                    throw error;
+                // Another process created the record first: adopt its id so both processes agree. A record that
+                // names another path (or cannot be read) is replaced, as a copied or moved checkout must be.
+                const winner = readPersistedCheckoutId(idPath);
+                if (winner && winner.path === currentPath)
+                    return winner.id;
+                writeFileSync(idPath, contents, "utf-8");
+            }
+        }
         return nextId;
     }
     catch {

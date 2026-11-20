@@ -42,13 +42,13 @@ const STRING_LIST_OPTIONS = {
  * (`-e KEY`), so their values reach the container from the environment of the `docker` process and never show in `ps`.
  * Returns the errors that stop the run instead of guessing (a bind mount that leaves the project).
  */
-/** Expands `${VAR}` / `${VAR:-default}` while keeping Compose `$$` as a literal `$`. */
-function expandContainerWord(word, envVars) {
+/** Expands `${VAR}` / `${VAR:-default}` while keeping Compose `$$` as a literal `$`. Unresolved names without a default are reported through `onMissing`, like every other native-run expansion. */
+function expandContainerWord(word, envVars, onMissing = () => { }) {
     if (!envVars)
         return word.replace(/\$\$/g, "$");
     return word
         .split("$$")
-        .map((part) => expandEnvValue(part, envVars))
+        .map((part) => expandEnvValue(part, envVars, onMissing))
         .join("$");
 }
 export function dockerRunArgs(resource, options) {
@@ -116,7 +116,7 @@ export function dockerRunArgs(resource, options) {
     if (typeof container.shmSize === "string")
         args.push("--shm-size", container.shmSize);
     const rawEntrypoint = stringList(container.entrypoint);
-    const entrypoint = rawEntrypoint?.map((word) => expandContainerWord(word, options.envVars));
+    const entrypoint = rawEntrypoint?.map((word) => expandContainerWord(word, options.envVars, options.onMissing));
     // `docker run --entrypoint` takes one program; the rest of an entrypoint list goes in front of the command.
     if (entrypoint)
         args.push("--entrypoint", entrypoint[0] ?? "");
@@ -126,7 +126,7 @@ export function dockerRunArgs(resource, options) {
     // Compose reads `$$VAR` as a literal `$VAR` and expands `${VAR}`; docker run does neither, so mirror Compose here.
     const command = stringList(container.command);
     if (command)
-        args.push(...command.map((word) => expandContainerWord(word, options.envVars)));
+        args.push(...command.map((word) => expandContainerWord(word, options.envVars, options.onMissing)));
     return { args, errors };
 }
 function stringList(value) {

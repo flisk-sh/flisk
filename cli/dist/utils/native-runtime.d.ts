@@ -29,6 +29,8 @@ export interface NativeServicePlan {
     dependsOn: string[];
     /** Polled until it answers below 400 before dependents start. */
     healthUrl?: string;
+    /** The raw health-check path, kept so values a migrator produced can rebind after the outputs exist. */
+    rawHealthPath?: string;
     /** What `flisk up` prints for the service. */
     url?: string;
     restart: boolean;
@@ -36,6 +38,8 @@ export interface NativeServicePlan {
     healthCheckDisabled?: boolean;
     /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
     readiness?: ReadinessProbe;
+    /** The raw readiness probe, kept so values a migrator produced can rebind after the outputs exist. */
+    rawProbe?: ReadinessProbe;
     /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
     job?: boolean;
     /** The container name when the service is a ready-made `image` that `docker run` starts in a mixed run. */
@@ -292,6 +296,13 @@ export declare class NativeSupervisor {
     /** Parsed outputs produced by finished migrators (for inspection and tests). */
     outputsOf(migratorName: string): Record<string, string> | undefined;
     private resolveServiceEnv;
+    /**
+     * Re-expands the raw health-check path and the raw probe words against the values that exist now. planNativeRun
+     * expanded them once, but a value a migrator produced arrives after planning, so those references must bind after
+     * `resolveServiceEnv` updates the env. The scope keeps the plan-time ranking: the service directory's `.env`, then
+     * the run's variables (baseEnv), then the service's own env.
+     */
+    private rebindLateValues;
     private spawn;
     private onExit;
     /** Starts a service again after it exited, and reports when it is ready again. */

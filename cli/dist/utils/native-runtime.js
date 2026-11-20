@@ -16,7 +16,7 @@ import { appendNativeLogLine, readLogTail } from "./native-log.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, processStartTime } from "./process-identity.js";
-import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
+import { createEnvRedactor, createPrivateKeyLineGuard, OUTPUT_WITHHELD, } from "./secret-redaction.js";
 import { healthCheckPathOf, isHealthCheckDisabled, readinessProbeOf, } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
@@ -124,8 +124,22 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
         for (const [key, value] of Object.entries(config.env ?? {})) {
             rawEnv[key] = String(value);
         }
+        // Without a health path a service is ready once its port listens, which is what gates its dependents.
+        const healthDisabled = isHealthCheckDisabled(config);
+        const rawHealthPath = healthDisabled ? undefined : healthCheckPathOf(config);
+        const rawProbe = readinessProbeOf(config);
+        // A `${migrator:KEY}` reference in a late-bound string (the raw health path, the raw probe words) is held
+        // unexpanded until the migrator outputs exist, so such a reference must name a dependency like the ones in env.
+        const lateBoundStrings = {};
+        if (rawHealthPath !== undefined)
+            lateBoundStrings["healthCheck.path"] = rawHealthPath;
+        if (rawProbe?.kind === "command") {
+            rawProbe.command.forEach((part, index) => {
+                lateBoundStrings[`healthCheck.command.${index}`] = part;
+            });
+        }
         try {
-            validateMigratorOutputReferences(resource.name, rawEnv, dependsOn);
+            validateMigratorOutputReferences(resource.name, { ...rawEnv, ...lateBoundStrings }, dependsOn);
         }
         catch (err) {
             if (err instanceof FliskError)
@@ -156,26 +170,26 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
         if (port !== undefined && !containerName)
             env.PORT = String(port);
         const expandScope = { ...baseExpansionVars, ...env };
-        let command = containerName
-            ? String(config.command)
-            : expandEnvValue(String(config.command), expandScope, reportMissing);
+        // A local service's command is a shell line the project owner wrote in their own service.json. The platform shell
+        // expands `${VAR}` at launch from the child environment (the run's env file and shell through baseEnv, plus this
+        // env), so a value that contains quotes or `$()` reaches the process as literal argument data instead of being
+        // reparsed as shell syntax, and one a migrator produces binds at spawn time, once the output exists. A container
+        // service's line is built from its image and container.command below.
+        let command = String(config.command);
         if (containerName) {
             const run = dockerRunArgs(resource, {
                 projectName: containerProject,
                 projectRoot: root,
                 envKeys: Object.keys(env),
                 envVars: expandScope,
+                onMissing: reportMissing,
             });
             errors.push(...run.errors);
             command = dockerRunLine(run.args, containerName);
         }
-        // Without a health path a service is ready once its port listens, which is what gates its dependents.
-        const healthDisabled = isHealthCheckDisabled(config);
-        const rawHealthPath = healthDisabled ? undefined : healthCheckPathOf(config);
         const healthPath = rawHealthPath !== undefined
             ? expandEnvValue(rawHealthPath, expandScope, reportMissing)
             : undefined;
-        const rawProbe = readinessProbeOf(config);
         const probe = rawProbe?.kind === "command"
             ? {
                 kind: "command",
@@ -197,6 +211,7 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
             ...(Object.keys(rawEnv).length > 0 ? { rawEnv } : {}),
             dependsOn: [...new Set(dependsOn)],
             healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
+            ...(rawHealthPath !== undefined ? { rawHealthPath } : {}),
             // A container with no HTTP health path is a database or a cache: print its address, not a web link.
             url: port === undefined
                 ? undefined
@@ -206,6 +221,7 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
             restart: config.restart !== "no" && !job,
             ...(healthDisabled ? { healthCheckDisabled: true } : {}),
             ...(readiness ? { readiness } : {}),
+            ...(rawProbe?.kind === "command" ? { rawProbe } : {}),
             ...(job ? { job: true } : {}),
             ...(containerName ? { container: containerName } : {}),
         };
@@ -838,18 +854,48 @@ export class NativeSupervisor {
         return this.migratorOutputs.get(migratorName);
     }
     resolveServiceEnv(service) {
-        if (!service.plan.rawEnv)
+        const plan = service.plan;
+        const hasLateEnv = plan.rawEnv !== undefined;
+        const hasLateProbe = plan.rawHealthPath !== undefined || plan.rawProbe !== undefined;
+        if (!hasLateEnv && !hasLateProbe)
             return;
         const outputsRecord = {};
         for (const [k, v] of this.migratorOutputs) {
             outputsRecord[k] = v;
         }
-        const resolved = resolveMigratorOutputsInEnv(service.plan.name, service.plan.rawEnv, service.plan.dependsOn, outputsRecord);
-        // Only keys that reference a migrator are replaced; every other key keeps the value planNativeRun already expanded.
-        for (const [k, v] of Object.entries(resolved)) {
-            if (v === service.plan.rawEnv[k])
-                continue;
-            service.plan.env[k] = expandEnvValue(v, { ...process.env, ...service.plan.env });
+        if (hasLateEnv) {
+            const resolved = resolveMigratorOutputsInEnv(plan.name, plan.rawEnv, plan.dependsOn, outputsRecord);
+            // Only keys that reference a migrator are replaced; every other key keeps the value planNativeRun already expanded.
+            for (const [k, v] of Object.entries(resolved)) {
+                if (v === plan.rawEnv?.[k])
+                    continue;
+                plan.env[k] = expandEnvValue(v, { ...process.env, ...plan.env });
+            }
+        }
+        // Values that depend on a migrator bind here, after the outputs exist: the placeholder planning kept in the
+        // health path and the probe words is never probed.
+        this.rebindLateValues(service, outputsRecord);
+    }
+    /**
+     * Re-expands the raw health-check path and the raw probe words against the values that exist now. planNativeRun
+     * expanded them once, but a value a migrator produced arrives after planning, so those references must bind after
+     * `resolveServiceEnv` updates the env. The scope keeps the plan-time ranking: the service directory's `.env`, then
+     * the run's variables (baseEnv), then the service's own env.
+     */
+    rebindLateValues(service, outputsRecord) {
+        const plan = service.plan;
+        const scope = { ...readServiceDotenv(plan.cwd), ...(this.baseEnv ?? process.env), ...plan.env };
+        const rebind = (raw) => expandEnvValue(resolveMigratorOutputsInEnv(plan.name, { value: raw }, plan.dependsOn, outputsRecord)
+            .value ?? "", scope);
+        if (plan.rawHealthPath !== undefined && plan.port !== undefined) {
+            plan.healthUrl = localUrl(plan.port, rebind(plan.rawHealthPath));
+        }
+        if (plan.rawProbe?.kind === "command") {
+            const words = plan.rawProbe.command.map(rebind);
+            // A container's healthCheck.command runs inside it, as the Compose health check does.
+            plan.readiness = plan.container
+                ? { kind: "command", command: ["docker", "exec", plan.container, ...words] }
+                : { kind: "command", command: words };
         }
     }
     spawn(service) {
@@ -890,7 +936,17 @@ export class NativeSupervisor {
             child.once("exit", (code) => resolve(code));
             child.once("error", () => resolve(null));
         });
-        this.events.onNote?.(plan.name, `started: ${plan.command}${child.pid ? ` (pid ${child.pid})` : ""}`);
+        // The note shows the command line. A value that env expansion put into a container's words is a secret as soon
+        // as it is displayed, so the note is redacted like service output; a redaction failure withholds the text
+        // instead of stopping the service from starting. A local line shows the author's own service.json text.
+        let startedNote;
+        try {
+            startedNote = this.redactLine(`started: ${plan.command}${child.pid ? ` (pid ${child.pid})` : ""}`);
+        }
+        catch {
+            startedNote = `started: ${OUTPUT_WITHHELD}`;
+        }
+        this.events.onNote?.(plan.name, startedNote);
         this.pipeLines(plan.name, child.stdout, "stdout");
         this.pipeLines(plan.name, child.stderr, "stderr");
         child.once("error", (error) => {
@@ -1131,6 +1187,14 @@ export class NativeSupervisor {
                 await stopProcessGroup(pid, this.options.stopTimeoutMs);
             }
             this.refreshPlans(service);
+            try {
+                // The fresh plan carries planning-time placeholders for values a migrator produced; bind them now.
+                this.resolveServiceEnv(service);
+            }
+            catch (err) {
+                // An output that vanished keeps the plan the run started with, like an unreadable env file does.
+                this.events.onNote?.(name, `restart kept the previous plan: ${err instanceof Error ? err.message : String(err)}`);
+            }
             service.isReady = false;
             service.gaveUp = false;
             service.quickCrashes = 0;

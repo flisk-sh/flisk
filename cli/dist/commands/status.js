@@ -3,7 +3,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { describePlatformServices, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
-import { getCheckoutId, getCheckoutIdentity, getCheckoutName } from "../utils/checkout-id.js";
+import { getCheckoutIdentity } from "../utils/checkout-id.js";
 import { attachNoPositionalHint } from "../utils/command-helpers.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
@@ -146,10 +146,9 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     console.log(JSON.stringify(createMachineEnvelope({
                         runtime: "native",
                         inferred: true,
-                        checkout: {
-                            id: getCheckoutId(stateRoot),
-                            name: getCheckoutName(process.cwd()),
-                        },
+                        // Both fields from the state root the inferred run plans from (runNativeUp uses it as its project
+                        // root), so the reported identity is the one the service actually received.
+                        checkout: getCheckoutIdentity(stateRoot),
                         tilt: {
                             available: false,
                             resourcesQueried: false,

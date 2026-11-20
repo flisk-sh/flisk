@@ -78,6 +78,10 @@ def project_env_file(project_root=''):
 
 _CHECKOUT_NAME_ALNUM = 'abcdefghijklmnopqrstuvwxyz0123456789'
 
+# The checkout identity is derived from the current checkout (`flisk up` exports it, `_load_checkout_env` derives
+# it), so a value written in an env file must never replace it; ordinary dotenv keys keep their current behavior.
+_CHECKOUT_IDENTITY_NAMES = ('FLISK_CHECKOUT_ID', 'FLISK_CHECKOUT_NAME')
+
 
 def _sanitize_checkout_name(raw_name):
     """Sanitize a folder name into lowercase [a-z0-9-] for FLISK_CHECKOUT_NAME."""
@@ -101,6 +105,12 @@ def _load_checkout_env(project_root=''):
     `flisk up` exports both before starting Tilt. When Tilt evaluates a Tiltfile directly,
     this reads `.flisk/.project-id` (if present) and derives the sanitized folder name from
     `project_root` so Compose interpolation still receives them.
+
+    A record belongs to the checkout whose canonical path it names, the same contract the CLI
+    enforces when it regenerates an id: a copied checkout that kept the source's file must not
+    reuse the source's id. When the recorded path differs from the current checkout the id is
+    left unset; the supported identity flow (`flisk up`) gives the copy its own id on the next
+    start.
     """
     if not project_root:
         return
@@ -110,7 +120,10 @@ def _load_checkout_env(project_root=''):
         if raw.startswith('{'):
             parsed = decode_json(raw)
             if type(parsed) == 'dict' and type(parsed.get('id')) == 'string' and parsed.get('id'):
-                os.environ['FLISK_CHECKOUT_ID'] = parsed['id']
+                recorded_path = parsed.get('path')
+                current_path = os.path.realpath(project_root.rstrip('/\\'))
+                if type(recorded_path) == 'string' and recorded_path == current_path:
+                    os.environ['FLISK_CHECKOUT_ID'] = parsed['id']
     if not os.environ.get('FLISK_CHECKOUT_NAME', ''):
         normalized = project_root.replace('\\', '/').rstrip('/')
         folder = normalized.rsplit('/', 1)[-1] if normalized else ''
@@ -146,7 +159,10 @@ def load_dotenv(project_root=''):
         if equals <= 0:
             continue
         name = line[:equals].strip()
-        if _is_dotenv_name(name):
+        # Checkout identity never comes from the file: it reflects the current checkout (`flisk up` exports it,
+        # `_load_checkout_env` derives it), so a committed value cannot make two runtimes disagree or give two
+        # checkouts one id.
+        if _is_dotenv_name(name) and name not in _CHECKOUT_IDENTITY_NAMES:
             os.environ[name] = _dotenv_value(line[equals + 1:])
 
 

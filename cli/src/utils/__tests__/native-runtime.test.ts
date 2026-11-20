@@ -173,6 +173,7 @@ describe("native run planning", () => {
         },
         dependsOn: [],
         healthUrl: localUrl(4100, "/health"),
+        rawHealthPath: "/health",
         url: localUrl(4100),
         restart: false,
       },
@@ -192,7 +193,7 @@ describe("native run planning", () => {
     ]);
   });
 
-  it("injects FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME and expands them in env, command, and healthCheck", () => {
+  it("injects FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME and expands them in env, healthCheck and probe", () => {
     const root = createTempDir("flisk-WT_Alpha-");
     const plan = planNativeRun(
       [
@@ -233,15 +234,25 @@ describe("native run planning", () => {
 
     expect(api?.env.COOKIE_NAME).toBe(`sid_${checkoutId}`);
     expect(api?.env.BUCKET).toBe(`${checkoutName}-assets`);
-    expect(api?.command).toBe(`node server.js --checkout ${checkoutId} --name ${checkoutName}`);
+    // A local command line stays as written: the platform shell expands `${VAR}` at launch from the child
+    // environment (FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME reach it through env), so a value is never spliced
+    // into the line and reparsed as shell syntax.
+    expect(api?.command).toBe(
+      `node server.js --checkout ${ref("FLISK_CHECKOUT_ID")} --name ${ref("FLISK_CHECKOUT_NAME")}`,
+    );
     expect(api?.healthUrl).toBe(localUrl(4101, `/health/${checkoutId}`));
+    expect(api?.rawHealthPath).toBe(`/health/${ref("FLISK_CHECKOUT_ID")}`);
 
     expect(worker?.env.FLISK_CHECKOUT_ID).toBe(checkoutId);
     expect(worker?.env.FLISK_CHECKOUT_NAME).toBe(checkoutName);
-    expect(worker?.command).toBe(`node worker.js --id ${checkoutId}`);
+    expect(worker?.command).toBe(`node worker.js --id ${ref("FLISK_CHECKOUT_ID")}`);
     expect(worker?.readiness).toEqual({
       kind: "command",
       command: ["probe", "--checkout", checkoutId, checkoutName],
+    });
+    expect(worker?.rawProbe).toEqual({
+      kind: "command",
+      command: ["probe", "--checkout", ref("FLISK_CHECKOUT_ID"), ref("FLISK_CHECKOUT_NAME")],
     });
   });
 
@@ -280,6 +291,32 @@ describe("native run planning", () => {
     });
   });
 
+  it("reports unresolved container command and entrypoint names in missingVars, but not defaulted ones", () => {
+    const root = createTempDir("flisk-mixed-missing-");
+    const plan = planNativeRun(
+      [
+        makeResource("cache", "bring-your-own", {
+          image: "redis:7-alpine",
+          port: 6379,
+          container: {
+            entrypoint: ["docker-entrypoint.sh", ref("GATEWAY_TOKEN")],
+            command: ["redis-server", "--syslog-ident", ref("MISSING_IDENT")],
+          },
+        }),
+        nativeService(root, "api", {
+          command: "node s.js",
+          env: { REPLICA_OF: ref("CACHE_MODE", "replica") },
+        }),
+      ],
+      {},
+      root,
+      "shop",
+    );
+
+    // The defaulted reference and the local command stay unreported; the container words report like env values.
+    expect(plan.missingVars).toEqual(["cache: GATEWAY_TOKEN", "cache: MISSING_IDENT"]);
+  });
+
   it("delivers FLISK_CHECKOUT_ID and FLISK_CHECKOUT_NAME into a spawned local process environment", async () => {
     const root = createTempDir("flisk-live-checkout-");
     writeFileSync(
@@ -314,6 +351,35 @@ writeFileSync("checkout.json", JSON.stringify({
     expect(written.id).toBe(plan.services[0]?.env.FLISK_CHECKOUT_ID);
     expect(written.name).toBe(plan.services[0]?.env.FLISK_CHECKOUT_NAME);
     expect(written.arg).toBe(written.id);
+  });
+
+  it("delivers a shell-metacharacter value as one literal argument, never reparsed as shell syntax", async () => {
+    const root = createTempDir("flisk-raw-cmd-");
+    // A value with quotes, a substitution and backticks: splicing it into the shell line would rebalance quotes
+    // and execute code. The platform shell expands the reference inside double quotes, so it stays one argument.
+    const spicy = 'ab"c$(echo pwned)`id`';
+    writeFileSync(
+      join(root, "dump-arg.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync("arg.json", process.argv[2] ?? "");`,
+    );
+    const plan = planNativeRun(
+      [
+        nativeService(root, "job", {
+          command: `${NODE} dump-arg.mjs "${ref("SPICY_TOKEN")}"`,
+          env: { SPICY_TOKEN: spicy },
+          restart: "no",
+        }),
+      ],
+      {},
+      root,
+    );
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    const failures = await supervisor.start();
+    expect(failures).toEqual([]);
+    await waitFor(() => existsSync(join(root, "arg.json")));
+    expect(readFileSync(join(root, "arg.json"), "utf-8")).toBe(spicy);
   });
 
   it("refuses a dependsOn on infrastructure the native runtime cannot start, and a shared port", () => {
@@ -623,6 +689,49 @@ describe("native supervisor", () => {
     expect(notes).toContain("was stopped by SIGKILL; restarting in 0.05s");
     expect(supervisor.pidOf("api")).not.toBe(firstPid);
     expect((await fetch(localUrl(port, "/health"))).status).toBe(200);
+  });
+
+  it("redacts a secret that appears in the started note, and still starts the service", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, ".env"), "HARDCODED_TOKEN=sk-live-redact-me-9f2c\n");
+    const plan = planNativeRun([
+      nativeService(root, "job", {
+        command: "true --token sk-live-redact-me-9f2c",
+        restart: "no",
+      }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onNote: (_name, message) => notes.push(message),
+    });
+    supervisors.push(supervisor);
+
+    expect(await supervisor.start()).toEqual([]);
+    // The service started (the job ran to exit 0) and its note names the command without the env-file secret.
+    expect(notes).toContain("finished (exit code 0)");
+    const started = notes.find((note) => note.startsWith("started:"));
+    expect(started).toBeDefined();
+    expect(started).not.toContain("sk-live-redact-me-9f2c");
+    expect(started).toContain("true --token");
+  });
+
+  it("withholds the started note when the env file cannot be read for redaction, and still starts the service", async () => {
+    const root = createTempDir();
+    // A directory named .env makes the redactor's env read fail, like an unreadable file would.
+    mkdirSync(join(root, ".env"));
+    const plan = planNativeRun([
+      nativeService(root, "job", { command: "true --token sk-nomask-1", restart: "no" }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onNote: (_name, message) => notes.push(message),
+    });
+    supervisors.push(supervisor);
+
+    expect(await supervisor.start()).toEqual([]);
+    expect(notes).toContain("finished (exit code 0)");
+    const started = notes.find((note) => note.startsWith("started:"));
+    expect(started).toBe("started: [output withheld: the project's env files could not be read]");
   });
 
   it("waits for a dependency that went down instead of giving up, then starts the dependent again", async () => {
@@ -1323,6 +1432,106 @@ createServer((req, res) => {
       SERVICE_TOKEN: "token_abc123",
       EXTRA_KEY: "extra_value_456",
     });
+  });
+
+  it("binds a command reference to migrator output at spawn time, not at planning time", async () => {
+    const root = createTempDir();
+    writeFileSync(
+      join(root, "dump-late.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync("late.json", process.argv[2] ?? "");`,
+    );
+
+    const plan = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command: 'printf "SERVICE_TOKEN=token_late_789\\n" > "$FLISK_OUTPUT"',
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} dump-late.mjs "${ref("TOKEN")}"`,
+        dependsOn: ["migrator"],
+        env: { TOKEN: "${migrator:SERVICE_TOKEN}" },
+      }),
+    ]);
+
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    const failures = await supervisor.start();
+    expect(failures).toEqual([]);
+    await waitFor(() => existsSync(join(root, "late.json")));
+    // The shell expands ${TOKEN} at launch, after resolveServiceEnv put the migrator's real output into the env;
+    // the placeholder never reaches the process.
+    expect(readFileSync(join(root, "late.json"), "utf-8")).toBe("token_late_789");
+  });
+
+  it("rebinds the health path and probe words that reference migrator output", async () => {
+    const root = createTempDir();
+    writeFileSync(
+      join(root, "health-recorder.mjs"),
+      `import { createServer } from "node:http";
+import { appendFileSync } from "node:fs";
+const port = Number(process.env.PORT);
+createServer((req, res) => {
+  appendFileSync("health-urls.jsonl", req.url + "\\n");
+  res.writeHead(req.url.startsWith("/health") ? 200 : 404);
+  res.end();
+}).listen(port);`,
+    );
+    writeFileSync(
+      join(root, "probe-late.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync("probe-late.json", process.argv[2] ?? "");`,
+    );
+    const port = await freePort();
+
+    const plan = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command: 'printf "SERVICE_TOKEN=token_health_456\\n" > "$FLISK_OUTPUT"',
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} health-recorder.mjs`,
+        port,
+        dependsOn: ["migrator"],
+        env: { TOKEN: "${migrator:SERVICE_TOKEN}" },
+        healthCheckPath: `/health?token=${ref("TOKEN")}`,
+      }),
+      nativeService(root, "worker", {
+        command: "sleep 30",
+        dependsOn: ["migrator"],
+        env: { TOKEN: "${migrator:SERVICE_TOKEN}" },
+        healthCheck: { command: [process.execPath, "probe-late.mjs", ref("TOKEN")] },
+      }),
+    ]);
+
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    const failures = await supervisor.start();
+    expect(failures).toEqual([]);
+
+    // The health URL was probed with the bound token, not the planning-time placeholder.
+    const urls = readFileSync(join(root, "health-urls.jsonl"), "utf-8");
+    expect(urls).toContain("token_health_456");
+    expect(urls).not.toContain("migrator:SERVICE_TOKEN");
+    // The probe words were re-expanded after the migrator finished.
+    await waitFor(() => existsSync(join(root, "probe-late.json")));
+    expect(readFileSync(join(root, "probe-late.json"), "utf-8")).toBe("token_health_456");
+  });
+
+  it("refuses a migrator reference in a health path that is not a dependsOn migrator", () => {
+    const root = createTempDir();
+    const plan = planNativeRun([
+      nativeService(root, "migrator", { appType: "migrator", command: "exit 0" }),
+      nativeService(root, "api", {
+        command: "node server.js",
+        port: 4100,
+        healthCheckPath: `/ready?token=${ref("migrator:SERVICE_TOKEN")}`,
+      }),
+    ]);
+
+    expect(
+      plan.errors.some((err) => err.includes('references unauthorized output from "migrator"')),
+    ).toBe(true);
   });
 
   it("rejects unauthorized output references at plan time when not in dependsOn", () => {

@@ -22,6 +22,8 @@ export declare function dockerRunArgs(resource: DiscoveredResource, options: {
     projectRoot: string;
     envKeys: readonly string[];
     envVars?: Readonly<Record<string, string | undefined>>;
+    /** Receives each `${VAR}` that resolved to nothing and had no default, so `flisk up` can warn about it. */
+    onMissing?: (name: string) => void;
 }): {
     args: string[];
     errors: string[];

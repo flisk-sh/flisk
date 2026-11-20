@@ -29,7 +29,10 @@ export declare function canonicalCheckoutPath(projectRoot: string): string;
  * The file records both the id and the canonical absolute path it was created
  * for. If the recorded path differs from the current path (the folder was
  * copied or moved), a fresh id is generated and persisted so two copies never
- * share one.
+ * share one. First-time creation is exclusive (`wx`): when two processes start
+ * the same checkout while the file is missing, the one that loses the race
+ * adopts the winner's id instead of overwriting it, so both report and inject
+ * the same `FLISK_CHECKOUT_ID`.
  */
 export declare function getCheckoutId(projectRoot: string, options?: {
     persist?: boolean;
