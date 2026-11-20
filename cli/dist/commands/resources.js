@@ -10,17 +10,14 @@ import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../u
 import { formatCount, showAllSatisfyCondition, showDetail, showEmptyState, showStep, } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { relativeResourceFolder, relativeResourceManifest, } from "../utils/resource-relative-path.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
 export async function runResourcesList(options) {
     const action = async () => {
-        if (options.json) {
-            if (!findProjectRoot()) {
-                writeMachineError(errorFactories.notInProject());
-            }
-        }
-        else {
-            requireProjectRoot();
+        const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+        if (!projectRoot) {
+            writeMachineError(errorFactories.notInProject());
         }
         if (options.type !== undefined && !includes(VALID_RESOURCE_TYPES, options.type)) {
             throw new FliskError(`Invalid resource type "${options.type}"`, [
@@ -62,7 +59,8 @@ export async function runResourcesList(options) {
                 stack: resource.stack ?? null,
                 type: resource.config?.appType ?? resource.type ?? "unknown",
                 port: resource.port ?? null,
-                path: resource.configPath,
+                path: relativeResourceFolder(projectRoot, resource.configPath),
+                manifest: relativeResourceManifest(projectRoot, resource.configPath),
             }));
             console.log(JSON.stringify(createMachineEnvelope({ resources: data, ...skippedServiceFiles(discovery.problems) })));
             return;
