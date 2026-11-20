@@ -29,7 +29,7 @@
 
 ## 5. Windows binary and CI
 
-- [x] 5.1 Update `scripts/release-binaries.sh` to compile Bun `bun-windows-x64` as `flisk-windows-amd64.exe`, include it in checksums and the binary ZIP, and preserve Unix names and engine archive.
+- [x] 5.1 Update `scripts/release-binaries.sh` to compile Bun `bun-windows-x64` as `flisk-windows-amd64.exe`, include it in checksums, and preserve Unix names and engine archive.
 - [x] 5.2 Update `.github/workflows/release-binaries.yml` to assert the executable exists at the script's real output location.
 - [x] 5.3 Add `.github/workflows/windows-smoke.yml` using `windows-latest`, Node 22, the repository's dependency installation convention, CLI build/typecheck, actual CLI `--help`, and targeted platform/upgrade/PATH tests without fake Docker e2e.
 - [x] 5.4 Add a Linux-side compile validation that checks the Windows artifact is non-empty and begins with `MZ`.
