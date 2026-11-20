@@ -12,7 +12,7 @@ import { findOnPath } from "./which.js";
 const WINDOWS_DNS_FAILURE =
   "Windows did not resolve *.flisk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.";
 
-function loopbackAddresses(addresses: string[]): boolean {
+export function loopbackAddresses(addresses: string[]): boolean {
   return (
     addresses.length > 0 &&
     addresses.every((address) => address === "127.0.0.1" || address === "::1")
