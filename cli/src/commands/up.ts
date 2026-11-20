@@ -126,7 +126,6 @@ import {
   stackExists,
   warnAboutSkippedFiles,
 } from "../utils/services.js";
-import { rankByDistance } from "../utils/suggestions.js";
 import {
   databaseResourceNames,
   evaluateSharedPlatformPostgres,
@@ -146,6 +145,7 @@ import {
   machineProblemFixes,
   withLoggedReasons,
 } from "../utils/startup-report.js";
+import { rankByDistance } from "../utils/suggestions.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 import {
@@ -493,9 +493,7 @@ export function toUpError(error: unknown): JsonError {
     const err = error as Record<string, unknown>;
     const code = typeof err.code === "string" ? err.code : "INTERNAL";
     const message = typeof err.message === "string" ? err.message : String(error);
-    const suggestions = Array.isArray(err.suggestions)
-      ? (err.suggestions as string[])
-      : [];
+    const suggestions = Array.isArray(err.suggestions) ? (err.suggestions as string[]) : [];
     return upError(code, message, suggestions);
   }
   return upError("INTERNAL", error instanceof Error ? error.message : String(error), []);
@@ -575,10 +573,7 @@ export function selectNativeRun(
     const unknown = findUnknownServices(only, requested);
     if (unknown.length > 0) {
       const validNames = requested.map((service) => service.name);
-      const error = errorFactories.unknownServices(
-        unknown,
-        validNames,
-      );
+      const error = errorFactories.unknownServices(unknown, validNames);
       const suggestions = unknownServiceSuggestions(unknown, validNames, error.suggestions);
       fail("UNKNOWN_SERVICE", error.message, suggestions, error.exitCode);
     }
@@ -738,9 +733,7 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
   const timeout = parseWaitTimeout(options.waitTimeout);
   if (!timeout.ok) {
     const suggestions = ["--wait-timeout 600"];
-    emit?.({ ok: false }, [
-      upError("INVALID_WAIT_TIMEOUT", timeout.message, suggestions),
-    ]);
+    emit?.({ ok: false }, [upError("INVALID_WAIT_TIMEOUT", timeout.message, suggestions)]);
     showErrorAndExit(timeout.message, 2, suggestions);
   }
   const outcome = await upAndWait(
@@ -999,9 +992,7 @@ export const upCommand = new Command("up")
     const portSetting = parseTiltPort(process.env.TILT_PORT);
     if (!portSetting.ok) {
       const suggestions = upFailureHints({ kind: "invalid-tilt-port" });
-      emit?.({ ok: false }, [
-        upError("INVALID_TILT_PORT", portSetting.message, suggestions),
-      ]);
+      emit?.({ ok: false }, [upError("INVALID_TILT_PORT", portSetting.message, suggestions)]);
       showErrorAndExit(portSetting.message, 1, suggestions);
     }
     const configuredTiltPort = portSetting.port;
@@ -1085,9 +1076,7 @@ export const upCommand = new Command("up")
       stackName,
       options.only,
       (code, message, suggestions = [], exitCode = 1) => {
-        emit?.({ ok: false }, [
-          upError(code, message, suggestions),
-        ]);
+        emit?.({ ok: false }, [upError(code, message, suggestions)]);
         return showErrorAndExit(message, exitCode, suggestions);
       },
     );
@@ -1113,8 +1102,7 @@ export const upCommand = new Command("up")
       }
       enforceServiceConfigGate(projectRoot, {
         resources: nativeRun.all,
-        onInvalid: (message) =>
-          emit?.({ ok: false }, [upError("INVALID_SERVICE_CONFIG", message)]),
+        onInvalid: (message) => emit?.({ ok: false }, [upError("INVALID_SERVICE_CONFIG", message)]),
         onWarning: (message) => projectWarnings.push(message),
       });
       if (nativeRun.isNewProject && !options.dryRun) {
@@ -1314,9 +1302,7 @@ export const upCommand = new Command("up")
           const validNames = candidates.map((service) => service.name);
           const error = errorFactories.unknownServices(unknown, validNames);
           const suggestions = unknownServiceSuggestions(unknown, validNames, error.suggestions);
-          emit?.({ ok: false }, [
-            upError("UNKNOWN_SERVICE", error.message, suggestions),
-          ]);
+          emit?.({ ok: false }, [upError("UNKNOWN_SERVICE", error.message, suggestions)]);
           error.exit();
         }
       }
@@ -1582,9 +1568,7 @@ export const upCommand = new Command("up")
         !isTiltfileOrchestration(projectRoot)
       ) {
         const error = errorFactories.noResources();
-        emit?.({ ok: false }, [
-          upError("NO_RESOURCES", error.message, error.suggestions),
-        ]);
+        emit?.({ ok: false }, [upError("NO_RESOURCES", error.message, error.suggestions)]);
         error.exit();
       }
 

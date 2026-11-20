@@ -48,10 +48,10 @@ import { secretProviderUsageError } from "../utils/secret-provider.js";
 import { enforceServiceConfigGate, warnModelRunner, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServiceUrl, resolveSubdomainBases, routesAsApi, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
-import { rankByDistance } from "../utils/suggestions.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, explainFailures, formatStartupReport, isStartupStalled, machineProblemFixes, withLoggedReasons, } from "../utils/startup-report.js";
+import { rankByDistance } from "../utils/suggestions.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
 import { findProjectTiltPorts, findTiltPortOwner, stopOwnedTiltOnPort, } from "../utils/tilt-port-owner.js";
@@ -280,9 +280,7 @@ export function toUpError(error) {
         const err = error;
         const code = typeof err.code === "string" ? err.code : "INTERNAL";
         const message = typeof err.message === "string" ? err.message : String(error);
-        const suggestions = Array.isArray(err.suggestions)
-            ? err.suggestions
-            : [];
+        const suggestions = Array.isArray(err.suggestions) ? err.suggestions : [];
         return upError(code, message, suggestions);
     }
     return upError("INTERNAL", error instanceof Error ? error.message : String(error), []);
@@ -468,9 +466,7 @@ async function runUpWait(options) {
     const timeout = parseWaitTimeout(options.waitTimeout);
     if (!timeout.ok) {
         const suggestions = ["--wait-timeout 600"];
-        emit?.({ ok: false }, [
-            upError("INVALID_WAIT_TIMEOUT", timeout.message, suggestions),
-        ]);
+        emit?.({ ok: false }, [upError("INVALID_WAIT_TIMEOUT", timeout.message, suggestions)]);
         showErrorAndExit(timeout.message, 2, suggestions);
     }
     const outcome = await upAndWait(process.argv.slice(2), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
@@ -670,9 +666,7 @@ export const upCommand = new Command("up")
     const portSetting = parseTiltPort(process.env.TILT_PORT);
     if (!portSetting.ok) {
         const suggestions = upFailureHints({ kind: "invalid-tilt-port" });
-        emit?.({ ok: false }, [
-            upError("INVALID_TILT_PORT", portSetting.message, suggestions),
-        ]);
+        emit?.({ ok: false }, [upError("INVALID_TILT_PORT", portSetting.message, suggestions)]);
         showErrorAndExit(portSetting.message, 1, suggestions);
     }
     const configuredTiltPort = portSetting.port;
@@ -749,9 +743,7 @@ export const upCommand = new Command("up")
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated
     // files (#2229). Decided before any Docker or Tilt check; a project without `command` services never enters this branch.
     const nativeRun = selectNativeRun(stackName, options.only, (code, message, suggestions = [], exitCode = 1) => {
-        emit?.({ ok: false }, [
-            upError(code, message, suggestions),
-        ]);
+        emit?.({ ok: false }, [upError(code, message, suggestions)]);
         return showErrorAndExit(message, exitCode, suggestions);
     });
     // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
@@ -943,9 +935,7 @@ export const upCommand = new Command("up")
                 const validNames = candidates.map((service) => service.name);
                 const error = errorFactories.unknownServices(unknown, validNames);
                 const suggestions = unknownServiceSuggestions(unknown, validNames, error.suggestions);
-                emit?.({ ok: false }, [
-                    upError("UNKNOWN_SERVICE", error.message, suggestions),
-                ]);
+                emit?.({ ok: false }, [upError("UNKNOWN_SERVICE", error.message, suggestions)]);
                 error.exit();
             }
         }
@@ -1148,9 +1138,7 @@ export const upCommand = new Command("up")
             !hasPendingClone &&
             !isTiltfileOrchestration(projectRoot)) {
             const error = errorFactories.noResources();
-            emit?.({ ok: false }, [
-                upError("NO_RESOURCES", error.message, error.suggestions),
-            ]);
+            emit?.({ ok: false }, [upError("NO_RESOURCES", error.message, error.suggestions)]);
             error.exit();
         }
         if (!options.quiet) {
