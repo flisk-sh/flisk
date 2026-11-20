@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, normalize } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/index.js";
 import type { CheckResult } from "../../types/index.js";
@@ -266,12 +266,43 @@ describe("doctor frontend Docker preflight", () => {
       mainTsx: "",
     });
     rmSync(join(testDir, "services", "app", "dashboard-app", "public"), { recursive: true });
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("linux");
 
-    const result = checkFrontendDockerPreflight();
+    try {
+      const result = checkFrontendDockerPreflight();
 
-    expect(result.didPass).toBe(false);
-    expect(result.message).toContain("dashboard-app: no public/ folder");
-    expect(result.message).toContain("mkdir -p services/app/dashboard-app/public");
+      expect(result.didPass).toBe(false);
+      expect(result.message).toContain("dashboard-app: no public/ folder");
+      expect(result.message).toContain(
+        `mkdir -p ${normalize("services/app/dashboard-app/public")}`,
+      );
+    } finally {
+      platform.mockRestore();
+    }
+  });
+
+  it("prints PowerShell creation steps on Windows when a frontend has no public/ folder", () => {
+    writeFrontendProject({
+      composePort: 80,
+      dockerTsconfig: { compilerOptions: { strict: true } },
+      mainTsx: "",
+    });
+    rmSync(join(testDir, "services", "app", "dashboard-app", "public"), { recursive: true });
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+
+    try {
+      const result = checkFrontendDockerPreflight();
+
+      expect(result.didPass).toBe(false);
+      expect(result.message).toContain("dashboard-app: no public/ folder");
+      expect(result.message).toContain("Create it: New-Item -ItemType Directory -Force");
+      expect(result.message).toContain("New-Item -ItemType File -Force");
+      expect(result.message).toContain(".gitkeep'");
+      expect(result.message).not.toContain("mkdir -p");
+      expect(result.message).not.toContain(" && touch ");
+    } finally {
+      platform.mockRestore();
+    }
   });
 
   it("passes when generated frontend Docker metadata is internally consistent", () => {
