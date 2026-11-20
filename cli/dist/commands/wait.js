@@ -57,7 +57,7 @@ export const waitCommand = new Command("wait")
             console.error(parsed.message);
             process.exit(2);
         }
-        throw new FliskError(parsed.message, [], 2);
+        throw new FliskError(parsed.message, ["Pass --timeout as a whole number of seconds from 1 to 21600, for example --timeout 60"], 2);
     }
     const timeoutSeconds = parsed.seconds;
     const action = async () => {

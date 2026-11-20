@@ -522,7 +522,11 @@ export function buildStatusArgs(args: Record<string, unknown>): string[] {
 export function buildWaitArgs(args: Record<string, unknown>): string[] {
   const services = names(args.services, "services");
   const parsed = parseTimeoutSeconds(args.timeoutSeconds, "timeoutSeconds");
-  if (!parsed.ok) throw new FliskError(parsed.message);
+  if (!parsed.ok) {
+    throw new FliskError(parsed.message, [
+      "Pass timeoutSeconds as a whole number of seconds from 1 to 21600, for example 60",
+    ]);
+  }
   return ["wait", ...services, `--timeout=${parsed.seconds}`, "--json"];
 }
 

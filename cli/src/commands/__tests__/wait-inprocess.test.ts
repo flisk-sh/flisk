@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { parseEnvelope, runCommandInProcess } from "../../test-support/index.js";
+import { makeResource, parseEnvelope, runCommandInProcess } from "../../test-support/index.js";
 import type { DiscoveredResource, ServiceRuntimeState } from "../../types/index.js";
 
 const discovery = vi.hoisted(() => ({
@@ -50,10 +50,6 @@ vi.mock("../../utils/up-wait.js", async (importOriginal) => ({
 
 import { waitCommand } from "../wait.js";
 
-function resource(name: string): DiscoveredResource {
-  return { name, type: "backend", path: name, configPath: `${name}/service.json` };
-}
-
 function resetOptions(command: Command): void {
   for (const option of command.options) {
     command.setOptionValue(option.attributeName(), option.defaultValue);
@@ -78,7 +74,7 @@ describe("flisk wait (in-process)", () => {
     project.resolveCommandProject.mockReturnValue(root);
     nativeService.isNativeProject.mockReturnValue(true);
     discovery.createDiscoveryContext.mockReturnValue({
-      resources: [resource("api"), resource("web")],
+      resources: [makeResource("api", "backend"), makeResource("web", "backend")],
     });
     native.nativeServiceStates.mockReturnValue({
       api: { status: "ready" },
