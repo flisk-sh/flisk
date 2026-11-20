@@ -658,8 +658,20 @@ jobs:
             npm publish "$TARBALL" --registry=https://npm.pkg.github.com
           fi
 
-  # The MCP Registry listing is not a job of this run: publish-mcp-registry.yml starts when this run completes (#3938), so the
-  # run ends when npm, the binaries and the image are out and does not wait for the npm CDN.
+  # The MCP Registry listing runs as a reusable workflow called from here, so it always fires even when this run
+  # was started by GITHUB_TOKEN (which blocks workflow_run triggers). publish-mcp-registry.yml keeps its
+  # workflow_run trigger for re-runs and repairs, and its workflow_dispatch trigger for manual use (#3938, #3980).
+  publish-mcp-registry:
+    name: MCP Registry listing
+    needs: [build, publish]
+    if: github.event_name != 'pull_request'
+    permissions:
+      actions: read
+      contents: read
+      id-token: write  # forwarded to the callee for cosign OIDC / registry publisher login
+    uses: ./.github/workflows/publish-mcp-registry.yml # zizmor: ignore[self-repository] reusable workflow resolves from this commit
+    with:
+      version: ${{ needs.build.outputs.version }}
 
   # The CLI image (ghcr.io/flisk-sh/flisk and docker.io/alexdykyi/flisk, <version> and latest), built from the binary release that
   # publish just made, signed and smoke-tested by publish-cli-image.yml. It runs after npm and the binaries are out, in a job of

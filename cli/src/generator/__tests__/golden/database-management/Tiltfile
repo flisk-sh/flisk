@@ -408,7 +408,8 @@ if _AUTO_DISCOVER_ENABLED:
     discovery_path = _local_flisk_path + "/discovery"
 
     daemon_script = discovery_path + '/resource_snapshot.py'
-    daemon_cmd = ["sh", "-c", 'cd "$1" && python3 "$2" watch', "sh", config.main_dir, daemon_script]
+    # Replace the shell with Python so Tilt's stop signal reaches the watcher instead of leaving it orphaned (#4014).
+    daemon_cmd = ["sh", "-c", 'cd "$1" && exec python3 "$2" watch', "sh", config.main_dir, daemon_script]
 
     # Native Windows has no sh: the same daemon through PowerShell, using python3 or, failing that, python or the py launcher.
     # The two paths go in as single-quoted PowerShell strings (a quote inside one is doubled).

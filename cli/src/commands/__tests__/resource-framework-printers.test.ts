@@ -45,6 +45,29 @@ describe("printFrameworkInventory", () => {
     expect(listMocks.listBackendFrameworks).toHaveBeenCalledWith(undefined);
   });
 
+  it("explains an entirely incompatible backend list on stderr", async () => {
+    listMocks.listBackendFrameworks.mockReturnValue([
+      {
+        id: "hono",
+        label: "Bun + Hono",
+        languages: ["bun"],
+        compatible: false,
+        command: "flisk resource api",
+      },
+    ]);
+    const result = await runFrameworkListing([
+      "--type",
+      "backend",
+      "--language",
+      "python",
+      "--frameworks",
+    ]);
+    expect(result.stdout).not.toContain("No listed");
+    expect(result.stderr).toContain(
+      "No listed backend framework is compatible with --language python",
+    );
+  });
+
   it("prints two backend inventory entries as tab-separated rows", async () => {
     listMocks.listBackendFrameworks.mockReturnValue([
       {
@@ -176,12 +199,12 @@ describe("printFrameworkInventory for database and queue", () => {
     expect(envelope.data.frameworks.map((f: { id: string }) => f.id)).toContain("clickhouse");
   });
 
-  it("keeps the frontend inventory in --json when no --type is given", async () => {
+  it("reports a backend inventory in JSON when no type is given", async () => {
+    listMocks.listBackendFrameworks.mockReturnValue([]);
     const result = await runFrameworkListing(["--frameworks", "--json"]);
 
     const envelope = JSON.parse(result.stdout);
-    expect(envelope.data.type).toBe("frontend");
-    expect(envelope.data.frameworks.length).toBeGreaterThan(0);
+    expect(envelope.data.type).toBe("backend");
   });
 
   it("reports the queue frameworks in --json", async () => {

@@ -3,7 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTempProject } from "../../test-support/index.js";
+import { captureExit } from "../../test-support/doubles.js";
+import { createTempProject, parseEnvelope } from "../../test-support/index.js";
 import {
   buildBoard,
   buildKit,
@@ -338,6 +339,105 @@ describe("distribute kit", () => {
       fs.existsSync(path.join(root, "distribution", "helper", ".claude-plugin", "plugin.json")),
     ).toBe(true);
   });
+  it("--json prints one envelope naming written files, warnings and kit existence", async () => {
+    const root = project(fullDist);
+    const out = await runDistribute(root, ["kit", "helper", "--json"]);
+    const envelope = parseEnvelope(out);
+    expect(envelope.errors).toEqual([]);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.data.schemaVersion).toBeUndefined();
+    expect(envelope.data.resource).toBe("helper");
+    expect(envelope.data.didExist).toBe(false);
+    expect(envelope.data.writtenFiles).toEqual(
+      expect.arrayContaining([
+        "distribution/helper/listing.md",
+        "distribution/helper/.claude-plugin/plugin.json",
+      ]),
+    );
+    expect(Array.isArray(envelope.data.warnings)).toBe(true);
+    expect(fs.existsSync(path.join(root, "distribution", "helper", "listing.md"))).toBe(true);
+  });
+
+  it("--dry-run --json reports planned files and contents, and writes nothing", async () => {
+    const root = project(fullDist);
+    const before = fs.readdirSync(root).sort();
+    const out = await runDistribute(root, ["kit", "helper", "--dry-run", "--json"]);
+    const envelope = parseEnvelope(out);
+    expect(envelope.errors).toEqual([]);
+    expect(envelope.data.didExist).toBe(false);
+    expect(envelope.data.writtenFiles).toEqual([]);
+    expect(envelope.data.plannedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "distribution/helper/listing.md",
+          content: expect.any(String),
+        }),
+      ]),
+    );
+    expect(fs.readdirSync(root).sort()).toEqual(before);
+    expect(fs.existsSync(path.join(root, "distribution"))).toBe(false);
+  });
+
+  it("--dry-run --json reports didExist when a kit is already on disk", async () => {
+    const root = project(fullDist);
+    const helperResource = discoverResourcesFromRoot(root).find((r) => r.name === "helper");
+    if (!helperResource) throw new Error("helper resource missing");
+    const kit = buildKit(helperResource, fullDist);
+    writeKit(kit, path.join(root, "distribution", "helper"), false);
+    const before = fs.readdirSync(path.join(root, "distribution", "helper")).sort();
+
+    const out = await runDistribute(root, ["kit", "helper", "--dry-run", "--json"]);
+
+    const envelope = parseEnvelope(out);
+    expect(envelope.errors).toEqual([]);
+    expect(envelope.data.didExist).toBe(true);
+    expect(envelope.data.writtenFiles).toEqual([]);
+    expect(fs.readdirSync(path.join(root, "distribution", "helper")).sort()).toEqual(before);
+  });
+
+  it("--force --json overwrites an existing kit and reports didExist", async () => {
+    const root = project(fullDist);
+    const helperResource = discoverResourcesFromRoot(root).find((r) => r.name === "helper");
+    if (!helperResource) throw new Error("helper resource missing");
+    const kit = buildKit(helperResource, fullDist);
+    writeKit(kit, path.join(root, "distribution", "helper"), false);
+
+    const out = await runDistribute(root, ["kit", "helper", "--force", "--json"]);
+
+    const envelope = parseEnvelope(out);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.errors).toEqual([]);
+    expect(envelope.data.didExist).toBe(true);
+    expect(envelope.data.writtenFiles.length).toBeGreaterThan(0);
+    expect(fs.existsSync(path.join(root, "distribution", "helper", "listing.md"))).toBe(true);
+  });
+
+  it("an existing kit without --force returns a JSON error envelope", async () => {
+    const root = project(fullDist);
+    const helperResource = discoverResourcesFromRoot(root).find((r) => r.name === "helper");
+    if (!helperResource) throw new Error("helper resource missing");
+    const kit = buildKit(helperResource, fullDist);
+    writeKit(kit, path.join(root, "distribution", "helper"), false);
+    const exit = captureExit();
+    await expect(runDistribute(root, ["kit", "helper", "--json"])).rejects.toThrow(/process.exit/);
+    exit.expectExit(1);
+    const envelope = parseEnvelope(logs.join("\n"));
+    expect(envelope.data).toBeNull();
+    expect(envelope.errors[0]).toMatchObject({
+      code: "COMMAND_FAILED",
+      message: expect.stringMatching(/already exists/),
+    });
+  });
+
+  it("mentions --json in the kit help examples", async () => {
+    const { distributeCommand } = await import("../distribute.js");
+    const kit = distributeCommand.commands.find((c) => c.name() === "kit");
+    let out = "";
+    kit?.configureOutput({ writeOut: (s) => (out += s) });
+    kit?.outputHelp();
+    expect(out).toContain("flisk distribute kit my-resource --json");
+  });
+
   it("shows usage examples in the kit help text", async () => {
     const { distributeCommand } = await import("../distribute.js");
     const kit = distributeCommand.commands.find((c) => c.name() === "kit");

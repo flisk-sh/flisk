@@ -38,6 +38,14 @@ export declare function isValidProjectName(name: string): boolean;
  * a name given on the command line must already be valid, so scripts never get a surprise rename.
  */
 export declare function toProjectName(raw: string): string;
+/**
+ * The error for a name that cannot be a project folder, with the exact command that works when the fix is obvious.
+ * A name given on the command line is never renamed silently, so a fixable name is spelled out in the hint, not applied.
+ */
+export declare function projectNameError(name: string): {
+    message: string;
+    suggestions: string[];
+};
 /** A starter's name in plain words, and whether it runs on this computer without Docker. */
 export declare function starterInfo(id: string): {
     title: string;

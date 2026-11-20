@@ -54,6 +54,8 @@ export function frontendCatalog(): CatalogOption[] {
 export interface LanguageOption extends CatalogOption {
   /** The backend frameworks this language can be combined with; empty when the language owns its runtime. */
   frameworks: CatalogOption[];
+  /** The frameworks this language is usually served with, for a `--backend` hint (`fastapi` for Python). */
+  serverFrameworks: string[];
 }
 
 /** The backend languages, each with the frameworks it can be combined with, the registry's default first. */
@@ -71,6 +73,7 @@ export function backendCatalog(): LanguageOption[] {
         .map((entry) => ({ id: entry.id, title: entry.label, hint: "", local: true })),
       DEFAULT_BACKEND_FRAMEWORK,
     ),
+    serverFrameworks: language.serverFrameworks ?? [],
   }));
   return defaultFirst(options, DEFAULT_BACKEND_LANGUAGE);
 }
