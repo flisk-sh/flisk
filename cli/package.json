@@ -51,6 +51,8 @@
     "clean": "rm -rf dist",
     "dev": "bun run build:watch",
     "test": "vitest run",
+    "test:related": "vitest related --run --passWithNoTests",
+    "test:files": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --coverage.reportOnFailure --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --coverage.reporter=json --coverage.thresholds.lines=57 --coverage.reportsDirectory=coverage --reporter=default --reporter=json --outputFile.json=test-results/vitest.json",
     "prepack": "../scripts/stage-npm-engine.sh && npm run build"

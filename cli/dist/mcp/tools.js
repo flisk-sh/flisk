@@ -887,7 +887,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "resource_list",
-            description: "List the selected project's services (resources) with their stack, type and port, whether or not they are running. Read-only. Use `status` for live state, `stack_list` to group them by stack and `agent_list` for agents only. Set projectPath when the MCP server is not running from the project root.",
+            description: "List the selected project's services (resources) with their stack, type, port and project-relative folder path, whether or not they are running. Read-only. Use `status` for live state, `stack_list` to group them by stack and `agent_list` for agents only. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 stack: { type: "string", description: "Only this stack" },
@@ -1059,7 +1059,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "project_templates",
-            description: "List the starter templates project_init can clone (data.templates): each one's key, repo, description and, for a template pinned to a commit, the ref it checks out. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
+            description: "List the starter templates project_init can clone (data.templates): each one's key, repo, description and what it needs to run (needs), plus the ref it checks out when pinned to a commit. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
             inputSchema: OBJECT({}),
             handler: async () => ({
                 data: { templates: listProjectTemplates() },
