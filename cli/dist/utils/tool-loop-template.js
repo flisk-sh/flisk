@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+// biome-ignore-all lint/suspicious/noTemplateCurlyInString: service.json env values are Compose-style variable references
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { loadTemplate } from "../generator/template-engine.js";
@@ -52,9 +53,13 @@ export function toolLoopManifests() {
             healthCheckPath: "/health",
             env: {
                 TOOLS_URL: `http://localhost:${TOOL_LOOP_PORTS.tools}`,
-                // The local mock model. Delete these two lines and set a real ANTHROPIC_API_KEY in .env to use Claude.
-                ANTHROPIC_BASE_URL: `http://localhost:${TOOL_LOOP_PORTS.model}`,
-                ANTHROPIC_API_KEY: "mock-model-no-key-needed",
+                // Every model choice lives in the environment, so an env file or profile switches models without template edits.
+                // With no base URL set, the agent uses the local mock model and its placeholder key.
+                MODEL: "${MODEL:-claude-opus-5-5}",
+                OPENAI_BASE_URL: "${OPENAI_BASE_URL:-}",
+                OPENAI_API_KEY: "${OPENAI_API_KEY:-}",
+                ANTHROPIC_BASE_URL: `\${ANTHROPIC_BASE_URL:-http://localhost:${TOOL_LOOP_PORTS.model}}`,
+                ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-mock-model-no-key-needed}",
             },
             dependsOn: ["setup", "tools", "model"],
         },
@@ -62,8 +67,8 @@ export function toolLoopManifests() {
 }
 const README = `# Flisk tool loop
 
-The agent loop every framework wraps, with nothing hidden: the Anthropic SDK's tool runner asks the model, runs the tools it
-calls, feeds the results back, and stops when the model answers. The tools come from an MCP tool server (\`tools/\`), found
+The agent loop every framework wraps, with nothing hidden: a model asks for tools, the loop runs them, feeds the results back,
+and stops when the model answers. The tools come from an MCP tool server (\`tools/\`), found
 through \`tools/list\`. Everything runs as local processes: no Docker. \`flisk up\` first runs \`setup\`, which installs the
 SDK (\`agent/package.json\`, pinned).
 
@@ -74,9 +79,16 @@ flisk mcp check tools --call --no-icon   # the tool server speaks MCP
 \`\`\`
 
 **The model is a mock out of the box.** \`model/\` stands in for the Messages API with one fixed strategy (look up each topic,
-then answer from the results), so the real SDK loop runs offline and costs nothing. It is not a model. To use Claude, delete
-\`ANTHROPIC_BASE_URL\` and \`ANTHROPIC_API_KEY\` from \`agent/service.json\`, put your key in \`.env\` as \`ANTHROPIC_API_KEY\`,
-and run \`flisk up\` again; the agent asks \`claude-opus-5-5\`, with server-side refusal fallbacks.
+then answer from the results), so the real loop runs offline and costs nothing. It is not a model. Every model choice lives in
+the environment, so an env file or profile switches models without editing these files:
+
+- **Anthropic-compatible:** set \`MODEL\` (default \`claude-opus-5-5\`), \`ANTHROPIC_BASE_URL\` (default \`http://localhost:${TOOL_LOOP_PORTS.model}\`)
+  and \`ANTHROPIC_API_KEY\`. For Claude, set \`ANTHROPIC_BASE_URL\` to \`https://api.anthropic.com\` and put your key in \`.env\`.
+- **OpenAI-compatible** (Ollama, vLLM, OpenRouter): set \`MODEL\` and \`OPENAI_BASE_URL\` (ending in \`/v1\`, such as the
+  \`OPENAI_BASE_URL\` an \`inference\` resource provides) and \`OPENAI_API_KEY\` when the server needs one. The agent calls
+  \`/chat/completions\` and runs the tools the model asks for.
+
+With neither base URL set, the mock is used and no key is needed. Keep keys in \`.env\`, not in \`service.json\`.
 
 **Recovery.** The SDK retries a request whose connection failed (\`maxRetries: 4\`), and the agent retries a tool server call
 with backoff, so a model or tool server that Flisk is restarting is waited for.
