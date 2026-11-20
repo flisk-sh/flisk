@@ -64,12 +64,16 @@ export declare function resolveWords(words: string[]): {
 /** What `flisk tool add` needs from the project before it runs `flisk resource`: its resources and their stacks. */
 export interface ProjectView {
     native?: boolean;
+    /** `project.name` (or the folder name), so a refusal can give the exact Docker-switch command. */
+    name?: string;
     resources: Array<{
         name: string;
         stack?: string;
         type?: string;
     }>;
 }
+/** True for the one database tool whose resource has no image: `--type database --framework postgres`. */
+export declare function needsDockerForLocalProject(tool: ResourceTool): boolean;
 /**
  * Checks that `flisk resource` would otherwise get wrong for a tool: an invalid name, a name already taken (which
  * `flisk resource` would silently register as it is, so the tool would never be added), and a project with several
