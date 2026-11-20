@@ -21,6 +21,15 @@ it("documents --rebuild in restart help", () => {
   expect(help).toContain("flisk restart orders-api --rebuild");
 });
 
+it("explains the local-process restart limit in restart help", () => {
+  let help = "";
+  restartCommand.configureOutput({ writeOut: (text) => (help += text) });
+  restartCommand.outputHelp();
+  expect(help).toContain("Tilt resources");
+  expect(help).toContain("local-process projects");
+  expect(help).toContain("flisk down && flisk up");
+});
+
 describe("restart without a resource", () => {
   it("names flisk resources in the help-after-error hint", () => {
     const hint = (restartCommand as unknown as { _showHelpAfterError?: string })

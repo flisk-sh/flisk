@@ -89,6 +89,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}
           WORKFLOW: e2e-resource-types.yml
+          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
           case "$EVENT" in
             pull_request | merge_group) trigger="pr" ;;
@@ -123,6 +124,14 @@ jobs:
               before="$RUNNER_TEMP/byo-templates-before.json"
               git show "$reuse:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
               matrix="$(git diff --name-only "$reuse" HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before" --base "$reuse")"
+            elif [ -n "$MERGE_BASE_SHA" ] && { git cat-file -e "$MERGE_BASE_SHA^{commit}" 2>/dev/null || git fetch --quiet --no-tags --depth=1 origin "$MERGE_BASE_SHA" 2>/dev/null; } && git cat-file -e "$MERGE_BASE_SHA^{commit}" 2>/dev/null; then
+              # No reusable pull request run: still filter by path. The queued commit is main plus this one pull request, so
+              # the diff against the queue's base lists only what this pull request changed. A change none of the suites read
+              # runs no legs instead of the full matrix (80+ legs for code the suites never touch).
+              echo "No reusable run; selecting legs from the changes since the queue base $MERGE_BASE_SHA."
+              before="$RUNNER_TEMP/byo-templates-before.json"
+              git show "$MERGE_BASE_SHA:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
+              matrix="$(git diff --name-only "$MERGE_BASE_SHA" HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before" --base "$MERGE_BASE_SHA")"
             fi
           fi
           if [ "$EVENT" = "pull_request" ]; then
