@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import { readProjectNameOrUndefined } from "./project-reader.js";
 /** Folders kept per name; the oldest are dropped first. */
 const MAX_ROOTS = 20;
 export function projectRegistryDir(home = homedir()) {
@@ -30,15 +31,12 @@ function parseRecord(text) {
         return undefined;
     }
 }
-/** The `project.name` in `<root>/.flisk/project.json`, lowercased as the engine names Docker objects, or undefined. */
-export function projectNameAt(root) {
-    try {
-        const parsed = JSON.parse(readFileSync(join(root, ".flisk", "project.json"), "utf8"));
-        return typeof parsed.project?.name === "string" ? parsed.project.name.toLowerCase() : undefined;
-    }
-    catch {
-        return undefined;
-    }
+/**
+ * The effective project name at `root`, lowercased as the engine names Docker objects, or undefined.
+ * Pass an empty `env` when checking another checkout so this process's shell override is not applied to it (#4046).
+ */
+export function projectNameAt(root, env = process.env) {
+    return readProjectNameOrUndefined(root, env);
 }
 /** Records that the project at `projectRoot` started. Never throws: a read-only home only loses the record. */
 export function recordProjectRoot(projectRoot, options = {}) {
@@ -98,6 +96,26 @@ export function folderHoldsProject(root, name, pathExists = existsSync) {
     const mount = /^(\/Volumes\/[^/]+|\/mnt\/[^/]+|\/media\/[^/]+\/[^/]+)/.exec(root)?.[1];
     if (mount && !pathExists(mount))
         return true;
+    // A local override names this checkout, so it wins over the tracked config here too. A half-written
+    // local file is uncertainty, never proof that the folder no longer holds the project (#4046).
+    let localText;
+    try {
+        localText = readFileSync(join(root, ".flisk", "project.local.json"), "utf8");
+    }
+    catch (err) {
+        const code = err.code;
+        if (code !== "ENOENT" && code !== "ENOTDIR")
+            return true;
+    }
+    if (localText !== undefined) {
+        try {
+            const found = JSON.parse(localText).project?.name;
+            return typeof found === "string" ? found.trim().toLowerCase() === name : true;
+        }
+        catch {
+            return true;
+        }
+    }
     let text;
     try {
         text = readFileSync(join(root, ".flisk", "project.json"), "utf8");
@@ -108,7 +126,7 @@ export function folderHoldsProject(root, name, pathExists = existsSync) {
     }
     try {
         const found = JSON.parse(text).project?.name;
-        return typeof found !== "string" || found.toLowerCase() === name;
+        return typeof found !== "string" || found.trim().toLowerCase() === name;
     }
     catch {
         return true;

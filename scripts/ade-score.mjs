@@ -253,11 +253,19 @@ const CHECKS = [
 		half: "workspace",
 		area: "isolation",
 		weight: 12,
-		title: "One git worktree per agent task",
+		title: "An isolated project name for each agent worktree",
 		run: (r) => {
-			// Creating one (`git worktree add`), not merely detecting that the project sits inside one.
-			const hit = walk(r, "cli/src").find((f) => /worktree["'`,\s]+add/i.test(read(r, f)));
-			return { pass: Boolean(hit), detail: hit };
+			// Either the CLI creates worktrees (`git worktree add`) or it gives each checkout an uncommitted project
+			// name, so two worktrees can run their own stacks without editing the shared config (#4046).
+			const sources = walk(r, "cli/src").map((f) => read(r, f));
+			const creator = sources.find((text) => /worktree["'`,\s]+add/i.test(text));
+			const override = sources.find(
+				(text) => /FLISK_PROJECT_NAME/.test(text) && /project\.local\.json|PROJECT_LOCAL_JSON/.test(text),
+			);
+			return {
+				pass: Boolean(creator || override),
+				detail: creator ? "worktree add" : override ? "per-checkout project name override" : "",
+			};
 		},
 	},
 	{

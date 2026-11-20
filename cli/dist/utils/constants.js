@@ -30,6 +30,11 @@ export const RESOURCE_DEFAULTS_FILE = "TILT_RESOURCE_DEFAULTS.star";
 // matching (or worse, read a different file). Keep the literal here and
 // import it everywhere it's needed.
 export const PROJECT_JSON = "project.json";
+// Uncommitted, per-checkout project name. Gitignored by `flisk project` / `flisk up`; keeps a second git worktree from
+// having to edit the tracked project.json (#4046).
+export const PROJECT_LOCAL_JSON = "project.local.json";
+// Name of the environment variable that overrides the project name for this process and its child Tilt/engine.
+export const PROJECT_NAME_ENV = "FLISK_PROJECT_NAME";
 // Manifest file name for Node / JavaScript packages and root workspace.
 export const PACKAGE_JSON = "package.json";
 // Agent documentation Flisk writes on project setup: created only when missing, never overwritten.

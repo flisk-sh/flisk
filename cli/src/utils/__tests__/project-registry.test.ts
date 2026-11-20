@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
 import {
   folderHoldsProject,
   forgetProject,
   isRecordStale,
+  projectNameAt,
   projectRegistryDir,
   readProjectRecords,
   recordProjectRoot,
@@ -15,6 +16,7 @@ import {
 
 const dirs: string[] = [];
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -30,6 +32,35 @@ function project(name: string): string {
   writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify({ project: { name } }));
   return root;
 }
+
+describe("projectNameAt", () => {
+  it("uses the uncommitted local name, then the environment override (#4046)", () => {
+    const root = project("shared-name");
+    writeFileSync(
+      join(root, ".flisk", "project.local.json"),
+      JSON.stringify({ project: { name: "Agent-Two" } }),
+    );
+    expect(projectNameAt(root)).toBe("agent-two");
+
+    vi.stubEnv("FLISK_PROJECT_NAME", "Shell-Name");
+    expect(projectNameAt(root)).toBe("shell-name");
+    // Other checkouts are inspected without assuming this process's override.
+    expect(projectNameAt(root, {})).toBe("agent-two");
+  });
+
+  it("records a checkout under its override name (#4046)", () => {
+    const home = temp("flisk-registry-home-");
+    const root = project("shared-name");
+    writeFileSync(
+      join(root, ".flisk", "project.local.json"),
+      JSON.stringify({ project: { name: "agent-two" } }),
+    );
+
+    recordProjectRoot(root, { home, now: new Date("2026-11-20T00:00:00Z") });
+
+    expect(readProjectRecords(home).map((record) => record.name)).toEqual(["agent-two"]);
+  });
+});
 
 describe("recordProjectRoot", () => {
   it("records the folder under the lowercased project name, once per folder", () => {
@@ -133,6 +164,16 @@ describe("folderHoldsProject", () => {
     expect(folderHoldsProject(root, "shop")).toBe(true);
     writeFileSync(join(root, ".flisk", "project.json"), "{}");
     expect(folderHoldsProject(root, "shop")).toBe(true);
+  });
+
+  it("checks the uncommitted local name before the tracked name (#4046)", () => {
+    const root = project("shop");
+    writeFileSync(
+      join(root, ".flisk", "project.local.json"),
+      JSON.stringify({ project: { name: "Agent-Two" } }),
+    );
+    expect(folderHoldsProject(root, "agent-two")).toBe(true);
+    expect(folderHoldsProject(root, "shop")).toBe(false);
   });
 
   it("is true for a project.json that cannot be read", () => {

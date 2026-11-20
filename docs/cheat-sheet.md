@@ -493,9 +493,11 @@ flisk config disable-infra elk
 | `FLISK_VERBOSE` | Set to any value to log the underlying error message when a command fails |
 | `FLISK_PUBLIC_HOST` | Host name used in printed service URLs, for example `my-project.localhost` (`FLISK_SERVICE_BASE_URL` wins when both are set) |
 | `FLISK_EXTENSION_PATH` | Path to a flisk checkout whose Tilt extensions the generated Tiltfile loads instead of the installed ones |
-| `FLISK_PROJECT_NAME` | Project name that `runtime/engine/scripts/debug-container.sh` uses to find containers, instead of the name in `.flisk/project.json` |
+| `FLISK_PROJECT_NAME` | Override this checkout's project name for containers, volumes and hostnames, ahead of `.flisk/project.local.json` and `.flisk/project.json` (#4046) |
 | `FLISK_DOCKER_SOCKET_GID` | Group id of the Docker socket, which Traefik needs when the socket is not owned by root (default `0`) |
 | `FLISK_PREMIUM_DIAGNOSTICS` | Set to `1` to print why a premium extension (Sablier) was not fetched |
+
+For a second git worktree, write `.flisk/project.local.json` with `{"project":{"name":"my-app-agent-2"}}` instead of editing the tracked `.flisk/project.json`. Flisk adds that local file to `.gitignore`; `FLISK_PROJECT_NAME` wins when both are set.
 
 See [configuration](configuration.md), [environment, params and secrets](environment.md) and [generated files](generated-files.md).
 

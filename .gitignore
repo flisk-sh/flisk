@@ -52,6 +52,7 @@ test-results/
 # Generated reports
 .jscpd-report/
 .flisk/.flisk-out/
+.flisk/project.local.json
 .flisk/smoke/
 
 release-dist-*/

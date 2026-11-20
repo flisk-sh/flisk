@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_PROJECT_NAME,
   readProjectJson,
@@ -12,12 +12,19 @@ import {
 } from "../project-reader.js";
 
 describe("project-reader", () => {
-  function makeTempProject(content?: string): string {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function makeTempProject(content?: string, localContent?: string): string {
     const root = mkdtempSync(join(tmpdir(), "flisk-project-reader-"));
     const fliskDir = join(root, ".flisk");
     mkdirSync(fliskDir, { recursive: true });
     if (content !== undefined) {
       writeFileSync(join(fliskDir, "project.json"), content, "utf-8");
+    }
+    if (localContent !== undefined) {
+      writeFileSync(join(fliskDir, "project.local.json"), localContent, "utf-8");
     }
     return root;
   }
@@ -57,6 +64,41 @@ describe("project-reader", () => {
     it("lower-cases the name, as Compose project names must be (#1519)", () => {
       const root = makeTempProject(JSON.stringify({ project: { name: "Lychee" } }));
       expect(readProjectNameOrUndefined(root)).toBe("lychee");
+    });
+
+    it("uses the gitignored project.local.json name before project.json (#4046)", () => {
+      const root = makeTempProject(
+        JSON.stringify({ project: { name: "shared-name" } }),
+        JSON.stringify({ project: { name: "Agent-Two" } }),
+      );
+      expect(readProjectNameOrUndefined(root)).toBe("agent-two");
+    });
+
+    it("prefers FLISK_PROJECT_NAME over both local and committed names (#4046)", () => {
+      const root = makeTempProject(
+        JSON.stringify({ project: { name: "shared-name" } }),
+        JSON.stringify({ project: { name: "local-name" } }),
+      );
+      vi.stubEnv("FLISK_PROJECT_NAME", " Shell-Name ");
+      expect(readProjectNameOrUndefined(root)).toBe("shell-name");
+    });
+
+    it("ignores blank overrides and a malformed local file", () => {
+      const root = makeTempProject(
+        JSON.stringify({ project: { name: "shared-name" } }),
+        "{ not json",
+      );
+      vi.stubEnv("FLISK_PROJECT_NAME", "   ");
+      expect(readProjectNameOrUndefined(root)).toBe("shared-name");
+    });
+
+    it("does not apply this process's environment when reading another checkout", () => {
+      const root = makeTempProject(
+        JSON.stringify({ project: { name: "shared-name" } }),
+        JSON.stringify({ project: { name: "local-name" } }),
+      );
+      vi.stubEnv("FLISK_PROJECT_NAME", "shell-name");
+      expect(readProjectNameOrUndefined(root, {})).toBe("local-name");
     });
 
     it("returns undefined when project.json is missing", () => {
@@ -104,6 +146,14 @@ describe("project-reader", () => {
     it("returns custom fallback when specified", () => {
       const root = makeTempProject();
       expect(readProjectNameWithFallback(root, "my-fallback")).toBe("my-fallback");
+    });
+
+    it("uses the checkout override before the fallback (#4046)", () => {
+      const root = makeTempProject(
+        undefined,
+        JSON.stringify({ project: { name: "checkout-name" } }),
+      );
+      expect(readProjectNameWithFallback(root)).toBe("checkout-name");
     });
   });
 });

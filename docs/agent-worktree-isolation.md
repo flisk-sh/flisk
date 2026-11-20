@@ -20,7 +20,7 @@ For complete experimental reproduction logs and technical details, see the [Mult
 ## Best Practices for Agents Today
 
 ### 1. Scope Project Names Per Worktree
-In each agent's worktree, ensure `.flisk/project.json` contains a unique project name:
+Do **not** change the tracked `.flisk/project.json`. Give each extra worktree an uncommitted name in `.flisk/project.local.json`:
 ```json
 {
   "project": {
@@ -28,7 +28,12 @@ In each agent's worktree, ensure `.flisk/project.json` contains a unique project
   }
 }
 ```
-This isolates Docker container names (`flisk-my-app-agent-auth-<service>`) and volume names (`my-app-agent-auth_pgdata`).
+Flisk adds `.flisk/project.local.json` to `.gitignore`, so `git status` stays clean. A shell variable works too:
+```bash
+export FLISK_PROJECT_NAME=my-app-agent-auth
+flisk up
+```
+`FLISK_PROJECT_NAME` wins over the local file, which wins over the tracked config. The effective name drives container names (`flisk-my-app-agent-auth-<service>`), Docker volume names (`my-app-agent-auth_pgdata`) and the `*.localhost` hostnames. Host ports are a separate concern (see #4047).
 
 ### 2. Configure Distinct Host Ports
 Override the standard Flisk ports in the worktree's `.env` file:

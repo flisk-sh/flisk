@@ -73,6 +73,7 @@ describe("networksCommand and helpers", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     process.chdir(originalCwd);
     rmSync(tempDir, { recursive: true, force: true });
     clearDiscoveryCache();
@@ -144,6 +145,12 @@ describe("networksCommand and helpers", () => {
     it("returns <project>.localhost when project has a custom name", () => {
       setupProject("shopfront");
       expect(determineDefaultDomain()).toBe("shopfront.localhost");
+    });
+
+    it("uses the checkout name override for the local hostname (#4046)", () => {
+      setupProject("shopfront");
+      vi.stubEnv("FLISK_PROJECT_NAME", "Shopfront-Agent-Two");
+      expect(determineDefaultDomain()).toBe("shopfront-agent-two.localhost");
     });
 
     it("scans Traefik Docker labels and prefers shortest project domain when project name is default", () => {

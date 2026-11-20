@@ -160,6 +160,8 @@ describe("refusal messages", () => {
     expect(refusal?.message).toContain('"shop"');
     expect(refusal?.message).toContain("/a/shop");
     expect(refusal?.message).toContain("shop_postgres");
+    expect(refusal?.suggestions[0]).toContain("FLISK_PROJECT_NAME");
+    expect(refusal?.suggestions[0]).toContain("project.local.json");
     expect(refusal?.suggestions.join("\n")).toContain("project.name");
     expect(refusal?.suggestions.join("\n")).toContain("cd /a/shop && flisk down");
   });
