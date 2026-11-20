@@ -31,7 +31,7 @@ import { suggestClosest } from "../utils/suggestions.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
-import { isTargetDirSafe } from "../utils/validation.js";
+import { deriveProjectName, isTargetDirSafe, validateProjectName } from "../utils/validation.js";
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
  * cloned starter template). Tilt's discovery groups app resources by this
@@ -482,7 +482,7 @@ const DEFAULT_PROJECT_JSON = {
  */
 export function writeDefaultProjectConfig(projectRoot) {
     const projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-    projectConfig.project.name = basename(projectRoot) || "my-project";
+    projectConfig.project.name = deriveProjectName(basename(projectRoot));
     ensureDirectory(join(projectRoot, ".flisk"));
     writeJsonFile(join(projectRoot, ".flisk", PROJECT_JSON), projectConfig);
 }
@@ -692,12 +692,21 @@ export const projectCommand = addYesOption(new Command("project"))
             }
             const configContent = readFileSync(configFilePath, "utf-8");
             projectConfig = JSON.parse(configContent);
+            if (typeof projectConfig?.project?.name === "string") {
+                const nameResult = validateProjectName(projectConfig.project.name.trim());
+                if (!nameResult.valid) {
+                    throw new FliskError(nameResult.error ?? "Invalid project name", [
+                        "Set project.name in the config file to a Docker- and npm-compatible name (lowercase letters, numbers, and hyphens only)",
+                    ]);
+                }
+                projectConfig.project.name = projectConfig.project.name.trim();
+            }
             if (!quiet)
                 showSuccess(`Loaded config from: ${configFilePath}`);
         }
         else if (yes) {
             projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-            projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
+            projectConfig.project.name = deriveProjectName(basename(projectRoot));
             if (!quiet)
                 console.log(chalk.gray("Using default configuration (non-interactive mode)"));
         }
@@ -705,8 +714,11 @@ export const projectCommand = addYesOption(new Command("project"))
             showStep("📝 Project Setup Wizard\n");
             const projectName = await promptText({
                 message: "Project name:",
-                initial: projectRoot.split("/").pop() || "my-project",
-                validate: (input) => input.trim() !== "" || "Project name is required",
+                initial: deriveProjectName(basename(projectRoot)),
+                validate: (input) => {
+                    const result = validateProjectName(input.trim());
+                    return result.valid ? true : (result.error ?? "Project name is required");
+                },
             });
             const projectVersion = await promptText({
                 message: "Project version:",

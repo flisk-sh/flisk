@@ -1068,6 +1068,31 @@ describe("template-engine", () => {
       });
     }
 
+    it("accepts a Compose-style project name with an underscore, as flisk import writes it", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-underscore-name-"));
+      try {
+        const config = projectConfig({ project: { name: "pl_mail", version: "1.0.0" } });
+        writeProjectJson(projectRoot, config);
+
+        expect(readProjectConfig(projectRoot).project.name).toBe("pl_mail");
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+
+    it.each(["Pl Mail", "-lead", "has space", "UPPER", "a/b"])(
+      "still rejects the project name %j",
+      (name) => {
+        const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-bad-name-"));
+        try {
+          writeProjectJson(projectRoot, projectConfig({ project: { name, version: "1.0.0" } }));
+          expect(() => readProjectConfig(projectRoot)).toThrow(/project\.name/);
+        } finally {
+          fs.rmSync(projectRoot, { recursive: true, force: true });
+        }
+      },
+    );
+
     it("returns every field of a valid config, including the optional ones", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-valid-project-json-"));
       try {
