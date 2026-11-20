@@ -222,6 +222,14 @@ function readExistingManifest(projectRoot, resourcePath) {
         config: parseExistingServiceJson(readFileSync(manifestPath, "utf-8"), manifestPath),
     };
 }
+/** The type a manifest has for discovery: `appType`, then the legacy `type` (see readLegacyAppType in utils/services.ts). */
+function effectiveManifestType(config) {
+    if (!config)
+        return undefined;
+    if (typeof config.appType === "string" && config.appType)
+        return config.appType;
+    return typeof config.type === "string" && config.type ? config.type : undefined;
+}
 /** The folder a resource gets without --path: the type's conventional folder, or services/<stack>/<name> when discovery skips it. */
 function inferResourcePath(projectRoot, resourceType, stackName, resourceName) {
     const defaultPaths = {
@@ -764,7 +772,7 @@ export function frameworkInventoryReport(options) {
 }
 /** Registration keeps runtime fields, even when the creation flags would select another scaffold. */
 function registrationReport(report, manifest) {
-    const type = manifest.appType ?? report.type;
+    const type = effectiveManifestType(manifest) ?? report.type;
     const language = typeof manifest.language === "string"
         ? manifest.language
         : type === "backend"
@@ -895,7 +903,9 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
                 suppliedExistingManifest = readExistingManifest(projectRoot, inferred.path);
             }
         }
-        const earlyAppType = requestedType === "sdk" ? "sdk" : suppliedExistingManifest?.config.appType || requestedType;
+        const earlyAppType = requestedType === "sdk"
+            ? "sdk"
+            : effectiveManifestType(suppliedExistingManifest?.config) || requestedType;
         // Only a resource that ends up a frontend takes --base-path (the update path ignores it on any other appType).
         const preValidatedBasePath = earlyAppType === "frontend" ? resolveBasePath(options.basePath) : undefined;
         if (earlyAppType === "frontend" &&
@@ -1212,10 +1222,12 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
                 : readExistingManifest(projectRoot, finalResourcePath)
             : undefined;
         const existingRegistrationManifest = existingRegistration?.config;
-        const existingAppType = typeof existingRegistrationManifest?.appType === "string"
-            ? existingRegistrationManifest.appType
-            : undefined;
-        const hasTypeConflict = existingAppType !== undefined && requestedType !== existingAppType;
+        const existingAppType = effectiveManifestType(existingRegistrationManifest);
+        if (process.env.DEBUG_4634)
+            console.error("DBG existingRegistration=", existingRegistration?.path, "manifest=", JSON.stringify(existingRegistrationManifest), "existingAppType=", existingAppType, "requestedType=", requestedType, "resourceType=", resourceType, "hasTypeConflict=", existingAppType !== undefined && resourceType !== existingAppType);
+        // Compare what registration would write (a preset is a bring-your-own container whatever --type named it), not the
+        // raw --type, so `--type database --framework redis` over a Redis manifest is no conflict.
+        const hasTypeConflict = existingAppType !== undefined && resourceType !== existingAppType;
         const existingRegistrationPort = typeof existingRegistrationManifest?.port === "number" &&
             Number.isInteger(existingRegistrationManifest.port) &&
             existingRegistrationManifest.port > 0
@@ -1287,11 +1299,12 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         // Builds the registered manifest from `existingServiceJson`. Run again from a fresh read after the confirmation
         // prompt, so an edit made to service.json while the prompt was open is not overwritten.
         const buildRegisteredServiceJson = (existingServiceJson) => {
-            const updatedAppType = hasTypeConflict && existingServiceJson.appType
-                ? existingServiceJson.appType
+            const existingType = effectiveManifestType(existingServiceJson);
+            const updatedAppType = hasTypeConflict && existingType
+                ? existingType
                 : resourceType === "sdk"
                     ? "sdk"
-                    : existingServiceJson.appType || resourceType;
+                    : existingType || resourceType;
             // Update with new values while preserving existing fields
             const updatedServiceJson = {
                 ...existingServiceJson,
@@ -1404,7 +1417,8 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
                 throw errorFactories.invalidPath(finalResourcePath);
             // The port was kept, not reserved, so an edit during the prompt could leave it free for another resource.
             if (preserveExistingPort &&
-                (fresh.port !== existingRegistrationPort || fresh.appType !== existingAppType)) {
+                (fresh.port !== existingRegistrationPort ||
+                    effectiveManifestType(fresh) !== existingAppType)) {
                 throw new FliskError(`${finalResourcePath}/service.json changed while waiting for confirmation. Run the command again.`, ["Run the same flisk resource command again to register against the new manifest"]);
             }
             updatedServiceJson = buildRegisteredServiceJson(fresh);

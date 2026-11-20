@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { FliskError } from "./errors.js";
+import { INFRA_PRESETS, isInfraFramework } from "./infra-presets.js";
 import { discoverServiceManifestPaths } from "./services.js";
 
 /**
@@ -47,7 +48,15 @@ export function findPortOwner(
   for (const file of discoverServiceManifestPaths(projectRoot)) {
     if (path.resolve(file) === ignored) continue;
     try {
-      if ((JSON.parse(readFileSync(file, "utf-8")) as { port?: unknown }).port === port) {
+      const manifest = JSON.parse(readFileSync(file, "utf-8")) as {
+        port?: unknown;
+        framework?: unknown;
+      };
+      // A preset's port (Redis 6379) is the image's container-internal port, reached on the Docker network by name, so it
+      // does not own that number on the host: only a host-facing port is unique across the project.
+      const presetInternal =
+        isInfraFramework(manifest.framework) && INFRA_PRESETS[manifest.framework].port === port;
+      if (manifest.port === port && !presetInternal) {
         return path.relative(projectRoot, file);
       }
     } catch {
