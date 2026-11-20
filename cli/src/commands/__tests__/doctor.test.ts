@@ -425,6 +425,25 @@ describe("doctor generated runtime asset preflight", () => {
     expect(result.message).toContain("runtime assets are present");
   });
 
+  it("fails when a copied Docker script has a CR in its first line", () => {
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "asset-check", private: true, workspaces: ["services/*/*"] }),
+    );
+    writeRequiredRuntimeAssets();
+    writeFileSync(
+      join(testDir, "shared-platform-engineering", "docker-templates", "install-deps.sh"),
+      "#!/bin/sh\r\necho install-deps.sh\n",
+    );
+
+    const result = checkGeneratedProjectRuntimeAssets();
+
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("install-deps.sh");
+    expect(result.message).toContain("CRLF");
+    expect(result.fix).toContain("flisk config regenerate");
+  });
+
   it("flags a script a generated Dockerfile copies but the project lacks", () => {
     writeFileSync(
       join(testDir, "package.json"),

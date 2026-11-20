@@ -1135,6 +1135,7 @@ describe("template-engine", () => {
         "bun-hoisted-symlink-fix.sh",
         "prisma-bun-client-link-fix.sh",
         "prisma-normalize-client.sh",
+        "infisical-entrypoint.sh",
       ]) {
         fs.writeFileSync(path.join(runtimeDir, file), `#!/bin/sh\necho ${file}\n`);
       }
@@ -1187,6 +1188,17 @@ describe("template-engine", () => {
             "utf-8",
           ),
         ).toContain("echo install-deps.sh");
+        expect(
+          fs.readFileSync(
+            path.join(
+              projectRoot,
+              "shared-platform-engineering",
+              "docker-templates",
+              "infisical-entrypoint.sh",
+            ),
+            "utf-8",
+          ),
+        ).toContain("echo infisical-entrypoint.sh");
         expect(
           fs.readFileSync(
             path.join(generatedDir, "flisk-cli-ext", "engine", "marker.star"),
@@ -1287,15 +1299,82 @@ describe("template-engine", () => {
             "utf-8",
           ),
         ).toBe("#!/bin/sh\n");
-        expect(warnings).toHaveLength(3);
+        expect(warnings).toHaveLength(4);
         expect(warnings.join("\n")).toContain("bun-hoisted-symlink-fix.sh");
         expect(warnings.join("\n")).toContain("prisma-bun-client-link-fix.sh");
         expect(warnings.join("\n")).toContain("prisma-normalize-client.sh");
+        expect(warnings.join("\n")).toContain("infisical-entrypoint.sh");
       } finally {
         fsState.existsSync.mockImplementation(originalExistsSync);
         warnSpy.mockRestore();
         Object.defineProperty(process, "execPath", {
           value: originalExecPath,
+          configurable: true,
+        });
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+        fs.rmSync(fakeExecDir, { recursive: true, force: true });
+      }
+    });
+
+    it("normalizes CRLF line endings in copied Docker template scripts", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-crlf-assets-"));
+      const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-crlf-exec-"));
+      const packagedRoot = path.join(fakeExecDir, "flisk-cli");
+      const runtimeDir = path.join(
+        packagedRoot,
+        "runtime",
+        "shared-platform-engineering",
+        "docker-templates",
+      );
+      const oldExecPath = process.execPath;
+      const originalExistsSync = fsState.actualExistsSync;
+      if (!originalExistsSync) throw new Error("node:fs mock was not initialized");
+      const scriptNames = [
+        "install-deps.sh",
+        "bun-hoisted-symlink-fix.sh",
+        "prisma-bun-client-link-fix.sh",
+        "prisma-normalize-client.sh",
+        "infisical-entrypoint.sh",
+      ];
+
+      fs.mkdirSync(runtimeDir, { recursive: true });
+      for (const file of scriptNames) {
+        fs.writeFileSync(path.join(runtimeDir, file), `#!/bin/sh\r\necho ${file}\r\n`, "utf-8");
+      }
+      Object.defineProperty(process, "execPath", {
+        value: path.join(fakeExecDir, "flisk"),
+        configurable: true,
+      });
+      fsState.existsSync.mockImplementation((filePath) => {
+        const resolved = String(filePath);
+        if (
+          resolved.startsWith(`${repoRoot}${path.sep}runtime${path.sep}`) ||
+          (resolved.startsWith(`${repoRoot}${path.sep}`) &&
+            resolved.endsWith(path.join("shared-platform-engineering", "docker-templates")))
+        ) {
+          return false;
+        }
+        return originalExistsSync(filePath);
+      });
+
+      try {
+        expect(ensureProjectRuntimeAssets(projectRoot)).toEqual([
+          "shared-platform-engineering/docker-templates",
+        ]);
+        for (const file of scriptNames) {
+          const copiedPath = path.join(
+            projectRoot,
+            "shared-platform-engineering",
+            "docker-templates",
+            file,
+          );
+          expect(fs.readFileSync(copiedPath, "utf-8")).toBe(`#!/bin/sh\necho ${file}\n`);
+          expect(fs.readFileSync(copiedPath, "utf-8")).not.toContain("\r");
+        }
+      } finally {
+        fsState.existsSync.mockImplementation(originalExistsSync);
+        Object.defineProperty(process, "execPath", {
+          value: oldExecPath,
           configurable: true,
         });
         fs.rmSync(projectRoot, { recursive: true, force: true });
