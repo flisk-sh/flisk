@@ -433,7 +433,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--since <duration>",
-                description: "Only logs newer than this duration, for example 30s, 5m, 1h",
+                description: "Only logs newer than this duration, using real event times, for example 30s, 5m, 1h",
             },
             {
                 flags: "--source <source>",

@@ -417,7 +417,7 @@ flisk logs --since 5m --json
 | `--source <runtime|build>` | Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime |
 | `--unhealthy` | Only services that are failing or still starting |
 | `--tail <n>` | Most recent lines (default 200) |
-| `--since <duration>` | Only logs newer than this, for example `30s`, `5m`, `1h` |
+| `--since <duration>` | Only logs newer than this, using each event's recorded time, for example `30s`, `5m`, `1h` |
 | `--port <n>` | Tilt UI port (default `TILT_PORT` or 10350) |
 | `--json` | One JSON object |
 
