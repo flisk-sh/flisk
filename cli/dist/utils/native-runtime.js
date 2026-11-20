@@ -865,11 +865,25 @@ export class NativeSupervisor {
         }
         if (hasLateEnv) {
             const resolved = resolveMigratorOutputsInEnv(plan.name, plan.rawEnv, plan.dependsOn, outputsRecord);
-            // Only keys that reference a migrator are replaced; every other key keeps the value planNativeRun already expanded.
+            // The ranking planNativeRun expanded against: the service directory's .env, the run's variables, then the
+            // service's own env — never the shell alone, which cannot see the run's variables.
+            const planScope = () => ({
+                ...readServiceDotenv(plan.cwd),
+                ...(this.baseEnv ?? process.env),
+                ...plan.env,
+            });
+            // Direct migrator references bind first, so an alias of one (COPY: "${TOKEN}") re-expands against the
+            // produced value in the pass below, not against the placeholder the plan started with (#4694).
             for (const [k, v] of Object.entries(resolved)) {
-                if (v === plan.rawEnv?.[k])
+                if (v !== plan.rawEnv?.[k])
+                    plan.env[k] = expandEnvValue(v, planScope());
+            }
+            for (const [k, v] of Object.entries(resolved)) {
+                if (v !== plan.rawEnv?.[k])
                     continue;
-                plan.env[k] = expandEnvValue(v, { ...process.env, ...plan.env });
+                const rebound = expandEnvValue(v, planScope());
+                if (rebound !== plan.env[k])
+                    plan.env[k] = rebound;
             }
         }
         // Values that depend on a migrator bind here, after the outputs exist: the placeholder planning kept in the
@@ -1186,13 +1200,18 @@ export class NativeSupervisor {
             if (pid && isChildRunning(service.child)) {
                 await stopProcessGroup(pid, this.options.stopTimeoutMs);
             }
+            const previousPlan = service.plan;
+            const previousBaseEnv = this.baseEnv;
             this.refreshPlans(service);
             try {
                 // The fresh plan carries planning-time placeholders for values a migrator produced; bind them now.
                 this.resolveServiceEnv(service);
             }
             catch (err) {
-                // An output that vanished keeps the plan the run started with, like an unreadable env file does.
+                // The refreshed plan cannot be bound (an output that vanished): restore the plan the run started
+                // with, so the note is true and the spawn below uses that plan too, not the half-bound refresh.
+                service.plan = previousPlan;
+                this.baseEnv = previousBaseEnv;
                 this.events.onNote?.(name, `restart kept the previous plan: ${err instanceof Error ? err.message : String(err)}`);
             }
             service.isReady = false;

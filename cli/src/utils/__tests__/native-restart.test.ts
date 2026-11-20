@@ -98,6 +98,35 @@ describe("native resource restart through the control channel", () => {
     expect(await (await fetch(`http://localhost:${apiPort}/`)).text()).toBe("two");
   });
 
+  it("restarts with the previous plan when the reloaded one cannot be bound", async () => {
+    const root = createTempDir();
+    let plansFor: (greeting: string) => ReturnType<typeof planNativeRun>["services"] = () => [];
+    // The reloaded plan references a migrator output this run never had, so binding it throws.
+    const broken = (plans: ReturnType<typeof planNativeRun>["services"]) =>
+      plans.map((p) =>
+        p.name === "api"
+          ? {
+              ...p,
+              dependsOn: ["mig"],
+              rawHealthPath: "${mig:GOING_BAD}",
+              healthUrl: undefined,
+            }
+          : p,
+      );
+    const { apiPort, plans } = await twoServices(root, {
+      reload: () => ({ plans: broken(plansFor("one")), baseEnv: {} }),
+    });
+    plansFor = plans;
+    expect(await (await fetch(`http://localhost:${apiPort}/`)).text()).toBe("one");
+
+    const result = await requestNativeRestart(root, "api", { waitMs: 20_000 });
+
+    // The service restarts on the plan the run started with: the note that says so must be true, and
+    // the previous greeting (not the broken reloaded one) is what the restarted process serves.
+    expect(result.state).toBe("ready");
+    expect(await (await fetch(`http://localhost:${apiPort}/`)).text()).toBe("one");
+  });
+
   it("reports failed with the cause in the log when the restarted service dies", async () => {
     const root = createTempDir();
     const bad = (plans: ReturnType<typeof planNativeRun>["services"]) =>

@@ -1464,6 +1464,76 @@ writeFileSync("late.json", process.argv[2] ?? "");`,
     expect(readFileSync(join(root, "late.json"), "utf-8")).toBe("token_late_789");
   });
 
+  it("binds an env key that names another migrator-produced key, not only the direct reference", async () => {
+    const root = createTempDir();
+    writeFileSync(
+      join(root, "dump-env.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync("env-alias.json", JSON.stringify({ copy: process.env.COPY }));`,
+    );
+
+    const plan = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command: 'printf "SERVICE_TOKEN=alias_late_42\\n" > "$FLISK_OUTPUT"',
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} dump-env.mjs`,
+        dependsOn: ["migrator"],
+        env: { TOKEN: "${migrator:SERVICE_TOKEN}", COPY: "${TOKEN}" },
+      }),
+    ]);
+
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    const failures = await supervisor.start();
+    expect(failures).toEqual([]);
+    await waitFor(() => existsSync(join(root, "env-alias.json")));
+    // COPY names TOKEN rather than the migrator: after the direct key is bound, the alias must hold the
+    // produced value, not the planning-time placeholder that TOKEN expanded to.
+    expect(JSON.parse(readFileSync(join(root, "env-alias.json"), "utf-8")).copy).toBe(
+      "alias_late_42",
+    );
+  });
+
+  it("binds a direct migrator reference with the run's own variables, not only the shell's", async () => {
+    const root = createTempDir();
+    writeFileSync(
+      join(root, "dump-scope.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync("env-scope.json", JSON.stringify({ url: process.env.URL }));`,
+    );
+    const runVars = { HOST: "api.internal" };
+    delete process.env.HOST;
+
+    const plan = planNativeRun(
+      [
+        nativeService(root, "migrator", {
+          appType: "migrator",
+          command: 'printf "SERVICE_TOKEN=scope_17\\n" > "$FLISK_OUTPUT"',
+        }),
+        nativeService(root, "api", {
+          command: `${NODE} dump-scope.mjs`,
+          dependsOn: ["migrator"],
+          env: { URL: "${HOST}/${migrator:SERVICE_TOKEN}" },
+        }),
+      ],
+      runVars,
+      root,
+    );
+
+    const supervisor = new NativeSupervisor(root, plan.services, {}, { baseEnv: runVars });
+    supervisors.push(supervisor);
+    const failures = await supervisor.start();
+    expect(failures).toEqual([]);
+    await waitFor(() => existsSync(join(root, "env-scope.json")));
+    // HOST is a run variable the shell never had: the late binding expands with the planning ranking
+    // (service .env, the run's variables, the service's env), so the host survives the rebind.
+    expect(JSON.parse(readFileSync(join(root, "env-scope.json"), "utf-8")).url).toBe(
+      "api.internal/scope_17",
+    );
+  });
+
   it("rebinds the health path and probe words that reference migrator output", async () => {
     const root = createTempDir();
     writeFileSync(

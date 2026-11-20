@@ -131,11 +131,20 @@ export function getCheckoutId(projectRoot: string, options: { persist?: boolean 
         writeFileSync(idPath, contents, { encoding: "utf-8", flag: "wx" });
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-        // Another process created the record first: adopt its id so both processes agree. A record that
-        // names another path (or cannot be read) is replaced, as a copied or moved checkout must be.
-        const winner = readPersistedCheckoutId(idPath);
-        if (winner && winner.path === currentPath) return winner.id;
-        writeFileSync(idPath, contents, "utf-8");
+        // Another process created the record first: adopt its id so both processes agree. The winner may still be
+        // writing its contents (the file exists from the moment the exclusive open created it), so re-read with a
+        // short bounded spin: a complete record naming this path is adopted, one naming another path (a copied or
+        // moved checkout) is replaced, and a record that is still unreadable is never overwritten — the winner owns
+        // it, and the next call on this machine reads the finished record (#4694).
+        for (let attempt = 0; ; attempt++) {
+          const winner = readPersistedCheckoutId(idPath);
+          if (winner) {
+            if (winner.path === currentPath) return winner.id;
+            writeFileSync(idPath, contents, "utf-8");
+            return nextId;
+          }
+          if (attempt >= 200) return deterministicFallbackId(currentPath);
+        }
       }
     }
     return nextId;

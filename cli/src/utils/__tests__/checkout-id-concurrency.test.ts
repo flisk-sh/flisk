@@ -15,7 +15,7 @@ import { canonicalCheckoutPath, getCheckoutId } from "../checkout-id.js";
  * the record once (the file looks missing to the first read), and the exclusive write then hits the record
  * that really is on disk — exactly the state a concurrent process leaves behind.
  */
-const race = vi.hoisted(() => ({ hideRecordOnce: false }));
+const race = vi.hoisted(() => ({ hideRecordOnce: false, emptyRecordReads: 0 }));
 
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
@@ -28,6 +28,16 @@ vi.mock("node:fs", async (importOriginal) => {
       }
       return actual.existsSync(path);
     },
+    readFileSync: ((path: PathLike, ...rest: unknown[]) => {
+      if (
+        race.emptyRecordReads > 0 &&
+        String(path).replace(/\\/g, "/").endsWith("/.flisk/.project-id")
+      ) {
+        race.emptyRecordReads -= 1;
+        return "";
+      }
+      return (actual.readFileSync as unknown as (...args: unknown[]) => string)(path, ...rest);
+    }) as typeof actual.readFileSync,
   };
 });
 
@@ -47,6 +57,7 @@ afterEach(() => {
 
 beforeEach(() => {
   race.hideRecordOnce = false;
+  race.emptyRecordReads = 0;
 });
 
 describe("checkout-id first-time creation", () => {
@@ -82,6 +93,37 @@ describe("checkout-id first-time creation", () => {
       id,
       path: canonicalCheckoutPath(root),
     });
+  });
+
+  it("adopts the winner's id when its record is still being written", () => {
+    const root = makeTempDir();
+    const winner = { id: "c0ffee42", path: canonicalCheckoutPath(root) };
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(join(root, ".flisk", ".project-id"), `${JSON.stringify(winner)}\n`, "utf-8");
+
+    // The losing process finds the record missing (the winner just created it), then reads it empty once
+    // (the winner's write has not landed). The bounded re-read must wait for the finished record, not
+    // overwrite it with a second id.
+    race.hideRecordOnce = true;
+    race.emptyRecordReads = 1;
+    expect(getCheckoutId(root)).toBe("c0ffee42");
+    expect(JSON.parse(readFileSync(join(root, ".flisk", ".project-id"), "utf-8"))).toEqual(winner);
+  });
+
+  it("never overwrites a record that stays unreadable, and falls back", () => {
+    const root = makeTempDir();
+    const winner = { id: "deadbeef", path: canonicalCheckoutPath(root) };
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(join(root, ".flisk", ".project-id"), `${JSON.stringify(winner)}\n`, "utf-8");
+
+    // The record exists but never becomes readable within the bounded spin: the winner owns it, so the
+    // loser returns the deterministic fallback and leaves the file exactly as the winner left it.
+    race.hideRecordOnce = true;
+    race.emptyRecordReads = Number.MAX_SAFE_INTEGER;
+    const id = getCheckoutId(root);
+    expect(id).not.toBe("deadbeef");
+    race.emptyRecordReads = 0;
+    expect(JSON.parse(readFileSync(join(root, ".flisk", ".project-id"), "utf-8"))).toEqual(winner);
   });
 });
 
