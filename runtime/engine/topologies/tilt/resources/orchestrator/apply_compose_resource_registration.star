@@ -1454,7 +1454,8 @@ def _register_image_retry_gate(stack_name, resource_configs, auto_init_apps, ctx
         cmd=['sh', '-c', _IMAGE_RETRY_SCRIPT, 'sh'] + retry_args,
         cmd_bat=POWERSHELL + [image_retry_script()],
         env={'FLISK_IMAGE_RETRY_ARGS': encode_json(retry_args)},
-        labels=['app.' + stack_name, 'image-retry'],
+        # A stack name can be 63 bytes; prefixing it with `app.` would exceed Tilt's label limit.
+        labels=['image-retry'],
         resource_deps=[config['res_name'] + '-image' for config in builds],
         auto_init=auto_init_apps,
         allow_parallel=False,
