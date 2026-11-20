@@ -13,7 +13,7 @@ import { formatBytes, formatCount, showDetail, showStep } from "../utils/formatt
 import { getHostPortPlan, resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
-import { isNativeRunSupervisorAlive, nativeServiceStates, readNativeRunState, } from "../utils/native-runtime.js";
+import { isNativeRunSupervisorAlive, nativeRuntimePorts, nativeRuntimeUrls, nativeServiceStates, readNativeRunState, } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
@@ -210,6 +210,9 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
             : null;
         const nativeRun = nativeStates && projectRoot ? readNativeRunState(projectRoot) : null;
+        // A checkout running under its own name can listen on a free port instead of the one in service.json.
+        const runtimePorts = nativeRuntimePorts(nativeRun);
+        const runtimeUrls = nativeRuntimeUrls(nativeRun);
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
         const platformServices = describePlatformServices(projectRoot, discovery.resources, options);
         // `extraPorts` published through ${VAR:-default} resolve from the shell and the project .env, like Compose.
@@ -360,6 +363,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             const data = {
                 // Only a project of local processes says so; a container project's report keeps its shape.
                 ...(nativeStates ? { runtime: "native" } : {}),
+                ...(nativeStates && runtimeUrls.length > 0 ? { urls: runtimeUrls } : {}),
                 tilt: {
                     available: tiltAvailable,
                     // The project the Tilt data belongs to: this one, or null when no Tilt of ours answered.
@@ -377,8 +381,14 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     name: resource.name,
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
-                    port: resource.port ?? null,
-                    ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup),
+                    port: runtimePorts.get(resource.name) ?? resource.port ?? null,
+                    ...buildServicePorts(resource, portPlan?.ingressHttp, {
+                        gateway: gatewayEnabled,
+                        native: nativeProject,
+                        ...(runtimePorts.has(resource.name)
+                            ? { runtimePort: runtimePorts.get(resource.name) }
+                            : {}),
+                    }, envLookup),
                     status: serviceStates?.[resource.name]?.status ?? "unknown",
                     ...(serviceStates?.[resource.name]?.reason
                         ? { statusReason: serviceStates[resource.name]?.reason }
@@ -501,7 +511,13 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     else if (state.status === "error") {
                         mark = chalk.red("✗");
                     }
-                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup);
+                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, {
+                        gateway: gatewayEnabled,
+                        native: nativeProject,
+                        ...(runtimePorts.has(resource.name)
+                            ? { runtimePort: runtimePorts.get(resource.name) }
+                            : {}),
+                    }, envLookup);
                     const urlPart = ports.url ? ` → ${ports.url}` : "";
                     const extraPart = ports.extraPorts.length
                         ? `  ${chalk.dim(ports.extraPorts.map((p) => p.address).join(", "))}`

@@ -333,6 +333,26 @@ export function nativeRunStatePath(projectRoot) {
 export function nativeLogPath(projectRoot, service) {
     return join(projectRoot, NATIVE_DIR, "logs", `${service}.log`);
 }
+/**
+ * The real ports of a native run, as recorded by the supervisor. A checkout running under its own name can hold a
+ * different port from the one in service.json; status must report the port the service actually listens on (#4047).
+ */
+export function nativeRuntimePorts(state) {
+    const ports = new Map();
+    if (!state)
+        return ports;
+    for (const [name, service] of Object.entries(state.services)) {
+        if (typeof service.port === "number")
+            ports.set(name, service.port);
+    }
+    return ports;
+}
+/** The URLs a native run really serves, in service name order as recorded in run.json. */
+export function nativeRuntimeUrls(state) {
+    if (!state)
+        return [];
+    return Object.values(state.services).flatMap((service) => typeof service.url === "string" ? [service.url] : []);
+}
 export function readNativeRunState(projectRoot) {
     try {
         const state = JSON.parse(readFileSync(nativeRunStatePath(projectRoot), "utf-8"));

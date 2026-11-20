@@ -50,6 +50,8 @@ export type StackPortsOptions = {
     gateway?: boolean;
     /** Every service runs as a local process (`command` in service.json): no Traefik, each one answers on localhost. */
     native?: boolean;
+    /** The port the running service actually listens on, when a checkout moved it off the declared port (#4047). */
+    runtimePort?: number;
 } | ProjectCapabilities | boolean;
 export declare function buildServicePorts(resource: DiscoveredResource, ingressHttp?: number, options?: StackPortsOptions, lookup?: (name: string) => string | undefined): ServicePorts;
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */

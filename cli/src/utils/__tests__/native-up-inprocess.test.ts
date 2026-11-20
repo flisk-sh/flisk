@@ -531,6 +531,78 @@ describe("withFailureLogs", () => {
   });
 });
 
+describe("runNativeUp checkout-local ports (#4047)", () => {
+  it("remaps a busy port under a per-checkout name, injects PORT and emits the real URLs", async () => {
+    const root = createTempDir();
+    const checkoutApi = makeResource("api", "backend", {
+      command: "node server.js",
+      port: 4100,
+      healthCheckPath: "/health",
+    });
+    const checkoutWeb = makeResource("web", "frontend", {
+      command: "node web.js",
+      port: 4200,
+      dependsOn: ["api"],
+      env: { API_URL: "http://localhost:4100/api" },
+    });
+    runtime.isPortListening.mockImplementation(async (port: number) => port === 4100);
+    const emit = vi.fn();
+    void runNativeUp({
+      projectRoot: root,
+      selected: [checkoutApi, checkoutWeb],
+      dependencies: ["api"],
+      checkoutName: "agent-two",
+      isPortAvailable: async (port: number) => port !== 4100,
+      emit,
+      quiet: true,
+      exit: vi.fn() as unknown as (code: number) => never,
+    });
+    await flush();
+
+    const [data] = emit.mock.calls[0];
+    expect(data.urls).toEqual([
+      { service: "api", url: "http://localhost:4101", didAnswer: true, status: 200 },
+      { service: "web", url: "http://localhost:4200", didAnswer: true, status: 200 },
+    ]);
+    const plans = runtime.supervisorArgs[0][1] as Array<{
+      name: string;
+      port?: number;
+      env: Record<string, string>;
+      healthUrl?: string;
+    }>;
+    expect(plans[0]).toMatchObject({
+      name: "api",
+      port: 4101,
+      healthUrl: "http://localhost:4101/health",
+    });
+    expect(plans[0].env.PORT).toBe("4101");
+    expect(plans[1].env.API_URL).toBe("http://localhost:4101/api");
+    expect(logs.join("\n")).not.toContain('change "port" in the service.json');
+  });
+
+  it("fails loudly on a busy port when no checkout name is given", async () => {
+    runtime.isPortListening.mockImplementation(async (port: number) => port === 4100);
+    const emit = vi.fn();
+    await expect(
+      runNativeUp({
+        projectRoot: createTempDir(),
+        selected: [api],
+        dependencies: [],
+        checkoutName: undefined,
+        emit,
+        quiet: true,
+        exit: throwingExit,
+      }),
+    ).rejects.toBeInstanceOf(ExitCalled);
+    expect(emit.mock.calls[0][1][0]).toEqual({
+      code: "PORT_IN_USE",
+      message:
+        'Port 4100 for service "api" is already in use. Stop it, or change "port" in the service.json.',
+    });
+    expect(runtime.supervisorArgs).toHaveLength(0);
+  });
+});
+
 describe("runNativeUp start", () => {
   it("reports services that did not start, stops the rest and exits 1", async () => {
     runtime.supervisorStart.mockResolvedValue([{ name: "api", reason: "health check timed out" }]);
