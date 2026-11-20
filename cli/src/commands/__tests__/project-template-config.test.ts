@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
 import { cloneProjectTemplate } from "../project.js";
@@ -54,6 +54,15 @@ describe("cloneProjectTemplate project config", () => {
     expect(data.hasProjectJson).toBe(true);
   });
 
+  it("passes config verify on the first run after scaffolding (#4196)", async () => {
+    const dest = join(createTempDir(), "flisk-example");
+    await cloneProjectTemplate("example", dest, [], { quiet: true });
+
+    const result = runFlisk(["config", "verify", "--json"], { cwd: dest });
+    expect(result.status, result.stderr).toBe(0);
+    expect(parseEnvelope(result.stdout).data.valid).toBe(true);
+  }, 120_000);
+
   it("writes a project config for a cloned repo template", async () => {
     const repo = singleCommitRepo({ "version.txt": "1.0" });
     PROJECT_TEMPLATES[TEST_KEY] = {
@@ -83,6 +92,30 @@ describe("cloneProjectTemplate project config", () => {
     expect(existsSync(join(dest, ".flisk", "project.json"))).toBe(true);
     const config = JSON.parse(readFileSync(join(dest, ".flisk", "project.json"), "utf-8"));
     expect(config.project.name).toBe("already-here");
+  });
+
+  it("points at config regenerate when a starter config cannot generate files (#4196)", async () => {
+    const repo = singleCommitRepo({
+      ".flisk/project.json": JSON.stringify({
+        version: "1.0",
+        project: { name: "incomplete" },
+      }),
+    });
+    PROJECT_TEMPLATES[TEST_KEY] = {
+      repo: pathToFileURL(repo).href,
+      description: "test template",
+    };
+    const dest = join(createTempDir(), "my-app");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await cloneProjectTemplate(TEST_KEY, dest, [], {});
+      expect(warnSpy.mock.calls.flat().join("\n")).toContain("Could not generate the master files");
+      expect(logSpy.mock.calls.flat().join("\n")).toContain("flisk config regenerate");
+    } finally {
+      logSpy.mockRestore();
+      warnSpy.mockRestore();
+    }
   });
 
   it("writes a project config into a generated local-process starter (#4292)", async () => {

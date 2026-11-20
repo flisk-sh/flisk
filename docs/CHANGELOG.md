@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk project <starter>` generates the master configuration files before it prints the next steps, so `flisk config verify` passes on a freshly scaffolded project instead of reporting missing `.flisk/.flisk-out/` files (#4196).
+
 ## 1.4.70 (2026-11-20)
 
 - `flisk tool add openapi-mcp` prints the steps to run an OpenAPI-to-MCP gateway as a bring-your-own image, and `flisk tool add rag` points at a new recipe for the Qdrant MCP server with one collection per customer. A second recipe shows a policy check that refuses a `pay` tool call above a limit (#4060).
