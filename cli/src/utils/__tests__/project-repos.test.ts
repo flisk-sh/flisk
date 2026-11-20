@@ -13,9 +13,11 @@ import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FliskError } from "../errors.js";
 import {
+  applyRepoClonePlan,
   checkProjectRepos,
   cloneMissingRepos,
   cloneRepo,
+  planRepoClones,
   validateRepoBranch,
   validateRepoDir,
   validateRepoList,
@@ -392,6 +394,62 @@ describe("project-repos utility", () => {
       expect(results[0]?.cloned).toBe(true);
       expect(results[1]?.cloned).toBe(true);
       expect(runner).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("read-only clone plan", () => {
+    const repos = [
+      { url: "https://github.com/acme/orders.git", dir: "services/orders", branch: "develop" },
+      { url: "https://github.com/acme/present.git", dir: "services/present" },
+    ];
+
+    it("lists missing and present repos with branches without creating folders or starting git", () => {
+      mkdirSync(join(tempDir, "services/present"), { recursive: true });
+
+      const plan = planRepoClones(tempDir, repos);
+
+      expect(plan.map((entry) => entry.action)).toEqual(["clone", "keep"]);
+      expect(plan[0]).toMatchObject({
+        url: repos[0]?.url,
+        dir: repos[0]?.dir,
+        branch: "develop",
+        action: "clone",
+      });
+      expect(plan[1]).toMatchObject({
+        url: repos[1]?.url,
+        dir: repos[1]?.dir,
+        action: "keep",
+        reason: "destination directory already exists",
+      });
+      expect(existsSync(join(tempDir, "services/orders"))).toBe(false);
+      expect(existsSync(join(tempDir, "services/present"))).toBe(true);
+    });
+
+    it("applies exactly the planned decisions and agrees with a real run", async () => {
+      mkdirSync(join(tempDir, "services/present"), { recursive: true });
+      const plan = planRepoClones(tempDir, repos);
+      const runner = vi.fn().mockImplementation(createCloneDestination);
+
+      const applied = await applyRepoClonePlan(plan, tempDir, runner);
+
+      expect(runner).toHaveBeenCalledTimes(1);
+      expect(applied).toMatchObject([
+        { url: repos[0]?.url, dir: repos[0]?.dir, branch: "develop", cloned: true, skipped: false },
+        { url: repos[1]?.url, dir: repos[1]?.dir, skipped: true, cloned: false },
+      ]);
+      expect(existsSync(join(tempDir, "services/orders"))).toBe(true);
+
+      const anotherRoot = mkdtempSync(join(realpathSync(tmpdir()), "flisk-repos-real-"));
+      try {
+        mkdirSync(join(anotherRoot, "services/present"), { recursive: true });
+        const realRunner = vi.fn().mockImplementation(createCloneDestination);
+        const real = await cloneMissingRepos(anotherRoot, repos, realRunner);
+        expect(real.map((result) => ({ dir: result.dir, cloned: result.cloned }))).toEqual(
+          applied.map((result) => ({ dir: result.dir, cloned: result.cloned })),
+        );
+      } finally {
+        rmSync(anotherRoot, { recursive: true, force: true });
+      }
     });
   });
 

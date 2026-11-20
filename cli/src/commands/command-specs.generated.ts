@@ -1369,6 +1369,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
             defaultValue: false,
           },
           {
+            flags: "--dry-run",
+            description: "List the service.json files that would be rewritten, without writing",
+            defaultValue: false,
+          },
+          {
             flags: "--json",
             description: "Print one JSON envelope on stdout with the migrated files",
             defaultValue: false,
@@ -1376,7 +1381,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         ],
         arguments: [],
         helpTexts: {
-          after: ["\nExamples:\n  flisk config migrate\n  flisk config migrate --json"],
+          after: [
+            "\nExamples:\n  flisk config migrate\n  flisk config migrate --dry-run\n  flisk config migrate --json",
+          ],
         },
         subcommands: [],
       },
@@ -2225,6 +2232,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         allowExcessArguments: false,
         options: [
           {
+            flags: "--dry-run",
+            description:
+              "List the repositories that would be cloned, without creating folders or running git",
+            defaultValue: false,
+          },
+          {
             flags: "--json",
             description: "Output JSON result",
             defaultValue: false,
@@ -2233,7 +2246,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         arguments: [],
         helpTexts: {
           after: [
-            '\nEach entry of "repos" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md',
+            '\nEach entry of "repos" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --dry-run\n  flisk repos clone --json\n  flisk repos clone --dry-run --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md',
           ],
         },
         subcommands: [],

@@ -524,6 +524,101 @@ describe("config migrate", () => {
     expect(result.stderr).toMatch(/shop[\\/]api/);
     expect(fs.readFileSync(serviceFile(root, "shop/api"))).toEqual(before);
   });
+
+  it("dry-run --json lists the old-schema file and leaves every file byte-for-byte unchanged", async () => {
+    const root = createTempProject({
+      projectJson: projectJson(),
+      resources: {
+        "shop/api": { type: "backend", stack: "core", extra: true },
+        "shop/web": { appType: "frontend", stack: "core", schemaVersion: 1 },
+      },
+    });
+    const api = serviceFile(root, "shop/api");
+    const web = serviceFile(root, "shop/web");
+    const beforeApi = fs.readFileSync(api);
+    const beforeWeb = fs.readFileSync(web);
+
+    const result = await runCommandInProcess(
+      configCommand,
+      ["migrate", "--dry-run", "--json"],
+      root,
+    );
+
+    expect(result.status).toBeUndefined();
+    expect(parseEnvelope(result.stdout).data).toMatchObject({
+      dryRun: true,
+      schemaVersion: 1,
+      migrated: ["services/shop/api/service.json"],
+    });
+    expect(fs.readFileSync(api)).toEqual(beforeApi);
+    expect(fs.readFileSync(web)).toEqual(beforeWeb);
+  });
+
+  it("dry-run prints the files it would rewrite", async () => {
+    const root = createTempProject({
+      projectJson: projectJson(),
+      resources: { "shop/api": { type: "backend", stack: "core" } },
+    });
+    const before = fs.readFileSync(serviceFile(root, "shop/api"));
+
+    const result = await runCommandInProcess(configCommand, ["migrate", "--dry-run"], root);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stdout).toContain("Dry run -");
+    expect(result.stdout).toContain("Would rewrite: services/shop/api/service.json");
+    expect(result.stdout).toContain("No files were written.");
+    expect(fs.readFileSync(serviceFile(root, "shop/api"))).toEqual(before);
+  });
+
+  it("a dry run and a real run agree on the same migration plan", async () => {
+    const root = createTempProject({
+      projectJson: projectJson(),
+      resources: {
+        "shop/api": { type: "backend", stack: "core" },
+        "shop/jobs": { type: "worker", stack: "core" },
+      },
+    });
+    const api = serviceFile(root, "shop/api");
+    const jobs = serviceFile(root, "shop/jobs");
+    const beforeApi = fs.readFileSync(api);
+    const beforeJobs = fs.readFileSync(jobs);
+
+    const dry = await runCommandInProcess(configCommand, ["migrate", "--dry-run", "--json"], root);
+    const dryData = parseEnvelope(dry.stdout).data;
+    expect(fs.readFileSync(api)).toEqual(beforeApi);
+    expect(fs.readFileSync(jobs)).toEqual(beforeJobs);
+
+    const real = await runCommandInProcess(configCommand, ["migrate", "--json"], root);
+    const realData = parseEnvelope(real.stdout).data;
+    expect(realData.migrated).toEqual(dryData.migrated);
+    expect(realData.dryRun).toBe(false);
+    expect(JSON.parse(fs.readFileSync(api, "utf-8"))).toMatchObject({ schemaVersion: 1 });
+    expect(JSON.parse(fs.readFileSync(jobs, "utf-8"))).toMatchObject({ schemaVersion: 1 });
+  });
+
+  it("dry-run refuses an unsupported schemaVersion without writing", async () => {
+    const root = createTempProject({
+      projectJson: projectJson(),
+      resources: {
+        "shop/api": { appType: "api", stack: "core", schemaVersion: 1 },
+        "shop/future": { appType: "api", stack: "core", schemaVersion: 99 },
+      },
+    });
+    const before = fs.readFileSync(serviceFile(root, "shop/api"));
+
+    const result = await runCommandInProcess(
+      configCommand,
+      ["migrate", "--dry-run", "--json"],
+      root,
+    );
+
+    expect(result.status).toBe(1);
+    expect(parseEnvelope(result.stdout).data).toBeNull();
+    expect(parseEnvelope(result.stdout).errors[0].message).toContain(
+      "cannot migrate unsupported version 99",
+    );
+    expect(fs.readFileSync(serviceFile(root, "shop/api"))).toEqual(before);
+  });
 });
 
 describe("config enable-infra and disable-infra", () => {

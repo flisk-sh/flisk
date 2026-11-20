@@ -6,9 +6,21 @@ export declare const defaultGitRunner: GitRunner;
 export interface CloneRepoResult {
     url: string;
     dir: string;
+    branch?: string;
     cloned: boolean;
     skipped: boolean;
     reason?: string;
+}
+/** One decision from the read-only plan shared by `repos clone --dry-run` and a real clone. */
+export interface RepoClonePlanEntry {
+    repo: RepoConfig;
+    url: string;
+    dir: string;
+    branch?: string;
+    action: "clone" | "keep";
+    reason?: string;
+    targetPath: string;
+    createdParents: string[];
 }
 /** Replaces user-info (tokens, passwords) in any URL inside a string, so it can be printed safely. */
 export declare function redactRepoUrl(text: string): string;
@@ -37,9 +49,18 @@ export declare function validateRepoList(repos: RepoConfig[], projectRoot: strin
  * Clones a single repository if its destination directory does not already exist.
  * Leaves existing directories untouched.
  */
+/**
+ * Builds the read-only clone plan shared by `flisk repos clone --dry-run` and the real run.
+ * It validates every repository, then decides from the filesystem which destinations are missing.
+ * No directory is created and no git process is started.
+ */
+export declare function planRepoClones(projectRoot: string, repos?: RepoConfig[]): RepoClonePlanEntry[];
+/** Applies a clone plan. Only this function starts git; planning and `--dry-run` never do. */
+export declare function applyRepoClonePlan(plan: RepoClonePlanEntry[], projectRoot: string, runner?: GitRunner): Promise<CloneRepoResult[]>;
+/** Clones a single repository if its destination directory does not already exist. */
 export declare function cloneRepo(repo: RepoConfig, projectRoot: string, runner?: GitRunner): Promise<CloneRepoResult>;
 /**
- * Clones all missing repositories configured in the project.
+ * Clones all missing repositories configured in the project, using the same plan as `--dry-run`.
  */
 export declare function cloneMissingRepos(projectRoot: string, repos?: RepoConfig[], runner?: GitRunner): Promise<CloneRepoResult[]>;
 /**

@@ -12,6 +12,7 @@ describe("config subcommands help examples", () => {
 
     expect(help).toContain("Examples:");
     expect(help).toContain("flisk config migrate");
+    expect(help).toContain("flisk config migrate --dry-run");
     expect(help).toContain("flisk config migrate --json");
   });
 
