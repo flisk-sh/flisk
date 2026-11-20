@@ -8,7 +8,7 @@
 // - skips invalid variable names (including ';' command injection attempts) safely
 // - preserves pre-set environment variables and TILT_* overrides
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
@@ -18,6 +18,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -76,12 +77,35 @@ esac
   return { workDir, binDir, tmpDir, secretsFixture };
 }
 
+function runCommand(cmd, args, env) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { env, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.on("error", reject);
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+  });
+}
+
 for (const shell of availableShells()) {
-  test(`infisical-entrypoint.sh under ${shell.name}: deletes temp secrets before exec and avoids eval injection`, () => {
+  test(`infisical-entrypoint.sh under ${shell.name}: deletes temp secrets before exec and avoids eval injection`, async () => {
     const sentinelDir = mkdtempSync(path.join(tmpdir(), "flisk-infisical-sentinel-"));
     const sentinel1 = path.join(sentinelDir, "pwn1");
     const sentinel2 = path.join(sentinelDir, "pwn2");
     const sentinel3 = path.join(sentinelDir, "pwn3");
+
+    // Start a real ephemeral TCP listener so even shells with built-in nc applets
+    // (such as busybox sh) pass wait_for_postgres immediately without sleeping.
+    const tcpServer = net.createServer((socket) => socket.end());
+    await new Promise((resolve) => tcpServer.listen(0, "127.0.0.1", resolve));
+    const { port } = tcpServer.address();
+    const tiltDatabaseUrl = `postgresql://user:pass@127.0.0.1:${port}/tilt-wins`;
 
     // Assemble synthetic PEM markers at runtime so the tracked-secrets scanner
     // does not flag this test fixture as a committed private key.
@@ -104,7 +128,7 @@ for (const shell of availableShells()) {
       `SHELL_META=$(touch ${sentinel3});echo \`id\``,
       "API_URL=https://example.com/cb?a=1&b=2==",
       "ALREADY_SET=from-infisical",
-      "DATABASE_URL=postgres://infisical-should-not-win",
+      "DATABASE_URL=postgresql://user:pass@127.0.0.1:1/infisical-should-not-win",
       "FINAL_NO_NEWLINE=kept",
     ].join("\n");
 
@@ -125,28 +149,25 @@ for (const shell of availableShells()) {
         "process.stdout.write('__RESULT__' + JSON.stringify(out) + '\\n');",
       ].join(" ");
 
-      const run = spawnSync(
+      const run = await runCommand(
         shell.cmd,
         [...shell.args, ENTRYPOINT, process.execPath, "-e", inspector],
         {
-          encoding: "utf8",
-          env: {
-            PATH: `${binDir}:${process.env.PATH ?? "/usr/bin:/bin"}`,
-            TMPDIR: tmpDir,
-            FAKE_INFISICAL_SECRETS_FILE: secretsFixture,
-            SERVICE_NAME: "billing-api",
-            INFISICAL_ENABLED: "true",
-            INFISICAL_CLIENT_ID: "client-id",
-            INFISICAL_CLIENT_SECRET: "client-secret",
-            INFISICAL_PROJECT_ID: "project-id",
-            INFISICAL_ENV: "dev",
-            INFISICAL_SITE_URL: "http://127.0.0.1:8080",
-            DB_WAIT_TIMEOUT: "1",
-            DB_WAIT_INTERVAL: "1",
-            AUTO_MIGRATE: "false",
-            ALREADY_SET: "from-env",
-            TILT_DATABASE_URL: "postgres://tilt-wins",
-          },
+          PATH: `${binDir}:${process.env.PATH ?? "/usr/bin:/bin"}`,
+          TMPDIR: tmpDir,
+          FAKE_INFISICAL_SECRETS_FILE: secretsFixture,
+          SERVICE_NAME: "billing-api",
+          INFISICAL_ENABLED: "true",
+          INFISICAL_CLIENT_ID: "client-id",
+          INFISICAL_CLIENT_SECRET: "client-secret",
+          INFISICAL_PROJECT_ID: "project-id",
+          INFISICAL_ENV: "dev",
+          INFISICAL_SITE_URL: "http://127.0.0.1:8080",
+          DB_WAIT_TIMEOUT: "1",
+          DB_WAIT_INTERVAL: "1",
+          AUTO_MIGRATE: "false",
+          ALREADY_SET: "from-env",
+          TILT_DATABASE_URL: tiltDatabaseUrl,
         },
       );
 
@@ -188,8 +209,9 @@ for (const shell of availableShells()) {
 
       // 5. Already-set env vars and TILT_* overrides take precedence over Infisical
       assert.equal(parsed.ALREADY_SET, "from-env");
-      assert.equal(parsed.DATABASE_URL, "postgres://tilt-wins");
+      assert.equal(parsed.DATABASE_URL, tiltDatabaseUrl);
     } finally {
+      tcpServer.close();
       rmSync(workDir, { recursive: true, force: true });
       rmSync(sentinelDir, { recursive: true, force: true });
     }
