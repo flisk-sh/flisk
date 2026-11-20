@@ -29,7 +29,8 @@ Every live-stack suite lives at `tests/e2e/<group>/<suite>/`, in exactly one gro
 
 Adding an MCP tool that reads a running agent? It belongs in the `agent` suite (or the `mcp` suite for MCP resources). Copy the shape of cases C1 to C3.
 
-Only `resource-types/agent` has moved so far. The other e2e tests still live in `.github/workflows/*-e2e.yml`, `scripts/e2e/`, `scripts/verify-*.sh` and `tests/e2e/*.test.sh`. They move one suite per pull request, as [`openspec/changes/organize-e2e-suites`](../../openspec/changes/organize-e2e-suites/tasks.md) describes. If your change touches one of those, extend it where it is now, or move it first.
+The `resource-types` group has 10 moved suites: `agent`, `backend`, `bring-your-own`, `combined`, `frontend`, `library`, `mcp`, `migrator`, `sdk`, `worker`.
+The other e2e tests still live in `.github/workflows/*-e2e.yml`, `scripts/e2e/`, `scripts/verify-*.sh` and `tests/e2e/*.test.sh`. They move one suite per pull request, as [`openspec/changes/organize-e2e-suites`](../../openspec/changes/organize-e2e-suites/tasks.md) describes. If your change touches one of those, extend it where it is now, or move it first.
 
 ## Anatomy of a suite
 

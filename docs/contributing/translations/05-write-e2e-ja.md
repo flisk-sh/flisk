@@ -31,6 +31,7 @@
 
 実行中のエージェントを読み取る MCP ツールを追加しますか？そのテストは `agent` スイートに属します（MCP リソースであれば `mcp` スイート）。ケース C1〜C3 の構成を踏襲してください。
 
-これまでに移動したのは `resource-types/agent` だけです。その他の e2e テストは `.github/workflows/*-e2e.yml`、`scripts/e2e/`、`scripts/verify-*.sh`、`tests/e2e/*.test.sh` にまだ置かれています。移動は 1 pull request につき 1 スイートずつで、[`openspec/changes/organize-e2e-suites`](../../../openspec/changes/organize-e2e-suites/tasks.md) が説明するとおりです。自分の変更がそのいずれかに関係する場合は、今ある場所で拡張するか、先に移動してください。
+`resource-types` グループに移動済みのスイートは 10 件あります：`agent`、`backend`、`bring-your-own`、`combined`、`frontend`、`library`、`mcp`、`migrator`、`sdk`、`worker`。
+その他の e2e テストは `.github/workflows/*-e2e.yml`、`scripts/e2e/`、`scripts/verify-*.sh`、`tests/e2e/*.test.sh` にまだ置かれています。移動は 1 pull request につき 1 スイートずつで、[`openspec/changes/organize-e2e-suites`](../../../openspec/changes/organize-e2e-suites/tasks.md) が説明するとおりです。自分の変更がそのいずれかに関係する場合は、今ある場所で拡張するか、先に移動してください。
 
 このガイドの残りのセクションは英語で提供されています。続きは [05-write-e2e.md](../05-write-e2e.md) を参照してください。
