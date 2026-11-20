@@ -620,6 +620,32 @@ describe("native supervisor", () => {
     expect(notes.at(-1)).toMatch(/exited 5 times in a row, so it is not restarted/);
   });
 
+  it("names the missing program when a service exits 127 (#4678)", async () => {
+    const root = createTempDir();
+    // The shell cannot find this program, so the service exits 127 on every start.
+    const plan = planNativeRun([
+      nativeService(root, "shop-api", { command: "definitely-missing-flisk-program --watch", port: await freePort() }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onNote: (_name, message) => notes.push(message) },
+      { restartDelayMs: 10 },
+    );
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([
+      { name: "shop-api", reason: "runs definitely-missing-flisk-program, which is not installed" },
+    ]);
+    // The first exit already names the program to install, not only the give-up note.
+    expect(notes[1]).toBe(
+      "exited with code 127: shop-api runs definitely-missing-flisk-program, which is not installed; restarting in 0.01s",
+    );
+    expect(notes.at(-1)).toMatch(
+      /exited with code 127: shop-api runs definitely-missing-flisk-program, which is not installed; it exited 5 times in a row/,
+    );
+  });
+
   it('does not restart a service with "restart": "no"', async () => {
     const root = createTempDir();
     const plan = planNativeRun([nativeService(root, "once", { command: "exit 0", restart: "no" })]);
