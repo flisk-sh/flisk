@@ -133,13 +133,19 @@ const TEMPLATE_SOURCE_PATTERN =
 function parseEscapeChar(lines: string[]): string {
   for (const raw of lines) {
     const trimmed = raw.trim();
-    if (trimmed === "") continue;
+    // Docker no longer looks for parser directives once a blank line, a builder instruction, or an ordinary comment
+    // has been processed (https://docs.docker.com/reference/dockerfile/#parser-directives). Only other directive lines
+    // (`# key=value`, such as `# syntax=`) may precede `# escape=`.
+    if (trimmed === "") return "\\";
     const directive = /^#\s*escape\s*=\s*([\\`])\s*$/i.exec(trimmed);
     if (directive?.[1]) return directive[1];
-    if (!trimmed.startsWith("#")) break;
+    if (!DIRECTIVE_LINE_PATTERN.test(trimmed)) return "\\";
   }
   return "\\";
 }
+
+// A directive line names a directive: `# <key>=<value>`. Anything else starting with `#` is an ordinary comment.
+const DIRECTIVE_LINE_PATTERN = /^#\s*[A-Za-z][\w-]*\s*=/;
 
 function collectDockerfileInstructions(content: string): string[] {
   const rawLines = content.split(/\r?\n/);
@@ -235,7 +241,7 @@ function extractCopiedTemplateFiles(dockerfileContent: string): string[] {
   const referenced = new Set<string>();
   for (const instruction of collectDockerfileInstructions(dockerfileContent)) {
     for (const source of extractCopySources(instruction)) {
-      const normalizedSource = source.replace(/\\/g, "/");
+      const normalizedSource = source.replace(/\\/g, "/").replace(/^\/+/, "");
       const match = TEMPLATE_SOURCE_PATTERN.exec(normalizedSource);
       if (match?.[1] && match[1] !== "." && match[1] !== "..") {
         referenced.add(match[1]);
