@@ -53,6 +53,17 @@ const orchestration = vi.hoisted(() => ({
   isTiltfileOrchestration: vi.fn<(projectRoot: string) => boolean>(),
 }));
 
+const nativeRuntime = vi.hoisted(() => ({
+  requestNativeRestart:
+    vi.fn<
+      (
+        projectRoot: string,
+        service: string,
+        options: { waitMs: number },
+      ) => Promise<{ state: "not-running"; reason: string }>
+    >(),
+}));
+
 const ports = vi.hoisted(() => ({
   resolveRuntimeTiltPort:
     vi.fn<(projectRoot: string, options: { envPort?: string }) => number | null>(),
@@ -65,6 +76,10 @@ vi.mock("../../utils/container-restart.js", async (importOriginal) => ({
   ...container,
 }));
 vi.mock("../../utils/discovery-context.js", () => discovery);
+vi.mock("../../utils/native-runtime.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/native-runtime.js")>()),
+  ...nativeRuntime,
+}));
 vi.mock("../../generator/template-engine.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../generator/template-engine.js")>()),
   ...orchestration,
@@ -174,6 +189,10 @@ describe("restart command unit tests", () => {
     paths.findProjectRoot.mockReturnValue("/workspace/myproject");
     tilt.isTiltAvailable.mockResolvedValue(true);
     tilt.runTilt.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
+    nativeRuntime.requestNativeRestart.mockResolvedValue({
+      state: "not-running",
+      reason: "no local processes of this project are running",
+    });
     container.restartContainer.mockReturnValue({
       exitCode: 0,
       stdout: "",
@@ -275,6 +294,32 @@ describe("restart command unit tests", () => {
         "Resources: ok1, zeta",
         "See the names with: flisk resources",
       ],
+    });
+  });
+
+  it("reports NATIVE_RESTART_UNSUPPORTED for a local-process project without probing Tilt", async () => {
+    discovery.createDiscoveryContext.mockReturnValue({
+      resources: [
+        { name: "api", config: { appName: "api", command: "node api.js" } },
+        { name: "web", config: { appName: "web", command: "node web.js" } },
+      ],
+    });
+
+    const { envelope, exitCode, stderr } = await runRestart(["api", "--json"]);
+
+    expect(exitCode).toBe(1);
+    expect(envelope?.data).toBeNull();
+    expect(envelope?.errors[0]).toEqual({
+      code: "NATIVE_RESTART_UNSUPPORTED",
+      message:
+        "`flisk restart` requires Tilt and works on Tilt resources; this project runs as local processes (no Tilt).",
+      suggestions: ["Restart the project with: flisk down && flisk up"],
+    });
+    expect(stderr).not.toContain("Start it with: flisk up");
+    expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
+    expect(tilt.runTilt).not.toHaveBeenCalled();
+    expect(nativeRuntime.requestNativeRestart).toHaveBeenCalledWith("/workspace/myproject", "api", {
+      waitMs: 60_000,
     });
   });
 
