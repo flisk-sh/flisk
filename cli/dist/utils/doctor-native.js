@@ -4,6 +4,7 @@ import { dependsOnOf } from "./dependency-graph.js";
 import { formatCount } from "./formatting.js";
 import { isDockerRunning, isNativeContainerService } from "./native-container.js";
 import { findMissingPrograms, isPortListening, isProcessAlive, localUrl, planNativeRun, readNativeRunState, } from "./native-runtime.js";
+import { installGuidance } from "./package-script-programs.js";
 import { findOnPath } from "./which.js";
 /**
  * Doctor checks for a project whose services all declare `command` (#2231). Such a project runs as local processes, so doctor
@@ -31,9 +32,9 @@ export function checkNativeRuntime(resources, dockerRunning = isDockerRunning) {
         message: `Local processes: ${formatCount(resources.length, "service")} declare a command, so Docker, Compose and Tilt are not needed`,
     };
 }
-/** Each service's command starts a program that is installed. */
-export function checkNativeCommands(resources, find = findOnPath) {
-    const missing = findMissingPrograms(planNativeRun(resources).services, find);
+/** Each service's command, and any package-manager script it delegates to, starts a program that is installed. */
+export function checkNativeCommands(resources, find = findOnPath, readFile) {
+    const missing = findMissingPrograms(planNativeRun(resources).services, find, undefined, readFile);
     if (missing.length === 0) {
         return {
             name: "Service commands",
@@ -41,11 +42,25 @@ export function checkNativeCommands(resources, find = findOnPath) {
             message: "Every service command starts a program that is installed",
         };
     }
+    const fromScripts = missing.filter((finding) => finding.script !== undefined);
+    const guidance = [...new Set(fromScripts.map((finding) => installGuidance(finding.program)))];
     return {
         name: "Service commands",
         didPass: false,
-        message: `${formatCount(missing.length, "service")} run a program that is not on PATH:\n    ${missing.map(({ name, program }) => `${name}: ${program}`).join("\n    ")}`,
-        fix: 'Install the program, or change "command" in the service.json',
+        message: `${formatCount(missing.length, "service")} run a program that is not on PATH:\n    ${missing
+            .map(({ name, program, script }) => script === undefined
+            ? `${name}: ${program}`
+            : `${name}: script "${script}" starts ${program}, which is not installed`)
+            .join("\n    ")}`,
+        fix: [
+            ...guidance,
+            ...(fromScripts.length > 0
+                ? ["Change the script in the service's package.json, or the command in its service.json."]
+                : []),
+            ...(fromScripts.length === 0
+                ? ['Install the program, or change "command" in the service.json']
+                : []),
+        ].join(" "),
     };
 }
 /** A dependsOn name must be another service of the project: local processes cannot start a database or gateway for it. */

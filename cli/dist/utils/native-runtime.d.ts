@@ -68,10 +68,17 @@ export interface NativeRunPlan {
  * of the selection (a database or the gateway needs Docker for now), and two services on one port.
  */
 export declare function planNativeRun(selected: readonly DiscoveredResource[], vars?: Readonly<Record<string, string | undefined>>, projectRoot?: string, projectName?: string): NativeRunPlan;
-/** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
-export declare function findMissingPrograms(plans: readonly NativeServicePlan[], find?: (program: string) => string | null, exists?: (path: string) => boolean): Array<{
+/**
+ * Services whose command starts a program that is not on PATH, including programs
+ * started by a package-manager script one level into the service's own package.json
+ * (#4680). A relative path such as ./bin/api is checked in the service directory.
+ * `script` is set when the program came from a `scripts.<name>` entry, so callers
+ * can report "script \"dev\" starts bun" instead of just "bun".
+ */
+export declare function findMissingPrograms(plans: readonly NativeServicePlan[], find?: (program: string) => string | null, exists?: (path: string) => boolean, readFile?: (path: string) => string): Array<{
     name: string;
     program: string;
+    script?: string;
 }>;
 /**
  * True when something accepts TCP connections on localhost:port. The probe ends the socket

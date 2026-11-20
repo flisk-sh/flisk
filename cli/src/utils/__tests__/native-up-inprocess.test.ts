@@ -258,6 +258,28 @@ describe("runNativeUp failures before anything starts", () => {
     });
   });
 
+  it("reports a missing script program before starting the service (#4680)", async () => {
+    runtime.findMissingPrograms.mockReturnValue([
+      { name: "shop-api", program: "bun", script: "dev" },
+    ]);
+    const emit = vi.fn();
+    await expect(
+      runNativeUp({
+        projectRoot: createTempDir(),
+        selected: [api],
+        dependencies: [],
+        emit,
+        exit: throwingExit,
+      }),
+    ).rejects.toBeInstanceOf(ExitCalled);
+    expect(emit.mock.calls[0][1][0]).toEqual({
+      code: "NATIVE_COMMAND_NOT_FOUND",
+      message:
+        'shop-api: script "dev" starts bun, which is not installed. Install bun (https://bun.sh/docs/installation), or change the script in its package.json.',
+    });
+    expect(runtime.supervisorArgs).toHaveLength(0);
+  });
+
   it("fails when a service port is taken, naming the occupant", async () => {
     runtime.isPortListening.mockImplementation(async (port: number) => port === 4100);
     occupant.findPortOccupant.mockReturnValue({ command: "nginx", pid: 77 });

@@ -9,6 +9,7 @@ import { formatCount } from "./formatting.js";
 import { ensureGeneratedSecrets } from "./generated-secrets.js";
 import { isDockerRunning } from "./native-container.js";
 import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeLogLines, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
+import { installGuidance } from "./package-script-programs.js";
 import { findPortOccupant } from "./port-occupant.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
@@ -144,7 +145,9 @@ export async function runNativeUp(input) {
     const missing = findMissingPrograms(plan.services);
     if (missing.length > 0) {
         fail("NATIVE_COMMAND_NOT_FOUND", missing
-            .map(({ name, program }) => `service "${name}" runs ${program}, which is not installed (not found on PATH). Install it, or change "command" in its service.json.`)
+            .map(({ name, program, script }) => script === undefined
+            ? `service "${name}" runs ${program}, which is not installed (not found on PATH). Install it, or change "command" in its service.json.`
+            : `${name}: script "${script}" starts ${program}, which is not installed. ${installGuidance(program)}, or change the script in its package.json.`)
             .join("\n"));
     }
     const containers = plan.services.filter((service) => service.container);

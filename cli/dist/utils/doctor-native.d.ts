@@ -5,8 +5,8 @@ import type { CheckResult, DiscoveredResource } from "../types/index.js";
  */
 /** Says which runtime doctor checked, so a missing Docker check reads as intended and not as forgotten. */
 export declare function checkNativeRuntime(resources: readonly DiscoveredResource[], dockerRunning?: () => boolean): CheckResult;
-/** Each service's command starts a program that is installed. */
-export declare function checkNativeCommands(resources: readonly DiscoveredResource[], find?: (program: string) => string | null): CheckResult;
+/** Each service's command, and any package-manager script it delegates to, starts a program that is installed. */
+export declare function checkNativeCommands(resources: readonly DiscoveredResource[], find?: (program: string) => string | null, readFile?: (path: string) => string): CheckResult;
 /** A dependsOn name must be another service of the project: local processes cannot start a database or gateway for it. */
 export declare function checkNativeDependsOn(resources: readonly DiscoveredResource[]): CheckResult;
 /**
