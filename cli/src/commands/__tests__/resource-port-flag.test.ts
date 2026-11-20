@@ -120,6 +120,17 @@ describe("--port for every port-assigned resource type", () => {
     expect(new Set(ports).size).toBe(2);
   });
 
+  it("keeps the existing service.json port when rerun without --port", async () => {
+    const serviceJson = await createResource("rerun-api", "backend");
+    const first = JSON.parse(readFileSync(serviceJson, "utf-8")).port as number;
+
+    await createResource("rerun-api", "backend");
+    expect(JSON.parse(readFileSync(serviceJson, "utf-8")).port).toBe(first);
+
+    await createResource("rerun-api", "backend");
+    expect(JSON.parse(readFileSync(serviceJson, "utf-8")).port).toBe(first);
+  });
+
   it("applies the type's own range: a worker port outside 6000-6999 is refused", async () => {
     const message = await refuse("jobs", "worker", ["--port", "4100"]);
     expect(message).toContain("--port must be an integer from 6000 through 6999");
