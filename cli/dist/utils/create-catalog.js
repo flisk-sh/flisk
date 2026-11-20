@@ -99,19 +99,19 @@ export function localRequirements(parts) {
         const hasPackageJson = provider
             ?.createFiles?.("app")
             .some((file) => file.filename === "package.json");
-        // A generated package.json runs `npm run dev` — from the language or the shared scaffold (#4459).
-        // Only a scaffold without one runs the provider's dev command directly.
+        // A package.json owned by the provider runs `npm run dev` (#4459). A provider with neither its
+        // own devCommand nor its own package.json uses the shared Bun scaffold: `flisk up` starts it with
+        // `npm run dev`, whose script runs `bun run --watch`, so it needs npm and Bun (#4678).
         if (!provider)
             programs.add(parts.language);
         else if (hasPackageJson)
             programs.add("npm");
-        else if (provider.devCommand)
-            programs.add(provider.devCommand.split(" ")[0]);
-        // The shared scaffold's backend dev script runs the language's own package manager. A provider
-        // with neither its own package.json nor its own dev command (Bun + Hono) still needs that
-        // program on the host (#4678); take it from the registry's install hint, not a second list.
+        else if (!provider.devCommand) {
+            programs.add("npm");
+            programs.add(provider.installHint.trim().split(/\s+/)[0]);
+        }
         else
-            programs.add(provider.installHint.split(" ")[0] ?? "");
+            programs.add(provider.devCommand.split(" ")[0]);
     }
     return [...programs];
 }

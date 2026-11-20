@@ -52,22 +52,86 @@ describe("flisk restart", () => {
     }
   });
 
-  it("never touches Tilt for a native project: reports NATIVE_NOT_RUNNING when nothing is running", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-native-idle-"));
+  it("preserves the Tilt guidance for a container project", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-container-"));
     fs.mkdirSync(path.join(tmp, ".flisk"), { recursive: true });
     fs.writeFileSync(path.join(tmp, ".flisk", "project.json"), "{}\n");
     fs.mkdirSync(path.join(tmp, "services", "api"), { recursive: true });
     fs.writeFileSync(
       path.join(tmp, "services", "api", "service.json"),
-      JSON.stringify({ appName: "api", appType: "backend", port: 4000, command: "node server.js" }),
+      JSON.stringify({ appName: "api", appType: "backend", port: 4000 }),
     );
     try {
+      const res = runFlisk(["restart", "api"], tmp, { TILT_PORT: "59999" });
+      expect(res.status).toBe(1);
+      expect(res.stderr).toContain("Could not reach Tilt on port 59999");
+      expect(res.stderr).toContain("Start the stack first with: flisk up");
+      expect(res.stderr).not.toContain("flisk down && flisk up");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("explains the local-process restart limit in text mode without mentioning Tilt as a running requirement", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-native-text-"));
+    fs.mkdirSync(path.join(tmp, ".flisk"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, ".flisk", "project.json"), "{}\n");
+    for (const name of ["api", "web"]) {
+      fs.mkdirSync(path.join(tmp, "services", name), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmp, "services", name, "service.json"),
+        JSON.stringify({
+          appName: name,
+          appType: name === "api" ? "backend" : "frontend",
+          port: name === "api" ? 4000 : 3000,
+          command: "node server.js",
+        }),
+      );
+    }
+    try {
+      const res = runFlisk(["restart", "api"], tmp, { TILT_PORT: "59999" });
+      expect(res.status).toBe(1);
+      expect(res.stderr).toContain("`flisk restart` requires Tilt");
+      expect(res.stderr).toContain("this project runs as local processes (no Tilt)");
+      expect(res.stderr).toContain("flisk down && flisk up");
+      expect(res.stderr).not.toContain("Could not reach Tilt");
+      expect(res.stderr).not.toContain("Start it with: flisk up");
+      expect(res.stderr).not.toContain("Start the stack first with: flisk up");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("returns NATIVE_RESTART_UNSUPPORTED for a native project without calling Tilt", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-restart-native-idle-"));
+    fs.mkdirSync(path.join(tmp, ".flisk"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, ".flisk", "project.json"), "{}\n");
+    for (const name of ["api", "web"]) {
+      fs.mkdirSync(path.join(tmp, "services", name), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmp, "services", name, "service.json"),
+        JSON.stringify({
+          appName: name,
+          appType: name === "api" ? "backend" : "frontend",
+          port: name === "api" ? 4000 : 3000,
+          command: "node server.js",
+        }),
+      );
+    }
+    try {
       const res = runFlisk(["restart", "api", "--json", "--port=59999"], tmp);
-      expect(res.status).not.toBe(0);
+      expect(res.status).toBe(1);
       const envelope = JSON.parse(res.stdout);
-      expect(envelope.errors[0].code).toBe("NATIVE_NOT_RUNNING");
-      expect(envelope.data).toMatchObject({ ok: false, resource: "api", restarted: false });
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors).toHaveLength(1);
+      expect(envelope.errors[0]).toEqual({
+        code: "NATIVE_RESTART_UNSUPPORTED",
+        message:
+          "`flisk restart` requires Tilt and works on Tilt resources; this project runs as local processes (no Tilt).",
+        suggestions: ["Restart the project with: flisk down && flisk up"],
+      });
       expect(res.stdout).not.toContain("TILT_NOT_RUNNING");
+      expect(res.stdout).not.toContain("Start it with: flisk up");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
