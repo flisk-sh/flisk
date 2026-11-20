@@ -15,8 +15,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Container name filter: project name from .flisk/project.json (override with FLISK_PROJECT_NAME)
-PROJECT_FILTER="${FLISK_PROJECT_NAME:-$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .flisk/project.json 2>/dev/null | head -1)}"
+# Container name filter: FLISK_PROJECT_NAME, then the gitignored per-checkout name, then .flisk/project.json (#4046)
+PROJECT_FILTER="${FLISK_PROJECT_NAME:-$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .flisk/project.local.json 2>/dev/null | head -1)}"
+PROJECT_FILTER="${PROJECT_FILTER:-$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .flisk/project.json 2>/dev/null | head -1)}"
 PROJECT_FILTER="${PROJECT_FILTER:-flisk-project}"
 PROJECT_FILTER="${PROJECT_FILTER//-/[-_]}"
 

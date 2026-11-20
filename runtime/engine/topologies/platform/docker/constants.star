@@ -8,24 +8,30 @@
 # shared constants are defined here to ensure consistency across the topology.
 # =============================================================================
 
-# Load project name from project.json (makes Flisk CLI portable across projects)
-# Falls back to 'flisk_project' / 'flisk-project' if project.json not found
-# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Load the project name for this checkout (makes Flisk CLI portable across projects).
+# FLISK_PROJECT_NAME wins, then the gitignored .flisk/project.local.json, then the tracked .flisk/project.json (#4046).
+# Falls back to 'flisk_project' / 'flisk-project' when none is found.
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory.
+def _name_from_json(path, default):
+    if not os.path.exists(path):
+        return default
+    _json = read_json(path)
+    _name = _json.get('project', {}).get('name', default)
+    if type(_name) == 'string' and _name.strip():
+        return _name.strip().lower()
+    return default
+
 def _load_project_names():
     project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
-    project_json_path = '.flisk/project.json'
-    if project_root:
-        project_json_path = project_root + '/' + project_json_path
-    
-    if os.path.exists(project_json_path):
-        _project_json = read_json(project_json_path)
-        # Lowercase: Compose project names (and the container, network and volume names built from them) must be lowercase, so
-        # "Lychee" is used as "lychee" everywhere (#1519). Keep in step with readProjectNameOrUndefined in cli/src/utils/project-reader.ts.
-        _PROJECT_NAME_HYPHEN = _project_json.get('project', {}).get('name', 'flisk-project').lower()
-        # Convert hyphenated name to underscore (e.g., "my-project" -> "my_project")
-        _PROJECT_NAME = _PROJECT_NAME_HYPHEN.replace('-', '_')
-        return _PROJECT_NAME, _PROJECT_NAME_HYPHEN
-    return "flisk_project", "flisk-project"
+    prefix = project_root + '/' if project_root else ''
+    override = os.environ.get('FLISK_PROJECT_NAME', '').strip().lower()
+    # Lowercase: Compose project names (and the container, network and volume names built from them) must be lowercase,
+    # so "Lychee" is used as "lychee" everywhere (#1519). Keep in step with readProjectNameOrUndefined in
+    # cli/src/utils/project-reader.ts.
+    _PROJECT_NAME_HYPHEN = override or _name_from_json(prefix + '.flisk/project.local.json', '') or _name_from_json(prefix + '.flisk/project.json', 'flisk-project')
+    # Convert hyphenated name to underscore (e.g., "my-project" -> "my_project")
+    _PROJECT_NAME = _PROJECT_NAME_HYPHEN.replace('-', '_')
+    return _PROJECT_NAME, _PROJECT_NAME_HYPHEN
 
 _PROJECT_NAME, _PROJECT_NAME_HYPHEN = _load_project_names()
 

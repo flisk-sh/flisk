@@ -7,7 +7,6 @@ import { join, resolve, sep } from "node:path";
 import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { toComposeProjectName } from "./compose-project-name.js";
-import { PROJECT_JSON } from "./constants.js";
 import { projectEnvLookup } from "./extra-port-publish.js";
 import {
   type HostCommandCache,
@@ -21,6 +20,7 @@ import {
   PREFERRED_HOST_PORTS,
   withoutGatewayPorts,
 } from "./host-port-plan.js";
+import { readProjectNameWithFallback } from "./project-reader.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf } from "./status-ports.js";
 import { findTiltPortOwner, isForeignTilt, type TiltPortOwner } from "./tilt-port-owner.js";
@@ -275,13 +275,7 @@ async function planHostPorts(
   // Dry-run must not call Docker. A saved plan is the best representation of
   // the current landscape in that mode; explicit overrides are still planned.
   if (options.inspectDocker === false && saved && !hasOverride) return saved;
-  let prefix = "";
-  try {
-    const project = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-    prefix = toComposeProjectName(String(project?.project?.name ?? "flisk-project")).toLowerCase();
-  } catch {
-    prefix = "flisk_project";
-  }
+  const prefix = toComposeProjectName(readProjectNameWithFallback(projectRoot)).toLowerCase();
   let dockerPs = "";
   if (options.inspectDocker !== false) {
     try {

@@ -119,19 +119,31 @@ test("invalidSkills flags a name that differs from its folder and a thin descrip
 	}
 });
 
-test("worktree-isolation needs a `worktree add` call, not a worktree detector", () => {
+test("worktree-isolation needs a worktree creator or an uncommitted name override", () => {
 	const detector = fixture({
 		"cli/src/utils/git.ts": "export function isInsideGitWorkTree() {}\n// a linked worktree has a .git file\n",
 	});
 	const creator = fixture({
 		"cli/src/commands/task.ts": 'run("git", ["worktree", "add", dir]);\n',
 	});
+	const override = fixture({
+		"cli/src/utils/project-reader.ts":
+			'const name = process.env.FLISK_PROJECT_NAME ?? readFileSync(".flisk/project.local.json");\n',
+	});
+	const testOnly = fixture({
+		"cli/src/utils/__tests__/project-reader.test.ts":
+			'process.env.FLISK_PROJECT_NAME; ".flisk/project.local.json";\n',
+	});
 	try {
 		assert.equal(byId(runChecks(detector), "worktree-isolation").pass, false);
 		assert.equal(byId(runChecks(creator), "worktree-isolation").pass, true);
+		assert.equal(byId(runChecks(override), "worktree-isolation").pass, true);
+		assert.equal(byId(runChecks(testOnly), "worktree-isolation").pass, false);
 	} finally {
 		rmSync(detector, { recursive: true });
 		rmSync(creator, { recursive: true });
+		rmSync(override, { recursive: true });
+		rmSync(testOnly, { recursive: true });
 	}
 });
 

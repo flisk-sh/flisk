@@ -16,8 +16,11 @@ export interface ProjectRecord {
     updatedAt: string;
 }
 export declare function projectRegistryDir(home?: string): string;
-/** The `project.name` in `<root>/.flisk/project.json`, lowercased as the engine names Docker objects, or undefined. */
-export declare function projectNameAt(root: string): string | undefined;
+/**
+ * The effective project name at `root`, lowercased as the engine names Docker objects, or undefined.
+ * Pass an empty `env` when checking another checkout so this process's shell override is not applied to it (#4046).
+ */
+export declare function projectNameAt(root: string, env?: NodeJS.ProcessEnv): string | undefined;
 /** Records that the project at `projectRoot` started. Never throws: a read-only home only loses the record. */
 export declare function recordProjectRoot(projectRoot: string, options?: {
     home?: string;

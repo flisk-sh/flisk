@@ -82,7 +82,7 @@ export function findForeignContainerOwners(
     const [container = "", composeProject = "", workingDir = ""] = line.trim().split("\t");
     if (!container || !workingDir.trim() || !composeProjects.has(composeProject)) continue;
     const root = projectRootOf(workingDir);
-    if (!root || isSameFolder(root, projectRoot) || projectNameAt(root) !== name) continue;
+    if (!root || isSameFolder(root, projectRoot) || projectNameAt(root, {}) !== name) continue;
     byRoot.set(root, [...(byRoot.get(root) ?? []), container]);
   }
   return [...byRoot].map(([root, containers]) => ({ root, containers }));
@@ -101,7 +101,7 @@ export function findOtherRecordedFolders(
   const record = readRecords().find((candidate) => candidate.name === name);
   if (!record) return [];
   return record.roots.filter(
-    (root) => !isSameFolder(root, projectRoot) && projectNameAt(root) === name,
+    (root) => !isSameFolder(root, projectRoot) && projectNameAt(root, {}) === name,
   );
 }
 
@@ -109,6 +109,10 @@ export interface OwnerRefusal {
   message: string;
   suggestions: string[];
 }
+
+const CHECKOUT_NAME_HINT =
+  "Give this checkout its own name without editing tracked files: export FLISK_PROJECT_NAME=<unique-name> " +
+  'or write .flisk/project.local.json with {"project":{"name":"<unique-name>"}}, then rerun flisk up.';
 
 const RENAME_HINT =
   'Give this project its own name: change "project.name" in .flisk/project.json, then run flisk config regenerate.';
@@ -124,6 +128,7 @@ export function upOwnerRefusal(
   return {
     message: `Project "${name}" already has Docker containers from another folder: ${folders.join(", ")} (${containers.join(", ")}). Starting here would replace them, and both folders would use one database volume.`,
     suggestions: [
+      CHECKOUT_NAME_HINT,
       RENAME_HINT,
       ...folders.map((folder) => `Or stop the other one first: cd ${folder} && flisk down`),
     ],
@@ -141,6 +146,7 @@ export function purgeOwnerRefusal(
   return {
     message: `flisk down --purge would delete the database volume, networks and images of "${name}", which ${folders.join(", ")} also use${folders.length === 1 ? "s" : ""}. Nothing was removed.`,
     suggestions: [
+      CHECKOUT_NAME_HINT,
       RENAME_HINT,
       "Or delete the other folder first, or run the purge from the folder whose data should go, once the others have their own names.",
     ],

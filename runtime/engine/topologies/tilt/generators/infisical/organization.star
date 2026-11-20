@@ -19,20 +19,24 @@ load('../../../../../discovery/native_windows.star', 'iso_timestamp')
 #   config = Organization.generate_config("my-project", ["dev", "staging", "prod"])
 # =============================================================================
 
-# Load project name for dynamic defaults
-# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Load project name for dynamic defaults from this checkout (#4046).
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory.
+def _name_from_json(path, default):
+    if not os.path.exists(path):
+        return default
+    _json = read_json(path)
+    _name = _json.get('project', {}).get('name', default)
+    if type(_name) == 'string' and _name.strip():
+        return _name.strip().lower()
+    return default
+
 def _load_project_names():
     project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
-    project_json_path = '.flisk/project.json'
-    if project_root:
-        project_json_path = project_root + '/' + project_json_path
-    
-    if os.path.exists(project_json_path):
-        _project_json = read_json(project_json_path)
-        _PROJECT_NAME = _project_json.get('project', {}).get('name', 'flisk-project').lower()
-        _PROJECT_NAME_DISPLAY = _PROJECT_NAME.replace('-', ' ').title()
-        return _PROJECT_NAME, _PROJECT_NAME_DISPLAY
-    return 'flisk-project', 'Flisk Project'
+    prefix = project_root + '/' if project_root else ''
+    override = os.environ.get('FLISK_PROJECT_NAME', '').strip().lower()
+    _PROJECT_NAME = override or _name_from_json(prefix + '.flisk/project.local.json', '') or _name_from_json(prefix + '.flisk/project.json', 'flisk-project')
+    _PROJECT_NAME_DISPLAY = _PROJECT_NAME.replace('-', ' ').title()
+    return _PROJECT_NAME, _PROJECT_NAME_DISPLAY
 
 _PROJECT_NAME, _PROJECT_NAME_DISPLAY = _load_project_names()
 

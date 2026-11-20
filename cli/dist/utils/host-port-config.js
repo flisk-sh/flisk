@@ -5,10 +5,10 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { join, resolve, sep } from "node:path";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { toComposeProjectName } from "./compose-project-name.js";
-import { PROJECT_JSON } from "./constants.js";
 import { projectEnvLookup } from "./extra-port-publish.js";
 import { runCachedHostCommand, SHARED_DOCKER_PS, } from "./host-command-cache.js";
 import { createHostPortPlan, GATEWAY_DISABLED_REASON, isHostPortAvailable, PREFERRED_HOST_PORTS, withoutGatewayPorts, } from "./host-port-plan.js";
+import { readProjectNameWithFallback } from "./project-reader.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf } from "./status-ports.js";
 import { findTiltPortOwner, isForeignTilt } from "./tilt-port-owner.js";
@@ -200,14 +200,7 @@ async function planHostPorts(projectRoot, options) {
     // the current landscape in that mode; explicit overrides are still planned.
     if (options.inspectDocker === false && saved && !hasOverride)
         return saved;
-    let prefix = "";
-    try {
-        const project = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        prefix = toComposeProjectName(String(project?.project?.name ?? "flisk-project")).toLowerCase();
-    }
-    catch {
-        prefix = "flisk_project";
-    }
+    const prefix = toComposeProjectName(readProjectNameWithFallback(projectRoot)).toLowerCase();
     let dockerPs = "";
     if (options.inspectDocker !== false) {
         try {

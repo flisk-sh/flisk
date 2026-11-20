@@ -5,14 +5,15 @@ export declare const DEFAULT_PROJECT_NAME = "flisk-project";
  */
 export declare function readProjectJson(projectRoot?: string | null): Record<string, unknown> | undefined;
 /**
- * Reads `project.name` from `.flisk/project.json`, lower-cased.
- * Returns the string name, or undefined if missing or malformed.
+ * Reads the project name for one checkout, lower-cased as Docker Compose names it (#1519).
  *
- * Docker Compose project names (and the container, network and volume names built from them) must be lowercase, so
- * `"name": "Lychee"` is read as `lychee` here, as the engine reads it (PROJECT_NAME in platform/docker/constants.star) (#1519).
+ * The first source wins: `FLISK_PROJECT_NAME` for this process, the gitignored `.flisk/project.local.json`, then the
+ * tracked `.flisk/project.json`. The first two are uncommitted, so a second git worktree can run `flisk up` without
+ * editing the shared config (#4046). Pass an empty `env` when inspecting another checkout: a shell override belongs to
+ * the current process, not to every folder on this machine.
  */
-export declare function readProjectNameOrUndefined(projectRoot?: string | null): string | undefined;
+export declare function readProjectNameOrUndefined(projectRoot?: string | null, env?: NodeJS.ProcessEnv): string | undefined;
 /**
- * Reads `project.name` with a fallback (default: "flisk-project").
+ * Reads `project.name` with a fallback (default: "flisk-project"), honouring the checkout override.
  */
 export declare function readProjectNameWithFallback(projectRoot?: string | null, fallback?: string): string;

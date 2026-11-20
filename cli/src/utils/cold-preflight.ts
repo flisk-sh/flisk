@@ -1,8 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   checkDockerCompose,
   checkDockerRuntime,
@@ -17,11 +15,11 @@ import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js
 import { readyNextStep } from "./cli-command.js";
 import { checkColima } from "./colima.js";
 import { toComposeProjectName } from "./compose-project-name.js";
-import { PROJECT_JSON } from "./constants.js";
 import { checkNatsBroker } from "./doctor-wiring.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix } from "./host-port-config.js";
 import { isNativeProject } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
+import { readProjectNameOrUndefined } from "./project-reader.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { findOnPath } from "./which.js";
 
@@ -275,8 +273,8 @@ export async function runColdPreflight(
     if (isDatabaseCapabilityEnabled(projectRoot, opts) && usesPrisma(projectRoot)) {
       let dbUp = false;
       try {
-        const config = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        const projectName = toComposeProjectName(String(config?.project?.name ?? "")).toLowerCase();
+        const name = readProjectNameOrUndefined(projectRoot);
+        const projectName = name ? toComposeProjectName(name).toLowerCase() : "";
         if (projectName) {
           const running = execFileSync(
             findOnPath("docker") ?? "docker",

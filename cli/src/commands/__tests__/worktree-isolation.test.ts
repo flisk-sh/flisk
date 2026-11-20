@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { toComposeProjectName } from "../../utils/compose-project-name.js";
 import { nativeContainerName } from "../../utils/native-container.js";
 import { readProjectNameOrUndefined } from "../../utils/project-reader.js";
@@ -13,6 +13,7 @@ describe("git worktree stack isolation verification (#3406)", () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     for (const dir of tempDirs) {
       try {
         rmSync(dir, { recursive: true, force: true });
@@ -23,7 +24,7 @@ describe("git worktree stack isolation verification (#3406)", () => {
     tempDirs.length = 0;
   });
 
-  function createRepoWithWorktree(projectName: string) {
+  function createRepoWithWorktree(projectName: string, localName?: string) {
     const baseDir = mkdtempSync(join(tmpdir(), "flisk-worktree-test-"));
     tempDirs.push(baseDir);
 
@@ -47,6 +48,12 @@ describe("git worktree stack isolation verification (#3406)", () => {
       join(linkedWorktree, ".flisk", "project.json"),
       JSON.stringify({ project: { name: projectName, version: "1.0.0" } }),
     );
+    if (localName) {
+      writeFileSync(
+        join(linkedWorktree, ".flisk", "project.local.json"),
+        JSON.stringify({ project: { name: localName } }),
+      );
+    }
 
     return { mainClone, linkedWorktree };
   }
@@ -61,6 +68,39 @@ describe("git worktree stack isolation verification (#3406)", () => {
     expect(mainProject).toBe("acme-shop");
     expect(worktreeProject).toBe("acme-shop");
     expect(mainProject).toBe(worktreeProject);
+  });
+
+  it("isolates a second worktree with an uncommitted local project name (#4046)", () => {
+    const { mainClone, linkedWorktree } = createRepoWithWorktree("acme-shop", "acme-shop-agent-2");
+
+    const mainProject = readProjectNameOrUndefined(mainClone);
+    const worktreeProject = readProjectNameOrUndefined(linkedWorktree);
+    const serviceName = "redis";
+
+    expect(mainProject).toBe("acme-shop");
+    expect(worktreeProject).toBe("acme-shop-agent-2");
+
+    expect(nativeContainerName(mainProject ?? "", serviceName)).toBe("flisk-acme-shop-redis");
+    expect(nativeContainerName(worktreeProject ?? "", serviceName)).toBe(
+      "flisk-acme-shop-agent-2-redis",
+    );
+    expect(toComposeProjectName(mainProject ?? "")).toBe("acme_shop");
+    expect(toComposeProjectName(worktreeProject ?? "")).toBe("acme_shop_agent_2");
+    expect(`${mainProject}.localhost`).not.toBe(`${worktreeProject}.localhost`);
+
+    // The tracked config is the same in both checkouts: only the uncommitted file differs.
+    expect(readFileSync(join(mainClone, ".flisk", "project.json"), "utf8")).toBe(
+      readFileSync(join(linkedWorktree, ".flisk", "project.json"), "utf8"),
+    );
+  });
+
+  it("lets the shell override the project name without writing any file (#4046)", () => {
+    const { mainClone, linkedWorktree } = createRepoWithWorktree("acme-shop");
+    vi.stubEnv("FLISK_PROJECT_NAME", "Acme-Shop-Agent-3");
+
+    expect(readProjectNameOrUndefined(mainClone)).toBe("acme-shop-agent-3");
+    expect(readProjectNameOrUndefined(linkedWorktree)).toBe("acme-shop-agent-3");
+    expect(nativeContainerName("acme-shop-agent-3", "redis")).toBe("flisk-acme-shop-agent-3-redis");
   });
 
   it("demonstrates container name collision between concurrent worktrees", () => {

@@ -14,6 +14,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { checkPortStatus } from "../utils/port-assignment.js";
+import { DEFAULT_PROJECT_NAME, readProjectNameOrUndefined } from "../utils/project-reader.js";
 import { isRoutableService, isWebUiBringYourOwn, resolveServicePath, resolveServiceUrl, withTrailingSlash, } from "../utils/service-urls.js";
 import { stackExists } from "../utils/services.js";
 import { isValidPort, sanitizeForShell } from "../utils/validation.js";
@@ -50,9 +51,8 @@ function execSafe(command, args, options = {}) {
 export function determineDefaultDomain() {
     const projectRoot = findProjectRoot();
     if (projectRoot) {
-        const projectConfig = readProjectConfig(projectRoot);
-        const projectName = projectConfig.project?.name;
-        if (projectName && projectName !== "flisk-project") {
+        const projectName = readProjectNameOrUndefined(projectRoot);
+        if (projectName && projectName !== DEFAULT_PROJECT_NAME) {
             return `${projectName}.localhost`;
         }
     }
