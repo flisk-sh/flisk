@@ -370,6 +370,99 @@ describe("runNativeUp dry run", () => {
     });
     expect(logs).toEqual([]);
   });
+
+  it("fails on a port taken by another program, naming the service and the fix", async () => {
+    runtime.isPortListening.mockImplementation(async (port: number) => port === 4100);
+    occupant.findPortOccupant.mockReturnValue({ command: "python3", pid: 56516 });
+    const emit = vi.fn();
+    await expect(
+      runNativeUp({
+        projectRoot: createTempDir(),
+        selected: [api],
+        dependencies: [],
+        dryRun: true,
+        emit,
+        exit: throwingExit,
+      }),
+    ).rejects.toBeInstanceOf(ExitCalled);
+    expect(emit.mock.calls[0][0]).toEqual({ ok: false, runtime: "native", dryRun: true });
+    expect(emit.mock.calls[0][1]).toEqual([
+      {
+        code: "PORT_IN_USE",
+        message:
+          'Port 4100 for service "api" is already in use by python3 (pid 56516). Stop it, or change "port" in the service.json.',
+      },
+    ]);
+    expect(logs.join("\n")).not.toContain("Dry run: not starting services");
+    expect(runtime.supervisorArgs).toHaveLength(0);
+  });
+
+  it("fails on two services sharing a port, naming both and how to fix it", async () => {
+    const other = makeResource("worker", "backend", { command: "node worker.js", port: 4100 });
+    const emit = vi.fn();
+    await expect(
+      runNativeUp({
+        projectRoot: createTempDir(),
+        selected: [api, other],
+        dependencies: [],
+        dryRun: true,
+        emit,
+        exit: throwingExit,
+      }),
+    ).rejects.toBeInstanceOf(ExitCalled);
+    const [data, issues] = emit.mock.calls[0] as [
+      Record<string, unknown>,
+      Array<{ code: string; message: string }>,
+    ];
+    expect(data).toEqual({ ok: false, runtime: "native", dryRun: true });
+    expect(issues[0].code).toBe("INVALID_SERVICE_CONFIG");
+    expect(issues[0].message).toContain('services "api" and "worker" both use port 4100');
+    expect(issues[0].message).toContain('Fix: Give each service a different "port"');
+  });
+
+  it("fails on a missing start program, naming the service and the fix", async () => {
+    runtime.findMissingPrograms.mockReturnValue([{ name: "api", program: "uv" }]);
+    const emit = vi.fn();
+    await expect(
+      runNativeUp({
+        projectRoot: createTempDir(),
+        selected: [api],
+        dependencies: [],
+        dryRun: true,
+        emit,
+        exit: throwingExit,
+      }),
+    ).rejects.toBeInstanceOf(ExitCalled);
+    expect(emit.mock.calls[0][1]).toEqual([
+      {
+        code: "NATIVE_COMMAND_NOT_FOUND",
+        message:
+          'service "api" runs uv, which is not installed (not found on PATH). Install it, or change "command" in its service.json.',
+      },
+    ]);
+  });
+
+  it("keeps the unchanged plan and exit 0 when every preflight check passes", async () => {
+    const emit = vi.fn();
+    await runNativeUp({
+      projectRoot: createTempDir(),
+      selected: [api, web],
+      dependencies: [],
+      dryRun: true,
+      emit,
+      exit: throwingExit,
+    });
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledWith({
+      ok: true,
+      dryRun: true,
+      runtime: "native",
+      stack: null,
+      services: ["api", "web"],
+      startOrder: [["api"], ["web"]],
+    });
+    expect(emit.mock.calls[0][1]).toBeUndefined();
+  });
 });
 
 describe("runNativeUp with an existing run", () => {
