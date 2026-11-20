@@ -39,8 +39,10 @@ import {
   buildCreatePlan,
   isEmptyApp,
   isValidProjectName,
+  projectNameError,
   toProjectName,
 } from "../../utils/create-plan.js";
+import { FliskError } from "../../utils/errors.js";
 import {
   assertFolderIsFree,
   claimFolder,
@@ -147,11 +149,51 @@ describe("collectAnswers without a terminal", () => {
     await expect(collectAnswers("shop", { runtime: "vm" }, false)).rejects.toThrow(/local, docker/);
   });
 
+  it("points a --backend from Python, Go or Rust at --language", async () => {
+    const unknown = (value: string) =>
+      collectAnswers("shop", { backend: value }, false).catch((err: unknown) => err);
+
+    const fastapi = await unknown("fastapi");
+    expect(fastapi).toBeInstanceOf(FliskError);
+    expect((fastapi as FliskError).suggestions.join("\n")).toContain("--language python");
+
+    const gin = await unknown("gin");
+    expect((gin as FliskError).suggestions.join("\n")).toContain("--language go");
+
+    const nope = await unknown("nope");
+    expect((nope as FliskError).message).toContain('Unknown --backend "nope"');
+    expect((nope as FliskError).suggestions.join("\n")).toContain("--language python|go|rust");
+  });
+
   it("rejects a name that is not a safe folder name before anything else", async () => {
     await expect(
       collectAnswers("shop", { backend: "none", language: backends[0]?.id }, false),
     ).rejects.toThrow(/--backend none leaves the API out/);
     await expect(collectAnswers("../evil", {}, false)).rejects.toThrow(/not a usable project name/);
+  });
+
+  it("suggests the exact command for a name it can correct", async () => {
+    const myApp = await collectAnswers("My App", {}, false).catch((err: unknown) => err);
+    expect(myApp).toBeInstanceOf(FliskError);
+    expect((myApp as FliskError).message).toMatch(/start with a letter/);
+    expect((myApp as FliskError).message).toMatch(/at most 48 characters/);
+    expect((myApp as FliskError).suggestions.join("\n")).toContain("flisk create my-app");
+
+    const upper = projectNameError("UPPER");
+    expect(upper.suggestions.join("\n")).toContain("flisk create upper");
+  });
+
+  it("states the letter rule and does not offer a fix it cannot make", () => {
+    const digitStart = projectNameError("9lives");
+    expect(digitStart.message).toMatch(/start with a letter/);
+    expect(digitStart.suggestions.join("\n")).toContain("flisk create my-app");
+    expect(digitStart.suggestions.join("\n")).not.toContain("9lives");
+  });
+
+  it("states the 48-character limit and trims the suggested command to it", () => {
+    const long = projectNameError("a".repeat(60));
+    expect(long.message).toMatch(/at most 48 characters/);
+    expect(long.suggestions.join("\n")).toContain(`flisk create ${"a".repeat(48)}`);
   });
 });
 
@@ -618,6 +660,17 @@ function inTempDir() {
 describe("flisk create (the real CLI, no terminal)", () => {
   const dirOf = inTempDir();
 
+  it("dry-run rejects an occupied project folder without changing it", () => {
+    const project = join(dirOf(), "existing");
+    mkdirSync(project);
+    writeFileSync(join(project, "keep.txt"), "mine");
+    const run = runFlisk(["create", "existing", "--dry-run"], { cwd: dirOf(), timeout: 60_000 });
+    expect(run.status).not.toBe(0);
+    expect(run.stdout + run.stderr).toContain("already exists and is not empty");
+    expect(readdirSync(project)).toEqual(["keep.txt"]);
+    expect(readFileSync(join(project, "keep.txt"), "utf8")).toBe("mine");
+  });
+
   it("--dry-run prints the real flisk commands and writes nothing", () => {
     const run = runFlisk(["create", "shop", "--dry-run"], { cwd: dirOf(), timeout: 60_000 });
     expect(run.status).toBe(0);
@@ -632,6 +685,11 @@ describe("flisk create (the real CLI, no terminal)", () => {
     const run = runFlisk(["create", "shop", "--yes"], { cwd: dirOf(), timeout: 120_000 });
     expect(run.status, run.stdout + run.stderr).toBe(0);
     const project = join(dirOf(), "shop");
+    const readme = readFileSync(join(project, "README.md"), "utf8");
+    expect(readme).toContain("# shop");
+    expect(readme).toContain("does not need Docker");
+    expect(readme).toContain("flisk up");
+    expect(readme).toContain("flisk status");
     for (const file of ["web/service.json", "web/package.json", "api/service.json"]) {
       expect(existsSync(join(project, file)), file).toBe(true);
     }

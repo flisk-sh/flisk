@@ -8,6 +8,7 @@ import { stripVTControlCharacters } from "node:util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/index.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
+import { sampleServiceUsage } from "../../utils/service-usage.js";
 import { isTiltAvailable, runTilt } from "../../utils/tilt.js";
 import { findTiltPortOwner } from "../../utils/tilt-port-owner.js";
 import { tiltGetUiResources } from "../../utils/up-readiness.js";
@@ -34,6 +35,12 @@ vi.mock("../../utils/tilt.js", async (importOriginal) => ({
 vi.mock("../../utils/up-readiness.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/up-readiness.js")>()),
   tiltGetUiResources: vi.fn(),
+}));
+
+// Usage sampling is exercised with fake ps/docker output in its own unit tests; here it only needs to be observable.
+vi.mock("../../utils/service-usage.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/service-usage.js")>()),
+  sampleServiceUsage: vi.fn(async () => ({})),
 }));
 
 // The real lookup shells out to lsof, so a Tilt running on the developer's machine would change what status reads.
@@ -125,6 +132,7 @@ describe("flisk status", () => {
     vi.mocked(runTilt).mockReset();
     vi.mocked(tiltGetUiResources).mockReset().mockResolvedValue(null);
     vi.mocked(findTiltPortOwner).mockReset().mockReturnValue(null);
+    vi.mocked(sampleServiceUsage).mockReset().mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -132,6 +140,90 @@ describe("flisk status", () => {
     vi.mocked(isTiltAvailable).mockReset();
     vi.mocked(runTilt).mockReset();
     vi.mocked(tiltGetUiResources).mockReset();
+    vi.mocked(sampleServiceUsage).mockReset().mockResolvedValue({});
+  });
+
+  describe("--usage", () => {
+    it("does no sampling and adds no usage field without the flag", async () => {
+      const output = JSON.parse(await runStatus(["--json"]));
+
+      expect(sampleServiceUsage).not.toHaveBeenCalled();
+      for (const resource of output.data.resources as Array<Record<string, unknown>>) {
+        expect(resource).not.toHaveProperty("usage");
+      }
+    });
+
+    it("returns the sampled shape for each service in JSON", async () => {
+      const usage = { cpuPercent: 12.5, rssBytes: 1024 * 1024, processes: 3 };
+      vi.mocked(sampleServiceUsage).mockResolvedValue({
+        "orders-api": usage,
+        "orders-web": null,
+        invoices: null,
+        "report-job": null,
+      });
+
+      const data = JSON.parse(await runStatus(["--json", "--usage"])).data;
+      const byName = Object.fromEntries(
+        (data.resources as Array<Record<string, unknown>>).map((resource) => [
+          resource.name,
+          resource,
+        ]),
+      );
+
+      expect(sampleServiceUsage).toHaveBeenCalledTimes(1);
+      const targets = vi.mocked(sampleServiceUsage).mock.calls[0]?.[0] ?? [];
+      expect([...targets.map((target) => target.name)].sort()).toEqual(
+        ["orders-api", "orders-web", "invoices", "report-job"].sort(),
+      );
+      expect(byName["orders-api"].usage).toEqual(usage);
+      expect(byName["orders-web"].usage).toBeNull();
+      expect(byName.invoices.usage).toBeNull();
+    });
+
+    it("shows CPU, memory and process counts on service lines", async () => {
+      const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        JSON.stringify({
+          items: [
+            {
+              metadata: { name: "orders-api" },
+              status: { updateStatus: "ok", runtimeStatus: "ok" },
+            },
+            {
+              metadata: { name: "invoices" },
+              status: { updateStatus: "pending", runtimeStatus: "pending" },
+            },
+          ],
+        }),
+      );
+      vi.mocked(sampleServiceUsage).mockResolvedValue({
+        "orders-api": { cpuPercent: 12.5, rssBytes: 1024 * 1024, processes: 3 },
+      });
+
+      try {
+        const output = await runStatus(["--usage"]);
+
+        expect(output).toContain("✓ orders-api");
+        expect(output).toContain("12.5% CPU, 1.0 MB RSS, 3 processes");
+        expect(output).toContain("usage: null (not running)");
+        expect(output).not.toContain("Usage is not available on Windows");
+      } finally {
+        if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      }
+    });
+
+    it("says on Windows that usage is unavailable", async () => {
+      const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
+      try {
+        const output = await runStatus(["--usage"]);
+        expect(output).toContain("Usage is not available on Windows");
+        expect(output).toContain("usage: null (not available on Windows)");
+      } finally {
+        if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      }
+    });
   });
 
   it.each([

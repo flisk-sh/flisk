@@ -131,6 +131,10 @@ async function fetchPremium(key: string, resource: string, projectId: string): P
   return fetch(`${url}&key=${encodeURIComponent(key)}`);
 }
 
+function premiumDiagnosticsEnabled(): boolean {
+  return process.env.FLISK_PREMIUM_DIAGNOSTICS === "1";
+}
+
 async function fetchPremiumBundle(key: string, projectId: string): Promise<Buffer | null> {
   const attempts: string[] = [];
   for (const resource of KNOWN_RESOURCES) {
@@ -144,10 +148,12 @@ async function fetchPremiumBundle(key: string, projectId: string): Promise<Buffe
 
     if (res.ok) {
       const bundle = Buffer.from(await res.arrayBuffer());
-      console.info(
-        `🔎 Premium entitlement probe: granted resource=${resource} (HTTP ${res.status}); prior denials=${attempts.join(", ") || "none"}`,
-      );
-      console.info(`🔎 Premium bundle download: ${bundle.byteLength} bytes`);
+      if (premiumDiagnosticsEnabled()) {
+        console.info(
+          `🔎 Premium entitlement probe: granted resource=${resource} (HTTP ${res.status}); prior denials=${attempts.join(", ") || "none"}`,
+        );
+        console.info(`🔎 Premium bundle download: ${bundle.byteLength} bytes`);
+      }
       return bundle;
     }
     if (res.status === 401 || res.status === 403) {
@@ -179,9 +185,11 @@ export async function applyPremiumOverlay(projectRoot: string, destDir: string):
   if (!key) return false;
 
   const tarballPath = cacheTarballPath(key);
+  const diagnostics = premiumDiagnosticsEnabled();
 
   if (!isCacheFresh(tarballPath)) {
-    console.info("🔎 Premium bundle cache: miss; requesting bundle from distribution service");
+    if (diagnostics)
+      console.info("🔎 Premium bundle cache: miss; requesting bundle from distribution service");
     const projectId = getOrCreateProjectId(projectRoot);
     const bundle = await fetchPremiumBundle(key, projectId);
     if (!bundle) {
@@ -191,7 +199,7 @@ export async function applyPremiumOverlay(projectRoot: string, destDir: string):
     mkdirSync(join(tarballPath, ".."), { recursive: true });
     writeFileSync(tarballPath, bundle);
   } else {
-    console.info("🔎 Premium bundle cache: hit (cached bundle reused)");
+    if (diagnostics) console.info("🔎 Premium bundle cache: hit (cached bundle reused)");
   }
 
   try {
@@ -214,13 +222,15 @@ export async function applyPremiumOverlay(projectRoot: string, destDir: string):
     }
 
     const sablierPath = join(extractDir, "networking/sablier_container_cycle.star");
-    console.info(
-      `🔎 Premium bundle contents: mapped=${applied}/${Object.keys(PREMIUM_PATH_MAP).length}; sablier_overlay=${existsSync(sablierPath) ? "present" : "MISSING"}`,
-    );
+    if (diagnostics) {
+      console.info(
+        `🔎 Premium bundle contents: mapped=${applied}/${Object.keys(PREMIUM_PATH_MAP).length}; sablier_overlay=${existsSync(sablierPath) ? "present" : "MISSING"}`,
+      );
+    }
     if (missing.length > 0) {
       console.info(`🔎 Premium bundle missing mapped files: ${missing.join(", ")}`);
     }
-    if (!existsSync(sablierPath) && process.env.FLISK_PREMIUM_DIAGNOSTICS === "1") {
+    if (!existsSync(sablierPath) && diagnostics) {
       const sablierGranted = await hasSablierLicense(projectRoot);
       console.info(
         `🔎 Sablier entitlement check: ${sablierGranted ? "granted" : "not confirmed"}; compare with sablier_overlay above to distinguish license access from bundle contents`,

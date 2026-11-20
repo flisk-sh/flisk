@@ -12,6 +12,7 @@ import { projectEnvLookup } from "./extra-port-publish.js";
 import { formatCount } from "./formatting.js";
 import { generateEntries } from "./generated-secrets.js";
 import { findProjectRoot } from "./paths.js";
+import { hasSecretBridge, readSecretProvider, secretProviderUsageError, } from "./secret-provider.js";
 import { envFileErrors, providersOf, SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf, isLoopbackAddress } from "./status-ports.js";
@@ -520,6 +521,196 @@ export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd
     };
 }
 /**
+ * Logical Dockerfile instructions: backslash continuations are joined and comment lines are dropped, so an
+ * instruction split across lines (a common way to hide a port in a HEALTHCHECK) is inspected as one unit.
+ */
+function dockerfileInstructions(contents) {
+    const instructions = [];
+    let current = "";
+    for (const rawLine of contents.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!current && (line === "" || line.startsWith("#")))
+            continue;
+        if (line.endsWith("\\")) {
+            current += `${line.slice(0, -1).trim()} `;
+            continue;
+        }
+        instructions.push(`${current}${line}`.trim());
+        current = "";
+    }
+    if (current.trim() !== "")
+        instructions.push(current.trim());
+    return instructions;
+}
+/** Strip a trailing `# comment` from an instruction; a `#` inside a quoted value is kept. */
+function withoutTrailingComment(value) {
+    let quote;
+    for (let i = 0; i < value.length; i++) {
+        const char = value[i];
+        if (quote) {
+            if (char === quote)
+                quote = undefined;
+        }
+        else if (char === '"' || char === "'") {
+            quote = char;
+        }
+        else if (char === "#") {
+            return value.slice(0, i).trim();
+        }
+    }
+    return value.trim();
+}
+/** Each `FROM` starts a stage; a named stage uses `FROM <base> AS <name>` (case-insensitive `AS`). */
+function dockerfileStages(instructions) {
+    const stages = [];
+    for (const instruction of instructions) {
+        const from = /^FROM\s+/.test(instruction);
+        if (from) {
+            const name = instruction.match(/^FROM\s+\S+\s+AS\s+(\S+)/i)?.[1]?.toLowerCase();
+            stages.push({ ...(name ? { name } : {}), lines: [] });
+        }
+        else if (stages.length === 0) {
+            stages.push({ lines: [] });
+        }
+        if (stages.length > 0 && !from)
+            stages[stages.length - 1]?.lines.push(instruction);
+    }
+    return stages;
+}
+/**
+ * A resource's own Dockerfile can drift from its service.json after a re-registration (#3738) or a hand edit:
+ * `ENV PORT`, `EXPOSE` and the healthcheck keep the old number while `port` moves on. `flisk up` then publishes the
+ * new port to a container that still listens on the old one, and only the healthcheck reveals the mismatch. Local
+ * process resources have no Dockerfile, so they are skipped.
+ */
+export function checkDockerfilePorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const problems = resources.flatMap((resource) => {
+        const config = resource.config;
+        const declared = config?.port;
+        // checkServicePorts already reports an invalid number; repeating it here would double the error.
+        if (typeof declared !== "number" ||
+            !Number.isInteger(declared) ||
+            declared < 1 ||
+            declared > 65535) {
+            return [];
+        }
+        // A native image resource pulls `image` and has no Dockerfile to compare against.
+        if (typeof config?.image === "string" && config.image.trim() !== "")
+            return [];
+        const dockerfile = (typeof config?.dockerfile === "string" && config.dockerfile !== ""
+            ? config.dockerfile
+            : undefined) ??
+            (typeof config?.build?.dockerfile === "string" && config.build.dockerfile !== ""
+                ? config.build.dockerfile
+                : undefined) ??
+            "Dockerfile";
+        const context = (typeof config?.buildContext === "string"
+            ? config.buildContext
+            : typeof config?.build?.context === "string"
+                ? config.build.context
+                : "") || "";
+        const dockerfilePath = join(dirname(resource.configPath), context === "." ? "" : context, dockerfile);
+        let isFile = false;
+        try {
+            isFile = statSync(dockerfilePath).isFile();
+        }
+        catch {
+            isFile = false;
+        }
+        if (!isFile)
+            return [];
+        let contents;
+        try {
+            contents = readFileSync(dockerfilePath, "utf8");
+        }
+        catch {
+            return [];
+        }
+        const stages = dockerfileStages(dockerfileInstructions(contents));
+        const target = (typeof config?.target === "string" ? config.target : undefined) ??
+            (typeof config?.build?.target === "string" ? config.build.target : undefined);
+        const stage = (target ? stages.find((candidate) => candidate.name === target.toLowerCase()) : undefined) ??
+            stages[stages.length - 1];
+        const lines = stage?.lines ?? [];
+        const found = new Map();
+        const add = (label, value) => {
+            const values = found.get(label) ?? [];
+            if (!values.includes(value))
+                values.push(value);
+            found.set(label, values);
+        };
+        // The last ENV PORT in the effective stage is the one the container uses. Each line is read as `NAME=value`
+        // assignments, so `ENV FOO=1 PORT=4010` is understood without mistaking `OTHER_PORT` for `PORT`.
+        for (const line of lines) {
+            if (!/^ENV\s/i.test(line))
+                continue;
+            const rest = withoutTrailingComment(line.replace(/^ENV\s+/i, ""));
+            // `ENV PORT 4010` (legacy space form) or a `PORT=...` assignment among other variables.
+            const spaceForm = rest.match(/^PORT\s+("[^"]*"|'[^']*'|\S+)$/i);
+            const assignment = rest.match(/(?:^|\s)PORT\s*=\s*("[^"]*"|'[^']*'|\S+)/i);
+            const value = (spaceForm ?? assignment)?.[1]?.replace(/^["']|["']$/g, "");
+            if (value !== undefined && /^\d+$/.test(value))
+                found.set("PORT", [Number(value)]);
+        }
+        // EXPOSE can name several ports and optional /tcp or /udp suffixes.
+        for (const line of lines) {
+            const match = line.match(/^EXPOSE\s+(.+)$/i);
+            if (!match)
+                continue;
+            for (const token of withoutTrailingComment(match[1] ?? "").split(/\s+/)) {
+                const port = token.match(/^(\d+)(?:\/(?:tcp|udp))?$/i)?.[1];
+                if (port !== undefined)
+                    add("EXPOSE", Number(port));
+            }
+        }
+        // Only HEALTHCHECK instructions can report a healthcheck port. Host and port forms cover curl, wget and
+        // `nc -z localhost 4010`; flags such as --interval/--timeout are ignored because no host follows them.
+        for (const line of lines) {
+            if (!/^HEALTHCHECK\s/i.test(line))
+                continue;
+            const instruction = withoutTrailingComment(line);
+            for (const match of instruction.matchAll(/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):(\d+)/gi)) {
+                add("healthcheck", Number(match[1]));
+            }
+            for (const match of instruction.matchAll(/\bnc\s+(?:-z\s+)?(?:localhost|127\.0\.0\.1)\s+(\d+)\b/gi)) {
+                add("healthcheck", Number(match[1]));
+            }
+        }
+        const mismatches = [];
+        for (const [label, values] of found) {
+            // A service may expose several ports, or a healthcheck may probe a different internal port. What matters is
+            // that service.json's port appears among them; `ENV PORT` has exactly one effective value and must match it.
+            if (label !== "PORT" && values.includes(declared))
+                continue;
+            for (const value of values) {
+                if (value !== declared) {
+                    mismatches.push(`${label} ${value} (expected ${declared})`);
+                }
+            }
+        }
+        if (mismatches.length === 0)
+            return [];
+        const configFile = filePath(projectRoot, resource);
+        const dockerFile = relative(projectRoot, dockerfilePath) || dockerfilePath;
+        return [
+            `${configFile} port ${declared} disagrees with ${dockerFile}: ${mismatches.join(", ")}`,
+        ];
+    });
+    if (problems.length === 0) {
+        return {
+            name: "Dockerfile ports",
+            didPass: true,
+            message: "Every Dockerfile port matches its service.json",
+        };
+    }
+    return {
+        name: "Dockerfile ports",
+        didPass: false,
+        message: `${formatCount(problems.length, "port mismatch")}:\n    ${problems.join("\n    ")}`,
+        fix: 'Set "port" in service.json to the port the Dockerfile listens on, or update the Dockerfile PORT, EXPOSE and healthcheck ports to match service.json',
+    };
+}
+/**
  * A service.json with no schemaVersion is how every project began, so this is a warning: it keeps working, and only
  * `flisk config migrate` writes the field. A version this flisk does not know is reported the same way, with a different fix.
  */
@@ -569,15 +760,39 @@ export function warnSchemaVersions(projectRoot, resources) {
 /**
  * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
  * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
- * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ * With `FLISK_SECRET_PROVIDER=infisical` the names are left to a bridge; the free build has none, so it warns per name.
  */
 export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), env = process.env) {
-    const provider = (env.FLISK_SECRET_PROVIDER ?? "").trim().toLowerCase();
-    if (provider !== "" && provider !== "env-file") {
+    const usageError = secretProviderUsageError(env);
+    if (usageError)
+        throw usageError;
+    const { value: provider } = readSecretProvider(env);
+    if (provider === "infisical") {
+        if (hasSecretBridge(env)) {
+            return {
+                name: "Required secrets",
+                didPass: true,
+                message: "Secrets are left to the secret provider",
+            };
+        }
+        // Nothing injects these names in this build: even a value in .env stays unused.
+        const names = [
+            ...new Set(resources.flatMap((resource) => {
+                const required = resource.config?.secrets
+                    ?.required;
+                return Array.isArray(required)
+                    ? required.filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+                    : [];
+            })),
+        ];
         return {
             name: "Required secrets",
             didPass: true,
-            message: "Secrets are left to the secret provider",
+            isWarning: true,
+            message: names.length
+                ? `FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; ${names.join(", ")} will be empty`
+                : "FLISK_SECRET_PROVIDER=infisical: this build has no Infisical client; no required secrets to inject",
+            fix: "Set FLISK_SECRET_PROVIDER=env-file and add the names to the project .env, or use a build with a secret bridge",
         };
     }
     const envFile = env[PROJECT_ENV_FILE_VAR] || join(projectRoot, ".env");
@@ -640,7 +855,7 @@ export function warnSecretConflicts(projectRoot, resources) {
  */
 export function enforceServiceConfigGate(projectRoot, options = {}, exit = process.exit) {
     const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
-    const failed = [
+    const checks = [
         checkDuplicateResourceNames(projectRoot, resources),
         checkServiceFields(projectRoot, resources),
         checkCustomDockerfiles(projectRoot, resources),
@@ -650,7 +865,14 @@ export function enforceServiceConfigGate(projectRoot, options = {}, exit = proce
         checkServicePorts(projectRoot, resources),
         checkSidecars(projectRoot, resources),
         checkVolumes(projectRoot, resources),
-    ].filter((check) => !check.didPass);
+    ];
+    for (const check of checks.filter((entry) => entry.isWarning)) {
+        options.onWarning?.(check.message);
+        console.warn(chalk.yellow(`⚠ ${check.message}`));
+        if (check.fix)
+            console.warn(chalk.gray(`  Fix: ${check.fix}`));
+    }
+    const failed = checks.filter((check) => !check.didPass && !check.isWarning);
     if (failed.length === 0)
         return;
     const text = failed

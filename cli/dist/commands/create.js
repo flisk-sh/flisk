@@ -8,7 +8,7 @@
  * those commands wrote. It keeps no list of frameworks, languages or starters of its own.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync, writeFileSync, } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -17,7 +17,7 @@ import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../u
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
-import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, starterInfo, toProjectName, } from "../utils/create-plan.js";
+import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, projectNameError, starterInfo, toProjectName, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
 import { isWindows } from "../utils/platform.js";
@@ -59,6 +59,45 @@ const INSTALL_HELP = {
 /** How to get each missing program; empty when nothing is missing or nothing is known about it. */
 export function installHelp(missing) {
     return missing.flatMap((program) => INSTALL_HELP[program] ? [`  ${INSTALL_HELP[program]}`] : []);
+}
+/**
+ * A starter decides its own frontend, backend, language and extras. Reject the flags that would
+ * otherwise be accepted and silently ignored, naming every one the caller supplied.
+ */
+function assertNoStarterConflicts(options, starters) {
+    if (!options.starter)
+        return;
+    const conflicts = [];
+    for (const [flag, supplied] of [
+        ["--frontend", options.frontend !== undefined],
+        ["--backend", options.backend !== undefined],
+        ["--language", options.language !== undefined],
+        ["--extras", options.extras !== undefined && options.extras !== "none"],
+    ]) {
+        if (supplied)
+            conflicts.push(flag);
+    }
+    const invalidRuntime = options.runtime !== undefined && !CREATE_RUNTIMES.includes(options.runtime);
+    if (options.runtime !== undefined && !invalidRuntime) {
+        const runtime = options.runtime;
+        const starterLocal = starters.find((option) => option.id === options.starter)?.local ?? false;
+        const expected = starterLocal ? "local" : "docker";
+        if (runtime !== expected)
+            conflicts.push(`--runtime ${options.runtime}`);
+    }
+    if (conflicts.length === 0 && !invalidRuntime)
+        return;
+    if (invalidRuntime && conflicts.length === 0) {
+        oneOf("runtime", options.runtime, CREATE_RUNTIMES);
+    }
+    const runtimeError = invalidRuntime
+        ? ` Unknown --runtime "${options.runtime}". Use one of: ${CREATE_RUNTIMES.join(", ")}.`
+        : "";
+    throw new FliskError(`${conflicts.join(", ")} cannot be combined with --starter: a starter carries its own parts.${runtimeError}`, [
+        `Remove the conflicting flags (${conflicts.join(", ")}) and retry, keeping the project name and other options you need.`,
+        ...(invalidRuntime ? [`Use --runtime ${CREATE_RUNTIMES.join(" or ")}.`] : []),
+        "Or drop --starter and choose the parts yourself.",
+    ]);
 }
 /** A flag value must be one of the ids the catalog offers; the error lists them. */
 function oneOf(flag, value, ids, extra = []) {
@@ -113,6 +152,22 @@ function splitStackChoice(pick) {
     const [language, framework] = pick.split("/");
     return { language, ...(framework ? { framework } : {}) };
 }
+/** The error for a `--backend` the JavaScript catalog does not know, pointing at `--language` when that is the answer. */
+function unknownBackend(framework, known) {
+    // The languages that own their runtime (their `frameworks` is empty) and the servers they usually run.
+    const ownRuntime = backendCatalog().filter((entry) => entry.frameworks.length === 0);
+    const owner = ownRuntime.find((entry) => entry.serverFrameworks.includes(framework));
+    const languageIds = ownRuntime.map((entry) => entry.id).join("|");
+    const suggestions = [`flisk create --backend ${known[0] ?? "<id>"}`];
+    if (owner) {
+        suggestions.push(`For ${owner.title} use: flisk create <name> --language ${owner.id}`);
+    }
+    if (languageIds) {
+        suggestions.push(`For an API in another language use: --language ${languageIds}`);
+    }
+    suggestions.push("Leave the flag out to be asked, or to take the default.");
+    throw new FliskError(`Unknown --backend "${framework}". Use one of: ${known.join(", ")}.`, suggestions);
+}
 /** Resolves `--backend` and `--language` into the API choice the catalog allows, or throws with what it allows. */
 function resolveBackend(framework, language) {
     const catalog = backendCatalog();
@@ -124,7 +179,9 @@ function resolveBackend(framework, language) {
         : undefined;
     if (framework) {
         const everyFramework = catalog.flatMap((entry) => entry.frameworks.map((option) => option.id));
-        oneOf("backend", framework, everyFramework);
+        if (!everyFramework.includes(framework)) {
+            unknownBackend(framework, everyFramework);
+        }
         if (lang && owner && lang !== owner.id) {
             throw new FliskError(`--backend ${framework} runs on ${owner.id}, not ${lang}.`, [
                 `Use --language ${owner.id}, or leave --language out.`,
@@ -146,17 +203,20 @@ function resolveBackend(framework, language) {
  */
 export async function collectAnswers(nameArg, options, interactive) {
     if (nameArg !== undefined && !isValidProjectName(nameArg)) {
-        throw new FliskError(`"${nameArg}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`, ["Pick a name like my-app or shop-2: flisk create my-app"]);
+        const { message, suggestions } = projectNameError(nameArg);
+        throw new FliskError(message, suggestions);
     }
     const starters = starterCatalog();
     const frontends = frontendCatalog();
     const backends = backendCatalog();
     const extrasCatalog = extraCatalog();
+    if (options.starter !== undefined) {
+        oneOf("starter", options.starter, starters.map((option) => option.id));
+    }
+    // Report every starter conflict first, so a --backend none/--language clash cannot hide the others.
+    assertNoStarterConflicts(options, starters);
     if (options.backend === "none" && options.language !== undefined) {
         throw new FliskError(`--language ${options.language} has no API to apply to: --backend none leaves the API out.`, ["Drop --backend none to get an API in that language, or drop --language."]);
-    }
-    if (options.starter && options.extras !== undefined && options.extras !== "none") {
-        throw new FliskError("--extras cannot be combined with --starter: a starter carries its own parts.", ["Drop --extras, or drop --starter and add the parts with --runtime docker."]);
     }
     const flagged = {
         frontend: options.frontend !== undefined,
@@ -585,8 +645,11 @@ async function runCreate(nameArg, options) {
     }
     const answers = await collectAnswers(nameArg, options, interactive);
     if (!isValidProjectName(answers.name)) {
-        throw new FliskError(`"${answers.name}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`, ["Pick a name like my-app or shop-2: flisk create my-app"]);
+        const { message, suggestions } = projectNameError(answers.name);
+        throw new FliskError(message, suggestions);
     }
+    const projectDir = resolve(process.cwd(), answers.name);
+    assertFolderIsFree(projectDir);
     const steps = buildCreatePlan(answers);
     if (options.dryRun) {
         console.log(describeAnswers(answers).join("\n"));
@@ -598,8 +661,6 @@ async function runCreate(nameArg, options) {
         console.log(chalk.gray("\nDry run: nothing was written."));
         return;
     }
-    const projectDir = resolve(process.cwd(), answers.name);
-    assertFolderIsFree(projectDir);
     // The review comes before anything is written, in every mode, so a default is never a surprise.
     const review = reviewLines(answers, steps);
     if (interactive) {
@@ -667,6 +728,33 @@ async function runCreate(nameArg, options) {
             .map((line) => `  ${line}`)
             .join("\n")}\n`);
         return;
+    }
+    const readme = join(projectDir, "README.md");
+    const runtimeHint = answers.runtime === "docker"
+        ? "Start Docker before running this project."
+        : "This project runs as local processes. It does not need Docker.";
+    const commands = nextSteps(projectDir, answers, services)
+        .slice(1)
+        .filter((line) => !/^Open /i.test(line));
+    const contents = [
+        `# ${answers.name}`,
+        "",
+        runtimeHint,
+        "",
+        "## Run the project",
+        "",
+        "```sh",
+        ...commands,
+        "flisk status",
+        "```",
+        "",
+    ].join("\n");
+    try {
+        writeFileSync(readme, contents, { flag: "wx" });
+    }
+    catch (error) {
+        if (error.code !== "EEXIST")
+            throw error;
     }
     let start = Boolean(options.start);
     // The "install and start now?" ask belongs to the local app route alone (#3192): the Docker route

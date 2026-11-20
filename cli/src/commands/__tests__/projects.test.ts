@@ -212,10 +212,19 @@ describe("flisk projects (human-readable)", () => {
     expect(checkResult.status).toBe(0);
   });
 
-  it("fails with exit status 1 when running outside a project", async () => {
+  it("lists running projects without a project-root error when running outside a project", async () => {
     const emptyDir = createTempDir("flisk-projects-outside-");
     const command = await freshProjectsCommand();
     const result = await runCommandInProcess(command, [], emptyDir);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stderr).not.toContain("Could not find project root");
+  });
+
+  it("still fails with exit status 1 for --check outside a project", async () => {
+    const emptyDir = createTempDir("flisk-projects-check-outside-");
+    const command = await freshProjectsCommand();
+    const result = await runCommandInProcess(command, ["--check"], emptyDir);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Could not find project root");

@@ -4,8 +4,14 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- The Claude Code plugin starts its MCP server through a shipped Node launcher instead of a `#!/bin/sh` script, so the plugin works on native Windows and on machines without `/bin/sh` (#4012).
+
+## 1.4.70 (2026-11-20)
+
+- `flisk tool add openapi-mcp` prints the steps to run an OpenAPI-to-MCP gateway as a bring-your-own image, and `flisk tool add rag` points at a new recipe for the Qdrant MCP server with one collection per customer. A second recipe shows a policy check that refuses a `pay` tool call above a limit (#4060).
 - The golden image publish check holds each layer to its own size budget (measured size plus 10%, in `scripts/golden/size-budgets.json`) instead of one 400 MB cap, and `docs/golden-image-sizes.md` lists what each layer holds (#2692).
 - `flisk runtime --check-assets --json` now returns the standard envelope (`{"schemaVersion":1,"data":{"ok":...},"errors":[]}`) instead of a bare object; on failure `errors` carries a `RUNTIME_CHECK_FAILED` entry and the exit code is `1` (#4467).
+- `flisk project langgraph`: a run started with `"approve": true` stops at LangGraph's `interrupt()` before its side effect and waits for `POST /runs/:id/resume`, however often the agent restarts; the side effect is keyed by the run, so a resumed run sends once (`agent/effects.mjs`). With `DATABASE_URL` set the agent uses the Postgres checkpointer (`@langchain/langgraph-checkpoint-postgres`) and an `agent_effects` table instead of files. Runs without `approve` are unchanged (#4057).
 
 ## 2026-11-16 (undefined)
 

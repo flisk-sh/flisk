@@ -226,7 +226,9 @@ describe("flisk resource --json", () => {
 
   it("prints the framework inventory with --frameworks", () => {
     const root = createTempDir();
-    const frontend = parseEnvelope(json(["resource", "--frameworks"], root).stdout).data;
+    const frontend = parseEnvelope(
+      json(["resource", "--type", "frontend", "--frameworks"], root).stdout,
+    ).data;
     expect(frontend.type).toBe("frontend");
     expect(frontend.frameworks).toContainEqual(expect.objectContaining({ id: "react" }));
     const backend = parseEnvelope(

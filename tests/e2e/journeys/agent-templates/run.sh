@@ -30,7 +30,10 @@
 #       from its LangGraph checkpoint, and the trace shows every node exactly once: finished nodes did not run again.
 #   L4  Chaos: kill -9 the tool server while a run starts. LangGraph's retryPolicy retries the research node with backoff until
 #       the supervisor has the tool server back, and the run finishes.
-#   L5  `flisk down` stops the agent and the tool server and frees their ports.
+#   L5  Chaos: a run started with approve:true stops at interrupt() and waits. kill -9 the agent while it waits: the run is still
+#       waiting after the restart and nothing was sent. Approve it: the side effect happens exactly once, answering it again is a
+#       409, and a further restart sends nothing. A rejected run sends nothing.
+#   L6  `flisk down` stops the agent and the tool server and frees their ports.
 #   K1  `flisk project tool-loop` + `flisk up`: setup installs the Anthropic SDK, the agent, the MCP tool server and the mock
 #       model are ready natively, and `flisk mcp check tools --call` passes.
 #   K2  A question goes through the SDK's real tool runner: the mock model calls `lookup` once per topic over MCP, then answers.
@@ -432,8 +435,60 @@ L4() { # chaos: the tool server dies as a run starts, and LangGraph's retry poli
     || { graph_run "$id"; die "run $id has no note from the restarted tool server"; }
 }
 
-L5() { # flisk down stops it
-  log "L5 flisk down"
+approve_run() { # <goal>: starts a run that waits for approval before its side effect; prints the new run's id
+  curl -fsS --max-time 10 -X POST "$GRAPH/runs" -H 'content-type: application/json' -d "$(jq -cn --arg g "$1" '{goal:$g,approve:true}')" | jq -er .id
+}
+graph_waiting() { [ "$(graph_run "$1" | jq -r .status)" = "awaiting_approval" ]; }
+resume_run() { # <run id> <true|false>: answers the approval question; prints the HTTP status
+  curl -sS --max-time 10 -o "$OUT/graph-resume.json" -w '%{http_code}' -X POST "$GRAPH/runs/$1/resume"     -H 'content-type: application/json' -d "{\"approved\":$2}"
+}
+sent_count() { # <run id>: how many times the run's answer reached the outbox, the stand-in for the mail or payment API
+  local file="$GRAPH_DIR/agent/.data/outbox.jsonl"
+  if [ -f "$file" ]; then jq -s --arg k "$1:send" '[.[] | select(.key == $k)] | length' "$file"; else echo 0; fi
+}
+restart_agent() { # kill -9 the agent and wait for the supervisor to start it again
+  local before
+  before="$(listening_pid 4400)"
+  log "kill -9 agent (pid $before)"
+  kill -9 "$before"
+  poll_until "the supervisor starts the agent again" 60 pid_listening_changed 4400 "$before"
+}
+
+L5() { # chaos: a run waits for approval, the agent dies, and the approved side effect still happens exactly once
+  log "L5 kill -9 the agent while a run waits for approval"
+  ensure_graph_up
+  graph_up STEP_DELAY_MS=0
+  local id other
+  id="$(approve_run "flisk and mcp")"
+  poll_until "run $id waits for approval" 60 graph_waiting "$id"
+  graph_run "$id" | jq -e '.next == ["approve"] and .pending.question != null and .approve == true' >/dev/null     || { graph_run "$id"; die "run $id is not stopped at the approve node with a question"; }
+  [ "$(sent_count "$id")" = "0" ] || die "run $id sent its answer before anyone approved it"
+
+  restart_agent
+  poll_until "run $id still waits after the restart" 60 graph_waiting "$id"
+  graph_run "$id" | jq -e '.next == ["approve"] and .pending.question != null' >/dev/null     || { graph_run "$id"; die "run $id lost its pending approval in the restart"; }
+  [ "$(sent_count "$id")" = "0" ] || die "run $id sent its answer during the restart"
+
+  [ "$(resume_run "$id" true)" = "202" ] || { cat "$OUT/graph-resume.json"; die "approving run $id was not accepted"; }
+  poll_until "run $id done after the approval" 60 graph_done "$id"
+  graph_run "$id" | jq -e '[.trace[].node] == ["plan","research","write","check","approve","act"] and .effect.delivered == true and .approval.approved == true' >/dev/null     || { graph_run "$id" | jq -c .; die "run $id did not go through approve and act once each"; }
+  [ "$(sent_count "$id")" = "1" ] || die "run $id sent its answer $(sent_count "$id") times, not once"
+
+  [ "$(resume_run "$id" true)" = "409" ] || die "a second answer to run $id was not refused with 409"
+  restart_agent
+  poll_until "run $id is still done after another restart" 60 graph_done "$id"
+  [ "$(sent_count "$id")" = "1" ] || die "the restart sent run $id again"
+
+  other="$(approve_run "retries")"
+  poll_until "run $other waits for approval" 60 graph_waiting "$other"
+  [ "$(resume_run "$other" false)" = "202" ] || die "rejecting run $other was not accepted"
+  poll_until "run $other done after the rejection" 60 graph_done "$other"
+  graph_run "$other" | jq -e '[.trace[].node] == ["plan","research","write","check","approve"] and .approval.approved == false and (.effect == null)' >/dev/null     || { graph_run "$other" | jq -c .; die "the rejected run $other did not stop after the approve node"; }
+  [ "$(sent_count "$other")" = "0" ] || die "the rejected run $other sent its answer"
+}
+
+L6() { # flisk down stops it
+  log "L6 flisk down"
   ensure_graph_up
   run_in "$GRAPH_DIR" graph-down down
   [ "$RC" -eq 0 ] || die "flisk down exited $RC in the LangGraph project"

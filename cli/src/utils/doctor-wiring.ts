@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { BACKEND_LANGUAGES } from "../backend-languages/registry.js";
 import type { CheckResult, DiscoveredResource } from "../types/index.js";
+import { DATABASE_RESOURCE_TYPE } from "../types/index.js";
 import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { toComposeProjectName } from "./compose-project-name.js";
 import {
@@ -247,6 +248,15 @@ function isBringYourOwn(resource: DiscoveredResource): boolean {
   return (resource.config?.appType ?? resource.type) === BRING_YOUR_OWN_TYPE;
 }
 
+/**
+ * A database resource has no application code at all: no package.json is generated for it and no image is built
+ * from its directory, exactly as for a bring-your-own resource. The same rule `REQUIRED_PACKAGE_SCRIPTS.database`
+ * ([]) already follows for the "Startup Scripts" check.
+ */
+function isDatabaseResource(resource: DiscoveredResource): boolean {
+  return (resource.config?.appType ?? resource.type) === DATABASE_RESOURCE_TYPE;
+}
+
 export function checkResourcePackageJson(
   projectRoot = findProjectRoot() ?? process.cwd(),
 ): CheckResult {
@@ -254,6 +264,7 @@ export function checkResourcePackageJson(
     .filter(
       (resource) =>
         !isBringYourOwn(resource) &&
+        !isDatabaseResource(resource) &&
         !ownsRuntimeFiles(resource) &&
         !existsSync(join(resource.path, PACKAGE_JSON)),
     )

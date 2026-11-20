@@ -209,7 +209,7 @@ export const COMMAND_SPECS = [
         ],
         helpTexts: {
             after: [
-                "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
+                "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExit codes: 2 for an argument you typed wrong (an unknown --only service, an unknown --profile, an invalid --wait-timeout, a rejected --env-file), 1 for a failure such as a stack that cannot start.\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
             ],
         },
         subcommands: [],
@@ -421,6 +421,10 @@ export const COMMAND_SPECS = [
             {
                 flags: "-s, --service <names...>",
                 description: "Only these services (names as in flisk resources)",
+            },
+            {
+                flags: "-f, --follow",
+                description: "Live follow is unavailable; use flisk ui or repeat with --since",
             },
             {
                 flags: "--tail <n>",
@@ -759,6 +763,11 @@ export const COMMAND_SPECS = [
                 defaultValue: false,
             },
             {
+                flags: "--usage",
+                description: "Show CPU, memory and process usage per service",
+                defaultValue: false,
+            },
+            {
                 flags: "--project <path>",
                 description: "Show status for the Flisk project in this folder (default: the current project)",
             },
@@ -766,7 +775,7 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --json\n  flisk status --strict",
+                "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --usage\n  flisk status --json\n  flisk status --strict",
             ],
         },
         subcommands: [],
@@ -824,6 +833,12 @@ export const COMMAND_SPECS = [
                 description: "Stack name to assign to resources",
                 required: false,
                 variadic: false,
+            },
+            {
+                name: "extra",
+                description: "Additional positional inputs (resource names use --resources)",
+                required: false,
+                variadic: true,
             },
         ],
         helpTexts: {
@@ -1035,7 +1050,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--list",
-                description: "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array",
+                description: "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
                 defaultValue: false,
             },
             {
@@ -1378,6 +1393,10 @@ export const COMMAND_SPECS = [
                 allowExcessArguments: false,
                 options: [
                     {
+                        flags: "--dry-run",
+                        description: "Show the planned change without writing project.json",
+                    },
+                    {
                         flags: "--ignore-version",
                         description: "Continue even if the CLI does not match the project's version requirements",
                         defaultValue: false,
@@ -1411,6 +1430,10 @@ export const COMMAND_SPECS = [
                 positionalOptions: false,
                 allowExcessArguments: false,
                 options: [
+                    {
+                        flags: "--dry-run",
+                        description: "Show the planned change without writing project.json",
+                    },
                     {
                         flags: "--ignore-version",
                         description: "Continue even if the CLI does not match the project's version requirements",
@@ -1918,7 +1941,7 @@ export const COMMAND_SPECS = [
         ],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
+                "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild\n\nTilt resources require Tilt; local-process projects: use `flisk down && flisk up` for a full restart.",
             ],
         },
         subcommands: [],
