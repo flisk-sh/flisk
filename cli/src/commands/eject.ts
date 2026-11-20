@@ -68,6 +68,19 @@ interface LocalServiceRow {
 }
 
 /**
+ * Wraps a command or value in an inline Markdown code span safe for a GFM table cell.
+ * GFM splits table cells on unescaped `|` even inside backticks, so pipes must be escaped as `\|`,
+ * newlines collapsed to spaces, and the fence widened if the text contains backticks.
+ */
+function formatMarkdownTableCode(value: string): string {
+  const escaped = value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|");
+  const runs = escaped.match(/`+/g);
+  const fence = "`".repeat((runs ? Math.max(...runs.map((r) => r.length)) : 0) + 1);
+  const padded = escaped.startsWith("`") || escaped.endsWith("`") ? ` ${escaped} ` : escaped;
+  return `${fence}${padded}${fence}`;
+}
+
+/**
  * The EJECTED.md guide for a project whose services run as local processes, with optional ready-made `image`
  * containers. It points at the commands and images in service.json, because no Tilt, Traefik or generated
  * Docker files are involved in that runtime.
@@ -76,9 +89,16 @@ export function nativeEjectedContent(services: readonly LocalServiceRow[]): stri
   const hasContainers = services.some((service) => service.image !== undefined);
   const table = services
     .map((service) => {
-      const run =
-        service.image !== undefined ? `docker run ${service.image}` : `\`${service.command}\``;
-      return `| \`${service.name}\` | ${run} | ${service.port} |`;
+      const portTrimmed = service.port.trim();
+      const hasNumericPort = /^\d+$/.test(portTrimmed);
+      const runCommand =
+        service.image !== undefined
+          ? hasNumericPort
+            ? `docker run -p 127.0.0.1:${portTrimmed}:${portTrimmed} ${service.image}`
+            : `docker run ${service.image}`
+          : (service.command ?? "");
+      const portCell = service.port.replace(/\r?\n/g, " ").replace(/\|/g, "\\|");
+      return `| ${formatMarkdownTableCode(service.name)} | ${formatMarkdownTableCode(runCommand)} | ${portCell} |`;
     })
     .join("\n");
   const intro = `not remove Flisk. This project runs its services as local processes: ${
@@ -92,8 +112,10 @@ ${intro}
 ## Running the services without the flisk CLI
 
 Run each service with the \`command\` in its \`service.json\`, from its folder. Start
-databases and other dependencies first. The port column is the \`port\` in the same file; set it in
-the service's environment if its command does not read \`service.json\` itself.
+databases and other dependencies first. Set each key in a service's \`service.json\` \`env\` map in
+its process environment before running its command (values stay in \`service.json\` or \`.env\` and
+are not written here). The port column is the \`port\` in the same file; set it in the service's
+environment if its command does not read \`service.json\` itself.
 ${hasContainers ? "Services with an `image` run as containers on 127.0.0.1 at their port." : ""}
 
 | Service | Command or image | Port |

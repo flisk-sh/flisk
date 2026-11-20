@@ -147,6 +147,79 @@ describe("flisk eject with a local-process project", () => {
     const text = readFileSync(join(root!, "EJECTED.md"), "utf-8");
     expect(text).toContain("not set");
   });
+
+  it("escapes pipes in shell commands so the Markdown table keeps its port column", async () => {
+    const projectRoot = project([
+      {
+        appName: "api",
+        appType: "backend",
+        command: "node api.js | tee api.log",
+        port: 4000,
+        stack: "app",
+      },
+    ]);
+    root = projectRoot;
+    discovery.discoverResourcesFromRoot.mockImplementation(
+      () =>
+        [
+          {
+            name: "api",
+            stack: "app",
+            type: "backend",
+            path: "services/api/service.json",
+            configPath: join(projectRoot, "services", "api", "service.json"),
+            config: {
+              appName: "api",
+              appType: "backend",
+              command: "node api.js | tee api.log",
+              port: 4000,
+            },
+          },
+        ] as DiscoveredResource[],
+    );
+
+    await run();
+    const text = readFileSync(join(projectRoot, "EJECTED.md"), "utf-8");
+    expect(text).toContain("| `api` | `node api.js \\| tee api.log` | 4000 |");
+  });
+
+  it("tells users to set service.json env map keys without copying their values", async () => {
+    const projectRoot = project([
+      {
+        appName: "api",
+        appType: "backend",
+        command: "node api.js",
+        port: 4000,
+        stack: "app",
+        env: { API_TOKEN: "do-not-copy-into-guide" },
+      },
+    ]);
+    root = projectRoot;
+    discovery.discoverResourcesFromRoot.mockImplementation(
+      () =>
+        [
+          {
+            name: "api",
+            stack: "app",
+            type: "backend",
+            path: "services/api/service.json",
+            configPath: join(projectRoot, "services", "api", "service.json"),
+            config: {
+              appName: "api",
+              appType: "backend",
+              command: "node api.js",
+              port: 4000,
+              env: { API_TOKEN: "do-not-copy-into-guide" },
+            },
+          },
+        ] as DiscoveredResource[],
+    );
+
+    await run();
+    const text = readFileSync(join(projectRoot, "EJECTED.md"), "utf-8");
+    expect(text).toContain("`env` map");
+    expect(text).not.toContain("do-not-copy-into-guide");
+  });
 });
 
 describe("flisk eject with a Docker project", () => {
@@ -218,15 +291,46 @@ describe("flisk eject with a mixed local-process and image project", () => {
     );
   });
 
-  it("writes a local-process guide listing the image container and no no-containers claim", async () => {
+  it("writes a local-process guide listing the image container with loopback port mapping and no no-containers claim", async () => {
     const result = await run();
     expect(result.status).toBeUndefined();
     const text = readFileSync(join(root!, "EJECTED.md"), "utf-8");
     expect(text).not.toMatch(/Tilt/i);
     expect(text).not.toContain("no containers");
     expect(text).toContain("node api.js");
-    expect(text).toContain("docker run postgres:16");
-    expect(text).toContain("5432");
+    expect(text).toContain("| `db` | `docker run -p 127.0.0.1:5432:5432 postgres:16` | 5432 |");
+  });
+
+  it("keeps portless image services without a -p flag", async () => {
+    root = project([
+      { appName: "api", appType: "backend", command: "node api.js", port: 4000, stack: "app" },
+      { appName: "job", appType: "worker", image: "postgres:16", stack: "app" },
+    ]);
+    discovery.discoverResourcesFromRoot.mockImplementation(
+      () =>
+        [
+          {
+            name: "api",
+            stack: "app",
+            type: "backend",
+            path: "services/api/service.json",
+            configPath: join(root!, "services", "api", "service.json"),
+            config: { appName: "api", command: "node api.js", port: 4000 },
+          },
+          {
+            name: "job",
+            stack: "app",
+            type: "worker",
+            path: "services/job/service.json",
+            configPath: join(root!, "services", "job", "service.json"),
+            config: { appName: "job", image: "postgres:16" },
+          },
+        ] as DiscoveredResource[],
+    );
+
+    await run();
+    const text = readFileSync(join(root!, "EJECTED.md"), "utf-8");
+    expect(text).toContain("| `job` | `docker run postgres:16` | not set |");
   });
 
   it("reports the native runtime with both service files and no Tilt command", async () => {
