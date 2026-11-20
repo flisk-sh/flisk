@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { FliskError } from "../utils/errors.js";
+import { suggestClosest } from "../utils/suggestions.js";
 import { litFrontendProvider } from "./lit.js";
 import { nextFrontendProvider } from "./next.js";
 import { preactFrontendProvider } from "./preact.js";
@@ -60,9 +61,11 @@ export function getFrontendFramework(frameworkId, resourceName) {
     const provider = Object.hasOwn(FRONTEND_FRAMEWORKS, id) ? FRONTEND_FRAMEWORKS[id] : undefined;
     if (!provider) {
         const supportedIds = Object.keys(FRONTEND_FRAMEWORKS).join(", ");
+        const closest = suggestClosest(id, Object.keys(FRONTEND_FRAMEWORKS));
         const isMeta = META_FRAMEWORK_IDS.includes(id);
         const byo = `flisk resource ${resourceName ?? "<name>"} --type bring-your-own`;
         throw new FliskError(`${isMeta ? `"${frameworkId}" is not a Vite SPA provider` : `Unknown frontend framework "${frameworkId}"`}. Supported frameworks: ${supportedIds}.`, [
+            ...(closest ? [`Did you mean "${closest}"?`] : []),
             `Use one of: ${supportedIds}`,
             `Omit --framework to use ${DEFAULT_FRONTEND_FRAMEWORK}`,
             ...(isMeta ? [`Create the app with ${id}'s own CLI, then register it: ${byo}`] : []),

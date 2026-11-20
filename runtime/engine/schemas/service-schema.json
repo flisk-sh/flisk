@@ -436,7 +436,7 @@
                 "type": "object",
                 "additionalProperties": false,
                 "required": ["soft", "hard"],
-                "properties": { "soft": { "type": "integer", "minimum": -1 }, "hard": { "type": "integer", "minimum": -1 } }
+                "properties": { "soft": { "type": "integer", "minimum": -1, "description": "Soft process limit for this Compose ulimit; -1 means unlimited." }, "hard": { "type": "integer", "minimum": -1, "description": "Hard process limit for this Compose ulimit; -1 means unlimited." } }
               }
             ]
           }
@@ -764,7 +764,7 @@
         {
           "type": "object",
           "properties": {
-            "enabled": { "type": "boolean" },
+            "enabled": { "description": "Whether health checks are enabled; false disables them, like healthCheck: false.", "type": "boolean" },
             "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between container health probes." },
             "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
             "startPeriod": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds after the container starts before failed probes count (Compose start_period), for an app that is slow to boot." },

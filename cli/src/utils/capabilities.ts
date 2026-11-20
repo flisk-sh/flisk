@@ -8,6 +8,7 @@ import type { DiscoveredResource, ProjectCapabilities, ProjectConfig } from "../
 import { PROJECT_JSON } from "./constants.js";
 import { FliskError } from "./errors.js";
 import { writeJsonFile } from "./file-helpers.js";
+import { isNativeProject } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { evaluatePlatformServiceNeeds, needsDatabaseKeys } from "./platform-services.js";
 import { discoverResourcesWithProblems } from "./services.js";
@@ -135,6 +136,21 @@ export function resolveProjectCapabilities(
   }
   applyFlags(caps, options);
   return caps;
+}
+
+/**
+ * The capabilities a status or doctor report shows: a project of local processes (#3873) starts neither the router nor
+ * the shared database, so it reports none — `getEnabledCapabilities` infers both from resource types and `dependsOn`,
+ * which describe containers, not `command` services. A caller without the project's resources passes `[]`, which reads
+ * as "not native" and keeps the inferred answer.
+ */
+export function reportedCapabilities(
+  projectRoot: string | null | undefined,
+  resources: readonly DiscoveredResource[],
+  options?: Record<string, unknown>,
+): string[] {
+  if (isNativeProject(resources)) return [];
+  return getEnabledCapabilities(projectRoot, options);
 }
 
 /** False when the project, the source or a flag turned the named capability off. */

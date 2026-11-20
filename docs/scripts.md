@@ -8,7 +8,7 @@ A JavaScript or TypeScript service that Flisk builds keeps a `package.json` next
 | --- | --- |
 | `backend` | `dev`, `build`, `start` |
 | `worker` | `dev`, `build`, `start` |
-| `migrator` | `dev`, `build`, `start` |
+| `migrator` | `start` |
 | `mcp` | `dev`, `build`, `start` |
 | `agent` | `dev`, `build`, `start` |
 | `frontend` | `dev`, `build` |
@@ -16,7 +16,15 @@ A JavaScript or TypeScript service that Flisk builds keeps a `package.json` next
 | `sdk` | `dev`, `build` |
 | `database`, `bring-your-own` | none |
 
-Frontends, libraries and SDKs have no `start`: they are served as static files or used as packages, never run as a long-running process of their own. Backends, workers, migrators, MCP servers and agents are processes, so they need all three. A service with no `package.json` (a Python or Go service, for example) is not checked. A `service.json` without `appType` is checked as a `backend`.
+Frontends, libraries and SDKs have no `start`: they are served as static files or used as packages, never run as a long-running process of their own. Backends, workers, MCP servers and agents are processes, so they need all three.
+
+A migrator needs only `start`. It runs `prisma migrate deploy` once and exits: the generated Dockerfile replaces its backend compiler stage with the migration engine and sets `migrate.sh` as its entrypoint, so nothing calls a migrator's `dev` or `build` script. A migrator that defines them anyway is not penalised, but the starters do not ship them and doctor does not ask for them.
+
+A service that declares `command` in its `service.json` runs as a local process. Flisk starts that command and never builds the service or calls a package.json script, so doctor does not check it. The generated agent starters (`swarm`, `security`, `super-agent`, `langgraph`, `tool-loop`) are this shape.
+
+A service that ships its own Dockerfile, with a top-level `dockerfile` or `build.dockerfile` in `service.json`, owns its image build and its container command. Flisk does not call its package.json scripts, so doctor does not check it either. The portal starter is this shape: a backend with `dev` and `start` only.
+
+A service with no `package.json` (a Python or Go service, for example) is not checked. A `service.json` without `appType` is checked as a `backend`.
 
 The list is `REQUIRED_PACKAGE_SCRIPTS` in [`cli/src/utils/constants.ts`](../cli/src/utils/constants.ts).
 
@@ -48,7 +56,19 @@ Runs the compiled output. The L4 runtime stage uses it as the container command 
 
 ## Examples
 
-A backend, worker, migrator, MCP server or agent:
+A migrator (only `start` is required; the starters ship only `migrate` and `start`):
+
+```json
+{
+  "name": "reservation-migrator",
+  "scripts": {
+    "migrate": "prisma migrate deploy",
+    "start": "prisma migrate deploy"
+  }
+}
+```
+
+A backend, worker, MCP server or agent:
 
 ```json
 {

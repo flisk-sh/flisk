@@ -1,6 +1,7 @@
 /** Runs doctor checks, skips container checks once the runtime failed, and orders and summarises results. */
 import type { CheckResult } from "../types/index.js";
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
+import { timeDoctorCheck } from "./doctor-report.js";
 import type { ExecAsync } from "./exec-async.js";
 
 /** Failures are shown before passing statuses, with a 5432 conflict first. */
@@ -109,7 +110,7 @@ export async function runChecks(
       });
       continue;
     }
-    const result = await check();
+    const result = await timeDoctorCheck(check);
     results.push(result);
     if (result.name === CONTAINER_RUNTIME_CHECK && !result.didPass) {
       containerRuntimeFailed = true;
