@@ -53,6 +53,7 @@ import {
   checkNativeDependsOn,
   checkNativeRuntime,
   checkNativeServiceHealth,
+  checkNativeServiceScripts,
 } from "../utils/doctor-native.js";
 import {
   checkFrontendDockerPreflight,
@@ -668,6 +669,7 @@ export const doctorCommand = new Command("doctor")
           ...versionAndRepoChecks,
           ...declarationChecks,
           () => checkNativeDependsOn(nativeResources),
+          () => checkNativeServiceScripts(nativeResources),
           () => checkPostgresVolumes(checkDir, nativeResources, options.strict),
           ...graphChecks,
           ...schemaAndPortChecks,

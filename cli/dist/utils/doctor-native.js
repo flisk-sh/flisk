@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { dependsOnOf } from "./dependency-graph.js";
 import { formatCount } from "./formatting.js";
 import { isDockerRunning, isNativeContainerService } from "./native-container.js";
@@ -68,6 +70,209 @@ export function checkNativeDependsOn(resources) {
         didPass: false,
         message: problems.join("\n    "),
         fix: 'Add the missing service with a command, or with an "image" to run it as a container (a database, a cache), or remove it from dependsOn.',
+    };
+}
+const BUN_BUILTINS = new Set([
+    "run",
+    "test",
+    "x",
+    "exec",
+    "install",
+    "i",
+    "add",
+    "a",
+    "remove",
+    "rm",
+    "update",
+    "outdated",
+    "link",
+    "unlink",
+    "pm",
+    "build",
+    "init",
+    "create",
+    "c",
+    "upgrade",
+    "publish",
+    "patch",
+    "patch-commit",
+    "repl",
+    "completions",
+    "help",
+    "discord",
+    "feedback",
+    "pm-cache",
+    "why",
+]);
+const YARN_BUILTINS = new Set([
+    "add",
+    "audit",
+    "autoclean",
+    "bin",
+    "cache",
+    "check",
+    "config",
+    "create",
+    "dedupe",
+    "dlx",
+    "exec",
+    "explain",
+    "generate-lock-entry",
+    "global",
+    "help",
+    "import",
+    "info",
+    "init",
+    "install",
+    "licenses",
+    "link",
+    "list",
+    "login",
+    "logout",
+    "node",
+    "outdated",
+    "owner",
+    "pack",
+    "patch",
+    "patch-commit",
+    "plugin",
+    "policies",
+    "publish",
+    "rebuild",
+    "remove",
+    "run",
+    "set",
+    "tag",
+    "team",
+    "unlink",
+    "unplug",
+    "up",
+    "upgrade",
+    "upgrade-interactive",
+    "version",
+    "versions",
+    "why",
+    "workspace",
+    "workspaces",
+]);
+function scriptReference(command) {
+    const words = command.trim().split(/\s+/);
+    let i = 0;
+    while (i < words.length) {
+        const word = words[i];
+        if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word)) {
+            i++;
+            continue;
+        }
+        if (word === "exec" || word === "env") {
+            i++;
+            continue;
+        }
+        break;
+    }
+    if (i >= words.length)
+        return null;
+    const program = words[i];
+    const rest = words.slice(i + 1);
+    const firstNonFlag = (args) => args.find((arg) => !arg.startsWith("-"));
+    if (["npm", "pnpm"].includes(program) && rest[0] === "run") {
+        return firstNonFlag(rest.slice(1)) ?? null;
+    }
+    if (program === "yarn") {
+        if (rest[0] === "run")
+            return firstNonFlag(rest.slice(1)) ?? null;
+        const name = firstNonFlag(rest);
+        if (!name)
+            return null;
+        if (YARN_BUILTINS.has(name))
+            return null;
+        if (/[\\/]/.test(name) || name.startsWith("."))
+            return null;
+        if (/\.(?:[cm]?[jt]sx?|json|wasm)$/i.test(name))
+            return null;
+        return name;
+    }
+    if (program === "bun" && rest[0] === "run") {
+        return firstNonFlag(rest.slice(1)) ?? null;
+    }
+    if (program === "bun") {
+        const name = firstNonFlag(rest);
+        if (!name)
+            return null;
+        if (BUN_BUILTINS.has(name))
+            return null;
+        if (/[\\/]/.test(name) || name.startsWith("."))
+            return null;
+        if (/\.(?:[cm]?[jt]sx?|json|wasm)$/i.test(name))
+            return null;
+        return name;
+    }
+    return null;
+}
+function readPackageScripts(dir) {
+    const packageJsonPath = join(dir, "package.json");
+    if (!existsSync(packageJsonPath))
+        return null;
+    try {
+        const parsed = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        const scripts = parsed.scripts;
+        if (!scripts || typeof scripts !== "object" || Array.isArray(scripts))
+            return {};
+        const result = {};
+        for (const [key, value] of Object.entries(scripts)) {
+            if (typeof value === "string")
+                result[key] = value;
+        }
+        return result;
+    }
+    catch {
+        return null;
+    }
+}
+/** Each service command/dev command that invokes a package.json script must refer to a script that exists. */
+export function checkNativeServiceScripts(resources) {
+    const problems = [];
+    for (const resource of resources) {
+        const config = resource.config;
+        if (!config || config.appType === "bring-your-own")
+            continue;
+        const scripts = readPackageScripts(resource.path);
+        if (scripts === null)
+            continue;
+        const commands = [];
+        if (typeof config.command === "string" && config.command.trim() !== "") {
+            commands.push({ command: config.command, field: "command" });
+        }
+        const dev = config.dev;
+        if (dev && typeof dev === "object" && !Array.isArray(dev)) {
+            const devCommand = dev.command;
+            if (typeof devCommand === "string" && devCommand.trim() !== "") {
+                commands.push({ command: devCommand, field: "dev.command" });
+            }
+        }
+        const available = Object.keys(scripts);
+        const availableLabel = available.length > 0 ? available.join(", ") : "(none)";
+        for (const { command, field } of commands) {
+            const script = scriptReference(command);
+            if (!script)
+                continue;
+            if (Object.hasOwn(scripts, script))
+                continue;
+            problems.push(`${resource.name}: "${command}" in ${field === "command" ? "service.json" : "service.json dev.command"}, but package.json has no "${script}" script (scripts: ${availableLabel})`);
+        }
+    }
+    if (problems.length === 0) {
+        return {
+            name: "Service scripts",
+            didPass: true,
+            message: "Every service command script exists in package.json",
+        };
+    }
+    return {
+        name: "Service scripts",
+        didPass: false,
+        message: problems.join("\n    "),
+        fix: 'Add the missing script to package.json, or change "command" or "dev.command" in service.json',
     };
 }
 /**

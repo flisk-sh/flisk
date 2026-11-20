@@ -16,7 +16,7 @@ import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import { applyDoctorFixes, checkDuplicateFliskInstalls, hasFailedActions, planDoctorFixes, projectTiltPids, } from "../utils/doctor-fix.js";
 import { checkDiskSpace } from "../utils/doctor-host.js";
 import { checkEnvironmentVariables, checkFliskVersion, checkLatestFliskVersion, checkMasterConfigs, checkPublishedBindAddress, checkWslProjectLocation, WSL2_DOCTOR_MESSAGE, } from "../utils/doctor-machine.js";
-import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
+import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, checkNativeServiceScripts, } from "../utils/doctor-native.js";
 import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkStartupScripts, checkTypeScriptTypeDependencies, } from "../utils/doctor-project.js";
 import { printDoctorResults, printFixActions, renderDoctorOutput } from "../utils/doctor-render.js";
 import { collectDoctorChecks, createDoctorReport, createDoctorUsageReport, getDoctorExitCode, summarizeDoctorFix, } from "../utils/doctor-report.js";
@@ -440,6 +440,7 @@ export const doctorCommand = new Command("doctor")
             ...versionAndRepoChecks,
             ...declarationChecks,
             () => checkNativeDependsOn(nativeResources),
+            () => checkNativeServiceScripts(nativeResources),
             () => checkPostgresVolumes(checkDir, nativeResources, options.strict),
             ...graphChecks,
             ...schemaAndPortChecks,

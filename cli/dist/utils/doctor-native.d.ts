@@ -9,6 +9,8 @@ export declare function checkNativeRuntime(resources: readonly DiscoveredResourc
 export declare function checkNativeCommands(resources: readonly DiscoveredResource[], find?: (program: string) => string | null): CheckResult;
 /** A dependsOn name must be another service of the project: local processes cannot start a database or gateway for it. */
 export declare function checkNativeDependsOn(resources: readonly DiscoveredResource[]): CheckResult;
+/** Each service command/dev command that invokes a package.json script must refer to a script that exists. */
+export declare function checkNativeServiceScripts(resources: readonly DiscoveredResource[]): CheckResult;
 /**
  * When a native run is up, each service answers on its health URL (or accepts connections on its port). Skipped when nothing
  * runs: doctor is also used before the first `flisk up`.
