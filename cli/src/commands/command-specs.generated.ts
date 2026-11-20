@@ -17,13 +17,9 @@ import type { CommandSpec } from "./command-specs.js";
 export const COMMAND_SPECS: readonly CommandSpec[] = [
   {
     name: "stacks",
-    path: [
-      "stacks",
-    ],
+    path: ["stacks"],
     description: "List all stacks and their resources",
-    aliases: [
-      "ls",
-    ],
+    aliases: ["ls"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -49,17 +45,13 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     ],
     arguments: [],
     helpTexts: {
-      after: [
-        "\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json",
-      ],
+      after: ["\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json"],
     },
     subcommands: [],
   },
   {
     name: "resources",
-    path: [
-      "resources",
-    ],
+    path: ["resources"],
     description: "List all resources (services) in the project",
     aliases: [],
     hidden: false,
@@ -107,13 +99,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "projects",
-    path: [
-      "projects",
-    ],
+    path: ["projects"],
     description: "Show project information and configuration status",
-    aliases: [
-      "info",
-    ],
+    aliases: ["info"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -138,7 +126,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--prune",
-        description: "With --stale: delete the containers, volumes (database data), networks and images those projects left",
+        description:
+          "With --stale: delete the containers, volumes (database data), networks and images those projects left",
         defaultValue: false,
       },
       {
@@ -152,13 +141,10 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "up",
-    path: [
-      "up",
-    ],
-    description: "Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster",
-    aliases: [
-      "deploy",
-    ],
+    path: ["up"],
+    description:
+      "Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster",
+    aliases: ["deploy"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -193,37 +179,45 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--ignore-version",
-        description: "Start even if this flisk does not satisfy pinnedFliskVersion or minFliskVersion in .flisk/project.json",
+        description:
+          "Start even if this flisk does not satisfy pinnedFliskVersion or minFliskVersion in .flisk/project.json",
         defaultValue: false,
       },
       {
         flags: "--no-database",
-        description: "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)",
+        description:
+          "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)",
       },
       {
         flags: "--only <services...>",
-        description: "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks",
+        description:
+          "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks",
       },
       {
         flags: "--profile <names...>",
-        description: "Also start the services whose \"profiles\" in service.json include one of these names (without it they are left out)",
+        description:
+          'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)',
       },
       {
         flags: "--env-file <path>",
-        description: "Use this project env file for the run instead of .env (for example: --env-file .env.integration)",
+        description:
+          "Use this project env file for the run instead of .env (for example: --env-file .env.integration)",
       },
       {
         flags: "--no-gateway",
-        description: "Run without gateway routing (no Traefik). Needs \"capabilities\": { \"gateway\": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it",
+        description:
+          'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it',
       },
       {
         flags: "--json",
-        description: "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet",
+        description:
+          "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet",
         defaultValue: false,
       },
       {
         flags: "--wait",
-        description: "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it",
+        description:
+          "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it",
         defaultValue: false,
       },
       {
@@ -234,7 +228,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [
       {
         name: "stack-name",
-        description: "Name of the stack to start (optional - runs all if omitted), or a git repository URL to clone and start",
+        description:
+          "Name of the stack to start (optional - runs all if omitted), or a git repository URL to clone and start",
         required: false,
         variadic: false,
       },
@@ -248,13 +243,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "down",
-    path: [
-      "down",
-    ],
+    path: ["down"],
     description: "Stop every running service of this project (local processes or Docker/Tilt)",
     aliases: [],
     hidden: false,
-    showHelpAfterError: "\nService names are not positional: down stops the whole project. Use: flisk down (or flisk down --project <path>)",
+    showHelpAfterError:
+      "\nService names are not positional: down stops the whole project. Use: flisk down (or flisk down --project <path>)",
     hasAction: true,
     allowUnknown: false,
     passThrough: false,
@@ -278,15 +272,18 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--prune-networks",
-        description: "Remove this project's Docker networks that no container is attached to (the default; kept for scripts)",
+        description:
+          "Remove this project's Docker networks that no container is attached to (the default; kept for scripts)",
       },
       {
         flags: "--no-prune-networks",
-        description: "Keep this project's Docker networks (by default the unused ones are removed, so Docker does not run out of address pools)",
+        description:
+          "Keep this project's Docker networks (by default the unused ones are removed, so Docker does not run out of address pools)",
       },
       {
         flags: "--prune-cache [age]",
-        description: "Also prune Docker build cache (shared across all projects on this machine; default age: 24h)",
+        description:
+          "Also prune Docker build cache (shared across all projects on this machine; default age: 24h)",
         defaultValue: false,
       },
       {
@@ -295,7 +292,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--purge",
-        description: "Also delete this project's Docker volumes (database data), networks and images, so nothing of it is left in Docker",
+        description:
+          "Also delete this project's Docker volumes (database data), networks and images, so nothing of it is left in Docker",
         defaultValue: false,
       },
       {
@@ -310,7 +308,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--project <path>",
-        description: "Stop the Flisk project in this folder (default: the current project, or the only running one)",
+        description:
+          "Stop the Flisk project in this folder (default: the current project, or the only running one)",
       },
     ],
     arguments: [],
@@ -323,9 +322,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "mcp",
-    path: [
-      "mcp",
-    ],
+    path: ["mcp"],
     description: "Run a Model Context Protocol server over stdio for coding agents",
     aliases: [],
     hidden: false,
@@ -337,7 +334,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     options: [
       {
         flags: "--read-only",
-        description: "List and allow only the tools that change nothing (env FLISK_MCP_READ_ONLY=1)",
+        description:
+          "List and allow only the tools that change nothing (env FLISK_MCP_READ_ONLY=1)",
       },
       {
         flags: "--tools <names>",
@@ -347,17 +345,15 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [],
     helpTexts: {
       after: [
-        "\nThe server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.\nAdd it to an MCP client instead:\n  { \"command\": \"flisk\", \"args\": [\"mcp\"] }\n\nExamples:\n  flisk mcp                # started by an MCP client\n  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only\n  flisk mcp --tools status,logs,doctor\n  flisk mcp check tools    # check the MCP resource named tools",
+        '\nThe server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.\nAdd it to an MCP client instead:\n  { "command": "flisk", "args": ["mcp"] }\n\nExamples:\n  flisk mcp                # started by an MCP client\n  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only\n  flisk mcp --tools status,logs,doctor\n  flisk mcp check tools    # check the MCP resource named tools',
       ],
     },
     subcommands: [
       {
         name: "check",
-        path: [
-          "mcp",
-          "check",
-        ],
-        description: "Check an MCP server's protocol (initialize, tools, prompts, errors, HTTP rules, icon); read-only unless --call",
+        path: ["mcp", "check"],
+        description:
+          "Check an MCP server's protocol (initialize, tools, prompts, errors, HTTP rules, icon); read-only unless --call",
         aliases: [],
         hidden: false,
         hasAction: true,
@@ -368,7 +364,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--call",
-            description: "Also call each tool once with sample arguments (a call can reach the network)",
+            description:
+              "Also call each tool once with sample arguments (a call can reach the network)",
             defaultValue: false,
           },
           {
@@ -384,7 +381,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         arguments: [
           {
             name: "target",
-            description: "An https URL of the MCP endpoint, or the name of a resource in this project",
+            description:
+              "An https URL of the MCP endpoint, or the name of a resource in this project",
             required: true,
             variadic: false,
           },
@@ -396,10 +394,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "connect",
-    path: [
-      "connect",
-    ],
-    description: "Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills",
+    path: ["connect"],
+    description:
+      "Connect a coding agent to Flisk: write the flisk mcp server entry and the Flisk skills",
     aliases: [],
     hidden: false,
     hasAction: true,
@@ -448,9 +445,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "logs",
-    path: [
-      "logs",
-    ],
+    path: ["logs"],
     description: "Print a bounded snapshot of recent logs from the running stack",
     aliases: [],
     hidden: false,
@@ -480,7 +475,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--source <source>",
-        description: "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
+        description:
+          "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
       },
       {
         flags: "--unhealthy",
@@ -489,11 +485,13 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--port <n>",
-        description: "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
+        description:
+          "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)",
       },
       {
         flags: "--project <path>",
-        description: "View logs for the Flisk project in this folder (default: the current project)",
+        description:
+          "View logs for the Flisk project in this folder (default: the current project)",
       },
       {
         flags: "--json",
@@ -511,10 +509,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "eject",
-    path: [
-      "eject",
-    ],
-    description: "Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)",
+    path: ["eject"],
+    description:
+      "Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)",
     aliases: [],
     hidden: false,
     hasAction: true,
@@ -530,7 +527,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--dry-run",
-        description: "List the generated files and what would be written, without changing the project",
+        description:
+          "List the generated files and what would be written, without changing the project",
         defaultValue: false,
       },
       {
@@ -550,10 +548,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "export",
-    path: [
-      "export",
-    ],
-    description: "Write render.yaml, wrangler.toml or a standalone docker-compose.yml from service.json; never deploys or calls a cloud API (runs flisk-export)",
+    path: ["export"],
+    description:
+      "Write render.yaml, wrangler.toml or a standalone docker-compose.yml from service.json; never deploys or calls a cloud API (runs flisk-export)",
     aliases: [],
     hidden: false,
     helpOptionDisabled: true,
@@ -572,7 +569,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [
       {
         name: "args",
-        description: "Passed to flisk-export: render [dir] [--resource <name>] [--out <dir>] [--force] | wrangler [dir] --resource <name> [--route <host>] [--out <dir>] [--allow-non-worker] [--force] | compose [dir] [--out <dir>] [--force] [--check]",
+        description:
+          "Passed to flisk-export: render [dir] [--resource <name>] [--out <dir>] [--force] | wrangler [dir] --resource <name> [--route <host>] [--out <dir>] [--allow-non-worker] [--force] | compose [dir] [--out <dir>] [--force] [--check]",
         required: false,
         variadic: true,
       },
@@ -582,9 +580,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "import",
-    path: [
-      "import",
-    ],
+    path: ["import"],
     description: "Import the services in a directory's root docker-compose.yml (runs flisk-import)",
     aliases: [],
     hidden: false,
@@ -628,11 +624,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     subcommands: [
       {
         name: "compose",
-        path: [
-          "import",
-          "compose",
-        ],
-        description: "Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)",
+        path: ["import", "compose"],
+        description:
+          "Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)",
         aliases: [],
         hidden: false,
         helpOptionDisabled: true,
@@ -659,7 +653,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout with the importer's output; implies --yes",
+            description:
+              "Print one JSON envelope on stdout with the importer's output; implies --yes",
             defaultValue: false,
           },
         ],
@@ -676,11 +671,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "tiltfile",
-        path: [
-          "import",
-          "tiltfile",
-        ],
-        description: "Register an existing Tiltfile so flisk up runs it unchanged (writes .flisk/project.json)",
+        path: ["import", "tiltfile"],
+        description:
+          "Register an existing Tiltfile so flisk up runs it unchanged (writes .flisk/project.json)",
         aliases: [],
         hidden: false,
         helpOptionDisabled: true,
@@ -707,7 +700,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout with the importer's output; implies --yes",
+            description:
+              "Print one JSON envelope on stdout with the importer's output; implies --yes",
             defaultValue: false,
           },
         ],
@@ -726,9 +720,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "open",
-    path: [
-      "open",
-    ],
+    path: ["open"],
     description: "Open the first ready frontend in your browser, or the frontend you name",
     aliases: [],
     hidden: false,
@@ -765,13 +757,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "status",
-    path: [
-      "status",
-    ],
+    path: ["status"],
     description: "Show status of resources and stacks",
     aliases: [],
     hidden: false,
-    showHelpAfterError: "\nService names are not positional: status shows the whole project. Use: flisk status (or flisk logs --service <name>)",
+    showHelpAfterError:
+      "\nService names are not positional: status shows the whole project. Use: flisk status (or flisk logs --service <name>)",
     hasAction: true,
     allowUnknown: false,
     passThrough: false,
@@ -828,7 +819,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--project <path>",
-        description: "Show status for the Flisk project in this folder (default: the current project)",
+        description:
+          "Show status for the Flisk project in this folder (default: the current project)",
       },
     ],
     arguments: [],
@@ -841,9 +833,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "stack",
-    path: [
-      "stack",
-    ],
+    path: ["stack"],
     description: "Organize resources into stacks (groups)",
     aliases: [],
     hidden: false,
@@ -884,7 +874,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON envelope on stdout; implies --yes and needs --list, <stack-name> --resources, or --remove --resources",
+        description:
+          "Print one JSON envelope on stdout; implies --yes and needs --list, <stack-name> --resources, or --remove --resources",
         defaultValue: false,
       },
     ],
@@ -911,9 +902,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "resource",
-    path: [
-      "resource",
-    ],
+    path: ["resource"],
     description: "Create a new resource (service) from scratch, or register an existing one",
     aliases: [],
     hidden: false,
@@ -930,16 +919,19 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "-t, --type <type>",
-        description: "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, storage, mail, payment, sdk",
+        description:
+          "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, storage, mail, payment, sdk",
         defaultValue: "backend",
       },
       {
         flags: "--framework <id>",
-        description: "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks); database postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow, mysql, mongodb, clickhouse; queue nats (default), rabbitmq",
+        description:
+          "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks); database postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow, mysql, mongodb, clickhouse; queue nats (default), rabbitmq",
       },
       {
         flags: "--frameworks",
-        description: "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage, --type mail, --type payment)",
+        description:
+          "List registered frameworks for the resource type and exit (--type frontend, --type backend, --type database, --type queue, --type storage, --type mail, --type payment)",
       },
       {
         flags: "--language <id>",
@@ -947,7 +939,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "-s, --stack <stack>",
-        description: "Stack to assign resource to (default: \"main\" for a new project)",
+        description: 'Stack to assign resource to (default: "main" for a new project)',
       },
       {
         flags: "-p, --path <path>",
@@ -963,7 +955,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--ddd",
-        description: "Scaffold DDD (domain-driven design) folders + path aliases (Premium - requires FLISK_LICENSE_KEY)",
+        description:
+          "Scaffold DDD (domain-driven design) folders + path aliases (Premium - requires FLISK_LICENSE_KEY)",
       },
       {
         flags: "--dockerfile <path>",
@@ -971,7 +964,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--health-path <path>",
-        description: "HTTP health check path (for bring-your-own; inference defaults to /v1/models)",
+        description:
+          "HTTP health check path (for bring-your-own; inference defaults to /v1/models)",
         defaultValue: "/health",
       },
       {
@@ -980,19 +974,23 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--restart <policy>",
-        description: "Compose restart policy: no, on-failure, unless-stopped, always (bring-your-own only; use no for one-shot jobs)",
+        description:
+          "Compose restart policy: no, on-failure, unless-stopped, always (bring-your-own only; use no for one-shot jobs)",
       },
       {
         flags: "--image <name>",
-        description: "Docker image name instead of building from Dockerfile (for bring-your-own; inference defaults to ollama/ollama)",
+        description:
+          "Docker image name instead of building from Dockerfile (for bring-your-own; inference defaults to ollama/ollama)",
       },
       {
         flags: "--port <port>",
-        description: "Port for the resource, within its type's range (default: next free port in that range; inference defaults to 11434)",
+        description:
+          "Port for the resource, within its type's range (default: next free port in that range; inference defaults to 11434)",
       },
       {
         flags: "--base-path <path>",
-        description: "Base path for frontend routing (e.g., /storefront). Default is /{stack}s. Frontend only.",
+        description:
+          "Base path for frontend routing (e.g., /storefront). Default is /{stack}s. Frontend only.",
       },
       {
         flags: "--feature <feature...>",
@@ -1004,7 +1002,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--durability <kind>",
-        description: "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres",
+        description:
+          "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres",
       },
       {
         flags: "--ignore-version",
@@ -1013,7 +1012,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--local",
-        description: "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)",
+        description:
+          "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)",
         defaultValue: false,
       },
       {
@@ -1044,9 +1044,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "runtime",
-    path: [
-      "runtime",
-    ],
+    path: ["runtime"],
     description: "Inspect the packaged Flisk runtime assets",
     aliases: [],
     hidden: false,
@@ -1067,21 +1065,15 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     ],
     arguments: [],
     helpTexts: {
-      after: [
-        "\nExamples:\n  flisk runtime --check-assets\n  flisk runtime --check-assets --json",
-      ],
+      after: ["\nExamples:\n  flisk runtime --check-assets\n  flisk runtime --check-assets --json"],
     },
     subcommands: [],
   },
   {
     name: "project",
-    path: [
-      "project",
-    ],
+    path: ["project"],
     description: "Initialize or validate project-level master configuration",
-    aliases: [
-      "init",
-    ],
+    aliases: ["init"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -1096,7 +1088,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--path <dir>",
-        description: "Directory to clone the template into (default: the starter name, or its repository name)",
+        description:
+          "Directory to clone the template into (default: the starter name, or its repository name)",
       },
       {
         flags: "--check",
@@ -1117,11 +1110,13 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--no-agent-skills",
-        description: "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md",
+        description:
+          "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md",
       },
       {
         flags: "--list",
-        description: "List the starter templates (key, repo, description, needs, pinned ref); with --json, the usual envelope with them in data.templates",
+        description:
+          "List the starter templates (key, repo, description, needs, pinned ref); with --json, the usual envelope with them in data.templates",
         defaultValue: false,
       },
       {
@@ -1133,23 +1128,20 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [
       {
         name: "template",
-        description: "Clone a starter example instead of a blank project (demo, restaurant, saas, erp, user-management, ecommerce, example, agent-stack, swarm, security, super-agent, langgraph, tool-loop, next-postgres, launch, portal, fullstack)",
+        description:
+          "Clone a starter example instead of a blank project (demo, restaurant, saas, erp, user-management, ecommerce, example, agent-stack, swarm, security, super-agent, langgraph, tool-loop, next-postgres, launch, portal, fullstack)",
         required: false,
         variadic: false,
       },
     ],
     helpTexts: {
-      after: [
-        "\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check",
-      ],
+      after: ["\nExamples:\n  flisk project\n  flisk project demo\n  flisk project --check"],
     },
     subcommands: [],
   },
   {
     name: "create",
-    path: [
-      "create",
-    ],
+    path: ["create"],
     description: "Pick what you are building with a few key presses and get a project that runs",
     aliases: [],
     hidden: false,
@@ -1170,7 +1162,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--runtime <runtime>",
-        description: "local (plain processes on your computer; default) or docker (Docker and Tilt)",
+        description:
+          "local (plain processes on your computer; default) or docker (Docker and Tilt)",
       },
       {
         flags: "--frontend <id>",
@@ -1186,7 +1179,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--extras <list>",
-        description: "Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none",
+        description:
+          "Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none",
       },
       {
         flags: "--dry-run",
@@ -1195,7 +1189,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--start",
-        description: "Install dependencies and start what was written (the local app route; a starter is never started here)",
+        description:
+          "Install dependencies and start what was written (the local app route; a starter is never started here)",
         defaultValue: false,
       },
     ],
@@ -1216,10 +1211,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "tool",
-    path: [
-      "tool",
-    ],
-    description: "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list",
+    path: ["tool"],
+    description:
+      "Add or list tools by name: flisk tool add react, postgresql, fastapi, rag (cloud providers such as aws and kubernetes are rejected); list with flisk tool list",
     aliases: [],
     hidden: false,
     hasAction: false,
@@ -1230,17 +1224,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     options: [],
     arguments: [],
     helpTexts: {
-      after: [
-        "\nExamples:\n  flisk tool list\n  flisk tool add\n  flisk tool add react",
-      ],
+      after: ["\nExamples:\n  flisk tool list\n  flisk tool add\n  flisk tool add react"],
     },
     subcommands: [
       {
         name: "list",
-        path: [
-          "tool",
-          "list",
-        ],
+        path: ["tool", "list"],
         description: "List every tool in the catalogue",
         aliases: [],
         hidden: false,
@@ -1258,19 +1247,15 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         ],
         arguments: [],
         helpTexts: {
-          after: [
-            "\nExamples:\n  flisk tool list\n  flisk tool list --json",
-          ],
+          after: ["\nExamples:\n  flisk tool list\n  flisk tool list --json"],
         },
         subcommands: [],
       },
       {
         name: "add",
-        path: [
-          "tool",
-          "add",
-        ],
-        description: "Add a tool by name (react, postgresql, fastapi, rag…); cloud providers are rejected",
+        path: ["tool", "add"],
+        description:
+          "Add a tool by name (react, postgresql, fastapi, rag…); cloud providers are rejected",
         aliases: [],
         hidden: false,
         hasAction: true,
@@ -1302,7 +1287,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         arguments: [
           {
             name: "tool-and-name",
-            description: "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); use flisk tool list to browse the catalogue",
+            description:
+              "The tool (one or more words, for example react or spring boot), then an optional resource name (default per tool: web, server, db…); use flisk tool list to browse the catalogue",
             required: false,
             variadic: true,
           },
@@ -1318,9 +1304,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "config",
-    path: [
-      "config",
-    ],
+    path: ["config"],
     description: "Manage project configuration and regenerate master files",
     aliases: [],
     hidden: false,
@@ -1335,10 +1319,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     subcommands: [
       {
         name: "regenerate",
-        path: [
-          "config",
-          "regenerate",
-        ],
+        path: ["config", "regenerate"],
         description: "Regenerate all 4 master config files from .flisk/project.json",
         aliases: [],
         hidden: false,
@@ -1354,12 +1335,14 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--ignore-version",
-            description: "Continue even if the CLI does not match the project's version requirements",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
             defaultValue: false,
           },
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)",
+            description:
+              "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)",
             defaultValue: false,
           },
         ],
@@ -1369,10 +1352,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "migrate",
-        path: [
-          "config",
-          "migrate",
-        ],
+        path: ["config", "migrate"],
         description: "Migrate service.json files to the current schema version",
         aliases: [],
         hidden: false,
@@ -1384,7 +1364,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--ignore-version",
-            description: "Continue even if the CLI does not match the project's version requirements",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
             defaultValue: false,
           },
           {
@@ -1395,18 +1376,13 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         ],
         arguments: [],
         helpTexts: {
-          after: [
-            "\nExamples:\n  flisk config migrate\n  flisk config migrate --json",
-          ],
+          after: ["\nExamples:\n  flisk config migrate\n  flisk config migrate --json"],
         },
         subcommands: [],
       },
       {
         name: "verify",
-        path: [
-          "config",
-          "verify",
-        ],
+        path: ["config", "verify"],
         description: "Verify that generated files match .flisk/project.json",
         aliases: [],
         hidden: false,
@@ -1418,7 +1394,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         options: [
           {
             flags: "--ignore-version",
-            description: "Continue even if the CLI does not match the project's version requirements",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
             defaultValue: false,
           },
           {
@@ -1428,19 +1405,15 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         ],
         arguments: [],
         helpTexts: {
-          after: [
-            "\nExamples:\n  flisk config verify\n  flisk config verify --json",
-          ],
+          after: ["\nExamples:\n  flisk config verify\n  flisk config verify --json"],
         },
         subcommands: [],
       },
       {
         name: "explain",
-        path: [
-          "config",
-          "explain",
-        ],
-        description: "Explain whether a project file is Flisk-generated and what editing it does on flisk up",
+        path: ["config", "explain"],
+        description:
+          "Explain whether a project file is Flisk-generated and what editing it does on flisk up",
         aliases: [],
         hidden: false,
         hasAction: true,
@@ -1471,10 +1444,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "edit",
-        path: [
-          "config",
-          "edit",
-        ],
+        path: ["config", "edit"],
         description: "Open .flisk/project.json in your $EDITOR",
         aliases: [],
         hidden: false,
@@ -1490,10 +1460,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "enable-infra",
-        path: [
-          "config",
-          "enable-infra",
-        ],
+        path: ["config", "enable-infra"],
         description: "Enable optional infrastructure service",
         aliases: [],
         hidden: false,
@@ -1509,12 +1476,14 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--ignore-version",
-            description: "Continue even if the CLI does not match the project's version requirements",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
             defaultValue: false,
           },
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout with the service and its previous state",
+            description:
+              "Print one JSON envelope on stdout with the service and its previous state",
             defaultValue: false,
           },
         ],
@@ -1531,10 +1500,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "disable-infra",
-        path: [
-          "config",
-          "disable-infra",
-        ],
+        path: ["config", "disable-infra"],
         description: "Disable optional infrastructure service",
         aliases: [],
         hidden: false,
@@ -1550,12 +1516,14 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--ignore-version",
-            description: "Continue even if the CLI does not match the project's version requirements",
+            description:
+              "Continue even if the CLI does not match the project's version requirements",
             defaultValue: false,
           },
           {
             flags: "--json",
-            description: "Print one JSON envelope on stdout with the service and its previous state",
+            description:
+              "Print one JSON envelope on stdout with the service and its previous state",
             defaultValue: false,
           },
         ],
@@ -1574,13 +1542,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "ui",
-    path: [
-      "ui",
-    ],
+    path: ["ui"],
     description: "Terminal dashboard to watch and manage your stacks and services",
-    aliases: [
-      "interactive",
-    ],
+    aliases: ["interactive"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -1604,18 +1568,15 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     ],
     arguments: [],
     helpTexts: {
-      after: [
-        "\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations",
-      ],
+      after: ["\nExamples:\n  flisk ui\n  flisk ui --high-contrast\n  flisk ui --no-animations"],
     },
     subcommands: [],
   },
   {
     name: "os",
-    path: [
-      "os",
-    ],
-    description: "Start FliskOS, the local desktop app for your Flisk projects, coding agents and Flisk apps",
+    path: ["os"],
+    description:
+      "Start FliskOS, the local desktop app for your Flisk projects, coding agents and Flisk apps",
     aliases: [],
     hidden: false,
     hasAction: true,
@@ -1642,7 +1603,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--json",
-        description: "Print one JSON envelope on stdout once FliskOS is up; FliskOS keeps running until it stops",
+        description:
+          "Print one JSON envelope on stdout once FliskOS is up; FliskOS keeps running until it stops",
         defaultValue: false,
       },
     ],
@@ -1656,13 +1618,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "version",
-    path: [
-      "version",
-    ],
+    path: ["version"],
     description: "Display version number",
-    aliases: [
-      "v",
-    ],
+    aliases: ["v"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -1687,9 +1645,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "maintainers",
-    path: [
-      "maintainers",
-    ],
+    path: ["maintainers"],
     description: "Maintainer file checks",
     aliases: [],
     hidden: false,
@@ -1704,11 +1660,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     subcommands: [
       {
         name: "check",
-        path: [
-          "maintainers",
-          "check",
-        ],
-        description: "Check MAINTAINERS.md lists 3 maintainers from 2 companies (a gate, not a claim of eligibility)",
+        path: ["maintainers", "check"],
+        description:
+          "Check MAINTAINERS.md lists 3 maintainers from 2 companies (a gate, not a claim of eligibility)",
         aliases: [],
         hidden: false,
         hasAction: true,
@@ -1733,9 +1687,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "doctor",
-    path: [
-      "doctor",
-    ],
+    path: ["doctor"],
     description: "Check environment readiness for Flisk",
     aliases: [],
     hidden: false,
@@ -1752,7 +1704,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--problems-only",
-        description: "Show only failing checks (in --json mode, drops passed checks and adds summary counts)",
+        description:
+          "Show only failing checks (in --json mode, drops passed checks and adds summary counts)",
         defaultValue: false,
       },
       {
@@ -1788,7 +1741,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--scope <scope>",
-        description: "With --fix: project (default) or machine, which also removes unused networks of other Flisk projects",
+        description:
+          "With --fix: project (default) or machine, which also removes unused networks of other Flisk projects",
         defaultValue: "project",
       },
       {
@@ -1812,9 +1766,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "completion",
-    path: [
-      "completion",
-    ],
+    path: ["completion"],
     description: "Generate shell completion scripts",
     aliases: [],
     hidden: false,
@@ -1854,13 +1806,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "upgrade",
-    path: [
-      "upgrade",
-    ],
+    path: ["upgrade"],
     description: "Upgrade Flisk CLI to the latest version",
-    aliases: [
-      "update",
-    ],
+    aliases: ["update"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -1904,14 +1852,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "networks",
-    path: [
-      "networks",
-    ],
+    path: ["networks"],
     description: "Show Traefik-routed URLs for all services",
-    aliases: [
-      "urls",
-      "traefik",
-    ],
+    aliases: ["urls", "traefik"],
     hidden: false,
     hasAction: true,
     allowUnknown: false,
@@ -1942,9 +1885,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "agent",
-    path: [
-      "agent",
-    ],
+    path: ["agent"],
     description: "Inspect and operate AI agent resources",
     aliases: [],
     hidden: false,
@@ -1963,10 +1904,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     subcommands: [
       {
         name: "list",
-        path: [
-          "agent",
-          "list",
-        ],
+        path: ["agent", "list"],
         description: "List AI agent resources in the project",
         aliases: [],
         hidden: false,
@@ -2010,11 +1948,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "sessions",
-        path: [
-          "agent",
-          "sessions",
-        ],
-        description: "List the sessions of a running AI agent resource, or inspect one session's checkpoint",
+        path: ["agent", "sessions"],
+        description:
+          "List the sessions of a running AI agent resource, or inspect one session's checkpoint",
         aliases: [],
         hidden: false,
         hasAction: true,
@@ -2053,9 +1989,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "restart",
-    path: [
-      "restart",
-    ],
+    path: ["restart"],
     description: "Restart a running resource in the stack",
     aliases: [],
     hidden: false,
@@ -2077,11 +2011,13 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--project <path>",
-        description: "Restart resources for the Flisk project in this folder (default: the current project)",
+        description:
+          "Restart resources for the Flisk project in this folder (default: the current project)",
       },
       {
         flags: "--wait <seconds>",
-        description: "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)",
+        description:
+          "Local processes: how long to wait for the service to be ready again (0: return once the restart has begun)",
         defaultValue: "60",
       },
       {
@@ -2107,9 +2043,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "run",
-    path: [
-      "run",
-    ],
+    path: ["run"],
     description: "Run a one-off command with the environment a service has in the stack",
     aliases: [],
     hidden: false,
@@ -2121,7 +2055,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     options: [
       {
         flags: "--json",
-        description: "Run without input and print one JSON object with the exit code and the output",
+        description:
+          "Run without input and print one JSON object with the exit code and the output",
         defaultValue: false,
       },
     ],
@@ -2148,10 +2083,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "distribute",
-    path: [
-      "distribute",
-    ],
-    description: "How an app gets to its users: board, listing kit and channel status (local files only)",
+    path: ["distribute"],
+    description:
+      "How an app gets to its users: board, listing kit and channel status (local files only)",
     aliases: [],
     hidden: false,
     hasAction: false,
@@ -2165,11 +2099,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     subcommands: [
       {
         name: "board",
-        path: [
-          "distribute",
-          "board",
-        ],
-        description: "Print the Zachman board: six perspectives (Planner to User) by six questions, each cell read from service.json or distribution.json",
+        path: ["distribute", "board"],
+        description:
+          "Print the Zachman board: six perspectives (Planner to User) by six questions, each cell read from service.json or distribution.json",
         aliases: [],
         hidden: false,
         hasAction: true,
@@ -2190,11 +2122,9 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "kit",
-        path: [
-          "distribute",
-          "kit",
-        ],
-        description: "Write a listing kit for one resource (plugin.json, .mcp.json, server.json, listing.md)",
+        path: ["distribute", "kit"],
+        description:
+          "Write a listing kit for one resource (plugin.json, .mcp.json, server.json, listing.md)",
         aliases: [],
         hidden: false,
         hasAction: true,
@@ -2240,10 +2170,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         name: "status",
-        path: [
-          "distribute",
-          "status",
-        ],
+        path: ["distribute", "status"],
         description: "Print the channel grid from distribution.json",
         aliases: [],
         hidden: false,
@@ -2265,7 +2192,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           },
           {
             flags: "--force",
-            description: "With --init, add missing apps and channels to an existing distribution.json, keeping its entries",
+            description:
+              "With --init, add missing apps and channels to an existing distribution.json, keeping its entries",
             defaultValue: false,
           },
         ],
@@ -2277,9 +2205,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   },
   {
     name: "repos",
-    path: [
-      "repos",
-    ],
+    path: ["repos"],
     description: "Clone the Git repositories listed in .flisk/project.json",
     aliases: [],
     hidden: false,
@@ -2294,10 +2220,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     subcommands: [
       {
         name: "clone",
-        path: [
-          "repos",
-          "clone",
-        ],
+        path: ["repos", "clone"],
         description: "Clone missing service repositories configured in .flisk/project.json",
         aliases: [],
         hidden: false,
@@ -2316,7 +2239,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         arguments: [],
         helpTexts: {
           after: [
-            "\nEach entry of \"repos\" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md",
+            '\nEach entry of "repos" in .flisk/project.json has url, dir (relative to the project root), and optional branch.\nExisting directories are left untouched. flisk up also clones missing repositories.\n\nExamples:\n  flisk repos clone\n  flisk repos clone --json\n\nDocs: https://github.com/flisk-sh/flisk/blob/main/docs/layout.md',
           ],
         },
         subcommands: [],
