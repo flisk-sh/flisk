@@ -18,6 +18,8 @@ flisk project erp              # 100-service scale fixture
 flisk project next-postgres --path myapp   # Next.js website, Express API, Postgres and a migrator (needs Docker)
 ```
 
+Scaffolding the same template again clears the old project's Docker volumes only when no other folder or running stack still uses that project name. A new folder generates a new `DB_PASSWORD` on `flisk up`, while Postgres keeps the password of the volume it was first started with, so keeping the old data would make the migrator fail. Volumes belonging to other projects, or to a project that is still in use, are left untouched.
+
 `flisk project` with an unknown name prints every template it knows. The list, with each template's repository, is `PROJECT_TEMPLATES` in [`cli/src/utils/project-templates.ts`](../../cli/src/utils/project-templates.ts). The AI templates (`agent-stack`, `swarm`, `security`, `super-agent`, `langgraph`, `tool-loop`) are covered in [AI agents in Flisk](../agents/ai-agents.md).
 
 ## The starters
