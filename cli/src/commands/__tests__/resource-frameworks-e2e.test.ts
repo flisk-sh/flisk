@@ -106,9 +106,9 @@ describe("frontend resource framework selection", () => {
       "generators",
       "vite",
     );
-    expect(existsSync(join(vendoredViteRoot, "frameworks", "react.star"))).toBe(true);
+    expect(existsSync(join(vendoredViteRoot, "frameworks", "vite_template.star"))).toBe(true);
     expect(readFileSync(join(vendoredViteRoot, "frontend.star"), "utf-8")).toContain(
-      "load('./frameworks/react.star'",
+      "load('./frameworks/vite_template.star'",
     );
     expect(readFileSync(join(vendoredViteRoot, "templates.star"), "utf-8")).not.toContain(
       "TEMPLATE_VITE_FRONTEND",
@@ -214,7 +214,7 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vue.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vite_template.star",
         ),
       ),
     ).toBe(true);
@@ -269,7 +269,7 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/svelte.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vite_template.star",
         ),
       ),
     ).toBe(true);
@@ -318,7 +318,7 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/preact.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vite_template.star",
         ),
       ),
     ).toBe(true);
@@ -363,7 +363,7 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/lit.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vite_template.star",
         ),
       ),
     ).toBe(true);
@@ -406,7 +406,7 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vanilla.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vite_template.star",
         ),
       ),
     ).toBe(true);
@@ -455,7 +455,7 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/solid.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vite_template.star",
         ),
       ),
     ).toBe(true);
@@ -590,7 +590,7 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/qwik.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vite_template.star",
         ),
       ),
     ).toBe(true);

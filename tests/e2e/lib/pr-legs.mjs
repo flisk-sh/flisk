@@ -24,8 +24,8 @@
 //   7. a file inside one suite's folder (tests/e2e/<group>/<suite>/) selects that suite's legs; with --base, the bring-your-own
 //      run.sh selects the variants of the cases whose function changed (comments and blank lines are not changes), and its
 //      suite.json the variants whose entry changed (the description is not a change); any other change there is suite-wide;
-//   8. an engine file that belongs to one area selects that area's legs (ENGINE_AREAS): a vite framework file its frontend leg,
-//      the vite and frontend generators every frontend leg, byo_*.star the bring-your-own variants that use its key, the prisma layer prisma and
+//   8. an engine file that belongs to one area selects that area's legs (ENGINE_AREAS): the shared vite template and the vite
+//      and frontend generators every frontend leg, byo_*.star the bring-your-own variants that use its key, the prisma layer prisma and
 //      migrator; engine docs and Starlark unit tests select nothing;
 //   9. the files that decide the matrix (FULL_PATHS: this workflow, pr-legs.mjs, suite-matrix.mjs) select every leg;
 //  10. any other file that matches SHARED_PATHS (shared CLI code, the rest of the engine, tests/e2e/lib, common.sh) selects the
@@ -40,7 +40,6 @@ import { fileURLToPath } from "node:url";
 const FRONTEND = (leg) => leg.dir === "resource-types/frontend";
 export const ENGINE_AREAS = [
   [/^runtime\/engine\/(.*\.md|topologies\/tilt\/manifest\/tests\/.*)$/, () => () => false],
-  [/^runtime\/engine\/topologies\/tilt\/generators\/vite\/frameworks\/([a-z0-9-]+)\.star$/, (m) => (leg) => FRONTEND(leg) && leg.framework === m[1]],
   [
     /^runtime\/engine\/topologies\/(tilt\/generators\/vite\/|tilt\/generators\/typescript\/frontend_[a-z_]+\.star$|platform\/docker\/build\/frontend_build_plan\.star$|tilt\/resources\/orchestrator\/generators\/frontend\.star$)/,
     () => FRONTEND,

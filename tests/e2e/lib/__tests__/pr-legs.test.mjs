@@ -149,8 +149,7 @@ test("the files that build the matrix still run every leg", () => {
 
 test("an engine file that belongs to one area runs only that area", () => {
   const engine = "runtime/engine/topologies";
-  assert.deepEqual(labels([`${engine}/tilt/generators/vite/frameworks/react.star`]), ["frontend-react"]);
-  assert.deepEqual(labels([`${engine}/tilt/generators/vite/frameworks/lit.star`]), ["frontend-lit"]);
+  assert.deepEqual(labels([`${engine}/tilt/generators/vite/frameworks/vite_template.star`]), frontendLabels);
   for (const file of [`${engine}/tilt/generators/vite/frontend.star`, `${engine}/tilt/generators/typescript/frontend_tsconfig.star`, `${engine}/platform/docker/build/frontend_build_plan.star`, `${engine}/tilt/resources/orchestrator/generators/frontend.star`]) {
     assert.deepEqual(labels([file]), frontendLabels, file);
   }
@@ -167,7 +166,7 @@ test("an engine file that belongs to one area runs only that area", () => {
 
 test("every engine area pattern matches a real file", () => {
   const files = execFileSync("git", ["ls-files", "runtime/engine"], { cwd: path.join(e2eDir, "../.."), encoding: "utf8" }).split("\n");
-  const named = ["vite/frameworks/react.star", "vite/frontend.star", "byo_container.star", "layers/prisma/", "apply_migrator_orchestration.star"];
+  const named = ["vite/frameworks/vite_template.star", "vite/frontend.star", "byo_container.star", "layers/prisma/", "apply_migrator_orchestration.star"];
   for (const n of named) assert.ok(files.some((f) => f.includes(n)), n);
 });
 
