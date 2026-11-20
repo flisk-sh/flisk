@@ -23,6 +23,7 @@ import { promptConfirm } from "../utils/prompt.js";
 import { discoverResources, discoverResourcesFromRoot, discoverStacks } from "../utils/services.js";
 import { buildTiltDownArgs, getTiltfilePath, runTilt } from "../utils/tilt.js";
 import { pruneSupersededTiltImages } from "../utils/tilt-images.js";
+import { runDownAll } from "./down-all.js";
 function allStackNames() {
     try {
         const names = discoverStacks(discoverResources()).map((stack) => stack.name);
@@ -225,6 +226,7 @@ function purgeOrWarn(projectRoot, json) {
 }
 export const downCommand = attachNoPositionalHint(addYesOption(new Command("down")))
     .description("Stop every running service of this project (local processes or Docker/Tilt)")
+    .option("--all", "Stop every running Flisk project on this machine (one confirmation)", false)
     .option("-v, --verbose", "Enable verbose output", false)
     .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)
     .option("--prune-networks", "Remove this project's Docker networks that no container is attached to (the default; kept for scripts)")
@@ -235,8 +237,13 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
     .option("--dry-run", "Show what would be stopped without stopping", false)
     .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
     .option("--project <path>", "Stop the Flisk project in this folder (default: the current project, or the only running one)")
-    .addHelpText("after", "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose")
+    .addHelpText("after", "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --all\n  flisk down --all --yes --json\n  flisk down --json\n  flisk down --verbose")
     .action(async (options, command) => {
+    // --all is a machine-wide inventory and stop; it never resolves or changes into a single project folder.
+    if (options.all) {
+        await runDownAll(options);
+        return;
+    }
     // Check for inferred Node project first, before resolveDownProject tries to find a Flisk project
     const guess = inferNodeProject(process.cwd());
     if (guess && !options.project) {

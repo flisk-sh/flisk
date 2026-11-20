@@ -233,6 +233,11 @@ export const COMMAND_SPECS = [
                 defaultValue: false,
             },
             {
+                flags: "--all",
+                description: "Stop every running Flisk project on this machine (one confirmation)",
+                defaultValue: false,
+            },
+            {
                 flags: "-v, --verbose",
                 description: "Enable verbose output",
                 defaultValue: false,
@@ -282,7 +287,7 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --json\n  flisk down --verbose",
+                "\nAfter stopping a container project, down prints how much disk its images and the shared build cache still hold, and the command that frees it.\n\nExamples:\n  flisk down --dry-run\n  flisk down --all\n  flisk down --all --yes --json\n  flisk down --json\n  flisk down --verbose",
             ],
         },
         subcommands: [],

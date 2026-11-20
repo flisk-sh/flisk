@@ -1,0 +1,241 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { Command } from "commander";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const all = vi.hoisted(() => ({
+  discoverRunningStacks: vi.fn(),
+  stopRunningStack: vi.fn(),
+  emitted: [] as Array<{ data: unknown; errors?: unknown }>,
+}));
+const prompt = vi.hoisted(() => ({ promptConfirm: vi.fn() }));
+
+vi.mock("../../utils/down-all.js", () => ({
+  discoverRunningStacks: all.discoverRunningStacks,
+  stopRunningStack: all.stopRunningStack,
+}));
+
+vi.mock("../../utils/json-output.js", () => ({
+  createJsonEmitter: () => (data: unknown, errors?: unknown) => {
+    all.emitted.push({ data, errors });
+  },
+}));
+
+vi.mock("../../utils/prompt.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/prompt.js")>()),
+  promptConfirm: prompt.promptConfirm,
+}));
+
+import { downCommand } from "../down.js";
+
+const originalCwd = process.cwd();
+const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+
+function setStdinTty(value: boolean): void {
+  Object.defineProperty(process.stdin, "isTTY", { value, configurable: true });
+}
+
+function resetOptions(command: Command): void {
+  for (const option of command.options) {
+    command.setOptionValue(option.attributeName(), option.defaultValue);
+  }
+  command.parent?.setOptionValue("project", undefined);
+}
+
+type Stack = {
+  folder: string;
+  runtime: "local" | "docker";
+  services: string[];
+  ports: number[];
+  stacks: string[];
+  missingFolder: boolean;
+  tiltPids: number[];
+  composeProjects: string[];
+};
+
+function stack(overrides: Partial<Stack> = {}): Stack {
+  return {
+    folder: "/work/shop",
+    runtime: "docker",
+    services: ["api", "web"],
+    ports: [3000, 5173],
+    stacks: ["app"],
+    missingFolder: false,
+    tiltPids: [101],
+    composeProjects: ["shop"],
+    ...overrides,
+  };
+}
+
+async function runDown(args: string[]) {
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  resetOptions(downCommand);
+  try {
+    await downCommand.parseAsync(["node", "flisk", ...args], { from: "node" });
+    return {
+      stdout: log.mock.calls.map((call) => call.join(" ")).join("\n"),
+      stderr: error.mock.calls.map((call) => call.join(" ")).join("\n"),
+    };
+  } finally {
+    log.mockRestore();
+    error.mockRestore();
+    process.chdir(originalCwd);
+  }
+}
+
+describe("flisk down --all", () => {
+  beforeEach(() => {
+    process.exitCode = 0;
+    process.chdir(originalCwd);
+    all.emitted = [];
+    all.discoverRunningStacks.mockReset();
+    all.stopRunningStack.mockReset();
+    prompt.promptConfirm.mockReset().mockResolvedValue(true);
+    all.stopRunningStack.mockImplementation(async () => ({ ok: true, stopped: ["compose shop"] }));
+    setStdinTty(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.exitCode = 0;
+    if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+  });
+
+  it("lists two running stacks and stops both after one confirmation", async () => {
+    all.discoverRunningStacks.mockResolvedValue([
+      stack({ folder: "/work/local", runtime: "local", services: ["api"], ports: [4000] }),
+      stack(),
+    ]);
+
+    const { stdout } = await runDown(["--all"]);
+
+    expect(prompt.promptConfirm).toHaveBeenCalledOnce();
+    expect(prompt.promptConfirm.mock.calls[0]?.[0]).toMatchObject({ initial: false });
+    expect(all.stopRunningStack).toHaveBeenCalledTimes(2);
+    expect(all.stopRunningStack.mock.calls.map((call) => call[0].folder)).toEqual([
+      "/work/local",
+      "/work/shop",
+    ]);
+    expect(stdout).toContain("/work/local  [local]  services: api  ports: 4000");
+    expect(stdout).toContain("/work/shop  [docker]  services: api, web  ports: 3000, 5173");
+    expect(stdout).toContain("Stopped /work/shop: compose shop");
+  });
+
+  it("lists nothing and stops nothing when no project is running", async () => {
+    all.discoverRunningStacks.mockResolvedValue([]);
+
+    const { stdout } = await runDown(["--all"]);
+
+    expect(stdout).toContain("No Flisk projects are running.");
+    expect(prompt.promptConfirm).not.toHaveBeenCalled();
+    expect(all.stopRunningStack).not.toHaveBeenCalled();
+  });
+
+  it("lists and stops a stack whose folder is gone, without recreating it or touching generated files", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "flisk-down-all-command-"));
+    const tiltfile = join(folder, ".flisk", ".flisk-out", "Tiltfile");
+    const compose = join(folder, "services", "api", ".autogenerated", "compose.yaml");
+    mkdirSync(join(folder, ".flisk", ".flisk-out"), { recursive: true });
+    mkdirSync(join(folder, "services", "api", ".autogenerated"), { recursive: true });
+    writeFileSync(tiltfile, "# generated\n");
+    writeFileSync(compose, "services: {}\n");
+    const digest = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+    const before = [digest(tiltfile), digest(compose)];
+    all.discoverRunningStacks.mockResolvedValue([
+      stack({ folder, missingFolder: true, services: ["api"], ports: [4000] }),
+    ]);
+
+    try {
+      const { stdout } = await runDown(["--all", "--yes"]);
+
+      expect(stdout).toContain(folder);
+      expect(stdout).toContain("folder missing");
+      expect(all.stopRunningStack).toHaveBeenCalledOnce();
+      expect(all.stopRunningStack.mock.calls[0]?.[0]).toMatchObject({
+        folder,
+        missingFolder: true,
+      });
+      expect(prompt.promptConfirm).not.toHaveBeenCalled();
+      expect([digest(tiltfile), digest(compose)]).toEqual(before);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("only lists on --dry-run: no confirmation and no stop", async () => {
+    all.discoverRunningStacks.mockResolvedValue([stack()]);
+
+    const human = await runDown(["--all", "--dry-run"]);
+    expect(human.stdout).toContain("/work/shop  [docker]  services: api, web");
+    expect(human.stdout).toContain("Dry run - not stopping any project.");
+    expect(prompt.promptConfirm).not.toHaveBeenCalled();
+    expect(all.stopRunningStack).not.toHaveBeenCalled();
+
+    const machine = await runDown(["--all", "--dry-run", "--json"]);
+    expect(machine.stdout).toBe("");
+    expect(all.emitted[0]?.data).toMatchObject({
+      ok: true,
+      all: true,
+      dryRun: true,
+      projects: [{ folder: "/work/shop", runtime: "docker" }],
+      stopped: [],
+    });
+  });
+
+  it("does not stop anything when the single confirmation is declined", async () => {
+    all.discoverRunningStacks.mockResolvedValue([stack()]);
+    prompt.promptConfirm.mockResolvedValue(false);
+
+    const { stdout } = await runDown(["--all"]);
+
+    expect(prompt.promptConfirm).toHaveBeenCalledOnce();
+    expect(all.stopRunningStack).not.toHaveBeenCalled();
+    expect(stdout).toContain("Nothing stopped.");
+  });
+
+  it("--json returns both the inventory and what stopped", async () => {
+    all.discoverRunningStacks.mockResolvedValue([
+      stack({ folder: "/work/local", runtime: "local" }),
+    ]);
+    all.stopRunningStack.mockResolvedValue({ ok: true, stopped: ["local api"] });
+
+    const { stdout } = await runDown(["--all", "--yes", "--json"]);
+
+    expect(stdout).toBe("");
+    expect(all.emitted).toHaveLength(1);
+    expect(all.emitted[0]?.data).toMatchObject({
+      ok: true,
+      all: true,
+      projects: [
+        {
+          folder: "/work/local",
+          runtime: "local",
+          services: ["api", "web"],
+          ports: [3000, 5173],
+          missingFolder: false,
+        },
+      ],
+      stopped: [{ folder: "/work/local", runtime: "local", stopped: ["local api"] }],
+    });
+    expect(all.emitted[0]?.errors).toEqual([]);
+  });
+
+  it("needs --yes without a terminal instead of guessing", async () => {
+    all.discoverRunningStacks.mockResolvedValue([stack()]);
+    setStdinTty(false);
+
+    const { stderr } = await runDown(["--all"]);
+
+    expect(stderr).toContain("needs confirmation");
+    expect(stderr).toContain("--yes");
+    expect(prompt.promptConfirm).not.toHaveBeenCalled();
+    expect(all.stopRunningStack).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+});

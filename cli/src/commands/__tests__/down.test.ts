@@ -181,6 +181,7 @@ describe("flisk down", () => {
     vi.restoreAllMocks();
     runTiltMock.mockReset();
     for (const option of [
+      "all",
       "dryRun",
       "json",
       "verbose",
