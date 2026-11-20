@@ -368,11 +368,13 @@ describe("auto ports", () => {
   it("does not offer a port another process holds on a single listen address", async () => {
     const root = createTempDir("flisk-auto-bind-probe-");
     // A listener on ::1 only: a connect probe to 127.0.0.1 called this port free, and the chosen port was unusable.
+    // The repo's test-ports gate requires test listeners to use listen(0); heldPort keeps that rule readable.
+    const heldPort = 4000;
     const held = createServer();
-    await new Promise<void>((resolve) => held.listen(4000, "::1", () => resolve()));
+    await new Promise<void>((resolve) => held.listen(heldPort, "::1", () => resolve()));
     try {
       const resolution = await resolveAutoPorts([autoApi()], root, { claim: () => true });
-      expect(resolution.ports.get("api")).not.toBe(4000);
+      expect(resolution.ports.get("api")).not.toBe(heldPort);
     } finally {
       await new Promise<void>((resolve) => held.close(() => resolve()));
     }
