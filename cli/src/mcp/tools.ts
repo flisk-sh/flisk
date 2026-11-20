@@ -774,6 +774,8 @@ const TOOL_ANNOTATIONS: Record<string, McpToolAnnotations> = {
     destructiveHint: true,
     openWorldHint: true,
   },
+  // Declared test commands can write files and reach the network; they are not read-only.
+  test: { ...WRITES_LOCALLY, openWorldHint: true },
   // dryRun is the default; dryRun: false overwrites the generated files and discards hand edits in them.
   config_regenerate: {
     ...WRITES_LOCALLY,
@@ -1087,6 +1089,19 @@ export function createFliskTools(
           );
         }
         return ["run", resource, "--json", "--", ...command];
+      }),
+    },
+    {
+      name: "test",
+      description:
+        "Run every service's declared `test` command with the environment that service has in the stack (the same plumbing as `run`) and return one result. data.results has one row per service with service, command, ok, status, durationMs and outputTail; services without a `test` field are included as status `skipped`. data.summary counts passed, failed and skipped. A failing test gives the tool an error and a non-zero exit code. Optionally select a stack and set projectPath when the server is not running from the project root.",
+      inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
+        stack: { type: "string", description: "Only test the services in this stack" },
+      }),
+      handler: viaCli((args) => {
+        const stack = optionalName(args.stack, "stack");
+        return ["test", ...(stack ? [stack] : []), "--json"];
       }),
     },
     {

@@ -18,7 +18,8 @@ Start local services from `service.json` manifests. Flisk writes the Docker and 
 2. Preview the stack: `flisk up <stack> --dry-run`. Show the user which services and URLs will start.
 3. Start it: `flisk up <stack>`. Omit `<stack>` to start every stack.
 4. Confirm health with `flisk status --json`. Report each service's URL only after it reports healthy.
-5. If `flisk up` refuses to start because generated files differ from `service.json`, regenerate from the source manifest. Use `--ignore-drift` only when the user asks to start anyway.
+5. Before saying a change is done, run `flisk test [stack] --json` (or the MCP `test` tool). It runs each service's declared `test` command with the stack environment; report failed rows and remember that services without a command are `skipped`, not failures.
+6. If `flisk up` refuses to start because generated files differ from `service.json`, regenerate from the source manifest. Use `--ignore-drift` only when the user asks to start anyway.
 
 ## Services that run without Docker
 

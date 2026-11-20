@@ -26,6 +26,7 @@ import { resourceCommand } from "../resource.js";
 import { resourcesCommand } from "../resources.js";
 import { stacksCommand } from "../stacks.js";
 import { statusCommand } from "../status.js";
+import { testCommand } from "../test.js";
 import { upCommand } from "../up.js";
 import { upgradeCommand } from "../upgrade.js";
 
@@ -59,6 +60,10 @@ const JSON_MATRIX: Array<{ command: string[]; project: Parameters<typeof createT
       project: { stacks: { api: { gateway: { appType: "backend", port: 3100 } } } },
     },
     { command: ["config", "verify"], project: {} },
+    {
+      command: ["test"],
+      project: { stacks: { api: { gateway: { appType: "backend", port: 3100 } } } },
+    },
   ];
 
 const VALID_PROJECT_JSON = {
@@ -411,6 +416,7 @@ const IN_PROCESS_TARGETS: Record<string, { command: Command; args: string[] }> =
   status: { command: statusCommand, args: [] },
   networks: { command: networksCommand, args: [] },
   "config verify": { command: configCommand, args: ["verify"] },
+  test: { command: testCommand, args: [] },
 };
 
 describe("flag contract: --json", () => {

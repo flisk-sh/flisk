@@ -1986,6 +1986,39 @@ export const COMMAND_SPECS = [
         subcommands: [],
     },
     {
+        name: "test",
+        path: ["test"],
+        description: "Run every service's declared tests with the stack's environment",
+        aliases: [],
+        hidden: false,
+        hasAction: true,
+        allowUnknown: false,
+        passThrough: false,
+        positionalOptions: false,
+        allowExcessArguments: false,
+        options: [
+            {
+                flags: "--json",
+                description: "Print one JSON object with a result per service",
+                defaultValue: false,
+            },
+        ],
+        arguments: [
+            {
+                name: "stack",
+                description: "Only test the services in this stack",
+                required: false,
+                variadic: false,
+            },
+        ],
+        helpTexts: {
+            after: [
+                '\nA service opts in with a `test` command in its service.json, for example:\n  "test": "bun test"\nServices without one are reported as skipped. Exits non-zero when any test fails.',
+            ],
+        },
+        subcommands: [],
+    },
+    {
         name: "distribute",
         path: ["distribute"],
         description: "How an app gets to its users: board, listing kit and channel status (local files only)",

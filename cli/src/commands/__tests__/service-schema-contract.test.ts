@@ -64,6 +64,7 @@ const RESOURCE_CONFIG_FIELDS = [
   "command",
   "env",
   "dev",
+  "test",
 ] as const satisfies readonly (keyof ResourceConfigFields)[];
 type ResourceConfigFieldsAreComplete =
   Exclude<keyof ResourceConfigFields, (typeof RESOURCE_CONFIG_FIELDS)[number]> extends never
@@ -346,6 +347,14 @@ describe("command services (the minimal contract)", () => {
 
   it("requires env values to be strings", () => {
     expect(validateService({ ...minimal, env: { PORT2: 1 } })).toBe(false);
+  });
+
+  it("accepts one declared test command, with no alias for dev.testOnSave", () => {
+    expect(validateService({ ...minimal, test: "bun test" })).toBe(true);
+    for (const test of ["", "   ", 42, { command: "bun test" }]) {
+      expect(validateService({ ...minimal, test }), JSON.stringify(test)).toBe(false);
+    }
+    expect(validateService({ ...minimal, dev: { testOnSave: true } })).toBe(true);
   });
 });
 

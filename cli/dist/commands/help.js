@@ -85,6 +85,11 @@ const COMMAND_GROUPS = [
                 desc: "Run a one-off command with a service's stack environment",
                 alias: "<service> -- <command>",
             },
+            {
+                name: "test",
+                desc: "Run every service's declared tests with its stack environment",
+                alias: "[stack] --json",
+            },
             { name: "status", desc: "Show status of resources and stacks", alias: "" },
             {
                 name: "open",

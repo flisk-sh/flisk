@@ -83,6 +83,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "smoke",
     "stack",
     "syncs",
+    "test",
     "toolchain",
     "traefik",
     "type",
@@ -708,6 +709,11 @@ export function validateServiceManifest(value, displayPath) {
     // Bun app types (frontend, bring-your-own, library, SDK) have no watcher, and any other language ignores it.
     if (liveReload === true && !liveReloadApplies(manifest)) {
         warnings.push(`${displayPath}.dev.liveReload: only applies to Go services and Bun backends, workers, agents and MCP servers; it is ignored here`);
+    }
+    if (manifest.test !== undefined && manifest.test !== null) {
+        if (typeof manifest.test !== "string" || manifest.test.trim() === "") {
+            errors.push(`${displayPath}.test: expected a non-empty string`);
+        }
     }
     const testOnSave = dev && typeof dev === "object" && !Array.isArray(dev)
         ? dev.testOnSave
