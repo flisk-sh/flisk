@@ -600,11 +600,11 @@ flisk agent sessions bot --json              # one JSON object on stdout
 
 | Flag | Effect |
 | --- | --- |
-| `--session-id <id>` | Print that session's checkpoint instead of the session list |
+| `--session-id <id>` | Print that session's checkpoint, including any per-turn tool calls (`Tool calls: not reported` when the agent omits them), instead of the session list |
 | `--watch` | Redraw the session list, or the checkpoint with `--session-id`, every 2 seconds until interrupted (Ctrl+C). A failed refresh is shown and retried |
 | `--json` | One JSON object on stdout and exit. Cannot be combined with `--watch` |
 
-Without `--session-id`, `--json` returns the rows under `data.sessions`; with `--session-id` it returns the checkpoint under `data.session`. With `--json`, listing sessions from an agent scaffolded before `GET /sessions` existed returns `SESSION_LIST_UNSUPPORTED`; `--session-id <id>` can still read a checkpoint. Without `--json`, that failure prints an error message and hints. See [AI agents](agents/ai-agents.md) and the [machine-readable CLI](reference/machine-readable-cli.md).
+Without `--session-id`, `--json` returns the rows under `data.sessions`; with `--session-id` it returns the checkpoint under `data.session` (including its optional `toolCalls`, one list per turn). With `--json`, listing sessions from an agent scaffolded before `GET /sessions` existed returns `SESSION_LIST_UNSUPPORTED`; `--session-id <id>` can still read a checkpoint. Without `--json`, that failure prints an error message and hints. See [AI agents](agents/ai-agents.md) and the [machine-readable CLI](reference/machine-readable-cli.md).
 
 ### `flisk distribute`
 

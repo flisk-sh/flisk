@@ -517,6 +517,11 @@ answered_from_tools() { # <name>: the answer holds both tool notes and came from
   jq -e '.model == "mock" and .stopReason == "end_turn" and .tools == ["lookup","lookup"] and
     (.answer | contains("Model Context Protocol") and contains("local development loop"))' "$OUT/$1.json" >/dev/null
 }
+reports_tool_calls() { # <name>: /ask records each lookup's args, result, outcome and duration
+  jq -e '(.toolCalls | length) == 2 and
+    all(.toolCalls[]; .name == "lookup" and .ok == true and (.args | type == "object") and
+      (.resultSummary | type == "string" and length > 0) and (.ms | type == "number"))' "$OUT/$1.json" >/dev/null
+}
 
 K1() { # setup installs the SDK; four local processes; the tool server passes the MCP check
   log "K1 flisk project tool-loop, flisk up, flisk mcp check"
@@ -533,6 +538,7 @@ K2() { # a question goes through the SDK's tool runner
   ensure_loop_up
   ask_loop loop-ask "what is mcp and flisk" || die "POST /ask failed"
   answered_from_tools loop-ask || { cat "$OUT/loop-ask.json"; die "the answer did not come from two lookups over MCP"; }
+  reports_tool_calls loop-ask || { cat "$OUT/loop-ask.json"; die "the tool calls were not recorded with args, results and timings"; }
 }
 
 K3() { # chaos: the model dies, the SDK's retries outlast the restart

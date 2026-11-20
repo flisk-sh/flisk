@@ -9,6 +9,7 @@ import {
   agentSessionListRequest,
   agentSessionRequest,
   fetchAgent,
+  formatAgentToolCalls,
   parseAgentSessionList,
 } from "../utils/agent-sessions.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
@@ -211,6 +212,8 @@ agentCommand
             lines: [
               chalk.bold(`Sessions for ${resourceName}:`),
               JSON.stringify(reply.body, null, 2),
+              "",
+              ...formatAgentToolCalls(reply.body),
             ],
           };
         }

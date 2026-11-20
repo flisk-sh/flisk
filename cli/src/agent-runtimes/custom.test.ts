@@ -268,10 +268,18 @@ describe("postgres durability template", () => {
     expect(index).toContain("ON CONFLICT (session_id) DO UPDATE");
   });
 
-  it("loads a saved session and upserts messages as JSON", () => {
-    expect(index).toContain("SELECT messages FROM flisk_agent_sessions WHERE session_id = $1");
-    expect(index).toContain("return { sessionId, messages: res.rows[0].messages };");
+  it("loads a saved session and upserts messages and tool calls as JSON", () => {
+    expect(index).toContain(
+      "SELECT messages, tool_calls FROM flisk_agent_sessions WHERE session_id = $1",
+    );
+    expect(index).toContain(
+      "return { sessionId, messages: res.rows[0].messages, toolCalls: res.rows[0].tool_calls ?? [] };",
+    );
     expect(index).toContain("JSON.stringify(checkpoint.messages)");
+    expect(index).toContain("JSON.stringify(checkpoint.toolCalls ?? [])");
+    expect(index).toContain(
+      "ALTER TABLE flisk_agent_sessions ADD COLUMN IF NOT EXISTS tool_calls JSONB",
+    );
   });
 
   it("reports not ready and drops the client when the database is unreachable", () => {
@@ -281,13 +289,13 @@ describe("postgres durability template", () => {
 
   it("serves an empty checkpoint when a session load fails", () => {
     expect(index).toMatch(
-      /catch \(err\) \{\s*console\.error\('\[agent\] load checkpoint failed:', err\);\s*return \{ sessionId, messages: \[\] \};\s*\}/,
+      /catch \(err\) \{\s*console\.error\('\[agent\] load checkpoint failed:', err\);\s*return \{ sessionId, messages: \[\], toolCalls: \[\] \};\s*\}/,
     );
   });
 
-  it("lists sessions from the table without reading the messages", () => {
+  it("lists sessions from the table counting both messages and tool calls", () => {
     expect(index).toContain(
-      "SELECT session_id, updated_at, octet_length(messages::text) AS bytes FROM flisk_agent_sessions",
+      "SELECT session_id, updated_at, octet_length(messages::text || tool_calls::text) AS bytes FROM flisk_agent_sessions",
     );
   });
 
@@ -296,6 +304,24 @@ describe("postgres durability template", () => {
     expect(index).not.toContain("renameSync");
   });
 });
+
+describe.each(["files", "postgres"] as const)(
+  "custom agent runtime: tool calls (%s)",
+  (durability) => {
+    const index = getCustomAgentIndexTemplate(SERVICE, durability);
+
+    it("keeps one truncated tool-call list per turn and exposes it on GET /session", () => {
+      expect(index).toContain("toolCalls?: ToolCall[][]");
+      expect(index).toContain("const TOOL_CALL_PREVIEW_CHARS = 200;");
+      expect(index).toContain("truncatePreview(call.args)");
+      expect(index).toContain("truncatePreview(call.resultSummary)");
+      expect(index).toContain("recordToolCall(checkpoint, {");
+      expect(index).toContain(
+        "...(checkpoint.toolCalls ? { toolCalls: checkpoint.toolCalls } : {})",
+      );
+    });
+  },
+);
 
 describe("custom agent runtime: postgres close()", () => {
   const close = closeBody(getCustomAgentIndexTemplate(SERVICE, "postgres"));

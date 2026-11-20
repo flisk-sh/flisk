@@ -111,6 +111,12 @@ A4() { # a checkpoint through Traefik, read back with flisk agent sessions
   assert check "$OUT/a4-sessions.out" "j.data.agent === '$AGENT' && Number.isInteger(j.data.port)" "data.agent and data.port are set by the CLI"
   assert check "$OUT/a4-sessions.out" "j.data.session && j.data.session.sessionId === 's1' && j.data.session.messages.length === 2" "the checkpoint is nested under data.session"
   assert check "$OUT/a4-sessions.out" "!('messages' in j.data) && !('sessionId' in j.data)" "checkpoint fields are not spread into data"
+  assert check "$OUT/a4-sessions.out" "Array.isArray(j.data.session.toolCalls) && j.data.session.toolCalls[0]?.[0]?.name === 'echo' && j.data.session.toolCalls[0][0].ok === true && typeof j.data.session.toolCalls[0][0].ms === 'number'" "the checkpoint records the turn's tool call"
+  run a4-session-human agent sessions "$AGENT" --session-id s1
+  [ "$RC" -eq 0 ] || die "flisk agent sessions (human) exited $RC"
+  grep -q "Tool calls:" "$OUT/a4-session-human.out" || die "the session view did not print tool activity"
+  grep -q "Turn 1:" "$OUT/a4-session-human.out" || die "the session view did not print the turn"
+  grep -q -- "- ok echo" "$OUT/a4-session-human.out" || die "the session view did not print the tool call"
   run a4-list agent sessions "$AGENT" --json
   [ "$RC" -eq 0 ] || die "flisk agent sessions (list) exited $RC"
   assert check "$OUT/a4-list.out" "j.data.agent === '$AGENT' && j.data.total >= 1 && j.data.sessions.some(s => s.sessionId === 's1' && s.checkpointBytes > 0)" "without --session-id the sessions are listed under data.sessions"

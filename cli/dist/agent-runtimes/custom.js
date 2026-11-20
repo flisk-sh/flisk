@@ -26,9 +26,39 @@ const SESSION_IDLE_TIMEOUT_MS = Number(process.env.SESSION_IDLE_TIMEOUT_MS) || 8
 const SESSION_CLEANUP_INTERVAL_MS = Number(process.env.SESSION_CLEANUP_INTERVAL_MS) || 3_600_000;
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
 
+interface ToolCall {
+  name: string;
+  args: string;
+  resultSummary: string;
+  ok: boolean;
+  ms: number;
+}
+
 interface Checkpoint {
   sessionId: string;
   messages: Array<{ role: 'user' | 'agent'; content: string; at: string }>;
+  // Optional: one list per turn, in turn order. Missing means this agent does not report tool activity.
+  toolCalls?: ToolCall[][];
+}
+
+const TOOL_CALL_PREVIEW_CHARS = 200;
+function truncatePreview(value: unknown): string {
+  const text = typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
+  return text.length > TOOL_CALL_PREVIEW_CHARS ? text.slice(0, TOOL_CALL_PREVIEW_CHARS - 3) + '...' : text;
+}
+
+/** Call this from runTurn for every tool the model invokes; it attaches the record to the turn being answered. */
+function recordToolCall(checkpoint: Checkpoint, call: Omit<ToolCall, 'args' | 'resultSummary'> & { args: unknown; resultSummary: unknown }): void {
+  const turn = Math.max(0, Math.ceil(checkpoint.messages.length / 2) - 1);
+  checkpoint.toolCalls ??= [];
+  while (checkpoint.toolCalls.length <= turn) checkpoint.toolCalls.push([]);
+  checkpoint.toolCalls[turn].push({
+    name: call.name,
+    args: truncatePreview(call.args),
+    resultSummary: truncatePreview(call.resultSummary),
+    ok: call.ok,
+    ms: call.ms,
+  });
 }
 
 // One row of GET /sessions: what is stored, not what is in it, so listing never reads a whole conversation.
@@ -50,8 +80,10 @@ async function getClient(): Promise<Client> {
       CREATE TABLE IF NOT EXISTS flisk_agent_sessions (
         session_id VARCHAR(128) PRIMARY KEY,
         messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+        tool_calls JSONB NOT NULL DEFAULT '[]'::jsonb,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE flisk_agent_sessions ADD COLUMN IF NOT EXISTS tool_calls JSONB NOT NULL DEFAULT '[]'::jsonb;
     \`);
     initialized = true;
   }
@@ -73,20 +105,20 @@ const store = {
   async load(sessionId: string): Promise<Checkpoint> {
     try {
       const c = await getClient();
-      const res = await c.query('SELECT messages FROM flisk_agent_sessions WHERE session_id = $1', [sessionId]);
+      const res = await c.query('SELECT messages, tool_calls FROM flisk_agent_sessions WHERE session_id = $1', [sessionId]);
       if (res.rows.length > 0 && res.rows[0].messages) {
-        return { sessionId, messages: res.rows[0].messages };
+        return { sessionId, messages: res.rows[0].messages, toolCalls: res.rows[0].tool_calls ?? [] };
       }
-      return { sessionId, messages: [] };
+      return { sessionId, messages: [], toolCalls: [] };
     } catch (err) {
       console.error('[agent] load checkpoint failed:', err);
-      return { sessionId, messages: [] };
+      return { sessionId, messages: [], toolCalls: [] };
     }
   },
   async list(): Promise<SessionSummary[]> {
     const c = await getClient();
     const res = await c.query(
-      'SELECT session_id, updated_at, octet_length(messages::text) AS bytes FROM flisk_agent_sessions',
+      'SELECT session_id, updated_at, octet_length(messages::text || tool_calls::text) AS bytes FROM flisk_agent_sessions',
     );
     return res.rows.map((row: { session_id: string; updated_at: Date; bytes: number }) => ({
       sessionId: row.session_id,
@@ -105,11 +137,15 @@ const store = {
   async save(checkpoint: Checkpoint): Promise<void> {
     const c = await getClient();
     await c.query(
-      \`INSERT INTO flisk_agent_sessions (session_id, messages, updated_at)
-       VALUES ($1, $2, NOW())
+      \`INSERT INTO flisk_agent_sessions (session_id, messages, tool_calls, updated_at)
+       VALUES ($1, $2, $3, NOW())
        ON CONFLICT (session_id) DO UPDATE
-       SET messages = EXCLUDED.messages, updated_at = NOW()\`,
-      [checkpoint.sessionId, JSON.stringify(checkpoint.messages)],
+       SET messages = EXCLUDED.messages, tool_calls = EXCLUDED.tool_calls, updated_at = NOW()\`,
+      [
+        checkpoint.sessionId,
+        JSON.stringify(checkpoint.messages),
+        JSON.stringify(checkpoint.toolCalls ?? []),
+      ],
     );
   },
   async close(): Promise<void> {
@@ -126,9 +162,18 @@ const store = {
   },
 };
 
-// Replace this with the agent's work: call your model, run tools, return the reply. Keep it a pure function of the
-// checkpoint so a resumed session continues from what was saved.
+// Replace this with the agent's work: call your model, record every tool with recordToolCall, and return the reply.
+// Keep it a pure function of the checkpoint so a resumed session continues from what was saved.
 async function runTurn(checkpoint: Checkpoint, input: string): Promise<string> {
+  const started = Date.now();
+  // The placeholder tool shows the shape flisk agent sessions --session-id prints; replace it with real tool calls.
+  recordToolCall(checkpoint, {
+    name: 'echo',
+    args: { input },
+    resultSummary: 'echoed ' + input,
+    ok: true,
+    ms: Date.now() - started,
+  });
   // The caller has already appended this turn's user message, so the turn number is half the message count, rounded up.
   return 'received ' + input + ' (turn ' + Math.ceil(checkpoint.messages.length / 2) + ')';
 }
@@ -277,7 +322,12 @@ const server = createServer(async (req, res) => {
       const sessionId = String(req.headers['x-session-id'] ?? '');
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) return sendJson(res, 400, { error: 'x-session-id header is required' });
       const checkpoint = await store.load(sessionId);
-      return sendJson(res, 200, { sessionId, turns: checkpoint.messages.length / 2, messages: checkpoint.messages });
+      return sendJson(res, 200, {
+        sessionId,
+        turns: checkpoint.messages.length / 2,
+        messages: checkpoint.messages,
+        ...(checkpoint.toolCalls ? { toolCalls: checkpoint.toolCalls } : {}),
+      });
     }
 
     if (url.pathname === '/session' && req.method === 'DELETE') {
@@ -358,9 +408,39 @@ const DRAIN_TIMEOUT_MS = 10_000;
 const SESSION_IDLE_TIMEOUT_MS = Number(process.env.SESSION_IDLE_TIMEOUT_MS) || 86_400_000;
 const SESSION_CLEANUP_INTERVAL_MS = Number(process.env.SESSION_CLEANUP_INTERVAL_MS) || 3_600_000;
 
+interface ToolCall {
+  name: string;
+  args: string;
+  resultSummary: string;
+  ok: boolean;
+  ms: number;
+}
+
 interface Checkpoint {
   sessionId: string;
   messages: Array<{ role: 'user' | 'agent'; content: string; at: string }>;
+  // Optional: one list per turn, in turn order. Missing means this agent does not report tool activity.
+  toolCalls?: ToolCall[][];
+}
+
+const TOOL_CALL_PREVIEW_CHARS = 200;
+function truncatePreview(value: unknown): string {
+  const text = typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
+  return text.length > TOOL_CALL_PREVIEW_CHARS ? text.slice(0, TOOL_CALL_PREVIEW_CHARS - 3) + '...' : text;
+}
+
+/** Call this from runTurn for every tool the model invokes; it attaches the record to the turn being answered. */
+function recordToolCall(checkpoint: Checkpoint, call: Omit<ToolCall, 'args' | 'resultSummary'> & { args: unknown; resultSummary: unknown }): void {
+  const turn = Math.max(0, Math.ceil(checkpoint.messages.length / 2) - 1);
+  checkpoint.toolCalls ??= [];
+  while (checkpoint.toolCalls.length <= turn) checkpoint.toolCalls.push([]);
+  checkpoint.toolCalls[turn].push({
+    name: call.name,
+    args: truncatePreview(call.args),
+    resultSummary: truncatePreview(call.resultSummary),
+    ok: call.ok,
+    ms: call.ms,
+  });
 }
 
 // One row of GET /sessions: what is stored, not what is in it, so listing never reads a whole conversation.
@@ -416,9 +496,18 @@ const store = {
   },
 };
 
-// Replace this with the agent's work: call your model, run tools, return the reply. Keep it a pure function of the
-// checkpoint so a resumed session continues from what was saved.
+// Replace this with the agent's work: call your model, record every tool with recordToolCall, and return the reply.
+// Keep it a pure function of the checkpoint so a resumed session continues from what was saved.
 async function runTurn(checkpoint: Checkpoint, input: string): Promise<string> {
+  const started = Date.now();
+  // The placeholder tool shows the shape flisk agent sessions --session-id prints; replace it with real tool calls.
+  recordToolCall(checkpoint, {
+    name: 'echo',
+    args: { input },
+    resultSummary: 'echoed ' + input,
+    ok: true,
+    ms: Date.now() - started,
+  });
   // The caller has already appended this turn's user message, so the turn number is half the message count, rounded up.
   return 'received ' + input + ' (turn ' + Math.ceil(checkpoint.messages.length / 2) + ')';
 }
@@ -567,7 +656,12 @@ const server = createServer(async (req, res) => {
       const sessionId = String(req.headers['x-session-id'] ?? '');
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) return sendJson(res, 400, { error: 'x-session-id header is required' });
       const checkpoint = await store.load(sessionId);
-      return sendJson(res, 200, { sessionId, turns: checkpoint.messages.length / 2, messages: checkpoint.messages });
+      return sendJson(res, 200, {
+        sessionId,
+        turns: checkpoint.messages.length / 2,
+        messages: checkpoint.messages,
+        ...(checkpoint.toolCalls ? { toolCalls: checkpoint.toolCalls } : {}),
+      });
     }
 
     if (url.pathname === '/session' && req.method === 'DELETE') {
