@@ -1,7 +1,8 @@
 # ERP scale gate (#1302 cutover, tracker #1279). Runs the tests/e2e/scale/erp suite (E1-E3) on every pull request and merge
 # queue entry, against this checkout's own packed CLI. Replaces the retired erp-scale-e2e workflow for pull requests (#1302).
 # The full 100-service boot (about 107 images, up to 100 minutes) is too heavy to run per pull request, so the gate boots the
-# one-stack scope (finance, about 16 services); the full boot runs in e2e-scale-full.yml (manual and weekly).
+# 5-service smoke scope (independent finance backends: project, doctor, flisk up, every backend answering /health through
+# Traefik); the full boot runs in e2e-scale-full.yml (nightly and manual).
 # The suite declares no secrets (needsSecrets: []), so nothing on a pull request needs a license secret and no step is skipped.
 name: 🔀 PR | E2E | Scale
 
@@ -59,7 +60,7 @@ jobs:
     runs-on: ubuntu-26.04
     needs: [docs, queue-paths]
     if: ${{ !cancelled() && needs.docs.result != 'failure' && needs.docs.outputs.docs_only != 'true' && needs.queue-paths.outputs.relevant != 'false' }}
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -87,12 +88,12 @@ jobs:
           df -h / | tail -1
           docker version --format 'docker {{.Server.Version}}'
 
-      # One step, so the cases share the project and the timings. SCOPE=one-stack keeps the gate quick; see the header.
-      - name: Run the ERP cases (E1-E3, one stack)
+      # One step, so the cases share the project and the timings. SCOPE=smoke boots 5 services and keeps the gate quick; the
+      # full 100-service boot runs nightly in e2e-scale-full.yml.
+      - name: Run the ERP cases (E1-E3, 5-service smoke)
         env:
-          SCOPE: one-stack
-          STACK: finance
-          WAIT_MINUTES: "30"
+          SCOPE: smoke
+          WAIT_MINUTES: "10"
         run: tests/e2e/scale/erp/run.sh E1 E2 E3
 
       - name: Collect failure evidence

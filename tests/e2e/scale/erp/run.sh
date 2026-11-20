@@ -7,7 +7,8 @@
 # workflow runs E1-E3 in one step, so the cases share the project and the timings; diagnostics and cleanup are the workflow's
 # failure and always steps.
 #
-#   tests/e2e/scale/erp/run.sh E1 E2 E3          the whole boot, as in CI
+#   tests/e2e/scale/erp/run.sh E1 E2 E3          the whole boot, as in the nightly run
+#   SCOPE=smoke tests/e2e/scale/erp/run.sh E1 E2 E3    5 services, what the merge queue runs
 #   SCOPE=one-stack STACK=finance tests/e2e/scale/erp/run.sh E1 E2 E3    about 16 services
 #   ERP_DIR=<dir> tests/e2e/scale/erp/run.sh E1 E2 E3    use a fixture checkout that is somewhere else
 set -euo pipefail
@@ -30,8 +31,13 @@ E1() { # generate the project from the fixture and check the machine with flisk 
 E2() { # flisk up, then wait for every backend to answer /health (the frontends are reported, not gated)
   log "E2 flisk up, then wait for every backend to answer /health"
   local SCOPE="${SCOPE:-full}" STACK="${STACK:-finance}" WAIT_MINUTES="${WAIT_MINUTES:-75}"
+  # The services the smoke scope boots: independent finance backends (no dependsOn), so nothing else is pulled in.
+  local SMOKE_SERVICES="${SMOKE_SERVICES:-general-ledger-api accounts-payable-api accounts-receivable-api budgeting-api tax-compliance-api}"
   cd "$DIR"
-  if [ "$SCOPE" = "one-stack" ]; then
+  if [ "$SCOPE" = "smoke" ]; then
+    # shellcheck disable=SC2086 # the service names are separate arguments of --only
+    flisk up --only $SMOKE_SERVICES > up.log 2>&1 &
+  elif [ "$SCOPE" = "one-stack" ]; then
     flisk up "$STACK" > up.log 2>&1 &
   else
     flisk up > up.log 2>&1 &
