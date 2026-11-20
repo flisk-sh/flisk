@@ -4,7 +4,7 @@ import { execSync } from "node:child_process";
 import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
-import { readProjectConfig } from "../generator/template-engine.js";
+import { readProjectConfig } from "../generator/project-config.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_DOCS, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
 import { checkColimaDisk } from "../utils/colima-disk.js";

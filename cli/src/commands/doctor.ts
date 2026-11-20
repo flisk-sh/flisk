@@ -5,7 +5,7 @@ import { execSync } from "node:child_process";
 import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
-import { readProjectConfig } from "../generator/template-engine.js";
+import { readProjectConfig } from "../generator/project-config.js";
 import type { CheckResult, DoctorAction, HostPortPlan } from "../types/index.js";
 import {
   DEVCONTAINER_DOCKER_FIX,
