@@ -208,7 +208,9 @@ describe("findRunningFliskProjects", () => {
   });
 
   it("returns nothing on Windows or when ps fails", async () => {
-    expect(await findRunningFliskProjects("win32", () => ps, isProject, NO_NATIVE_RUNS)).toEqual([]);
+    expect(await findRunningFliskProjects("win32", () => ps, isProject, NO_NATIVE_RUNS)).toEqual(
+      [],
+    );
     expect(
       await findRunningFliskProjects(
         "linux",
@@ -286,7 +288,12 @@ describe("findRunningFliskProjects native runs (#4412)", () => {
     makeNativeProject(home, "gone", state(404, "current-start-time"));
 
     expect(
-      await findRunningFliskProjects("win32", undefined, undefined, lookupFor(home, () => false)),
+      await findRunningFliskProjects(
+        "win32",
+        undefined,
+        undefined,
+        lookupFor(home, () => false),
+      ),
     ).toEqual([]);
   });
 
@@ -299,8 +306,7 @@ describe("findRunningFliskProjects native runs (#4412)", () => {
       `  100 /usr/local/bin/tilt up -f ${both}/.flisk/.flisk-out/Tiltfile`,
       `  101 tilt up -f ${tiltOnly}/.flisk/.flisk-out/Tiltfile`,
     ].join("\n");
-    const isProject = (root: string) =>
-      root === tiltOnly || root === nativeOnly || root === both;
+    const isProject = (root: string) => root === tiltOnly || root === nativeOnly || root === both;
 
     expect(
       await findRunningFliskProjects(
