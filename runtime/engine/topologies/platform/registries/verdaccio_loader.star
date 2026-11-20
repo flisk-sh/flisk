@@ -5,6 +5,11 @@
 # =============================================================================
 # Path: engine/topologies/platform/registries/verdaccio_loader.star
 # =============================================================================
+# Marker read by runtime/discovery/config.star. The licensed overlay replaces
+# this file and does not define it; that presence/absence is how scope routing
+# knows a Verdaccio container is actually available (#3956).
+VERDACCIO_LOADER_FREE_TIER_STUB = True
+
 # The real loader (stands up the Verdaccio private npm registry container and
 # wires it into the project's Docker network) is part of a paid Flisk license.
 # When a valid license grants the "verdaccio" resource,
