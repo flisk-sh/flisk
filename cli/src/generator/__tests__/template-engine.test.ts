@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectConfig } from "../../types/index.js";
+import { FliskError } from "../../utils/errors.js";
 import { compileTemplate } from "../mini-template.js";
 import {
   ensureProjectRuntimeAssets,
@@ -36,7 +37,7 @@ vi.mock("node:fs", async (importOriginal) => {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const readEngine = (rel: string) =>
-  fs.readFileSync(path.join(repoRoot, "runtime", "engine", rel), "utf-8");
+  fs.readFileSync(path.join(repoRoot, "runtime", "engine", rel), "utf-8").replace(/\r\n/g, "\n");
 
 // Real template files, keyed by a substring that only appears in that specific
 // file - regression coverage for the bug where loadTemplate joined a candidate
@@ -819,7 +820,13 @@ describe("template-engine", () => {
             beta: { enabledStacks: [] },
             out_of_scope: { enabledStacks: [] },
           },
-          optional_infra: {},
+          optional_infra: {
+            monitoring: false,
+            elk: false,
+            debezium: false,
+            golden_image: false,
+            verdaccio: false,
+          },
           discovery: { paths: ["services"] },
           repos: [{ url: "https://github.com/acme/orders.git", dir: "services/orders", branch: 7 }],
         };
@@ -827,7 +834,7 @@ describe("template-engine", () => {
 
         const message = (catchFromReadProjectConfig(projectRoot) as Error).message;
 
-        expect(message).toContain("repos (optional array of { url, dir, branch? }");
+        expect(message).toContain(".flisk/project.json.repos[0].branch: expected a string");
       } finally {
         fs.rmSync(projectRoot, { recursive: true, force: true });
       }
@@ -914,6 +921,8 @@ describe("template-engine", () => {
       }
     });
 
+    // Windows reports ENOENT, not ENOTDIR, for a path under a regular file, so the
+    // read-failure branch cannot be reached there; parametrize on the real reason instead.
     it("reports the read failure instead of a missing config when .flisk is not a directory", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-flisk-not-a-directory-"));
       try {
@@ -923,11 +932,15 @@ describe("template-engine", () => {
 
         const caught = catchFromReadProjectConfig(projectRoot);
 
-        expect(caught).toBeInstanceOf(Error);
-        expect((caught as Error).message).toBe(
-          `Could not read project.json at ${projectJsonPath}: ${expectedReason}`,
-        );
-        expect(caught).not.toBeInstanceOf(ProjectConfigNotFoundError);
+        if (process.platform === "win32") {
+          expect(caught).toBeInstanceOf(ProjectConfigNotFoundError);
+        } else {
+          expect(caught).toBeInstanceOf(Error);
+          expect((caught as Error).message).toBe(
+            `Could not read project.json at ${projectJsonPath}: ${expectedReason}`,
+          );
+          expect(caught).not.toBeInstanceOf(ProjectConfigNotFoundError);
+        }
       } finally {
         fs.rmSync(projectRoot, { recursive: true, force: true });
       }
@@ -962,11 +975,15 @@ describe("template-engine", () => {
       },
     );
 
-    const invalidConfigs: Array<[string, unknown]> = [
-      ["a non-object value", "not an object"],
-      ["a non-string version", { version: 1 }],
-      ["a missing project", { version: "1.0" }],
-      ["a project without name/version", { version: "1.0", project: { version: 1 } }],
+    const invalidConfigs: Array<[string, unknown, string]> = [
+      ["a non-object value", "not an object", ""],
+      ["a non-string version", { version: 1 }, "version"],
+      ["a missing project", { version: "1.0" }, "project"],
+      [
+        "a project without name/version",
+        { version: "1.0", project: { version: 1 } },
+        "project.name",
+      ],
       [
         "phases missing a phase",
         {
@@ -974,6 +991,7 @@ describe("template-engine", () => {
           project: { name: "p", version: "1.0.0" },
           phases: { pre_alpha: { enabledStacks: [] } },
         },
+        "phases.alpha",
       ],
       [
         "phases whose enabledStacks is not an array",
@@ -987,6 +1005,7 @@ describe("template-engine", () => {
           optional_infra: projectConfig().optional_infra,
           discovery: { paths: [] },
         },
+        "phases.alpha.enabledStacks",
       ],
       [
         "a missing optional_infra",
@@ -996,6 +1015,7 @@ describe("template-engine", () => {
           phases: projectConfig().phases,
           discovery: { paths: [] },
         },
+        "optional_infra",
       ],
       [
         "a non-boolean optional_infra flag",
@@ -1003,38 +1023,44 @@ describe("template-engine", () => {
           ...projectConfig(),
           optional_infra: { ...projectConfig().optional_infra, verdaccio: "yes" },
         },
+        "optional_infra.verdaccio",
       ],
-      ["a discovery without paths", { ...projectConfig(), discovery: {} }],
+      ["a discovery without paths", { ...projectConfig(), discovery: {} }, "discovery.paths"],
     ];
 
     for (const flag of ["monitoring", "elk", "debezium", "golden_image", "verdaccio"] as const) {
       invalidConfigs.push([
         `a non-boolean optional_infra.${flag}`,
         { ...projectConfig(), optional_infra: { ...projectConfig().optional_infra, [flag]: 1 } },
+        `optional_infra.${flag}`,
       ]);
     }
     invalidConfigs.push(
-      ["a null discovery", { ...projectConfig(), discovery: null }],
-      ["a string discovery", { ...projectConfig(), discovery: "services/*" }],
+      ["a null discovery", { ...projectConfig(), discovery: null }, "discovery"],
+      ["a string discovery", { ...projectConfig(), discovery: "services/*" }, "discovery"],
       [
         "discovery paths that are not an array",
         { ...projectConfig(), discovery: { paths: "services/*" } },
+        "discovery.paths",
       ],
-      ["a null optional_infra", { ...projectConfig(), optional_infra: null }],
+      ["a null optional_infra", { ...projectConfig(), optional_infra: null }, "optional_infra"],
     );
 
-    for (const [label, value] of invalidConfigs) {
-      it(`rejects ${label}`, () => {
+    for (const [label, value, field] of invalidConfigs) {
+      it(`rejects ${label} and names ${field || "the file"}`, () => {
         const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-invalid-project-json-"));
         try {
           writeProjectJson(projectRoot, value);
 
           const caught = catchFromReadProjectConfig(projectRoot);
 
-          expect(caught).toBeInstanceOf(Error);
-          expect((caught as Error).message).toContain(
-            "Invalid project.json: missing or invalid required fields",
-          );
+          expect(caught).toBeInstanceOf(FliskError);
+          const error = caught as FliskError;
+          const name = field ? `.flisk/project.json.${field}` : ".flisk/project.json";
+          expect(error.message).toContain(`${name}: expected`);
+          expect(error.message).not.toContain("missing or invalid required fields");
+          // A wrong type in the file is the user's error, not an internal failure.
+          expect(error.exitCode).toBe(1);
           expect(caught).not.toBeInstanceOf(ProjectConfigNotFoundError);
         } finally {
           fs.rmSync(projectRoot, { recursive: true, force: true });

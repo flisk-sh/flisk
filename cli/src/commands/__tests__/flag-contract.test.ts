@@ -163,6 +163,18 @@ const DRY_RUN_MATRIX: Array<{
     expect: "Files written:",
   },
   { site: "up --dry-run", command: ["up"], project: CONFIGURED_PROJECT, expect: "Dry run" },
+  {
+    site: "config enable-infra --dry-run",
+    command: ["config", "enable-infra"],
+    project: CONFIGURED_PROJECT,
+    expect: "Would enable monitoring.",
+  },
+  {
+    site: "config disable-infra --dry-run",
+    command: ["config", "disable-infra"],
+    project: CONFIGURED_PROJECT,
+    expect: "No change: monitoring is already disabled.",
+  },
 ];
 
 /**
@@ -242,6 +254,8 @@ const EXEMPT: Record<string, string> = {
     "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute status --json":
     "a subcommand of distribute that needs a distribution.json; distribute.test.ts covers the envelope and --init",
+  "distribute kit --json":
+    "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute kit --dry-run":
     "takes a required <resource> argument and prints the kit instead of 'Dry run -' lines only; distribute.test.ts proves it writes nothing",
   "connect --json":
@@ -415,7 +429,8 @@ describe("flag contract: --json", () => {
     },
   );
 
-  it.each(JSON_MATRIX)(
+  // `projects` lists running projects outside a project instead of failing; it has its own test below.
+  it.each(JSON_MATRIX.filter(({ command }) => command.join(" ") !== "projects"))(
     "flisk $command --json outside a project fails with a null-data envelope",
     ({ command }) => {
       const result = runFlisk([...command, "--json"], { cwd: createTempDir() });
@@ -427,6 +442,17 @@ describe("flag contract: --json", () => {
       expect(envelope.errors).toHaveLength(1);
     },
   );
+});
+
+describe("flag contract: --json for projects outside a project", () => {
+  it("flisk projects --json outside a project prints one envelope listing running projects", () => {
+    const result = runFlisk(["projects", "--json"], { cwd: createTempDir() });
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toContain("Could not find project root");
+    const envelope = parseOneEnvelope(result.stdout);
+    expect(envelope.errors).toEqual([]);
+    expect((envelope.data as { projects: unknown }).projects).toEqual(expect.any(Array));
+  });
 });
 
 describe("flag contract: --json for commands that change the project", () => {
@@ -551,6 +577,8 @@ const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
   down: { command: downCommand, args: [] },
   eject: { command: ejectCommand, args: [] },
   up: { command: upCommand, args: [] },
+  "config enable-infra": { command: configCommand, args: ["enable-infra", "monitoring"] },
+  "config disable-infra": { command: configCommand, args: ["disable-infra", "monitoring"] },
 };
 
 describe("flag contract: --dry-run", () => {
@@ -671,7 +699,7 @@ describe("flag contract: unknown flag handling", () => {
     const dir = createTempDir("flisk-unknown-flag-");
     try {
       const res = runFlisk(["status", "--nonexistent-flag-test"], { cwd: dir });
-      expect(res.status).toBe(1);
+      expect(res.status).toBe(2);
       expect(res.stderr).toContain("error: unknown option");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

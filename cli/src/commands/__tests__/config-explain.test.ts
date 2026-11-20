@@ -190,6 +190,71 @@ describe("config explain: files whose path alone does not settle ownership", () 
       driftOnUp: "none",
     });
   });
+
+  it("reports AGENTS.md as created once by Flisk, never overwritten", async () => {
+    const root = createTempProject({
+      projectJson,
+      files: { "AGENTS.md": "# AGENTS.md\n\nThis project runs on Flisk.\n" },
+    });
+
+    const result = await explainJson(root, "AGENTS.md");
+
+    expect(parseEnvelope(result.stdout).data).toMatchObject({
+      file: "AGENTS.md",
+      ownership: "user-owned",
+      reason:
+        "Flisk creates AGENTS.md only when it is missing and never overwrites an existing one.",
+      source: null,
+      driftOnUp: "none",
+      next: ["Edit it directly."],
+    });
+  });
+
+  it("reports CLAUDE.md with the same created-once wording", async () => {
+    const root = createTempProject({ projectJson, files: { "CLAUDE.md": "@AGENTS.md\n" } });
+
+    const result = await explainJson(root, "CLAUDE.md");
+
+    expect(parseEnvelope(result.stdout).data).toMatchObject({
+      ownership: "user-owned",
+      reason:
+        "Flisk creates CLAUDE.md only when it is missing and never overwrites an existing one.",
+      driftOnUp: "none",
+    });
+  });
+});
+
+describe("config explain: scaffolded resource files", () => {
+  it("says Flisk scaffolded the resource once instead of denying it wrote the file", async () => {
+    const root = createTempProject({
+      projectJson,
+      resources: { api: apiService },
+      files: { "services/api/Dockerfile": "FROM scratch\n" },
+    });
+
+    const result = await explainJson(root, "services/api/Dockerfile");
+
+    expect(parseEnvelope(result.stdout).data).toMatchObject({
+      file: "services/api/Dockerfile",
+      ownership: "user-owned",
+      reason:
+        "Flisk scaffolded this resource once and never regenerates its files, so edits are yours to keep.",
+      source: null,
+      driftOnUp: "none",
+      next: ["Edit it directly."],
+    });
+  });
+
+  it("keeps the fallback wording for a file outside every resource folder", async () => {
+    const root = createTempProject({ projectJson, files: { "docs/notes.md": "# notes\n" } });
+
+    const result = await explainJson(root, "docs/notes.md");
+
+    expect(parseEnvelope(result.stdout).data).toMatchObject({
+      ownership: "user-owned",
+      reason: "Not in Flisk's generated-file allowlist, so Flisk does not write it.",
+    });
+  });
 });
 
 describe("config explain: path resolution", () => {

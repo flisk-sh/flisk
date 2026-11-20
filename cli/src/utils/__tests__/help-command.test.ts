@@ -94,16 +94,16 @@ describe("CLI `flisk help <cmd> <sub>` matches `flisk <cmd> <sub> --help` (#4486
     });
   }
 
-  it("prints an unknown-command error and exits 1 for `flisk help mcp bogus`", () => {
+  it("prints an unknown-command error and exits 2 for `flisk help mcp bogus`", () => {
     const result = runFlisk(["help", "mcp", "bogus"], { cwd: process.cwd() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("error: unknown command 'bogus'");
   });
 
   it("returns the USAGE JSON envelope for `flisk help config bogus --json`", () => {
     const result = runFlisk(["help", "config", "bogus", "--json"], { cwd: process.cwd() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toBe("");
     const env = parseEnvelope(result.stdout);
     expect(env.errors).toHaveLength(1);

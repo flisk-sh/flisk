@@ -43,7 +43,7 @@ describe("rewriteUnknownCommandMessage (#4491)", () => {
 describe("CLI unknown command suggestions (#4491)", () => {
   it("suggests networks instead of export/import for `flisk ports`", () => {
     const result = runFlisk(["ports"], { cwd: process.cwd() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("error: unknown command 'ports'");
     expect(result.stderr).toContain("(Did you mean networks?)");
@@ -52,7 +52,7 @@ describe("CLI unknown command suggestions (#4491)", () => {
 
   it("includes mapped suggestions in `flisk ports --json`", () => {
     const result = runFlisk(["ports", "--json"], { cwd: process.cwd() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toBe("");
     const env = parseEnvelope(result.stdout);
     expect(env.errors).toHaveLength(1);
@@ -63,11 +63,11 @@ describe("CLI unknown command suggestions (#4491)", () => {
 
   it("suggests down for `flisk stop` and keeps spelling suggestion for `flisk nope`", () => {
     const stopResult = runFlisk(["stop"], { cwd: process.cwd() });
-    expect(stopResult.status).toBe(1);
+    expect(stopResult.status).toBe(2);
     expect(stopResult.stderr).toContain("(Did you mean down?)");
 
     const nopeResult = runFlisk(["nope"], { cwd: process.cwd() });
-    expect(nopeResult.status).toBe(1);
+    expect(nopeResult.status).toBe(2);
     expect(nopeResult.stderr).toContain("(Did you mean open?)");
   });
 });
