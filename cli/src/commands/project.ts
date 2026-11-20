@@ -39,6 +39,7 @@ import {
   templateTargetDir,
 } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
+import { cleanStaleVolumesForScaffold } from "../utils/scaffold-volume-cleanup.js";
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
@@ -639,6 +640,15 @@ export const projectCommand = addYesOption(new Command("project"))
         const destination = await cloneProjectTemplate(template, options.path, runtimeNextSteps, {
           quiet,
         });
+        // A re-scaffold writes a new random DB_PASSWORD when `flisk up` completes the project, but
+        // Postgres keeps the password of an old data volume and then rejects the migrator (#3983).
+        const cleanup = cleanStaleVolumesForScaffold(destination);
+        if (!quiet && cleanup.removed.length > 0) {
+          showDetail(
+            `Removed stale Docker volumes from an earlier project of this name: ${cleanup.removed.join(", ")}`,
+            0,
+          );
+        }
         return { data: { action: "cloned", template, path: destination, runtime } };
       }
       return initializeProject(runtime, runtimeNextSteps);

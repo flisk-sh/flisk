@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,6 +32,14 @@ const mocks = vi.hoisted(() => ({
     throw new ProcessExit(1);
   }),
   installAgentSkills: vi.fn(() => ["flisk-build"]),
+  cleanStaleVolumesForScaffold: vi.fn(() => ({
+    projectName: "flisk-example",
+    candidates: [] as string[],
+    removed: [] as string[],
+    skippedReason: "none" as const,
+    sharedFolders: [] as string[],
+    runningFolders: [] as string[],
+  })),
 }));
 
 vi.mock("../../utils/cold-preflight.js", () => ({
@@ -74,6 +82,9 @@ vi.mock("../../utils/errors.js", async (importOriginal) => ({
 vi.mock("../../utils/agent-skills.js", () => ({
   installAgentSkills: mocks.installAgentSkills,
 }));
+vi.mock("../../utils/scaffold-volume-cleanup.js", () => ({
+  cleanStaleVolumesForScaffold: mocks.cleanStaleVolumesForScaffold,
+}));
 
 class ProcessExit extends Error {
   constructor(readonly code: number) {
@@ -115,6 +126,15 @@ beforeEach(() => {
   mocks.ensureGitignore.mockReturnValue([]);
   mocks.promptConfirm.mockResolvedValue(true);
   mocks.installAgentSkills.mockReturnValue(["flisk-build"]);
+  mocks.cleanStaleVolumesForScaffold.mockClear();
+  mocks.cleanStaleVolumesForScaffold.mockReturnValue({
+    projectName: "flisk-example",
+    candidates: [],
+    removed: [],
+    skippedReason: "none",
+    sharedFolders: [],
+    runningFolders: [],
+  });
   mocks.showErrorAndExit.mockImplementation((_msg: string) => {
     throw new ProcessExit(1);
   });
@@ -268,6 +288,15 @@ describe("project command action", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(mocks.showDetail).toHaveBeenCalledWith(".flisk/project.json (not found)", 3);
+  });
+
+  it("clears stale volumes after cloning a template (#3983)", async () => {
+    const dest = join(root, "flisk-example");
+
+    await runProject({ yes: true, path: dest, agentSkills: false }, "example");
+
+    expect(existsSync(join(dest, ".flisk", "project.json"))).toBe(true);
+    expect(mocks.cleanStaleVolumesForScaffold).toHaveBeenCalledExactlyOnceWith(dest);
   });
 
   it("suggests the closest starter for a mistyped template name", async () => {
