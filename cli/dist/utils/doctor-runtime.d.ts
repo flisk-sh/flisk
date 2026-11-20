@@ -4,6 +4,7 @@ import { type HostCommandCache } from "./host-command-cache.js";
 import { type PortOwnerDetails } from "./port-owner.js";
 import { type HealthProbe } from "./service-urls.js";
 import type { SmokeResult } from "./smoke.js";
+import { type TiltPortOwner } from "./tilt-port-owner.js";
 export declare const HOST_PORT_FIXES: {
     readonly port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: flisk doctor";
     readonly port5432: "Stop local Postgres or change the host port. Then: flisk doctor";
@@ -129,12 +130,21 @@ export declare function summarizeAdvertisedProbes(probes: HealthProbe[]): CheckR
  * containers here.
  */
 export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>, options?: Record<string, unknown>, findOwner?: (port: number) => PortOwnerDetails | null, commandCache?: HostCommandCache): Promise<CheckResult>;
+export interface TiltResourceCheckOptions {
+    /** Override project detection; null means the check runs outside a project. */
+    projectRoot?: string | null;
+    /** Override the port lookup (tests and callers that already resolved it). */
+    tiltPort?: number;
+    /** Override the host owner lookup so no lsof/ps is spawned in unit tests. */
+    ownerOf?: (port: number) => TiltPortOwner | null;
+}
 /**
  * When a Tilt session is active, surface resource update errors (Traefik port
  * binds, image builds, etc.) instead of claiming the environment is ready
- * while apps sit forever in pending/none.
+ * while apps sit forever in pending/none. Never read resources from a Tilt
+ * that belongs to another project: use the same owner lookup as `status`.
  */
-export declare function checkTiltResourceHealth(exec?: typeof execSync): CheckResult;
+export declare function checkTiltResourceHealth(exec?: typeof execSync, options?: TiltResourceCheckOptions): CheckResult;
 export declare function isInfraTiltFailure(name: string): boolean;
 /** Critical infra first, then everything else — never drop failures. */
 export declare function orderTiltFailures(failures: TiltResourceFailure[]): TiltResourceFailure[];

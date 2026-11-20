@@ -67,6 +67,28 @@ export function isForeignTilt(owner: TiltPortOwner | null, projectRoot: string):
   return owner !== null && canonical(owner.root) !== canonical(projectRoot);
 }
 
+export interface ForeignTiltOnPort {
+  port: number;
+  /** Project root of the foreign Tiltfile. */
+  root: string;
+}
+
+/**
+ * The one "which project owns the Tilt on this port" lookup shared by `status` and `doctor`.
+ * Null means this project's Tilt, an unknown owner, or no project to compare against; callers
+ * must not treat it as proof that this project is running.
+ */
+export function findForeignTiltOnPort(
+  port: number,
+  projectRoot: string | null,
+  ownerOf: (port: number) => TiltPortOwner | null = findTiltPortOwner,
+): ForeignTiltOnPort | null {
+  if (!projectRoot) return null;
+  const owner = ownerOf(port);
+  if (!owner || !isForeignTilt(owner, projectRoot)) return null;
+  return { port, root: owner.root };
+}
+
 export interface ClassifiedTiltPorts {
   /** Ports whose Tilt is this project's, or whose owner cannot be told (treated as before: this environment). */
   running: number[];

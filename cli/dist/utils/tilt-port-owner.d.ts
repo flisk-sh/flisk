@@ -13,6 +13,17 @@ export declare function findTiltPortOwner(port: number, platform?: NodeJS.Platfo
 export declare function isOwnTilt(owner: TiltPortOwner | null, projectRoot: string): boolean;
 /** Whether `owner` is another project's Tilt, as opposed to this project's or unknown. */
 export declare function isForeignTilt(owner: TiltPortOwner | null, projectRoot: string): boolean;
+export interface ForeignTiltOnPort {
+    port: number;
+    /** Project root of the foreign Tiltfile. */
+    root: string;
+}
+/**
+ * The one "which project owns the Tilt on this port" lookup shared by `status` and `doctor`.
+ * Null means this project's Tilt, an unknown owner, or no project to compare against; callers
+ * must not treat it as proof that this project is running.
+ */
+export declare function findForeignTiltOnPort(port: number, projectRoot: string | null, ownerOf?: (port: number) => TiltPortOwner | null): ForeignTiltOnPort | null;
 export interface ClassifiedTiltPorts {
     /** Ports whose Tilt is this project's, or whose owner cannot be told (treated as before: this environment). */
     running: number[];

@@ -13,7 +13,7 @@ import {
   runCachedHostCommand,
   SHARED_DOCKER_PS,
 } from "./host-command-cache.js";
-import { toNamePortsLines } from "./host-port-config.js";
+import { resolveRuntimeTiltPort, toNamePortsLines } from "./host-port-config.js";
 import { findProjectRoot } from "./paths.js";
 import {
   findPortOwner,
@@ -27,6 +27,7 @@ import { healthCheckPathOf, isHealthCheckDisabled } from "./service-manifest.js"
 import { getProjectName, type HealthProbe } from "./service-urls.js";
 import { discoverResources, discoverResourcesFromRoot } from "./services.js";
 import type { SmokeResult } from "./smoke.js";
+import { findForeignTiltOnPort, findTiltPortOwner, type TiltPortOwner } from "./tilt-port-owner.js";
 import {
   effectiveRuntimeStatus,
   isNeverStarted,
@@ -1031,19 +1032,51 @@ export async function checkHostPorts(
   };
 }
 
+export interface TiltResourceCheckOptions {
+  /** Override project detection; null means the check runs outside a project. */
+  projectRoot?: string | null;
+  /** Override the port lookup (tests and callers that already resolved it). */
+  tiltPort?: number;
+  /** Override the host owner lookup so no lsof/ps is spawned in unit tests. */
+  ownerOf?: (port: number) => TiltPortOwner | null;
+}
+
 /**
  * When a Tilt session is active, surface resource update errors (Traefik port
  * binds, image builds, etc.) instead of claiming the environment is ready
- * while apps sit forever in pending/none.
+ * while apps sit forever in pending/none. Never read resources from a Tilt
+ * that belongs to another project: use the same owner lookup as `status`.
  */
-export function checkTiltResourceHealth(exec: typeof execSync = execSync): CheckResult {
-  const tiltPort = String(getTiltPollingPort(process.env.TILT_PORT));
+export function checkTiltResourceHealth(
+  exec: typeof execSync = execSync,
+  options: TiltResourceCheckOptions = {},
+): CheckResult {
+  const ownerOf = options.ownerOf ?? findTiltPortOwner;
+  const projectRoot = options.projectRoot === undefined ? findProjectRoot() : options.projectRoot;
+  const tiltPort =
+    options.tiltPort ??
+    (projectRoot
+      ? (resolveRuntimeTiltPort(projectRoot, { envPort: process.env.TILT_PORT, ownerOf }) ??
+        getTiltPollingPort(process.env.TILT_PORT))
+      : getTiltPollingPort(process.env.TILT_PORT));
+
+  const foreign = findForeignTiltOnPort(tiltPort, projectRoot, ownerOf);
+  if (foreign) {
+    return {
+      name: "Tilt Resources",
+      didPass: true,
+      isSkipped: true,
+      message: `a Tilt for ${foreign.root} is running on ${foreign.port}; this project is not running`,
+      fix: `Start this project with: flisk up. It chooses a free Tilt UI port; set TILT_PORT to a free port if you need a specific one (${foreign.port} belongs to ${foreign.root}).`,
+    };
+  }
+
   let jsonText = "";
   try {
     jsonText = runHostCommand(
       exec,
       "tilt",
-      ["get", "uiresources", "-o", "json", "--port", tiltPort],
+      ["get", "uiresources", "-o", "json", "--port", String(tiltPort)],
       `tilt get uiresources -o json --port ${tiltPort}`,
       {
         stdio: "pipe",

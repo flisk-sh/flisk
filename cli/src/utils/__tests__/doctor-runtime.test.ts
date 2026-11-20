@@ -4,7 +4,7 @@ import type { execSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiscoveredResource } from "../../types/index.js";
 import {
   checkHealthRoutes,
@@ -243,6 +243,70 @@ describe("doctor-runtime utilities", () => {
   });
 
   describe("checkTiltResourceHealth", () => {
+    it("skips a Tilt owned by another project without reading its resources", () => {
+      const payload = JSON.stringify({
+        items: [
+          {
+            metadata: { name: "web" },
+            status: {
+              updateStatus: "error",
+              runtimeStatus: "error",
+              buildHistory: [{ error: "health check is failing" }],
+            },
+          },
+        ],
+      });
+      const exec = vi.fn(() => payload);
+      const ownerOf = vi.fn(() => ({ pid: 99, root: "/work/other" }));
+
+      const result = checkTiltResourceHealth(exec as never, {
+        projectRoot: "/work/current",
+        tiltPort: 10350,
+        ownerOf,
+      });
+
+      expect(ownerOf).toHaveBeenCalledWith(10350);
+      expect(exec).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        name: "Tilt Resources",
+        didPass: true,
+        isSkipped: true,
+        message: "a Tilt for /work/other is running on 10350; this project is not running",
+      });
+      expect(result.message).not.toContain("web");
+      expect(result.fix).toContain("TILT_PORT");
+    });
+
+    it("checks the resources when the Tilt on the port belongs to this project", () => {
+      const payload = JSON.stringify({
+        items: [
+          {
+            metadata: { name: "web" },
+            status: {
+              updateStatus: "error",
+              runtimeStatus: "error",
+              buildHistory: [{ error: "health check is failing" }],
+            },
+          },
+        ],
+      });
+      const exec = vi.fn(() => payload);
+      const ownerOf = vi.fn(() => ({ pid: 42, root: "/work/current" }));
+
+      const result = checkTiltResourceHealth(exec as never, {
+        projectRoot: "/work/current",
+        tiltPort: 10350,
+        ownerOf,
+      });
+
+      expect(ownerOf).toHaveBeenCalledWith(10350);
+      expect(exec).toHaveBeenCalledTimes(1);
+      expect(result.didPass).toBe(false);
+      expect(result.isSkipped).toBeUndefined();
+      expect(result.message).toContain("web");
+      expect(result.fix).toContain("Open the Tilt UI URL printed by flisk up");
+    });
+
     it("skips when Tilt returns an unparseable resource status response", () => {
       const result = checkTiltResourceHealth((() => "not valid JSON") as never);
 

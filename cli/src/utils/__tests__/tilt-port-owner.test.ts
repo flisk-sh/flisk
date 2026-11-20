@@ -13,6 +13,7 @@ vi.mock("node:child_process", async (importOriginal) => ({
 
 import {
   classifyTiltPorts,
+  findForeignTiltOnPort,
   findProjectTiltPorts,
   findTiltPortOwner,
   isForeignTilt,
@@ -101,6 +102,22 @@ describe("findTiltPortOwner", () => {
         windowsHide: true,
       }),
     );
+  });
+});
+
+describe("findForeignTiltOnPort", () => {
+  it("names another project's Tilt on the port", () => {
+    expect(
+      findForeignTiltOnPort(10350, "/work/current", () => ({ pid: 99, root: "/work/other" })),
+    ).toEqual({ port: 10350, root: "/work/other" });
+  });
+
+  it("returns null for this project's Tilt, an unknown owner, or no project", () => {
+    expect(
+      findForeignTiltOnPort(10350, "/work/current", () => ({ pid: 1, root: "/work/current" })),
+    ).toBeNull();
+    expect(findForeignTiltOnPort(10350, "/work/current", () => null)).toBeNull();
+    expect(findForeignTiltOnPort(10350, null, () => ({ pid: 99, root: "/work/other" }))).toBeNull();
   });
 });
 

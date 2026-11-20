@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk doctor` no longer fails the "Tilt Resources" check with another project's failing resources when that project's Tilt owns the UI port. It skips the check, names the foreign project, and points at `flisk up` for this project; `flisk status` and doctor now share the same Tilt-port ownership lookup (#4016).
+
 ## 1.4.70 (2026-11-20)
 
 - `flisk tool add openapi-mcp` prints the steps to run an OpenAPI-to-MCP gateway as a bring-your-own image, and `flisk tool add rag` points at a new recipe for the Qdrant MCP server with one collection per customer. A second recipe shows a policy check that refuses a `pay` tool call above a limit (#4060).

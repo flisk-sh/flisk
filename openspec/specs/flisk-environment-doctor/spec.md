@@ -15,6 +15,17 @@
 - **WHEN** the daemon is down or Docker is using Windows containers
 - **THEN** doctor reports the corresponding fix before status summaries and exits 1
 
+### Requirement: Doctor ignores another project's Tilt resources
+The `Tilt Resources` check SHALL use the same Tilt-port ownership detection as `flisk status`. When the Tilt on the port this project would use belongs to another project, doctor SHALL NOT query or print that Tilt's resources. It SHALL report the check as skipped and non-blocking, naming the foreign project and the port, and SHALL offer `TILT_PORT` guidance only for that port. When the Tilt belongs to this project, the check SHALL inspect its resources as before.
+
+#### Scenario: Another project's Tilt owns the Tilt UI port
+- **WHEN** the Tilt on this project's Tilt UI port is owned by a different project
+- **THEN** doctor skips the `Tilt Resources` check without reading that Tilt's resources, names the other project and port, and does not fail readiness
+
+#### Scenario: This project's Tilt owns the Tilt UI port
+- **WHEN** the Tilt on this project's Tilt UI port is owned by this project
+- **THEN** doctor checks its resources and still fails on failed or stale disabled resources
+
 ### Requirement: WSL project placement is diagnosed
 When running in WSL2 Ubuntu, doctor SHALL warn if the project is under `/mnt/c` because hot reload may be impaired. With `--strict`, that placement SHALL fail the check and cause exit 1.
 
