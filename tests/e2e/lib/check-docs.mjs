@@ -1,10 +1,12 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Case D3 of the agent suite: relative links and anchors in README.md, AGENTS.md and docs/** resolve; nothing refers to the
-// removed root llms.txt / llms-full.txt or docs/ai-agents.md; the docs/agents/llms*.txt files link only to things that exist.
+// removed root llms.txt / llms-full.txt or docs/ai-agents.md; the docs/agents/llms*.txt files link only to things that exist;
+// the e2e guide's moved-suite list matches the folders under tests/e2e/resource-types/.
 // Run from the repository root: node tests/e2e/lib/check-docs.mjs
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { checkMovedSuiteDocs } from "./docs-moved-suites.mjs";
 
 const root = process.cwd();
 const failures = [];
@@ -145,6 +147,7 @@ function checkVersionFloors() {
 }
 
 checkVersionFloors();
+failures.push(...checkMovedSuiteDocs(root));
 
 if (failures.length > 0) {
   console.error(`${failures.length} documentation problem(s):\n${failures.map((f) => `  ${f}`).join("\n")}`);

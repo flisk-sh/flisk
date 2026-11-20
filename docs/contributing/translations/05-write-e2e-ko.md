@@ -31,7 +31,8 @@
 
 실행 중인 에이전트를 읽는 MCP 도구를 추가하시나요? 그렇다면 `agent` 스위트(또는 MCP 리소스의 경우 `mcp` 스위트)에 속합니다. 케이스 C1~C3의 형식을 따르세요.
 
-현재까지는 `resource-types/agent`만 이전되었습니다. 다른 E2E 테스트는 여전히 `.github/workflows/*-e2e.yml`, `scripts/e2e/`, `scripts/verify-*.sh` 및 `tests/e2e/*.test.sh`에 위치합니다. 이들은 [`openspec/changes/organize-e2e-suites`](../../../openspec/changes/organize-e2e-suites/tasks.md)에 설명된 대로 풀 리퀘스트당 하나의 스위트씩 이전됩니다. 변경 사항이 이들 중 하나와 관련된 경우, 현재 위치에서 확장하거나 먼저 이전하세요.
+`resource-types` 그룹에는 이전된 스위트가 10개 있습니다: `agent`, `backend`, `bring-your-own`, `combined`, `frontend`, `library`, `mcp`, `migrator`, `sdk`, `worker`.
+다른 E2E 테스트는 여전히 `.github/workflows/*-e2e.yml`, `scripts/e2e/`, `scripts/verify-*.sh` 및 `tests/e2e/*.test.sh`에 위치합니다. 이들은 [`openspec/changes/organize-e2e-suites`](../../../openspec/changes/organize-e2e-suites/tasks.md)에 설명된 대로 풀 리퀘스트당 하나의 스위트씩 이전됩니다. 변경 사항이 이들 중 하나와 관련된 경우, 현재 위치에서 확장하거나 먼저 이전하세요.
 
 ---
 
