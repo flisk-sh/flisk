@@ -75,3 +75,7 @@ A dry run and a green CI check are not evidence. Before asking a maintainer to m
 - A database migration runs in its own `migrator` resource, not in the API's start script.
 - Do not commit `.env` or secrets. Ask before changing an existing port, rename, or removing a start script.
 - Report what was added (`git status`), the URLs, and what was not converted or not tested.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

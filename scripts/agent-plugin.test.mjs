@@ -4,7 +4,7 @@
 // that host, and the generator keeps the skill copies in step with cli/templates/agent-skills.
 //   node --test scripts/agent-plugin.test.mjs
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -18,6 +18,7 @@ import {
   mcpRegistryServer,
   OPENAI_INTERFACE,
   openaiZip,
+  plan,
   PLUGIN_DIR,
   run,
   SKILLS_SOURCE,
@@ -28,6 +29,12 @@ const GENERATOR = fileURLToPath(new URL("./agent-plugin.mjs", import.meta.url));
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMAS = path.join(ROOT, "scripts/agent-plugin-schemas");
 const readJson = (...parts) => JSON.parse(readFileSync(path.join(...parts), "utf8"));
+const PLUGIN_CLAUDE_FILES = [
+  `${PLUGIN_DIR}/hooks/hooks.json`,
+  `${PLUGIN_DIR}/hooks/flisk-generated-guard.mjs`,
+  `${PLUGIN_DIR}/hooks/flisk-config-verify.mjs`,
+  `${PLUGIN_DIR}/agents/flisk-verifier.md`,
+];
 
 // Enough JSON Schema for the two Agent Plugins 1.0.0 schemas (copied from agent-plugins.org/schemas/1.0.0/): type,
 // const, pattern, lengths, required, properties, additionalProperties, items, propertyNames.not.enum, $ref and oneOf.
@@ -65,6 +72,146 @@ function validate(schema, value, at = "$", defs = schema.$defs) {
 
 test("the committed plugin files match the generator", () => {
   assert.deepEqual(run(ROOT, { write: false }), [], "run: node scripts/agent-plugin.mjs");
+});
+
+test("the self-hosted plugin owns the Claude Code hooks and verifier agent", () => {
+  const generated = new Set(plan(ROOT).map((file) => file.rel));
+  for (const rel of PLUGIN_CLAUDE_FILES) {
+    assert.ok(generated.has(rel), `the generator plans ${rel}`);
+    assert.ok(existsSync(path.join(ROOT, rel)), rel);
+  }
+  const manifest = readJson(ROOT, PLUGIN_DIR, ".claude-plugin/plugin.json");
+  assert.equal(manifest.hooks, "./hooks/hooks.json");
+  const hooks = readJson(ROOT, PLUGIN_DIR, "hooks/hooks.json").hooks;
+  assert.ok(hooks.PreToolUse?.length, "a PreToolUse hook guards edits");
+  assert.ok(hooks.PostToolUse?.length, "a PostToolUse hook verifies edits");
+  const commands = [];
+  for (const [event, groups] of Object.entries(hooks)) {
+    for (const group of groups) {
+      assert.match(group.matcher, /Edit|Write/, `${event}: the hook runs on file edits`);
+      for (const hook of group.hooks) {
+        assert.equal(hook.type, "command");
+        assert.equal(hook.command, "node", "hooks are portable: no POSIX shell");
+        assert.equal(hook.args.length, 1);
+        commands.push(hook.args[0]);
+      }
+    }
+  }
+  assert.ok(commands.includes("${CLAUDE_PLUGIN_ROOT}/hooks/flisk-generated-guard.mjs"));
+  assert.ok(commands.includes("${CLAUDE_PLUGIN_ROOT}/hooks/flisk-config-verify.mjs"));
+  // Hooks run commands, so only the self-hosted plugin ships them, never the directory-listed one.
+  for (const dir of ["hooks", "agents"]) {
+    assert.ok(!existsSync(path.join(ROOT, CLAUDE_PLUGIN_DIR, dir)), `${CLAUDE_PLUGIN_DIR}/${dir}`);
+  }
+});
+
+test("flisk-verifier is read-only and checks with Flisk's own read tools", () => {
+  const text = readFileSync(path.join(ROOT, PLUGIN_DIR, "agents/flisk-verifier.md"), "utf8");
+  assert.match(text, /^---\nname: flisk-verifier\n/);
+  assert.match(text, /^---\nname: flisk-verifier\ndescription: [^\n]+\n/);
+  const frontmatter = text.split("---")[1];
+  for (const tool of [
+    "Bash(flisk status:*)",
+    "Bash(flisk logs:*)",
+    "Bash(flisk doctor --json)",
+    "mcp__flisk__status",
+    "mcp__flisk__logs",
+    "mcp__flisk__doctor",
+    "mcp__flisk__resource_list",
+    "mcp__flisk__network_list",
+    "mcp__flisk__config_verify",
+  ]) {
+    assert.ok(frontmatter.includes(tool), `the agent may use ${tool}`);
+  }
+  for (const tool of [
+    "Edit",
+    "Write",
+    "NotebookEdit",
+    "Bash(flisk up",
+    "Bash(flisk down",
+    "Bash(flisk doctor --fix",
+    "mcp__flisk__up",
+    "mcp__flisk__resource_create",
+    "mcp__flisk__config_regenerate",
+  ]) {
+    assert.ok(!frontmatter.includes(tool), `the agent cannot use ${tool}`);
+  }
+  for (const word of ["status", "logs", "doctor", "URL"]) assert.match(text, new RegExp(word, "i"));
+});
+
+test("every flisk-claude skill says how to add the MCP server when tools are missing", () => {
+  for (const name of skillNames(ROOT)) {
+    const text = readFileSync(path.join(ROOT, CLAUDE_PLUGIN_DIR, "skills", name, "SKILL.md"), "utf8");
+    assert.match(text, /flisk connect claude/, name);
+  }
+});
+
+test("the shipped hooks deny generated edits, allow source edits and report config drift", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "flisk-plugin-hooks-"));
+  try {
+    const guard = path.join(ROOT, PLUGIN_DIR, "hooks/flisk-generated-guard.mjs");
+    const verify = path.join(ROOT, PLUGIN_DIR, "hooks/flisk-config-verify.mjs");
+    const at = (...parts) => path.join(dir, ...parts);
+    const input = (event, tool, file) =>
+      JSON.stringify({
+        hook_event_name: event,
+        tool_name: tool,
+        tool_input: { file_path: file },
+        cwd: dir,
+      });
+    const run = (script, payload, env = {}) =>
+      spawnSync(process.execPath, [script], {
+        input: payload,
+        encoding: "utf8",
+        env: { ...process.env, CLAUDE_PROJECT_DIR: dir, ...env },
+      });
+
+    const denied = run(guard, input("PreToolUse", "Edit", at("services/api/.autogenerated/Dockerfile")));
+    assert.equal(denied.status, 2, denied.stderr);
+    assert.match(denied.stderr, /service\.json/);
+    assert.match(denied.stderr, /flisk resource/);
+    for (const file of [
+      ".flisk/project.json",
+      ".flisk-out/state.json",
+      "services/platform/database-management/docker-compose.yml",
+      "Tiltfile",
+      "TILT_TECH.star",
+    ]) {
+      assert.equal(run(guard, input("PreToolUse", "Write", at(file))).status, 2, file);
+    }
+    const allowed = run(guard, input("PreToolUse", "Edit", at("services/api/src/index.ts")));
+    assert.equal(allowed.status, 0, allowed.stderr);
+    assert.equal(allowed.stderr, "");
+
+    // A fake `flisk` on PATH proves the PostToolUse hook really runs `flisk config verify --json`.
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    const argsFile = path.join(dir, "verify-args.txt");
+    const drift = '{"schemaVersion":1,"data":{"valid":false,"errors":["service.json drift"]},"errors":[]}';
+    if (process.platform === "win32") {
+      writeFileSync(
+        path.join(bin, "flisk.cmd"),
+        `@echo off\r\necho %* > "${argsFile.split(path.sep).join("/")}"\r\necho ${drift}\r\n`,
+      );
+    } else {
+      writeFileSync(path.join(bin, "flisk"), `#!/bin/sh\necho "$*" > "${argsFile}"\necho '${drift}'\n`, {
+        mode: 0o755,
+      });
+    }
+    const env = { PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` };
+    const verified = run(verify, input("PostToolUse", "Edit", at("services/api/service.json")), env);
+    assert.equal(verified.status, 0, verified.stderr);
+    assert.match(verified.stdout, /service\.json drift/);
+    assert.equal(readFileSync(argsFile, "utf8").trim(), "config verify --json");
+
+    rmSync(argsFile, { force: true });
+    const skipped = run(verify, input("PostToolUse", "Edit", at("services/api/src/index.ts")), env);
+    assert.equal(skipped.status, 0, skipped.stderr);
+    assert.equal(skipped.stdout, "");
+    assert.ok(!existsSync(argsFile), "verify runs only after a service.json edit");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("plugin.json and mcp.json are valid Agent Plugins 1.0.0 documents", () => {

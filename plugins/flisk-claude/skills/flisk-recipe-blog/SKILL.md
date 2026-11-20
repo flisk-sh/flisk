@@ -34,3 +34,7 @@ flisk networks --stack blog --raw
 Each answers 200: the `blog` health URL, `/api/posts/health` and `/api/posts/health/db` on `api.<project>.localhost:<port>`. An admin `POST` without a token answers 401, and with a token it creates a post.
 
 Tell the user the blog URL, the API URL, how to create a post (the `curl` with a token), and that `flisk down` stops everything.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.
