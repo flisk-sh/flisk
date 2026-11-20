@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  relativeResourceFolder,
-  relativeResourceManifest,
-} from "../resource-relative-path.js";
+import { relativeResourceFolder, relativeResourceManifest } from "../resource-relative-path.js";
 
 const projectRoot = resolve("projects", "demo");
 
