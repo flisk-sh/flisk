@@ -15,8 +15,8 @@ import { findProjectRoot } from "../utils/paths.js";
 import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import { OUTPUT_WITHHELD, projectSecretValues, redactProjectText, redactValue, } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
-import { DEFAULT_WAIT_TIMEOUT_SECONDS, parseTimeoutSeconds } from "../utils/up-wait.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
+import { DEFAULT_WAIT_TIMEOUT_SECONDS, parseTimeoutSeconds } from "../utils/up-wait.js";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;

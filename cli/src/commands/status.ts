@@ -27,10 +27,7 @@ import {
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
-import {
-  readinessFromNativeStates,
-  strictNotReady,
-} from "../utils/service-readiness.js";
+import { readinessFromNativeStates, strictNotReady } from "../utils/service-readiness.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import {
   type ServiceUsage,

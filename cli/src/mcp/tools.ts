@@ -30,8 +30,8 @@ import {
   redactValue,
 } from "../utils/secret-redaction.js";
 import { clearDiscoveryResultCache, discoverResourcesWithProblems } from "../utils/services.js";
-import { DEFAULT_WAIT_TIMEOUT_SECONDS, parseTimeoutSeconds } from "../utils/up-wait.js";
 import { findTool, toolIds } from "../utils/tool-catalog.js";
+import { DEFAULT_WAIT_TIMEOUT_SECONDS, parseTimeoutSeconds } from "../utils/up-wait.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
