@@ -7,7 +7,7 @@ import { readProjectConfig } from "../generator/template-engine.js";
 import { formatBytes, trimColimaAndMeasure } from "../utils/colima-disk.js";
 import { addYesOption, attachNoPositionalHint, handleDryRun } from "../utils/command-helpers.js";
 import { normalizeCacheUntil, pruneDockerBuildCache, validateCacheUntil, } from "../utils/docker-build-cache.js";
-import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
+import { findRunningFliskProjects, lookupProjectTiltUpPids, planProjectNetworkPrune, probeProjectIdle, projectComposeProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { collectLeftovers, formatLeftovers } from "../utils/down-leftovers.js";
 import { errorFactories, FliskError, handleTiltFailure, requireProjectBeforeDocker, withTiltCheck, } from "../utils/errors.js";
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
@@ -119,8 +119,8 @@ async function resolveDownProject(options) {
 }
 /**
  * True only when it is certain nothing of this project runs: no `tilt up` for its Tiltfile and no container of its
- * generated Compose projects (`docker ps -a`, about 0.03 s). Any doubt (`ps` or Docker cannot be asked) is "not idle", so
- * `tilt down` still runs. Loading the whole Tiltfile just to find nothing took 1.5 s (#3768).
+ * generated Compose projects (`docker ps -a`). Any doubt (`ps` or Docker cannot be asked) is "not idle", so `tilt down`
+ * still runs. Loading the whole Tiltfile just to find nothing took 1.5 s (#3768).
  */
 function isProjectIdle(projectRoot) {
     try {
@@ -133,17 +133,28 @@ function isProjectIdle(projectRoot) {
         return false;
     }
 }
+/** The concurrent form of {@link isProjectIdle}, used before the prerequisite checks on the plain `down` path (#4173). */
+async function probeIdleBeforePrerequisites(projectRoot, listNetworks) {
+    try {
+        return await probeProjectIdle(projectRoot, getTiltfilePath(), { listNetworks });
+    }
+    catch {
+        return { idle: false };
+    }
+}
 /**
  * Remove this project's networks that no container uses. `isExplicit` is true when the user passed `--prune-networks`;
  * the run that happens after every `flisk down` stays quiet about networks Docker keeps and about a Docker that cannot
  * be asked.
  */
-function pruneNetworksOrWarn(json, isExplicit) {
+function pruneNetworksOrWarn(json, isExplicit, networkNames) {
     const root = findProjectRoot();
     if (!root)
         return undefined;
     try {
-        const result = pruneProjectNetworks(readProjectConfig(root).project.name);
+        const result = networkNames
+            ? pruneProjectNetworks(readProjectConfig(root).project.name, undefined, networkNames)
+            : pruneProjectNetworks(readProjectConfig(root).project.name);
         if (!json) {
             if (result.removed.length > 0) {
                 console.log(chalk.gray(`Removed networks: ${result.removed.join(", ")}`));
@@ -341,7 +352,17 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
             }
         }
     }
-    await withTiltCheck(async () => {
+    // Unused networks go by default (--no-prune-networks opts out); --purge removes them too.
+    const shouldPruneNetworks = options.pruneNetworks !== false;
+    const hasCleanup = Boolean(options.purge || shouldPruneCache);
+    // A plain `down` may stop at the idle shortcut. Ask the process list and Docker before the prerequisite checks so
+    // the independent reads overlap, and the `docker ps` liveness check is redundant when `docker ps -a` already answered (#4173).
+    const preflight = !options.dryRun && !hasCleanup
+        ? await probeIdleBeforePrerequisites(projectRoot, shouldPruneNetworks)
+        : undefined;
+    const skipRuntimeCheck = preflight?.idle === true && !hasCleanup;
+    const checkPrerequisites = (action) => withTiltCheck(action, { skipRuntimeCheck });
+    await checkPrerequisites(async () => {
         const wouldPurge = options.purge && options.dryRun ? projectArtifacts(projectRoot) : undefined;
         // Unused networks go by default (--no-prune-networks opts out); --purge removes them too, so the preview is for the plain run.
         const wouldPruneNetworks = options.pruneNetworks !== false && !options.purge && options.dryRun
@@ -375,15 +396,13 @@ export const downCommand = attachNoPositionalHint(addYesOption(new Command("down
             return;
         }
         // Unused networks go by default: stopped projects that kept theirs used up Docker's address pools (#3650).
-        const shouldPruneNetworks = options.pruneNetworks !== false;
-        const hasCleanup = Boolean(options.purge || shouldPruneCache);
-        const idle = isProjectIdle(projectRoot);
+        const idle = preflight ? preflight.idle : isProjectIdle(projectRoot);
         if (idle && !hasCleanup) {
             if (!options.json)
                 console.log(chalk.gray("Nothing is running for this project."));
-            // Networks an earlier `down` kept are still taken off the machine.
+            // Networks an earlier `down` kept are still taken off the machine; the preflight already listed them.
             const leftover = shouldPruneNetworks
-                ? pruneNetworksOrWarn(options.json, options.pruneNetworks === true)
+                ? pruneNetworksOrWarn(options.json, options.pruneNetworks === true, preflight?.networkNames)
                 : undefined;
             emit?.({
                 ok: true,

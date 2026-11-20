@@ -20,6 +20,7 @@ const {
   trimColimaAndMeasureMock,
   stopProjectComposeProjectsMock,
   lookupProjectTiltUpPidsMock,
+  probeProjectIdleMock,
   projectComposeProjectsMock,
   listProjectArtifactsMock,
   removeProjectArtifactsMock,
@@ -42,6 +43,11 @@ const {
   trimColimaAndMeasureMock: vi.fn(async (): Promise<unknown> => null),
   stopProjectComposeProjectsMock: vi.fn(),
   lookupProjectTiltUpPidsMock: vi.fn((): number[] => []),
+  probeProjectIdleMock: vi.fn(
+    async (): Promise<{ idle: boolean; networkNames?: string[] }> => ({
+      idle: false,
+    }),
+  ),
   // Something runs by default, so `down` reaches `tilt down`; the idle cases say otherwise.
   projectComposeProjectsMock: vi.fn((): string[] => ["demo-traefik"]),
 }));
@@ -66,6 +72,7 @@ vi.mock("../../utils/docker-build-cache.js", async (importOriginal) => ({
 vi.mock("../../utils/down-cleanup.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/down-cleanup.js")>()),
   lookupProjectTiltUpPids: lookupProjectTiltUpPidsMock,
+  probeProjectIdle: probeProjectIdleMock,
   findRunningFliskProjects: findRunningFliskProjectsMock,
   projectComposeProjects: projectComposeProjectsMock,
   pruneProjectNetworks: pruneProjectNetworksMock,
@@ -169,6 +176,7 @@ describe("flisk down", () => {
     trimColimaAndMeasureMock.mockResolvedValue(null);
     stopProjectComposeProjectsMock.mockReset();
     lookupProjectTiltUpPidsMock.mockReset().mockReturnValue([]);
+    probeProjectIdleMock.mockReset().mockResolvedValue({ idle: false });
     projectComposeProjectsMock.mockReset().mockReturnValue(["demo-traefik"]);
     listProjectArtifactsMock.mockReset();
     removeProjectArtifactsMock.mockReset();
@@ -495,6 +503,25 @@ describe("flisk down", () => {
       expect(runTiltMock).not.toHaveBeenCalled();
       expect(getContainerRuntimeStatusMock).toHaveBeenCalledTimes(1);
       expect(isTiltAvailableMock).toHaveBeenCalledTimes(1);
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(tempDir, { recursive: true, force: true });
+      log.mockRestore();
+    }
+  });
+
+  it("does not ask Docker for liveness again when the idle probe already answered (#4173)", async () => {
+    const tempDir = setupTestProject();
+    probeProjectIdleMock.mockResolvedValue({ idle: true });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      await downCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+      expect(probeProjectIdleMock).toHaveBeenCalledTimes(1);
+      expect(getContainerRuntimeStatusMock).not.toHaveBeenCalled();
+      expect(runTiltMock).not.toHaveBeenCalled();
+      expect(log.mock.calls.flat().join("\n")).toContain("Nothing is running for this project.");
     } finally {
       process.chdir(originalCwd);
       rmSync(tempDir, { recursive: true, force: true });

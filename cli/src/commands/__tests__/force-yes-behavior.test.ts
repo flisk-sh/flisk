@@ -40,6 +40,7 @@ vi.mock("../../utils/down-cleanup.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/down-cleanup.js")>()),
   lookupProjectTiltUpPids: vi.fn(() => [] as number[]),
   projectComposeProjects: vi.fn(() => ["demo-traefik"]),
+  probeProjectIdle: vi.fn(async () => ({ idle: false })),
 }));
 
 vi.mock("../../utils/tilt.js", () => ({

@@ -16,6 +16,7 @@ vi.mock("../../utils/down-cleanup.js", async (importOriginal) => {
   return {
     ...actual,
     findRunningFliskProjects: findRunningFliskProjectsMock,
+    probeProjectIdle: vi.fn(async () => ({ idle: false })),
   };
 });
 

@@ -232,14 +232,17 @@ export async function runCommand<T>(
 
 export async function withTiltCheck<T>(
   action: () => Promise<T>,
-  options?: { verbose?: boolean },
+  options?: { verbose?: boolean; skipRuntimeCheck?: boolean },
 ): Promise<T | never> {
   const problems: FliskError[] = [];
-  const runtime = getContainerRuntimeStatus();
-  if (runtime === "unresponsive") {
-    problems.push(errorFactories.dockerNotResponding());
-  } else if (runtime === "missing") {
-    problems.push(errorFactories.dockerNotAvailable());
+  // `down` can already know Docker answered from its idle probe; asking `docker ps` again is redundant (#4173).
+  if (!options?.skipRuntimeCheck) {
+    const runtime = getContainerRuntimeStatus();
+    if (runtime === "unresponsive") {
+      problems.push(errorFactories.dockerNotResponding());
+    } else if (runtime === "missing") {
+      problems.push(errorFactories.dockerNotAvailable());
+    }
   }
   if (!(await isTiltAvailable())) {
     problems.push(errorFactories.tiltNotInstalled());

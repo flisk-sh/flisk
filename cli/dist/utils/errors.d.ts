@@ -49,6 +49,7 @@ export declare function runCommand<T>(action: () => Promise<T>, options?: {
 }): Promise<T | never>;
 export declare function withTiltCheck<T>(action: () => Promise<T>, options?: {
     verbose?: boolean;
+    skipRuntimeCheck?: boolean;
 }): Promise<T | never>;
 export declare function showErrorAndExit(message: string, exitCode?: number, suggestions?: string[]): never;
 /** Display a formatted error message. Does NOT exit. */

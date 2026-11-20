@@ -525,6 +525,19 @@ describe("withTiltCheck", () => {
     expect(err).not.toHaveBeenCalled();
   });
 
+  it("skips only the Docker check when the caller already probed Docker (#4173)", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getContainerRuntimeStatus).mockReturnValue("missing");
+
+    await expect(withTiltCheck(async () => "started", { skipRuntimeCheck: true })).resolves.toBe(
+      "started",
+    );
+
+    expect(getContainerRuntimeStatus).not.toHaveBeenCalled();
+    expect(isTiltAvailable).toHaveBeenCalledTimes(1);
+    expect(err).not.toHaveBeenCalled();
+  });
+
   it("reports an unresponsive Docker runtime and exits 1", async () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = mockExit();
