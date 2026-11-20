@@ -35,6 +35,15 @@ function serialize(spec: ServiceSpec, defaults: Record<string, unknown>): string
   return typeof spec === "string" ? spec : JSON.stringify({ ...defaults, ...spec });
 }
 
+/** Best-effort removal: Windows can keep a fresh temp dir locked past the test (AV, Search indexer). */
+function removeTempTreeBestEffort(dir: string): void {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });
+  } catch (error) {
+    if (process.platform !== "win32") throw error;
+  }
+}
+
 /**
  * Creates a temporary flisk project on disk and returns its real path. It is removed when the current test finishes.
  * Call it from inside a test or a `beforeEach`.
@@ -42,7 +51,7 @@ function serialize(spec: ServiceSpec, defaults: Record<string, unknown>): string
 export function createTempProject(spec: TempProjectSpec = {}): string {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "flisk-test-project-")));
   onTestFinished(() => {
-    fs.rmSync(root, { recursive: true, force: true });
+    removeTempTreeBestEffort(root);
   });
 
   const { projectJson = {} } = spec;
@@ -83,7 +92,7 @@ export function createTempProject(spec: TempProjectSpec = {}): string {
 export function createTempDir(prefix = "flisk-test-dir-"): string {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
   onTestFinished(() => {
-    fs.rmSync(dir, { recursive: true, force: true });
+    removeTempTreeBestEffort(dir);
   });
   return dir;
 }
