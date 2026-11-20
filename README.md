@@ -45,6 +45,8 @@ It offers every website framework, API language and starter that Flisk's generat
 
 Want a website, an API and a Postgres database that already work together? `npx @flisk-sh/flisk create myapp --starter next-postgres` (or `flisk project next-postgres --path myapp`) writes a Next.js page with an add, tick and delete list, an Express API and a migrator that creates and seeds the table; then `cd myapp && flisk up`. It needs Docker.
 
+Every starter — including `launch`, `portal` and `fullstack` — is in [the starters table](docs/starters.md#all-starters), with a one-line description, its Docker requirements and an example command.
+
 Install Flisk with `npm install -g @flisk-sh/flisk`, then, in a new folder:
 
 ```bash
@@ -707,6 +709,7 @@ Then run `flisk doctor` and retry the same task. If the problem persists, [open 
 - [Flisk 101: a 13-lab course for beginners](docs/101/README.md)
 - [CLI command cheat sheet](cli/README.md#cheat-sheet)
 - [Mega cheat sheet: every command and flag](docs/cheat-sheet.md)
+- [All starters: keys, Docker needs and example commands](docs/starters.md#all-starters)
 - [Documentation index](docs/README.md)
 - [Pilot Flisk on a real repository](docs/adopt-flisk.md)
 - [Running AI agents in Flisk](docs/agents/ai-agents.md)
