@@ -29,7 +29,7 @@ export const MIN_REDACTED_VALUE_LENGTH = 8;
  * `params` entries of a service whose name says it is a secret (PASSWORD, TOKEN, KEY ...). Throws when an env file exists but
  * cannot be read: continuing without the values would print secrets unmasked.
  */
-export function envSecretValues(projectRoot, extraEnvPaths = []) {
+export function envSecretValues(projectRoot, extraEnvPaths = [], extraSecretValues = []) {
     const selected = process.env[PROJECT_ENV_FILE_VAR];
     const values = [
         ...secretValuesOf(join(projectRoot, ".env")),
@@ -40,6 +40,7 @@ export function envSecretValues(projectRoot, extraEnvPaths = []) {
             ...extraEnvPaths,
             ...(selected ? [selected] : []),
         ]),
+        ...extraSecretValues,
     ];
     return [...new Set(values)].sort((a, b) => b.length - a.length);
 }
@@ -65,6 +66,31 @@ function secretNamesOf(secrets) {
             names.push(...Object.keys(list));
     }
     return names;
+}
+/**
+ * Secret values held by an `env`-shaped map, using the same rules as a service.json `env`/`params`:
+ * only secret-looking names are masked, `${VAR}` is expanded the way the process receives it, and a
+ * multiline value is also kept line by line. Local overrides pass their env through here too, so a
+ * secret introduced by service.local.json is masked just like one from service.json.
+ */
+export function secretValuesFromEnv(entries, vars = {}) {
+    if (!entries || typeof entries !== "object" || Array.isArray(entries))
+        return [];
+    const found = [];
+    const keep = (value) => {
+        if (typeof value !== "string" || value.length < MIN_REDACTED_VALUE_LENGTH)
+            return;
+        const parts = lineParts(value);
+        found.push(value, ...(parts.length > 1 ? parts : []));
+    };
+    for (const [name, value] of Object.entries(entries)) {
+        if (!SECRET_NAME.test(name))
+            continue;
+        keep(value);
+        if (typeof value === "string")
+            keep(expandEnvValue(value, vars));
+    }
+    return found;
 }
 /**
  * Secret values that a service declares itself: the other half of what reaches a container or a local process besides the
@@ -100,16 +126,7 @@ function serviceSecretValues(projectRoot, projectEnvPaths) {
             keep(process.env[name]);
         const vars = { ...envVarsOf(join(resource.path, ".env")), ...projectVars, ...process.env };
         for (const field of ["env", "params"]) {
-            const entries = config[field];
-            if (!entries || typeof entries !== "object" || Array.isArray(entries))
-                continue;
-            for (const [name, value] of Object.entries(entries)) {
-                if (!SECRET_NAME.test(name))
-                    continue;
-                keep(value);
-                if (typeof value === "string")
-                    keep(expandEnvValue(value, vars));
-            }
+            found.push(...secretValuesFromEnv(config[field], vars));
         }
         if (Array.isArray(config.envFile)) {
             for (const file of config.envFile) {
@@ -293,10 +310,10 @@ export function redactValue(value, secrets) {
  * `extraEnvPaths` are the other env files of the run (the file `flisk up --env-file` selected): their values are secrets as
  * much as the ones in the project .env.
  */
-export function createEnvRedactor(projectRoot, extraEnvPaths = []) {
+export function createEnvRedactor(projectRoot, extraEnvPaths = [], extraSecretValues = []) {
     let secrets;
     try {
-        secrets = envSecretValues(projectRoot, extraEnvPaths);
+        secrets = envSecretValues(projectRoot, extraEnvPaths, extraSecretValues);
     }
     catch (error) {
         return () => {

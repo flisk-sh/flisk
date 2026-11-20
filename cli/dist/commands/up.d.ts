@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import type { DiscoveredResource } from "../types/index.js";
+import type { DiscoveredResource, LocalOverride } from "../types/index.js";
 import { type SelectedEnvFile } from "../utils/env-selection.js";
 import { type JsonEmitter } from "../utils/json-output.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
@@ -74,6 +74,8 @@ export interface NativeUpSelection {
     all: DiscoveredResource[];
     selected: DiscoveredResource[];
     dependencies: string[];
+    /** Fields applied from `service.local.json` files for this local-process run. */
+    overrides: LocalOverride[];
 }
 /**
  * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which

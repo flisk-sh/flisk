@@ -14,10 +14,11 @@ import { getHostPortPlan, resolveRuntimeTiltPort } from "../utils/host-port-conf
 import { inferNodeProject, inferredStateRoot } from "../utils/inferred-node-project.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { isNativeRunSupervisorAlive, nativeServiceStates, readNativeRunState, } from "../utils/native-runtime.js";
-import { isNativeProject } from "../utils/native-service.js";
+import { isNativeProject, isNativeService } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
 import { relativeResourceFolder } from "../utils/resource-relative-path.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { sampleServiceUsage, } from "../utils/service-usage.js";
 import { skippedServiceFiles } from "../utils/services.js";
@@ -207,9 +208,55 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
         // No Traefik runs then, so every service answers on localhost instead of an ingress route.
         const nativeProject = isNativeProject(all.resources);
-        const nativeStates = projectRoot && nativeProject
-            ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
+        // A malformed local file must not break status; `flisk up` and `config verify` report it. The
+        // skip is per service, so one bad file cannot discard another service's valid override (a
+        // locally disabled service would come back to life in the health totals). Overrides only ever
+        // reach committed local-process services — `flisk up`'s rule — so an image-based dependency of
+        // a native project keeps its committed port, env and enabled state in the report too.
+        let allOverrides = null;
+        try {
+            const applied = applyServiceLocalOverrides(all.resources.filter((resource) => isNativeService(resource)), { skipInvalidFiles: true });
+            const overridden = new Map(applied.resources.map((resource) => [resource.name, resource]));
+            allOverrides = {
+                resources: all.resources.map((resource) => overridden.get(resource.name) ?? resource),
+                overrides: applied.overrides,
+                invalidFiles: applied.invalidFiles,
+            };
+        }
+        catch {
+            // Fall back to committed resources; local-only diagnostics belong to config verify.
+        }
+        // Keep the stack filter for native reporting, including the enabled check used by launch.
+        const stackNames = new Set(discovery.resources.map((resource) => resource.name));
+        const stackOverrides = allOverrides
+            ? {
+                resources: allOverrides.resources.filter((resource) => stackNames.has(resource.name)),
+                overrides: allOverrides.overrides.filter((override) => stackNames.has(override.service)),
+            }
             : null;
+        // Native launch skips `enabled: false`, so readiness must not wait for a service it never starts.
+        const launchResources = (stackOverrides?.resources ?? discovery.resources).filter((resource) => resource.config?.enabled !== false);
+        // Only the native report uses overridden ports and URLs; container reporting stays committed.
+        const reportedResources = nativeProject
+            ? (stackOverrides?.resources ?? discovery.resources)
+            : discovery.resources;
+        const nativeStates = projectRoot && nativeProject
+            ? nativeServiceStates(projectRoot, launchResources.map((resource) => resource.name))
+            : null;
+        // Native launch skips locally disabled services, so they have no runtime state. Counting them
+        // would make `status --strict` fail and `unhealthy` lie about a service that was never started.
+        // They stay in the discovery inventory for informational output.
+        const healthResources = nativeStates ? launchResources : discovery.resources;
+        const healthNames = new Set(healthResources.map((resource) => resource.name));
+        const healthStacks = nativeStates
+            ? discovery.stacks.map((stack) => ({
+                ...stack,
+                resources: stack.resources.filter((resource) => healthNames.has(resource.name)),
+            }))
+            : discovery.stacks;
+        const healthUnassigned = nativeStates
+            ? discovery.unassignedResources.filter((resource) => healthNames.has(resource.name))
+            : discovery.unassignedResources;
         const nativeRun = nativeStates && projectRoot ? readNativeRunState(projectRoot) : null;
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
         const platformServices = describePlatformServices(projectRoot, discovery.resources, options);
@@ -374,7 +421,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     staleDisabled,
                 },
                 resourceCount: discovery.resources.length,
-                resources: discovery.resources.map((resource) => ({
+                resources: reportedResources.map((resource) => ({
                     name: resource.name,
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
@@ -393,24 +440,29 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     ...(options.usage ? { usage: usage?.[resource.name] ?? null } : {}),
                 })),
                 ports: buildStackPorts(portPlan, tiltPort, { gateway: gatewayEnabled }),
-                stacks: discovery.stacks.map((stack) => ({
+                stacks: discovery.stacks.map((stack, index) => ({
                     name: stack.name,
                     resourceCount: stack.resourceCount,
                     resources: stack.resources.map((resource) => resource.name),
-                    healthyCount: stack.resources.filter((resource) => serviceStates?.[resource.name]?.status === "ready").length,
-                    // What healthyCount is out of: resourceCount less any database with no process of its own.
-                    healthTotal: healthCountedResources(stack.resources, serviceStates).length,
+                    healthyCount: stack.resources.filter((resource) => healthNames.has(resource.name) &&
+                        serviceStates?.[resource.name]?.status === "ready").length,
+                    // What healthyCount is out of: countable resources less any database with no process of
+                    // its own, and less locally disabled services that the native launch never starts.
+                    healthTotal: healthCountedResources(healthStacks[index]?.resources ?? stack.resources, serviceStates).length,
                 })),
                 unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
                 // The service.json files discovery skipped (invalid JSON or fields), so `resources` is not silently short.
                 ...skippedServiceFiles(discovery.problems, projectRoot),
+                // service.local.json fields that will be used when these services run as local processes,
+                // filtered to the reported stack so the list names only services the report shows.
+                overrides: stackOverrides?.overrides ?? [],
                 sharedInfra: sharedInfraGroup,
                 platformServices,
                 // A project of local processes starts neither shared container, so it reports no capability (#3873). Classify it from
                 // every resource, not the --stack slice, so a filtered view reports what the whole project does.
                 capabilities: reportedCapabilities(projectRoot, all.resources, options),
                 // Names of the failing or pending services, so a caller need not filter `resources` itself.
-                unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
+                unhealthy: unhealthyServiceNames(healthResources, serviceStates),
             };
             console.log(JSON.stringify(createMachineEnvelope(data, errors)));
             if (errors.length > 0) {
@@ -418,7 +470,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 process.exit(1);
             }
             if (options.strict) {
-                failStrictStatus(strictNotReady(discovery.resources, serviceStates));
+                failStrictStatus(strictNotReady(healthResources, serviceStates));
             }
             return;
         }
@@ -480,11 +532,11 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             const states = serviceStates;
             console.log();
             console.log(chalk.bold(unhealthyOnly ? "Unhealthy services:" : "Services:"));
-            const unhealthy = new Set(unhealthyServiceNames(discovery.resources, states));
+            const unhealthy = new Set(unhealthyServiceNames(healthResources, states));
             if (unhealthyOnly && unhealthy.size === 0) {
                 showDetail(chalk.green("All services are healthy."));
             }
-            for (const group of groupServicesByStack(discovery.stacks, discovery.unassignedResources, states)) {
+            for (const group of groupServicesByStack(healthStacks, healthUnassigned, states)) {
                 const shown = group.resources.filter((resource) => states[resource.name] && (!unhealthyOnly || unhealthy.has(resource.name)));
                 if (unhealthyOnly && shown.length === 0)
                     continue;
@@ -559,7 +611,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         showDetail('Run "flisk stacks" to see all stacks.');
         showDetail('Run "flisk up <stack-name>" to start a stack.');
         if (options.strict) {
-            failStrictStatus(strictNotReady(discovery.resources, serviceStates));
+            failStrictStatus(strictNotReady(healthResources, serviceStates));
         }
     };
     if (options.json) {

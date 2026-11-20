@@ -11,6 +11,7 @@ import { formatCount, showAllSatisfyCondition, showDetail, showEmptyState, showS
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { relativeResourceFolder, relativeResourceManifest, } from "../utils/resource-relative-path.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
 export async function runResourcesList(options) {
@@ -62,7 +63,11 @@ export async function runResourcesList(options) {
                 path: relativeResourceFolder(projectRoot, resource.configPath),
                 manifest: relativeResourceManifest(projectRoot, resource.configPath),
             }));
-            console.log(JSON.stringify(createMachineEnvelope({ resources: data, ...skippedServiceFiles(discovery.problems) })));
+            console.log(JSON.stringify(createMachineEnvelope({
+                resources: data,
+                ...skippedServiceFiles(discovery.problems),
+                overrides: applyServiceLocalOverrides(discovery.resources).overrides,
+            })));
             return;
         }
         if (resources.length === 0) {

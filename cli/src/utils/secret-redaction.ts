@@ -38,6 +38,7 @@ export const MIN_REDACTED_VALUE_LENGTH = 8;
 export function envSecretValues(
   projectRoot: string,
   extraEnvPaths: readonly string[] = [],
+  extraSecretValues: readonly string[] = [],
 ): string[] {
   const selected = process.env[PROJECT_ENV_FILE_VAR];
   const values = [
@@ -49,6 +50,7 @@ export function envSecretValues(
       ...extraEnvPaths,
       ...(selected ? [selected] : []),
     ]),
+    ...extraSecretValues,
   ];
   return [...new Set(values)].sort((a, b) => b.length - a.length);
 }
@@ -75,6 +77,31 @@ function secretNamesOf(secrets: unknown): string[] {
     } else if (list && typeof list === "object") names.push(...Object.keys(list));
   }
   return names;
+}
+
+/**
+ * Secret values held by an `env`-shaped map, using the same rules as a service.json `env`/`params`:
+ * only secret-looking names are masked, `${VAR}` is expanded the way the process receives it, and a
+ * multiline value is also kept line by line. Local overrides pass their env through here too, so a
+ * secret introduced by service.local.json is masked just like one from service.json.
+ */
+export function secretValuesFromEnv(
+  entries: Readonly<Record<string, unknown>> | undefined,
+  vars: Readonly<Record<string, string | undefined>> = {},
+): string[] {
+  if (!entries || typeof entries !== "object" || Array.isArray(entries)) return [];
+  const found: string[] = [];
+  const keep = (value: unknown): void => {
+    if (typeof value !== "string" || value.length < MIN_REDACTED_VALUE_LENGTH) return;
+    const parts = lineParts(value);
+    found.push(value, ...(parts.length > 1 ? parts : []));
+  };
+  for (const [name, value] of Object.entries(entries)) {
+    if (!SECRET_NAME.test(name)) continue;
+    keep(value);
+    if (typeof value === "string") keep(expandEnvValue(value, vars));
+  }
+  return found;
 }
 
 /**
@@ -106,13 +133,7 @@ function serviceSecretValues(projectRoot: string, projectEnvPaths: readonly stri
     for (const name of secretNamesOf(config.secrets)) keep(process.env[name]);
     const vars = { ...envVarsOf(join(resource.path, ".env")), ...projectVars, ...process.env };
     for (const field of ["env", "params"] as const) {
-      const entries = config[field];
-      if (!entries || typeof entries !== "object" || Array.isArray(entries)) continue;
-      for (const [name, value] of Object.entries(entries)) {
-        if (!SECRET_NAME.test(name)) continue;
-        keep(value);
-        if (typeof value === "string") keep(expandEnvValue(value, vars));
-      }
+      found.push(...secretValuesFromEnv(config[field] as Record<string, unknown> | undefined, vars));
     }
     if (Array.isArray(config.envFile)) {
       for (const file of config.envFile) {
@@ -313,10 +334,11 @@ export function redactValue<T>(value: T, secrets: readonly string[]): T {
 export function createEnvRedactor(
   projectRoot: string,
   extraEnvPaths: readonly string[] = [],
+  extraSecretValues: readonly string[] = [],
 ): (text: string) => string {
   let secrets: string[];
   try {
-    secrets = envSecretValues(projectRoot, extraEnvPaths);
+    secrets = envSecretValues(projectRoot, extraEnvPaths, extraSecretValues);
   } catch (error) {
     return () => {
       throw error;

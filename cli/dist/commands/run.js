@@ -8,6 +8,7 @@ import { planNativeRun } from "../utils/native-runtime.js";
 import { isNativeService } from "../utils/native-service.js";
 import { runVariables } from "../utils/native-up.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { readProjectName } from "../utils/shared-infra.js";
 /**
@@ -50,10 +51,11 @@ export function runningContainer(project, service, docker = (args) => spawnSync(
     return result.stdout.trim().split(/\s+/)[0] || null;
 }
 export function resolveRunTarget(projectRoot, serviceName, command, options = { interactive: false }) {
-    const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
-    const resource = resources.find((candidate) => candidate.name === serviceName);
-    if (!resource) {
-        throw new UnknownResourceError(serviceName, unknownResourceSuggestions(serviceName, resources.map((candidate) => candidate.name)));
+    const discovered = options.resources ?? discoverResourcesFromRoot(projectRoot);
+    // Runtime comes from the committed manifest: a local `command` must never move a container target to the host.
+    const committed = discovered.find((candidate) => candidate.name === serviceName);
+    if (!committed) {
+        throw new UnknownResourceError(serviceName, unknownResourceSuggestions(serviceName, discovered.map((candidate) => candidate.name)));
     }
     const [file, ...args] = command;
     if (!file) {
@@ -61,9 +63,13 @@ export function resolveRunTarget(projectRoot, serviceName, command, options = { 
             `For example: flisk run ${serviceName} -- printenv DATABASE_URL`,
         ]);
     }
-    if (isNativeService(resource)) {
+    if (isNativeService(committed)) {
+        // Only a local-process target reads service.local.json. A one-off run of a disabled service still needs its env and PORT.
+        const resource = applyServiceLocalOverrides([committed]).resources[0];
         const vars = runVariables(projectRoot);
-        const plan = planNativeRun([resource], vars).services[0];
+        const plan = planNativeRun([resource], vars, undefined, undefined, {
+            includeDisabled: true,
+        }).services[0];
         return {
             service: serviceName,
             runtime: "native",
@@ -73,14 +79,14 @@ export function resolveRunTarget(projectRoot, serviceName, command, options = { 
             env: { ...vars, ...(plan?.env ?? {}) },
         };
     }
-    const stack = resource.stack ?? resource.config?.stack;
+    const stack = committed.stack ?? committed.config?.stack;
     const projectName = readProjectName(projectRoot);
     if (!stack || !projectName) {
         throw new FliskError(`Cannot tell which Compose project runs "${serviceName}".`, [
             "Check the service's stack and .flisk/project.json with: flisk doctor",
         ]);
     }
-    const container = runningContainer(composeProjectFor(projectName, stack), serviceName);
+    const container = runningContainer(composeProjectFor(projectName, stack), serviceName, options.docker);
     if (!container) {
         throw new FliskError(`"${serviceName}" is not running, so there is no container to run the command in.`, [`Start it with: flisk up ${stack}`, "Then run the command again"]);
     }

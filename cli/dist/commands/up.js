@@ -47,6 +47,7 @@ import { cloneMissingRepos } from "../utils/project-repos.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { secretProviderUsageError } from "../utils/secret-provider.js";
 import { enforceServiceConfigGate, warnModelRunner, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { appendHealthPath, isRoutableService, isRoutedBringYourOwn, isWebUiBringYourOwn, resolveServiceUrl, resolveSubdomainBases, routesAsApi, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
@@ -278,23 +279,25 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
     catch {
         return null;
     }
-    const all = discovered.resources;
-    if (!all.some(isNativeService))
+    const committed = discovered.resources;
+    // Runtime eligibility comes from committed manifests: a local `command` must not move a container
+    // service onto the host, or turn a Dockerfile-built project into a native one.
+    if (!committed.some(isNativeService))
         return null;
-    if (!foundRoot && !isNativeProject(all))
+    if (!foundRoot && !isNativeProject(committed))
         return null;
     if (discovered.problems.length > 0) {
         fail("INVALID_SERVICE_CONFIG", discovered.problems
             .map((problem) => `Invalid service.json at ${problem.path}: ${problem.reason}`)
             .join("\n"));
     }
-    let requested = all;
+    let requested = committed;
     if (stackName) {
-        if (!stackExists(stackName, all)) {
-            const error = errorFactories.stackNotFound(stackName, discoverStacks(all).map((s) => s.name));
+        if (!stackExists(stackName, committed)) {
+            const error = errorFactories.stackNotFound(stackName, discoverStacks(committed).map((s) => s.name));
             fail("STACK_NOT_FOUND", error.message, error.suggestions, error.exitCode);
         }
-        requested = getResourcesForStack(stackName, all);
+        requested = getResourcesForStack(stackName, committed);
     }
     if (only) {
         const unknown = findUnknownServices(only, requested);
@@ -305,20 +308,36 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
     }
     // A process cannot start before what it depends on, so a stack or --only selection always brings its dependsOn closure.
     const names = only ?? requested.map((service) => service.name);
-    const selection = resolveOnlySelection(names, all);
-    const { mode, mixed } = resolveRuntimeMode(selection.selected, all);
+    const selection = resolveOnlySelection(names, committed);
+    const { mode, mixed } = resolveRuntimeMode(selection.selected, committed);
     if (mode === "container") {
-        const containerNames = (selection.selected.some(isNativeService) ? selection.selected : all)
+        const containerNames = (selection.selected.some(isNativeService) ? selection.selected : committed)
             .filter((service) => !isNativeService(service))
             .map((service) => service.name);
         fail("MIXED_RUNTIME", formatMixedRuntimeRefusal(mixed, containerNames));
     }
+    // Native path chosen: now read per-machine files. A native stack may still depend on image-based
+    // containers (Postgres, Redis); those are not local processes, so their committed runtime config
+    // must stay untouched even if a service.local.json sits beside them.
+    let all;
+    let overrides;
+    try {
+        const applied = applyServiceLocalOverrides(committed.filter(isNativeService));
+        const overridden = new Map(applied.resources.map((resource) => [resource.name, resource]));
+        all = committed.map((resource) => overridden.get(resource.name) ?? resource);
+        overrides = applied.overrides;
+    }
+    catch (error) {
+        fail("INVALID_SERVICE_CONFIG", error instanceof Error ? error.message : String(error));
+    }
+    const overriddenSelection = resolveOnlySelection(names, all);
     return {
         projectRoot,
         isNewProject: !foundRoot,
         all,
-        selected: selection.selected,
-        dependencies: only ? selection.dependencies : [],
+        selected: overriddenSelection.selected,
+        dependencies: only ? overriddenSelection.dependencies : [],
+        overrides,
     };
 }
 /** Flags and environment of this run, for the fast no-op decision. */
@@ -721,6 +740,12 @@ export const upCommand = new Command("up")
     // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
     if (nativeRun) {
         const { projectRoot } = nativeRun;
+        if (nativeRun.overrides.length > 0 && !emit && !options.quiet) {
+            const summary = nativeRun.overrides
+                .map(({ service, field }) => `${service}: ${field}`)
+                .join(", ");
+            console.log(chalk.yellow(`ℹ️  Local overrides active (service.local.json): ${summary}`));
+        }
         let envFilePath;
         if (options.envFile !== undefined) {
             try {

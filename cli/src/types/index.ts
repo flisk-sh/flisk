@@ -13,6 +13,15 @@ export interface DiscoveredResource {
   type?: ResourceType;
 }
 
+/** A field a sibling `service.local.json` may change for a local-process run. */
+export type LocalOverrideField = "port" | "enabled" | "command" | "env";
+
+/** One active `service.local.json` field, as reported by the `--json` commands. */
+export interface LocalOverride {
+  service: string;
+  field: LocalOverrideField;
+}
+
 export const RESOURCE_CONFIG_APP_TYPES = [
   "backend",
   "frontend",

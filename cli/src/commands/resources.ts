@@ -20,6 +20,7 @@ import {
   relativeResourceFolder,
   relativeResourceManifest,
 } from "../utils/resource-relative-path.js";
+import { applyServiceLocalOverrides } from "../utils/service-local-overrides.js";
 import { skippedServiceFiles, stackExists } from "../utils/services.js";
 import { includes } from "../utils/validation.js";
 
@@ -91,7 +92,11 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
       }));
       console.log(
         JSON.stringify(
-          createMachineEnvelope({ resources: data, ...skippedServiceFiles(discovery.problems) }),
+          createMachineEnvelope({
+            resources: data,
+            ...skippedServiceFiles(discovery.problems),
+            overrides: applyServiceLocalOverrides(discovery.resources).overrides,
+          }),
         ),
       );
       return;

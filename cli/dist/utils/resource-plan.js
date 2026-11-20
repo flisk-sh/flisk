@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { FliskError } from "./errors.js";
-import { writeFilesWithProgress } from "./file-helpers.js";
+import { ensureGitignore, gitignoredEntriesMissing, writeFilesWithProgress, } from "./file-helpers.js";
 /** Collects the scaffold before any writes, so preview and creation use the same files. */
 export class ResourceFilePlan {
     operations = [];
@@ -16,6 +16,16 @@ export class ResourceFilePlan {
     /** A file another tool writes right after the scaffold (such as package-lock.json): previewed and validated, never written here. */
     generated(path) {
         this.operations.push({ kind: "generated", path });
+    }
+    /** Keep the root .gitignore in the preview when this scaffold needs to add entries to it. */
+    gitignore(projectRoot) {
+        if (gitignoredEntriesMissing(projectRoot).length === 0)
+            return;
+        this.operations.push({
+            kind: "gitignore",
+            path: resolve(projectRoot, ".gitignore"),
+            projectRoot,
+        });
     }
     files(path, tasks, options = {}) {
         this.operations.push({ kind: "tasks", path, tasks, exclusive: options.exclusive ?? false });
@@ -50,7 +60,9 @@ export class ResourceFilePlan {
             if (operation.kind === "directory") {
                 directories.add(resolve(operation.path));
             }
-            else if (operation.kind === "text" || operation.kind === "generated") {
+            else if (operation.kind === "text" ||
+                operation.kind === "generated" ||
+                operation.kind === "gitignore") {
                 addFile(operation.path);
             }
             else {
@@ -95,6 +107,9 @@ export class ResourceFilePlan {
                 mkdirSync(operation.path, { recursive: true });
             }
             else if (operation.kind === "generated") {
+            }
+            else if (operation.kind === "gitignore") {
+                ensureGitignore(operation.projectRoot);
             }
             else if (operation.kind === "text") {
                 writeFileSync(operation.path, operation.content);

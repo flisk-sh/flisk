@@ -17,6 +17,8 @@ export const DATABASE_MANAGEMENT_FEATURE = "database-management";
 export const TILTIGNORE_FILE = ".tiltignore";
 // Manifest file name for a resource, used by discovery and the resource command.
 export const SERVICE_JSON = "service.json";
+// Gitignored, per-machine overrides of a service.json. Read only for local-process runs.
+export const SERVICE_LOCAL_JSON = "service.local.json";
 // Compose file name for service resources and platform features.
 export const DOCKER_COMPOSE_FILE = "docker-compose.yml";
 // Directory where generated manifests, configs, and Dockerfiles live within each resource.

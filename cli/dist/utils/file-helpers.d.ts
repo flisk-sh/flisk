@@ -17,6 +17,8 @@ export declare function writeJsonFileInDir(dir: string, filename: string, data: 
 export declare function writeTextFile(filePath: string, content: string): void;
 export declare function writeTextFileInDir(dir: string, filename: string, content: string): void;
 export declare function ensureDirectory(dirPath: string): void;
+/** Entries `ensureGitignore` would append, without writing anything. Used by dry-run previews. */
+export declare function gitignoredEntriesMissing(projectRoot: string): string[];
 /**
  * Appends the Flisk entries missing from the project's .gitignore (creating it
  * if needed), so the first `git add .` doesn't commit .env or generated

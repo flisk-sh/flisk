@@ -6,6 +6,7 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
+import { SERVICE_LOCAL_JSON } from "../constants.js";
 import { expandEnvValue } from "../env-expand.js";
 import {
   dependencyWaves,
@@ -28,6 +29,7 @@ import {
 } from "../native-runtime.js";
 import { withFailureLogs } from "../native-up.js";
 import { processStartTime } from "../process-identity.js";
+import { applyServiceLocalOverrides } from "../service-local-overrides.js";
 
 const NODE = JSON.stringify(process.execPath);
 
@@ -373,6 +375,57 @@ describe("native supervisor", () => {
       expect(statSync(logPath).mode & 0o777).toBe(0o600);
       expect(statSync(join(root, ".flisk", "native", "logs")).mode & 0o777).toBe(0o700);
     }
+  });
+
+  it("masks secret env values introduced by service.local.json, including multiline values", async () => {
+    const root = createTempDir();
+    const serviceDir = join(root, "leaker");
+    mkdirSync(serviceDir, { recursive: true });
+    const localToken = "LOCAL_API_TOKEN_DO_NOT_LOG_13579";
+    const multiline = `FIRST_HALF_OF_LOCAL_SECRET\nSECOND_HALF_OF_LOCAL_SECRET`;
+    // The committed service.json holds no secrets; a sibling service.local.json adds them, the way
+    // `flisk up`'s native path reads the file before planning the run.
+    writeFileSync(
+      join(serviceDir, SERVICE_LOCAL_JSON),
+      JSON.stringify({ env: { API_TOKEN: localToken, PRIVATE_NOTES: multiline } }),
+    );
+    writeFileSync(
+      join(serviceDir, "leaker.mjs"),
+      [
+        'console.log("token=" + process.env.API_TOKEN);',
+        'console.error("err-token=" + process.env.API_TOKEN);',
+        "console.log(process.env.PRIVATE_NOTES);",
+        "console.error(process.env.PRIVATE_NOTES);",
+      ].join("\n"),
+    );
+    const applied = applyServiceLocalOverrides([
+      nativeService(serviceDir, "leaker", {
+        appType: "migrator",
+        command: `${NODE} leaker.mjs`,
+      }),
+    ]);
+    const plan = planNativeRun(applied.resources, {}, root);
+    const lines: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onLine: (_name, line) => lines.push(line),
+    });
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+    await waitFor(() => lines.length >= 6);
+
+    // stdout and stderr are redacted alike: the token never reaches the terminal or the stored log.
+    expect(lines).toContain("token=[REDACTED]");
+    expect(lines).toContain("err-token=[REDACTED]");
+    expect(lines.filter((line) => line === "[REDACTED]")).toHaveLength(4);
+    const output = lines.join("\n");
+    expect(output).not.toContain(localToken);
+    // A multiline secret is masked line by line, not only as a whole.
+    expect(output).not.toContain("FIRST_HALF_OF_LOCAL_SECRET");
+    expect(output).not.toContain("SECOND_HALF_OF_LOCAL_SECRET");
+    const stored = readFileSync(nativeLogPath(root, "leaker"), "utf-8");
+    expect(stored).not.toContain(localToken);
+    expect(stored).not.toContain("FIRST_HALF_OF_LOCAL_SECRET");
+    expect(stored).not.toContain("SECOND_HALF_OF_LOCAL_SECRET");
   });
 
   it("masks secret shapes and a printed private key before output and the stored log", async () => {
@@ -1387,5 +1440,40 @@ writeFileSync(process.env.FLISK_OUTPUT, "SERVICE_TOKEN=" + token + "\\n");
     const data = await res.json();
     expect(data.apiKey).toBe(NEW_SECRET);
     expect(data.apiKey).not.toBe(SENTINEL_SECRET);
+  });
+});
+
+describe("local enabled overrides in native planning", () => {
+  it("omits a disabled service from startup planning and names the disabled dependency", () => {
+    const root = createTempDir();
+    const api = nativeService(root, "api", {
+      command: "node api.js",
+      port: 4100,
+      enabled: false,
+    });
+    const web = nativeService(root, "web", { command: "node web.js", dependsOn: ["api"] });
+
+    const plan = planNativeRun([api, web]);
+    expect(plan.services.map((service) => service.name)).toEqual(["web"]);
+    expect(plan.errors[0]).toMatch(
+      /service "web" dependsOn "api", which is disabled locally \(enabled: false in service\.json or its sibling service\.local\.json\)/,
+    );
+  });
+
+  it("still builds the environment of a disabled service for a one-off run", () => {
+    const root = createTempDir();
+    const api = nativeService(root, "api", {
+      command: "node api.js",
+      port: 4100,
+      enabled: false,
+      env: { TOKEN: "local" },
+    });
+
+    expect(planNativeRun([api]).services).toEqual([]);
+    const oneOff = planNativeRun([api], {}, undefined, undefined, { includeDisabled: true });
+    expect(oneOff.services[0]).toMatchObject({
+      name: "api",
+      env: expect.objectContaining({ TOKEN: "local", PORT: "4100" }),
+    });
   });
 });

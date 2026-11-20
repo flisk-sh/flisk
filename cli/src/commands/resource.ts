@@ -1826,6 +1826,7 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
       if (updatedServiceJson) {
         // Write updated service.json
         plan.text(existingServiceJsonPath, JSON.stringify(updatedServiceJson, null, 2));
+        plan.gitignore(projectRoot);
         if (options.dryRun) return preview();
         plan.write();
         clearDiscoveryCache();
@@ -1844,6 +1845,7 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
           resolve(fullPath, SERVICE_JSON),
           `${JSON.stringify(createDatabaseServiceJson(resourceName, stackName), null, 2)}\n`,
         );
+        plan.gitignore(projectRoot);
         if (options.dryRun) return preview();
         plan.write();
         clearDiscoveryCache();
@@ -1877,6 +1879,7 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
             `# AGENTS.md\n\nDO NOT DELETE service.json\n\n${preset.description} for Flisk. Services that list "${resourceName}" in dependsOn get its \`provides\` settings in their environment.\n`,
           );
         }
+        plan.gitignore(projectRoot);
         if (options.dryRun) return preview();
         plan.write();
         clearDiscoveryCache();
@@ -1984,6 +1987,7 @@ This file contains the resource configuration for Flisk.
         const agentsPath = resolve(fullPath, "AGENTS.md");
         if (!existsSync(agentsPath)) plan.text(agentsPath, agentsMdContent);
 
+        plan.gitignore(projectRoot);
         if (options.dryRun) return preview();
         plan.write();
         clearDiscoveryCache();
@@ -2331,6 +2335,7 @@ This file contains the resource configuration for Flisk.
         plan.generated(resolve(fullPath, "package-lock.json"));
       }
 
+      plan.gitignore(projectRoot);
       if (options.dryRun) return preview();
       plan.write();
       clearDiscoveryCache();

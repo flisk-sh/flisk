@@ -4,12 +4,17 @@ import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import type { FileGenerationTask } from "../types/index.js";
 import { FliskError } from "./errors.js";
-import { writeFilesWithProgress } from "./file-helpers.js";
+import {
+  ensureGitignore,
+  gitignoredEntriesMissing,
+  writeFilesWithProgress,
+} from "./file-helpers.js";
 
 type ResourceOperation =
   | { kind: "directory"; path: string }
   | { kind: "text"; path: string; content: string }
   | { kind: "generated"; path: string }
+  | { kind: "gitignore"; path: string; projectRoot: string }
   | { kind: "tasks"; path: string; tasks: FileGenerationTask[]; exclusive: boolean };
 
 /** Collects the scaffold before any writes, so preview and creation use the same files. */
@@ -27,6 +32,16 @@ export class ResourceFilePlan {
   /** A file another tool writes right after the scaffold (such as package-lock.json): previewed and validated, never written here. */
   generated(path: string): void {
     this.operations.push({ kind: "generated", path });
+  }
+
+  /** Keep the root .gitignore in the preview when this scaffold needs to add entries to it. */
+  gitignore(projectRoot: string): void {
+    if (gitignoredEntriesMissing(projectRoot).length === 0) return;
+    this.operations.push({
+      kind: "gitignore",
+      path: resolve(projectRoot, ".gitignore"),
+      projectRoot,
+    });
   }
 
   files(path: string, tasks: FileGenerationTask[], options: { exclusive?: boolean } = {}): void {
@@ -66,7 +81,11 @@ export class ResourceFilePlan {
     for (const operation of this.operations) {
       if (operation.kind === "directory") {
         directories.add(resolve(operation.path));
-      } else if (operation.kind === "text" || operation.kind === "generated") {
+      } else if (
+        operation.kind === "text" ||
+        operation.kind === "generated" ||
+        operation.kind === "gitignore"
+      ) {
         addFile(operation.path);
       } else {
         for (const task of operation.tasks) addFile(resolve(operation.path, task.filename));
@@ -109,6 +128,8 @@ export class ResourceFilePlan {
       if (operation.kind === "directory") {
         mkdirSync(operation.path, { recursive: true });
       } else if (operation.kind === "generated") {
+      } else if (operation.kind === "gitignore") {
+        ensureGitignore(operation.projectRoot);
       } else if (operation.kind === "text") {
         writeFileSync(operation.path, operation.content);
       } else {

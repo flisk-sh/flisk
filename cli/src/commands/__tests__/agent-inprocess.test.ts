@@ -231,6 +231,6 @@ describe("flisk agent list in-process", () => {
     const jsonRes = await runCommandInProcess(agentCommand, ["list", "--json"], root);
     expect(jsonRes.status).toBeUndefined();
     const envelope = parseEnvelope(jsonRes.stdout);
-    expect(envelope.data).toEqual({ resources: [] });
+    expect(envelope.data).toEqual({ resources: [], overrides: [] });
   });
 });

@@ -67,7 +67,9 @@ export interface NativeRunPlan {
  * Turns the selected `command` services into start plans and reports what would stop the run: a dependsOn that is not a service
  * of the selection (a database or the gateway needs Docker for now), and two services on one port.
  */
-export declare function planNativeRun(selected: readonly DiscoveredResource[], vars?: Readonly<Record<string, string | undefined>>, projectRoot?: string, projectName?: string): NativeRunPlan;
+export declare function planNativeRun(selected: readonly DiscoveredResource[], vars?: Readonly<Record<string, string | undefined>>, projectRoot?: string, projectName?: string, options?: {
+    includeDisabled?: boolean;
+}): NativeRunPlan;
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
 export declare function findMissingPrograms(plans: readonly NativeServicePlan[], find?: (program: string) => string | null, exists?: (path: string) => boolean): Array<{
     name: string;
@@ -247,7 +249,8 @@ export declare class NativeSupervisor {
     /** Known size of each service log, shared by its stdout and stderr writers, for rotation (#3720). */
     private readonly logSizes;
     private readonly migratorOutputs;
-    private readonly redactLine;
+    /** Redacts one line of service output; rebuilt from the active plans whenever a restart reloads them. */
+    private redactLine;
     private readonly startedAt;
     private pidStartTime?;
     private stopping;
@@ -270,6 +273,13 @@ export declare class NativeSupervisor {
             baseEnv: Readonly<Record<string, string | undefined>>;
         };
     });
+    /**
+     * The redactor for the plans that are about to run. Local overrides are applied to the plans, not
+     * written to service.json, so the discovery-based redactor cannot see them: their secret-named
+     * env values are masked with the same rules (including ${VAR} expansions and multiline values kept
+     * line by line) before any output is written.
+     */
+    private buildRedactor;
     /** The width service names are padded to in prefixed output. */
     get prefixWidth(): number;
     /**
