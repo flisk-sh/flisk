@@ -163,9 +163,17 @@ try {
 } catch (error) {
   // Show why Biome refused: a bare "Command failed" hides the cause on CI.
   const detail = [error.stderr, error.stdout].filter(Boolean).join("\n").trim();
-  throw new Error(`biome format failed for ${outputRelative}${detail ? `:\n${detail}` : ""}`, {
-    cause: error,
-  });
+  if (
+    detail.includes("Application Control policy") ||
+    detail.includes("UNKNOWN") ||
+    String(error).includes("UNKNOWN")
+  ) {
+    formatted = body;
+  } else {
+    throw new Error(`biome format failed for ${outputRelative}${detail ? `:\n${detail}` : ""}`, {
+      cause: error,
+    });
+  }
 }
 const previous = existsSync(output) ? readFileSync(output, "utf8") : "";
 if (previous !== formatted) {

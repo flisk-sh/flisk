@@ -208,5 +208,48 @@ describe("doctor report contract", () => {
         },
       });
     });
+
+    it("drops passing and skipped checks and adds summary counts when problemsOnly is true", () => {
+      const checks = [
+        { name: "P1", didPass: true, message: "OK" },
+        { name: "P2", didPass: true, message: "OK" },
+        { name: "P3", didPass: true, message: "OK" },
+        { name: "S1", didPass: true, isSkipped: true, message: "Skipped" },
+        { name: "F1", didPass: false, message: "Failed 1" },
+        { name: "F2", didPass: false, message: "Failed 2" },
+      ];
+      const report = createDoctorReport(
+        checks,
+        true,
+        [],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { problemsOnly: true },
+      );
+      expect(report.data.ready).toBe(false);
+      expect(report.data.checks).toEqual([
+        { name: "F1", didPass: false, message: "Failed 1", durationMs: 0 },
+        { name: "F2", didPass: false, message: "Failed 2", durationMs: 0 },
+      ]);
+      expect(report.data.summary).toEqual({
+        passed: 3,
+        skipped: 1,
+        failed: 2,
+      });
+    });
+
+    it("keeps all checks and omits summary when problemsOnly is omitted or false", () => {
+      const checks = [
+        { name: "P1", didPass: true, message: "OK" },
+        { name: "S1", didPass: true, isSkipped: true, message: "Skipped" },
+        { name: "F1", didPass: false, message: "Failed 1" },
+      ];
+      const report = createDoctorReport(checks, true);
+      expect(report.data.checks).toHaveLength(3);
+      expect(report.data.summary).toBeUndefined();
+    });
   });
 });

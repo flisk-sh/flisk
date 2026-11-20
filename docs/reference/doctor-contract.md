@@ -10,13 +10,20 @@
 
 `--strict` makes the WSL `/mnt/c` placement check blocking. Native Windows retains the existing WSL2 Ubuntu guidance until real Docker Desktop boot acceptance passes. This change does not establish native Windows boot support.
 
-JSON stdout contains exactly one document: `schemaVersion: 1`, `data: {ready, inProject, checks, warnings, ports}`, and `errors`. Each check has `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. The optional `warnings` array repeats the messages of the `isWarning` checks. When port planning succeeds, `data.ports` contains `http`, `https`, and `postgres` entries with `requested`, `chosen`, `explicit`, and `reason` fields; when planning fails, `chosen` is `null` and the check explains the failure. Doctor does not persist a port selection. Structured errors contain a `USAGE` or `INTERNAL` code and a message; blocking environment findings belong in checks rather than errors. Diagnostic text goes to stderr. Missing/unknown options exit 2; `--help` exits 0 with normal help text.
+JSON stdout contains exactly one document: `schemaVersion: 1`, `data: {ready, inProject, checks, warnings, ports}`, and `errors`. Each check has `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. The optional `warnings` array repeats the messages of the `isWarning` checks. When `--problems-only` is passed, `data.checks` filters out checks where `didPass: true` and includes `data.summary` with counts `{ passed, skipped, failed }`. When port planning succeeds, `data.ports` contains `http`, `https`, and `postgres` entries with `requested`, `chosen`, `explicit`, and `reason` fields; when planning fails, `chosen` is `null` and the check explains the failure. Doctor does not persist a port selection. Structured errors contain a `USAGE` or `INTERNAL` code and a message; blocking environment findings belong in checks rather than errors. Diagnostic text goes to stderr. Missing/unknown options exit 2; `--help` exits 0 with normal help text.
 
 `--ping-timeout` accepts a positive safe integer in milliseconds; fractional values, unit suffixes, and zero are rejected before any probes run. Concurrent machine probes always settle before the command exits, including when one check throws.
 
 Migration: invalid timeout previously exited 1, and unexpected errors had no stable doctor contract. CI should now distinguish 1 (fix the environment) from 2 (fix invocation or investigate a check failure). Existing successful and blocking environment exits remain 0 and 1. The new JSON flag is additive; text output remains available.
 
 JSON schema changes are additive within schema version 1. Removing/renaming fields or changing their meaning requires an explicit versioned transition and migration documentation. Consumers should ignore unknown fields and reject unsupported schema versions.
+
+## `--problems-only`
+
+`flisk doctor --problems-only` (and MCP `doctor` with `problemsOnly: true`) provides a concise diagnostics view:
+
+- In `--json` mode: drops checks where `didPass: true` (passed and skipped checks) from `data.checks`, keeping only failing checks, and adds `data.summary` with `{ passed: number, skipped: number, failed: number }`. Readiness `data.ready` retains the full environment decision.
+- In text mode: suppresses passing and skipped check lines from stdout.
 
 ## `--fix`
 

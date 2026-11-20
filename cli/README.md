@@ -30,6 +30,7 @@ Cloned starters keep their source remote as `upstream`, leaving `origin` availab
 | `flisk open --print` | Print the first ready frontend URL without opening a browser. |
 | `flisk open web2` | Open the `web2` frontend instead of the first ready one. |
 | `flisk down --force` | Stop all services. `--force` is accepted for script compatibility and has no effect. |
+| `flisk doctor --problems-only` | Report only failing checks and summary counts. |
 | `flisk doctor --no-ping` | Check readiness without pinging service health endpoints. |
 | `flisk projects --check` | Validate project configuration before CI. |
 
@@ -392,6 +393,9 @@ Cold first run: `npx @flisk-sh/flisk`; diagnostics: `npx @flisk-sh/flisk doctor`
 ```bash
 # Check local environment and project readiness
 flisk doctor
+
+# Show only failing checks (in --json mode, drops passed checks and adds summary counts)
+flisk doctor --problems-only
 
 # Skip pinging running services' /health endpoints
 flisk doctor --no-ping

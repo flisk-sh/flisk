@@ -69,6 +69,7 @@ export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, c
 export const doctorCommand = new Command("doctor")
     .description("Check environment readiness for Flisk")
     .option("--all", "Run every check and show Machine and Project sections with a summary", false)
+    .option("--problems-only", "Show only failing checks (in --json mode, drops passed checks and adds summary counts)", false)
     .option("--json", "Output a versioned JSON readiness report", false)
     .exitOverride((error) => {
     if (error.exitCode === 0)
@@ -165,10 +166,10 @@ export const doctorCommand = new Command("doctor")
             console.log(JSON.stringify(createDoctorReport(windowsChecks, Boolean(windowsRoot), [], windowsPortPlan, {
                 ...host,
                 canUp: false,
-            }, undefined, undefined, getBuildCommit())));
+            }, undefined, undefined, getBuildCommit(), { problemsOnly: Boolean(options.problemsOnly) })));
         }
         else {
-            printDoctorResults(windowsChecks);
+            printDoctorResults(windowsChecks, { problemsOnly: Boolean(options.problemsOnly) });
             console.log("");
         }
         console.error(NATIVE_WINDOWS_DOCTOR_MESSAGE);
@@ -183,7 +184,7 @@ export const doctorCommand = new Command("doctor")
                 message: WEBCONTAINER_UP_MESSAGE,
                 fix: `Use a machine with Docker. Guide: ${WEBCONTAINER_DOCS}`,
             },
-        ], Boolean(findProjectRoot()), [], undefined, host, undefined, undefined, getBuildCommit());
+        ], Boolean(findProjectRoot()), [], undefined, host, undefined, undefined, getBuildCommit(), { problemsOnly: Boolean(options.problemsOnly) });
         if (options.json)
             console.log(JSON.stringify(report));
         console.error(WEBCONTAINER_UP_MESSAGE);
@@ -517,7 +518,7 @@ export const doctorCommand = new Command("doctor")
         }
     }
     const buildCommit = getBuildCommit();
-    const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCapabilities, undefined, buildCommit);
+    const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCapabilities, undefined, buildCommit, { problemsOnly: Boolean(options.problemsOnly) });
     if (fixActions)
         report.data.actions = fixActions;
     if (fixActions) {
@@ -541,7 +542,7 @@ export const doctorCommand = new Command("doctor")
             if (!(error instanceof EnvUnreadableError))
                 throw error;
             // Without the values the report cannot be published safely, so it is replaced by a structured error.
-            console.log(JSON.stringify(createDoctorReport([], inProject, [...errors, { code: "ENV_UNREADABLE", message: error.message }], undefined, undefined, undefined, undefined, buildCommit)));
+            console.log(JSON.stringify(createDoctorReport([], inProject, [...errors, { code: "ENV_UNREADABLE", message: error.message }], undefined, undefined, undefined, undefined, buildCommit, { problemsOnly: Boolean(options.problemsOnly) })));
             console.error(error.message);
             process.exit(1);
         }

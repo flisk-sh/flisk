@@ -13,12 +13,20 @@ export interface DoctorError {
   message: string;
 }
 
+export interface DoctorSummary {
+  passed: number;
+  skipped: number;
+  failed: number;
+}
+
 export interface DoctorReport {
   schemaVersion: typeof SCHEMA_VERSION;
   data: {
     ready: boolean;
     inProject: boolean;
     checks: CheckResult[];
+    /** Counts of passed, skipped, and failed checks; present when --problems-only is requested. */
+    summary?: DoctorSummary;
     /** Non-blocking warning messages, in check order; also present as isWarning entries in checks. */
     warnings?: string[];
     capabilities?: string[];
@@ -109,6 +117,7 @@ export function createDoctorReport(
   capabilities?: string[],
   buildCache?: DockerBuildCacheReport,
   commit?: string,
+  options?: { problemsOnly?: boolean },
 ): DoctorReport {
   const fixFirst = rankDoctorFixes(checks);
   const warnings = checks.filter((check) => check.isWarning).map((check) => check.message);
@@ -125,6 +134,28 @@ export function createDoctorReport(
       | (CheckResult & { colimaDisk?: ColimaDiskReport })
       | undefined
   )?.colimaDisk;
+
+  let summary: DoctorSummary | undefined;
+  if (options?.problemsOnly) {
+    let passed = 0;
+    let skipped = 0;
+    let failed = 0;
+    for (const check of checks) {
+      if (check.isSkipped) {
+        skipped++;
+      } else if (check.didPass) {
+        passed++;
+      } else {
+        failed++;
+      }
+    }
+    summary = { passed, skipped, failed };
+  }
+
+  const reportedChecks = options?.problemsOnly
+    ? checks.filter((check) => !check.didPass && !check.isSkipped)
+    : checks;
+
   return {
     schemaVersion: SCHEMA_VERSION,
     data: {
@@ -132,7 +163,8 @@ export function createDoctorReport(
         errors.length === 0 &&
         checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
       inProject,
-      checks: checks.map((check) => ({ durationMs: 0, ...check })),
+      checks: reportedChecks.map((check) => ({ durationMs: 0, ...check })),
+      ...(summary ? { summary } : {}),
       ...(warnings.length > 0 ? { warnings } : {}),
       ...(capabilities ? { capabilities } : {}),
       ...(observedOwner ? { observed: observedOwner } : {}),

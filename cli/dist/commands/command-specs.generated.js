@@ -1618,6 +1618,11 @@ export const COMMAND_SPECS = [
                 defaultValue: false,
             },
             {
+                flags: "--problems-only",
+                description: "Show only failing checks (in --json mode, drops passed checks and adds summary counts)",
+                defaultValue: false,
+            },
+            {
                 flags: "--json",
                 description: "Output a versioned JSON readiness report",
                 defaultValue: false,

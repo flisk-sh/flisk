@@ -30,7 +30,7 @@ export function printFixActions(actions, dryRun, failedCheckCount = 0) {
         console.log(chalk.gray("\nDry run: nothing was changed."));
     console.log("");
 }
-export function printDoctorResults(list) {
+export function printDoctorResults(list, options = {}) {
     for (const result of orderDoctorResults(list)) {
         if (!result.didPass && !result.isSkipped && !result.isWarning) {
             console.log(`${chalk.red("✗")} ${result.message}`);
@@ -43,12 +43,16 @@ export function printDoctorResults(list) {
                 console.log(`${chalk.blue("ℹ")} Fix: ${result.fix}`);
         }
         else if (result.isSkipped) {
-            console.log(`${chalk.gray("○")} ${chalk.gray(result.message)}`);
-            if (result.fix)
-                console.log(`${chalk.blue("ℹ")} ${result.fix}`);
+            if (!options.problemsOnly) {
+                console.log(`${chalk.gray("○")} ${chalk.gray(result.message)}`);
+                if (result.fix)
+                    console.log(`${chalk.blue("ℹ")} ${result.fix}`);
+            }
         }
         else {
-            console.log(`${chalk.green("✓")} ${result.message}`);
+            if (!options.problemsOnly) {
+                console.log(`${chalk.green("✓")} ${result.message}`);
+            }
         }
     }
 }
@@ -65,11 +69,11 @@ export function renderDoctorOutput(machineResults, projectResults, inProject, op
     };
     if (options.all) {
         console.log(chalk.bold("Machine"));
-        printDoctorResults(machineResults);
+        printDoctorResults(machineResults, options);
         console.log(`\n${chalk.bold("Project")}`);
         if (inProject) {
             if (projectResults.length > 0) {
-                printDoctorResults(projectResults);
+                printDoctorResults(projectResults, options);
             }
         }
         else {
@@ -80,11 +84,11 @@ export function renderDoctorOutput(machineResults, projectResults, inProject, op
         printFixFirst();
     }
     else {
-        printDoctorResults(results);
+        printDoctorResults(results, options);
         console.log("");
         printFixFirst();
         const allPassed = results.every((check) => check.didPass || check.isSkipped || check.isWarning);
-        if (allPassed && !inProject) {
+        if (allPassed && !inProject && !options.problemsOnly) {
             console.log(`${chalk.gray("○")} ${chalk.gray("Not in a Flisk project, so project checks were skipped")}`);
             console.log("");
         }
