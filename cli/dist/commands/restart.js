@@ -40,7 +40,7 @@ export const restartCommand = new Command("restart")
         showErrorAndExit(message, 2);
     }
     const action = async () => {
-        const root = resolveCommandProject({
+        const root = await resolveCommandProject({
             commandName: "restart",
             project: options.project ?? command.optsWithGlobals().project,
             json: options.json,

@@ -176,7 +176,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 return;
             }
         }
-        const projectRoot = resolveCommandProject({
+        const projectRoot = await resolveCommandProject({
             commandName: "status",
             project,
             json: options.json,

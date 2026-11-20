@@ -199,7 +199,7 @@ export const projectsCommand = attachNoPositionalHint(addYesOption(new Command("
 
       const root = findProjectRoot();
       if (!root && !options.check) {
-        const projects = findRunningFliskProjects().map((path) => {
+        const projects = (await findRunningFliskProjects()).map((path) => {
           const stacks = new Set(
             discoverResourcesFromRoot(path)
               .map((resource) => resource.stack)

@@ -137,7 +137,7 @@ async function resolveDownProject(options: {
   const here = findProjectRoot();
   if (here) return here;
 
-  const running = findRunningFliskProjects();
+  const running = await findRunningFliskProjects();
   if (running.length === 1) {
     const root = running[0] as string;
     const consented = Boolean(options.yes || options.force);

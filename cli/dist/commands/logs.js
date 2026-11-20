@@ -144,7 +144,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         console.log("All services are healthy; nothing to show with --unhealthy.");
     };
     const action = async () => {
-        const projectRoot = resolveCommandProject({
+        const projectRoot = await resolveCommandProject({
             commandName: "logs",
             project: options.project ?? command.optsWithGlobals().project,
             json: options.json,

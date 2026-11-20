@@ -1067,6 +1067,9 @@ export const upCommand = new Command("up")
         console.log(chalk.gray(skippedProfilesNote(nativeProfiles.skipped)));
       }
       guardDisk(false);
+      // A native run has no Tilt process to discover, so record the folder with the same registry `flisk up` keeps for
+      // container projects. Commands run outside the project then find its `.flisk/native/run.json` (#4412).
+      recordProjectRoot(projectRoot, { stacks: recordableStacks(projectRoot) });
       await runNativeUp({
         projectRoot,
         selected: nativeProfiles.kept,

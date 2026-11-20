@@ -8,7 +8,7 @@ import type { Command } from "commander";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { findRunningFliskProjectsMock } = vi.hoisted(() => ({
-  findRunningFliskProjectsMock: vi.fn((): string[] => []),
+  findRunningFliskProjectsMock: vi.fn(async (): Promise<string[]> => []),
 }));
 
 vi.mock("../../utils/down-cleanup.js", async (importOriginal) => {
@@ -95,7 +95,7 @@ describe("CLI project resolution (Issue #4347)", () => {
   });
 
   beforeEach(() => {
-    findRunningFliskProjectsMock.mockReset().mockReturnValue([]);
+    findRunningFliskProjectsMock.mockReset().mockResolvedValue([]);
     outsideDir = realpathSync(mkdtempSync(join(tmpdir(), "flisk-outside-")));
     testProject = createScratchProject("my-project");
     resetCommandOptions(logsCommand);
@@ -117,7 +117,7 @@ describe("CLI project resolution (Issue #4347)", () => {
 
   describe("scenario 1 & 6: outside a project with running projects", () => {
     it("flisk logs outside a project with one running project exits nonzero and suggests --project", async () => {
-      findRunningFliskProjectsMock.mockReturnValue([testProject]);
+      findRunningFliskProjectsMock.mockResolvedValue([testProject]);
 
       const result = await runCommandInProcess(logsCommand, [], outsideDir);
 
@@ -130,7 +130,7 @@ describe("CLI project resolution (Issue #4347)", () => {
     it("flisk logs outside a project with multiple running projects lists all of them", async () => {
       const proj2 = createScratchProject("second-proj");
       try {
-        findRunningFliskProjectsMock.mockReturnValue([testProject, proj2]);
+        findRunningFliskProjectsMock.mockResolvedValue([testProject, proj2]);
 
         const result = await runCommandInProcess(logsCommand, [], outsideDir);
 
@@ -145,7 +145,7 @@ describe("CLI project resolution (Issue #4347)", () => {
     });
 
     it("flisk restart outside a project with one running project lists running project suggestion", async () => {
-      findRunningFliskProjectsMock.mockReturnValue([testProject]);
+      findRunningFliskProjectsMock.mockResolvedValue([testProject]);
 
       const result = await runCommandInProcess(restartCommand, ["web"], outsideDir);
 
@@ -156,7 +156,7 @@ describe("CLI project resolution (Issue #4347)", () => {
     });
 
     it("flisk status outside a project with one running project lists running project suggestion", async () => {
-      findRunningFliskProjectsMock.mockReturnValue([testProject]);
+      findRunningFliskProjectsMock.mockResolvedValue([testProject]);
 
       const result = await runCommandInProcess(statusCommand, [], outsideDir);
 
@@ -169,7 +169,7 @@ describe("CLI project resolution (Issue #4347)", () => {
 
   describe("scenario 5: outside a project with zero running projects", () => {
     it("flisk logs preserves original error message and suggestions when nothing is running", async () => {
-      findRunningFliskProjectsMock.mockReturnValue([]);
+      findRunningFliskProjectsMock.mockResolvedValue([]);
 
       const result = await runCommandInProcess(logsCommand, [], outsideDir);
 
@@ -181,7 +181,7 @@ describe("CLI project resolution (Issue #4347)", () => {
     });
 
     it("flisk restart preserves original error message when nothing is running", async () => {
-      findRunningFliskProjectsMock.mockReturnValue([]);
+      findRunningFliskProjectsMock.mockResolvedValue([]);
 
       const result = await runCommandInProcess(restartCommand, ["web"], outsideDir);
 
@@ -191,7 +191,7 @@ describe("CLI project resolution (Issue #4347)", () => {
     });
 
     it("flisk status preserves original error message when nothing is running", async () => {
-      findRunningFliskProjectsMock.mockReturnValue([]);
+      findRunningFliskProjectsMock.mockResolvedValue([]);
 
       const result = await runCommandInProcess(statusCommand, [], outsideDir);
 
@@ -250,7 +250,7 @@ describe("CLI project resolution (Issue #4347)", () => {
 
   describe("scenario 7: inside a valid project", () => {
     it("flisk logs inside a project does not consult running projects", async () => {
-      findRunningFliskProjectsMock.mockReturnValue(["/some/other/project"]);
+      findRunningFliskProjectsMock.mockResolvedValue(["/some/other/project"]);
       tilt.runTilt.mockResolvedValue({ exitCode: 0, stdout: "app logs\n", stderr: "" });
 
       const result = await runCommandInProcess(logsCommand, [], testProject);
@@ -262,7 +262,7 @@ describe("CLI project resolution (Issue #4347)", () => {
 
   describe("scenario 8: backward compatibility with down", () => {
     it("flisk down continues working with single running project auto-stop", async () => {
-      findRunningFliskProjectsMock.mockReturnValue([testProject]);
+      findRunningFliskProjectsMock.mockResolvedValue([testProject]);
 
       const result = await runCommandInProcess(downCommand, ["--yes"], outsideDir);
 
@@ -336,7 +336,7 @@ describe("CLI project resolution (Issue #4347)", () => {
     });
 
     it("shell-quotes running project paths with spaces in suggestions", async () => {
-      findRunningFliskProjectsMock.mockReturnValue(["/work/my app/it's"]);
+      findRunningFliskProjectsMock.mockResolvedValue(["/work/my app/it's"]);
 
       const result = await runCommandInProcess(logsCommand, [], outsideDir);
 
