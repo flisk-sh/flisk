@@ -16,11 +16,16 @@ const MOUNT_DENIED = /mounts? denied|not shared from the host|file sharing|inval
 const DOCKER_RUN_PRE_START_CODES = new Set([125, 126, 127]);
 /**
  * What the docker CLI or daemon prints when no container was started. The CLI exits 1 (not 125) when it cannot reach the
- * daemon, so the exit code alone would read that as the probe's own write failing.
+ * daemon, so the exit code alone would read that as the probe's own write failing. The dial/connect tails stay qualified
+ * with "connect:" so a project path that merely contains "connection refused" cannot read as a pre-start failure.
  */
-const DOCKER_PRE_START = /cannot connect to the docker daemon|error during connect|error response from daemon|unable to find image|pull access denied|while trying to connect to the docker daemon|failed to connect to the docker api|is the docker daemon running|dial unix|connect: no such file or directory|connection refused/i;
-/** Daemon-unreachable wordings, including Docker 28+/29's "failed to connect to the docker API at …". */
-const DOCKER_DAEMON_UNREACHABLE = /cannot connect to the docker daemon|failed to connect to the docker api|error during connect|is the docker daemon running|dial unix|connect: no such file or directory|connection refused/i;
+const DOCKER_PRE_START = /cannot connect to the docker daemon|error during connect|error response from daemon|unable to find image|pull access denied|while trying to connect to the docker daemon|failed to connect to the docker api|is the docker daemon running|dial (?:unix|tcp) .+?: connect|connect: no such file or directory|connect: connection refused/i;
+/**
+ * Daemon-unreachable wordings, including Docker 28+/29's "failed to connect to the docker API at …". The dial/connect
+ * tails keep their "connect:" context: a mount denial echoes the project path, and a path segment can itself read like
+ * "connection refused", which must not count as the daemon being unreachable.
+ */
+const DOCKER_DAEMON_UNREACHABLE = /cannot connect to the docker daemon|failed to connect to the docker api|error during connect|is the docker daemon running|dial (?:unix|tcp) .+?: connect|connect: no such file or directory|connect: connection refused/i;
 /** True when the probe container started and its write into the mount failed (a read-only or denied mount). */
 function probeStartedAndFailed(error, detail) {
     const code = error?.code;

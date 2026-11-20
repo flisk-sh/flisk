@@ -206,6 +206,45 @@ describe("checkDockerFileSharing", () => {
     expect(result.fix).toContain("Colima: start with --mount");
   });
 
+  it.each([
+    [
+      "a mount denial that echoes the path",
+      125,
+      "Error response from daemon: Mounts denied: The path /Users/sunny/connection refused/project is not shared from the host and is not known to Docker.",
+    ],
+    [
+      "a started probe whose write failed",
+      2,
+      "sh: can't create /flisk-probe/x: Read-only file system",
+    ],
+  ])(
+    "keeps failing when the project path reads like a connection failure (%s)",
+    async (_case, code, stderr) => {
+      // Regression: execFile's message echoes the command line and a mount denial echoes the project path, so a path
+      // segment such as "connection refused" reaches the detail text. That path text must not read as the daemon being
+      // unreachable (a skip) or as the probe never having started.
+      const fakeRunner = async () => {
+        throw Object.assign(
+          new Error(
+            "Command failed: docker run --rm -v /Users/sunny/connection refused/project:/flisk-probe alpine sh -c echo",
+          ),
+          { code, stderr },
+        );
+      };
+
+      const result = await checkDockerFileSharing({
+        projectRoot: tempDir,
+        runner: fakeRunner,
+        hasDocker: true,
+      });
+
+      expect(result.didPass).toBe(false);
+      expect(result.isSkipped).toBeUndefined();
+      expect(result.message).toContain("Docker cannot access the project folder");
+      expect(result.fix).toContain("File sharing");
+    },
+  );
+
   it("fails when the probe started but could not write into the mount", async () => {
     const fakeRunner = async () => {
       throw Object.assign(new Error("Command failed: docker run"), {
