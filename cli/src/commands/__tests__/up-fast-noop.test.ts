@@ -522,9 +522,9 @@ describe("flisk up fast no-op on an unchanged, healthy stack (#4193)", () => {
       throw new Error("process.exit");
     }) as never);
     try {
-      await expect(
-        upCommand.parseAsync(["--wait", "--json"], { from: "user" }),
-      ).rejects.toThrow("process.exit");
+      await expect(upCommand.parseAsync(["--wait", "--json"], { from: "user" })).rejects.toThrow(
+        "process.exit",
+      );
       expect(exit).toHaveBeenCalledWith(0);
       const exitHandler = once.mock.calls.find(([event]) => event === "exit")?.[1];
       expect(exitHandler).toBeTypeOf("function");

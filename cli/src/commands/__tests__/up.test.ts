@@ -264,11 +264,7 @@ describe("flisk up success output", () => {
 
 describe("flisk up --wait JSON output", () => {
   it.each([
-    [
-      "ready",
-      { schemaVersion: 1, data: { ok: true, runtime: "native" }, errors: [] },
-      0,
-    ],
+    ["ready", { schemaVersion: 1, data: { ok: true, runtime: "native" }, errors: [] }, 0],
     [
       "failed",
       {
