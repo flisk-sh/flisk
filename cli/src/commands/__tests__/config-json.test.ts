@@ -165,4 +165,134 @@ describe("flisk config verify --json", () => {
       expect.stringMatching(/port 4000: (billing, orders|orders, billing)/),
     );
   }, 120_000);
+
+  it("reports a Dockerfile port mismatch in --json, naming the resource and both ports", () => {
+    const backend = { appType: "backend", type: "backend", healthCheckPath: "/health", port: 4011 };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-dockerfile-port"),
+      stacks: { shop: { api: backend } },
+      files: {
+        "services/shop/api/Dockerfile":
+          "ENV PORT=4010\nEXPOSE 4010\nHEALTHCHECK CMD bun -e \"fetch('http://localhost:4010/health')\"\n",
+      },
+    });
+
+    const result = runVerify(projectRoot);
+
+    expect(result.status).toBe(1);
+    const report = parseEnvelope(result.stdout);
+    expect(report.data.valid).toBe(false);
+    expect(report.data.errors).toContainEqual(
+      expect.stringMatching(/services\/shop\/api\/service\.json.*4011.*4010|4011.*4010/),
+    );
+    expect(report.data.errors).toContainEqual(
+      expect.stringContaining("services/shop/api/Dockerfile"),
+    );
+  }, 120_000);
+
+  it("reports no Dockerfile port mismatch when service.json and the Dockerfile agree", () => {
+    const backend = { appType: "backend", type: "backend", healthCheckPath: "/health", port: 4010 };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-dockerfile-port-ok"),
+      stacks: { shop: { api: backend } },
+      files: {
+        "services/shop/api/Dockerfile":
+          "ENV PORT=4010\nEXPOSE 4010\nHEALTHCHECK CMD bun -e \"fetch('http://localhost:4010/health')\"\n",
+      },
+    });
+
+    const result = runVerify(projectRoot);
+
+    const report = parseEnvelope(result.stdout);
+    expect(
+      report.data.errors.some((e: string) =>
+        /services\/shop\/api\/Dockerfile|port mismatch|disagrees with/.test(e),
+      ),
+    ).toBe(false);
+  }, 120_000);
+
+  it("checks a custom dockerfile resolved through buildContext", () => {
+    const backend = {
+      appType: "backend",
+      type: "backend",
+      port: 4011,
+      dockerfile: "Dockerfile.dev",
+      buildContext: "docker",
+    };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-dockerfile-custom"),
+      stacks: { shop: { api: backend } },
+      files: {
+        "services/shop/api/docker/Dockerfile.dev": "FROM scratch\nENV PORT=4010\nEXPOSE 4010\n",
+      },
+    });
+
+    const result = runVerify(projectRoot);
+
+    expect(result.status).toBe(1);
+    const report = parseEnvelope(result.stdout);
+    expect(
+      report.data.errors.some((e: string) =>
+        /services\/shop\/api\/docker\/Dockerfile\.dev.*4010/.test(e),
+      ),
+    ).toBe(true);
+  }, 120_000);
+
+  it("checks only the final stage of a multi-stage Dockerfile", () => {
+    const backend = { appType: "backend", type: "backend", port: 4010 };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-dockerfile-multistage"),
+      stacks: { shop: { api: backend } },
+      files: {
+        "services/shop/api/Dockerfile":
+          "FROM node:20 AS build\nENV PORT=3000\nEXPOSE 3000\nFROM node:20\nENV PORT=4010\nEXPOSE 4010\n",
+      },
+    });
+
+    const result = runVerify(projectRoot);
+
+    const report = parseEnvelope(result.stdout);
+    expect(
+      report.data.errors.some((e: string) => /Dockerfile|port mismatch|disagrees with/.test(e)),
+    ).toBe(false);
+  }, 120_000);
+
+  it("ignores localhost ports in comments, ENV URLs and RUN commands", () => {
+    const backend = { appType: "backend", type: "backend", port: 4010 };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-dockerfile-false-positive"),
+      stacks: { shop: { api: backend } },
+      files: {
+        "services/shop/api/Dockerfile":
+          "FROM node:20\n# HEALTHCHECK CMD curl http://localhost:9999\nENV UPSTREAM_URL=http://localhost:9999\nRUN curl http://localhost:9999\nENV PORT=4010\nEXPOSE 4010\nHEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://127.0.0.1:4010/health\n",
+      },
+    });
+
+    const result = runVerify(projectRoot);
+
+    const report = parseEnvelope(result.stdout);
+    expect(
+      report.data.errors.some((e: string) => /Dockerfile|port mismatch|disagrees with/.test(e)),
+    ).toBe(false);
+  }, 120_000);
+
+  it("names the mismatch in text mode too", () => {
+    const backend = { appType: "backend", type: "backend", healthCheckPath: "/health", port: 4011 };
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-dockerfile-port-text"),
+      stacks: { shop: { api: backend } },
+      files: {
+        "services/shop/api/Dockerfile":
+          "ENV PORT=4010\nEXPOSE 4010\nHEALTHCHECK CMD bun -e \"fetch('http://localhost:4010/health')\"\n",
+      },
+    });
+
+    const result = runFlisk(["config", "verify"], { cwd: projectRoot });
+
+    expect(result.status).toBe(1);
+    const text = `${result.stdout}\n${result.stderr}`;
+    expect(text).toContain("4011");
+    expect(text).toContain("4010");
+    expect(text).toContain("services/shop/api/Dockerfile");
+  }, 120_000);
 });

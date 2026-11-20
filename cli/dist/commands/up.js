@@ -311,7 +311,7 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
     if (stackName) {
         if (!stackExists(stackName, all)) {
             const error = errorFactories.stackNotFound(stackName, discoverStacks(all).map((s) => s.name));
-            fail("STACK_NOT_FOUND", error.message, error.suggestions);
+            fail("STACK_NOT_FOUND", error.message, error.suggestions, error.exitCode);
         }
         requested = getResourcesForStack(stackName, all);
     }
@@ -320,7 +320,7 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
         if (unknown.length > 0) {
             const validNames = requested.map((service) => service.name);
             const error = errorFactories.unknownServices(unknown, validNames);
-            fail("UNKNOWN_SERVICE", error.message, error.suggestions, {
+            fail("UNKNOWN_SERVICE", error.message, error.suggestions, error.exitCode, {
                 validNames: [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
             });
         }
@@ -452,7 +452,7 @@ async function runUpWait(options) {
                 suggestions: [...INVALID_WAIT_TIMEOUT_SUGGESTIONS],
             },
         ]);
-        showErrorAndExit(timeout.message, 1, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
+        showErrorAndExit(timeout.message, 2, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
     }
     const outcome = await upAndWait(process.argv.slice(2), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
     // A failed or timed-out wait names what was unhealthy with the last lines of its log, the reason (a traceback, a
@@ -588,7 +588,7 @@ export const upCommand = new Command("up")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
-    .addHelpText("after", "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
+    .addHelpText("after", "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExit codes: 2 for an argument you typed wrong (an unknown --only service, an unknown --profile, an invalid --wait-timeout, a rejected --env-file), 1 for a failure such as a stack that cannot start.\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
     .action(async (stackName, options) => {
     const baseEmit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
     const providerError = secretProviderUsageError(process.env);
@@ -738,7 +738,7 @@ export const upCommand = new Command("up")
     }
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated
     // files (#2229). Decided before any Docker or Tilt check; a project without `command` services never enters this branch.
-    const nativeRun = selectNativeRun(stackName, options.only, (code, message, suggestions, extra) => {
+    const nativeRun = selectNativeRun(stackName, options.only, (code, message, suggestions, exitCode = 1, extra) => {
         const jsonError = code === "UNKNOWN_SERVICE" && extra?.validNames !== undefined
             ? unknownServiceJsonError(message, suggestions ?? [], extra.validNames)
             : {
@@ -747,7 +747,7 @@ export const upCommand = new Command("up")
                 ...(suggestions && suggestions.length > 0 ? { suggestions } : {}),
             };
         emit?.({ ok: false }, [jsonError]);
-        return showErrorAndExit(message, 1, suggestions);
+        return showErrorAndExit(message, exitCode, suggestions);
     });
     // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
     if (nativeRun) {
@@ -1282,7 +1282,7 @@ export const upCommand = new Command("up")
                         suggestions: [...INVALID_WAIT_TIMEOUT_SUGGESTIONS],
                     },
                 ]);
-                showErrorAndExit(parsedWaitTimeout.message, 1, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
+                showErrorAndExit(parsedWaitTimeout.message, 2, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
             }
             // Keep the running Tilt's port saved once refusal checks pass, so the next `flisk up` (and status, logs, restart) finds it again.
             hostPortPlan.tiltUi = runningPort;
@@ -1808,5 +1808,5 @@ function assertKnownProfiles(requested, resources, emit) {
             : 'No service has "profiles" in its service.json yet',
     ];
     emit?.({ ok: false }, [{ code: "UNKNOWN_PROFILE", message, suggestions }]);
-    showErrorAndExit(message, 1, suggestions);
+    showErrorAndExit(message, 2, suggestions);
 }
