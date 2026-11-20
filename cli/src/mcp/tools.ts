@@ -977,7 +977,7 @@ export function createFliskTools(
     {
       name: "resource_list",
       description:
-        "List the selected project's services (resources) with their stack, type and port, whether or not they are running. Read-only. Use `status` for live state, `stack_list` to group them by stack and `agent_list` for agents only. Set projectPath when the MCP server is not running from the project root.",
+        "List the selected project's services (resources) with their stack, type, port and project-relative folder path, whether or not they are running. Read-only. Use `status` for live state, `stack_list` to group them by stack and `agent_list` for agents only. Set projectPath when the MCP server is not running from the project root.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         stack: { type: "string", description: "Only this stack" },
