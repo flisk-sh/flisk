@@ -402,7 +402,7 @@ if len(written) != 0: fail('no Vite config may be written for Next.js: ' + str(w
     const result = evaluateStarlark(nextDockerfile, {
       args: `load(${JSON.stringify(nextDockerfile)}, 'generate_next_dockerfile')
 text = generate_next_dockerfile('services/app/web', 3000)
-for needle in ['AS development', 'next", "dev"', 'AS build', 'next build', 'AS production', 'node", "server.js"', 'EXPOSE 3000']:
+for needle in ['AS development', 'npx next dev --hostname 0.0.0.0 --port \${PORT:-', 'AS build', 'next build', 'AS production', 'node", "server.js"', 'EXPOSE 3000']:
     if needle not in text: fail('missing ' + needle)
 if 'nginx' in text: fail('a Next.js image must not use nginx')
 if 'bun' in text: fail('a Next.js image must not use Bun')

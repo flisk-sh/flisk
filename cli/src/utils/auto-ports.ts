@@ -185,11 +185,14 @@ function bindProbe(host: string, port: number): Promise<BindProbeResult> {
 
 /**
  * Whether a new listener can bind `port` on the addresses a Flisk service listens on: the wildcard IPv4 address and
- * the dual-stack IPv6 one (a plain `server.listen(port)` binds `::`, Vite's generated config binds `0.0.0.0`). Every
- * bind failure means the port is unusable; an address the host cannot express is skipped, not treated as occupied.
+ * the dual-stack IPv6 one (a plain `server.listen(port)` binds `::`, Vite's generated config binds `0.0.0.0`), plus
+ * both loopback addresses — a port another process holds on `::1` or `127.0.0.1` only is unusable to this project,
+ * and whether a wildcard bind conflicts with a specific-address bind varies by OS (`SO_REUSEADDR` semantics), so the
+ * specific addresses are probed directly instead of relying on the wildcard probes to catch them. Every bind failure
+ * means the port is unusable; an address the host cannot express is skipped, not treated as occupied.
  */
 async function portIsFree(port: number): Promise<boolean> {
-  for (const host of ["0.0.0.0", "::"]) {
+  for (const host of ["127.0.0.1", "::1", "0.0.0.0", "::"]) {
     if ((await bindProbe(host, port)) === "occupied") return false;
   }
   return true;
