@@ -46,6 +46,7 @@ import { addProjectOption } from "../utils/project-resolution.js";
 import {
   checkCircularDependencies,
   checkDependsOnShape,
+  checkDockerfilePorts,
   checkServicePorts,
   postgresVolumeWarnings,
 } from "../utils/service-config-checks.js";
@@ -501,6 +502,7 @@ export const configCommand = addProjectOption(new Command("config"), "config")
             checkDependsOnShape(projectRoot, resources),
             checkCircularDependencies(projectRoot, resources),
             checkServicePorts(projectRoot, resources),
+            checkDockerfilePorts(projectRoot, resources),
           ]
             .filter((check) => !check.didPass)
             .map((check) =>
