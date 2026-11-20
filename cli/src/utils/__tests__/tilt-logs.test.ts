@@ -3,12 +3,14 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LOG_TAIL,
+  filterLogLinesSince,
   isTiltConnectionFailure,
   isValidPort,
   isValidSince,
   isValidTail,
   MAX_LOG_TAIL,
   parseTiltLogLines,
+  parseTiltWebviewLogLines,
 } from "../tilt-logs.js";
 
 const line = (message: string, extra: Record<string, unknown> = {}) =>
@@ -59,6 +61,77 @@ describe("parseTiltLogLines", () => {
     expect(parseTiltLogLines(out, 1)).toEqual([
       { time: "t", resource: "api", level: "info", source: "runtime", text: "2" },
     ]);
+  });
+});
+
+describe("parseTiltWebviewLogLines (#4197)", () => {
+  const dump = JSON.stringify({
+    logList: {
+      spans: {
+        "build:api:1": { manifestName: "api" },
+        "runtime:api": { manifestName: "api" },
+        "runtime:web": { manifestName: "web" },
+      },
+      segments: [
+        {
+          spanId: "build:api:1",
+          time: "2026-11-20T11:58:00.123456Z",
+          text: "STEP 1/9 : FROM node\n",
+          level: "INFO",
+        },
+        {
+          spanId: "runtime:api",
+          time: "2026-11-20T11:59:55.654321Z",
+          text: "request completed\n",
+          level: "WARN",
+        },
+        { spanId: "runtime:web", text: "undated line\n", level: "INFO" },
+      ],
+    },
+  });
+
+  it("keeps the timestamps Tilt recorded with each segment", () => {
+    expect(parseTiltWebviewLogLines(dump, 10)).toEqual([
+      {
+        time: "2026-11-20T11:58:00.123Z",
+        resource: "api",
+        level: "info",
+        source: "build",
+        text: "STEP 1/9 : FROM node",
+      },
+      {
+        time: "2026-11-20T11:59:55.654Z",
+        resource: "api",
+        level: "warn",
+        source: "runtime",
+        text: "request completed",
+      },
+      {
+        time: null,
+        resource: "web",
+        level: "info",
+        source: "runtime",
+        text: "undated line",
+      },
+    ]);
+  });
+
+  it("returns null for output that is not a webview dump", () => {
+    expect(parseTiltWebviewLogLines("not json", 10)).toBeNull();
+    expect(parseTiltWebviewLogLines("{}", 10)).toBeNull();
+    expect(parseTiltWebviewLogLines('{"logList":{}}', 10)).toEqual([]);
+  });
+});
+
+describe("filterLogLinesSince (#4197)", () => {
+  it("drops a stored line older than the window and keeps a new one", () => {
+    const now = Date.parse("2026-11-20T12:00:00Z");
+    const lines = [
+      { time: "2026-11-20T11:58:00.000Z", text: "old" },
+      { time: "2026-11-20T11:59:55.000Z", text: "new" },
+      { time: null, text: "undated" },
+    ];
+    expect(filterLogLinesSince(lines, 30_000, now)).toEqual([lines[1]]);
   });
 });
 

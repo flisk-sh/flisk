@@ -31,6 +31,23 @@ const resources = (...names: string[]) =>
   ok(JSON.stringify({ items: names.map((name) => ({ metadata: { name } })) }));
 const logLine = (message: string) =>
   JSON.stringify({ time: "t", resource: "api", level: "info", source: "runtime", message });
+const webviewDump = (segments: Array<Record<string, unknown>>, services = ["api"]) =>
+  ok(
+    JSON.stringify({
+      logList: {
+        spans: Object.fromEntries(
+          services.map((name) => [`runtime:${name}`, { manifestName: name }]),
+        ),
+        segments,
+      },
+    }),
+  );
+const segment = (time: string, text: string, spanId = "runtime:api", level = "INFO") => ({
+  spanId,
+  time,
+  text: `${text}\n`,
+  level,
+});
 
 interface Envelope {
   schemaVersion: number;
@@ -358,11 +375,51 @@ describe("flisk logs --json", () => {
     expect(args).toEqual(expect.arrayContaining(["--port", "10350"]));
   });
 
-  it("passes --since parameter to tilt logs command", async () => {
-    tilt.runTilt.mockResolvedValueOnce(ok(""));
-    await run("--since", "45s");
-    const args = tilt.runTilt.mock.calls[0]?.[1] as string[];
-    expect(args).toEqual(expect.arrayContaining(["--since", "45s"]));
+  it("filters --since by the real event times in Tilt's webview dump, not the query time", async () => {
+    const now = Date.parse("2026-11-20T12:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    tilt.runTilt
+      .mockResolvedValueOnce(resources("api"))
+      .mockResolvedValueOnce(
+        webviewDump([
+          segment("2026-11-20T11:58:00Z", "old build output"),
+          segment("2026-11-20T11:59:55Z", "new runtime line"),
+        ]),
+      );
+
+    const { envelope, code } = await run("--since", "30s", "--service", "api");
+
+    expect(code).toBeNull();
+    expect(envelope.data).toMatchObject({
+      services: ["api"],
+      tail: 200,
+      since: "30s",
+      lines: [
+        {
+          time: "2026-11-20T11:59:55.000Z",
+          resource: "api",
+          level: "info",
+          source: "runtime",
+          text: "new runtime line",
+        },
+      ],
+    });
+    expect(tilt.runTilt).toHaveBeenCalledTimes(2); // resource check, then the dated dump
+    expect(tilt.runTilt.mock.calls[1]?.[0]).toBe("dump");
+    expect(tilt.runTilt.mock.calls[1]?.[1]).toEqual(["webview", "--port", "10350"]);
+    expect(JSON.stringify(tilt.runTilt.mock.calls)).not.toContain("--since");
+    clock.mockRestore();
+  });
+
+  it("reports when Tilt returns no readable timestamps for --since", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok("not json"));
+    const { envelope, code } = await run("--since", "5s");
+    expect(code).toBe(1);
+    expect(envelope.errors[0]).toMatchObject({
+      code: "TILT_LOG_TIMES_UNAVAILABLE",
+      suggestions: expect.arrayContaining(["Omit --since to read all buffered logs"]),
+    });
+    expect(tilt.runTilt.mock.calls[0]?.[0]).toBe("dump");
   });
 
   it("tolerates tiltResourceNames listing failure and continues to fetch logs", async () => {

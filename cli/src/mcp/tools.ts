@@ -963,7 +963,7 @@ export function createFliskTools(
         tail: { type: "integer", minimum: 1, maximum: 10000 },
         since: {
           type: "string",
-          description: "Only logs newer than this, for example 30s, 5m, 1h",
+          description: "Only logs newer than this (real event times), for example 30s, 5m, 1h",
         },
         source: {
           type: "string",

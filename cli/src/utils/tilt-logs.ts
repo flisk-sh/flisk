@@ -53,6 +53,82 @@ export function isValidTail(value: string): boolean {
   return /^[1-9]\d*$/.test(value) && Number(value) <= MAX_LOG_TAIL;
 }
 
+/**
+ * Turn a `time` from Tilt's log store into an RFC3339 string. Tilt writes Go MicroTime strings such as
+ * `2026-11-20T12:34:56.123456Z`; `Date.parse` accepts them, but we normalize so every consumer sees one shape.
+ */
+function normalizedTime(value: unknown): string | null {
+  if (typeof value !== "string" || value === "") return null;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString();
+}
+
+const TILT_LEVELS: Record<string, string> = {
+  INFO: "info",
+  VERBOSE: "verbose",
+  DEBUG: "debug",
+  WARN: "warn",
+  ERROR: "error",
+};
+
+/**
+ * Parse the log list in `tilt dump webview` output. The webview dump carries the timestamps Tilt recorded with
+ * each segment; the `tilt logs` path was observed dating lines with the query time in #4197. Returns null when
+ * Tilt did not return a webview dump we can read.
+ */
+export function parseTiltWebviewLogLines(output: string, limit: number): LogLine[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(output) as unknown;
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const view = parsed as Record<string, unknown>;
+  if (!view.logList || typeof view.logList !== "object") return null;
+  const logList = view.logList as Record<string, unknown>;
+  const spans =
+    logList.spans && typeof logList.spans === "object"
+      ? (logList.spans as Record<string, unknown>)
+      : {};
+  const segments = Array.isArray(logList.segments) ? logList.segments : [];
+  const lines: LogLine[] = [];
+  for (const entry of segments) {
+    if (!entry || typeof entry !== "object") continue;
+    const segment = entry as Record<string, unknown>;
+    const spanId = typeof segment.spanId === "string" ? segment.spanId : "";
+    const span = spans[spanId];
+    const manifestName =
+      span && typeof span === "object" ? (span as Record<string, unknown>).manifestName : undefined;
+    const rawText = typeof segment.text === "string" ? segment.text : "";
+    const level =
+      typeof segment.level === "string" ? (TILT_LEVELS[segment.level.toUpperCase()] ?? null) : null;
+    lines.push({
+      time: normalizedTime(segment.time),
+      resource: typeof manifestName === "string" && manifestName ? manifestName : null,
+      level,
+      // This is Tilt's own build/runtime distinction, from internal/hud/client/json_printer.go.
+      source: spanId.startsWith("build:") || spanId.startsWith("cmdimage:") ? "build" : "runtime",
+      text: rawText.endsWith("\n") ? rawText.slice(0, -1) : rawText,
+    });
+  }
+  return lines.slice(-limit);
+}
+
+/** Keep only lines Tilt dated at or after `now - sinceMs`; lines without a usable time cannot prove they are new. */
+export function filterLogLinesSince<T extends { time: string | null }>(
+  lines: readonly T[],
+  sinceMs: number,
+  now: number = Date.now(),
+): T[] {
+  const cutoff = now - sinceMs;
+  return lines.filter((line) => {
+    if (line.time === null) return false;
+    const time = Date.parse(line.time);
+    return !Number.isNaN(time) && time >= cutoff;
+  });
+}
+
 /** Parse `tilt logs --json` (JSON Lines) into normalized lines, keeping at most the last `limit`. Unparseable lines are skipped. */
 export function parseTiltLogLines(output: string, limit: number): LogLine[] {
   const lines: LogLine[] = [];

@@ -27,15 +27,18 @@ import { unhealthyServiceNames } from "../utils/status-groups.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import {
   DEFAULT_LOG_TAIL,
+  filterLogLinesSince,
   filterLogSource,
   isTiltConnectionFailure,
   isValidLogSource,
   isValidSince,
   isValidTail,
   LOG_SOURCES,
+  type LogLine,
   type LogSource,
   MAX_LOG_TAIL,
   parseTiltLogLines,
+  parseTiltWebviewLogLines,
   sinceMilliseconds,
 } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
@@ -109,7 +112,10 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
   .option("-s, --service <names...>", "Only these services (names as in flisk resources)")
   .option("-f, --follow", "Live follow is unavailable; use flisk ui or repeat with --since")
   .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
-  .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
+  .option(
+    "--since <duration>",
+    "Only logs newer than this duration, using real event times, for example 30s, 5m, 1h",
+  )
   .option(
     "--source <source>",
     "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
@@ -314,32 +320,73 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
           services.length > 0 ? services.filter((n) => bad?.includes(n)) : (bad ?? []);
         if (selectedServices.length === 0) return reportAllHealthy();
       }
-      // A source filter needs structured lines, and the tail must count the lines kept, not the build output before them.
-      const structured = Boolean(options.json) || source !== undefined;
-      const args = ["--port", activePortText, "--tail", String(source ? MAX_LOG_TAIL : tail)];
-      if (options.since !== undefined) args.push("--since", options.since);
-      if (structured) args.push("--json");
-      // `--` so a service name that starts with "-" is never read as a Tilt flag.
-      if (selectedServices.length > 0) args.push("--", ...selectedServices);
-
-      const result = await runTilt("logs", args, { inheritStdio: false });
-      if (result.exitCode !== 0) {
-        const detail = result.stderr.trim();
-        if (!detail || isTiltConnectionFailure(detail)) {
-          fail("TILT_NOT_RUNNING", tiltUnreachableMessage(activePortText));
+      // In #4197, `tilt logs --since` returned the whole stored log and JSON lines carried the query time. For a
+      // real time window, read the webview dump: it carries the timestamp Tilt recorded with each segment.
+      const structured =
+        Boolean(options.json) || source !== undefined || options.since !== undefined;
+      let lines: LogLine[];
+      if (options.since !== undefined) {
+        const dump = await runTilt("dump", ["webview", "--port", activePortText], {
+          inheritStdio: false,
+        });
+        if (dump.exitCode !== 0) {
+          const detail = dump.stderr.trim();
+          if (!detail || isTiltConnectionFailure(detail)) {
+            fail("TILT_NOT_RUNNING", tiltUnreachableMessage(activePortText));
+          }
+          fail(
+            "TILT_LOG_TIMES_UNAVAILABLE",
+            `Cannot read Tilt log timestamps for --since: ${detail}`,
+            1,
+            ["Omit --since to read all buffered logs"],
+          );
         }
-        fail("TILT_LOGS_FAILED", `tilt logs failed: ${detail}`);
-      }
+        // Bound the parse, then filter by service/source/time and apply --tail last, so --tail counts returned lines.
+        const parsed = parseTiltWebviewLogLines(dump.stdout, MAX_LOG_TAIL);
+        if (parsed === null) {
+          return fail(
+            "TILT_LOG_TIMES_UNAVAILABLE",
+            "Tilt did not return readable log timestamps for --since.",
+            1,
+            ["Omit --since to read all buffered logs", "Check the Tilt version with: tilt version"],
+          );
+        }
+        const scoped =
+          selectedServices.length > 0
+            ? parsed.filter(
+                (line) => line.resource !== null && selectedServices.includes(line.resource),
+              )
+            : parsed;
+        const dated = filterLogLinesSince(scoped, sinceMilliseconds(options.since));
+        lines = redactLogLines(
+          (source ? filterLogSource(dated, source) : dated).slice(-tail),
+          secrets,
+        );
+      } else {
+        const args = ["--port", activePortText, "--tail", String(source ? MAX_LOG_TAIL : tail)];
+        if (structured) args.push("--json");
+        // `--` so a service name that starts with "-" is never read as a Tilt flag.
+        if (selectedServices.length > 0) args.push("--", ...selectedServices);
 
-      if (!structured) {
-        process.stdout.write(redactSecrets(result.stdout, secrets));
-        return;
+        const result = await runTilt("logs", args, { inheritStdio: false });
+        if (result.exitCode !== 0) {
+          const detail = result.stderr.trim();
+          if (!detail || isTiltConnectionFailure(detail)) {
+            fail("TILT_NOT_RUNNING", tiltUnreachableMessage(activePortText));
+          }
+          fail("TILT_LOGS_FAILED", `tilt logs failed: ${detail}`);
+        }
+
+        if (!structured) {
+          process.stdout.write(redactSecrets(result.stdout, secrets));
+          return;
+        }
+        const parsed = parseTiltLogLines(result.stdout, source ? MAX_LOG_TAIL : tail);
+        lines = redactLogLines(
+          (source ? filterLogSource(parsed, source) : parsed).slice(-tail),
+          secrets,
+        );
       }
-      const parsed = parseTiltLogLines(result.stdout, source ? MAX_LOG_TAIL : tail);
-      const lines = redactLogLines(
-        (source ? filterLogSource(parsed, source) : parsed).slice(-tail),
-        secrets,
-      );
       if (!options.json) {
         const width = Math.max(0, ...lines.map((line) => line.resource?.length ?? 0));
         for (const line of lines) {
