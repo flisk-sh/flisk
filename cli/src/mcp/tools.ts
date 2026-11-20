@@ -712,7 +712,7 @@ const OBJECT = (properties: Record<string, unknown>) => ({
 
 const PROJECT_PATH = {
   type: "string",
-  description: "Absolute path to the Flisk project root; run this operation from that directory.",
+  description: "Absolute project root.",
 };
 
 function projectPath(value: unknown): string | undefined {
@@ -847,13 +847,10 @@ export function createFliskTools(
     {
       name: "doctor",
       description:
-        "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
+        "Check whether this machine can run the Flisk stack, optionally including a project.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        noPing: {
-          type: "boolean",
-          description: "Skip pinging running services' health endpoints",
-        },
+        noPing: { type: "boolean" },
       }),
       handler: viaCli((args) => [
         "doctor",
@@ -864,59 +861,34 @@ export function createFliskTools(
     {
       name: "up",
       description:
-        "Start the stack (or part of it) detached from the optional projectPath. The result carries `state`: `ready` (every local-process service passed its readiness check), `starting` (launched, readiness not confirmed: the default after a short wait; poll `status`, or pass waitForReady), `failed` (a service exited or gave up; the error carries its own output) or `timeout` (waitForReady was set and readiness was not reached in waitSeconds; it keeps starting). `started: true` never means ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
+        "Start the stack (or selected services) detached and briefly watch for early failures.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        stack: { type: "string", description: "Only this stack" },
-        only: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Start only these services plus what they depend on and shared infrastructure",
-        },
+        stack: { type: "string" },
+        only: { type: "array", items: { type: "string" } },
         profile: {
           type: "array",
           items: { type: "string" },
-          description:
-            "Also start the services whose profiles in service.json include one of these names (without it they are left out)",
+          description: "Also start services with one of these service.json profiles",
         },
-        envFile: {
-          type: "string",
-          description:
-            "Use this project env file for the run instead of .env, for example .env.integration",
-        },
-        force: {
-          type: "boolean",
-          description: "Replace a Tilt that is already running",
-        },
-        dryRun: {
-          type: "boolean",
-          description: "Show what would be started without starting",
-        },
+        envFile: { type: "string" },
+        force: { type: "boolean" },
+        dryRun: { type: "boolean" },
         waitForReady: {
           type: "boolean",
-          description:
-            "Wait until every service passed its readiness check (local-process stacks), instead of only watching for an early failure",
+          description: "Wait for readiness before returning; state reports ready or timeout",
         },
         waitSeconds: {
           type: "number",
-          description:
-            "How long to wait before returning (default 15, max 60; with waitForReady default 120, max 600)",
+          description: "Seconds to wait (default 15, max 60; with readiness 120, max 600)",
         },
       }),
       handler: (args) => startUp(args, up),
     },
     {
       name: "down",
-      description:
-        "Stop the running stack, optionally selecting its project with projectPath. It stops the running services and does not edit the project's files. Use `status` first to see whether a stack is running, set dryRun to preview, and start it again with `up`.",
-      inputSchema: OBJECT({
-        projectPath: PROJECT_PATH,
-        dryRun: {
-          type: "boolean",
-          description: "Show what would be stopped without stopping",
-        },
-      }),
+      description: "Stop the running stack without changing project files.",
+      inputSchema: OBJECT({ projectPath: PROJECT_PATH, dryRun: { type: "boolean" } }),
       handler: viaCli((args) => [
         "down",
         "--json",
@@ -926,18 +898,14 @@ export function createFliskTools(
     {
       name: "status",
       description:
-        "Show the live state of the stack: its stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers). Read-only. Poll it after `up`; after a failed `up` call it first with unhealthy: true to see only the broken services (data.resources and each stack's resources then hold only those; data.unhealthy names them and data.filteredTo says it was trimmed). For the services a project defines whether or not they run use `resource_list`; for URLs only use `network_list`; for host checks use `doctor`. Optionally select the project with projectPath.",
+        "Show the live state of the stack: resources, ingress URLs, ports and readiness.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         unhealthy: {
           type: "boolean",
-          description:
-            "Only the services that are failing or still starting. The first call after a failed `up`; with every service healthy it returns an empty list, not an error.",
+          description: "Only failing or starting services; marks data.filteredTo",
         },
-        stack: {
-          type: "string",
-          description: "Only report the services in this stack",
-        },
+        stack: { type: "string" },
       }),
       handler: async (args) => {
         const result = await viaCli(buildStatusArgs)(args);
@@ -946,42 +914,33 @@ export function createFliskTools(
     },
     {
       name: "logs",
-      description:
-        "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. After a failed `up`, call it first with unhealthy: true to read only the failing or still-starting services. Otherwise use `status` first to find which service is failing, then pass services to narrow the output and source `runtime` to skip image build output and read why it failed.",
+      description: "Return a bounded snapshot of recent stack logs.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        services: {
-          type: "array",
-          items: { type: "string" },
-          description: "Only these services",
-        },
+        services: { type: "array", items: { type: "string" } },
         unhealthy: {
           type: "boolean",
-          description:
-            "Only the logs of failing or still-starting services. The first call after a failed `up`; with every service healthy it returns nothing, not an error.",
+          description: "Only logs of failing or starting services",
         },
-        tail: { type: "integer", minimum: 1, maximum: 10000 },
-        since: {
-          type: "string",
-          description: "Only logs newer than this, for example 30s, 5m, 1h",
+        tail: {
+          type: "integer",
+          minimum: 1,
+          maximum: 10000,
+          description: "Last N lines (default 200)",
         },
+        since: { type: "string" },
         source: {
           type: "string",
           enum: ["runtime", "build"],
-          description:
-            "runtime: only what the services printed (where a crash cause such as an exception or a missing variable is); build: only image build steps. Omit for both.",
+          description: "runtime: service output (crash causes); build: image builds; omit for both",
         },
       }),
       handler: viaCli(buildLogsArgs),
     },
     {
       name: "resource_list",
-      description:
-        "List the selected project's services (resources) with their stack, type and port, whether or not they are running. Read-only. Use `status` for live state, `stack_list` to group them by stack and `agent_list` for agents only. Set projectPath when the MCP server is not running from the project root.",
-      inputSchema: OBJECT({
-        projectPath: PROJECT_PATH,
-        stack: { type: "string", description: "Only this stack" },
-      }),
+      description: "List the project's services with their stack, type and port.",
+      inputSchema: OBJECT({ projectPath: PROJECT_PATH, stack: { type: "string" } }),
       handler: viaCli((args) => {
         const stack = optionalName(args.stack, "stack");
         return ["resources", "--json", ...(stack ? [`--stack=${stack}`] : [])];
@@ -990,22 +949,20 @@ export function createFliskTools(
     {
       name: "resource_restart",
       aliases: ["restart_resource"],
-      description:
-        "Restart one running resource in the stack along with any active container resources that transitively declare `sidecarOf` on it (Flisk-generated Compose containers restart without rebuilding their image; local-process resources of a project that runs without Tilt are restarted by the run that supervises them (its .env is re-read, only that service is stopped and started, and the result says whether it is `ready`, `failed` with its own output, or still starting); other non-container resources and projects using an imported Tiltfile fall back to `tilt trigger`); unrelated resources are not touched. It needs a running stack: start one with `up`. Set rebuild to true for a full Tilt update (rebuild the image and recreate the container, which re-reads the project .env). Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
+      description: "Restart a running resource and its dependent sidecars.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         resource: {
           type: "string",
-          description: "Name of the resource to restart",
+          description: "Name from resource_list; dependent sidecarOf containers restart too",
         },
         rebuild: {
           type: "boolean",
-          description: "Rebuild the image and recreate the container through Tilt",
+          description: "Rebuild the image and container through Tilt",
         },
         waitSeconds: {
           type: "number",
-          description:
-            "Local-process stacks: how long to wait for the service to be ready again (default 60, max 300; 0 returns once the restart has begun)",
+          description: "Seconds to wait (default 60, max 300; 0 returns at start)",
         },
       }),
       handler: async (args: Record<string, unknown>) => {
@@ -1040,24 +997,15 @@ export function createFliskTools(
     },
     {
       name: "resource_run",
-      description:
-        "Run a one-off command (a seed script, a migration, a status check) with the environment one resource has in the stack, and return its exit code, stdout and stderr (the last 64 KB of each; values from the project's .env files are masked). It runs any command, so it is refused unless confirm is true: ask the user first. A container resource must be running (start it with `up`); a local-process resource runs from its folder. No input is passed. Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
+      description: "Run a one-off command in a resource's environment, with secrets masked.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
-          resource: {
-            type: "string",
-            description: "Name of the resource whose environment the command gets",
-          },
-          command: {
-            type: "array",
-            items: { type: "string" },
-            description: 'The program and its arguments, for example ["node", "scripts/seed.js"]',
-          },
+          resource: { type: "string" },
+          command: { type: "array", items: { type: "string" } },
           confirm: {
             type: "boolean",
-            description:
-              "Must be true to run the command: it runs arbitrary code in the resource's environment",
+            description: "Must be true: the command runs arbitrary code; ask the user first",
           },
         }),
         required: ["resource", "command"],
@@ -1092,12 +1040,8 @@ export function createFliskTools(
     {
       name: "agent_list",
       aliases: ["list_agents"],
-      description:
-        "List AI agent resources (appType: 'agent') in the project with their stack, runtime, durability and port. Read-only. Use `resource_list` for every resource type, and `agent_sessions` to inspect one agent's sessions. Set projectPath when the MCP server is not running from the project root.",
-      inputSchema: OBJECT({
-        projectPath: PROJECT_PATH,
-        stack: { type: "string", description: "Only this stack" },
-      }),
+      description: "List the AI agent resources in the project.",
+      inputSchema: OBJECT({ projectPath: PROJECT_PATH, stack: { type: "string" } }),
       handler: viaCli((args) => {
         const stack = optionalName(args.stack, "stack");
         return ["resources", "--type=agent", "--json", ...(stack ? [`--stack=${stack}`] : [])];
@@ -1106,18 +1050,14 @@ export function createFliskTools(
     {
       name: "agent_sessions",
       aliases: ["get_agent_sessions"],
-      description:
-        "List the sessions of a running AI agent resource (id, last activity, status, checkpoint size), or read one session's checkpoint when sessionId is set. Set projectPath when the MCP server is not running from the project root.",
+      description: "List a running agent's sessions, or read one checkpoint.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
-          resource: {
-            type: "string",
-            description: "Name of the agent resource",
-          },
+          resource: { type: "string" },
           sessionId: {
             type: "string",
-            description: "Session ID to read; omit it to list all sessions",
+            description: "Read this checkpoint; omit to list sessions",
           },
         }),
         required: ["resource"],
@@ -1137,18 +1077,11 @@ export function createFliskTools(
     },
     {
       name: "stack_list",
-      description:
-        "List the project's stacks with their resource counts. Read-only. Use `resource_list` for the resources themselves. Set services to include each stack's service names, and verbose for its description. Set projectPath when the MCP server is not running from the project root.",
+      description: "List the project's stacks with their resource counts.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        services: {
-          type: "boolean",
-          description: "Include the service names in each stack",
-        },
-        verbose: {
-          type: "boolean",
-          description: "Include each stack's description",
-        },
+        services: { type: "boolean" },
+        verbose: { type: "boolean" },
       }),
       handler: viaCli((args) => [
         "stacks",
@@ -1159,15 +1092,13 @@ export function createFliskTools(
     },
     {
       name: "project_info",
-      description:
-        "Project root, whether the generated master files exist (data.configured, data.missingFiles), and resource and stack counts. Read-only; a quick first call to learn whether a folder is a configured Flisk project. Use `config_verify` to check that the generated files match, and `status` for the running stack. Set projectPath when the MCP server is not running from the project root.",
+      description: "Show the project root, generated-file status and resource counts.",
       inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
       handler: viaCli(() => ["projects", "--json"]),
     },
     {
       name: "project_templates",
-      description:
-        "List the starter templates project_init can clone (data.templates): each one's key, repo, description and, for a template pinned to a commit, the ref it checks out. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
+      description: "List the starter templates `project_init` can clone.",
       inputSchema: OBJECT({}),
       handler: async () => ({
         data: { templates: listProjectTemplates() },
@@ -1176,12 +1107,8 @@ export function createFliskTools(
     },
     {
       name: "network_list",
-      description:
-        "The Traefik URL of every frontend and API service, with its base path, port and whether it answers (running, stopped). Read-only. Use it to find where to open a service; use `status` for full readiness. Set projectPath when the MCP server is not running from the project root.",
-      inputSchema: OBJECT({
-        projectPath: PROJECT_PATH,
-        stack: { type: "string", description: "Only this stack" },
-      }),
+      description: "List the Traefik URL of every frontend and API service and whether it answers.",
+      inputSchema: OBJECT({ projectPath: PROJECT_PATH, stack: { type: "string" } }),
       handler: viaCli((args) => {
         const stack = optionalName(args.stack, "stack");
         return ["networks", "--json", ...(stack ? [`--stack=${stack}`] : [])];
@@ -1189,23 +1116,18 @@ export function createFliskTools(
     },
     {
       name: "config_verify",
-      description:
-        "Check that the generated files match .flisk/project.json and that every service.json is valid. Returns data.valid, data.errors, data.warnings and data.diffs; a drifted generated file is fixed with config_regenerate. Set projectPath when the MCP server is not running from the project root.",
+      description: "Check generated files and service configs for drift or errors.",
       inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
       handler: viaCli(() => ["config", "verify", "--json"]),
     },
     {
       name: "config_explain",
       description:
-        "Explain one project file: whether Flisk generated it or the user owns it, its source, whether it is edited now, whether editing it blocks `up`, and what to edit instead. Run it before editing a file you did not write. Set projectPath when the MCP server is not running from the project root.",
+        "Explain whether a project file is generated or user-owned and what editing it does on `up`.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
-          file: {
-            type: "string",
-            description:
-              "The file, relative to projectPath (or to the server's directory) or absolute; it must be inside the project",
-          },
+          file: { type: "string" },
         }),
         required: ["file"],
       },
@@ -1221,76 +1143,49 @@ export function createFliskTools(
     },
     {
       name: "runtime_check",
-      description:
-        "Read-only. Check that the installed Flisk CLI has its bundled runtime assets (engine, templates). Returns ok, assetRoot and what is missing; a source checkout reports ok: false because the assets exist only in a packaged install. projectPath is optional: a project-local install under its node_modules is checked too.",
+      description: "Check that the installed CLI has its bundled engine and template assets.",
       inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
       handler: viaCli(() => ["runtime", "--check-assets", "--json"]),
     },
     {
       name: "config_regenerate",
-      description:
-        "Regenerate the master config files in .flisk/.flisk-out/ from .flisk/project.json. A dry run by default, which returns the planned changes as data.changes (each file's status and lineDiff) with data.hasChanges; set dryRun to false to write them and get the same list, which discards hand edits in those generated files. Set projectPath when the MCP server is not running from the project root.",
+      description: "Regenerate the master config files from `.flisk/project.json`.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         dryRun: {
           type: "boolean",
-          description:
-            "Default true: show what would change. false rewrites the files and discards hand edits in them",
+          description: "Default true: report changes; false rewrites files and discards hand edits",
         },
       }),
       handler: viaCli(buildConfigRegenerateArgs),
     },
     {
       name: "resource_create",
-      description:
-        "Scaffold a new service (service.json, Dockerfile, source and a test) with `flisk resource <name> --yes`, or register an existing directory that already has a service.json. Returns the command's text output. Without stack it uses the only existing stack or `main`, and fails when several stacks exist. Do not call it again for a resource that already exists: that rewrites its service.json and can assign it a new port (check with resource_list first). Call `up` afterwards to start it. Set projectPath when the MCP server is not running from the project root.",
+      description: "Scaffold a new service non-interactively.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
-          name: { type: "string", description: "Resource name (kebab-case)" },
+          name: { type: "string" },
           type: {
             type: "string",
             enum: [...RESOURCE_CREATE_TYPE_VALUES],
             description:
-              "Resource type (default backend). Redis, Qdrant, MinIO, MLflow, MySQL, MongoDB, ClickHouse, NATS, RabbitMQ, Mailpit and stripe-mock are frameworks: type database, queue, storage, mail or payment plus framework",
+              "Frameworks count as their type: Database: postgres (default), redis, qdrant, mlflow, mysql, mongodb, clickhouse; Queue: nats (default), rabbitmq; Storage: minio (default); Mail: mailpit (default); Payment: stripe-mock (default).",
           },
-          stack: {
-            type: "string",
-            description: "Stack to assign the resource to",
-          },
+          stack: { type: "string" },
           framework: {
             type: "string",
             description:
-              "Frontend: react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next. Backend: hono (default), express, elysia, fastify, nestjs, koa, h3. Database: postgres (default, the shared Flisk Postgres), redis, qdrant, mlflow, mysql, mongodb, clickhouse (each its own container; the services that list it in dependsOn get its connection settings). Queue: nats (default), rabbitmq. Storage: minio (default). Mail: mailpit (default, local SMTP and inbox). Payment: stripe-mock (default, Stripe API emulator)",
+              "Frontend: react (default), vue, svelte, preact, lit, solid, qwik, vanilla, next. Backend: hono (default), express, elysia, fastify, nestjs, koa, h3. Others: see type.",
           },
-          language: {
-            type: "string",
-            description: "Backend language: bun (default), python, go, rust, node",
-          },
-          port: {
-            type: "integer",
-            minimum: 1,
-            maximum: 65535,
-            description: "Port within the type's range (default: the next free one)",
-          },
-          features: {
-            type: "array",
-            items: { type: "string" },
-            description: "Resource features to enable, for example prisma or drizzle",
-          },
-          runtime: {
-            type: "string",
-            description: "Agent runtime (type agent only): custom",
-          },
-          durability: {
-            type: "string",
-            description:
-              "Where agent sessions are checkpointed (type agent only): files or postgres",
-          },
+          language: { type: "string" },
+          port: { type: "integer", minimum: 1, maximum: 65535 },
+          features: { type: "array", items: { type: "string" } },
+          runtime: { type: "string" },
+          durability: { type: "string" },
           local: {
             type: "boolean",
-            description:
-              "Frontend or backend only: scaffold it to run on this computer with no Docker or Tilt (a plain Vite config, a command in service.json), the way flisk create does by default",
+            description: "Frontend/backend only: run locally without Docker or Tilt",
           },
         }),
         required: ["name"],
@@ -1299,28 +1194,17 @@ export function createFliskTools(
     },
     {
       name: "tool_add",
-      description:
-        "Add a tool by its everyday name (react, nextjs, fastapi, nodejs, postgresql, mysql, mongodb, rag, embeddings, llm-api) with `flisk tool add <tool> --json`, which runs the matching `flisk resource` command. data.status says what happened: resource (created; data.resource is the resource_create result), built-in (docker: nothing to do), manual (angular, tailwind, spring-boot, github-actions, jutro, policycenter: data.steps are steps to show the user; nothing was changed), or an error for a rejected tool (aws, google-cloud, azure, kubernetes): Flisk runs everything locally and never creates cloud resources, so do not work around it. Call `up` afterwards to start a new resource. Set projectPath when the MCP server is not running from the project root.",
+      description: "Add a tool by its everyday name with `flisk tool add`.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
           tool: {
             type: "string",
-            description: `The tool to add, by id or everyday name ("Next.js", "google cloud"): ${toolIds().join(", ")}`,
+            description: "Tool id or everyday name; an invalid name lists the valid ids",
           },
-          name: {
-            type: "string",
-            description:
-              "Resource name (default per tool, for example web, server, db); a name already in use is refused",
-          },
-          stack: {
-            type: "string",
-            description: "Stack to assign the resource to",
-          },
-          dryRun: {
-            type: "boolean",
-            description: "Preview the resource without writing files or reserving a port",
-          },
+          name: { type: "string" },
+          stack: { type: "string" },
+          dryRun: { type: "boolean" },
         }),
         required: ["tool"],
       },
@@ -1328,21 +1212,15 @@ export function createFliskTools(
     },
     {
       name: "stack_assign",
-      description:
-        "Assign resources that have no stack yet to a stack (writes `stack` into their service.json). A resource already in a stack is refused unless move is true, which moves it out of its current stack. Returns the structured envelope: data.stack and data.assigned (name and service.json path of each resource), or errors with a code and suggestions (for example the valid resource names). Set projectPath when the MCP server is not running from the project root.",
+      description: "Assign resources without a stack to a stack.",
       inputSchema: {
         ...OBJECT({
           projectPath: PROJECT_PATH,
-          stack: { type: "string", description: "Stack name (kebab-case)" },
-          resources: {
-            type: "array",
-            items: { type: "string" },
-            description: "Names of the resources to assign",
-          },
+          stack: { type: "string" },
+          resources: { type: "array", items: { type: "string" } },
           move: {
             type: "boolean",
-            description:
-              "Move resources that are already in another stack instead of refusing them",
+            description: "Move resources already in another stack instead of refusing them",
           },
         }),
         required: ["stack", "resources"],
@@ -1351,28 +1229,17 @@ export function createFliskTools(
     },
     {
       name: "project_init",
-      description:
-        "Create a Flisk project with `flisk project --yes`: in projectPath (an existing directory; default the server's directory) write .flisk/project.json and generate its files, or, with template, clone a starter project into a new directory there (then call project_init again with projectPath set to the clone to configure it). Inside an existing project it refreshes that project's generated files instead and never overwrites its project.json. Returns the command's text output.",
+      description: "Create a Flisk project in a directory, or clone a starter template into it.",
       inputSchema: OBJECT({
-        projectPath: {
-          type: "string",
-          description:
-            "Absolute path to an existing directory to create the project in (or to clone the template from)",
-        },
-        template: {
-          type: "string",
-          enum: Object.keys(PROJECT_TEMPLATES),
-          description: "Clone this starter project instead of creating a blank one",
-        },
+        projectPath: { type: "string" },
+        template: { type: "string", enum: Object.keys(PROJECT_TEMPLATES) },
         path: {
           type: "string",
-          description:
-            "Template only: directory to clone into, relative to projectPath or absolute (default: the starter name, or its repository name)",
+          description: "Template only: clone directory (default: the starter name)",
         },
         agentSkills: {
           type: "boolean",
-          description:
-            "Blank project only: write the Flisk agent skills and AGENTS.md (default true)",
+          description: "Blank project only: write agent skills and AGENTS.md (default true)",
         },
       }),
       handler: viaCliText(buildProjectInitArgs, {
@@ -1381,43 +1248,31 @@ export function createFliskTools(
     },
     {
       name: "project_eject",
-      description:
-        "Write EJECTED.md with `flisk eject --json`: it lists the generated Tilt files and how to run the stack with plain Tilt, and copies, moves or deletes nothing. It changes the project, so it is refused unless confirm is true; dryRun returns the plan (data.generatedFiles, data.created) without confirm. Set projectPath when the MCP server is not running from the project root.",
+      description: "Write `EJECTED.md` with instructions for running the stack without Flisk.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         confirm: {
           type: "boolean",
-          description: "Must be true to write EJECTED.md; without it only a dry run is allowed",
+          description: "Must be true to write EJECTED.md; otherwise only a dry run is allowed",
         },
-        dryRun: {
-          type: "boolean",
-          description: "List the generated files and what would be written, without writing",
-        },
+        dryRun: { type: "boolean" },
       }),
       handler: viaCli(buildProjectEjectArgs),
     },
     {
       name: "project_import",
-      description:
-        "Import the services in a directory's root docker-compose.yml as bring-your-own service.json files with `flisk import --json`, which runs the pinned flisk-import from npm (the first run needs network access). It writes without asking: set dryRun to get the plan only, and force to overwrite an existing service.json (force needs confirm: true unless dryRun is set). Returns data.written and the importer's output. Set projectPath when the MCP server is not running from the project root.",
+      description: "Import a Compose file's services as Flisk `service.json` files.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
-        dir: {
-          type: "string",
-          description:
-            "Directory with the docker-compose.yml, relative to projectPath or absolute (default: projectPath)",
-        },
-        dryRun: {
-          type: "boolean",
-          description: "Print the plan and write nothing",
-        },
+        dir: { type: "string" },
+        dryRun: { type: "boolean" },
         force: {
           type: "boolean",
-          description: "Overwrite an existing service.json",
+          description: "Overwrite an existing service.json; needs confirm unless dryRun",
         },
         confirm: {
           type: "boolean",
-          description: "Must be true together with force (unless dryRun) to overwrite files",
+          description: "Must be true with force (unless dryRun)",
         },
       }),
       handler: viaCli(buildProjectImportArgs, { timeoutMs: IMPORT_TIMEOUT_MS }),

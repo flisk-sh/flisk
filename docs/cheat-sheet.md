@@ -572,6 +572,7 @@ Runs a Model Context Protocol server over stdio for coding agents. See [agent ho
 | --- | --- |
 | `--read-only` | Expose only tools that do not change project state. Also available as `FLISK_MCP_READ_ONLY=1` |
 | `--tools <names>` | Expose only the named comma-separated tools. Also available as `FLISK_MCP_TOOLS` |
+| `--profile <name>` | Expose a named tool subset: `minimal` = `status`, `up`, `logs`. Also available as `FLISK_MCP_PROFILE` |
 
 ### `flisk connect <host>`
 

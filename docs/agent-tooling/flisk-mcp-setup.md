@@ -219,7 +219,11 @@ By default `flisk mcp` lists every tool. For a reviewer bot, a CI agent or a clo
 
 `--read-only` (or `FLISK_MCP_READ_ONLY=1`) lists and runs only the tools annotated `readOnlyHint`: `doctor`, `status`, `logs`, `resource_list`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain` and `runtime_check`. A `tools/call` on any other tool, including a former name, returns an error result that says the server is read-only and that the user must restart it without `--read-only` to give write access.
 
+To keep the `tools/list` payload small, pass `--profile minimal` (or `FLISK_MCP_PROFILE=minimal`) to publish only `status`, `up` and `logs`. Unknown profile names stop the server with the available profiles. `minimal` is a shorthand for the tool names; `--tools` takes precedence over the profile when both are set.
+
 For an explicit list, pass `--tools status,logs,doctor` (or `FLISK_MCP_TOOLS=status,logs,doctor`). A tool outside the list is neither listed nor run, and an unknown name stops the server with the list of valid names. Together with `--read-only`, only the read-only tools in the list are allowed. A flag takes precedence over its environment variable. `flisk connect` does not write these options; add them to the `args` of the entry it wrote.
+
+The default list stays complete for backwards compatibility. Tool descriptions in `tools/list` are one sentence each; the longer guidance for each tool lives in [`docs/agents/llms-full.txt`](../agents/llms-full.txt).
 
 `resource_run` and `project_import` with `force` ask for `confirm: true`, like `project_eject`, so the agent has to ask you before it runs an arbitrary command or overwrites a `service.json`.
 

@@ -15,7 +15,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
   - `agent` resource type: Long-running agent process with `files` durability (named volume surviving `flisk down`), sticky session routing via `x-session-id`, graceful SIGTERM turn draining, `/health` (liveness) and `/ready` (application readiness for callers).
   - `mcp` resource type: Standard Model Context Protocol servers over Streamable HTTP (`/mcp`) routed via Traefik.
   - `flisk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate Flisk (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `resource_run`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `tool_add`, `stack_assign`, `project_init`, `project_eject`, `project_import`):
-    - Restrict it with `flisk mcp --read-only` (env `FLISK_MCP_READ_ONLY=1`; only the read tools are listed or run) or `--tools a,b` (env `FLISK_MCP_TOOLS`).
+    - Restrict it with `flisk mcp --read-only` (env `FLISK_MCP_READ_ONLY=1`; only the read tools are listed or run), `--tools a,b` (env `FLISK_MCP_TOOLS`), or `--profile minimal` (env `FLISK_MCP_PROFILE=minimal`; only `status`, `up` and `logs`).
     - `doctor`: Check whether this machine can run the Flisk stack and optionally validate a project.
     - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
     - `down`: Stop the running stack.

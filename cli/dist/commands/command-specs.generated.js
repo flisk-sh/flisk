@@ -307,11 +307,15 @@ export const COMMAND_SPECS = [
                 flags: "--tools <names>",
                 description: "List and allow only these comma-separated tools (env FLISK_MCP_TOOLS)",
             },
+            {
+                flags: "--profile <name>",
+                description: "List and allow only a named tool subset: minimal = status, up, logs (env FLISK_MCP_PROFILE)",
+            },
         ],
         arguments: [],
         helpTexts: {
             after: [
-                '\nThe server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.\nAdd it to an MCP client instead:\n  { "command": "flisk", "args": ["mcp"] }\n\nExamples:\n  flisk mcp                # started by an MCP client\n  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only\n  flisk mcp --tools status,logs,doctor\n  flisk mcp check tools    # check the MCP resource named tools',
+                '\nThe server reads JSON-RPC on stdin and waits for a client, so it prints nothing in a terminal.\nAdd it to an MCP client instead:\n  { "command": "flisk", "args": ["mcp"] }\n\nExamples:\n  flisk mcp                # started by an MCP client\n  flisk mcp --read-only    # for a reviewer or CI agent: doctor, status, logs and the other read tools only\n  flisk mcp --profile minimal  # publish only status, up and logs\n  flisk mcp --tools status,logs,doctor\n  flisk mcp check tools    # check the MCP resource named tools',
             ],
         },
         subcommands: [

@@ -298,16 +298,15 @@ describe("argument building", () => {
     const tools = createFliskTools();
     const props = (name: string) => {
       const schema = tools.find((tool) => tool.name === name)?.inputSchema as unknown as
-        | { properties: Record<string, { type?: string }> }
+        | { properties: Record<string, { type?: string; description?: string }> }
         | undefined;
       return schema?.properties ?? {};
     };
     expect(props("status").unhealthy?.type).toBe("boolean");
     expect(props("status").stack?.type).toBe("string");
     expect(props("logs").unhealthy?.type).toBe("boolean");
-    for (const name of ["status", "logs"]) {
-      expect(tools.find((tool) => tool.name === name)?.description).toContain("unhealthy: true");
-    }
+    expect(props("status").unhealthy?.description).toContain("data.filteredTo");
+    expect(props("logs").unhealthy?.description).toContain("failing or starting");
   });
 
   it("trims status to the unhealthy services, in resources and in each stack, and marks it", () => {
@@ -1144,9 +1143,10 @@ describe("tool list", () => {
   });
   it("documents target and transitive sidecarOf scope on resource_restart", () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
-    const desc = tools.find((t) => t.name === "resource_restart")?.description ?? "";
-    expect(desc).toContain("sidecarOf");
-    expect(desc).not.toContain("the other resources are not touched");
+    const tool = tools.find((t) => t.name === "resource_restart");
+    const schema = tool?.inputSchema as { properties: Record<string, { description?: string }> };
+    expect(schema.properties.resource?.description).toContain("sidecarOf");
+    expect(JSON.stringify(tool)).not.toContain("the other resources are not touched");
   });
 
   it("forwards rebuild to flisk restart --rebuild for resource_restart", async () => {
