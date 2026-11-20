@@ -1190,7 +1190,7 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker\n  flisk resource api --dry-run",
+    "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker",
   )
   .action(async (name, options, command: Command) => {
     // The frontend listing is the historical default; `--type` selects the listing when it is given.

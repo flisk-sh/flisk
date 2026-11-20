@@ -1037,7 +1037,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     ],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker\n  flisk resource api --dry-run",
+        "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker",
       ],
     },
     subcommands: [],
