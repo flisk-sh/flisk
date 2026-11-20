@@ -157,7 +157,7 @@ def _dev_script_runs_bun_only(res_path):
     return True
 
 
-def _bun_development_stage(res_path, port, manifest, base_image, use_prisma, use_golden = True):
+def _bun_development_stage(res_path, port, manifest, base_image, use_prisma, resource_name, use_golden = True):
     """The `development` target of a Bun service whose `dev` script watches (#3395): the sources, run by that script.
 
     The runtime stage runs the compiled dist, so a synced edit would never be served. This stage keeps the sources, which Tilt
@@ -297,7 +297,7 @@ def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun r
     # Provide build targets that match external tooling (e.g. --target production/ development).
     # `production` stays the last stage, so a build without --target still gets the production image.
     if not use_infisical and bun_live_reload_enabled(manifest, res_path):
-        parts.append(_bun_development_stage(res_path, port, manifest, base_image, use_prisma, use_golden))
+        parts.append(_bun_development_stage(res_path, port, manifest, base_image, use_prisma, resource_name, use_golden))
     else:
         parts.append("\nFROM l4_backend_runtime AS development\n")
     parts.append("\nFROM l4_backend_runtime AS production\n")

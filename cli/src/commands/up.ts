@@ -1740,13 +1740,22 @@ export const upCommand = new Command("up")
               );
               if (urlChecks.some((check) => !check.didAnswer)) {
                 clearFastNoopState(projectRoot);
-                emit({ ok: false, alreadyRunning: true, tiltUrl, urls: urlChecks, ...autoPortResolution.report }, [
+                emit(
                   {
-                    code: "UP_URL_UNREACHABLE",
-                    message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
-                    suggestions: urlFailureSuggestions(urlChecks),
+                    ok: false,
+                    alreadyRunning: true,
+                    tiltUrl,
+                    urls: urlChecks,
+                    ...autoPortResolution.report,
                   },
-                ]);
+                  [
+                    {
+                      code: "UP_URL_UNREACHABLE",
+                      message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
+                      suggestions: urlFailureSuggestions(urlChecks),
+                    },
+                  ],
+                );
                 process.exitCode = 1;
                 return;
               }
@@ -1774,9 +1783,10 @@ export const upCommand = new Command("up")
             });
           } else {
             clearFastNoopState(projectRoot);
-            emit({ ok: false, alreadyRunning: true, tiltUrl, failures, ...autoPortResolution.report }, [
-              { code: report.code, message: report.message, suggestions: report.suggestions },
-            ]);
+            emit(
+              { ok: false, alreadyRunning: true, tiltUrl, failures, ...autoPortResolution.report },
+              [{ code: report.code, message: report.message, suggestions: report.suggestions }],
+            );
             process.exitCode = 1;
           }
           return;

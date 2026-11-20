@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { createConnection } from "node:net";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createConnection } from "node:net";
 import { join } from "node:path";
 import { PORT_RANGES } from "./constants.js";
 import { FliskError } from "./errors.js";
@@ -104,9 +104,7 @@ export function applySavedAutoPorts(resources, projectRoot) {
             previous.set(resource.name, range.base);
         }
     }
-    return resolved.size > 0
-        ? overlayResolvedPorts(resources, resolved, previous)
-        : [...resources];
+    return resolved.size > 0 ? overlayResolvedPorts(resources, resolved, previous) : [...resources];
 }
 function portIsFree(port, timeoutMs) {
     return new Promise((resolve) => {
@@ -127,7 +125,8 @@ export function autoPortReportFromResources(resources) {
         if (!resource.autoPort || typeof resource.port !== "number")
             continue;
         const declared = declaredPortOf(resource);
-        const previous = resource.portBeforeAuto ?? (typeof declared === "number" ? declared : autoPortRange(resource).base);
+        const previous = resource.portBeforeAuto ??
+            (typeof declared === "number" ? declared : autoPortRange(resource).base);
         report.autoPorts.push({
             name: resource.name,
             port: resource.port,

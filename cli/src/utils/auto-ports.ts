@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { createConnection } from "node:net";
+
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createConnection } from "node:net";
 import { join } from "node:path";
 import type { DiscoveredResource, DiscoveredResourceConfig } from "../types/index.js";
 import { PORT_RANGES } from "./constants.js";
@@ -59,9 +60,9 @@ function writeState(projectRoot: string, state: AutoPortState): void {
 
 export function readAutoPortState(projectRoot: string): Map<string, SavedPort> {
   try {
-    const parsed = JSON.parse(readFileSync(autoPortStatePath(projectRoot), "utf-8")) as Partial<
-      AutoPortState
-    >;
+    const parsed = JSON.parse(
+      readFileSync(autoPortStatePath(projectRoot), "utf-8"),
+    ) as Partial<AutoPortState>;
     if (parsed.version !== 1 || !parsed.ports || typeof parsed.ports !== "object") return new Map();
     const result = new Map<string, SavedPort>();
     for (const [name, entry] of Object.entries(parsed.ports)) {
@@ -81,7 +82,12 @@ export function readAutoPortState(projectRoot: string): Map<string, SavedPort> {
 }
 
 /** The port range a service uses when its port is `auto`. Unknown types use the backend-compatible range. */
-export function autoPortRange(resource: DiscoveredResource): { base: number; min: number; max: number; range: string } {
+export function autoPortRange(resource: DiscoveredResource): {
+  base: number;
+  min: number;
+  max: number;
+  range: string;
+} {
   const appType = resource.config?.appType ?? resource.type;
   const key = (appType && appType in PORT_RANGES ? appType : "backend") as keyof typeof PORT_RANGES;
   const entry = PORT_RANGES[key];
@@ -101,7 +107,8 @@ export function overlayResolvedPorts(
 ): DiscoveredResource[] {
   return resources.map((resource) => {
     const declared = declaredPortOf(resource);
-    const port = resolved.get(resource.name) ?? (typeof declared === "number" ? declared : undefined);
+    const port =
+      resolved.get(resource.name) ?? (typeof declared === "number" ? declared : undefined);
     const autoPort = resolved.has(resource.name) || isAutoPort(declared);
     const config: DiscoveredResourceConfig | undefined = resource.config
       ? {
@@ -139,9 +146,7 @@ export function applySavedAutoPorts(
       previous.set(resource.name, range.base);
     }
   }
-  return resolved.size > 0
-    ? overlayResolvedPorts(resources, resolved, previous)
-    : [...resources];
+  return resolved.size > 0 ? overlayResolvedPorts(resources, resolved, previous) : [...resources];
 }
 
 function portIsFree(port: number, timeoutMs: number): Promise<boolean> {
@@ -189,7 +194,8 @@ export function autoPortReportFromResources(
     if (!resource.autoPort || typeof resource.port !== "number") continue;
     const declared = declaredPortOf(resource);
     const previous =
-      resource.portBeforeAuto ?? (typeof declared === "number" ? declared : autoPortRange(resource).base);
+      resource.portBeforeAuto ??
+      (typeof declared === "number" ? declared : autoPortRange(resource).base);
     report.autoPorts.push({
       name: resource.name,
       port: resource.port,
@@ -273,13 +279,10 @@ export async function resolveAutoPorts(
       break;
     }
     if (picked === null) {
-      throw new FliskError(
-        `No free port for service "${resource.name}" in range ${range.range}.`,
-        [
-          "Stop a service that holds a port in that range, or give the service a fixed port in service.json",
-          "See the ports in use with: flisk resources",
-        ],
-      );
+      throw new FliskError(`No free port for service "${resource.name}" in range ${range.range}.`, [
+        "Stop a service that holds a port in that range, or give the service a fixed port in service.json",
+        "See the ports in use with: flisk resources",
+      ]);
     }
     chosen.set(resource.name, picked);
   }

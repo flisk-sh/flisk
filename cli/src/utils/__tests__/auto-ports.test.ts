@@ -147,7 +147,10 @@ describe("auto ports", () => {
     mkdirSync(join(generatedSpec, ".."), { recursive: true });
     writeFileSync(manifest, JSON.stringify({ appName: "api", appType: "backend", port: "auto" }));
     writeFileSync(generatedSpec, "spec = 1\n");
-    writeFileSync(generatedCompose, "services:\n  api:\n    ports: ['${FLISK_SERVICE_API_PORT:-4000}:3000']\n");
+    writeFileSync(
+      generatedCompose,
+      "services:\n  api:\n    ports: ['${FLISK_SERVICE_API_PORT:-4000}:3000']\n",
+    );
 
     const before = [manifest, generatedSpec, generatedCompose].map(hash);
     await resolveAutoPorts([autoApi()], root, { isFree: free, claim: () => true });

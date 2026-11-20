@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it, vi } from "vitest";
-import type { DiscoveredResource, DiscoveredResourceConfig, ResourceConfig } from "../../types/index.js";
+import type {
+  DiscoveredResource,
+  DiscoveredResourceConfig,
+  ResourceConfig,
+} from "../../types/index.js";
 import {
   coldStartNotice,
   countBuiltImages,

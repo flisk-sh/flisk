@@ -12,9 +12,8 @@ import {
   verifyMasterConfigs,
 } from "../generator/template-engine.js";
 import type { DiscoveredResource } from "../types/index.js";
-import type { AutoPortReport } from "./auto-ports.js";
-import { autoPortReportFromResources } from "./auto-ports.js";
 import { writeTextFileAtomic } from "./atomic-write.js";
+import type { AutoPortReport } from "./auto-ports.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "./doctor-runtime.js";
 import { isNativeService } from "./native-service.js";
 import { getPackageVersion } from "./paths.js";

@@ -170,7 +170,9 @@ describe("openFirstFrontend, in process", () => {
       JSON.stringify({ version: 1, ports: { web: { port: 3123, appType: "frontend" } } }),
     );
 
-    expect(await listFrontendTargets(root)).toEqual([{ name: "web", url: "http://localhost:3123" }]);
+    expect(await listFrontendTargets(root)).toEqual([
+      { name: "web", url: "http://localhost:3123" },
+    ]);
   });
 
   it("waits for a booting frontend, then opens the first one that answers", async () => {

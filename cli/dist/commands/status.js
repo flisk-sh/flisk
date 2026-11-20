@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
-import { describePlatformServices, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
 import { applySavedAutoPorts } from "../utils/auto-ports.js";
+import { describePlatformServices, isGatewayEnabled, reportedCapabilities, } from "../utils/capabilities.js";
 import { attachNoPositionalHint } from "../utils/command-helpers.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";

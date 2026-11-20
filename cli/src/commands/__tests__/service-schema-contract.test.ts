@@ -99,7 +99,7 @@ describe("service-schema.json stays independent of the provider registries", () 
     checkPropertyDescriptions(schema);
   });
 
-  it("accepts \"auto\" as a port for every app type while keeping each numeric range", () => {
+  it('accepts "auto" as a port for every app type while keeping each numeric range', () => {
     // A database declares no host port at all; every other appType has a port range to resolve auto into.
     for (const appType of RESOURCE_CONFIG_APP_TYPES.filter((type) => type !== "database")) {
       expect(

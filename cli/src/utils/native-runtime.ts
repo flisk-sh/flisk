@@ -240,7 +240,8 @@ export function planNativeRun(
         candidate.portBeforeAuto ??
         (typeof candidate.declaredPort === "number" ? candidate.declaredPort : undefined);
       const after =
-        candidate.port ?? (typeof candidate.config?.port === "number" ? candidate.config.port : undefined);
+        candidate.port ??
+        (typeof candidate.config?.port === "number" ? candidate.config.port : undefined);
       if (typeof before === "number" && typeof after === "number" && before !== after) {
         rewrites.set(before, after);
       }
