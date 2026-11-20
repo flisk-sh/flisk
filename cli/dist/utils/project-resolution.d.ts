@@ -26,4 +26,4 @@ export interface ResolveProjectOptions {
  *    - If 0 projects are running, fails with the standard `notInProject` error and suggestions.
  * 4. Changes `process.cwd()` to the resolved project root if it differs from current root.
  */
-export declare function resolveCommandProject(options: ResolveProjectOptions): string;
+export declare function resolveCommandProject(options: ResolveProjectOptions): Promise<string>;

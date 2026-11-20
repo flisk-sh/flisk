@@ -199,7 +199,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     };
 
     const action = async (): Promise<void> => {
-      const projectRoot = resolveCommandProject({
+      const projectRoot = await resolveCommandProject({
         commandName: "logs",
         project: options.project ?? command.optsWithGlobals().project,
         json: options.json,

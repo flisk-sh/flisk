@@ -69,7 +69,7 @@ export const restartCommand = new Command("restart")
     }
 
     const action = async (): Promise<void> => {
-      const root = resolveCommandProject({
+      const root = await resolveCommandProject({
         commandName: "restart",
         project: options.project ?? command.optsWithGlobals().project,
         json: options.json,
