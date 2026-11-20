@@ -134,14 +134,21 @@ function normalizeRoot(path: string): string {
 }
 
 /** Stack names `flisk up` passed to Tilt (`-- --focus=api web`). */
+function stripStackFlagPrefix(part: string): string {
+  for (const prefix of ["--focus=", "--only="]) {
+    if (part.startsWith(prefix)) return part.slice(prefix.length);
+  }
+  return part;
+}
+
 function stackNamesFromCommand(command: string): string[] {
   const tail = command.split(/\s+--\s+/)[1];
   if (!tail) return [];
   return [
     ...new Set(
       tail
-        .replace(/--(?:focus|only)=/g, "")
         .split(/\s+/)
+        .map(stripStackFlagPrefix)
         .filter((part) => part && !part.startsWith("--")),
     ),
   ];

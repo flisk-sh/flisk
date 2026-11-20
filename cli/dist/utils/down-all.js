@@ -61,14 +61,21 @@ function normalizeRoot(path) {
     return path.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 /** Stack names `flisk up` passed to Tilt (`-- --focus=api web`). */
+function stripStackFlagPrefix(part) {
+    for (const prefix of ["--focus=", "--only="]) {
+        if (part.startsWith(prefix))
+            return part.slice(prefix.length);
+    }
+    return part;
+}
 function stackNamesFromCommand(command) {
     const tail = command.split(/\s+--\s+/)[1];
     if (!tail)
         return [];
     return [
         ...new Set(tail
-            .replace(/--(?:focus|only)=/g, "")
             .split(/\s+/)
+            .map(stripStackFlagPrefix)
             .filter((part) => part && !part.startsWith("--"))),
     ];
 }
