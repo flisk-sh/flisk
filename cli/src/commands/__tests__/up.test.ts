@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -656,7 +657,7 @@ describe("enforceVersionFloor", () => {
     mkdirSync(join(dir, ".flisk"), { recursive: true });
   });
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmTreeBestEffort(dir);
     vi.restoreAllMocks();
   });
 
@@ -988,6 +989,21 @@ const PROJECT_JSON = {
   discovery: { paths: ["services/**"] },
 };
 
+/**
+ * Windows: the temp dir can stay locked briefly after the command's internals open and close handles in it (AV,
+ * Search indexer), past the default retry window, so retry longer than `fs.rmSync`'s default. On Windows the
+ * cleanup stays best-effort: a leaked temp dir is less harmful than failing a passing test.
+ */
+function rmTreeBestEffort(dir: string): void {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });
+  } catch (error) {
+    if (process.platform !== "win32" && existsSync(dir)) {
+      throw error;
+    }
+  }
+}
+
 describe("flisk up --env-file", () => {
   const COMPLETE_ENV = [
     "TILT_ENV=dev",
@@ -1033,7 +1049,7 @@ describe("flisk up --env-file", () => {
 
   afterEach(() => {
     process.chdir(originalCwd);
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmTreeBestEffort(dir);
     delete process.env[PROJECT_ENV_FILE_VAR];
     delete process.env.TILT_PORT;
     vi.unstubAllEnvs();
@@ -1706,7 +1722,7 @@ describe("flisk up with no resources (#3781)", () => {
         error.mockRestore();
       }
     } finally {
-      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      rmTreeBestEffort(dir);
     }
   });
 
@@ -1767,7 +1783,7 @@ describe("flisk up with no resources (#3781)", () => {
       warn.mockRestore();
       error.mockRestore();
     } finally {
-      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      rmTreeBestEffort(dir);
     }
   });
 
@@ -1873,7 +1889,7 @@ describe("flisk up with no resources (#3781)", () => {
       expect(envelope.errors[0]?.code).toBe("UP_URL_UNREACHABLE");
       expect(readFastNoopState(dir)).toBeNull();
     } finally {
-      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      rmTreeBestEffort(dir);
     }
   });
 });

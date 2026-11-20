@@ -45,6 +45,7 @@ import {
   discoverServiceManifestPaths,
 } from "../utils/services.js";
 import { isStackFeatureEnabledInStacks } from "../utils/stack-features.js";
+import { validateProjectName } from "../utils/validation.js";
 import { hasSablierLicense, hasVerdaccioLicense } from "./extension-fetch.js";
 import { compileTemplate, type TemplateHelpers } from "./mini-template.js";
 import { isTiltfileOrchestration, readProjectConfig } from "./project-config.js";
