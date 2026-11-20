@@ -996,7 +996,7 @@ const PROJECT_JSON = {
  */
 function rmTreeBestEffort(dir: string): void {
   try {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   } catch (error) {
     if (process.platform !== "win32" && existsSync(dir)) {
       throw error;
@@ -1093,7 +1093,7 @@ describe("flisk up --env-file", () => {
         /Env file is outside the project/,
       );
     } finally {
-      rmSync(outside, { recursive: true, force: true });
+      rmTreeBestEffort(outside);
     }
   });
 

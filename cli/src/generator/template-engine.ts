@@ -46,7 +46,6 @@ import {
   discoverServiceManifestPaths,
 } from "../utils/services.js";
 import { isStackFeatureEnabledInStacks } from "../utils/stack-features.js";
-import { validateProjectName } from "../utils/validation.js";
 import { hasSablierLicense, hasVerdaccioLicense } from "./extension-fetch.js";
 import { compileTemplate, type TemplateHelpers } from "./mini-template.js";
 
@@ -654,11 +653,13 @@ function normalizeProjectConfig(value: unknown): NormalizedProjectConfig {
   if (typeof project.name !== "string") {
     return fail("project.name", "a string", project.name);
   }
-  const projectNameResult = validateProjectName(project.name);
-  if (!projectNameResult.valid) {
+  // Reading an existing project.json accepts every name Docker Compose accepts for a project (lowercase letters, numbers,
+  // hyphens and underscores, starting with a letter or number): `flisk import` keeps a Compose project's own name such as
+  // `pl_mail` so its volume names stay stable. The stricter kebab-case rule applies where Flisk derives or asks for a name.
+  if (project.name.length > 64 || !/^[a-z0-9][a-z0-9_-]*$/.test(project.name)) {
     return fail(
       "project.name",
-      "a Docker- and npm-compatible name (lowercase letters, numbers, and hyphens only)",
+      "a Docker-compatible name (lowercase letters, numbers, hyphens and underscores, starting with a letter or number)",
       project.name,
     );
   }
