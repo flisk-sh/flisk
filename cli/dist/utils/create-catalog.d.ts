@@ -39,6 +39,12 @@ export interface ExtraOption {
  * every framework of the infrastructure types (queues, storage, databases).
  */
 export declare function extraCatalog(): ExtraOption[];
+/**
+ * The command that installs a local backend's dependencies before it starts, or undefined for an unknown language. A provider
+ * with its own package.json, or with neither a package.json nor a dev command (the shared Bun scaffold), starts through
+ * `npm run dev` and installs with npm; any other language installs with its own hint, without the "# optional" note.
+ */
+export declare function localBackendInstall(language: string): string | undefined;
 /** The programs a local project needs on the host, read from the generators it was built with. */
 export declare function localRequirements(parts: {
     frontend: boolean;

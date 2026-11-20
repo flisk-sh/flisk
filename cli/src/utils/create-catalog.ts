@@ -141,6 +141,21 @@ function isAppPart(type: string): boolean {
 }
 const APP_PARTS = { frontend: true, backend: true } as const;
 
+/**
+ * The command that installs a local backend's dependencies before it starts, or undefined for an unknown language. A provider
+ * with its own package.json, or with neither a package.json nor a dev command (the shared Bun scaffold), starts through
+ * `npm run dev` and installs with npm; any other language installs with its own hint, without the "# optional" note.
+ */
+export function localBackendInstall(language: string): string | undefined {
+  const provider = BACKEND_LANGUAGES[language];
+  if (!provider) return undefined;
+  const hasPackageJson = provider
+    .createFiles?.("app")
+    .some((file) => file.filename === "package.json");
+  if (hasPackageJson || !provider.devCommand) return "npm install";
+  return provider.installHint.split("#")[0]?.trim() || undefined;
+}
+
 /** The programs a local project needs on the host, read from the generators it was built with. */
 export function localRequirements(parts: { frontend: boolean; language?: string }): string[] {
   const programs = new Set<string>();

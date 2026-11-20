@@ -38,6 +38,7 @@ import {
   extraCatalog,
   frontendCatalog,
   type LanguageOption,
+  localBackendInstall,
   starterCatalog,
 } from "../utils/create-catalog.js";
 import {
@@ -830,11 +831,7 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
         const installs: Array<{ dir: string; command: string }> = [];
         if (answers.frontend) installs.push({ dir: LOCAL_FRONTEND_DIR, command: "npm install" });
         if (answers.backend) {
-          const language = answers.backend.language;
-          const command =
-            language === "bun" || language === "node"
-              ? "npm install"
-              : localInstallHint(getBackendLanguage(language).installHint);
+          const command = localBackendInstall(answers.backend.language);
           if (command) installs.push({ dir: LOCAL_BACKEND_DIR, command });
         }
         for (const { dir, command } of installs) {

@@ -16,7 +16,7 @@ import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languag
 import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../utils/arrow-prompt.js";
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
-import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
+import { backendCatalog, extraCatalog, frontendCatalog, localBackendInstall, starterCatalog, } from "../utils/create-catalog.js";
 import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, projectNameError, starterInfo, toProjectName, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
@@ -665,10 +665,7 @@ async function runCreate(nameArg, options) {
                 if (answers.frontend)
                     installs.push({ dir: LOCAL_FRONTEND_DIR, command: "npm install" });
                 if (answers.backend) {
-                    const language = answers.backend.language;
-                    const command = language === "bun" || language === "node"
-                        ? "npm install"
-                        : localInstallHint(getBackendLanguage(language).installHint);
+                    const command = localBackendInstall(answers.backend.language);
                     if (command)
                         installs.push({ dir: LOCAL_BACKEND_DIR, command });
                 }
