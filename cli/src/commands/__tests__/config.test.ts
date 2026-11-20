@@ -552,6 +552,34 @@ describe("config enable-infra and disable-infra", () => {
     expect(fs.readFileSync(configPath, "utf8")).toBe(before);
   });
 
+  it("reports an already-enabled service without rewriting project.json (#4432)", async () => {
+    const root = createTempProject({ projectJson: projectJson("already-on", { monitoring: true }) });
+    const configPath = path.join(root, ".flisk", "project.json");
+    const before = fs.readFileSync(configPath, "utf8");
+
+    const result = await runCommandInProcess(configCommand, ["enable-infra", "monitoring"], root);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stdout).toMatch(/already enabled/i);
+    expect(result.stdout).not.toMatch(/regenerate/i);
+    expect(fs.readFileSync(configPath, "utf8")).toBe(before);
+  });
+
+  it("reports an already-disabled service without rewriting project.json (#4432)", async () => {
+    const root = createTempProject({
+      projectJson: projectJson("already-off", { monitoring: false }),
+    });
+    const configPath = path.join(root, ".flisk", "project.json");
+    const before = fs.readFileSync(configPath, "utf8");
+
+    const result = await runCommandInProcess(configCommand, ["disable-infra", "monitoring"], root);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stdout).toMatch(/already disabled/i);
+    expect(result.stdout).not.toMatch(/regenerate/i);
+    expect(fs.readFileSync(configPath, "utf8")).toBe(before);
+  });
+
   it("enables a service and persists it to project.json", async () => {
     const root = createTempProject({ projectJson: projectJson() });
 
@@ -559,6 +587,7 @@ describe("config enable-infra and disable-infra", () => {
 
     expect(result.status).toBeUndefined();
     expect(result.stdout).toContain("✓ Enabled: monitoring");
+    expect(result.stdout).toMatch(/regenerate/i);
     expect(readProjectJson(root).optional_infra.monitoring).toBe(true);
   });
 

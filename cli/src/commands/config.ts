@@ -786,6 +786,13 @@ async function toggleInfraService(
     };
   }
 
+  // A repeated run is a no-op: say so and leave project.json byte-identical (#4432). The JSON
+  // envelope keeps its existing shape (service, enabled, wasEnabled), with no regenerate hint.
+  if (!changes) {
+    console.log(chalk.gray(`No change: ${service} is already ${enabled ? "enabled" : "disabled"}.`));
+    return { data: { service, enabled, wasEnabled: Boolean(wasEnabled) } };
+  }
+
   const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
   const rawProjectValue: unknown = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
 
