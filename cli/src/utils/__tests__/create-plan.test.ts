@@ -157,6 +157,18 @@ describe("the review sentences", () => {
     expect(describeRequirements(answers({ starter: "x" }))).toMatch(/README/);
   });
 
+  it("lists bun for the Bun + Hono API but not for a Node API (#4678)", () => {
+    const bun = answers({ frontend: undefined, backend: { language: DEFAULT_BACKEND_LANGUAGE } });
+    const node = answers({ frontend: undefined, backend: { language: "node" } });
+    expect(describeRequirements(bun)).toContain("bun.");
+    expect(describeRequirements(node)).not.toContain("bun");
+    expect(describeRequirements(node)).toContain("npm.");
+    // The dry run and the real run share this one sentence, so they cannot disagree.
+    expect(describeRequirements(bun, (program) => program !== "bun")).toContain(
+      "Not found on this machine: bun",
+    );
+  });
+
   it("lists the parts the plan creates, and only what was chosen", () => {
     const local = answers();
     expect(describeParts(local, buildCreatePlan(local))).toBe("shop-api, shop-web");

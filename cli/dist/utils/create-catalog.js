@@ -103,10 +103,15 @@ export function localRequirements(parts) {
         // Only a scaffold without one runs the provider's dev command directly.
         if (!provider)
             programs.add(parts.language);
-        else if (hasPackageJson || !provider.devCommand)
+        else if (hasPackageJson)
             programs.add("npm");
-        else
+        else if (provider.devCommand)
             programs.add(provider.devCommand.split(" ")[0]);
+        // The shared scaffold's backend dev script runs the language's own package manager. A provider
+        // with neither its own package.json nor its own dev command (Bun + Hono) still needs that
+        // program on the host (#4678); take it from the registry's install hint, not a second list.
+        else
+            programs.add(provider.installHint.split(" ")[0] ?? "");
     }
     return [...programs];
 }

@@ -55,8 +55,10 @@ describe("every backend generator remains selectable and produces a valid local 
       // A language with its own package.json runs through its dev script; one without runs its own dev command.
       const language = BACKEND_LANGUAGES[service.language ?? backends[0]?.id ?? ""];
       if (existsSync(join(api, "package.json"))) {
-        expect(service.command).toBe("npm run dev");
-        expect(typeof parse(join(api, "package.json")).scripts.dev).toBe("string");
+        const dev = parse(join(api, "package.json")).scripts.dev as string;
+        // A dev script that runs Bun is invoked directly, so flisk up can name a missing bun (#4678).
+        expect(service.command).toBe(/^bun(\s|$)/.test(dev) ? "bun run dev" : "npm run dev");
+        expect(typeof dev).toBe("string");
       } else if (language?.devCommand) {
         // The registry command listens on every interface for a container; the local one on localhost.
         expect(service.command).toBe(language.devCommand.replaceAll("0.0.0.0", "localhost"));

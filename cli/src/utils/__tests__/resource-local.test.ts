@@ -10,6 +10,7 @@ import { FRONTEND_FRAMEWORKS } from "../../frontend-frameworks/registry.js";
 import { runFlisk } from "../../test-support/index.js";
 import type { FileGenerationTask } from "../../types/index.js";
 import { isPortListening } from "../native-runtime.js";
+import { commandProgram } from "../native-service.js";
 import {
   applyLocalScaffold,
   bindToLocalhost,
@@ -151,6 +152,23 @@ describe("applyLocalScaffold", () => {
       backendLanguage: { id: "go", label: "Go", devCommand: "go run .", installHint: "" },
     });
     expect(command).toBe("go run .");
+  });
+
+  it("runs the shared Bun dev script directly so flisk up can name a missing bun (#4678)", () => {
+    const tasks = scaffold();
+    contentOf(tasks, "package.json").scripts = {
+      dev: "bun run --watch src/index.ts",
+    };
+    const command = applyLocalScaffold({
+      resourceName: "api",
+      resourceType: "backend",
+      port: 4000,
+      tasks,
+    });
+    expect(command).toBe("bun run dev");
+    expect(contentOf(tasks, "service.json").command).toBe("bun run dev");
+    // The first word is what flisk up checks on PATH.
+    expect(commandProgram(command)).toBe("bun");
   });
 });
 

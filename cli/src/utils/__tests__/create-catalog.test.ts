@@ -98,10 +98,11 @@ describe("the catalog is read from the registries, not kept here", () => {
 
   it("reads what a local project needs from the generators", () => {
     expect(localRequirements({ frontend: true })).toEqual(["node", "npm"]);
-    // A generated package.json runs `npm run dev`, from the language or the shared scaffold (#4459).
+    // A generated package.json runs `npm run dev` (#4459).
     expect(localRequirements({ frontend: false, language: "node" })).toEqual(["npm"]);
+    // Bun + Hono uses the shared scaffold's `bun run dev`, so the host needs Bun, not npm (#4678).
     expect(localRequirements({ frontend: false, language: DEFAULT_BACKEND_LANGUAGE })).toEqual([
-      "npm",
+      "bun",
     ]);
     // A language without a package.json runs its own dev command.
     for (const [id, provider] of Object.entries(BACKEND_LANGUAGES)) {
