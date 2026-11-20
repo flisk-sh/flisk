@@ -39,14 +39,6 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
     expect(error.suggestions).toEqual(["Did you mean open?"]);
   });
 
-  it("a spelling suggestion is included in the unknown-command envelope", () => {
-    const { status, error } = usageError(["statu", "--json"]);
-    expect(status).toBe(1);
-    expect(error.code).toBe("USAGE");
-    expect(error.message).toBe("error: unknown command 'statu'");
-    expect(error.suggestions).toEqual(["Did you mean status?"]);
-  });
-
   it("an unknown subcommand of a command group does the same", () => {
     const { status, error } = usageError(["config", "verifyx", "--json"]);
     expect(status).toBe(1);
