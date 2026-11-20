@@ -16,6 +16,7 @@ export function runTilt(command, args = [], options = {}) {
             shell: false,
             windowsHide: process.platform === "win32",
             timeout: options.timeoutMs,
+            ...(options.env ? { env: options.env } : {}),
         });
         let stdout = "";
         let stderr = "";

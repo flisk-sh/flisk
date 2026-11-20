@@ -163,6 +163,8 @@ STRIPE_KEY=sk_test_...
 - Names must be valid environment variable names (letters, digits and underscores, not starting with a digit); anything else fails
   with the resource and the name in the message.
 - `FLISK_SECRET_PROVIDER` selects the source: `env-file` (the default when unset) injects the values above from `.env`. `infisical` leaves the names to Infisical instead, and nothing is injected from `.env`.
+- `keychain` keeps the values in the operating system keychain (macOS `security`, Linux `secret-tool`). Set it once in your shell, then store a declared name with `printf '%s' 'value' | flisk secret set NAME` (or run the command in a terminal for a hidden prompt). `flisk secret unset NAME` removes it and `flisk secret list` prints names only, never values. Entries are keyed by the project name from `.flisk/project.json`, so a new worktree or clone of the same project finds them without copying `.env`. The shell and the env file of the run still win: the keychain fills only the gaps.
+- On Windows, `keychain` prints `keychain is not supported on Windows yet` and falls back to the env file. In that case keep using the project `.env` (or `flisk up --env-file`).
 - The free CLI has no Infisical client. With `infisical` it leaves every required name to an external or premium bridge and injects nothing, so `flisk up` and `flisk doctor` warn with the names that will be empty (also in `--json` `warnings`). A build that bundles a real bridge sets `FLISK_SECRET_BRIDGE=1` and keeps the previous, no-warning behavior.
 - Any other provider value is a usage error: `flisk up` and `flisk doctor` exit with code 2 and name the value and the valid ones.
 

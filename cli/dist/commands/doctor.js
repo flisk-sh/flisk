@@ -152,7 +152,9 @@ export const doctorCommand = new Command("doctor")
             checkWindowsDockerMode(),
             await checkWindowsHostConfiguration(),
             // The Windows report returns early; the secret-bridge warning still applies in a project.
-            ...(windowsRoot ? [checkRequiredSecrets(windowsRoot, undefined, process.env)] : []),
+            ...(windowsRoot
+                ? [checkRequiredSecrets(windowsRoot, undefined, process.env, { onUnsupported: () => { } })]
+                : []),
         ];
         let windowsPortPlan = null;
         try {
@@ -343,7 +345,8 @@ export const doctorCommand = new Command("doctor")
     const declarationChecks = [
         () => checkDuplicateResourceNames(),
         () => checkDependsOnShape(),
-        () => checkRequiredSecrets(checkDir, undefined, process.env),
+        // Doctor owns its output (including --json); the provider must not print mid-report.
+        () => checkRequiredSecrets(checkDir, undefined, process.env, { onUnsupported: () => { } }),
     ];
     const graphChecks = [
         () => checkCircularDependencies(),

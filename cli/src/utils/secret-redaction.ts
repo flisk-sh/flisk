@@ -6,7 +6,10 @@ import { expandEnvValue } from "./env-expand.js";
 import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
+import type { Keychain } from "./keychain.js";
 import { findProjectRoot } from "./paths.js";
+import { readSecretProvider } from "./secret-provider.js";
+import { declaredSecretNames, resolveSecrets } from "./secret-resolution.js";
 import { discoverResourcesWithProblems } from "./services.js";
 
 export const REDACTED = "[REDACTED]";
@@ -38,8 +41,10 @@ export const MIN_REDACTED_VALUE_LENGTH = 8;
 export function envSecretValues(
   projectRoot: string,
   extraEnvPaths: readonly string[] = [],
+  options: { keychain?: Keychain; env?: NodeJS.ProcessEnv } = {},
 ): string[] {
-  const selected = process.env[PROJECT_ENV_FILE_VAR];
+  const env = options.env ?? process.env;
+  const selected = env[PROJECT_ENV_FILE_VAR];
   const values = [
     ...secretValuesOf(join(projectRoot, ".env")),
     ...extraEnvPaths.flatMap((path) => secretValuesOf(path)),
@@ -49,8 +54,41 @@ export function envSecretValues(
       ...extraEnvPaths,
       ...(selected ? [selected] : []),
     ]),
+    ...keychainSecretValues(projectRoot, options),
   ];
   return [...new Set(values)].sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Values resolved from the OS keychain when that is the selected provider. They are not in any
+ * env file, so without this they would be the one class of secret the existing masking missed.
+ * A lookup failure contributes no values (the normal checks report missing secrets).
+ */
+function keychainSecretValues(
+  projectRoot: string,
+  options: { keychain?: Keychain; env?: NodeJS.ProcessEnv },
+): string[] {
+  const env = options.env ?? process.env;
+  if (readSecretProvider(env).value !== "keychain") return [];
+  try {
+    const names = declaredSecretNames(discoverResourcesWithProblems(projectRoot).resources);
+    const values = Object.values(
+      resolveSecrets("keychain", projectRoot, names, {
+        env,
+        // Redaction is silent: the provider's unsupported notice belongs to the resolver call
+        // that actually starts the stack, not to every log/doctor render.
+        onUnsupported: () => {},
+        ...(options.keychain ? { keychain: options.keychain } : {}),
+      }),
+    );
+    return values.flatMap((value) => {
+      if (value.length < MIN_REDACTED_VALUE_LENGTH) return [];
+      const parts = lineParts(value);
+      return parts.length > 1 ? [value, ...parts] : [value];
+    });
+  } catch {
+    return [];
+  }
 }
 
 /** A variable name that says its value is a secret. */

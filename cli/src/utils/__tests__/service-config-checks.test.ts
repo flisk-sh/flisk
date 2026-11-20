@@ -868,6 +868,69 @@ describe("checkRequiredSecrets", () => {
     expect((caught as FliskError).message).toContain('"keychan"');
     expect((caught as FliskError).message).toContain("env-file");
     expect((caught as FliskError).message).toContain("infisical");
+    expect((caught as FliskError).message).toContain("keychain");
+  });
+
+  const CANARY = "CANARY_DO_NOT_PRINT_4e594f";
+
+  function fakeKeychain(values: Record<string, string>) {
+    return {
+      project: "test-project",
+      platform: "linux" as const,
+      get: (name: string) => values[name],
+      set: (name: string, value: string) => {
+        values[name] = value;
+      },
+      unset: (name: string) => {
+        delete values[name];
+      },
+      list: () => Object.keys(values),
+    };
+  }
+
+  it("finds a required secret in the keychain without putting it in the message", () => {
+    service("api", { secrets: { required: ["CANARY_KEY"] } });
+    const result = checkRequiredSecrets(
+      root,
+      undefined,
+      { FLISK_SECRET_PROVIDER: "keychain" },
+      { keychain: fakeKeychain({ CANARY_KEY: CANARY }) },
+    );
+    expect(result.didPass).toBe(true);
+    expect(JSON.stringify(result)).not.toContain(CANARY);
+  });
+
+  it("names the fix for a missing keychain secret and never prints the value", () => {
+    service("api", { secrets: { required: ["CANARY_KEY"] } });
+    const result = checkRequiredSecrets(
+      root,
+      undefined,
+      { FLISK_SECRET_PROVIDER: "keychain" },
+      { keychain: fakeKeychain({}) },
+    );
+    expect(result.didPass).toBe(false);
+    expect(result.fix).toContain("flisk secret set CANARY_KEY");
+    expect(JSON.stringify(result)).not.toContain(CANARY);
+  });
+
+  it("keeps an env-file value ahead of the keychain for the same name", () => {
+    service("api", { secrets: { required: ["CANARY_KEY"] } });
+    writeFileSync(join(root, ".env"), `CANARY_KEY=${CANARY}\n`);
+    const set = vi.fn();
+    const result = checkRequiredSecrets(
+      root,
+      undefined,
+      { FLISK_SECRET_PROVIDER: "keychain" },
+      {
+        keychain: {
+          ...fakeKeychain({}),
+          set,
+        },
+      },
+    );
+    expect(result.didPass).toBe(true);
+    expect(set).not.toHaveBeenCalled();
+    expect(JSON.stringify(result)).not.toContain(CANARY);
   });
 
   it("passes a non-blocking provider warning to the gate instead of failing it", () => {

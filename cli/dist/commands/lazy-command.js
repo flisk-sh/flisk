@@ -35,6 +35,7 @@ export const LAZY_COMMANDS = {
     run: { module: "./run.js", exportName: "runServiceCommand" },
     distribute: { module: "./distribute.js", exportName: "distributeCommand" },
     repos: { module: "./repos.js", exportName: "reposCommand" },
+    secret: { module: "./secret.js", exportName: "secretCommand" },
 };
 /**
  * Imports one command module and runs the real action with the original argv.
@@ -138,6 +139,8 @@ async function importLazyModule(name, path) {
             return await import("./distribute.js");
         case "repos":
             return await import("./repos.js");
+        case "secret":
+            return await import("./secret.js");
         default:
             throw new FliskError(`No lazy import for command "${name}" (${path}).`, [
                 "Reinstall Flisk, then try the command again.",

@@ -4,7 +4,7 @@
 import { FliskError } from "./errors.js";
 
 /** The providers this CLI build understands. `""` means the default, `env-file`. */
-export const SECRET_PROVIDERS = ["env-file", "infisical"] as const;
+export const SECRET_PROVIDERS = ["env-file", "infisical", "keychain"] as const;
 
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 

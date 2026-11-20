@@ -67,7 +67,7 @@ $ flisk up --dry-run
 ```
 
 - **Cause:** the service lists `SECRET_KEY` in `secrets.required`, and neither the env file of the run (the project `.env`, or the one chosen with `--env-file`) nor the environment has a non-empty value for it. Compose refuses to interpolate such a name, which used to fail the whole Tiltfile and stop every service.
-- **Fix:** put `SECRET_KEY=...` in `.env`, export it, or list it under `secrets.optional` if the service can run without it. With `FLISK_SECRET_PROVIDER=infisical` the check is skipped and Infisical supplies the names.
+- **Fix:** put `SECRET_KEY=...` in `.env`, export it, or list it under `secrets.optional` if the service can run without it. With `FLISK_SECRET_PROVIDER=infisical` the check is skipped and Infisical supplies the names. With `FLISK_SECRET_PROVIDER=keychain`, run `flisk secret set SECRET_KEY` and pipe or type the value when asked (the fix line names that command); on Windows use the `.env` instead.
 - **Defined in:** [`service-config-checks.ts`](../cli/src/utils/service-config-checks.ts) (`checkRequiredSecrets`), run by the `flisk up` gate, dry run included.
 - **Checked:** reproduced by the Docker chaos tier (`secrets=required, no value`) and covered by `service-config-checks.test.ts`.
 

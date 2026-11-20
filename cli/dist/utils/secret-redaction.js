@@ -7,6 +7,8 @@ import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
 import { findProjectRoot } from "./paths.js";
+import { readSecretProvider } from "./secret-provider.js";
+import { declaredSecretNames, resolveSecrets } from "./secret-resolution.js";
 import { discoverResourcesWithProblems } from "./services.js";
 export const REDACTED = "[REDACTED]";
 export class EnvUnreadableError extends FliskError {
@@ -29,8 +31,9 @@ export const MIN_REDACTED_VALUE_LENGTH = 8;
  * `params` entries of a service whose name says it is a secret (PASSWORD, TOKEN, KEY ...). Throws when an env file exists but
  * cannot be read: continuing without the values would print secrets unmasked.
  */
-export function envSecretValues(projectRoot, extraEnvPaths = []) {
-    const selected = process.env[PROJECT_ENV_FILE_VAR];
+export function envSecretValues(projectRoot, extraEnvPaths = [], options = {}) {
+    const env = options.env ?? process.env;
+    const selected = env[PROJECT_ENV_FILE_VAR];
     const values = [
         ...secretValuesOf(join(projectRoot, ".env")),
         ...extraEnvPaths.flatMap((path) => secretValuesOf(path)),
@@ -40,8 +43,38 @@ export function envSecretValues(projectRoot, extraEnvPaths = []) {
             ...extraEnvPaths,
             ...(selected ? [selected] : []),
         ]),
+        ...keychainSecretValues(projectRoot, options),
     ];
     return [...new Set(values)].sort((a, b) => b.length - a.length);
+}
+/**
+ * Values resolved from the OS keychain when that is the selected provider. They are not in any
+ * env file, so without this they would be the one class of secret the existing masking missed.
+ * A lookup failure contributes no values (the normal checks report missing secrets).
+ */
+function keychainSecretValues(projectRoot, options) {
+    const env = options.env ?? process.env;
+    if (readSecretProvider(env).value !== "keychain")
+        return [];
+    try {
+        const names = declaredSecretNames(discoverResourcesWithProblems(projectRoot).resources);
+        const values = Object.values(resolveSecrets("keychain", projectRoot, names, {
+            env,
+            // Redaction is silent: the provider's unsupported notice belongs to the resolver call
+            // that actually starts the stack, not to every log/doctor render.
+            onUnsupported: () => { },
+            ...(options.keychain ? { keychain: options.keychain } : {}),
+        }));
+        return values.flatMap((value) => {
+            if (value.length < MIN_REDACTED_VALUE_LENGTH)
+                return [];
+            const parts = lineParts(value);
+            return parts.length > 1 ? [value, ...parts] : [value];
+        });
+    }
+    catch {
+        return [];
+    }
 }
 /** A variable name that says its value is a secret. */
 const SECRET_NAME = /(?:SECRET|TOKEN|PASSW(?:OR)?D|PASSPHRASE|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_?KEY|AUTH|(?:^|_)KEY$)/i;

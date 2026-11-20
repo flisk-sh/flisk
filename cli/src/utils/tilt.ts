@@ -15,6 +15,8 @@ export function runTilt(
     quiet?: boolean;
     inheritStdio?: boolean;
     timeoutMs?: number;
+    /** Environment for the child (e.g. resolved secrets); values are never logged. */
+    env?: NodeJS.ProcessEnv;
   } = {},
 ): Promise<TiltCommandResult> {
   return new Promise((resolve, reject) => {
@@ -29,6 +31,7 @@ export function runTilt(
       shell: false,
       windowsHide: process.platform === "win32",
       timeout: options.timeoutMs,
+      ...(options.env ? { env: options.env } : {}),
     });
 
     let stdout = "";

@@ -126,6 +126,11 @@ const COMMAND_GROUPS = [
             },
             { name: "doctor", desc: "Check environment readiness", alias: "" },
             {
+                name: "secret",
+                desc: "Store project secrets in the OS keychain (set, unset, list)",
+                alias: "set, unset, list",
+            },
+            {
                 name: "distribute",
                 desc: "Board, listing kit and channel status for getting an app to users",
                 alias: "board, kit, status",

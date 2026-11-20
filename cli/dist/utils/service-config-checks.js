@@ -13,6 +13,7 @@ import { formatCount } from "./formatting.js";
 import { generateEntries } from "./generated-secrets.js";
 import { findProjectRoot } from "./paths.js";
 import { hasSecretBridge, readSecretProvider, secretProviderUsageError, } from "./secret-provider.js";
+import { resolveSecrets } from "./secret-resolution.js";
 import { envFileErrors, providersOf, SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf, isLoopbackAddress } from "./status-ports.js";
@@ -758,15 +759,29 @@ export function warnSchemaVersions(projectRoot, resources) {
         console.warn(chalk.gray(`  ${check.fix}`));
 }
 /**
- * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
- * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
- * With `FLISK_SECRET_PROVIDER=infisical` the names are left to a bridge; the free build has none, so it warns per name.
+ * `secrets.required` names that neither the env file of the run, the environment nor the selected
+ * provider holds a value for. Compose refuses to interpolate such a name, and that fails the whole
+ * Tiltfile, so every service stops, not only the one that needs the secret. With
+ * `FLISK_SECRET_PROVIDER=infisical` the names are left to a bridge; the free build has none, so it
+ * warns per name. `keychain` looks the names up in the OS keychain through the shared resolver.
  */
-export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), env = process.env) {
+export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), env = process.env, options = {}) {
     const usageError = secretProviderUsageError(env);
     if (usageError)
         throw usageError;
     const { value: provider } = readSecretProvider(env);
+    // Required names and provider token names, gathered once for the provider warning and the resolver.
+    const names = [
+        ...new Set([
+            ...resources.flatMap((resource) => {
+                const required = resource.config?.secrets?.required;
+                return Array.isArray(required) ? required : [];
+            }),
+            ...resources.flatMap((resource) => providersOf(resource.config)
+                .filter((entry) => entry.required && entry.tokenSecret !== undefined)
+                .map((entry) => entry.tokenSecret)),
+        ]),
+    ].filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
     if (provider === "infisical") {
         if (hasSecretBridge(env)) {
             return {
@@ -776,15 +791,6 @@ export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.
             };
         }
         // Nothing injects these names in this build: even a value in .env stays unused.
-        const names = [
-            ...new Set(resources.flatMap((resource) => {
-                const required = resource.config?.secrets
-                    ?.required;
-                return Array.isArray(required)
-                    ? required.filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
-                    : [];
-            })),
-        ];
         return {
             name: "Required secrets",
             didPass: true,
@@ -804,7 +810,15 @@ export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.
     catch {
         // An unreadable env file is reported where the file is read; here every name counts as missing.
     }
-    const has = (name) => Boolean((env[name] ?? "").trim() || (fileValues.get(name) ?? "").trim());
+    // One resolver for all three consumers: missing names get a keychain lookup when that is the provider.
+    const resolved = resolveSecrets(provider ?? "", projectRoot, names, {
+        env,
+        envFilePath: envFile,
+        ...options,
+    });
+    const has = (name) => Boolean((env[name] ?? "").trim() ||
+        (fileValues.get(name) ?? "").trim() ||
+        (resolved[name] ?? "").trim());
     const problems = resources.flatMap((resource) => {
         const required = resource.config?.secrets
             ?.required;
@@ -833,11 +847,20 @@ export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.
             message: "Every required secret has a value",
         };
     }
+    const missingNames = [
+        ...new Set(problems.flatMap((line) => {
+            // Regular secrets and provider token names are both phrased as `secret NAME ...` here.
+            const match = /secret ([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
+            return match?.[1] ? [match[1]] : [];
+        })),
+    ];
     return {
         name: "Required secrets",
         didPass: false,
         message: `${formatCount(problems.length, "required secret")} without a value:\n    ${problems.join("\n    ")}`,
-        fix: `Add NAME=value to ${relative(projectRoot, envFile) || ".env"} (it is gitignored), or export it in the environment, or move it to "optional"`,
+        fix: provider === "keychain"
+            ? missingNames.map((name) => `Run \`flisk secret set ${name}\``).join(". ")
+            : `Add NAME=value to ${relative(projectRoot, envFile) || ".env"} (it is gitignored), or export it in the environment, or move it to "optional"`,
     };
 }
 /** Prints each secret that a literal in `params` or `env` overrides. A warning: such a project still starts. */
@@ -859,7 +882,9 @@ export function enforceServiceConfigGate(projectRoot, options = {}, exit = proce
         checkDuplicateResourceNames(projectRoot, resources),
         checkServiceFields(projectRoot, resources),
         checkCustomDockerfiles(projectRoot, resources),
-        checkRequiredSecrets(projectRoot, resources),
+        checkRequiredSecrets(projectRoot, resources, process.env, {
+            ...(options.onUnsupported ? { onUnsupported: options.onUnsupported } : {}),
+        }),
         checkDependsOnShape(projectRoot, resources),
         checkCircularDependencies(projectRoot, resources),
         checkServicePorts(projectRoot, resources),
