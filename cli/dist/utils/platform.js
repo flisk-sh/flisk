@@ -53,6 +53,10 @@ export function pathLookups(binName, windows = isWindows()) {
 export function pathDelimiter(windows = isWindows()) {
     return windows ? ";" : delimiter;
 }
+/** A single-quoted PowerShell path literal; embedded single quotes are doubled. */
+export function powerShellPathLiteral(path) {
+    return `'${path.replaceAll("'", "''")}'`;
+}
 /** True inside a WSL distribution (Linux kernel running under Windows). */
 export function isWsl(probe = {}) {
     const platform = probe.platform ?? process.platform;

@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { accessSync, constants, readdirSync } from "node:fs";
 import { delimiter, join } from "node:path";
+import { isWindows, powerShellPathLiteral } from "./platform.js";
 /** The command users install and type. */
 export const CLI_COMMAND = "flisk";
 /** The npm package that installs it. */
@@ -86,9 +87,14 @@ export function readyNextStep(env = process.env, cwd = process.cwd()) {
         return `Next: ${CLI_COMMAND} project --yes`;
     }
     const workspace = suggestedWorkspace(env);
-    return (`Next: mkdir -p ${workspace} && cd ${workspace} && ${CLI_COMMAND} project --yes\n` +
-        `(${CLI_COMMAND} project writes .flisk/ and the master configs into the current folder, ` +
-        `so it starts clean in a folder of its own. Or clone a starter: ${CLI_COMMAND} project example)`);
+    const note = `(${CLI_COMMAND} project writes .flisk/ and the master configs into the current folder, ` +
+        `so it starts clean in a folder of its own. Or clone a starter: ${CLI_COMMAND} project example)`;
+    if (isWindows()) {
+        const quoted = powerShellPathLiteral(workspace);
+        return (`Next: New-Item -ItemType Directory -Force ${quoted}; Set-Location ${quoted}; ` +
+            `${CLI_COMMAND} project --yes\n${note}`);
+    }
+    return `Next: mkdir -p ${workspace} && cd ${workspace} && ${CLI_COMMAND} project --yes\n${note}`;
 }
 /**
  * Installs the CLI globally when it is only running ephemerally (`npx @flisk-sh/flisk`),
