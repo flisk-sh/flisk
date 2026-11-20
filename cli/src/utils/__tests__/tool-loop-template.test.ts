@@ -41,6 +41,32 @@ describe("tool-loop template", () => {
   });
 });
 
+describe("tool-loop tool-call reporting", () => {
+  it("truncates args and result previews so /ask cannot grow without bound", async () => {
+    const { truncateToolPreview } = (await import(
+      pathToFileURL(join(templates, "tool-loop/agent/tool-calls.mjs")).href
+    )) as { truncateToolPreview: (value: unknown, limit?: number) => string };
+    expect(truncateToolPreview({ topic: "mcp" })).toBe('{"topic":"mcp"}');
+    const long = "x".repeat(250);
+    expect(truncateToolPreview(long)).toBe(`${"x".repeat(197)}...`);
+    expect(truncateToolPreview(long).length).toBe(200);
+  });
+
+  it("ships the helper and records each call's timing and outcome", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tool-loop-"));
+    dirs.push(dir);
+    writeToolLoopProject(dir);
+    const server = readFileSync(join(dir, "agent/server.mjs"), "utf-8");
+    expect(readFileSync(join(dir, "agent/tool-calls.mjs"), "utf-8")).toContain(
+      "export function truncateToolPreview",
+    );
+    expect(server).toContain('from "./tool-calls.mjs"');
+    expect(server).toContain("toolCalls.push(toolCallRecord(");
+    expect(server).toContain("tools: toolCalls.map((call) => call.name)");
+    expect(server).toContain("toolCalls,");
+  });
+});
+
 describe("tool-loop mock model", () => {
   const load = async () =>
     (await import(pathToFileURL(join(templates, "tool-loop/model/server.mjs")).href)) as {

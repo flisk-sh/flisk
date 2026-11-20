@@ -4,6 +4,7 @@
   "description": "The agent resource on a live stack: flisk agent sessions, flisk restart, graceful drain, durability, the MCP tools over stdio, and skill and doc distribution.",
   "paths": [
     "cli/src/commands/agent.ts",
+    "cli/src/utils/agent-sessions.ts",
     "cli/src/commands/restart.ts",
     "cli/src/mcp/**",
     "cli/src/agent-runtimes/**",

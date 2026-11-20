@@ -524,8 +524,22 @@ describe("flisk agent sessions", () => {
     expect(typeof httpGet).toBe("function");
   });
 
-  it("prints session checkpoint in human output when --session-id is provided", async () => {
-    const payload = { step: 4, memory: "initialized" };
+  it("prints session checkpoint and its tool calls in human output when --session-id is provided", async () => {
+    const payload = {
+      step: 4,
+      memory: "initialized",
+      toolCalls: [
+        [
+          {
+            name: "lookup",
+            args: { topic: "mcp" },
+            resultSummary: "Model Context Protocol",
+            ok: true,
+            ms: 12,
+          },
+        ],
+      ],
+    };
     const { server, port } = await agentServer(200, payload);
     const tmp = agentProject(4999);
     try {
@@ -538,6 +552,27 @@ describe("flisk agent sessions", () => {
       expect(res.stdout).toContain("Sessions for bot:");
       expect(res.stdout).toContain('"step": 4');
       expect(res.stdout).toContain('"memory": "initialized"');
+      expect(res.stdout).toContain("Tool calls:");
+      expect(res.stdout).toContain("Turn 1:");
+      expect(res.stdout).toContain("- ok lookup (12 ms)");
+      expect(res.stdout).toContain("result: Model Context Protocol");
+    } finally {
+      server.close();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("prints 'not reported' when a checkpoint has no toolCalls", async () => {
+    const { server, port } = await agentServer(200, { step: 1 });
+    const tmp = agentProject(4999);
+    try {
+      const res = await runFliskAsync(
+        ["agent", "sessions", "bot", "--session-id", "s1"],
+        tmp,
+        `http://127.0.0.1:${port}`,
+      );
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain("Tool calls: not reported");
     } finally {
       server.close();
       fs.rmSync(tmp, { recursive: true, force: true });

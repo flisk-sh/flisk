@@ -11,6 +11,29 @@ export interface AgentSessionList {
     total: number;
 }
 /**
+ * One tool call a `GET /session` checkpoint reports for a turn. `args` and `resultSummary` are already-truncated
+ * strings: an agent must not be able to grow a checkpoint without bound through a tool's output.
+ */
+export interface AgentToolCall {
+    name: string;
+    args: string;
+    resultSummary: string;
+    ok: boolean;
+    ms: number;
+}
+/** The maximum length of an `args` or `resultSummary` preview accepted from an agent. */
+export declare const TOOL_CALL_PREVIEW_CHARS = 200;
+/** JSON for objects, verbatim for strings, with a visible tail when the value is too long to keep whole. */
+export declare function truncateToolPreview(value: unknown, limit?: number): string;
+/**
+ * Reads the optional `toolCalls` field of a checkpoint. It is one array per turn, in the same order as the messages'
+ * turns; no field at all means the agent does not report tool activity. Malformed entries are dropped rather than
+ * allowed to break `flisk agent sessions`.
+ */
+export declare function parseAgentToolCalls(body: unknown): AgentToolCall[][] | null;
+/** The human-readable tool activity appended to a session checkpoint view. */
+export declare function formatAgentToolCalls(body: unknown): string[];
+/**
  * What one request to an agent came back with. `not-running`: nothing answered, or the gateway answered for a missing
  * backend. `not-found`: the agent itself answered 404, which for `/sessions` means it was built before that endpoint.
  */

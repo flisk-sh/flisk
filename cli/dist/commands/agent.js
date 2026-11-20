@@ -3,7 +3,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { formatAge } from "../utils/agent-format.js";
-import { agentSessionListRequest, agentSessionRequest, fetchAgent, parseAgentSessionList, } from "../utils/agent-sessions.js";
+import { agentSessionListRequest, agentSessionRequest, fetchAgent, formatAgentToolCalls, parseAgentSessionList, } from "../utils/agent-sessions.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { formatBytes } from "../utils/formatting.js";
@@ -168,6 +168,8 @@ agentCommand
                     lines: [
                         chalk.bold(`Sessions for ${resourceName}:`),
                         JSON.stringify(reply.body, null, 2),
+                        "",
+                        ...formatAgentToolCalls(reply.body),
                     ],
                 };
             }
