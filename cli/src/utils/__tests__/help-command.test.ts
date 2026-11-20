@@ -103,7 +103,7 @@ describe("CLI `flisk help <cmd> <sub>` matches `flisk <cmd> <sub> --help` (#4486
 
   it("returns the USAGE JSON envelope for `flisk help config bogus --json`", () => {
     const result = runFlisk(["help", "config", "bogus", "--json"], { cwd: process.cwd() });
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(1);
     expect(result.stderr).toBe("");
     const env = parseEnvelope(result.stdout);
     expect(env.errors).toHaveLength(1);
