@@ -296,7 +296,11 @@ function isValidPortNumber(value) {
     return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
 }
 function portVariableForService(serviceName) {
-    const upper = serviceName.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+    const upper = serviceName
+        .toUpperCase()
+        .split(/[^A-Z0-9]+/)
+        .filter(Boolean)
+        .join("_") || "SERVICE";
     return `\${${upper}_PORT}`;
 }
 function collectDeclaredPorts(resources) {
@@ -426,8 +430,20 @@ export function findLiteralPorts(resources) {
  * service in the project (`port` or `extraPorts`), which parallel checkouts and automatic ports
  * cannot remap.
  */
-export function checkLiteralPorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
-    const findings = findLiteralPorts(resources);
+export function checkLiteralPorts(projectRoot = findProjectRoot() ?? process.cwd(), resources) {
+    let resolvedResources;
+    if (resources !== undefined) {
+        resolvedResources = resources;
+    }
+    else {
+        try {
+            resolvedResources = discoverResourcesFromRoot(projectRoot);
+        }
+        catch {
+            resolvedResources = [];
+        }
+    }
+    const findings = findLiteralPorts(resolvedResources);
     if (findings.length === 0) {
         return {
             name: "Literal ports",

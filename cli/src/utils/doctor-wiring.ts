@@ -382,7 +382,12 @@ function isValidPortNumber(value: unknown): value is number {
 }
 
 function portVariableForService(serviceName: string): string {
-  const upper = serviceName.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  const upper =
+    serviceName
+      .toUpperCase()
+      .split(/[^A-Z0-9]+/)
+      .filter(Boolean)
+      .join("_") || "SERVICE";
   return `\${${upper}_PORT}`;
 }
 
@@ -517,9 +522,19 @@ export function findLiteralPorts(resources: readonly DiscoveredResource[]): Lite
  */
 export function checkLiteralPorts(
   projectRoot = findProjectRoot() ?? process.cwd(),
-  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+  resources?: DiscoveredResource[],
 ): CheckResult {
-  const findings = findLiteralPorts(resources);
+  let resolvedResources: DiscoveredResource[];
+  if (resources !== undefined) {
+    resolvedResources = resources;
+  } else {
+    try {
+      resolvedResources = discoverResourcesFromRoot(projectRoot);
+    } catch {
+      resolvedResources = [];
+    }
+  }
+  const findings = findLiteralPorts(resolvedResources);
   if (findings.length === 0) {
     return {
       name: "Literal ports",

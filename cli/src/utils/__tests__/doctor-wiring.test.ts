@@ -1392,4 +1392,10 @@ describe("checkLiteralPorts", () => {
       expect.stringContaining("api (command): literal port 4003"),
     ]);
   });
+
+  it("returns a passing result without throwing when projectRoot does not exist", () => {
+    const result = checkLiteralPorts(join(root, "does-not-exist"));
+    expect(result.name).toBe("Literal ports");
+    expect(result.didPass).toBe(true);
+  });
 });
