@@ -1167,7 +1167,7 @@ export function createFliskTools(
     {
       name: "project_templates",
       description:
-        "List the starter templates project_init can clone (data.templates): each one's key, repo, description and, for a template pinned to a commit, the ref it checks out. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
+        "List the starter templates project_init can clone (data.templates): each one's key, repo, description and what it needs to run (needs), plus the ref it checks out when pinned to a commit. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
       inputSchema: OBJECT({}),
       handler: async () => ({
         data: { templates: listProjectTemplates() },

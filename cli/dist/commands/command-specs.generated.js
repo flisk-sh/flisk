@@ -1050,7 +1050,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--list",
-                description: "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
+                description: "List the starter templates (key, repo, description, needs, pinned ref); with --json, the usual envelope with them in data.templates",
                 defaultValue: false,
             },
             {
