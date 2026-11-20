@@ -10,6 +10,10 @@ name: 🔀 PR | E2E | Journeys
 
 on:
   merge_group:
+  # Pull requests run only the legs their changed files touch (the selector in tests/e2e/lib/pr-legs.mjs); the merge queue
+  # reuses that passing run and only reruns the legs main's newer commits touch (#4694). Journeys are slow, so a PR that
+  # touches none of their paths runs no legs and the gate passes.
+  pull_request:
   # After a merge, the quickstart leg checks main (the selector picks only the suites with the "main" trigger, and only when a path changed).
   push:
     branches: [main]

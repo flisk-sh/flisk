@@ -7,6 +7,9 @@ name: 🔀 PR | E2E | Scale
 
 on:
   # Not on pull requests: the scale gate is the slowest per-PR cost, so it runs on the merge queue and nightly.
+  # With the queue reusing the pull request's passing run, the merge queue only reruns the legs main's newer commits
+  # touch, so the per-PR run is the only way to build that passing run.
+  pull_request:
   merge_group:
 
 permissions:

@@ -6,6 +6,7 @@ name: 🔀 PR | E2E | Platforms gate
 
 on:
   merge_group:
+  pull_request:
   workflow_dispatch:
 
 permissions:
