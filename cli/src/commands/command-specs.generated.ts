@@ -1198,6 +1198,11 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
           "Install dependencies and start what was written (the local app route; a starter is never started here)",
         defaultValue: false,
       },
+      {
+        flags: "--json",
+        description: "Print one JSON envelope on stdout; progress goes to stderr",
+        defaultValue: false,
+      },
     ],
     arguments: [
       {
