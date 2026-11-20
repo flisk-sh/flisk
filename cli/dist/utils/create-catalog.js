@@ -15,7 +15,7 @@ import { DEFAULT_FRONTEND_FRAMEWORK, FRONTEND_FRAMEWORKS, } from "../frontend-fr
 import { CREATABLE_RESOURCE_TYPES, DATABASE_FRAMEWORKS, DATABASE_RESOURCE_TYPE, PRESET_RESOURCE_TYPES, } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { frameworksOfType, INFRA_PRESETS } from "./infra-presets.js";
-import { PROJECT_TEMPLATES } from "./project-templates.js";
+import { PROJECT_TEMPLATES, runsLocally } from "./project-templates.js";
 /** The frontend frameworks, the registry's default first. */
 export function frontendCatalog() {
     const options = Object.values(FRONTEND_FRAMEWORKS).map((provider) => ({
@@ -59,7 +59,7 @@ export function starterCatalog() {
     return Object.entries(PROJECT_TEMPLATES).map(([key, template]) => ({
         id: key,
         ...plainStarterText(key, template.description),
-        local: template.generated !== undefined,
+        local: runsLocally(template),
     }));
 }
 /**
