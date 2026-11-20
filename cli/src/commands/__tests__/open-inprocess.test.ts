@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   captureExit,
@@ -10,6 +12,7 @@ import {
   parseEnvelope,
 } from "../../test-support/index.js";
 import type { HostPortPlan } from "../../types/index.js";
+import { autoPortStatePath } from "../../utils/auto-ports.js";
 import { checkColima } from "../../utils/colima.js";
 import { probeHostPort } from "../../utils/doctor-runtime.js";
 import { ProcessExitError } from "../../utils/errors.js";
@@ -17,7 +20,13 @@ import { getHostPortPlan } from "../../utils/host-port-config.js";
 import { isProcessAlive, readNativeRunState } from "../../utils/native-runtime.js";
 import { discoverResourcesWithProblems } from "../../utils/services.js";
 import { openUrl } from "../../utils/url-actions.js";
-import { findReadyFrontend, isFrontendReady, openCommand, openFirstFrontend } from "../open.js";
+import {
+  findReadyFrontend,
+  isFrontendReady,
+  listFrontendTargets,
+  openCommand,
+  openFirstFrontend,
+} from "../open.js";
 
 // Discovery, the saved port plan, the port probe, Colima and the browser are faked, so each case picks what the machine
 // looks like. fetch is stubbed per case, and setTimeout and Date are fake so the two-minute wait runs instantly.
@@ -147,6 +156,23 @@ describe("openFirstFrontend, in process", () => {
     expect(stdout).toContain("This project has no frontend service to open.");
     expect(stdout).toContain("add a frontend with `flisk resource`");
     expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it("uses this checkout's saved auto port for a native frontend URL", async () => {
+    const root = createTempProject({ projectJson: { project: { name: "api-only" } } });
+    vi.mocked(discoverResourcesWithProblems).mockReturnValue({
+      resources: [makeResource("web", "frontend", { command: "node web.js", port: "auto" })],
+      problems: [],
+    } as unknown as ReturnType<typeof discoverResourcesWithProblems>);
+    mkdirSync(join(root, ".flisk", "local"), { recursive: true });
+    writeFileSync(
+      autoPortStatePath(root),
+      JSON.stringify({ version: 1, ports: { web: { port: 3123, appType: "frontend" } } }),
+    );
+
+    expect(await listFrontendTargets(root)).toEqual([
+      { name: "web", url: "http://localhost:3123" },
+    ]);
   });
 
   it("waits for a booting frontend, then opens the first one that answers", async () => {

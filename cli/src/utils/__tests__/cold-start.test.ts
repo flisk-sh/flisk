@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it, vi } from "vitest";
-import type { DiscoveredResource, ResourceConfig } from "../../types/index.js";
+import type {
+  DiscoveredResource,
+  DiscoveredResourceConfig,
+  ResourceConfig,
+} from "../../types/index.js";
 import {
   coldStartNotice,
   countBuiltImages,
@@ -21,7 +25,7 @@ function service(
     path: `/project/${name}`,
     configPath: `/project/${name}/service.json`,
     stack,
-    config: { appName: name, appType: "backend", ...config } as ResourceConfig,
+    config: { appName: name, appType: "backend", ...config } as DiscoveredResourceConfig,
   };
 }
 

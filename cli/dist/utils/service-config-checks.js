@@ -501,8 +501,11 @@ export function warnModelRunner(projectRoot, resources) {
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
     const problems = resources.flatMap((resource) => {
-        const port = resource.config?.port;
+        const port = resource.declaredPort ?? resource.config?.port;
         if (port === undefined)
+            return [];
+        // "auto" is checked against the appType's range when it is resolved, not here (#4683).
+        if (port === "auto")
             return [];
         if (typeof port === "number" && Number.isInteger(port) && port >= 1 && port <= 65535)
             return [];

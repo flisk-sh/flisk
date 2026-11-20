@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { makeResource } from "../../test-support/index.js";
+import type { DiscoveredResource } from "../../types/index.js";
 import {
   dockerRunArgs,
   dockerRunLine,
@@ -92,6 +93,30 @@ describe("containers in a local-process run", () => {
     expect(dockerRunArgs(resource, options).errors).toEqual([
       expect.stringMatching(/volume \.\.\/\.\.\/etc is outside the project/),
     ]);
+  });
+
+  it("publishes a run-time auto port to the port the image still listens on", () => {
+    // --auto-port moved this Postgres from 5432 to 4000: the host port changed, the image's own listener did not
+    // (no PORT reaches a container), so the mapping must stay 4000:5432, never 4000:4000 (#4817 review).
+    const moved: DiscoveredResource = {
+      ...makeResource("db", "bring-your-own", { image: "postgres", port: 4000 }),
+      port: 4000,
+      declaredPort: 5432,
+      portBeforeAuto: 5432,
+      autoPort: true,
+    };
+    expect(dockerRunArgs(moved, options).args).toContain("127.0.0.1:4000:5432");
+
+    // A fixed port keeps mapping the port to itself, and so does a container whose declared port is "auto".
+    const fixed = makeResource("db", "bring-your-own", { image: "postgres", port: 5432 });
+    expect(dockerRunArgs(fixed, options).args).toContain("127.0.0.1:5432:5432");
+    const autoDeclared: DiscoveredResource = {
+      ...makeResource("db", "bring-your-own", { image: "postgres", port: 4000 }),
+      port: 4000,
+      declaredPort: "auto",
+      autoPort: true,
+    };
+    expect(dockerRunArgs(autoDeclared, options).args).toContain("127.0.0.1:4000:4000");
   });
 
   it("removes a leftover container first and execs docker run, quoting each word", () => {

@@ -7,6 +7,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { areMasterFilesStale, ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isVendoredEngineStale, isWrappedTiltfileStale, ProjectConfigNotFoundError, readProjectConfig, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
+import { applySavedAutoPorts, autoPortReportFromResources, resolveAutoPorts, } from "../utils/auto-ports.js";
 import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, projectNeedsDatabaseKeys, } from "../utils/capabilities.js";
 import { cliInvocation } from "../utils/cli-invocation.js";
 import { coldStartNotice } from "../utils/cold-start.js";
@@ -33,7 +34,7 @@ import { collectRequiredModels, runModelPreflight } from "../utils/model-preflig
 import { findFreePort } from "../utils/native-demo.js";
 import { hasNearbyServiceJson } from "../utils/native-project.js";
 import { formatMixedRuntimeRefusal, isNativeProject, isNativeService, resolveRuntimeMode, } from "../utils/native-service.js";
-import { runNativeUp } from "../utils/native-up.js";
+import { decideNativeRun, runNativeUp } from "../utils/native-up.js";
 import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
@@ -331,6 +332,7 @@ export function fastNoopFlags(options, stackName, configuredTiltPort) {
         only: options.only,
         envFile: options.envFile,
         profile: options.profile,
+        autoPort: options.autoPort,
         database: options.database,
         gateway: options.gateway,
         stackName,
@@ -352,6 +354,7 @@ export function printFastNoopResult(result, options, emit) {
             alreadyRunning: true,
             stack: state.stack,
             services,
+            ...(state.autoPortReport ?? {}),
             tiltUrl,
             ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
             // The same per-URL objects a normal start reports, so `data.urls` parsers keep working.
@@ -396,6 +399,9 @@ function recordHealthyRun(details) {
         services: resources.map((r) => r.name),
         ingressPort,
         urls,
+        ...(autoPortReportFromResources(resources).autoPorts.length > 0
+            ? { autoPortReport: autoPortReportFromResources(resources) }
+            : {}),
     });
     return urls;
 }
@@ -562,6 +568,7 @@ export const upCommand = new Command("up")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
+    .option("--auto-port", 'Pick a free port for every service in this run (as if "port" were "auto" in each service.json), without editing files', false)
     .addHelpText("after", "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExit codes: 2 for an argument you typed wrong (an unknown --only service, an unknown --profile, an invalid --wait-timeout, a rejected --env-file), 1 for a failure such as a stack that cannot start.\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift")
     .action(async (stackName, options) => {
     const baseEmit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
@@ -754,11 +761,42 @@ export const upCommand = new Command("up")
         if (nativeProfiles.skipped.length > 0 && !options.quiet) {
             console.log(chalk.gray(skippedProfilesNote(nativeProfiles.skipped)));
         }
+        // Before the ports are chosen: the disk gate, then what happens to the run already on record. Attaching keeps
+        // the running services and the ports saved for this checkout (a resolution around the live run would see its own
+        // ports occupied and save new ones), and a --force replacement stops the owned run first so it can replay the
+        // saved assignment instead of allocating around the run it replaces.
         guardDisk(false);
+        const nativeDecision = await decideNativeRun(projectRoot, {
+            dryRun: options.dryRun,
+            force: options.force,
+        });
+        if (nativeDecision.action === "attach") {
+            const attachReport = autoPortReportFromResources(applySavedAutoPorts(nativeProfiles.kept, projectRoot));
+            emit?.({
+                ok: true,
+                alreadyRunning: true,
+                runtime: "native",
+                ...attachReport,
+                pid: nativeDecision.pid,
+            });
+            if (!options.quiet) {
+                console.log(chalk.green(`This project is already running as local processes (flisk up, pid ${nativeDecision.pid}).`));
+                console.log(chalk.gray("Stop it with flisk down, or pass --force to restart it."));
+            }
+            return;
+        }
+        // "port": "auto" and --auto-port are resolved here, never in service.json. Fixed ports keep their conflict errors.
+        const nativeAuto = await resolveAutoPorts(nativeProfiles.kept, projectRoot, {
+            force: options.autoPort,
+            all: nativeRun.all,
+            claim: options.dryRun ? () => true : createPortClaimer(projectRoot),
+            dryRun: options.dryRun,
+        });
         await runNativeUp({
             projectRoot,
-            selected: nativeProfiles.kept,
+            selected: nativeAuto.resources,
             dependencies: nativeRun.dependencies,
+            autoPortReport: nativeAuto.report,
             stackName,
             only: options.only,
             envFilePath,
@@ -1102,15 +1140,11 @@ export const upCommand = new Command("up")
             if (!options.quiet)
                 console.log(chalk.gray(skippedProfilesNote(profileSelection.skipped)));
         }
-        if (options.verbose && !options.quiet) {
-            console.log(chalk.gray(`Found ${formatCount(servicesToStart.length, "service")} in ${stackDescription}`));
-        }
-        const serviceNames = servicesToStart.map((s) => s.name);
-        // A project with no resources has nothing to start. Refuse before Tilt, so `flisk project --yes && flisk up`
-        // does not start Traefik, Postgres and the gateway for an empty stack (#3781). A project that wraps its own
-        // Tiltfile (`orchestration.source === "tiltfile"`) still runs it, exactly as before. A dry run does not clone, so
-        // with a declared repository not cloned yet the resources are pending, not absent: the pending-clone warning
-        // above already says so, and refusing here would contradict it.
+        // A project with no resources has nothing to start. Refuse before the running-Tilt decision, so `flisk project
+        // --yes && flisk up` does not start Traefik, Postgres and the gateway for an empty stack (#3781). A project that
+        // wraps its own Tiltfile (`orchestration.source === "tiltfile"`) still runs it, exactly as before. A dry run does
+        // not clone, so with a declared repository not cloned yet the resources are pending, not absent: the pending-clone
+        // warning above already says so, and refusing here would contradict it.
         const hasPendingClone = options.dryRun && missingDeclaredRepoDirs(foundRoot).length > 0;
         if (discoveredResources.length === 0 &&
             !hasPendingClone &&
@@ -1121,6 +1155,212 @@ export const upCommand = new Command("up")
             ]);
             error.exit();
         }
+        const basePort = STANDARD_PORTS.tiltUi;
+        const watchedPort = configuredTiltPort ?? basePort;
+        const candidatePorts = options.only ? [...new Set([basePort, watchedPort])] : [watchedPort];
+        // What the active-run decision below found: the Tilt ports confirmed to be this project's. A dry run probes
+        // nothing and replaces nothing, so they stay empty.
+        let running = [];
+        let savedRunning = [];
+        // --force must never stop another project's Tilt: when a foreign one holds the watched port, the replace claim
+        // narrows to this project's own ports (see canReplaceTargetPort below).
+        let force = options.force;
+        // The active-run decision comes before run-time ports are resolved: attaching keeps the running stack and the
+        // ports saved for this checkout (a resolution around the live containers would see their own ports occupied and
+        // save new ones), and a --force replacement stops this project's Tilt first, so the new run replays the saved
+        // assignment instead of allocating around the run it replaces. A dry run reports a plan and never attaches.
+        if (!options.dryRun) {
+            const tiltPorts = await findProjectTiltPorts({
+                watchedPorts: candidatePorts,
+                savedPort: savedTiltPort,
+                projectRoot,
+                isServing: async (candidate) => (await tiltGetUiResources(candidate)) !== null,
+            });
+            running = tiltPorts.running;
+            savedRunning = tiltPorts.savedRunning;
+            const { foreign, unknownSaved } = tiltPorts;
+            if (foreign.length > 0 && configuredTiltPort !== undefined) {
+                const other = foreign[0];
+                const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run flisk down in that project.`;
+                emit?.({ ok: false }, [{ code: "TILT_PORT_IN_USE", message }]);
+                showErrorAndExit(message);
+            }
+            if (!options.quiet) {
+                for (const other of foreign) {
+                    console.log(chalk.yellow(`⚠️  Tilt on port ${other.port} belongs to another project (${other.root}); this project will use another port.`));
+                }
+            }
+            if (options.force && unknownSaved.length > 0) {
+                const message = `Tilt on saved port ${unknownSaved.join(", ")} cannot be identified as this project's, so --force will not stop it and will not start a second Tilt beside it. Run flisk down, or stop that Tilt yourself, then run flisk up again.`;
+                emit?.({ ok: false }, [{ code: "TILT_OWNER_UNKNOWN", message }]);
+                showErrorAndExit(message);
+            }
+            force = options.force && foreign.length === 0;
+            const decision = secondUpAction({
+                runningPorts: running,
+                force: Boolean(options.force),
+                only: Boolean(options.only),
+            });
+            if (decision.action === "already-running") {
+                // The env file of the run belongs to the Tilt process this run starts. A stack that is
+                // already running keeps the env file it started with, so the selection would be ignored
+                // silently - say so instead of reporting a run that never happened.
+                if (envFileSelection) {
+                    const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --env-file applies to a new run only: run \`flisk down\` first, or pass --force to replace the running stack.`;
+                    emit?.({ ok: false }, [{ code: "ENV_FILE_ALREADY_RUNNING", message }]);
+                    showErrorAndExit(message);
+                }
+                const runningPort = decision.ports[0] ?? watchedPort;
+                const tiltUrl = `http://localhost:${runningPort}`;
+                const parsedWaitTimeout = emit && typeof options.waitTimeout !== "undefined"
+                    ? parseWaitTimeout(options.waitTimeout)
+                    : undefined;
+                if (emit && parsedWaitTimeout && !parsedWaitTimeout.ok) {
+                    emit({ ok: false }, [
+                        { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
+                    ]);
+                    showErrorAndExit(parsedWaitTimeout.message, 1, []);
+                }
+                // Keep the running Tilt's port saved once refusal checks pass, so the next `flisk up` (and status, logs, restart) finds it again.
+                hostPortPlan.tiltUi = runningPort;
+                writeSavedHostPortPlan(projectRoot, hostPortPlan);
+                // The attached run keeps the ports saved for this checkout; report them from the saved state, never from a
+                // fresh resolution that would move them around the running containers.
+                const attachServices = applySavedAutoPorts(servicesToStart, projectRoot);
+                const attachReport = autoPortReportFromResources(attachServices);
+                const deferred = getDeferredResourceNames(discoveredResources);
+                if (emit) {
+                    // `ok` means the stack is healthy (`flisk up --wait` prints "Stack is healthy" from it), so wait for the running
+                    // stack as a first run would. A Tilt left by a failed `flisk up` answers on its port with every service in error.
+                    const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]));
+                    const readiness = await waitForTiltResourcesReady(runningPort, {
+                        timeoutMs: parsedWaitTimeout?.ok ? parsedWaitTimeout.seconds * 1000 : undefined,
+                        deferred,
+                        isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
+                    });
+                    const failures = readiness.ready
+                        ? readiness.failures
+                        : await explainFailures(readiness.failures, (name) => tiltResourceLogs(runningPort, name));
+                    const report = alreadyRunningReport(runningPort, { ...readiness, failures });
+                    if (report.ok) {
+                        let attachedUrlChecks = [];
+                        if (gatewayEnabled) {
+                            const urlChecks = await checkStackUrls(runningPort, attachServices, hostPortPlan.ingressHttp, deferred);
+                            if (urlChecks.some((check) => !check.didAnswer)) {
+                                clearFastNoopState(projectRoot);
+                                emit({
+                                    ok: false,
+                                    alreadyRunning: true,
+                                    tiltUrl,
+                                    urls: urlChecks,
+                                    ...attachReport,
+                                }, [
+                                    {
+                                        code: "UP_URL_UNREACHABLE",
+                                        message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
+                                        suggestions: urlFailureSuggestions(urlChecks),
+                                    },
+                                ]);
+                                process.exitCode = 1;
+                                return;
+                            }
+                            attachedUrlChecks = urlChecks;
+                        }
+                        // This run attached to a Tilt it did not start, so it saves no fast-path state (#4193): the Tilt may hold an
+                        // env file this run's fingerprint does not describe. A fresh healthy start records the state instead.
+                        const urls = recordHealthyRun({
+                            projectRoot,
+                            flags: fastFlags,
+                            tiltPort: runningPort,
+                            stack: stackName ?? null,
+                            resources: attachServices,
+                            ingressPort: hostPortPlan.ingressHttp,
+                            gatewayEnabled,
+                            persist: false,
+                        });
+                        emit({
+                            ok: true,
+                            alreadyRunning: true,
+                            tiltUrl,
+                            ...attachReport,
+                            ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
+                            ...(attachedUrlChecks.length > 0 ? { urls: attachedUrlChecks } : {}),
+                        });
+                    }
+                    else {
+                        clearFastNoopState(projectRoot);
+                        emit({ ok: false, alreadyRunning: true, tiltUrl, failures, ...attachReport }, [
+                            { code: report.code, message: report.message, suggestions: report.suggestions },
+                        ]);
+                        process.exitCode = 1;
+                    }
+                    return;
+                }
+                // Attached: one look is enough. A stack that is still building is running; one with a failed resource is not.
+                const snapshot = await tiltGetUiResources(runningPort);
+                // The same health filters as the --json wait, so a service with its health check disabled, or whose probe cannot run,
+                // does not fail the attached run while --json calls the stack healthy.
+                const current = snapshot
+                    ? evaluateTiltReadiness(snapshot, deferred, undefined, getDisabledHealthResourceNames(discoveredResources), healthProbeCannotRun).result
+                    : undefined;
+                if (current && current.failures.length > 0) {
+                    const report = alreadyRunningReport(runningPort, current);
+                    if (!report.ok)
+                        showErrorAndExit(report.message, 1, report.suggestions);
+                }
+                if (!options.quiet) {
+                    console.log(chalk.green(`Environment is already running on port ${decision.ports.join(", ")}.`));
+                    console.log(`Tilt UI: ${tiltUrl}`);
+                }
+                return;
+            }
+            if (decision.action === "only-blocked") {
+                const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --only cannot change a running stack's services: run \`flisk down\` first, or pass --force to replace it.`;
+                emit?.({ ok: false }, [{ code: "TILT_ALREADY_RUNNING", message }]);
+                showErrorAndExit(message);
+            }
+            if (options.only && force) {
+                for (const runningPort of running) {
+                    if (candidatePorts.includes(runningPort))
+                        stopTiltOnPort(runningPort);
+                }
+            }
+            // --force replaces this project's Tilt. Stop the ones confirmed to be this project's before ports are
+            // resolved, so the replacement replays the saved auto ports instead of allocating new ones around the
+            // containers of the run it replaces. One whose owner cannot be verified is left to the refusal paths.
+            if (options.force) {
+                const ownPorts = [...new Set([...running, ...savedRunning])];
+                if (ownPorts.length > 0) {
+                    if (!options.quiet) {
+                        console.log(chalk.yellow(`Force flag set - stopping Tilt on port ${ownPorts.join(", ")} if running...`));
+                    }
+                    for (const ownPort of ownPorts)
+                        stopOwnedTiltOnPort(ownPort, projectRoot);
+                    const stillServing = await waitForTiltPortsToStop(ownPorts, (candidate) => tiltGetUiResources(candidate).then((resources) => resources !== null));
+                    if (stillServing.length > 0) {
+                        const message = `Tilt on port ${stillServing.join(", ")} is still running after --force tried to stop it, so flisk up did not start a second Tilt. Run flisk down, then run flisk up again.`;
+                        emit?.({ ok: false }, [{ code: "TILT_STOP_FAILED", message }]);
+                        showErrorAndExit(message);
+                    }
+                }
+            }
+        }
+        // Resolve run-time ports after the selection and the active-run decision are known. The resolved numbers reach
+        // reports and the Tilt/CreateProcess environment; generated Compose/Traefik files keep only
+        // ${FLISK_SERVICE_*_PORT} placeholders.
+        const autoPortResolution = await resolveAutoPorts(servicesToStart, projectRoot, {
+            force: options.autoPort,
+            all: discoveredResources,
+            claim: claimPort ?? (() => true),
+            dryRun: options.dryRun,
+        });
+        servicesToStart = autoPortResolution.resources;
+        for (const [name, value] of Object.entries(autoPortResolution.env))
+            process.env[name] = value;
+        if (options.verbose && !options.quiet) {
+            console.log(chalk.gray(`Found ${formatCount(servicesToStart.length, "service")} in ${stackDescription}`));
+        }
+        const serviceNames = servicesToStart.map((s) => s.name);
         if (!options.quiet) {
             console.log(chalk.blue(`${options.dryRun ? "Would start" : "Starting"} ${formatCount(serviceNames.length, "service")} from ${stackDescription}...`));
             for (const name of serviceNames) {
@@ -1187,6 +1427,7 @@ export const upCommand = new Command("up")
                 dryRun: true,
                 stack: stackName ?? null,
                 services: serviceNames,
+                ...autoPortResolution.report,
                 ...(options.only
                     ? { requested: options.only, declaredDependencies: dependencyNames }
                     : {}),
@@ -1200,152 +1441,6 @@ export const upCommand = new Command("up")
             return;
         }
         exportHostPortPlan(hostPortPlan);
-        const basePort = STANDARD_PORTS.tiltUi;
-        const watchedPort = configuredTiltPort ?? basePort;
-        const candidatePorts = options.only ? [...new Set([basePort, watchedPort])] : [watchedPort];
-        const { running, foreign, savedRunning, unknownSaved } = await findProjectTiltPorts({
-            watchedPorts: candidatePorts,
-            savedPort: savedTiltPort,
-            projectRoot,
-            isServing: async (candidate) => (await tiltGetUiResources(candidate)) !== null,
-        });
-        if (foreign.length > 0 && configuredTiltPort !== undefined) {
-            const other = foreign[0];
-            const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run flisk down in that project.`;
-            emit?.({ ok: false }, [{ code: "TILT_PORT_IN_USE", message }]);
-            showErrorAndExit(message);
-        }
-        if (!options.quiet) {
-            for (const other of foreign) {
-                console.log(chalk.yellow(`⚠️  Tilt on port ${other.port} belongs to another project (${other.root}); this project will use another port.`));
-            }
-        }
-        if (options.force && unknownSaved.length > 0) {
-            const message = `Tilt on saved port ${unknownSaved.join(", ")} cannot be identified as this project's, so --force will not stop it and will not start a second Tilt beside it. Run flisk down, or stop that Tilt yourself, then run flisk up again.`;
-            emit?.({ ok: false }, [{ code: "TILT_OWNER_UNKNOWN", message }]);
-            showErrorAndExit(message);
-        }
-        // --force replaces this project's Tilt; it must never stop another project's. `running` holds only this project's
-        // Tilt, so --force replaces it even when another project holds the base port.
-        const force = options.force && foreign.length === 0;
-        const decision = secondUpAction({
-            runningPorts: running,
-            force: Boolean(options.force),
-            only: Boolean(options.only),
-        });
-        if (decision.action === "already-running") {
-            // The env file of the run belongs to the Tilt process this run starts. A stack that is
-            // already running keeps the env file it started with, so the selection would be ignored
-            // silently - say so instead of reporting a run that never happened.
-            if (envFileSelection) {
-                const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --env-file applies to a new run only: run \`flisk down\` first, or pass --force to replace the running stack.`;
-                emit?.({ ok: false }, [{ code: "ENV_FILE_ALREADY_RUNNING", message }]);
-                showErrorAndExit(message);
-            }
-            const runningPort = decision.ports[0] ?? watchedPort;
-            const tiltUrl = `http://localhost:${runningPort}`;
-            const parsedWaitTimeout = emit && typeof options.waitTimeout !== "undefined"
-                ? parseWaitTimeout(options.waitTimeout)
-                : undefined;
-            if (emit && parsedWaitTimeout && !parsedWaitTimeout.ok) {
-                emit({ ok: false }, [
-                    { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
-                ]);
-                showErrorAndExit(parsedWaitTimeout.message, 2, []);
-            }
-            // Keep the running Tilt's port saved once refusal checks pass, so the next `flisk up` (and status, logs, restart) finds it again.
-            hostPortPlan.tiltUi = runningPort;
-            writeSavedHostPortPlan(projectRoot, hostPortPlan);
-            const deferred = getDeferredResourceNames(discoveredResources);
-            if (emit) {
-                // `ok` means the stack is healthy (`flisk up --wait` prints "Stack is healthy" from it), so wait for the running
-                // stack as a first run would. A Tilt left by a failed `flisk up` answers on its port with every service in error.
-                const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]));
-                const readiness = await waitForTiltResourcesReady(runningPort, {
-                    timeoutMs: parsedWaitTimeout?.ok ? parsedWaitTimeout.seconds * 1000 : undefined,
-                    deferred,
-                    isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
-                });
-                const failures = readiness.ready
-                    ? readiness.failures
-                    : await explainFailures(readiness.failures, (name) => tiltResourceLogs(runningPort, name));
-                const report = alreadyRunningReport(runningPort, { ...readiness, failures });
-                if (report.ok) {
-                    let attachedUrlChecks = [];
-                    if (gatewayEnabled) {
-                        const urlChecks = await checkStackUrls(runningPort, servicesToStart, hostPortPlan.ingressHttp, deferred);
-                        if (urlChecks.some((check) => !check.didAnswer)) {
-                            clearFastNoopState(projectRoot);
-                            emit({ ok: false, alreadyRunning: true, tiltUrl, urls: urlChecks }, [
-                                {
-                                    code: "UP_URL_UNREACHABLE",
-                                    message: `${formatUrlFailures(urlChecks).join("\n")}\nTilt is still running; inspect it or run: flisk down`,
-                                    suggestions: urlFailureSuggestions(urlChecks),
-                                },
-                            ]);
-                            process.exitCode = 1;
-                            return;
-                        }
-                        attachedUrlChecks = urlChecks;
-                    }
-                    // This run attached to a Tilt it did not start, so it saves no fast-path state (#4193): the Tilt may hold an
-                    // env file this run's fingerprint does not describe. A fresh healthy start records the state instead.
-                    const urls = recordHealthyRun({
-                        projectRoot,
-                        flags: fastFlags,
-                        tiltPort: runningPort,
-                        stack: stackName ?? null,
-                        resources: servicesToStart,
-                        ingressPort: hostPortPlan.ingressHttp,
-                        gatewayEnabled,
-                        persist: false,
-                    });
-                    emit({
-                        ok: true,
-                        alreadyRunning: true,
-                        tiltUrl,
-                        ...(urls.length > 0 ? { advertisedUrls: urls } : {}),
-                        ...(attachedUrlChecks.length > 0 ? { urls: attachedUrlChecks } : {}),
-                    });
-                }
-                else {
-                    clearFastNoopState(projectRoot);
-                    emit({ ok: false, alreadyRunning: true, tiltUrl, failures }, [
-                        { code: report.code, message: report.message, suggestions: report.suggestions },
-                    ]);
-                    process.exitCode = 1;
-                }
-                return;
-            }
-            // Attached: one look is enough. A stack that is still building is running; one with a failed resource is not.
-            const snapshot = await tiltGetUiResources(runningPort);
-            // The same health filters as the --json wait, so a service with its health check disabled, or whose probe cannot run,
-            // does not fail the attached run while --json calls the stack healthy.
-            const current = snapshot
-                ? evaluateTiltReadiness(snapshot, deferred, undefined, getDisabledHealthResourceNames(discoveredResources), healthProbeCannotRun).result
-                : undefined;
-            if (current && current.failures.length > 0) {
-                const report = alreadyRunningReport(runningPort, current);
-                if (!report.ok)
-                    showErrorAndExit(report.message, 1, report.suggestions);
-            }
-            if (!options.quiet) {
-                console.log(chalk.green(`Environment is already running on port ${decision.ports.join(", ")}.`));
-                console.log(`Tilt UI: ${tiltUrl}`);
-            }
-            return;
-        }
-        if (decision.action === "only-blocked") {
-            const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --only cannot change a running stack's services: run \`flisk down\` first, or pass --force to replace it.`;
-            emit?.({ ok: false }, [{ code: "TILT_ALREADY_RUNNING", message }]);
-            showErrorAndExit(message);
-        }
-        if (options.only && force) {
-            for (const runningPort of running) {
-                if (candidatePorts.includes(runningPort))
-                    stopTiltOnPort(runningPort);
-            }
-        }
         // Only force-claim `basePort` without probing when `basePort` is held by a Tilt we are replacing; otherwise a
         // non-Tilt service on `basePort` would cause `--force` to stop `savedRunning` and then fail binding `basePort`.
         const canReplaceTargetPort = Boolean(force) && (configuredTiltPort !== undefined || running.includes(basePort));
@@ -1668,6 +1763,7 @@ export const upCommand = new Command("up")
                     ok: true,
                     stack: stackName ?? null,
                     services: startedServices,
+                    ...autoPortResolution.report,
                     ...(options.only ? { requested: options.only, dependencies: startedDependencies } : {}),
                     tiltUrl: `http://localhost:${port}`,
                     ...(urlChecks ? { urls: urlChecks } : {}),

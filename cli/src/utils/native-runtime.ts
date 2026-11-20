@@ -13,7 +13,11 @@ import {
 import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
-import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
+import type {
+  DiscoveredResource,
+  DiscoveredResourceConfig,
+  ResourceConfig,
+} from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
@@ -89,7 +93,9 @@ export interface NativeServicePlan {
 }
 
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
-export function isOneShotJob(config: ResourceConfig | undefined): boolean {
+export function isOneShotJob(
+  config: DiscoveredResourceConfig | ResourceConfig | undefined,
+): boolean {
   if (!config) return false;
   if (config.appType === "migrator") return true;
   return config.appType === "bring-your-own" && config.restart === "no";
@@ -110,6 +116,9 @@ const QUICK_CRASH_MS = 10_000;
 export function localUrl(port: number, path = ""): string {
   return `http://localhost:${port}${path}`;
 }
+
+/** `http://localhost:4000` and friends: the host part is kept, the complete port number is captured for a rewrite. */
+const ENDPOINT_PORT_PATTERN = /((?:localhost|127\.0\.0\.1):)(\d+)/g;
 
 /**
  * Start order as waves: every service in a wave depends only on services in earlier waves. Names in `dependsOn` that are not
@@ -201,7 +210,9 @@ export function planNativeRun(
       }
     }
     const port = typeof config.port === "number" ? config.port : undefined;
-    if (port !== undefined) {
+    // A run-time auto port is chosen to be unique; only declared fixed ports keep the duplicate-port error.
+    const autoPort = resource.autoPort === true || resource.declaredPort === "auto";
+    if (port !== undefined && !autoPort) {
       const owner = portOwners.get(port);
       if (owner) errors.push(`services "${owner}" and "${resource.name}" both use port ${port}`);
       else portOwners.set(port, resource.name);
@@ -223,6 +234,32 @@ export function planNativeRun(
       env[key] = expandEnvValue(String(value), { ...serviceDotenv, ...vars, ...env }, (name) =>
         missingVars.push(`${resource.name}: ${name}`),
       );
+    }
+    // A dependency's URL in `env` still names the port from service.json. Point it at the port this run resolved — but
+    // only for services this service depends on: an unrelated service that moved off the same port must not rewrite
+    // someone else's URL. Self is excluded: a service never points at the port it moved itself.
+    const dependencyNames = new Set(dependsOn);
+    const rewrites = new Map<number, number>();
+    for (const candidate of selected) {
+      if (candidate.name === resource.name || !dependencyNames.has(candidate.name)) continue;
+      if (candidate.autoPort !== true) continue;
+      const before =
+        candidate.portBeforeAuto ??
+        (typeof candidate.declaredPort === "number" ? candidate.declaredPort : undefined);
+      const after =
+        candidate.port ??
+        (typeof candidate.config?.port === "number" ? candidate.config.port : undefined);
+      if (typeof before === "number" && typeof after === "number" && before !== after) {
+        rewrites.set(before, after);
+      }
+    }
+    // One pass over the original value, matching the complete port: chained replaceAll would turn a's 4000→4001 into
+    // b's 4001→4002, and a prefix match would rewrite localhost:40000 as localhost:40010.
+    for (const [key, value] of Object.entries(env)) {
+      env[key] = value.replace(ENDPOINT_PORT_PATTERN, (whole, prefix: string, digits: string) => {
+        const after = rewrites.get(Number(digits));
+        return after === undefined ? whole : `${prefix}${after}`;
+      });
     }
     const containerName = isNativeContainerService(resource)
       ? nativeContainerName(containerProject, resource.name)

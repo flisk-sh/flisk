@@ -3,6 +3,7 @@
 
 import chalk from "chalk";
 import { Command } from "commander";
+import { applySavedAutoPorts } from "../utils/auto-ports.js";
 import { probeHostPort } from "../utils/doctor-runtime.js";
 import { FliskError } from "../utils/errors.js";
 import { showDetail, showStep } from "../utils/formatting.js";
@@ -34,7 +35,8 @@ async function shouldWaitForFrontend(projectRoot: string): Promise<boolean> {
 
 /** The frontends of the current project, with the URL each one is published under. */
 export async function listFrontendTargets(projectRoot: string): Promise<FrontendTarget[]> {
-  const { resources } = discoverResourcesWithProblems(projectRoot);
+  const { resources: discovered } = discoverResourcesWithProblems(projectRoot);
+  const resources = applySavedAutoPorts(discovered, projectRoot);
   if (isNativeProject(resources)) {
     return resources
       .filter((resource) => resource.config?.appType === "frontend")

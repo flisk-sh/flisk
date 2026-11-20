@@ -4,6 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { DiscoveredResource, HostPortPlan, ServiceRuntimeState } from "../types/index.js";
+import { applySavedAutoPorts } from "../utils/auto-ports.js";
 import {
   describePlatformServices,
   isGatewayEnabled,
@@ -236,7 +237,24 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
       });
 
       // Discover first: outside a project this fails before any status line is printed.
-      const all = createDiscoveryContext();
+      // A checkout's resolved auto ports are overlaid on copies, so status reports the ports the run actually uses.
+      const discovered = createDiscoveryContext();
+      const resources = applySavedAutoPorts(discovered.resources, projectRoot);
+      const stacksWithAutoPorts = discovered.stacks.map((stack) => ({
+        ...stack,
+        resources: applySavedAutoPorts(stack.resources, projectRoot),
+      }));
+      const all = {
+        ...discovered,
+        resources,
+        stacks: stacksWithAutoPorts,
+        unassignedResources: resources.filter((resource) => !resource.stack),
+        resourcesByStack: resources.reduce((map, resource) => {
+          if (!resource.stack) return map;
+          map.set(resource.stack, [...(map.get(resource.stack) ?? []), resource]);
+          return map;
+        }, new Map<string, typeof resources>()),
+      };
       const stack = options.stack;
       const stacks = stack ? all.stacks.filter((entry) => entry.name === stack) : all.stacks;
       if (stack && !stacks.length) {

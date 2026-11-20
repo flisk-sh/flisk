@@ -90,7 +90,8 @@ function resolveGatewayOption(options) {
 export function buildServicePorts(resource, ingressHttp, options, lookup) {
     const gatewayEnabled = resolveGatewayOption(options);
     const appType = resource.config?.appType;
-    const containerPort = resource.port ?? resource.config?.port ?? null;
+    const declared = resource.config?.port;
+    const containerPort = resource.port ?? (typeof declared === "number" ? declared : undefined) ?? null;
     if (typeof options === "object" && options !== null && "native" in options && options.native) {
         // A local process has no ingress route, whatever its type: it listens on localhost at its own port.
         return {

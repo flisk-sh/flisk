@@ -103,6 +103,27 @@ export function localDatabaseEnv(dependsOn, databaseNames = [], declaredEnv = {}
         : { DATABASE_URL: "" };
 }
 /**
+ * What a native `flisk up` does about the run already on record, decided before auto ports are resolved so the active
+ * run's ports are kept instead of reallocated around it: `attach` keeps the running services and their saved ports (a
+ * second resolution would see the run's own ports occupied and save different ones), and a `--force` replacement (or a
+ * dead supervisor's leftovers) is stopped first, so the new run replays this checkout's saved assignment. `flisk up`
+ * answers `attach` itself; `runNativeUp` re-checks and remains the guard for the one-command flow.
+ */
+export async function decideNativeRun(projectRoot, options = {}) {
+    if (options.dryRun)
+        return { action: "start" };
+    const running = readNativeRunState(projectRoot);
+    if (!running)
+        return { action: "start" };
+    if (running.pid !== process.pid && isProcessAlive(running.pid) && !options.force) {
+        return { action: "attach", pid: running.pid };
+    }
+    // --force replaces the live run; a dead supervisor's leftovers must not hold ports either. Stop whatever the record
+    // owns (its processes and containers) before ports are chosen.
+    await stopNativeRun(projectRoot);
+    return { action: "start" };
+}
+/**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).
  */
@@ -110,8 +131,9 @@ export async function runNativeUp(input) {
     const { projectRoot, selected, emit } = input;
     const exit = input.exit ?? ((code) => process.exit(code));
     const quiet = Boolean(input.quiet);
+    const autoPortFields = input.autoPortReport ? { ...input.autoPortReport } : {};
     const fail = (code, message, data = {}) => {
-        emit?.({ ok: false, runtime: "native", ...data }, [{ code, message }]);
+        emit?.({ ok: false, runtime: "native", ...autoPortFields, ...data }, [{ code, message }]);
         showError(message);
         return exit(1);
     };
@@ -157,7 +179,13 @@ export async function runNativeUp(input) {
         if (running && running.pid !== process.pid && isProcessAlive(running.pid)) {
             if (!input.force) {
                 const message = `This project is already running as local processes (flisk up, pid ${running.pid}).`;
-                emit?.({ ok: true, alreadyRunning: true, runtime: "native", pid: running.pid });
+                emit?.({
+                    ok: true,
+                    alreadyRunning: true,
+                    runtime: "native",
+                    ...autoPortFields,
+                    pid: running.pid,
+                });
                 if (!quiet) {
                     console.log(chalk.green(message));
                     console.log(chalk.gray("Stop it with flisk down, or pass --force to restart it."));
@@ -191,6 +219,7 @@ export async function runNativeUp(input) {
             ok: true,
             dryRun: true,
             runtime: "native",
+            ...autoPortFields,
             ...(input.inferred ? { inferred: input.inferred } : {}),
             stack: input.stackName ?? null,
             services: serviceNames,
@@ -274,7 +303,9 @@ export async function runNativeUp(input) {
             ]),
             `Output of every service: ${join(NATIVE_DIR, "logs")}/<service>.log`,
         ].join("\n");
-        emit?.({ ok: false, runtime: "native", failures }, [{ code: "UP_RESOURCE_FAILED", message }]);
+        emit?.({ ok: false, runtime: "native", ...autoPortFields, failures }, [
+            { code: "UP_RESOURCE_FAILED", message },
+        ]);
         showError(message);
         await supervisor.stop();
         exit(1);
@@ -283,6 +314,7 @@ export async function runNativeUp(input) {
     emit?.({
         ok: true,
         runtime: "native",
+        ...autoPortFields,
         ...(input.inferred ? { inferred: true } : {}),
         stack: input.stackName ?? null,
         services: serviceNames,

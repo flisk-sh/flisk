@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/index.js";
+import { autoPortStatePath } from "../../utils/auto-ports.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { sampleServiceUsage } from "../../utils/service-usage.js";
 import { isTiltAvailable, runTilt } from "../../utils/tilt.js";
@@ -141,6 +142,34 @@ describe("flisk status", () => {
     vi.mocked(runTilt).mockReset();
     vi.mocked(tiltGetUiResources).mockReset();
     vi.mocked(sampleServiceUsage).mockReset().mockResolvedValue({});
+  });
+
+  it("reports the saved auto port in --json resources", async () => {
+    const manifestPath = join(projectRoot, "services", "shop", "orders-api", "service.json");
+    const original = readFileSync(manifestPath, "utf-8");
+    mkdirSync(join(projectRoot, ".flisk", "local"), { recursive: true });
+    writeFileSync(
+      autoPortStatePath(projectRoot),
+      JSON.stringify({
+        version: 1,
+        ports: { "orders-api": { port: 4123, appType: "backend" } },
+      }),
+    );
+    try {
+      writeFileSync(
+        manifestPath,
+        JSON.stringify({ ...JSON.parse(original), port: "auto" }, null, 2),
+      );
+      clearDiscoveryCache();
+
+      const data = JSON.parse(await runStatus(["--json"])).data as {
+        resources: Array<{ name: string; port: number | null }>;
+      };
+      expect(data.resources.find((resource) => resource.name === "orders-api")?.port).toBe(4123);
+    } finally {
+      writeFileSync(manifestPath, original);
+      clearDiscoveryCache();
+    }
   });
 
   describe("--usage", () => {

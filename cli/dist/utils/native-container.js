@@ -54,8 +54,13 @@ export function dockerRunArgs(resource, options) {
         `${NATIVE_CONTAINER_LABEL}=${options.projectRoot}`,
     ];
     const port = typeof config.port === "number" ? config.port : undefined;
-    if (port !== undefined)
-        args.push("-p", `127.0.0.1:${port}:${port}`);
+    if (port !== undefined) {
+        // A run-time auto port moves the HOST port a container is published on; the image still listens on the port its
+        // manifest declared (the overlay rewrote config.port, the manifest number survives in declaredPort). Publish
+        // `4000:5432`, never `4000:4000`: no PORT reaches a container, so the image's own listener never moves.
+        const containerPort = typeof resource.declaredPort === "number" ? resource.declaredPort : port;
+        args.push("-p", `127.0.0.1:${port}:${containerPort}`);
+    }
     for (const entry of Array.isArray(config.extraPorts)
         ? config.extraPorts
         : []) {

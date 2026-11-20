@@ -5,7 +5,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { DiscoveredResource, DiscoveredStack, ResourceConfig } from "../../types/index.js";
+import type {
+  DiscoveredResource,
+  DiscoveredResourceConfig,
+  DiscoveredStack,
+  ResourceConfig,
+} from "../../types/index.js";
 import { groupSharedPostgres, readProjectName, usesSharedPostgres } from "../shared-infra.js";
 
 function resource(
@@ -18,7 +23,7 @@ function resource(
     path: `/p/${name}`,
     configPath: `/p/${name}/service.json`,
     stack,
-    config: config as ResourceConfig,
+    config: config as DiscoveredResourceConfig,
   };
 }
 
@@ -62,7 +67,7 @@ describe("usesSharedPostgres", () => {
         path: "/p",
         configPath: "/p/s.json",
         stack: "shop",
-        config: null as unknown as ResourceConfig,
+        config: null as unknown as DiscoveredResourceConfig,
       }),
     ).toBe(false);
   });

@@ -46,6 +46,9 @@ def validate(manifest):
     if port == None:
         if app_type != "infra":
             issues.append("Missing required field: port")
+    elif port == "auto":
+        # A run-time choice: the CLI resolves it inside the appType's range without writing it back (#4683).
+        pass
     elif type(port) != "int":
         issues.append("Invalid port: " + str(port) + ". Must be an integer")
     elif app_type == "bring-your-own":

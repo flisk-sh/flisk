@@ -581,8 +581,10 @@ export function checkServicePorts(
   resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
   const problems = resources.flatMap((resource) => {
-    const port: unknown = resource.config?.port;
+    const port: unknown = resource.declaredPort ?? resource.config?.port;
     if (port === undefined) return [];
+    // "auto" is checked against the appType's range when it is resolved, not here (#4683).
+    if (port === "auto") return [];
     if (typeof port === "number" && Number.isInteger(port) && port >= 1 && port <= 65535) return [];
     return [
       `${filePath(projectRoot, resource)} port ${JSON.stringify(port)}: not an integer from 1 to 65535`,

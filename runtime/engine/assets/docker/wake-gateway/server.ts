@@ -37,13 +37,20 @@
  *   X-Wake-Respond-Within-Ms  How long to hold the request before answering
  *                          503 + Retry-After while the start continues in the
  *                          background (default decide.ts EARLY_RESPONSE_MS).
+ *
+ * X-Wake-Proxy-Port is the port the woken container listens on: a number for a
+ * fixed-port route, or the `${FLISK_SERVICE_<NAME>_PORT:-default}` placeholder
+ * for an auto port (#4683) -- resolveProxyPort turns that into the container's
+ * real PORT before the upstream URL is built.
  */
 import {
+  DEFAULT_PROXY_PORT,
   RETRY_AFTER_SECONDS,
   decideWakeAction,
   earlyResponseMs,
   evaluateReadiness,
   isGatewayLivenessProbe,
+  resolveProxyPort as resolveProxyPortFromEnv,
   wakeTimeoutMs,
   type ContainerState,
 } from "./decide";
@@ -177,7 +184,7 @@ function parseRequest(req: Request) {
   const deps = parseDeps(req.headers.get("X-Wake-Deps") || "");
   const timeoutOverrideMs = Number(req.headers.get("X-Wake-Timeout-Ms")) || undefined;
   const respondWithinOverrideMs = Number(req.headers.get("X-Wake-Respond-Within-Ms")) || undefined;
-  const proxyPort = req.headers.get("X-Wake-Proxy-Port") || "80";
+  const proxyPort = req.headers.get("X-Wake-Proxy-Port") || DEFAULT_PROXY_PORT;
   const sessionDuration = req.headers.get("X-Wake-Session-Duration") || "10m";
   const composeFiles = (req.headers.get("X-Wake-Compose-Files") || "").split(",").filter(Boolean);
   const compose: ComposeInvocation = {
@@ -315,10 +322,30 @@ const STRIPPED_REQUEST_HEADERS = new Set([
   "x-wake-image",
 ]);
 
+/**
+ * The port the woken container listens on. A static route generated for `"port": "auto"` (#4683) cannot carry the
+ * resolved number (generated files stay deterministic), so its X-Wake-Proxy-Port header holds the
+ * `${FLISK_SERVICE_<NAME>_PORT:-default}` placeholder instead: read the real port from the container's own PORT
+ * environment at proxy time -- Compose already interpolated it when the container started -- with the placeholder's
+ * own default as the fallback. A fixed-port route carries the number and passes through unchanged.
+ */
+async function resolveProxyPort(container: string, rawPort: string): Promise<string> {
+  if (/^\d+$/.test(rawPort)) return rawPort;
+  const { code, stdout } = await run([
+    "docker",
+    "inspect",
+    "--format",
+    "{{range .Config.Env}}{{println .}}{{end}}",
+    container,
+  ]);
+  return resolveProxyPortFromEnv(rawPort, code === 0 ? stdout : undefined);
+}
+
 // Proxies to the container name rather than the Compose service name: every
 // Flisk project's resources share the traefik-public network, where a bare
 // service name is only an alias and could collide across projects.
-async function proxyThrough(req: Request, container: string, port: string): Promise<Response> {
+async function proxyThrough(req: Request, container: string, rawPort: string): Promise<Response> {
+  const port = await resolveProxyPort(container, rawPort);
   // The original path/query reach the gateway untouched (config travels via
   // X-Wake-* headers, not the path), so they're forwarded as-is.
   const target = new URL(req.url);

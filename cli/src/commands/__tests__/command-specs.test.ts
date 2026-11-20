@@ -59,6 +59,17 @@ describe("lightweight command specs", () => {
     }
   });
 
+  it("exposes --auto-port on flisk up in both the real and generated programs", () => {
+    for (const [name, program] of [
+      ["real", realProgram],
+      ["generated", specProgram],
+    ] as const) {
+      const up = program.commands.find((command) => command.name() === "up");
+      expect(up, `${name} up command`).toBeDefined();
+      expect(up?.options.some((option) => option.flags === "--auto-port")).toBe(true);
+    }
+  });
+
   it("has a lazy module for every registered command", async () => {
     const { LAZY_COMMANDS } = await import("../lazy-command.js");
     const missing = realProgram.commands

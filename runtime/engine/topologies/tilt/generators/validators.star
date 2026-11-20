@@ -26,6 +26,7 @@ Validators Architecture:
 load("../common/utils.star", "Utils")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
 load("../manifest/constants.star", "GENERATED_CONFIG_FILENAMES")
+load("../manifest/port_values.star", "manifest_port_number")
 load("../resources/shared-platform-postgres.star", "is_shared_platform_postgres_dependency")
 
 load("../common/utils.star", "LIBRARY_ROOTS")
@@ -593,7 +594,7 @@ fi
 ''')
     
     # Check 3: Port availability (for local dev)
-    port = manifest.get("port", BASE_PORT_FRONTEND)
+    port = manifest_port_number(manifest, BASE_PORT_FRONTEND)
     health_checks.append('''
 # Check if port is already in use
 if command -v lsof > /dev/null 2>&1; then

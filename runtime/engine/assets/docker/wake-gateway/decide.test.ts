@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   COMPOSE_START_TIMEOUT_MS,
+  DEFAULT_PROXY_PORT,
   EARLY_RESPONSE_MS,
   MAX_EARLY_RESPONSE_MS,
   RETRY_AFTER_SECONDS,
@@ -11,6 +12,7 @@ import {
   earlyResponseMs,
   evaluateReadiness,
   isGatewayLivenessProbe,
+  resolveProxyPort,
   wakeTimeoutMs,
 } from "./decide";
 
@@ -173,5 +175,34 @@ describe("isGatewayLivenessProbe", () => {
   test("other methods and paths are not liveness probes", () => {
     expect(isGatewayLivenessProbe("POST", "/health", new Headers())).toBe(false);
     expect(isGatewayLivenessProbe("GET", "/health/ready", new Headers())).toBe(false);
+  });
+});
+
+describe("resolveProxyPort", () => {
+  // The route generator writes a deterministic `${FLISK_SERVICE_<NAME>_PORT:-default}` placeholder for an auto port
+  // (#4683); the resolved number must never appear in the generated file, so the gateway reads it at proxy time.
+  const PLACEHOLDER = "${FLISK_SERVICE_COLD_API_PORT:-4000}";
+
+  test("a fixed-port route passes its number through unchanged", () => {
+    expect(resolveProxyPort("4604")).toBe("4604");
+  });
+
+  test("an auto-port placeholder resolves to the PORT Compose baked into the container", () => {
+    const env = ["NODE_ENV=development", "PORT=4107", "HOSTNAME=0.0.0.0"].join("\n");
+    expect(resolveProxyPort(PLACEHOLDER, env)).toBe("4107");
+  });
+
+  test("a container that cannot be inspected falls back to the placeholder's own default", () => {
+    expect(resolveProxyPort(PLACEHOLDER, undefined)).toBe("4000");
+    expect(resolveProxyPort(PLACEHOLDER, "")).toBe("4000");
+  });
+
+  test("a container whose PORT is not numeric falls back to the placeholder's default", () => {
+    expect(resolveProxyPort(PLACEHOLDER, "PORT=${FLISK_SERVICE_COLD_API_PORT:-4000}\n")).toBe("4000");
+  });
+
+  test("a header with no readable port falls back to the default port", () => {
+    expect(resolveProxyPort("")).toBe(DEFAULT_PROXY_PORT);
+    expect(resolveProxyPort("${UNPARSEABLE")).toBe(DEFAULT_PROXY_PORT);
   });
 });

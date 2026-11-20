@@ -185,6 +185,13 @@ def _validate_schema(manifest, context):
         
         stats['fields_checked'] += 1
         
+        # `"port": "auto"` is a run-time value the CLI resolves (#4683): the schema stage accepts the literal and
+        # skips the integer type and min/max constraints for it. The `auto` branch in _validate_values accepts it
+        # too, so a full validation (integration.star loads with level='all') never reports it as invalid.
+        if field_name == 'port' and value == 'auto':
+            stats['rules_passed'] += 1
+            continue
+        
         # Check field type
         field_type = field_schema.get('type')
         type_valid = _check_field_type(field_name, value, field_type, field_schema)
@@ -229,8 +236,11 @@ def _validate_values(manifest, context):
         port = manifest['port']
         app_type = manifest.get('appType', 'backend')
         
+        if port == 'auto':
+            # A run-time value resolved by the CLI; the range is chosen when the port is picked (#4683).
+            pass
         # Check basic range
-        if port < 1024 or port > 65535:
+        elif port < 1024 or port > 65535:
             errors.append(ManifestErrors.new(
                 message="Port {} is outside valid range [1024, 65535]".format(port),
                 category=ManifestErrors.CATEGORY['VALIDATION'],
@@ -451,7 +461,7 @@ def _validate_cross_resource(manifest, context):
             app_names[name] = m
         
         port = m.get('port')
-        if port:
+        if port and port != 'auto':
             if port not in ports:
                 ports[port] = []
             ports[port].append(name)

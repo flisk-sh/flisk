@@ -136,7 +136,8 @@ def load_all_manifests(services_root, filters=None, validate=False):
             by_name[app_name] = normalized
         
         port = normalized.get('port')
-        if port:
+        # Every auto service carries the same placeholder; it is not a conflict (#4683).
+        if port and port != 'auto':
             by_port[port] = normalized
         
         # Collect warnings
@@ -277,7 +278,7 @@ def check_port_conflicts(manifests):
         port = manifest.get('port')
         app_name = manifest.get('appName', 'unknown')
         
-        if port:
+        if port and port != 'auto':
             if port in ports:
                 conflicts.append(ManifestErrors.new(
                     message="Port {} conflict: {} and {}".format(port, ports[port], app_name),

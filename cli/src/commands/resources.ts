@@ -3,6 +3,7 @@
 import chalk from "chalk";
 import { Command, Option } from "commander";
 import { isResourceCreateType } from "../types/index.js";
+import { applySavedAutoPorts } from "../utils/auto-ports.js";
 import { routeUsageErrorsToJson } from "../utils/command-helpers.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
@@ -48,7 +49,9 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
     }
 
     const discovery = createDiscoveryContext();
-    if (typeof options.stack === "string" && !stackExists(options.stack, discovery.resources)) {
+    // Report the ports remembered for this checkout, not the literal "auto" in service.json (#4683).
+    const resolvedResources = applySavedAutoPorts(discovery.resources, findProjectRoot());
+    if (typeof options.stack === "string" && !stackExists(options.stack, resolvedResources)) {
       const error = errorFactories.stackNotFound(options.stack, discovery.stackNames);
       if (options.json) writeMachineError(error);
       error.exit();
@@ -56,10 +59,10 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
     const withoutStackFilter = options.noStack || options.stack === false;
     const stackName = typeof options.stack === "string" ? options.stack : undefined;
 
-    let resources = discovery.resources;
+    let resources = resolvedResources;
 
     if (stackName) {
-      resources = discovery.resourcesByStack.get(stackName) || [];
+      resources = resources.filter((resource) => resource.stack === stackName);
       if (resources.length === 0 && !options.json && options.type === undefined) {
         showEmptyState("stack-services", ` in stack "${stackName}"`);
         return;
@@ -67,7 +70,7 @@ export async function runResourcesList(options: ListResourcesOptions): Promise<v
     }
 
     if (withoutStackFilter) {
-      resources = discovery.unassignedResources;
+      resources = resources.filter((resource) => !resource.stack);
       if (resources.length === 0 && !options.json && options.type === undefined) {
         showAllSatisfyCondition("resources", "assigned to a stack");
         return;

@@ -99,6 +99,27 @@ describe("service-schema.json stays independent of the provider registries", () 
     checkPropertyDescriptions(schema);
   });
 
+  it('accepts "auto" as a port for every app type while keeping each numeric range', () => {
+    // A database declares no host port at all; every other appType has a port range to resolve auto into.
+    for (const appType of RESOURCE_CONFIG_APP_TYPES.filter((type) => type !== "database")) {
+      expect(
+        validateService(
+          manifest({ appName: "api", appType, port: "auto", featuresEnabled: ["nats"] }),
+        ),
+        appType,
+      ).toBe(true);
+    }
+    expect(validateService(manifest({ appName: "web", appType: "frontend", port: 4500 }))).toBe(
+      false,
+    );
+    expect(validateService(manifest({ appName: "api", appType: "backend", port: 3500 }))).toBe(
+      false,
+    );
+    expect(validateService(manifest({ appName: "api", appType: "backend", port: "4000" }))).toBe(
+      false,
+    );
+  });
+
   it("validates all service manifests created by the resource generators", () => {
     const generatedServices = [
       ...CREATABLE_RESOURCE_TYPES.map((type, index) =>

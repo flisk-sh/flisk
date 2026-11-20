@@ -1,12 +1,26 @@
 import type { AgentOverview } from "../utils/agent-sessions.js";
 import { RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE } from "../utils/constants.js";
+/**
+ * A discovered manifest: `port` is either a real number or absent while "auto" awaits resolution (#4683).
+ * Declared separately from ResourceConfig so existing consumers keep a numeric `port` without casts everywhere.
+ */
+export interface DiscoveredResourceConfig extends Omit<ResourceConfigFields, "port"> {
+    port?: number;
+    [key: string]: unknown;
+}
 export interface DiscoveredResource {
     name: string;
     path: string;
     configPath: string;
-    config?: ResourceConfig;
+    config?: DiscoveredResourceConfig;
     stack?: string;
     port?: number;
+    /** The `port` value from service.json before a run-time auto-port overlay: a number, or "auto". */
+    declaredPort?: number | "auto";
+    /** The port dependency URLs were generated against before this run: declared port, or the appType's base for "auto". */
+    portBeforeAuto?: number;
+    /** True when the current port came from auto-port resolution (a manifest "auto" or `flisk up --auto-port`). */
+    autoPort?: boolean;
     type?: ResourceType;
 }
 export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "database", "bring-your-own"];
@@ -54,7 +68,8 @@ export interface ResourceConfigFields {
     appType: (typeof RESOURCE_CONFIG_APP_TYPES)[number];
     stack?: string;
     schemaVersion?: number;
-    port?: number;
+    /** A fixed port, or "auto" to pick a free one in the appType's range at start time (#4683). */
+    port?: number | "auto";
     replicas?: number;
     runtime?: string;
     featuresEnabled?: string[];
