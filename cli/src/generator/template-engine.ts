@@ -21,7 +21,6 @@ import {
   TILTIGNORE_FILE,
 } from "../utils/constants.js";
 import { FliskError } from "../utils/errors.js";
-import { validateProjectName } from "../utils/validation.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
 import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
@@ -47,6 +46,7 @@ import {
   discoverServiceManifestPaths,
 } from "../utils/services.js";
 import { isStackFeatureEnabledInStacks } from "../utils/stack-features.js";
+import { validateProjectName } from "../utils/validation.js";
 import { hasSablierLicense, hasVerdaccioLicense } from "./extension-fetch.js";
 import { compileTemplate, type TemplateHelpers } from "./mini-template.js";
 

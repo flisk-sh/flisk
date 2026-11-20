@@ -8,11 +8,7 @@ function isKebabCase(value) {
 export const MAX_NAME_LENGTH = 63;
 const KEBAB_RULE = "Use lowercase letters, numbers, and hyphens only";
 function invalidNameMessage(label, value) {
-    const example = label === "Resource name"
-        ? "my-service"
-        : label === "Stack name"
-            ? "my-stack"
-            : "my-project";
+    const example = label === "Resource name" ? "my-service" : label === "Stack name" ? "my-stack" : "my-project";
     return `${label} "${value}" is not valid. ${KEBAB_RULE}, e.g. "${example}".`;
 }
 function tooLongMessage(label, value) {

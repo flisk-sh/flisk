@@ -19,11 +19,7 @@ type NameLabel = "Resource name" | "Stack name" | "Project name";
 
 function invalidNameMessage(label: NameLabel, value: string): string {
   const example =
-    label === "Resource name"
-      ? "my-service"
-      : label === "Stack name"
-        ? "my-stack"
-        : "my-project";
+    label === "Resource name" ? "my-service" : label === "Stack name" ? "my-stack" : "my-project";
   return `${label} "${value}" is not valid. ${KEBAB_RULE}, e.g. "${example}".`;
 }
 
