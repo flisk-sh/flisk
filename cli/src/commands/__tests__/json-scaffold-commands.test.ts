@@ -213,14 +213,14 @@ describe("flisk resource --json", () => {
     ]);
   }, 120_000);
 
-  it("reports a directory that exists without a service.json as COMMAND_FAILED", () => {
+  it("reports a directory that exists without a service.json as DIRECTORY_EXISTS", () => {
     const root = configured();
     mkdirSync(join(root, "services", "shop", "taken"), { recursive: true });
     writeFileSync(join(root, "services", "shop", "taken", "README.md"), "x\n");
     const result = json(["resource", "taken", "--stack", "shop"], root);
     expect(result.status).toBe(1);
     expect(parseEnvelope(result.stdout).errors[0]).toMatchObject({
-      code: "COMMAND_FAILED",
+      code: "DIRECTORY_EXISTS",
       message: expect.stringContaining("Directory already exists"),
     });
   }, 120_000);

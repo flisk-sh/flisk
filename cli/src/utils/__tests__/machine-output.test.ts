@@ -1,7 +1,28 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
-import { FliskError } from "../errors.js";
+import { ProjectConfigNotFoundError } from "../../generator/template-engine.js";
+import { EnvFileError } from "../env-selection.js";
+import {
+  ConfigInvalidError,
+  DirectoryExistsError,
+  DockerNotAvailableError,
+  DockerNotRespondingError,
+  FliskError,
+  InteractiveTerminalRequiredError,
+  InvalidPathError,
+  NoResourcesError,
+  NotInProjectError,
+  ResourceNotFoundError,
+  StackNotFoundError,
+  TiltNotInstalledError,
+  UnknownResourceError,
+  UnknownServicesError,
+} from "../errors.js";
+import { JsonCommandError } from "../json-command.js";
+import { EnvUnreadableError } from "../secret-redaction.js";
+import { InvalidServiceJsonError } from "../services.js";
+import { TiltEventsLoadError } from "../tilt-events.js";
 import {
   createMachineEnvelope,
   isMachineOutputEnvelope,
@@ -155,6 +176,87 @@ describe("toMachineError", () => {
         code: "COMMAND_FAILED",
         message: "Simple failure",
       },
+      exitCode: 1,
+    });
+  });
+
+  it("maps dedicated FliskError subclasses to their specific error codes", () => {
+    expect(toMachineError(new NotInProjectError())).toMatchObject({
+      error: { code: "NOT_IN_PROJECT" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new ProjectConfigNotFoundError())).toMatchObject({
+      error: { code: "NOT_IN_PROJECT" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new ResourceNotFoundError("api", ["web"]))).toMatchObject({
+      error: { code: "RESOURCE_NOT_FOUND" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new UnknownResourceError("api", ["Did you mean api?"]))).toMatchObject({
+      error: { code: "UNKNOWN_RESOURCE" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new StackNotFoundError("app", ["core"]))).toMatchObject({
+      error: { code: "STACK_NOT_FOUND" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new ConfigInvalidError("Invalid config"))).toMatchObject({
+      error: { code: "CONFIG_INVALID" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new InvalidServiceJsonError("malformed JSON"))).toMatchObject({
+      error: { code: "CONFIG_INVALID" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new EnvUnreadableError(".env", "permission denied"))).toMatchObject({
+      error: { code: "ENV_UNREADABLE" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new TiltEventsLoadError("failed", "error"))).toMatchObject({
+      error: { code: "TILT_EVENTS_LOAD_ERROR" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new DirectoryExistsError("/tmp/exists"))).toMatchObject({
+      error: { code: "DIRECTORY_EXISTS" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new InvalidPathError("../bad"))).toMatchObject({
+      error: { code: "INVALID_PATH" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new NoResourcesError())).toMatchObject({
+      error: { code: "NO_RESOURCES" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new TiltNotInstalledError())).toMatchObject({
+      error: { code: "TILT_NOT_INSTALLED" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new DockerNotAvailableError())).toMatchObject({
+      error: { code: "DOCKER_NOT_AVAILABLE" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new DockerNotRespondingError())).toMatchObject({
+      error: { code: "DOCKER_NOT_RESPONDING" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new UnknownServicesError(["bad"], ["api"]))).toMatchObject({
+      error: { code: "UNKNOWN_SERVICES" },
+      exitCode: 2,
+    });
+    expect(toMachineError(new InteractiveTerminalRequiredError())).toMatchObject({
+      error: { code: "INTERACTIVE_TERMINAL_REQUIRED" },
+      exitCode: 1,
+    });
+    expect(toMachineError(new EnvFileError("ENV_FILE_INVALID", "bad env"))).toMatchObject({
+      error: { code: "ENV_FILE_INVALID" },
+      exitCode: 2,
+    });
+    expect(
+      toMachineError(new JsonCommandError("CUSTOM_CODE", "custom error", ["hint"], 1)),
+    ).toMatchObject({
+      error: { code: "CUSTOM_CODE", suggestions: ["hint"] },
       exitCode: 1,
     });
   });

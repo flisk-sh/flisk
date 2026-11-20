@@ -461,7 +461,7 @@ describe("networksCommand and helpers", () => {
       expect(exit).toHaveBeenCalledWith(1);
       const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
       const envelope = parseEnvelope(stdout);
-      expect(envelope.errors[0]?.code).toBe("COMMAND_FAILED");
+      expect(envelope.errors[0]?.code).toBe("STACK_NOT_FOUND");
     });
 
     it("emits machine error envelope when run outside a project in --json mode", async () => {
@@ -476,7 +476,7 @@ describe("networksCommand and helpers", () => {
       expect(exit).toHaveBeenCalledWith(1);
       const stdout = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
       const envelope = parseEnvelope(stdout);
-      expect(envelope.errors[0]?.code).toBe("COMMAND_FAILED");
+      expect(envelope.errors[0]?.code).toBe("NOT_IN_PROJECT");
     });
 
     it("outputs JSON envelope, legacy JSON array, and raw URLs", async () => {

@@ -117,7 +117,7 @@ describe("flisk stacks (in-process)", () => {
     });
   });
 
-  it("--json outside a project writes a COMMAND_FAILED envelope and exits 1", async () => {
+  it("--json outside a project writes a NOT_IN_PROJECT envelope and exits 1", async () => {
     paths.findProjectRoot.mockReturnValue(null);
 
     const run = await runStacks(["--json"]);
@@ -126,7 +126,7 @@ describe("flisk stacks (in-process)", () => {
 
     expect(run.status).toBe(1);
     expect(envelope.data).toBeNull();
-    expect(envelope.errors[0]?.code).toBe("COMMAND_FAILED");
+    expect(envelope.errors[0]?.code).toBe("NOT_IN_PROJECT");
     expect(envelope.errors[0]?.message).toContain("Could not find project root");
     expect(discovery.createDiscoveryContext).not.toHaveBeenCalled();
   });

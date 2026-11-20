@@ -13,8 +13,8 @@ export declare function failureFromStderr(text: string, fallback: string): Pick<
 /**
  * Runs a command's action for `--json`. While it runs, colour is off and everything a person would read
  * (`console.log`, `console.info`, `console.debug`, `process.stdout.write`) goes to stderr, so stdout carries exactly one
- * envelope: the action's `data` on success, or `data: null` and one error on failure. A thrown FliskError becomes
- * COMMAND_FAILED with its suggestions (a JsonCommandError keeps its own code), anything else INTERNAL (exit 2). A
- * `process.exit` from deeper code becomes `failureCode`, with the message that code printed through `showError`.
+ * envelope: the action's `data` on success, or `data: null` and one error on failure. A thrown FliskError becomes its
+ * specific error code (or COMMAND_FAILED) with its suggestions (a JsonCommandError keeps its own code), anything else
+ * INTERNAL (exit 2). A `process.exit` from deeper code becomes `failureCode`, with the message that code printed through `showError`.
  */
 export declare function runJsonCommand(failureCode: string, command: string, action: () => Promise<JsonCommandResult>): Promise<void>;

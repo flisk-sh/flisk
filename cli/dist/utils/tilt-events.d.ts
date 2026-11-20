@@ -21,6 +21,7 @@ export interface TiltEventSnapshot {
 export type TiltEventsFailureKind = "unavailable" | "error";
 export declare class TiltEventsLoadError extends FliskError {
     readonly kind: TiltEventsFailureKind;
+    readonly code: "TILT_EVENTS_LOAD_ERROR";
     constructor(message: string, kind: TiltEventsFailureKind, suggestions?: string[]);
 }
 export declare function stripTerminalControls(value: string): string;

@@ -11,6 +11,7 @@ import { discoverResourcesWithProblems } from "./services.js";
 export const REDACTED = "[REDACTED]";
 export class EnvUnreadableError extends FliskError {
     path;
+    code = "ENV_UNREADABLE";
     constructor(path, reason, suggestions = []) {
         super(`Could not read ${path}: ${reason}`, suggestions);
         this.path = path;

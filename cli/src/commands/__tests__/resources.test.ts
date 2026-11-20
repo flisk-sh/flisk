@@ -93,7 +93,7 @@ describe("resources command", () => {
     expect(firstCall).toBeDefined();
     const envelope = JSON.parse(String(firstCall));
     expect(envelope.schemaVersion).toBe(1);
-    expect(envelope.errors[0]?.code).toBe("COMMAND_FAILED");
+    expect(envelope.errors[0]?.code).toBe("NOT_IN_PROJECT");
     expect(envelope.errors[0]?.message).toContain(
       "Could not find project root (no .flisk/project.json found)",
     );

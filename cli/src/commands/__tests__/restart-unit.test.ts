@@ -476,13 +476,13 @@ describe("restart command unit tests", () => {
     expect(container.restartContainer).not.toHaveBeenCalled();
   });
 
-  it("fails with COMMAND_FAILED error when executed outside a Flisk project", async () => {
+  it("fails with NOT_IN_PROJECT error when executed outside a Flisk project", async () => {
     paths.findProjectRoot.mockReturnValue(null);
 
     const { envelope, exitCode } = await runRestart(["api", "--json"]);
 
     expect(exitCode).toBe(1);
-    expect(envelope?.errors[0]?.code).toBe("COMMAND_FAILED");
+    expect(envelope?.errors[0]?.code).toBe("NOT_IN_PROJECT");
     expect(tilt.runTilt).not.toHaveBeenCalled();
     expect(container.restartContainer).not.toHaveBeenCalled();
   });

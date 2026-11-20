@@ -406,7 +406,7 @@ describe("config verify", () => {
     });
   });
 
-  it("emits a COMMAND_FAILED envelope and exits 1 with --json outside a project", async () => {
+  it("emits a NOT_IN_PROJECT envelope and exits 1 with --json outside a project", async () => {
     const root = createTempProject({ projectJson: null });
 
     const result = await runCommandInProcess(configCommand, ["verify", "--json"], root);
@@ -416,7 +416,7 @@ describe("config verify", () => {
       data: null,
       errors: [
         {
-          code: "COMMAND_FAILED",
+          code: "NOT_IN_PROJECT",
           message: expect.stringContaining("project root"),
         },
       ],

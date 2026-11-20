@@ -27,6 +27,7 @@ import {
   errorFactories,
   FliskError,
   handleTiltFailure,
+  NotInProjectError,
   requireProjectBeforeDocker,
   withTiltCheck,
 } from "../utils/errors.js";
@@ -166,7 +167,7 @@ async function resolveDownProject(options: {
   }
   if (running.length > 1) {
     return fail(
-      new FliskError(
+      new NotInProjectError(
         `Not in a Flisk project, and ${running.length} Flisk projects are running`,
         running.map((root) => `flisk down --project ${root}`),
       ),
@@ -175,7 +176,7 @@ async function resolveDownProject(options: {
 
   const notInProject = errorFactories.notInProject();
   return fail(
-    new FliskError(notInProject.message, [
+    new NotInProjectError(notInProject.message, [
       ...notInProject.suggestions,
       "Or name the project to stop from anywhere: flisk down --project <path>",
     ]),

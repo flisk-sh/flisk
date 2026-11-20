@@ -12,6 +12,8 @@ import { discoverResourcesWithProblems } from "./services.js";
 export const REDACTED = "[REDACTED]";
 
 export class EnvUnreadableError extends FliskError {
+  public readonly code = "ENV_UNREADABLE" as const;
+
   constructor(
     readonly path: string,
     reason: string,

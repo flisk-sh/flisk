@@ -25,7 +25,7 @@ describe("flisk restart", () => {
       const res = runFlisk(["restart", "api", "--json"], tmp);
       expect(res.status).not.toBe(0);
       const envelope = JSON.parse(res.stdout);
-      expect(envelope.errors[0].code).toBe("COMMAND_FAILED");
+      expect(envelope.errors[0].code).toBe("NOT_IN_PROJECT");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

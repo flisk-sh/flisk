@@ -172,10 +172,38 @@ describe("not-found error suggestions", () => {
     const error = errorFactories.stackNotFound("shp", ["shop"]);
 
     expect(toMachineError(error).error).toMatchObject({
-      code: "COMMAND_FAILED",
+      code: "STACK_NOT_FOUND",
       message: 'Stack "shp" not found',
       suggestions: expect.arrayContaining(['Did you mean "shop"?']),
     });
+  });
+
+  it("maps factory errors to specific machine-readable error codes", () => {
+    expect(toMachineError(errorFactories.notInProject()).error.code).toBe("NOT_IN_PROJECT");
+    expect(toMachineError(errorFactories.resourceNotFound("api", ["web"])).error.code).toBe(
+      "RESOURCE_NOT_FOUND",
+    );
+    expect(toMachineError(errorFactories.stackNotFound("app", ["core"])).error.code).toBe(
+      "STACK_NOT_FOUND",
+    );
+    expect(toMachineError(errorFactories.noResources()).error.code).toBe("NO_RESOURCES");
+    expect(toMachineError(errorFactories.directoryExists("/dir")).error.code).toBe(
+      "DIRECTORY_EXISTS",
+    );
+    expect(toMachineError(errorFactories.invalidPath("../bad")).error.code).toBe("INVALID_PATH");
+    expect(toMachineError(errorFactories.tiltNotInstalled()).error.code).toBe("TILT_NOT_INSTALLED");
+    expect(toMachineError(errorFactories.dockerNotAvailable()).error.code).toBe(
+      "DOCKER_NOT_AVAILABLE",
+    );
+    expect(toMachineError(errorFactories.dockerNotResponding()).error.code).toBe(
+      "DOCKER_NOT_RESPONDING",
+    );
+    expect(toMachineError(errorFactories.unknownServices(["bad"], ["api"])).error.code).toBe(
+      "UNKNOWN_SERVICES",
+    );
+    expect(toMachineError(errorFactories.interactiveTerminalRequired()).error.code).toBe(
+      "INTERACTIVE_TERMINAL_REQUIRED",
+    );
   });
 
   it("reports an existing directory with relocation guidance", () => {

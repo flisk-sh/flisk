@@ -451,7 +451,7 @@ describe("flisk down", () => {
         data: null,
         errors: [
           {
-            code: "COMMAND_FAILED",
+            code: "NOT_IN_PROJECT",
             message: "Could not find project root (no .flisk/project.json found)",
             suggestions: [
               "Run this from within a Flisk project",

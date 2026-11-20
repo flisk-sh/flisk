@@ -10,7 +10,7 @@ import { dependsOnOf } from "../utils/dependency-graph.js";
 import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
 import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
-import { createMachineEnvelope } from "../utils/machine-output.js";
+import { createMachineEnvelope, toMachineError } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
@@ -203,7 +203,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
         commandName: "logs",
         project: options.project ?? command.optsWithGlobals().project,
         json: options.json,
-        onFail: (error) => fail("COMMAND_FAILED", error.message, error.exitCode, error.suggestions),
+        onFail: (error) => fail(toMachineError(error).error.code, error.message, error.exitCode, error.suggestions),
       });
 
       try {

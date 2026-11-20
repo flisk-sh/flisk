@@ -20,7 +20,7 @@ import {
   TECH_STACK_FILE,
   TILTIGNORE_FILE,
 } from "../utils/constants.js";
-import { FliskError } from "../utils/errors.js";
+import { ConfigInvalidError, FliskError, NotInProjectError } from "../utils/errors.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
 import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
@@ -786,7 +786,16 @@ function normalizeProjectConfig(value: unknown): NormalizedProjectConfig {
 }
 
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
-export class ProjectConfigNotFoundError extends FliskError {}
+export class ProjectConfigNotFoundError extends NotInProjectError {
+  constructor(
+    message = "Project config not found. Run 'flisk project --yes' first.",
+    suggestions: string[] = ["flisk project --yes"],
+    exitCode = 1,
+  ) {
+    super(message, suggestions, exitCode);
+    this.name = "ProjectConfigNotFoundError";
+  }
+}
 
 /** The project.json path as the user sees it, for messages that name a field of it. */
 const PROJECT_JSON_DISPLAY = `.flisk/${PROJECT_JSON}`;
@@ -833,7 +842,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig {
   if (!normalized.ok) {
     const { field, expected, got } = normalized.problem;
     const name = field ? `${PROJECT_JSON_DISPLAY}.${field}` : PROJECT_JSON_DISPLAY;
-    throw new FliskError(`${name}: expected ${expected}, got ${describeJsonValue(got)}`, [
+    throw new ConfigInvalidError(`${name}: expected ${expected}, got ${describeJsonValue(got)}`, [
       `Fix ${name}, then run 'flisk config verify'`,
     ]);
   }

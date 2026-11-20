@@ -5,7 +5,7 @@ import chalk from "chalk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/index.js";
 import type { JsonCommandResult } from "../../types/index.js";
-import { FliskError, ProcessExitError, showError } from "../errors.js";
+import { FliskError, NotInProjectError, ProcessExitError, showError } from "../errors.js";
 import { failureFromStderr, JsonCommandError, runJsonCommand } from "../json-command.js";
 
 /** Runs `runJsonCommand` with stdout and stderr captured, and returns what each received and the exit code. */
@@ -82,6 +82,23 @@ describe("runJsonCommand", () => {
       ],
     });
     expect(result.stderr).toContain("Resource not found");
+  });
+
+  it("reports a thrown named FliskError with its specific error code in the envelope", async () => {
+    const result = await run(async () => {
+      throw new NotInProjectError();
+    });
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schemaVersion: 1,
+      data: null,
+      errors: [
+        {
+          code: "NOT_IN_PROJECT",
+          message: "Could not find project root (no .flisk/project.json found)",
+        },
+      ],
+    });
   });
 
   it("keeps a JsonCommandError's own code and prints its message to stderr once", async () => {

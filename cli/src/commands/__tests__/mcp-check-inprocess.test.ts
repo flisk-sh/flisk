@@ -288,7 +288,7 @@ describe("flisk mcp check (in-process)", () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it("--json writes a COMMAND_FAILED envelope and exits with the error's code when resolution fails", async () => {
+  it("--json writes a NOT_IN_PROJECT envelope and exits with the error's code when resolution fails", async () => {
     paths.findProjectRoot.mockReturnValue(null);
 
     const run = await runCheck(["tools", "--json"]);
@@ -299,7 +299,7 @@ describe("flisk mcp check (in-process)", () => {
 
     expect(run.status).toBe(1);
     expect(envelope.data).toBeNull();
-    expect(envelope.errors[0]).toMatchObject({ code: "COMMAND_FAILED" });
+    expect(envelope.errors[0]).toMatchObject({ code: "NOT_IN_PROJECT" });
     expect(envelope.errors[0]?.message).toContain("Could not find project root");
     expect(checker.runMcpCheck).not.toHaveBeenCalled();
   });

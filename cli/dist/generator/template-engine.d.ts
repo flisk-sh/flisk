@@ -1,6 +1,6 @@
 import { PLATFORM_STANDARDS } from "../config/platform-standards.js";
 import type { ProjectConfig } from "../types/index.js";
-import { FliskError } from "../utils/errors.js";
+import { NotInProjectError } from "../utils/errors.js";
 export declare function loadTemplate(filename: string): string;
 interface GeneratorContext {
     version: string;
@@ -96,7 +96,8 @@ export declare function isWrappedTiltfileStale(projectRoot: string): boolean;
 export declare function areMasterFilesStale(projectRoot: string): boolean;
 export declare function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string;
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
-export declare class ProjectConfigNotFoundError extends FliskError {
+export declare class ProjectConfigNotFoundError extends NotInProjectError {
+    constructor(message?: string, suggestions?: string[], exitCode?: number);
 }
 /**
  * Reads, parses, and normalizes `.flisk/project.json` from the given project root.

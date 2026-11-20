@@ -1,6 +1,12 @@
 import type { DiscoveredResource, DiscoveredStack, DiscoveryProblem, ResourceMetadata, StackMetadata } from "../types/index.js";
+import { FliskError } from "./errors.js";
 export declare function discoverServiceManifestPaths(projectRoot: string): string[];
 export declare function resetPrintedServiceWarnings(): void;
+export declare class InvalidServiceJsonError extends FliskError {
+    readonly reason: string;
+    readonly code: "CONFIG_INVALID";
+    constructor(reason: string, suggestions?: string[]);
+}
 /**
  * Invalidate cached `discoverResourcesWithProblems` results.
  *

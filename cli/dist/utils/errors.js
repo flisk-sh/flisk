@@ -51,6 +51,135 @@ export class UnknownResourceError extends FliskError {
         this.name = "UnknownResourceError";
     }
 }
+export class NotInProjectError extends FliskError {
+    code = "NOT_IN_PROJECT";
+    constructor(message = "Could not find project root (no .flisk/project.json found)", suggestions = [
+        "Run this from within a Flisk project",
+        "Run `flisk project --yes` to initialize a new project",
+    ], exitCode = 1) {
+        super(message, suggestions, exitCode);
+        this.name = "NotInProjectError";
+    }
+}
+export class ResourceNotFoundError extends FliskError {
+    code = "RESOURCE_NOT_FOUND";
+    constructor(name, resourceNames = [], suggestions = [
+        ...closestNameSuggestions([name], resourceNames),
+        "Run `flisk resources` to list all resources",
+        "Check the resource name spelling",
+    ]) {
+        super(`Resource "${name}" not found`, suggestions);
+        this.name = "ResourceNotFoundError";
+    }
+}
+export class StackNotFoundError extends FliskError {
+    code = "STACK_NOT_FOUND";
+    constructor(name, stackNames = [], suggestions = [
+        ...closestNameSuggestions([name], stackNames),
+        ...(stackNames.length > 0 ? [`Stacks: ${stackNames.join(", ")}`] : []),
+        "Run `flisk stacks` to see available stacks",
+        "Run `flisk stack` to assign resources to a stack",
+    ]) {
+        super(`Stack "${name}" not found`, suggestions);
+        this.name = "StackNotFoundError";
+    }
+}
+export class ConfigInvalidError extends FliskError {
+    code = "CONFIG_INVALID";
+    constructor(message, suggestions = [], exitCode = 1) {
+        super(message, suggestions, exitCode);
+        this.name = "ConfigInvalidError";
+    }
+}
+export class DirectoryExistsError extends FliskError {
+    code = "DIRECTORY_EXISTS";
+    constructor(path, suggestions = [
+        "Use `--path` to specify a different location",
+        "Remove the existing directory if no longer needed",
+    ]) {
+        super(`Directory already exists: ${path}`, suggestions);
+        this.name = "DirectoryExistsError";
+    }
+}
+export class InvalidPathError extends FliskError {
+    code = "INVALID_PATH";
+    constructor(path, suggestions = [
+        "Path must be within the project directory",
+        'Path cannot contain special characters like <>:"|?*',
+    ]) {
+        super(`Invalid path: ${path}`, suggestions);
+        this.name = "InvalidPathError";
+    }
+}
+export class NoResourcesError extends FliskError {
+    code = "NO_RESOURCES";
+    constructor(message = "This project has no resources yet, so there is nothing to start.", suggestions = [
+        "Add one: flisk resource api --type backend --stack app",
+        "Or start from a template: flisk create",
+    ], exitCode = 1) {
+        super(message, suggestions, exitCode);
+        this.name = "NoResourcesError";
+    }
+}
+export class TiltNotInstalledError extends FliskError {
+    code = "TILT_NOT_INSTALLED";
+    constructor(message = "Tilt CLI is not installed", suggestions = [
+        "Install Tilt: `brew install tilt` (macOS)",
+        "Or download from: https://docs.tilt.dev/install.html",
+        "Verify with: `tilt version`",
+        `Setup guide: ${QUICKSTART_DOCS_URL}`,
+    ]) {
+        super(message, suggestions);
+        this.name = "TiltNotInstalledError";
+    }
+}
+export class DockerNotAvailableError extends FliskError {
+    code = "DOCKER_NOT_AVAILABLE";
+    constructor(message = "Docker (or a compatible container runtime) is not running", suggestions = [
+        "Start Docker Desktop, then verify with: `docker ps`",
+        "Or start Colima: `colima start`",
+        "Or start the Docker service on Linux: `sudo systemctl start docker`",
+        `Setup guide: ${QUICKSTART_DOCS_URL}`,
+    ]) {
+        super(message, suggestions);
+        this.name = "DockerNotAvailableError";
+    }
+}
+export class DockerNotRespondingError extends FliskError {
+    code = "DOCKER_NOT_RESPONDING";
+    constructor(message = "Docker is running but not responding (`docker ps` hung for 10s)", suggestions = [
+        "Quit and reopen Docker Desktop, run `colima restart`, or restart Kiri",
+        "Then verify with: `docker ps`",
+    ]) {
+        super(message, suggestions);
+        this.name = "DockerNotRespondingError";
+    }
+}
+export class UnknownServicesError extends FliskError {
+    code = "UNKNOWN_SERVICES";
+    constructor(names, validNames) {
+        const orderedValid = names.length === 1 && names[0] !== undefined
+            ? rankByDistance(names[0], validNames)
+            : [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+        const tooManyToPrint = orderedValid.length > 10;
+        const suggestions = closestNameSuggestions(names, orderedValid, names.length > 1);
+        if (tooManyToPrint)
+            suggestions.push("Run `flisk resources` to see available services");
+        super(tooManyToPrint
+            ? `Unknown service ${names.join(", ")}.`
+            : `Unknown service ${names.join(", ")}. Valid names: ${orderedValid.join(", ")}`, suggestions, 2);
+        this.name = "UnknownServicesError";
+    }
+}
+export class InteractiveTerminalRequiredError extends FliskError {
+    code = "INTERACTIVE_TERMINAL_REQUIRED";
+    constructor(commandName = "flisk ui", suggestions = [
+        "For scripts and agents: flisk status --json, flisk logs, flisk resources --json",
+    ]) {
+        super(`\`${commandName}\` needs an interactive terminal (stdin and stdout must be a TTY).`, suggestions);
+        this.name = "InteractiveTerminalRequiredError";
+    }
+}
 /**
  * Thrown by the `process.exit` test double so the stack unwinds at an intentional exit.
  * `runCommand` rethrows it instead of formatting it as a command failure.
@@ -74,66 +203,18 @@ function closestNameSuggestions(names, candidates, includeInput = false) {
     return [...suggestions];
 }
 export const errorFactories = {
-    tiltNotInstalled: () => new FliskError("Tilt CLI is not installed", [
-        "Install Tilt: `brew install tilt` (macOS)",
-        "Or download from: https://docs.tilt.dev/install.html",
-        "Verify with: `tilt version`",
-        `Setup guide: ${QUICKSTART_DOCS_URL}`,
-    ]),
-    dockerNotAvailable: () => new FliskError("Docker (or a compatible container runtime) is not running", [
-        "Start Docker Desktop, then verify with: `docker ps`",
-        "Or start Colima: `colima start`",
-        "Or start the Docker service on Linux: `sudo systemctl start docker`",
-        `Setup guide: ${QUICKSTART_DOCS_URL}`,
-    ]),
-    dockerNotResponding: () => new FliskError("Docker is running but not responding (`docker ps` hung for 10s)", [
-        "Quit and reopen Docker Desktop, run `colima restart`, or restart Kiri",
-        "Then verify with: `docker ps`",
-    ]),
-    stackNotFound: (name, stackNames = []) => new FliskError(`Stack "${name}" not found`, [
-        ...closestNameSuggestions([name], stackNames),
-        // Name the stacks the command already knows, as resource errors do.
-        ...(stackNames.length > 0 ? [`Stacks: ${stackNames.join(", ")}`] : []),
-        "Run `flisk stacks` to see available stacks",
-        "Run `flisk stack` to assign resources to a stack",
-    ]),
-    resourceNotFound: (name, resourceNames = []) => new FliskError(`Resource "${name}" not found`, [
-        ...closestNameSuggestions([name], resourceNames),
-        "Run `flisk resources` to list all resources",
-        "Check the resource name spelling",
-    ]),
+    tiltNotInstalled: () => new TiltNotInstalledError(),
+    dockerNotAvailable: () => new DockerNotAvailableError(),
+    dockerNotResponding: () => new DockerNotRespondingError(),
+    stackNotFound: (name, stackNames = []) => new StackNotFoundError(name, stackNames),
+    resourceNotFound: (name, resourceNames = []) => new ResourceNotFoundError(name, resourceNames),
     unknownResource: (name, validNames = []) => new UnknownResourceError(name, unknownResourceSuggestions(name, validNames)),
-    unknownServices: (names, validNames) => {
-        // Service selectors are Tilt resource names, so share the resource suggestion path.
-        const orderedValid = names.length === 1 && names[0] !== undefined
-            ? rankByDistance(names[0], validNames)
-            : [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-        // A project with many services would put all of them on one unreadable line; point at the list instead.
-        const tooManyToPrint = orderedValid.length > 10;
-        const suggestions = closestNameSuggestions(names, orderedValid, names.length > 1);
-        if (tooManyToPrint)
-            suggestions.push("Run `flisk resources` to see available services");
-        return new FliskError(tooManyToPrint
-            ? `Unknown service ${names.join(", ")}.`
-            : `Unknown service ${names.join(", ")}. Valid names: ${orderedValid.join(", ")}`, suggestions, 2);
-    },
-    directoryExists: (path) => new FliskError(`Directory already exists: ${path}`, [
-        "Use `--path` to specify a different location",
-        "Remove the existing directory if no longer needed",
-    ]),
-    invalidPath: (path) => new FliskError(`Invalid path: ${path}`, [
-        "Path must be within the project directory",
-        'Path cannot contain special characters like <>:"|?*',
-    ]),
-    notInProject: () => new FliskError("Could not find project root (no .flisk/project.json found)", [
-        "Run this from within a Flisk project",
-        "Run `flisk project --yes` to initialize a new project",
-    ]),
-    noResources: () => new FliskError("This project has no resources yet, so there is nothing to start.", [
-        "Add one: flisk resource api --type backend --stack app",
-        "Or start from a template: flisk create",
-    ]),
-    interactiveTerminalRequired: (commandName = "flisk ui") => new FliskError(`\`${commandName}\` needs an interactive terminal (stdin and stdout must be a TTY).`, ["For scripts and agents: flisk status --json, flisk logs, flisk resources --json"]),
+    unknownServices: (names, validNames) => new UnknownServicesError(names, validNames),
+    directoryExists: (path) => new DirectoryExistsError(path),
+    invalidPath: (path) => new InvalidPathError(path),
+    notInProject: () => new NotInProjectError(),
+    noResources: () => new NoResourcesError(),
+    interactiveTerminalRequired: (commandName = "flisk ui") => new InteractiveTerminalRequiredError(commandName),
 };
 export function requireProjectRoot() {
     const projectRoot = findProjectRoot();
