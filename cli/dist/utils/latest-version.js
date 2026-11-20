@@ -3,6 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, sep } from "node:path";
+import { FliskError } from "./errors.js";
 /** `npx pkg` runs a locally installed copy before it downloads one, so an old install can run silently (#4119). */
 export const LATEST_VERSION_URL = "https://registry.npmjs.org/@flisk-sh%2fflisk/latest";
 export const LATEST_VERSION_TIMEOUT_MS = 800;
@@ -55,11 +56,17 @@ export async function fetchRegistryVersion(signal, fetchImpl = fetch) {
         headers: { accept: "application/json" },
         signal,
     });
-    if (!response.ok)
-        throw new Error(`npm registry returned ${response.status}`);
+    if (!response.ok) {
+        throw new FliskError(`npm registry returned ${response.status}`, [
+            "Check your network connection and npm registry access",
+            "Run: npm view @flisk-sh/flisk version",
+        ]);
+    }
     const body = (await response.json());
     if (typeof body?.version !== "string" || !body.version.trim()) {
-        throw new Error("npm registry response did not include a version");
+        throw new FliskError("npm registry response did not include a version", [
+            "Run: npm view @flisk-sh/flisk version",
+        ]);
     }
     return body.version;
 }

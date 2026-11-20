@@ -493,7 +493,10 @@ function getNpmRegistryVersion() {
         if (err instanceof Error && "code" in err && err.code === "ENOENT")
             return null;
         // The subprocess error message can include npm's raw stderr.
-        throw new Error("npm view failed");
+        throw new FliskError("npm view failed", [
+            "Check your network connection and npm registry access",
+            "Run: npm view @flisk-sh/flisk version",
+        ]);
     }
 }
 /** @internal Exported for unit tests only; not part of the package API. */
