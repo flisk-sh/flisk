@@ -29,6 +29,14 @@ it("documents --source", () => {
   expect(help).toContain("flisk logs --service orders-api --source runtime --json");
 });
 
+it("documents --run for reading one run of a local service", () => {
+  let help = "";
+  logsCommand.configureOutput({ writeOut: (text) => (help += text) });
+  logsCommand.outputHelp();
+  expect(help).toContain("--run <run>");
+  expect(help).toContain("flisk logs --service orders-api --run previous");
+});
+
 it("gives a snapshot hint for follow and reserves the positional hint for names", () => {
   const cwd = createTempDir("logs-options");
   const run = (...args: string[]) => runFlisk(["logs", ...args], { cwd });

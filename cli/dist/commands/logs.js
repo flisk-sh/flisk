@@ -9,6 +9,7 @@ import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
 import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
+import { isValidNativeRun } from "../utils/native-log.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
@@ -86,11 +87,12 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
     .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
+    .option("--run <run>", "Only one run of each local-process service: current, previous, or a run id")
     .option("--unhealthy", "Only services that are failing or still starting", false)
     .option("--port <n>", "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)")
     .option("--project <path>", "View logs for the Flisk project in this folder (default: the current project)")
     .option("--json", "Output one JSON object and exit", false)
-    .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json")
+    .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --service orders-api --run previous\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json")
     .action(async (options, command) => {
     let secrets = [];
     const fail = (code, rawMessage, exitCode = 1, suggestions = []) => {
@@ -123,6 +125,9 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     if (options.source !== undefined && !isValidLogSource(options.source)) {
         fail("USAGE", `--source must be one of: ${LOG_SOURCES.join(", ")}`, 2);
     }
+    if (options.run !== undefined && !isValidNativeRun(options.run)) {
+        fail("USAGE", "--run must be current, previous or a run id", 2);
+    }
     const source = options.source;
     const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
     if (!isValidPort(portText))
@@ -135,6 +140,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 services,
                 tail,
                 since: options.since ?? null,
+                run: options.run ?? null,
                 ...(source ? { source } : {}),
                 lines: [],
                 unhealthy: [],
@@ -188,6 +194,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             const read = readNativeLogLines(projectRoot, selected, {
                 tail: source ? MAX_LOG_TAIL : tail,
                 sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
+                run: options.run,
             });
             const lines = redactLogLines((source ? filterLogSource(read, source) : read).slice(-tail), secrets);
             if (options.json) {
@@ -195,6 +202,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                     services,
                     tail,
                     since: options.since ?? null,
+                    run: options.run ?? null,
                     ...(source ? { source } : {}),
                     lines,
                 }), secrets)));
@@ -211,6 +219,9 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 console.log(redactSecrets(`${line.resource.padEnd(width)} | ${line.text}`, secrets));
             }
             return;
+        }
+        if (options.run !== undefined) {
+            fail("RUN_UNSUPPORTED", "--run is only available for local-process services", 2);
         }
         if (!(await isTiltAvailable())) {
             fail("TILT_MISSING", "Tilt is not installed. Run: flisk doctor");
@@ -276,6 +287,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             services,
             tail,
             since: options.since ?? null,
+            run: null,
             ...(source ? { source } : {}),
             lines,
         }), secrets)));

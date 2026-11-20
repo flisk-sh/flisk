@@ -260,6 +260,17 @@ describe("argument building", () => {
     }
   });
 
+  it("passes the logs run selector and rejects anything else", () => {
+    expect(buildLogsArgs({ run: "current" })).toEqual(["logs", "--json", "--run=current"]);
+    expect(buildLogsArgs({ run: "previous" })).toEqual(["logs", "--json", "--run=previous"]);
+    expect(buildLogsArgs({ run: "42" })).toContain("--run=42");
+    for (const bad of ["latest", "", 1, "--tail=1"]) {
+      expect(() => buildLogsArgs({ run: bad })).toThrow(
+        "run must be current, previous or a run id",
+      );
+    }
+  });
+
   it("passes the logs source filter and rejects any other value", () => {
     expect(buildLogsArgs({ services: ["api"], source: "runtime" })).toEqual([
       "logs",
@@ -305,6 +316,7 @@ describe("argument building", () => {
     expect(props("status").unhealthy?.type).toBe("boolean");
     expect(props("status").stack?.type).toBe("string");
     expect(props("logs").unhealthy?.type).toBe("boolean");
+    expect(props("logs").run?.type).toBe("string");
     for (const name of ["status", "logs"]) {
       expect(tools.find((tool) => tool.name === name)?.description).toContain("unhealthy: true");
     }
@@ -1619,6 +1631,7 @@ describe("tool list", () => {
       ["logs", { services: ["ok", "-bad"] }, "services must be an array of names"],
       ["logs", { tail: 0 }, "tail must be a positive integer"],
       ["logs", { since: "soon" }, "since must be a duration such as 30s, 5m or 1h"],
+      ["logs", { run: "latest" }, "run must be current, previous or a run id"],
       ["doctor", { noPing: "yes" }, "noPing must be a boolean"],
       ["status", { projectPath: "relative" }, "projectPath must be an absolute path"],
       ["up", { only: ["-x"] }, "only must be an array of names"],
@@ -1714,7 +1727,7 @@ describe("tool list", () => {
       doctor: { noPing: true },
       down: { dryRun: true },
       status: {},
-      logs: { services: ["api"], tail: 5, since: "5m" },
+      logs: { services: ["api"], tail: 5, since: "5m", run: "previous" },
       resource_list: { stack: "shop" },
       resource_restart: { resource: "api" },
       resource_run: { resource: "api", command: ["printenv", "DATABASE_URL"], confirm: true },

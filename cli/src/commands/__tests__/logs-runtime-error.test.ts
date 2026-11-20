@@ -139,7 +139,7 @@ describe("flisk logs with a local-process project", () => {
       web: { status: "ready" },
     });
     nativeRuntime.readNativeLogLines.mockReturnValue([
-      { time: null, resource: "api", level: null, source: null, text: "listening" },
+      { time: null, resource: "api", level: null, source: null, text: "listening", run: "1" },
     ]);
 
     const result = await run(["--json"]);
@@ -159,7 +159,7 @@ describe("flisk logs with a local-process project", () => {
       web: { status: "unknown", reason: "not running" },
     });
     nativeRuntime.readNativeLogLines.mockReturnValue([
-      { time: null, resource: "api", level: null, source: null, text: "listening" },
+      { time: null, resource: "api", level: null, source: null, text: "listening", run: "1" },
     ]);
 
     const result = await run(["--json"]);

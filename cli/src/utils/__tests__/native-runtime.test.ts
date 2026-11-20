@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, makeResource } from "../../test-support/index.js";
 import { expandEnvValue } from "../env-expand.js";
@@ -332,6 +332,147 @@ writeFileSync("out.txt", process.env.GREETING + "|" + process.env.OTHER);`,
 });
 
 describe("native supervisor", () => {
+  it("separates three runs and selects current, previous and an explicit id (#4693)", () => {
+    const root = createTempDir();
+    const path = nativeLogPath(root, "api");
+    mkdirSync(dirname(path), { recursive: true });
+    const at = (ms: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, 0, ms)).toISOString();
+    writeFileSync(
+      path,
+      `${[
+        `${at(1)} [flisk] run 1 started (pid 111)`,
+        `${at(2)} first run`,
+        `${at(3)} [flisk] run 1 exited (code 0)`,
+        `${at(4)} [flisk] run 2 started (pid 222)`,
+        `${at(5)} second run`,
+        `${at(6)} [flisk] run 2 exited (code 1)`,
+        `${at(7)} [flisk] run 3 started (pid 333)`,
+        `${at(8)} third run`,
+        `${at(9)} [flisk] run 3 exited (code 0)`,
+      ].join("\n")}\n`,
+    );
+
+    const all = readNativeLogLines(root, ["api"], { tail: 100 });
+    expect(all.map((line) => [line.text, line.run])).toEqual([
+      ["first run", "1"],
+      ["second run", "2"],
+      ["third run", "3"],
+    ]);
+    expect(
+      readNativeLogLines(root, ["api"], { tail: 100, run: "current" }).map((line) => line.text),
+    ).toEqual(["third run"]);
+    expect(
+      readNativeLogLines(root, ["api"], { tail: 100, run: "previous" }).map((line) => line.text),
+    ).toEqual(["second run"]);
+    expect(
+      readNativeLogLines(root, ["api"], { tail: 100, run: "1" }).map((line) => line.text),
+    ).toEqual(["first run"]);
+  });
+
+  it("marks every spawn and respawn of a crash loop with increasing run ids (#4693)", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "crash.mjs"), 'console.log("boom"); process.exit(1);\n');
+    const port = await freePort();
+    const notes: string[] = [];
+    const plan = planNativeRun([
+      nativeService(root, "crasher", {
+        command: `${NODE} crash.mjs`,
+        port,
+        healthCheckPath: "/health",
+      }),
+    ]);
+    // A crash loop never becomes ready; a short readiness window lets the restarts continue until the supervisor
+    // gives up (MAX_QUICK_CRASHES quick crashes in a row), the only moment the log stops changing.
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onNote: (_name, note) => notes.push(note) },
+      {
+        readyTimeoutMs: 50,
+        restartDelayMs: 10,
+      },
+    );
+    supervisors.push(supervisor);
+    await supervisor.start();
+    const path = nativeLogPath(root, "crasher");
+    // Sampling while the loop still restarts could catch a run that has started but not exited yet, and the test
+    // would fail a healthy supervisor. After the give-up note no new run can start, so the log is final.
+    await waitFor(() => notes.some((note) => note.includes("is not restarted")));
+    // The last run's own output can still be in flight when the give-up note arrives; wait for the file to settle.
+    await waitFor(() => {
+      const raw = readFileSync(path, "utf-8");
+      const started = [...raw.matchAll(/\[flisk\] run (\d+) started/g)].map((match) => match[1]);
+      return (
+        started.length >= 2 &&
+        started.every((run) => raw.includes(`[flisk] run ${run} exited (code 1)`)) &&
+        readNativeLogLines(root, ["crasher"], { tail: 100 })
+          .map((line) => line.run)
+          .join() === started.join()
+      );
+    });
+
+    const raw = readFileSync(path, "utf-8");
+    const starts = [...raw.matchAll(/\[flisk\] run (\d+) started \(pid (\d+)\)/g)].map((match) =>
+      Number(match[1]),
+    );
+    expect(starts.length).toBeGreaterThanOrEqual(2);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    for (const run of starts) expect(raw).toContain(`[flisk] run ${run} exited (code 1)`);
+    expect(readNativeLogLines(root, ["crasher"], { tail: 100 }).map((line) => line.run)).toEqual(
+      starts.map(String),
+    );
+  });
+
+  it("keeps output that outlives its run out of the next run's log (#4693)", async () => {
+    const root = createTempDir();
+    // The parent prints, starts a descendant that inherits stdout (so it holds the pipe open past the parent's exit),
+    // and exits: the crash loop restarts the service while the descendant can still write.
+    writeFileSync(
+      join(root, "leak.mjs"),
+      [
+        'import { existsSync, writeFileSync } from "node:fs";',
+        'import { spawn } from "node:child_process";',
+        'console.log("parent output");',
+        'if (!existsSync("spawned")) {',
+        '  writeFileSync("spawned", "1");',
+        '  spawn(process.execPath, ["leak-child.mjs"], { stdio: ["ignore", "inherit", "inherit"] });',
+        "}",
+        "process.exit(1);",
+      ].join("\n"),
+    );
+    // Long enough that the run which spawned the descendant is always gone by the time it writes.
+    writeFileSync(
+      join(root, "leak-child.mjs"),
+      'setTimeout(() => console.log("late from descendant"), 750);\n',
+    );
+    const port = await freePort();
+    const lines: string[] = [];
+    const plan = planNativeRun([
+      nativeService(root, "leaker", {
+        command: `${NODE} leak.mjs`,
+        port,
+        healthCheckPath: "/health",
+      }),
+    ]);
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onLine: (_name, line) => lines.push(line) },
+      { readyTimeoutMs: 50, restartDelayMs: 10 },
+    );
+    supervisors.push(supervisor);
+    await supervisor.start();
+    const path = nativeLogPath(root, "leaker");
+    // The descendant's line still reaches the terminal while a later run owns the service...
+    await waitFor(() => lines.some((line) => line.includes("late from descendant")));
+    // ...but the log file, where the latest start marker above it would attribute the line to that later run,
+    // never records it. The runs' own output stays attributed to the runs that wrote it.
+    expect(readFileSync(path, "utf-8")).not.toContain("late from descendant");
+    const runs = readNativeLogLines(root, ["leaker"], { tail: 100 });
+    expect(runs.filter((line) => line.text === "parent output").length).toBeGreaterThanOrEqual(2);
+    expect(runs.map((line) => line.text)).not.toContain("late from descendant");
+  });
+
   it("redacts default and selected env secrets before terminal output and private log writes", async () => {
     const root = createTempDir();
     const jwt = "NATIVE_JWT_SECRET_DO_NOT_LOG_12345";

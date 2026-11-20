@@ -9,6 +9,7 @@ import { cliInvocation } from "../utils/cli-invocation.js";
 import { collectSidecarDependents, DEFAULT_MCP_CLI_TIMEOUT_MS, isGeneratedComposeContainer, resolveRestartCliTimeoutMs, resolveRestartSequenceCliTimeoutMs, } from "../utils/container-restart.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
+import { isValidNativeRun } from "../utils/native-log.js";
 import { isProcessAlive, nativeServiceStates, readNativeRunState, } from "../utils/native-runtime.js";
 import { withFailureLogs } from "../utils/native-up.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -467,6 +468,14 @@ export function buildLogsArgs(args) {
         }
         out.push(`--source=${args.source}`);
     }
+    if (args.run !== undefined) {
+        if (typeof args.run !== "string" || !isValidNativeRun(args.run)) {
+            throw new FliskError("run must be current, previous or a run id", [
+                "For a local-process service use current, previous, or the numeric id printed in its [flisk] run markers",
+            ]);
+        }
+        out.push(`--run=${args.run}`);
+    }
     return out;
 }
 /** `flisk resource <name> ... --yes`: options as `--flag=value`, after the name, so a variadic `--feature` never takes it. */
@@ -836,7 +845,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "logs",
-            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. After a failed `up`, call it first with unhealthy: true to read only the failing or still-starting services. Otherwise use `status` first to find which service is failing, then pass services to narrow the output and source `runtime` to skip image build output and read why it failed.",
+            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. After a failed `up`, call it first with unhealthy: true to read only the failing or still-starting services. Otherwise use `status` first to find which service is failing, then pass services to narrow the output and source `runtime` to skip image build output and read why it failed. For local-process services, pass run: current, previous or a run id to read one run apart from older ones.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 services: {
@@ -857,6 +866,10 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                     type: "string",
                     enum: ["runtime", "build"],
                     description: "runtime: only what the services printed (where a crash cause such as an exception or a missing variable is); build: only image build steps. Omit for both.",
+                },
+                run: {
+                    type: "string",
+                    description: "Only one run of each local-process service: current, previous, or a numeric run id. Not available for Docker services.",
                 },
             }),
             handler: viaCli(buildLogsArgs),
