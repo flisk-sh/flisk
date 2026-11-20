@@ -96,6 +96,9 @@ bun run typecheck && bun run lint && bun run test   # about a minute; all of it 
 
 If one of these fails on a clean checkout, that is a bug in the project, not in your setup: please [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose).
 
+### Line endings
+
+The repository's [`.gitattributes`](../.gitattributes) pins LF for shell, Python, Starlark, Dockerfile and Tilt template files, and CRLF for PowerShell scripts. Git applies those rules on checkout, so a clone on Windows does not need `core.autocrlf` changes for Linux containers to see valid shebangs. `.editorconfig` only guides editors; it does not replace these rules. If you change them, run `node --test scripts/check-gitattributes.test.mjs` (or `npm run test:scripts`); the test asks `git check-attr` about representative paths and never rewrites the working tree.
 
 ## CLI conventions
 
