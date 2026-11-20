@@ -10,6 +10,7 @@ import { Command } from "commander";
 import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
 import type { DiscoveredResource, JsonCommandResult, ProjectConfig } from "../types/index.js";
 import { installAgentSkills } from "../utils/agent-skills.js";
+import { writeTextFileAtomic } from "../utils/atomic-write.js";
 import type { RuntimePrerequisiteStatus } from "../utils/cold-preflight.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
@@ -737,7 +738,7 @@ export const projectCommand = addYesOption(new Command("project"))
         const shouldRewriteProjectConfig = autoEnabledStacks.length > 0 || !rawProjectConfig.phases;
 
         if (shouldRewriteProjectConfig) {
-          writeJsonFile(projectJsonPath, projectConfig);
+          writeTextFileAtomic(projectJsonPath, `${JSON.stringify(projectConfig, null, 2)}\n`);
         }
 
         if (autoEnabledStacks.length > 0 && !quiet) {
@@ -926,7 +927,7 @@ export const projectCommand = addYesOption(new Command("project"))
       }
 
       if (!quiet) showStep("\n📋 Creating project configuration...\n");
-      writeJsonFile(projectJsonPath, projectConfig);
+      writeTextFileAtomic(projectJsonPath, `${JSON.stringify(projectConfig, null, 2)}\n`);
       if (!quiet) {
         showSuccess("Created: .flisk/project.json");
         showDetail(`→ Project: ${projectConfig.project.name}`);

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { writeTextFileAtomic } from "./atomic-write.js";
 import { PROJECT_JSON } from "./constants.js";
 import { isInsideGitWorkTree } from "./file-helpers.js";
 
@@ -112,13 +113,18 @@ export function ensureGeneratedRootIgnored(projectRoot: string): string[] {
     .map((path) => `/${path}`);
   if (entries.length === 0) return [];
 
-  const prefix = existing === "" ? "" : existing.endsWith("\n") ? "\n" : "\n\n";
+  // Re-read immediately before writing so a concurrent caller that wrote the block while
+  // git ls-files / check-ignore ran does not duplicate it.
+  const latest = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf-8") : "";
+  if (latest.includes(GENERATED_ROOT_BLOCK_START)) return [];
+
+  const prefix = latest === "" ? "" : latest.endsWith("\n") ? "\n" : "\n\n";
   const lines = [
     GENERATED_ROOT_BLOCK_START,
     "# Written by flisk once. Delete a line to commit that file; flisk will not add it again.",
     ...entries,
     BLOCK_END,
   ];
-  appendFileSync(gitignorePath, `${prefix}${lines.join("\n")}\n`);
+  writeTextFileAtomic(gitignorePath, `${latest}${prefix}${lines.join("\n")}\n`);
   return entries.map((entry) => entry.slice(1));
 }
