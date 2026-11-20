@@ -8,6 +8,7 @@ import { dependsOnOf } from "../utils/dependency-graph.js";
 import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
 import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
+import { applyLogCursor, isValidCursor } from "../utils/log-cursors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
@@ -85,12 +86,13 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     .option("-f, --follow", "Live follow is unavailable; use flisk ui or repeat with --since")
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
+    .option("--after <cursor>", "Only lines with a sequence number greater than this cursor, returned as data.nextCursor by a previous --json read")
     .option("--source <source>", "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime")
     .option("--unhealthy", "Only services that are failing or still starting", false)
     .option("--port <n>", "Tilt UI port for Docker runtime (default: TILT_PORT, then the project's saved port, then 10350)")
     .option("--project <path>", "View logs for the Flisk project in this folder (default: the current project)")
     .option("--json", "Output one JSON object and exit", false)
-    .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json")
+    .addHelpText("after", "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json\n  flisk logs --json --after 42")
     .action(async (options, command) => {
     let secrets = [];
     const fail = (code, rawMessage, exitCode = 1, suggestions = []) => {
@@ -120,6 +122,9 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     if (options.since !== undefined && !isValidSince(options.since)) {
         fail("USAGE", "--since must be a duration such as 30s, 5m or 1h", 2);
     }
+    if (options.after !== undefined && !isValidCursor(String(options.after))) {
+        fail("USAGE", "--after must be a non-negative integer cursor from a previous logs read", 2);
+    }
     if (options.source !== undefined && !isValidLogSource(options.source)) {
         fail("USAGE", `--source must be one of: ${LOG_SOURCES.join(", ")}`, 2);
     }
@@ -128,6 +133,7 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
     if (!isValidPort(portText))
         fail("USAGE", "--port must be a valid port number", 2);
     const tail = Number(options.tail);
+    const after = options.after === undefined ? undefined : Number(options.after);
     const services = options.service ?? [];
     const reportAllHealthy = () => {
         if (options.json) {
@@ -138,6 +144,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 ...(source ? { source } : {}),
                 lines: [],
                 unhealthy: [],
+                nextCursor: after ?? 0,
+                truncated: false,
             })));
             return;
         }
@@ -189,7 +197,9 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                 tail: source ? MAX_LOG_TAIL : tail,
                 sinceMs: options.since === undefined ? undefined : sinceMilliseconds(options.since),
             });
-            const lines = redactLogLines((source ? filterLogSource(read, source) : read).slice(-tail), secrets);
+            // Number before redaction: a secret added later must not move a line's seq.
+            const page = applyLogCursor((source ? filterLogSource(read, source) : read).slice(-tail), after);
+            const lines = redactLogLines(page.lines, secrets);
             if (options.json) {
                 console.log(JSON.stringify(redactValue(createMachineEnvelope({
                     services,
@@ -197,6 +207,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
                     since: options.since ?? null,
                     ...(source ? { source } : {}),
                     lines,
+                    nextCursor: page.nextCursor,
+                    truncated: page.truncated,
                 }), secrets)));
                 return;
             }
@@ -264,7 +276,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             return;
         }
         const parsed = parseTiltLogLines(result.stdout, source ? MAX_LOG_TAIL : tail);
-        const lines = redactLogLines((source ? filterLogSource(parsed, source) : parsed).slice(-tail), secrets);
+        const page = applyLogCursor((source ? filterLogSource(parsed, source) : parsed).slice(-tail), after);
+        const lines = redactLogLines(page.lines, secrets);
         if (!options.json) {
             const width = Math.max(0, ...lines.map((line) => line.resource?.length ?? 0));
             for (const line of lines) {
@@ -278,6 +291,8 @@ export const logsCommand = attachNoPositionalHint(new Command("logs"))
             since: options.since ?? null,
             ...(source ? { source } : {}),
             lines,
+            nextCursor: page.nextCursor,
+            truncated: page.truncated,
         }), secrets)));
     };
     await runCommand(action);

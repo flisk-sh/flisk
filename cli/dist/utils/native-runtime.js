@@ -9,9 +9,10 @@ import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
+import { LOG_SEQ_SUB_MILLISECOND } from "./log-cursors.js";
 import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
 import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainerName, removeNativeContainers, } from "./native-container.js";
-import { appendNativeLogLine, readLogTail } from "./native-log.js";
+import { appendNativeLogLine, maxNativeLogSeq, readLogTail } from "./native-log.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, processStartTime } from "./process-identity.js";
@@ -594,9 +595,17 @@ export function readNativeLogLines(projectRoot, services, options) {
             continue;
         }
         for (const raw of raws) {
-            const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (.*)$/.exec(raw);
+            const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (?:#(\d+) )?(.*)$/.exec(raw);
             const time = match?.[1] ?? null;
-            lines.push({ time, resource, level: null, source: null, text: match?.[2] ?? raw });
+            const seq = match?.[2] === undefined ? undefined : Number(match[2]);
+            lines.push({
+                ...(seq === undefined ? {} : { seq }),
+                time,
+                resource,
+                level: null,
+                source: null,
+                text: match?.[3] ?? raw,
+            });
         }
     }
     // Stable sort: lines of one service keep their order when two share a millisecond.
@@ -692,6 +701,8 @@ export class NativeSupervisor {
     migratorOutputs = new Map();
     redactLine;
     startedAt = new Date().toISOString();
+    /** One counter for every service in the project, resumed from the logs when a previous supervisor wrote them. */
+    seq;
     pidStartTime;
     stopping = false;
     baseEnv;
@@ -702,6 +713,10 @@ export class NativeSupervisor {
         this.options = options;
         this.baseEnv = options.baseEnv;
         this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
+        this.seq = maxNativeLogSeq(plans.flatMap((plan) => [
+            nativeLogPath(projectRoot, plan.name),
+            `${nativeLogPath(projectRoot, plan.name)}.1`,
+        ]));
         for (const plan of plans) {
             this.services.set(plan.name, {
                 plan,
@@ -1027,9 +1042,13 @@ export class NativeSupervisor {
                 return;
             }
             try {
-                // A timestamp per line lets `flisk logs` merge services in order and honour --since. The log is rotated to
-                // <service>.log.1 at NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
-                appendNativeLogLine(logPath, `${new Date().toISOString()} ${safeLine}\n`, this.logSizes);
+                // A timestamp per line lets `flisk logs` merge services in order and honour --since; the number lets a
+                // cursor read ask for only what came later. It has the same time-based scale as numbers derived from
+                // Tilt/Docker lines, so the two runtimes can share one cursor. The log is rotated to <service>.log.1 at
+                // NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
+                const now = new Date();
+                this.seq = Math.max(this.seq + 1, now.getTime() * LOG_SEQ_SUB_MILLISECOND);
+                appendNativeLogLine(logPath, `${now.toISOString()} #${this.seq} ${safeLine}\n`, this.logSizes);
             }
             catch {
                 // A full disk must not stop the service; the terminal still shows the line.
