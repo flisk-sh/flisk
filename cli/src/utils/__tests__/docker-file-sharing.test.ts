@@ -151,6 +151,100 @@ describe("checkDockerFileSharing", () => {
     expect(result.message).toContain("permission denied while trying to connect");
   });
 
+  it.each([
+    [
+      "Docker 29 with a missing daemon socket",
+      1,
+      "failed to connect to the docker API at unix:///Users/sunny/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /Users/sunny/.docker/run/docker.sock: connect: no such file or directory",
+    ],
+    [
+      "a stopped Colima engine",
+      1,
+      "failed to connect to the docker API at unix:///Users/sunny/.colima/default/docker.sock; check if the path is correct and if the daemon is running: dial unix /Users/sunny/.colima/default/docker.sock: connect: no such file or directory",
+    ],
+    [
+      "a refused remote daemon",
+      1,
+      "Cannot connect to the Docker daemon at tcp://192.168.1.10:2375. Is the docker daemon running?: dial tcp 192.168.1.10:2375: connect: connection refused",
+    ],
+  ])("skips file sharing when %s cannot be reached", async (_case, code, stderr) => {
+    const fakeRunner = async () => {
+      throw Object.assign(new Error("Command failed: docker run"), { code, stderr });
+    };
+
+    const result = await checkDockerFileSharing({
+      projectRoot: tempDir,
+      runner: fakeRunner,
+      hasDocker: true,
+    });
+
+    expect(result.didPass).toBe(true);
+    expect(result.isSkipped).toBe(true);
+    expect(result.message).toContain("Docker daemon is unreachable");
+    expect(result.message).toContain("file sharing was not tested");
+    expect(result.message).toContain(stderr);
+    expect(result.fix).toBeUndefined();
+  });
+
+  it("keeps reporting a genuine mount denial with the file sharing fix", async () => {
+    const stderr =
+      "Error response from daemon: Mounts denied: The path /Users/sunny/project is not shared from the host and is not known to Docker.";
+    const fakeRunner = async () => {
+      throw Object.assign(new Error("Command failed: docker run"), { code: 1, stderr });
+    };
+
+    const result = await checkDockerFileSharing({
+      projectRoot: tempDir,
+      runner: fakeRunner,
+      hasDocker: true,
+    });
+
+    expect(result.didPass).toBe(false);
+    expect(result.isSkipped).toBeUndefined();
+    expect(result.message).toContain("Docker cannot access the project folder");
+    expect(result.fix).toContain("File sharing");
+    expect(result.fix).toContain("Colima: start with --mount");
+  });
+
+  it.each([
+    [
+      "a mount denial that echoes the path",
+      125,
+      "Error response from daemon: Mounts denied: The path /Users/sunny/connection refused/project is not shared from the host and is not known to Docker.",
+    ],
+    [
+      "a started probe whose write failed",
+      2,
+      "sh: can't create /flisk-probe/x: Read-only file system",
+    ],
+  ])(
+    "keeps failing when the project path reads like a connection failure (%s)",
+    async (_case, code, stderr) => {
+      // Regression: execFile's message echoes the command line and a mount denial echoes the project path, so a path
+      // segment such as "connection refused" reaches the detail text. That path text must not read as the daemon being
+      // unreachable (a skip) or as the probe never having started.
+      const fakeRunner = async () => {
+        throw Object.assign(
+          new Error(
+            "Command failed: docker run --rm -v /Users/sunny/connection refused/project:/flisk-probe alpine sh -c echo",
+          ),
+          { code, stderr },
+        );
+      };
+
+      const result = await checkDockerFileSharing({
+        projectRoot: tempDir,
+        runner: fakeRunner,
+        hasDocker: true,
+      });
+
+      expect(result.didPass).toBe(false);
+      expect(result.isSkipped).toBeUndefined();
+      expect(result.message).toContain("Docker cannot access the project folder");
+      expect(result.fix).toContain("File sharing");
+    },
+  );
+
   it("fails when the probe started but could not write into the mount", async () => {
     const fakeRunner = async () => {
       throw Object.assign(new Error("Command failed: docker run"), {
