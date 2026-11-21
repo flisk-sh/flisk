@@ -17,6 +17,7 @@ import {
   PRESET_RESOURCE_TYPES,
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../types/index.js";
+import { CONNECT_HOSTS } from "../utils/agent-connect.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import { SUPPORTED_SHELLS } from "./completion-shells.js";
@@ -30,7 +31,9 @@ export type CompletionPositional =
   /** The stacks and the resources of the current project. */
   | "stacks-and-resources"
   /** The names of the other commands (`flisk help <command>`). */
-  | "commands";
+  | "commands"
+  /** The agent hosts `flisk connect` accepts. */
+  | "hosts";
 
 /** A flag a command accepts. */
 export interface CompletionOption {
@@ -70,6 +73,8 @@ export interface CompletionCommand {
   variadic?: boolean;
   /** The values of the flags of this command, when the command accepts another set. */
   optionValues?: Record<string, string[]>;
+  /** The fixed values of the positional argument, when it is not a project value. */
+  positionalValues?: string[];
 }
 
 /** Everything the four completion scripts suggest. */
@@ -95,6 +100,16 @@ const POSITIONALS: Record<string, CompletionPositional> = {
   restart: "resources",
   logs: "resources",
   "agent sessions": "resources",
+  connect: "hosts",
+};
+
+/**
+ * The fixed values of a positional argument, keyed by the command path. `flisk connect` takes the
+ * hosts from the same registry as its help and its unknown-host error, so a new host is suggested
+ * in every shell without editing this file.
+ */
+const POSITIONAL_VALUES: Record<string, string[]> = {
+  connect: [...CONNECT_HOSTS],
 };
 
 /**
@@ -192,6 +207,7 @@ function helpCommandOf(program: Command): CompletionCommand | undefined {
 
 function toCompletionCommand(command: Command, path: string): CompletionCommand {
   const optionValues = COMMAND_VALUES[path];
+  const positionalValues = POSITIONAL_VALUES[path];
   const argument = command.registeredArguments[0];
   return {
     name: command.name(),
@@ -205,6 +221,7 @@ function toCompletionCommand(command: Command, path: string): CompletionCommand 
     ...(argument ? { argument: argument.name() } : {}),
     ...(argument?.variadic ? { variadic: true } : {}),
     ...(optionValues ? { optionValues } : {}),
+    ...(positionalValues ? { positionalValues } : {}),
   };
 }
 

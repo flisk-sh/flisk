@@ -165,7 +165,7 @@ describe("infrastructure frameworks (--type database|queue|storage --framework .
 
   it.each([
     ["mysql", "mysql:8.4", 3306, "/var/lib/mysql", { MYSQL_URL: "mysql://root:flisk@db:3306/app" }],
-    ["mongodb", "mongo:8.0", 27017, "/data/db", { MONGODB_URL: "mongodb://db:27017" }],
+    ["mongodb", "mongo:8.0.38", 27017, "/data/db", { MONGODB_URL: "mongodb://db:27017" }],
     [
       "clickhouse",
       "clickhouse/clickhouse-server:25.8-alpine",

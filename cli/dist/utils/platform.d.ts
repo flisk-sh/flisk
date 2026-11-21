@@ -10,6 +10,8 @@ export declare function binaryAssetName(): string | null;
 export declare function executableName(): string;
 export declare function pathLookups(binName: string, windows?: boolean): string[];
 export declare function pathDelimiter(windows?: boolean): string;
+/** A single-quoted PowerShell path literal; embedded single quotes are doubled. */
+export declare function powerShellPathLiteral(path: string): string;
 /** Where Flisk is running, for advice that differs by host: native Windows, WSL2, Linux or macOS. */
 export type PlatformKind = "windows" | "wsl2" | "linux" | "macos" | "other";
 export interface PlatformProbe {

@@ -12,7 +12,7 @@ In a migrator resource that runs once before the API starts. `flisk resource ord
 
 ## How do AI agents use Flisk?
 
-Two ways. Your coding agent (Claude Code, Cursor, Codex) drives Flisk through `flisk mcp`, which gives it the commands as tools: scaffold services, start the stack, read logs, check the generated files. `flisk connect <host>` sets that up; see [Flisk for agents](agents/flisk-for-agents.md). And an app can run its own agents as `agent` resources, with health and readiness routes and sessions that survive restarts; see [Running AI agents in Flisk](agents/ai-agents.md).
+Two ways. Your coding agent (Claude Code, Cursor, Codex, Gemini CLI) drives Flisk through `flisk mcp`, which gives it the commands as tools: scaffold services, start the stack, read logs, check the generated files. `flisk connect <host>` sets that up; see [Flisk for agents](agents/flisk-for-agents.md). And an app can run its own agents as `agent` resources, with health and readiness routes and sessions that survive restarts; see [Running AI agents in Flisk](agents/ai-agents.md).
 
 ## How do we remove Flisk later?
 

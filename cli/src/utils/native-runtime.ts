@@ -18,6 +18,7 @@ import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
+import { LOG_SEQ_SUB_MILLISECOND } from "./log-cursors.js";
 import {
   clearMigratorOutputs,
   getMigratorOutputPath,
@@ -33,7 +34,7 @@ import {
   nativeContainerName,
   removeNativeContainers,
 } from "./native-container.js";
-import { appendNativeLogLine, readLogTail } from "./native-log.js";
+import { appendNativeLogLine, maxNativeLogSeq, readLogTail } from "./native-log.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, type ProcessStartTimeReader, processStartTime } from "./process-identity.js";
@@ -282,6 +283,24 @@ export function planNativeRun(
     errors.push(error instanceof Error ? error.message : String(error));
   }
   return { services, errors, missingVars };
+}
+
+/**
+ * Why a service that gave up never became ready. Exit code 127 is the shell's "command not found": name the
+ * program the service runs so the person sees what to install instead of a generic "kept exiting" (#4678).
+ */
+function missingProgramReason(service: RunningService): string {
+  if (service.lastExitCode === 127) {
+    const program = commandProgram(service.plan.command);
+    if (program) return `runs ${program}, which is not installed`;
+  }
+  return "kept exiting; see its output above";
+}
+
+/** The "command not found" clause for an exit note, empty when the command does not name a single program. */
+function missingProgramNote(service: RunningService): string {
+  const program = commandProgram(service.plan.command);
+  return program ? `: ${service.plan.name} runs ${program}, which is not installed` : "";
 }
 
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
@@ -750,6 +769,8 @@ export function nativeServiceStates(
 
 /** One line of a local process's output, as `flisk logs` reports it (the shape of a Tilt log line). */
 export interface NativeLogLine {
+  /** Written into the log by the supervisor, so it stays the same across reads (omitted in older logs). */
+  seq?: number;
   time: string | null;
   resource: string;
   level: null;
@@ -778,9 +799,17 @@ export function readNativeLogLines(
       continue;
     }
     for (const raw of raws) {
-      const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (.*)$/.exec(raw);
+      const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (?:#(\d+) )?(.*)$/.exec(raw);
       const time = match?.[1] ?? null;
-      lines.push({ time, resource, level: null, source: null, text: match?.[2] ?? raw });
+      const seq = match?.[2] === undefined ? undefined : Number(match[2]);
+      lines.push({
+        ...(seq === undefined ? {} : { seq }),
+        time,
+        resource,
+        level: null,
+        source: null,
+        text: match?.[3] ?? raw,
+      });
     }
   }
   // Stable sort: lines of one service keep their order when two share a millisecond.
@@ -869,6 +898,8 @@ interface RunningService {
   /** Passed its readiness check since it last started; recorded so `flisk status` can tell ready from starting. */
   isReady: boolean;
   gaveUp: boolean;
+  /** Exit code of the process that ran most recently (null when a signal ended it), so a failure can name the cause (#4678). */
+  lastExitCode: number | null;
   /** Exited while these dependencies were down; it starts again once they are all ready. */
   waitingFor?: string[];
   /** When the current process started, once read; saved so a later stop can prove the pid is still this process. */
@@ -926,6 +957,8 @@ export class NativeSupervisor {
   private readonly migratorOutputs = new Map<string, Record<string, string>>();
   private readonly redactLine: (line: string) => string;
   private readonly startedAt = new Date().toISOString();
+  /** One counter for every service in the project, resumed from the logs when a previous supervisor wrote them. */
+  private seq: number;
   private pidStartTime?: string;
   private stopping = false;
   private baseEnv: Readonly<Record<string, string | undefined>> | undefined;
@@ -955,6 +988,12 @@ export class NativeSupervisor {
   ) {
     this.baseEnv = options.baseEnv;
     this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
+    this.seq = maxNativeLogSeq(
+      plans.flatMap((plan) => [
+        nativeLogPath(projectRoot, plan.name),
+        `${nativeLogPath(projectRoot, plan.name)}.1`,
+      ]),
+    );
     for (const plan of plans) {
       this.services.set(plan.name, {
         plan,
@@ -962,6 +1001,7 @@ export class NativeSupervisor {
         quickCrashes: 0,
         gaveUp: false,
         isReady: false,
+        lastExitCode: null,
       });
     }
   }
@@ -1027,7 +1067,7 @@ export class NativeSupervisor {
               reason: service.plan.job
                 ? "the job did not exit 0; see its output above"
                 : service.gaveUp
-                  ? "kept exiting; see its output above"
+                  ? missingProgramReason(service)
                   : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
             });
           }
@@ -1166,6 +1206,7 @@ export class NativeSupervisor {
   ): void {
     if (this.stopping || service.child !== child || service.restarting) return;
     service.isReady = false;
+    service.lastExitCode = code;
     this.saveState();
     const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
     if (service.plan.job) {
@@ -1215,16 +1256,19 @@ export class NativeSupervisor {
     }
     const ranFor = Date.now() - service.startedAt;
     service.quickCrashes = ranFor < QUICK_CRASH_MS ? service.quickCrashes + 1 : 1;
+    // Exit code 127 is the shell's "command not found": say so as soon as it happens, so the first exit
+    // already names the program to install instead of only the give-up note (#4678).
+    const missing = service.lastExitCode === 127 ? missingProgramNote(service) : "";
     if (service.quickCrashes >= MAX_QUICK_CRASHES) {
       service.gaveUp = true;
       this.events.onNote?.(
         service.plan.name,
-        `${how}; it exited ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`,
+        `${how}${missing}; it exited ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`,
       );
       return;
     }
     const delay = (this.options.restartDelayMs ?? 1_000) * 2 ** (service.quickCrashes - 1);
-    this.events.onNote?.(service.plan.name, `${how}; restarting in ${delay / 1000}s`);
+    this.events.onNote?.(service.plan.name, `${how}${missing}; restarting in ${delay / 1000}s`);
     service.restartTimer = setTimeout(() => this.respawn(service), delay);
   }
 
@@ -1303,9 +1347,17 @@ export class NativeSupervisor {
         return;
       }
       try {
-        // A timestamp per line lets `flisk logs` merge services in order and honour --since. The log is rotated to
-        // <service>.log.1 at NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
-        appendNativeLogLine(logPath, `${new Date().toISOString()} ${safeLine}\n`, this.logSizes);
+        // A timestamp per line lets `flisk logs` merge services in order and honour --since; the number lets a
+        // cursor read ask for only what came later. It has the same time-based scale as numbers derived from
+        // Tilt/Docker lines, so the two runtimes can share one cursor. The log is rotated to <service>.log.1 at
+        // NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
+        const now = new Date();
+        this.seq = Math.max(this.seq + 1, now.getTime() * LOG_SEQ_SUB_MILLISECOND);
+        appendNativeLogLine(
+          logPath,
+          `${now.toISOString()} #${this.seq} ${safeLine}\n`,
+          this.logSizes,
+        );
       } catch {
         // A full disk must not stop the service; the terminal still shows the line.
       }

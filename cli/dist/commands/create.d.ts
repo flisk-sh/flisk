@@ -12,6 +12,22 @@ export interface CreateOptions {
     yes?: boolean;
     dryRun?: boolean;
     start?: boolean;
+    json?: boolean;
+}
+/** One resource create actually wrote, read back from its service.json. */
+export interface CreateJsonResource {
+    name: string;
+    type: string;
+    port?: number;
+}
+/** The data in create's `--json` envelope, for both a plan and a completed run. */
+export interface CreateJsonData {
+    name: string;
+    projectFolder: string;
+    dryRun: boolean;
+    commands: string[];
+    resources: CreateJsonResource[];
+    nextSteps: string[];
 }
 /** Whether the command may ask questions: a terminal on both ends, and no `--yes`. */
 export declare function isInteractive(options: CreateOptions, tty: {
@@ -52,8 +68,8 @@ export declare function localInstallHint(hint: string): string;
 /** The local services a project actually contains, read from the files the generators wrote. */
 export declare function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[];
 /**
- * Programs that must be installed before --start can run the app. npm stays required even when Bun is installed:
- * the generated services run `npm run dev`, so `flisk up` would stop without it.
+ * Programs that must be installed before --start can run the app. A Bun API needs both npm and Bun: the generated
+ * service starts through `npm run dev`, whose script calls `bun run --watch` (#4678).
  */
 export declare function startBlockers(answers: CreateAnswers, onPath?: (program: string) => boolean): string[];
 /** The first port a starter's services declare, so the next steps can say where to look. */

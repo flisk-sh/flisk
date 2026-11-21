@@ -90,12 +90,30 @@ describe("summarizeTiltBuildError: private registry / ConnectionRefused", () => 
 });
 
 describe("summarizeTiltBuildError: dependency installation failures", () => {
-  it("detects install-deps.sh failures", () => {
+  it("does not blame the registry for a generic install-deps.sh failure", () => {
     const summary = summarizeTiltBuildError(
       "scripts/install-deps.sh returned non-zero exit code 1",
     );
-    expect(summary).toContain("dependency install failed during ImageBuild");
+    expect(summary).toContain("ImageBuild failed while running install-deps.sh");
+    expect(summary).not.toContain("Verdaccio (:4873)");
+  });
+
+  it("points script not found and exec format errors at CRLF line endings", () => {
+    for (const raw of [
+      'exec "/usr/local/bin/install-deps.sh": exec format error',
+      "/bin/sh: scripts/prisma-normalize-client.sh: not found",
+    ]) {
+      expect(isRegistryRelatedBuildError(raw)).toBe(false);
+      expect(summarizeTiltBuildError(raw)).toContain("line endings: run flisk config regenerate");
+    }
+  });
+
+  it("still blames the registry when install-deps.sh fails with a network marker", () => {
+    const raw = "install-deps.sh failed: ConnectionRefused downloading package manifest @flisk/sdk";
+    const summary = summarizeTiltBuildError(raw);
+    expect(summary).toContain("@flisk/sdk");
     expect(summary).toContain("Verdaccio (:4873)");
+    expect(isRegistryRelatedBuildError(raw)).toBe(true);
   });
 
   it("detects bun install and bun install --production failures", () => {
@@ -203,11 +221,14 @@ describe("isRegistryRelatedBuildError", () => {
     expect(isRegistryRelatedBuildError("Verdaccio (:4873) is down or unreachable")).toBe(true);
     expect(isRegistryRelatedBuildError("private registry error")).toBe(true);
     expect(isRegistryRelatedBuildError("dependency install failed during ImageBuild")).toBe(true);
-    expect(isRegistryRelatedBuildError("error running install-deps.sh")).toBe(true);
+    expect(isRegistryRelatedBuildError("error running install-deps.sh: ECONNREFUSED")).toBe(true);
     expect(isRegistryRelatedBuildError("failed during bun install")).toBe(true);
   });
 
   it("returns false for non-registry errors", () => {
+    expect(isRegistryRelatedBuildError("error running install-deps.sh")).toBe(false);
+    expect(isRegistryRelatedBuildError("install-deps.sh: not found")).toBe(false);
+    expect(isRegistryRelatedBuildError('exec "install-deps.sh": exec format error')).toBe(false);
     expect(isRegistryRelatedBuildError("host port 8080 is already allocated")).toBe(false);
     expect(isRegistryRelatedBuildError("SyntaxError: Unexpected token")).toBe(false);
     expect(isRegistryRelatedBuildError("No such image: redis:alpine")).toBe(false);

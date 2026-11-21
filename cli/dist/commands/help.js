@@ -11,6 +11,11 @@ const COMMAND_GROUPS = [
         color: chalk.blue,
         commands: [
             {
+                name: "demo",
+                desc: "Clone, boot and open a small app",
+                alias: "--no-docker, --project <dir>",
+            },
+            {
                 name: "create",
                 desc: "Pick a stack with a few questions and get a project that runs",
                 alias: "[name] --kind web --extras queue",
@@ -139,7 +144,7 @@ const COMMAND_GROUPS = [
             {
                 name: "connect",
                 desc: "Connect a coding agent: MCP server entry and Flisk skills",
-                alias: "<claude|cursor|codex> --dry-run",
+                alias: "<claude|cursor|codex|gemini> --dry-run",
             },
             {
                 name: "runtime",
@@ -166,7 +171,12 @@ function formatCommand(name, desc, alias, color) {
 /** Help for the one-command demo flow, so `flisk demo --help` lists the flags it reads (#4487). */
 export function showDemoHelp() {
     console.log(FLISK_BANNER);
-    console.log(chalk.gray("\n  Run the demo stack on your computer with one command.\n"));
+    console.log(chalk.gray("\n  Clone a starter, install its dependencies, boot the stack and open the frontend in your browser.\n"));
+    console.log(chalk.gray("  The CLI is installed globally if it is not on your PATH yet.\n"));
+    console.log(chalk.gray("  Modes: a Docker/Tilt stack by default; without Docker (or with"));
+    console.log(chalk.gray("  --no-docker) the small two-service demo runs as local processes.\n"));
+    console.log(chalk.gray("  Writes ~/.flisk/flisk-demo by default, or the --project <dir> folder instead.\n"));
+    console.log(chalk.gray("  Delete that folder to remove the demo: rm -rf ~/.flisk/flisk-demo\n"));
     console.log(chalk.gray("  Usage: flisk demo [options]\n"));
     console.log(chalk.bold.yellow("  Options:"));
     console.log(`  ${chalk.cyan("--project <dir>".padEnd(20))} ${chalk.white("Clone the demo into this directory")}`);

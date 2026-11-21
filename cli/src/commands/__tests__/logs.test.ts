@@ -54,7 +54,7 @@ async function run(...args: string[]): Promise<{ envelope: Envelope; code: numbe
   } catch (error) {
     if ((error as Error).message !== "exit") throw error;
   }
-  return { envelope: JSON.parse(out[0] ?? "null"), code };
+  return { envelope: JSON.parse(out.at(-1) ?? "null"), code };
 }
 
 beforeEach(() => {
@@ -75,7 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  for (const option of ["service", "since", "port", "tail", "unhealthy", "source"])
+  for (const option of ["service", "since", "after", "port", "tail", "unhealthy", "source"])
     logsCommand.setOptionValue(option, undefined);
   logsCommand.setOptionValue("tail", "200");
   logsCommand.setOptionValue("json", false);
@@ -111,6 +111,54 @@ describe("flisk logs --json", () => {
     expect(args).toEqual(expect.arrayContaining(["--tail", "5", "--json"]));
     expect(args).not.toContain("-f");
     expect(args).not.toContain("--follow");
+  });
+
+  it("numbers Docker log lines and reads only newer lines with --after", async () => {
+    const out1 = [logLine("one"), logLine("two"), logLine("three")];
+    tilt.runTilt.mockResolvedValueOnce(ok(out1.join("\n")));
+
+    const first = (await run()).envelope.data as {
+      lines: Array<{ seq: number; text: string }>;
+      nextCursor: number;
+      truncated: boolean;
+    };
+
+    expect(first.lines.map((l) => l.text)).toEqual(["one", "two", "three"]);
+    expect(first.lines.map((l) => l.seq)).toEqual(
+      [...first.lines.map((l) => l.seq)].sort((a, b) => a - b),
+    );
+    expect(new Set(first.lines.map((l) => l.seq)).size).toBe(3);
+    expect(first.nextCursor).toBe(first.lines.at(-1)?.seq);
+    expect(first.truncated).toBe(false);
+    const args = tilt.runTilt.mock.calls[0]?.[1] as string[];
+    expect(args).not.toContain("--after");
+
+    // The same Tilt output on a second call: no new lines, and the same cursor.
+    tilt.runTilt.mockResolvedValueOnce(ok(out1.join("\n")));
+    const again = (await run("--after", String(first.nextCursor))).envelope.data as {
+      lines: unknown[];
+      nextCursor: number;
+      truncated: boolean;
+    };
+    expect(again.lines).toEqual([]);
+    expect(again.nextCursor).toBe(first.nextCursor);
+    expect(again.truncated).toBe(false);
+
+    // A cursor before the oldest retained line returns everything and says the log was truncated.
+    tilt.runTilt.mockResolvedValueOnce(ok(out1.join("\n")));
+    const old = (await run("--after", "0")).envelope.data as {
+      lines: unknown[];
+      truncated: boolean;
+    };
+    expect(old.lines).toHaveLength(3);
+    expect(old.truncated).toBe(true);
+  });
+
+  it("rejects an invalid --after cursor before running Tilt", async () => {
+    const { envelope, code } = await run("--after", "-1");
+    expect(code).toBe(2);
+    expect(envelope.errors[0]).toMatchObject({ code: "USAGE" });
+    expect(tilt.runTilt).not.toHaveBeenCalled();
   });
 
   it("returns one shared not-in-project error envelope before checking Tilt", async () => {

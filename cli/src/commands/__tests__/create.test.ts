@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -27,7 +28,7 @@ vi.mock("../../utils/arrow-prompt.js", async (importOriginal) => ({
 }));
 
 import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
-import { freePort, runFlisk } from "../../test-support/index.js";
+import { freePort, parseEnvelope, runFlisk } from "../../test-support/index.js";
 import {
   backendCatalog,
   extraCatalog,
@@ -418,10 +419,15 @@ describe("the review, the recovery message and the folder guard", () => {
     extras: [],
   };
 
-  it("says what is created, what it needs and what was chosen, and flags a missing program", () => {
-    const lines = reviewLines(local, buildCreatePlan(local), (program) => program !== "npm");
+  it("says what is created, what it needs and what was chosen, and flags missing programs", () => {
+    const lines = reviewLines(
+      local,
+      buildCreatePlan(local),
+      (program) => program !== "bun" && program !== "npm",
+    );
     expect(lines[0]).toBe("Creating shop: shop-api, shop-web");
-    expect(lines[1]).toContain("Not found on this machine: npm");
+    expect(lines[1]).toContain("Needs: node, npm, bun.");
+    expect(lines[1]).toContain("Not found on this machine: npm, bun");
     expect(lines[2]).toMatch(/^Chosen: runtime: local · website: /);
   });
 
@@ -485,12 +491,11 @@ describe("the review, the recovery message and the folder guard", () => {
     }
   });
 
-  it("--start needs npm even when Bun is installed, because the services run npm run dev", () => {
+  it("--start needs npm and Bun for the default API, because npm run dev starts bun run --watch", () => {
     expect(startBlockers(local, () => true)).toEqual([]);
     expect(startBlockers(local, (p) => p !== "npm")).toEqual(["npm"]);
-    // the services start with npm run dev, so a missing Bun alone does not block --start (#4459)
-    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(["npm"]);
-    expect(startBlockers(local, (p) => p !== "bun")).toEqual([]);
+    expect(startBlockers(local, (p) => p !== "bun")).toEqual(["bun"]);
+    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(["npm", "bun"]);
     expect(startBlockers({ ...local, starter: "x" }, () => false)).toEqual([]);
   });
 
@@ -678,6 +683,71 @@ describe("flisk create (the real CLI, no terminal)", () => {
     expect(run.stdout).toContain("flisk resource shop-api --type backend");
     expect(run.stdout).toContain("--local");
     expect(run.stdout).toContain("Dry run: nothing was written");
+    expect(run.stdout).not.toMatch(/^\{/m);
+    expect(existsSync(join(dirOf(), "shop"))).toBe(false);
+  });
+
+  it("--dry-run --json prints one envelope with the project folder and the commands", () => {
+    const run = runFlisk(["create", "shop", "--dry-run", "--json"], {
+      cwd: dirOf(),
+      timeout: 60_000,
+    });
+    expect(run.status, run.stderr).toBe(0);
+    const envelope = parseEnvelope(run.stdout);
+    expect(envelope.errors).toEqual([]);
+    expect(envelope.data).toMatchObject({
+      name: "shop",
+      projectFolder: join(realpathSync(dirOf()), "shop"),
+      dryRun: true,
+      commands: expect.arrayContaining([
+        "flisk project --yes",
+        expect.stringContaining("flisk resource shop-api --type backend"),
+        expect.stringContaining("flisk resource shop-web --type frontend"),
+      ]),
+    });
+    expect(run.stderr).toContain("Dry run: nothing was written");
+    expect(run.stderr).not.toMatch(/^\{/m);
+    expect(existsSync(join(dirOf(), "shop"))).toBe(false);
+  });
+
+  it("--yes --json prints only the envelope, with the resources it created", () => {
+    const run = runFlisk(["create", "shop", "--yes", "--json"], {
+      cwd: dirOf(),
+      timeout: 120_000,
+    });
+    expect(run.status, run.stderr).toBe(0);
+    const envelope = parseEnvelope(run.stdout);
+    expect(envelope.errors).toEqual([]);
+    expect(envelope.data).toMatchObject({
+      name: "shop",
+      projectFolder: join(realpathSync(dirOf()), "shop"),
+      dryRun: false,
+    });
+    expect(envelope.data.resources).toEqual([
+      expect.objectContaining({ name: "shop-api", type: "backend", port: expect.any(Number) }),
+      expect.objectContaining({ name: "shop-web", type: "frontend", port: expect.any(Number) }),
+    ]);
+    expect(run.stderr).toContain("Creating the project");
+    expect(run.stderr).toContain("Created shop");
+    expect(run.stderr).not.toMatch(/^\{/m);
+    expect(existsSync(join(dirOf(), "shop", "README.md"))).toBe(true);
+  }, 120_000);
+
+  it("--json routes an invalid --starter through the shared JSON error path", () => {
+    const run = runFlisk(["create", "shop", "--starter", "nope", "--json"], {
+      cwd: dirOf(),
+      timeout: 60_000,
+    });
+    expect(run.status, run.stderr).toBe(1);
+    const envelope = parseEnvelope(run.stdout);
+    expect(envelope.data).toBeNull();
+    expect(envelope.errors).toEqual([
+      expect.objectContaining({
+        code: "COMMAND_FAILED",
+        message: expect.stringContaining('Unknown --starter "nope"'),
+      }),
+    ]);
+    expect(run.stderr).not.toMatch(/^\{/m);
     expect(existsSync(join(dirOf(), "shop"))).toBe(false);
   });
 
@@ -701,6 +771,8 @@ describe("flisk create (the real CLI, no terminal)", () => {
     }
     expect(existsSync(join(project, "web", "vite.config.ts"))).toBe(true);
     expect(run.stdout).toContain("No Docker, no Tilt, no database");
+    expect(run.stdout).toContain("Created shop");
+    expect(run.stdout).not.toMatch(/^\{/m);
   });
 
   it("the website's proxy points at the port the API was given", () => {

@@ -124,6 +124,22 @@ In `service.json`, add dependency links to your database or message queue:
 
 The agent boots only after Postgres and NATS pass their readiness gates, receives clean database credentials, and reconnects smoothly during hot reload.
 
+### Recipe: switch the tool-loop model with an env file (Ollama or OpenRouter)
+
+The `tool-loop` starter reads its model settings from the environment, so one env file switches models without template edits. An `inference` resource (`flisk resource brain --type inference --stack shop --yes`) runs an OpenAI-compatible server: it keeps pulled models in the `brain-models` named volume across `flisk down` (`flisk down --purge` removes it) and provides `OPENAI_BASE_URL` to services that list `brain` in `dependsOn`.
+
+```dotenv
+# Local Ollama (a dependent agent can take OPENAI_BASE_URL from the inference resource)
+MODEL=llama3.2
+OPENAI_BASE_URL=http://brain:11434/v1
+
+# Or a hosted OpenAI-compatible provider (set OPENAI_API_KEY in your env file; never commit keys)
+# OPENAI_BASE_URL=https://openrouter.ai/api/v1
+# MODEL=<provider model id>
+```
+
+Run `flisk up --env-file <path>`, or put the variables in `.env`. With neither `OPENAI_BASE_URL` nor `ANTHROPIC_BASE_URL` set, the starter uses its offline mock model. Anthropic-compatible servers use `MODEL`, `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY` instead.
+
 ---
 
 ## How Flisk routes agent traffic

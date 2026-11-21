@@ -41,7 +41,7 @@ export const restartCommand = new Command("restart")
   .option("--rebuild", "Rebuild the image through Tilt instead of restarting the container", false)
   .option(
     "--project <path>",
-    "Restart resources for the Flisk project in this folder (default: the current project)",
+    "Path to the Flisk project whose resource to restart (default: the current project)",
   )
   .option(
     "--wait <seconds>",
@@ -51,7 +51,8 @@ export const restartCommand = new Command("restart")
   .option("--json", "Output one JSON object and exit", false)
   .addHelpText(
     "after",
-    "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild",
+    "\nExamples:\n  flisk restart orders-api\n  flisk restart orders-api --json\n  flisk restart orders-api --rebuild" +
+      "\n\nTilt resources require Tilt; local-process projects: use `flisk down && flisk up` for a full restart.",
   )
   .showHelpAfterError("\nRun `flisk resources` to see the resource names you can restart.")
   .action(async (resourceName: string, options, command: Command) => {
@@ -68,7 +69,7 @@ export const restartCommand = new Command("restart")
     }
 
     const action = async (): Promise<void> => {
-      const root = resolveCommandProject({
+      const root = await resolveCommandProject({
         commandName: "restart",
         project: options.project ?? command.optsWithGlobals().project,
         json: options.json,
@@ -127,10 +128,22 @@ export const restartCommand = new Command("restart")
           ]);
         };
         if (outcome.state === "not-running") {
-          return fail(
-            "NATIVE_NOT_RUNNING",
-            `Cannot restart ${resourceName}: ${outcome.reason}. Start it with: flisk up`,
-          );
+          // No supervising `flisk up` can restart this process. Point at the documented whole-project
+          // workaround instead of telling the reader to start a stack that is already running.
+          const message =
+            "`flisk restart` requires Tilt and works on Tilt resources; this project runs as local processes (no Tilt).";
+          const suggestions = ["Restart the project with: flisk down && flisk up"];
+          if (options.json) {
+            console.log(
+              JSON.stringify(
+                createMachineEnvelope(null, [
+                  { code: "NATIVE_RESTART_UNSUPPORTED", message, suggestions },
+                ]),
+              ),
+            );
+            process.exit(1);
+          }
+          throw new FliskError(message, suggestions);
         }
         if (outcome.state === "failed" || outcome.state === "timeout") {
           const [withLogs] = withFailureLogs(

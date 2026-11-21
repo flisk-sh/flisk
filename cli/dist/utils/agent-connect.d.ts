@@ -4,7 +4,7 @@
  * skills (the same files `flisk project` writes). Every write is a merge: other servers and other keys stay, and a
  * second run changes nothing.
  */
-export declare const CONNECT_HOSTS: readonly ["claude", "cursor", "codex"];
+export declare const CONNECT_HOSTS: readonly ["claude", "cursor", "codex", "gemini"];
 export type ConnectHost = (typeof CONNECT_HOSTS)[number];
 export type ConnectScope = "project" | "global";
 export declare const MCP_SERVER_NAME = "flisk";
@@ -23,7 +23,7 @@ interface HostSpec {
 export declare const HOST_SPECS: Record<ConnectHost, HostSpec>;
 /** Resolve a host name or alias, or throw a FliskError that lists the hosts and the closest match. */
 export declare function resolveConnectHost(input: string): ConnectHost;
-/** The MCP server entry for a JSON config (Claude Code, Cursor). */
+/** The MCP server entry for a JSON config (Claude Code, Cursor, Gemini CLI). */
 /** Cursor's variable for the folder that holds .cursor/mcp.json, written literally into the config. */
 export declare const CURSOR_WORKSPACE_FOLDER: string;
 export declare function jsonServerEntry(host: ConnectHost, platform?: NodeJS.Platform): Record<string, unknown>;

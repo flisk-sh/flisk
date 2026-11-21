@@ -3,6 +3,8 @@
  * cannot fill the disk (#3720). Maintainers may tune this number.
  */
 export declare const NATIVE_LOG_MAX_BYTES: number;
+/** Highest sequence number already present in these logs (current and rotated); 0 when none is numbered yet. */
+export declare function maxNativeLogSeq(paths: readonly string[]): number;
 /**
  * The last `tail` non-empty lines of a log, oldest first, read from the end of the file in blocks so memory follows the
  * size of the answer, not of the file. With `cutoffMs`, reading stops at the first line whose timestamp is older; lines

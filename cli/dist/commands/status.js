@@ -17,6 +17,7 @@ import { isNativeRunSupervisorAlive, nativeServiceStates, readNativeRunState, } 
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
+import { relativeResourceFolder } from "../utils/resource-relative-path.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { sampleServiceUsage, } from "../utils/service-usage.js";
 import { skippedServiceFiles } from "../utils/services.js";
@@ -104,7 +105,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
     .option("--unhealthy", "Show only services that are failing or still starting", false)
     .option("--strict", "Exit 1 when any service is not ready or nothing is running", false)
     .option("--usage", "Show CPU, memory and process usage per service", false)
-    .option("--project <path>", "Show status for the Flisk project in this folder (default: the current project)")
+    .option("--project <path>", "Path to the Flisk project to report on (default: the current project)")
     .addHelpText("after", "\nExamples:\n  flisk status\n  flisk status --resources\n  flisk status --unhealthy\n  flisk status --usage\n  flisk status --json\n  flisk status --strict")
     .action(async (options, command) => {
     const project = options.project ?? command.optsWithGlobals().project;
@@ -176,7 +177,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 return;
             }
         }
-        const projectRoot = resolveCommandProject({
+        const projectRoot = await resolveCommandProject({
             commandName: "status",
             project,
             json: options.json,
@@ -378,6 +379,9 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
                     port: resource.port ?? null,
+                    ...(projectRoot
+                        ? { path: relativeResourceFolder(projectRoot, resource.configPath) }
+                        : {}),
                     ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup),
                     status: serviceStates?.[resource.name]?.status ?? "unknown",
                     ...(serviceStates?.[resource.name]?.reason

@@ -52,7 +52,7 @@ describe("CLI unknown command suggestions (#4491)", () => {
 
   it("includes mapped suggestions in `flisk ports --json`", () => {
     const result = runFlisk(["ports", "--json"], { cwd: process.cwd() });
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(1);
     expect(result.stderr).toBe("");
     const env = parseEnvelope(result.stdout);
     expect(env.errors).toHaveLength(1);

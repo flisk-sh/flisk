@@ -11,7 +11,7 @@ This page is the setup path, from installing Flisk to a first `doctor` and `up`.
 | Requirement | What it is for |
 | --- | --- |
 | The Flisk CLI (`flisk --version`) | Everything. `flisk mcp` is a subcommand of it. |
-| An MCP client: Codex, Claude Code, Claude Desktop, Cursor, or VS Code | Connecting the server. |
+| An MCP client: Codex, Claude Code, Claude Desktop, Cursor, Gemini CLI, or VS Code | Connecting the server. |
 | Docker running and Tilt installed | Starting and stopping a stack. |
 | A Flisk project directory, the folder that holds `.flisk/project.json` | Every tool except `doctor`. |
 
@@ -42,7 +42,7 @@ Both installation paths install the same CLI, and `flisk mcp` comes with it. The
 
 ## 2. Point a client at `flisk mcp`
 
-Shortcut for Claude Code, Cursor and Codex: `flisk connect <claude|cursor|codex>` in the project writes the project entry shown below (merged into an existing file) and the Flisk skills. Add `--dry-run` to see the files first. See [Flisk for AI agents](../agents/flisk-for-agents.md). The manual steps follow.
+Shortcut for Claude Code, Cursor, Codex and Gemini CLI: `flisk connect <claude|cursor|codex|gemini>` in the project writes the project entry shown below (merged into an existing file) and the Flisk skills. Add `--dry-run` to see the files first. See [Flisk for AI agents](../agents/flisk-for-agents.md). The manual steps follow.
 
 The client launches `flisk mcp` for you. The server inherits the directory it is started in, so the project tools find `.flisk/project.json` when the client runs inside a Flisk project. Two ways to make that deterministic:
 
@@ -60,6 +60,20 @@ args = ["mcp"]
 ```
 
 Codex loads project-scoped MCP settings only for trusted projects, when it runs in that project, and the server starts in Codex's directory, so the entry needs no `cwd`. Leave it out of a project file you commit: an absolute path exists only on your machine. `~/.codex/config.toml` is the global variant; there, `cwd` is the directory Codex starts the server in, so set it to the absolute path of the folder that contains `.flisk/project.json` if you start Codex elsewhere. Some older Codex app versions start a stdio server in `/` when the entry has no `cwd`; if the Flisk tools then report that they are not in a Flisk project, update Codex or pass the tools' `projectPath` argument. If your global entry sets `cwd`, Codex can apply it to the project entry too, so remove it there when you use a project entry. You can also create the entry from a terminal with `codex mcp add flisk -- flisk mcp`. Confirm the server is connected with `/mcp` in the app or `codex mcp list` in the CLI. Codex's [MCP guide](https://developers.openai.com/codex/extend/mcp) lists the other options.
+
+### Gemini CLI
+
+Gemini CLI reads project MCP servers from `.gemini/settings.json` in the Flisk project. Run `flisk connect gemini --dry-run` to see the merged file, then `flisk connect gemini`:
+
+```json
+{
+  "mcpServers": {
+    "flisk": { "command": "flisk", "args": ["mcp"] }
+  }
+}
+```
+
+Other keys (for example `mcp.allowed`, `theme` or other servers) stay in the file, and a second run changes nothing. The equivalent user-scope file is `~/.gemini/settings.json` (`flisk connect gemini --global`). Start Gemini CLI in the project folder, approve the `flisk` server when asked, and run `/mcp list` to see it. `flisk connect gemini` also writes the Flisk skills to `.agents/skills`, which Gemini CLI reads as workspace skills. The [Gemini CLI MCP guide](https://geminicli.com/docs/tools/mcp-server/) lists the other settings.
 
 ### Claude Code
 
@@ -188,7 +202,7 @@ The tools were renamed to the `<noun>_<verb>` pattern the others follow: `restar
 | `up` | Starts the stack, or a subset of it, detached, and returns before readiness. `profile` also starts opt-in services, and `envFile` runs with another project env file. | After `doctor` passes. | `projectPath`, `stack`, `only`, `profile`, `envFile`, `force`, `dryRun`, `waitForReady`, `waitSeconds` |
 | `status` | Reports stacks, resources, ingress URLs, ports, and Tilt readiness. | To see whether the stack is ready. Pass `unhealthy: true` first after a failed `up`: `data.resources` and each stack's `resources` then hold only the broken services (`data.unhealthy` names them, `data.filteredTo` says it was trimmed). | `projectPath`, `unhealthy`, `stack` |
 | `logs` | Returns a bounded snapshot of recent logs, 200 lines by default and 10,000 at most. `source` keeps only `runtime` output or `build` steps. | To read what a service printed, or why a build failed. Pass `unhealthy: true` after a failed `up` to read only the failing or still-starting services. | `projectPath`, `unhealthy`, `services`, `tail`, `since`, `source` |
-| `resource_list` | Lists the project's services with their stack, type, and port. | To find a service name. | `projectPath`, `stack` |
+| `resource_list` | Lists the project's services with their stack, type, port, and project-relative folder path. | To find a service name. | `projectPath`, `stack` |
 | `down` | Stops the running stack. | When you are finished. | `projectPath`, `dryRun` |
 | `resource_restart` | Restarts a running Flisk-generated Compose container without rebuilding its image (local processes and imported Tiltfiles use `tilt trigger`); `rebuild` rebuilds the image and recreates the container through Tilt. | When one service needs a fresh start. | `projectPath`, `resource`, `rebuild` |
 | `resource_run` | Runs a one-off command with the environment one resource has in the stack, and returns its exit code, stdout and stderr. A container resource must be running. | To seed data or check a migration. Refused unless `confirm` is `true`, and `.env` values in the output are masked. | `projectPath`, `resource`, `command`, `confirm` |

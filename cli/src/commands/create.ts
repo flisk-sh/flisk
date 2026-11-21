@@ -9,7 +9,7 @@
  * those commands wrote. It keeps no list of frameworks, languages or starters of its own.
  */
 
-import { spawnSync } from "node:child_process";
+import { type StdioOptions, spawnSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
@@ -23,6 +23,7 @@ import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languages/registry.js";
+import type { JsonCommandResult } from "../types/index.js";
 import {
   type ArrowChoice,
   arrowMultiSelect,
@@ -31,7 +32,7 @@ import {
   PromptCancelled,
 } from "../utils/arrow-prompt.js";
 import { type CliInvocation, cliInvocation } from "../utils/cli-invocation.js";
-import { addYesOption } from "../utils/command-helpers.js";
+import { addYesOption, routeUsageErrorsToJson } from "../utils/command-helpers.js";
 import {
   backendCatalog,
   type CatalogOption,
@@ -61,8 +62,10 @@ import {
   toProjectName,
 } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
+import { runJsonCommand } from "../utils/json-command.js";
 import { installServiceDependencies } from "../utils/one-command.js";
 import { isWindows } from "../utils/platform.js";
+import { discoverResourcesWithProblems } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
 import { findOnPath } from "../utils/which.js";
 
@@ -121,6 +124,71 @@ export interface CreateOptions {
   yes?: boolean;
   dryRun?: boolean;
   start?: boolean;
+  json?: boolean;
+}
+
+/** One resource create actually wrote, read back from its service.json. */
+export interface CreateJsonResource {
+  name: string;
+  type: string;
+  port?: number;
+}
+
+/** The data in create's `--json` envelope, for both a plan and a completed run. */
+export interface CreateJsonData {
+  name: string;
+  projectFolder: string;
+  dryRun: boolean;
+  commands: string[];
+  resources: CreateJsonResource[];
+  nextSteps: string[];
+}
+
+/** Builds one report from the plan and whatever the run wrote, so both routes share a shape. */
+function createJsonData(
+  answers: CreateAnswers,
+  projectDir: string,
+  steps: CreateStep[],
+  resources: CreateJsonResource[],
+  next: string[],
+  dryRun: boolean,
+): CreateJsonData {
+  return {
+    name: answers.name,
+    projectFolder: projectDir,
+    dryRun,
+    commands: steps.map(renderStep),
+    resources,
+    nextSteps: next,
+  };
+}
+
+/** The planned resources of a dry run come from the plan; their ports are only known after writing. */
+function plannedResources(steps: CreateStep[]): CreateJsonResource[] {
+  return steps.flatMap((step) => {
+    if (step.args[0] !== "resource") return [];
+    const name = step.args[1];
+    const typeIndex = step.args.indexOf("--type");
+    const type = typeIndex === -1 ? undefined : step.args[typeIndex + 1];
+    return name && type ? [{ name, type }] : [];
+  });
+}
+
+/** Every service.json create left behind, in a stable order agents can diff. */
+function createdResources(projectDir: string): CreateJsonResource[] {
+  return discoverResourcesWithProblems(projectDir)
+    .resources.flatMap((resource) =>
+      typeof resource.type === "string"
+        ? [
+            {
+              name: resource.name,
+              type: resource.type,
+              ...(typeof resource.port === "number" ? { port: resource.port } : {}),
+            },
+          ]
+        : [],
+    )
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
 /**
@@ -627,8 +695,8 @@ export function generatedServices(projectDir: string, answers: CreateAnswers): G
 }
 
 /**
- * Programs that must be installed before --start can run the app. npm stays required even when Bun is installed:
- * the generated services run `npm run dev`, so `flisk up` would stop without it.
+ * Programs that must be installed before --start can run the app. A Bun API needs both npm and Bun: the generated
+ * service starts through `npm run dev`, whose script calls `bun run --watch` (#4678).
  */
 export function startBlockers(
   answers: CreateAnswers,
@@ -747,7 +815,7 @@ export function recoveryMessage(
   ];
 }
 
-export const createCommand = addYesOption(new Command("create"))
+export const createCommand = routeUsageErrorsToJson(addYesOption(new Command("create")))
   .description("Pick what you are building with a few key presses and get a project that runs")
   .addHelpText(
     "after",
@@ -778,28 +846,41 @@ export const createCommand = addYesOption(new Command("create"))
     "Install dependencies and start what was written (the local app route; a starter is never started here)",
     false,
   )
+  .option("--json", "Print one JSON envelope on stdout; progress goes to stderr", false)
   .action(async (nameArg: string | undefined, options: CreateOptions) => {
-    // runCommand turns every error into an exit, so a cancel is handled inside it.
-    await runCommand(async () => {
+    const action = async (): Promise<JsonCommandResult> => {
       try {
-        await runCreate(nameArg, options);
+        return await runCreate(nameArg, options);
       } catch (error) {
         if (!(error instanceof PromptCancelled)) throw error;
         console.log(chalk.dim("\nCancelled. Nothing was written."));
         process.exitCode = 130;
+        return { data: { cancelled: true }, exitCode: 130 };
       }
-    });
+    };
+    if (options.json) {
+      // The shared path moves every progress line to stderr and emits exactly one envelope, including on errors.
+      await runJsonCommand("CREATE_FAILED", "flisk create", action);
+      return;
+    }
+    await runCommand(action);
   });
 
 /**
  * The create journey: collect the answers, show the review, run the plan, then hand over. A starter is handed to
  * its README; a local app may install and start itself (the ask, or --start); the Docker route is started with flisk up app.
  */
-async function runCreate(nameArg: string | undefined, options: CreateOptions): Promise<void> {
-  const interactive = isInteractive(options, {
-    in: process.stdin.isTTY === true,
-    out: process.stdout.isTTY === true,
-  });
+async function runCreate(
+  nameArg: string | undefined,
+  options: CreateOptions,
+): Promise<JsonCommandResult> {
+  // An agent reading stdout must never be asked a question, even when stdout happens to be a terminal.
+  const interactive =
+    !options.json &&
+    isInteractive(options, {
+      in: process.stdin.isTTY === true,
+      out: process.stdout.isTTY === true,
+    });
 
   if (interactive) {
     console.log(chalk.bold("\nLet's create your project"));
@@ -825,7 +906,9 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
       console.log(`${renderStep(step)} ${where}`.trimEnd());
     }
     console.log(chalk.gray("\nDry run: nothing was written."));
-    return;
+    return {
+      data: createJsonData(answers, projectDir, steps, plannedResources(steps), [], true),
+    };
   }
 
   // The review comes before anything is written, in every mode, so a default is never a surprise.
@@ -867,7 +950,7 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
       if (go === "cancel") {
         console.log(chalk.dim("\nCancelled. Nothing was written."));
         process.exitCode = 130;
-        return;
+        return { data: { cancelled: true }, exitCode: 130 };
       }
     }
   } else {
@@ -900,12 +983,11 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
   // A starter is ready-made and may need Docker, a database or other setup its own README describes. create writes it and
   // stops: it never installs, never starts Docker, Tilt or a stack, not even with --start.
   if (answers.starter) {
-    console.log(
-      `\nNext:\n${nextSteps(projectDir, answers)
-        .map((line) => `  ${line}`)
-        .join("\n")}\n`,
-    );
-    return;
+    const next = nextSteps(projectDir, answers);
+    console.log(`\nNext:\n${next.map((line) => `  ${line}`).join("\n")}\n`);
+    return {
+      data: createJsonData(answers, projectDir, steps, createdResources(projectDir), next, false),
+    };
   }
 
   const readme = join(projectDir, "README.md");
@@ -959,13 +1041,12 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
     }
   }
 
+  const next = nextSteps(projectDir, answers, services);
   if (!start) {
-    console.log(
-      `\nNext:\n${nextSteps(projectDir, answers, services)
-        .map((line) => `  ${line}`)
-        .join("\n")}\n`,
-    );
-    return;
+    console.log(`\nNext:\n${next.map((line) => `  ${line}`).join("\n")}\n`);
+    return {
+      data: createJsonData(answers, projectDir, steps, createdResources(projectDir), next, false),
+    };
   }
 
   // Check the programs before installing anything, so a missing toolchain is one clear message, not a failed install.
@@ -1033,13 +1114,14 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
   if (open) console.log(`\n${chalk.bold(open)}\n`);
   const upArgs = answers.runtime === "docker" ? ["up", "app"] : ["up"];
   const [command, ...prefix] = invocation;
-  const up = spawnSync(command, [...prefix, ...upArgs], {
-    cwd: projectDir,
-    stdio: "inherit",
-  });
+  const stdio: StdioOptions = options.json ? ["inherit", 2, 2] : "inherit";
+  const up = spawnSync(command, [...prefix, ...upArgs], { cwd: projectDir, stdio });
   if (up.status !== 0) {
     throw new FliskError(`"flisk ${upArgs.join(" ")}" did not finish.`, [
       `The project is created. Run "flisk doctor" in ${projectDir} to see what is missing, then flisk ${upArgs.join(" ")}.`,
     ]);
   }
+  return {
+    data: createJsonData(answers, projectDir, steps, createdResources(projectDir), next, false),
+  };
 }

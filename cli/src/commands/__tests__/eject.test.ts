@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -26,6 +27,7 @@ vi.mock("../../utils/prompt.js", () => ({
 }));
 
 const originalCwd = process.cwd();
+const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
 
 describe("flisk eject", () => {
   let tempDir: string;
@@ -98,6 +100,31 @@ describe("flisk eject", () => {
     );
     expect(dryRunOutput).toContain("Files written:\n  EJECTED.md");
     expect(existsSync(join(tempDir, "EJECTED.md"))).toBe(false);
+  });
+
+  it("lists no identity paths in --dry-run --json when the shipped discovery runtime is vendored (#4259)", async () => {
+    // Mirror what `flisk config regenerate`/`flisk up` vendor into .flisk-out/flisk-cli-ext.
+    const vendoredDiscovery = join(tempDir, ".flisk", ".flisk-out", "flisk-cli-ext", "discovery");
+    mkdirSync(vendoredDiscovery, { recursive: true });
+    cpSync(join(repoRoot, "runtime", "discovery"), vendoredDiscovery, { recursive: true });
+
+    const result = await runCommandInProcess(ejectCommand, ["--dry-run", "--json"], tempDir);
+    expect(result.status).toBeUndefined();
+    const generatedFiles = parseEnvelope(result.stdout).data.generatedFiles as string[];
+    expect(generatedFiles.length).toBeGreaterThan(0);
+    expect(generatedFiles.some((file) => /identity/i.test(file))).toBe(false);
+    expect(generatedFiles).toContain(
+      join(
+        ".flisk",
+        ".flisk-out",
+        "flisk-cli-ext",
+        "discovery",
+        "services",
+        "platform",
+        "synthetic-monitor",
+        "service.yaml",
+      ),
+    );
   });
 
   it("writes EJECTED.md and prints a tilt command that points at the real Tiltfile", async () => {

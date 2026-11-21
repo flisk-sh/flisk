@@ -334,10 +334,21 @@
 		},
 		{
 			"workflow": "e2e-scale.yml",
+			"job": "queue-paths",
+			"tier": "gate",
+			"required": false,
+			"reason": "Skips the scale gate on a merge queue entry that changes no file the suite declares in tests/e2e/scale/erp/suite.json paths",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-scale.yml",
 			"job": "e2e-scale",
 			"tier": "e2e",
 			"required": false,
-			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); required since the #1302 cutover; suite tests/e2e/scale/erp",
+			"reason": "ERP scale gate on the merge queue (5-service smoke scope); required since the #1302 cutover; suite tests/e2e/scale/erp",
 			"owner": "maintainers"
 		},
 		{
@@ -742,6 +753,17 @@
 		},
 		{
 			"workflow": "e2e-platforms.yml",
+			"job": "queue-paths",
+			"tier": "gate",
+			"required": false,
+			"reason": "Skips the platforms gate on a merge queue entry that changes no file the suite declares in tests/e2e/platforms/windows/suite.json paths",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-platforms.yml",
 			"job": "e2e-platforms",
 			"tier": "e2e",
 			"required": false,
@@ -884,7 +906,7 @@
 			"job": "erp",
 			"tier": "e2e",
 			"required": false,
-			"reason": "Full 100-service fixture boot, weekly and manual, carried over from erp-scale-e2e.yml at the #1302 cutover; suite tests/e2e/scale/erp",
+			"reason": "Full 100-service fixture boot, nightly and manual, carried over from erp-scale-e2e.yml at the #1302 cutover; suite tests/e2e/scale/erp",
 			"owner": "maintainers"
 		},
 		{

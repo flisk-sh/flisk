@@ -6,6 +6,8 @@
 $ErrorActionPreference = 'Stop'
 
 Remove-Item Env:FLISK_ALLOW_NATIVE_WINDOWS -ErrorAction SilentlyContinue
+$env:FLISK_ALLOW_NATIVE_WINDOWS = ""
+[Environment]::SetEnvironmentVariable("FLISK_ALLOW_NATIVE_WINDOWS", "", "Process")
 
 $version = & node bin/flisk.js --version
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($version | Out-String))) {

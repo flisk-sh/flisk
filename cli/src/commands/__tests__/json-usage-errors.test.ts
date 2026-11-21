@@ -16,9 +16,23 @@ function usageError(args: string[]): { status: number; stderr: string; error: Us
 }
 
 describe("usage errors with --json return the envelope on stdout (#4246)", () => {
+  it("an unknown command prints one envelope and exits 1 (#4533)", () => {
+    const result = runFlisk(["nosuch", "--json"], { cwd: process.cwd() });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toBe(
+      `${JSON.stringify({
+        schemaVersion: 1,
+        data: null,
+        errors: [{ code: "USAGE", message: "error: unknown command 'nosuch'" }],
+      })}\n`,
+    );
+    parseEnvelope(result.stdout);
+  });
+
   it("an unknown command carries the did-you-mean hint as a suggestion", () => {
     const { status, stderr, error } = usageError(["nope", "--json"]);
-    expect(status).toBe(2);
+    expect(status).toBe(1);
     expect(stderr).toBe("");
     expect(error.code).toBe("USAGE");
     expect(error.message).toBe("error: unknown command 'nope'");
@@ -27,7 +41,7 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
 
   it("an unknown subcommand of a command group does the same", () => {
     const { status, error } = usageError(["config", "verifyx", "--json"]);
-    expect(status).toBe(2);
+    expect(status).toBe(1);
     expect(error.code).toBe("USAGE");
     expect(error.message).toBe("error: unknown command 'verifyx'");
     expect(error.suggestions).toEqual(["Did you mean verify?"]);
@@ -63,7 +77,7 @@ describe("usage errors with --json return the envelope on stdout (#4246)", () =>
 
   it("an unknown help target fails before parsing still uses the envelope", () => {
     const { status, stderr, error } = usageError(["help", "nope", "--json"]);
-    expect(status).toBe(2);
+    expect(status).toBe(1);
     expect(stderr).toBe("");
     expect(error.code).toBe("USAGE");
     expect(error.message).toBe("error: unknown command 'nope'");

@@ -13,11 +13,12 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ps1 = readFileSync(path.join(here, "setup-wsl.ps1"), "utf8");
 
-/** The bash between `$UbuntuScript = @'` and the closing `'@`. */
+/** The bash between `$UbuntuScript = @'` and the closing `'@`, with repository CRLF normalized to LF. */
 function ubuntuScript() {
   const match = ps1.match(/\$UbuntuScript = @'\r?\n([\s\S]*?)\r?\n'@/);
   assert.ok(match, "setup-wsl.ps1 has no $UbuntuScript here-string");
-  return match[1];
+  // .gitattributes checks .ps1 out as CRLF, but this here-string is a POSIX script run by bash in the tests.
+  return match[1].replace(/\r\n/g, "\n");
 }
 
 function stub(bin, name, body) {
