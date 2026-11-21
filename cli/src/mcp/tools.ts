@@ -42,6 +42,38 @@ const PROJECT_INIT_TIMEOUT_MS = 300_000;
 /** `flisk import` fetches flisk-import through npx first, which can outlast the default two minutes too. */
 const IMPORT_TIMEOUT_MS = 300_000;
 
+/**
+ * The CLI command behind each MCP tool (#4258). Kept in one table so tools/list can name the exact
+ * equivalent and a test fails when a tool is added without one. Placeholders are literal in the
+ * advertised description so a model can see which arguments it maps to.
+ */
+export const MCP_CLI_EQUIVALENTS: Readonly<Record<string, string>> = {
+  agent_list: "flisk resources --type=agent --json",
+  agent_sessions: "flisk agent sessions <resource> --json",
+  config_explain: "flisk config explain <file> --json",
+  config_regenerate: "flisk config regenerate --dry-run --json",
+  config_verify: "flisk config verify --json",
+  doctor: "flisk doctor --json",
+  down: "flisk down --json",
+  logs: "flisk logs --json",
+  network_list: "flisk networks --json",
+  project_eject: "flisk eject --json",
+  project_import: "flisk import --json",
+  project_info: "flisk projects --json",
+  project_init: "flisk project --yes",
+  project_templates: "flisk project --list --json",
+  resource_create: "flisk resource <name> --yes",
+  resource_list: "flisk resources --json",
+  resource_restart: "flisk restart <resource> --json",
+  resource_run: "flisk run <resource> --json -- <command>",
+  runtime_check: "flisk runtime --check-assets --json",
+  stack_assign: "flisk stack <stack> --resources=<resource> --json",
+  stack_list: "flisk stacks --json",
+  status: "flisk status --json",
+  tool_add: "flisk tool add <tool> --json",
+  up: "flisk up",
+};
+
 export type RunFlisk = (
   args: string[],
   options?: { timeoutMs?: number; cwd?: string },
@@ -1442,6 +1474,7 @@ export function createFliskTools(
   // failure excerpts). The child masks it already; this is the last stop before the text reaches an MCP client.
   return tools.map((tool) => ({
     ...tool,
+    description: `${tool.description} CLI equivalent: \`${MCP_CLI_EQUIVALENTS[tool.name] ?? "unknown"}\`.`,
     annotations: TOOL_ANNOTATIONS[tool.name],
     handler: async (args: Record<string, unknown>) => {
       const result = await tool.handler(args);

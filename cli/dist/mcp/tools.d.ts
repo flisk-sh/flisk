@@ -1,5 +1,11 @@
 import { type ChildProcess } from "node:child_process";
 import type { McpTool, McpToolResult } from "./server.js";
+/**
+ * The CLI command behind each MCP tool (#4258). Kept in one table so tools/list can name the exact
+ * equivalent and a test fails when a tool is added without one. Placeholders are literal in the
+ * advertised description so a model can see which arguments it maps to.
+ */
+export declare const MCP_CLI_EQUIVALENTS: Readonly<Record<string, string>>;
 export type RunFlisk = (args: string[], options?: {
     timeoutMs?: number;
     cwd?: string;
