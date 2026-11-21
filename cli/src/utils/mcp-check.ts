@@ -9,6 +9,8 @@ import type { JsonObject, McpCheckOptions, McpCheckReport, McpCheckResult } from
 export type { McpCheckOptions, McpCheckReport, McpCheckResult } from "./mcp-check/types.js";
 import { asObject, asArray, isPng, PROTOCOL_VERSION, parseRpcBody, buildPromptArguments, buildSampleArguments, iconUrlFor } from "./mcp-check/protocol.js";
 export { buildPromptArguments, buildSampleArguments, iconUrlFor, parseRpcBody } from "./mcp-check/protocol.js";
+import { isFinalNetworkError } from "./mcp-check/taxonomy.js";
+export { isFinalNetworkError } from "./mcp-check/taxonomy.js";
 
 const ACCEPT = "application/json, text/event-stream";
 
@@ -43,40 +45,6 @@ function clip(text: string): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-
-
-
-
-
-
-/** localhost, *.localhost, 127.0.0.0/8 and [::1]: hosts on this machine, where nothing else can answer instead. */
-function isLoopbackHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    host === "[::1]" ||
-    /^127(?:\.\d{1,3}){3}$/.test(host)
-  );
-}
-
-/**
- * Whether a failed fetch is a refused connection to a loopback host: the operating system has said that nothing listens
- * there, so a retry would get the same answer (#3887). Bun puts the code on the error, Node on its cause.
- */
-export function isFinalNetworkError(target: string, error: unknown): boolean {
-  const codes = [
-    (error as { code?: unknown } | null)?.code,
-    (error as { cause?: { code?: unknown } } | null)?.cause?.code,
-  ];
-  if (!codes.some((code) => code === "ECONNREFUSED" || code === "ConnectionRefused")) return false;
-  try {
-    return isLoopbackHost(new URL(target).hostname);
-  } catch {
-    return false;
-  }
 }
 
 class McpProbe {
