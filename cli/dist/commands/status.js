@@ -26,9 +26,10 @@ import { groupServicesByStack, hasNoOwnProcess, healthCountedResources, unhealth
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
-import { findTiltPortOwner } from "../utils/tilt-port-owner.js";
+import { findTiltPortOwner, isForeignTilt } from "../utils/tilt-port-owner.js";
+import { tiltSessionIsForProject } from "../utils/tilt-session-owner.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
-import { evaluateTiltReadiness, tiltGetUiResources } from "../utils/up-readiness.js";
+import { evaluateTiltReadiness, tiltGetSession, tiltGetUiResources, } from "../utils/up-readiness.js";
 /**
  * The services `--strict` fails on: the failing or still starting ones. Null when nothing of the project is running (no state
  * at all, or every service with a process of its own is unknown), which `--strict` fails on too. A project with no services
@@ -255,14 +256,23 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         const tiltPort = (projectRoot
             ? resolveRuntimeTiltPort(projectRoot, { envPort: process.env.TILT_PORT })
             : null) ?? getTiltPollingPort(process.env.TILT_PORT);
-        // Detect if another project's Tilt is on this port.
+        // Detect if another project's Tilt is on this port. The process lookup is best effort (null on Windows);
+        // Tilt itself names the Tiltfile it loaded, so ask it before trusting any resource or readiness answer.
         let foreignTilt = false;
         let foreignTiltRoot = null;
+        // Null means ownership is unknown; the resource-name heuristic below stays the fallback for that case.
+        let ownsTiltfile = null;
         if (tiltAvailable && projectRoot) {
             const portOwner = findTiltPortOwner(tiltPort);
-            if (portOwner && portOwner.root !== projectRoot) {
+            if (portOwner && isForeignTilt(portOwner, projectRoot)) {
                 foreignTilt = true;
                 foreignTiltRoot = portOwner.root;
+            }
+            else {
+                ownsTiltfile = tiltSessionIsForProject(await tiltGetSession(tiltPort), projectRoot);
+                if (ownsTiltfile === false) {
+                    foreignTilt = true;
+                }
             }
         }
         // Port plan is best effort; service URLs are shown in both JSON and terminal output.
@@ -285,7 +295,9 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 const projectResourceNames = new Set(discovery.resources.map((r) => r.name));
                 try {
                     const parsed = JSON.parse(text);
-                    if (tiltAnswerIsForeign(parsed, projectResourceNames)) {
+                    // A session-confirmed Tiltfile outranks the resource names: an infra-only graph (e.g. `init-networks`
+                    // before any app resource registers) is this Tilt starting up, not another project's answer.
+                    if (ownsTiltfile !== true && tiltAnswerIsForeign(parsed, projectResourceNames)) {
                         foreignTilt = true;
                         if (!projectRoot) {
                             foreignTiltRoot = null;
@@ -365,7 +377,8 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
                 // Only a project of local processes says so; a container project's report keeps its shape.
                 ...(nativeStates ? { runtime: "native" } : {}),
                 tilt: {
-                    available: tiltAvailable,
+                    // A Tilt answer from another project means this project has no Tilt, even if the Tilt CLI is installed.
+                    available: tiltAvailable && !foreignTilt,
                     // The project the Tilt data belongs to: this one, or null when no Tilt of ours answered.
                     project: foreignTilt || !readiness ? null : (projectRoot ?? null),
                     // Set when another project's Tilt holds the port, so a client can discard the port instead of this project.

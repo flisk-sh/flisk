@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,7 +12,7 @@ import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { sampleServiceUsage } from "../../utils/service-usage.js";
 import { isTiltAvailable, runTilt } from "../../utils/tilt.js";
 import { findTiltPortOwner } from "../../utils/tilt-port-owner.js";
-import { tiltGetUiResources } from "../../utils/up-readiness.js";
+import { tiltGetSession, tiltGetUiResources } from "../../utils/up-readiness.js";
 import { projectCommand } from "../project.js";
 import { statusCommand } from "../status.js";
 
@@ -35,6 +35,7 @@ vi.mock("../../utils/tilt.js", async (importOriginal) => ({
 
 vi.mock("../../utils/up-readiness.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/up-readiness.js")>()),
+  tiltGetSession: vi.fn(),
   tiltGetUiResources: vi.fn(),
 }));
 
@@ -131,6 +132,7 @@ describe("flisk status", () => {
     clearDiscoveryCache();
     vi.mocked(isTiltAvailable).mockResolvedValue(true);
     vi.mocked(runTilt).mockReset();
+    vi.mocked(tiltGetSession).mockReset().mockResolvedValue(null);
     vi.mocked(tiltGetUiResources).mockReset().mockResolvedValue(null);
     vi.mocked(findTiltPortOwner).mockReset().mockReturnValue(null);
     vi.mocked(sampleServiceUsage).mockReset().mockResolvedValue({});
@@ -140,6 +142,7 @@ describe("flisk status", () => {
     vi.unstubAllEnvs();
     vi.mocked(isTiltAvailable).mockReset();
     vi.mocked(runTilt).mockReset();
+    vi.mocked(tiltGetSession).mockReset();
     vi.mocked(tiltGetUiResources).mockReset();
     vi.mocked(sampleServiceUsage).mockReset().mockResolvedValue({});
   });
@@ -836,6 +839,131 @@ describe("flisk status", () => {
       for (const resource of data.resources as Array<{ status: string }>) {
         expect(resource.status).toBe("unknown");
       }
+    });
+
+    const sessionWithTiltfile = (tiltfilePath: string): string =>
+      JSON.stringify({ items: [{ spec: { tiltfilePath } }] });
+
+    it("discards a Tilt whose Tiltfile belongs to another project before reading its resources", async () => {
+      vi.mocked(findTiltPortOwner).mockReturnValue(null);
+      vi.mocked(tiltGetSession).mockResolvedValue(
+        sessionWithTiltfile(resolve("work", "other", ".flisk", ".flisk-out", "Tiltfile")),
+      );
+      vi.mocked(tiltGetUiResources).mockResolvedValue(otherProject);
+
+      const output = await runStatus(["--json"]);
+      const envelope = JSON.parse(output);
+
+      expect(tiltGetUiResources).not.toHaveBeenCalled();
+      expect(envelope.data.tilt).toMatchObject({
+        available: false,
+        resourcesQueried: false,
+        resources: null,
+        readiness: null,
+        tiltfileError: null,
+        staleDisabled: [],
+        project: null,
+      });
+      expect(envelope.data.unhealthy).toEqual([]);
+      expect(envelope.errors ?? []).toEqual([]);
+      expect(output).not.toContain("reservation-api");
+      expect(output).not.toContain("floor-app");
+    });
+
+    it("still reports readiness when Tilt loaded this project's Tiltfile", async () => {
+      vi.mocked(tiltGetSession).mockResolvedValue(
+        sessionWithTiltfile(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile")),
+      );
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        JSON.stringify({
+          items: [
+            {
+              metadata: { name: "orders-api" },
+              status: { updateStatus: "ok", runtimeStatus: "ok" },
+            },
+          ],
+        }),
+      );
+
+      const data = JSON.parse(await runStatus(["--json"])).data;
+
+      expect(tiltGetUiResources).toHaveBeenCalledWith(10350);
+      expect(data.tilt.available).toBe(true);
+      expect(data.tilt.readiness).toMatchObject({
+        ready: true,
+        failures: [],
+        enabled: ["orders-api"],
+      });
+      expect(
+        (data.resources as Array<{ name: string; status: string }>).find(
+          (resource) => resource.name === "orders-api",
+        )?.status,
+      ).toBe("ready");
+    });
+
+    it("runs the session check when the port owner's root is another spelling of the project root", async () => {
+      // Tilt's command line keeps the spelling it was started with, so a symlinked checkout must not read as another
+      // project's Tilt: the raw root comparison skipped the session check and reported tilt.available false.
+      const linkPath = join(
+        tmpdir(),
+        `flisk-status-link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      );
+      symlinkSync(projectRoot, linkPath, "junction");
+      try {
+        vi.mocked(findTiltPortOwner).mockReturnValue({ pid: 99, root: linkPath });
+        vi.mocked(tiltGetSession).mockResolvedValue(
+          sessionWithTiltfile(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile")),
+        );
+        vi.mocked(tiltGetUiResources).mockResolvedValue(
+          JSON.stringify({
+            items: [
+              {
+                metadata: { name: "orders-api" },
+                status: { updateStatus: "ok", runtimeStatus: "ok" },
+              },
+            ],
+          }),
+        );
+
+        const data = JSON.parse(await runStatus(["--json"])).data;
+
+        expect(tiltGetSession).toHaveBeenCalledWith(10350);
+        expect(data.tilt.available).toBe(true);
+        expect(data.tilt.readiness).toMatchObject({
+          ready: true,
+          failures: [],
+          enabled: ["orders-api"],
+        });
+      } finally {
+        rmSync(linkPath, { force: true });
+      }
+    });
+
+    it("keeps a session-confirmed Tilt whose graph only has infra resources", async () => {
+      // `init-networks` runs before any app resource registers; with the Tiltfile already confirmed as this
+      // project's, the resource-name heuristic must not read that graph as another project's answer.
+      vi.mocked(tiltGetSession).mockResolvedValue(
+        sessionWithTiltfile(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile")),
+      );
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        JSON.stringify({
+          items: [
+            {
+              metadata: { name: "init-networks" },
+              status: { updateStatus: "ok", runtimeStatus: "ok" },
+            },
+          ],
+        }),
+      );
+
+      // `--tilt` asks for the live resource list; without it `tilt.resources` is null.
+      const envelope = JSON.parse(await runStatus(["--json", "--tilt"]));
+
+      expect(envelope.data.tilt.available).toBe(true);
+      expect(envelope.data.tilt.resources).toMatchObject({
+        items: [{ metadata: { name: "init-networks" } }],
+      });
+      expect(envelope.errors ?? []).toEqual([]);
     });
   });
 

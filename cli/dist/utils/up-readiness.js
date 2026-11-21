@@ -13,6 +13,12 @@ export function tiltGetUiResources(port) {
         execFile(findOnPath("tilt") ?? "tilt", ["get", "uiresources", "-o", "json", "--port", String(port)], { timeout: 15_000, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => resolve(error ? null : stdout));
     });
 }
+/** Raw `tilt get session -o json` answer, or null when Tilt cannot be read. Its `spec.tiltfilePath` names the loaded Tiltfile. */
+export function tiltGetSession(port) {
+    return new Promise((resolve) => {
+        execFile(findOnPath("tilt") ?? "tilt", ["get", "session", "-o", "json", "--port", String(port)], { timeout: 15_000, maxBuffer: 1024 * 1024 }, (error, stdout) => resolve(error ? null : stdout));
+    });
+}
 export function tiltResourceLogs(port, name) {
     return new Promise((resolve) => {
         execFile(findOnPath("tilt") ?? "tilt", ["logs", name, "--port", String(port)], { timeout: 15_000, maxBuffer: 16 * 1024 * 1024 }, 
