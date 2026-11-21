@@ -102,23 +102,16 @@ test("a change to the shared test-support runs the full suite", () => {
   assert.equal(mode, "mode=full");
 });
 
-test("pull requests and manual runs run the full suite", () => {
-  for (const EVENT of ["pull_request", "workflow_dispatch", "schedule", "push", ""]) {
-    const { mode } = queueEntry((d) => write(d, "cli/src/utils/which.ts", "changed\n"), { EVENT });
-    assert.equal(mode, "mode=full", `event ${EVENT || "unset"}`);
-  }
-});
-
-test("a pull request selects only when the fast related job asks for it", () => {
+test("a pull request selects like a queue entry; manual, scheduled and push runs run the full suite", () => {
   const change = (d) => write(d, "cli/src/utils/which.ts", "changed\n");
-  const fast = queueEntry(change, { EVENT: "pull_request", RELATED_ON_PR: "1" });
-  assert.equal(fast.mode, "mode=selected");
-  assert.deepEqual(fast.related, ["src/utils/which.ts"]);
+  const pr = queueEntry(change, { EVENT: "pull_request" });
+  assert.equal(pr.mode, "mode=selected");
+  assert.deepEqual(pr.related, ["src/utils/which.ts"]);
   for (const EVENT of ["workflow_dispatch", "schedule", "push", ""]) {
-    const { mode } = queueEntry(change, { EVENT, RELATED_ON_PR: "1" });
+    const { mode } = queueEntry(change, { EVENT });
     assert.equal(mode, "mode=full", `event ${EVENT || "unset"}`);
   }
-  const docs = queueEntry((d) => write(d, "docs/x.md", "changed\n"), { EVENT: "pull_request", RELATED_ON_PR: "1" });
+  const docs = queueEntry((d) => write(d, "docs/x.md", "changed\n"), { EVENT: "pull_request" });
   assert.equal(docs.mode, "mode=full");
 });
 
