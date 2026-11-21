@@ -206,12 +206,12 @@ function splitShellTokens(input: string): string[] {
 }
 
 function extractCopySources(instruction: string): string[] {
-  const match = /^COPY\s+(.+)$/i.exec(instruction);
+  const match = /^COPY\s+(\S.*)$/i.exec(instruction);
   if (!match?.[1]) return [];
 
   let rest = match[1].trimStart();
   while (rest.startsWith("--")) {
-    const flagMatch = /^(--[^\s]+)\s+([\s\S]*)$/.exec(rest);
+    const flagMatch = /^(--\S+)\s+(\S[\s\S]*)$/.exec(rest);
     if (!flagMatch?.[1] || !flagMatch[2]) return [];
     // `COPY --from=<stage|image>` reads from another stage or image, not the host build context.
     if (/^--from=/i.test(flagMatch[1])) return [];
