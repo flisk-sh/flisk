@@ -76,15 +76,33 @@ def test_prisma_backend_runtime_takes_the_cli_from_the_purger_stage(tmp_path):
 
 
 @TILT_REQUIRED
-def test_prisma_cli_stash_is_not_under_tmp_and_matches_the_copy(tmp_path):
-    """flisk#4226: the stash and the runtime COPY use one path, and it is not in /tmp."""
+def test_prisma_cli_stash_is_in_the_stage_workdir_and_matches_the_copy(tmp_path):
+    """flisk#4226: the stash lives in the workdir tree the runtime COPY already reads from."""
     dockerfile = generate(tmp_path, "backend", "orders-api")
     stash = [l for l in run_lines(dockerfile, "cp -aL node_modules/prisma ")]
     assert len(stash) == 1, stash
     target = stash[0].split("cp -aL node_modules/prisma ", 1)[1].split()[0]
-    assert not target.startswith("/tmp"), target
+    workdir = "/app/services/main/orders-api"
+    assert target.startswith(workdir + "/"), target
+    assert not target.startswith("/tmp") and not target.startswith("/opt"), target
     copies = [l for l in dockerfile.splitlines() if l.startswith("COPY") and "--from=l3_production_purger" in l and "prisma-cli" in l]
-    assert copies and all(f"--from=l3_production_purger {target} " in l for l in copies), (target, copies)
+    assert copies and all(f"--from=l3_production_purger {target} ./node_modules/prisma" in l for l in copies), (target, copies)
+
+
+@TILT_REQUIRED
+def test_two_prisma_backends_stash_the_cli_in_their_own_workdir(tmp_path):
+    """A shared BuildKit cache cannot hand one backend the other backend's stage stash path."""
+    first = generate(tmp_path, "backend", "orders-api")
+    second = generate(tmp_path, "backend", "billing-api")
+    paths = []
+    for dockerfile, name in ((first, "orders-api"), (second, "billing-api")):
+        stash = run_lines(dockerfile, "cp -aL node_modules/prisma ")
+        assert len(stash) == 1, stash
+        path = stash[0].split("cp -aL node_modules/prisma ", 1)[1].split()[0]
+        assert path == "/app/services/main/" + name + "/.flisk-prisma-cli", path
+        assert f"COPY --from=l3_production_purger {path} ./node_modules/prisma" in dockerfile
+        paths.append(path)
+    assert paths[0] != paths[1], paths
 
 
 @TILT_REQUIRED
@@ -93,7 +111,7 @@ def test_prisma_cli_stash_dereferences_the_isolated_linker_symlink(tmp_path):
     dockerfile = generate(tmp_path, "backend", "orders-api")
     stash = run_lines(dockerfile, "node_modules/prisma ")
     assert len(stash) == 1, stash
-    assert stash[0].startswith("RUN cp -aL node_modules/prisma /opt/flisk-prisma-cli"), stash
+    assert stash[0].startswith("RUN cp -aL node_modules/prisma /app/services/main/orders-api/"), stash
     assert "cp -a node_modules/prisma" not in dockerfile
 
 
@@ -103,18 +121,44 @@ def test_prisma_cli_stash_source_dereferences_symlink():
     assert '"RUN cp -a node_modules/prisma "' not in src
 
 
+def test_prisma_cli_stash_location_is_defined_once_in_a_shared_helper():
+    """The stash and the runtime COPY must not drift into two hardcoded paths again."""
+    layers = REPO_ROOT / "runtime/engine/topologies/platform/docker/layers"
+    constants = (layers / "prisma/constants.star").read_text()
+    assert "def prisma_cli_stash_dir(res_path):" in constants
+    assert "PRISMA_CLI_STASH_DIR_NAME = " in constants
+    assert "PRISMA_CLI_STASH_DIR =" not in constants
+    for module in ("l3_builder_layers.star", "prisma/prisma_runtime.star"):
+        source = (layers / module).read_text()
+        assert "'prisma_cli_stash_dir'" in source, module
+        assert "prisma_cli_stash_dir(res_path)" in source, module
+
+
 @TILT_REQUIRED
 def test_migrator_still_builds_its_own_migration_stage(tmp_path):
     dockerfile = generate(tmp_path, "migrator", "orders-migrator")
     assert "AS l3_migration_build" in dockerfile
 
 
-def test_image_prebuild_retries_a_failed_build_once():
-    # flisk#4226: one of two parallel image builds died on a shared-cache error and `up` failed with no second try.
+def test_image_prebuild_retries_failures_in_one_serial_gate():
+    # flisk#4226: the second try must not race the other backends' first builds against the same cache.
     root = Path(__file__).resolve().parents[2] / "runtime/engine/topologies/tilt"
-    unix = (root / "resources/orchestrator/apply_compose_resource_registration.star").read_text()
-    windows = (root / "common/windows_scripts.star").read_text()
-    assert unix.count('docker build --network host --target "$4"') == 2
-    assert "retrying once" in unix
-    assert windows.count("docker build --network host --target $env:FLISK_TARGET") == 2
-    assert "$LASTEXITCODE -ne 0" in windows
+    unix = (root / "resources/orchestrator/apply_compose_resource_registration.star").read_text(encoding="utf-8")
+    windows = (root / "common/windows_scripts.star").read_text(encoding="utf-8")
+    assert "_IMAGE_BUILD_SCRIPT" in unix and "_IMAGE_RETRY_SCRIPT" in unix
+    build = unix.split("_IMAGE_BUILD_SCRIPT = (", 1)[1].split("\n\n", 1)[0]
+    retry = unix.split("_IMAGE_RETRY_SCRIPT = (", 1)[1].split("\n\n", 1)[0]
+    assert build.count("docker build --network host") == 1, build
+    assert retry.count("docker build --network host") == 1, retry
+    assert '"$pre.failed"' in build and '"$pre.failed"' in retry
+    assert "queued for one serial retry" in build and "retrying $img once, serially" in retry
+    gate = unix.split("def _register_image_retry_gate", 1)[1].split("\n\n# Exported for tests", 1)[0]
+    assert "allow_parallel=False" in gate
+    assert "def image_retry_script():" in windows
+    # The build line is shared by the recorded first attempt and the strict reuse build; neither retries inline.
+    assert windows.count("docker build --network host --target $env:FLISK_TARGET") == 1
+    assert "serially (transient BuildKit cache error)" in windows
+    prebuild = windows.split("def prebuild_image_script", 1)[1].split("\ndef image_retry_script", 1)[0]
+    strict_branch, recorded_branch = prebuild.split("    if strict:", 1)[1].split("    else:", 1)
+    assert "$LASTEXITCODE -ne 0" in strict_branch
+    assert "$LASTEXITCODE -ne 0" not in recorded_branch

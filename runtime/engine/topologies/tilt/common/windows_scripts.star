@@ -130,18 +130,55 @@ def memory_summary_script():
         "exit 0;",
     ])
 
-def prebuild_image_script():
-    """Copy the Dockerfile, write its allowlist .dockerignore and docker build it.
+def prebuild_image_script(strict = False):
+    """Copy the Dockerfile, write its allowlist .dockerignore and make one build attempt.
+
+    The parallel `<name>-image` step (strict=False) records a failure marker and exits 0 so the
+    stack's image_retry_script() can retry it serially after the batch (flisk#4226). The Windows
+    docker_build reuse path (strict=True) runs after that gate, so it reports its own failure.
 
     env: FLISK_DOCKERFILE, FLISK_PREBUILD, FLISK_IGNORE, FLISK_TARGET, FLISK_TAG, FLISK_BUILD_CONTEXT.
     """
-    return _join([
+    lines = [
         "Copy-Item -LiteralPath $env:FLISK_DOCKERFILE -Destination $env:FLISK_PREBUILD -Force;",
         "if (-not $?) { exit 1; }",
         "[IO.File]::WriteAllText($env:FLISK_PREBUILD + '.dockerignore', $env:FLISK_IGNORE, (New-Object Text.UTF8Encoding($false)));",
+        "Remove-Item -LiteralPath ($env:FLISK_PREBUILD + '.failed') -Force -ErrorAction SilentlyContinue;",
+        "Remove-Item -LiteralPath ($env:FLISK_PREBUILD + '.built') -Force -ErrorAction SilentlyContinue;",
         "docker build --network host --target $env:FLISK_TARGET -f $env:FLISK_PREBUILD -t $env:FLISK_TAG $env:FLISK_BUILD_CONTEXT;",
-        "if ($LASTEXITCODE -ne 0) { Write-Output '[flisk] image build failed, retrying once (often a transient BuildKit cache error)'; docker build --network host --target $env:FLISK_TARGET -f $env:FLISK_PREBUILD -t $env:FLISK_TAG $env:FLISK_BUILD_CONTEXT; }",
-        "exit $LASTEXITCODE;",
+    ]
+    if strict:
+        lines = lines + [
+            "if ($LASTEXITCODE -ne 0) { Write-Output ('[flisk] image build failed (' + $env:FLISK_TAG + ')'); exit 1; }",
+            "exit 0;",
+        ]
+    else:
+        lines = lines + [
+            "if ($LASTEXITCODE -eq 0) { exit 0; }",
+            "Write-Output ('[flisk] image build failed (' + $env:FLISK_TAG + '); queued for one serial retry after the parallel batch');",
+            "New-Item -ItemType File -Path ($env:FLISK_PREBUILD + '.failed') -Force *> $null;",
+            "exit 0;",
+        ]
+    return _join(lines)
+
+
+def image_retry_script():
+    """Serial retry of a stack's failed image builds.
+
+    env: FLISK_IMAGE_RETRY_ARGS = JSON array of [prebuild copy, target, tag, context] groups.
+    Only builds whose first attempt left a .failed marker are retried, one at a time.
+    """
+    return _join([
+        "$failed = 0;",
+        "$items = @(ConvertFrom-Json $env:FLISK_IMAGE_RETRY_ARGS);",
+        "foreach ($item in $items) {",
+        "  if (-not (Test-Path -LiteralPath ($item[0] + '.failed'))) { continue; }",
+        "  Write-Output ('[flisk] retrying ' + $item[2] + ' once, serially (transient BuildKit cache error)');",
+        "  docker build --network host --target $item[1] -f $item[0] -t $item[2] $item[3];",
+        "  if ($LASTEXITCODE -eq 0) { Remove-Item -LiteralPath ($item[0] + '.failed') -Force -ErrorAction SilentlyContinue; }",
+        "  else { Write-Output ('[flisk] ' + $item[2] + ' failed again after the serial retry'); $failed = 1; }",
+        "}",
+        "exit $failed;",
     ])
 
 def pytest_script():

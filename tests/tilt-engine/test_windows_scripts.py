@@ -25,13 +25,13 @@ TILT = RUNTIME / "engine" / "topologies" / "tilt"
 
 BODY = """
 load('@RT/engine/topologies/tilt/resources/databases.star', 'Database')
-load('@RT/engine/topologies/tilt/common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script', 'provision_database_script', 'db_status_script', 'memory_summary_script', 'prebuild_image_script', 'pytest_script', 'healthy_script', 'job_done_script', 'typecheck_script', 'golden_build_script', 'tilt_image_tags_script')
+load('@RT/engine/topologies/tilt/common/windows_scripts.star', 'init_networks_script', 'healthy_postgres_script', 'provision_database_script', 'db_status_script', 'memory_summary_script', 'prebuild_image_script', 'image_retry_script', 'pytest_script', 'healthy_script', 'job_done_script', 'typecheck_script', 'golden_build_script', 'tilt_image_tags_script')
 load('@RT/engine/topologies/platform/docker/networking/traefik_static_routes.star', 'normalize_abs_path')
 load('@RT/discovery/native_windows.star', 'file_mtime', 'POWERSHELL', 'python_script_command')
 Database.provision('users')
 Database.status_resource(True)
 Database.memory_summary()
-scripts = [init_networks_script(), healthy_postgres_script(), provision_database_script(), db_status_script(), memory_summary_script(), prebuild_image_script(), pytest_script(), healthy_script(), job_done_script(), typecheck_script(), golden_build_script(), tilt_image_tags_script()]
+scripts = [init_networks_script(), healthy_postgres_script(), provision_database_script(), db_status_script(), memory_summary_script(), prebuild_image_script(), prebuild_image_script(strict=True), image_retry_script(), pytest_script(), healthy_script(), job_done_script(), typecheck_script(), golden_build_script(), tilt_image_tags_script()]
 fail('RESULT' + encode_json({'scripts': scripts, 'ps': POWERSHELL, 'pycmd': python_script_command("C:/O'Brien/a b/conv.py", ["D:/x y/it's/service.json"]), 'norm': [normalize_abs_path('/a/./b/../c'), normalize_abs_path('')], 'mtime': [file_mtime('a.txt'), file_mtime('missing.txt')]}))
 """
 
@@ -42,7 +42,7 @@ def _run(tmp_path: Path, portable: bool = False) -> dict:
     (project / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": "proj"}}))
     (project / "a.txt").write_text("x")
     os.utime(project / "a.txt", (1700000000, 1700000000))
-    (project / "Tiltfile").write_text(BODY.replace("@RT", str(RUNTIME)))
+    (project / "Tiltfile").write_text(BODY.replace("@RT", RUNTIME.as_posix()))
     proc = subprocess.run(
         ["tilt", "alpha", "tiltfile-result", "-f", str(project / "Tiltfile")],
         capture_output=True, text=True, timeout=180, cwd=project,
@@ -63,7 +63,7 @@ def test_scripts_follow_authoring_rules_and_mtime_matches_stat(tmp_path):
             assert "/bin/" not in script and "bash" not in script and " sh " not in script
         assert script.count("{") == script.count("}") or "{{" in script, script
     assert result["mtime"] == [1700000000, 0]
-    assert len(result["scripts"]) == 12
+    assert len(result["scripts"]) == 14
     assert result["norm"] == ["/a/c", ""]
     # the Python launcher command: PowerShell, UTF-8 mode, a --version probe per candidate, paths as single-quoted literals
     pycmd = result["pycmd"]
@@ -105,6 +105,8 @@ def test_posix_commands_of_step_one_remainder_are_unchanged():
         "'sh', service_dir, typecheck_cmd,",
         "cmd_bat=POWERSHELL + [pytest_script()]",
         "cmd_bat=POWERSHELL + [prebuild_image_script()]",
+        "prebuild_image_script(strict=True)",
+        "cmd_bat=POWERSHELL + [image_retry_script()]",
     ]:
         assert needle in orch, needle
     assert "cmd=cmd,\n        cmd_bat=POWERSHELL + [golden_build_script()]," in (TILT.parent / "platform" / "docker" / "build" / "golden_image_build.star").read_text()

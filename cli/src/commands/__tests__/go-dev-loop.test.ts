@@ -174,7 +174,13 @@ describe("Go development wiring", () => {
     const argsBody = registration.slice(argsStart, argsEnd === -1 ? undefined : argsEnd);
     expect(argsBody).toContain("_image_target(config),");
     expect(prebuild).toContain("args = _prebuild_args(config)");
-    expect(prebuild).toContain('--target "$4"');
+    // The first attempt now lives in the shared _IMAGE_BUILD_SCRIPT (flisk#4226); it still uses arg 4 as the target.
+    expect(prebuild).toContain('cmd = ["sh", "-c", _IMAGE_BUILD_SCRIPT, "sh"] + args');
+    const scriptStart = registration.indexOf("_IMAGE_BUILD_SCRIPT = (");
+    expect(scriptStart).toBeGreaterThan(-1);
+    const scriptEnd = registration.indexOf("\n\n", scriptStart + 1);
+    const buildScript = registration.slice(scriptStart, scriptEnd === -1 ? undefined : scriptEnd);
+    expect(buildScript).toContain('--target "$target"');
     expect(prebuild).not.toMatch(/--target\s+production/);
   });
 
