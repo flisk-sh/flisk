@@ -12,7 +12,7 @@ const services = (db, gw = true) => [
 // A project every surface agrees on: BYO only, no database.
 const agreeing = () => ({
 	verify: { json: { data: { valid: true, errors: [], sharedPlatformPostgres: { willStart: false, reason: "none" } } } },
-	status: { json: { data: { stacks: [{ name: "main", resourceCount: 1, resources: ["w"] }], capabilities: ["gateway"], platformServices: services(false), resources: [{ name: "w", type: "bring-your-own" }] } } },
+	status: { json: { data: { stacks: [{ name: "main", resourceCount: 1, resources: ["w"] }], capabilities: ["gateway", "watch"], platformServices: services(false), resources: [{ name: "w", type: "bring-your-own" }] } } },
 	doctor: { json: { data: { checks: [
 		{ name: "Shared platform Postgres", didPass: true, isSkipped: true, message: "skipped" },
 		{ name: "Environment Variables", didPass: true, message: "ok" },
@@ -42,7 +42,7 @@ test("every invariant is exercised below and has an id and surfaces", () => {
 test("status enabling PostgreSQL for a project that needs none is a contradiction", () => {
 	const s = agreeing();
 	s.status.json.data.platformServices = services(true);
-	s.status.json.data.capabilities = ["gateway", "database"];
+	s.status.json.data.capabilities = ["database", "gateway", "watch"];
 	assert.ok(ids(s).includes("database-need-matches-scenario"));
 });
 
@@ -58,6 +58,15 @@ test("capabilities that do not list an enabled platform service are flagged", ()
 	assert.deepEqual(ids(s), ["status-capabilities-match-platform-services"]);
 });
 
+test("a capability with no platform service is expected when listed, an unknown one is not", () => {
+	const s = agreeing();
+	assert.deepEqual(ids(s), [], "watch has no platformServices entry but is a real capability");
+	s.status.json.data.capabilities = ["gateway"];
+	assert.deepEqual(ids(s), [], "watch off is a valid state too");
+	s.status.json.data.capabilities = ["gateway", "watch", "bogus"];
+	assert.deepEqual(ids(s), ["status-capabilities-match-platform-services"]);
+});
+
 test("doctor running the Postgres check while the database is off is flagged", () => {
 	const s = agreeing();
 	s.doctor.json.data.checks[0].isSkipped = false;
@@ -68,7 +77,7 @@ test("database on needs DB_PASSWORD in .env and DATABASE_URL built from it", () 
 	const sc = { ...scenario, expect: { database: true, gateway: true, cycle: false, dangling: false } };
 	const s = agreeing();
 	s.status.json.data.platformServices = services(true);
-	s.status.json.data.capabilities = ["gateway", "database"];
+	s.status.json.data.capabilities = ["database", "gateway", "watch"];
 	s.verify.json.data.sharedPlatformPostgres.willStart = true;
 	s.doctor.json.data.checks[0].isSkipped = false;
 	assert.deepEqual(ids(s, sc), []);
@@ -225,7 +234,7 @@ test("up --dry-run <stack> must start exactly that stack's resources", () => {
 		resources: [["api", "main"], ["worker", "main"], ["dashboard", "admin"]].map(([name, stack]) => ({ name, kind: "backend", stack, args: [] })) };
 	const s = agreeing();
 	s.status.json.data.platformServices = services(true);
-	s.status.json.data.capabilities = ["gateway", "database"];
+	s.status.json.data.capabilities = ["database", "gateway", "watch"];
 	s.verify.json.data.sharedPlatformPostgres.willStart = true;
 	s.doctor.json.data.checks[0].isSkipped = false;
 	s.status.json.data.resources = sc.resources.map((r) => ({ name: r.name, type: "backend" }));

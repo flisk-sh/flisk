@@ -15,6 +15,11 @@ const doctorCheck = (s, name) => s.doctor?.json?.data?.checks?.find((c) => c.nam
 // tag a failure this way; there is no per-gap switch.
 const fail = (invariant, expected, actual, surfaces, knownGap) => ({ invariant, expected, actual, surfaces, ...(knownGap ? { knownGap } : {}) });
 
+// Capabilities that are on without a platform service behind them, so platformServices cannot list them (watch gates Tilt
+// live update). A capability that is not a platform service belongs here, or the capabilities invariant reports it as a
+// contradiction.
+const NON_SERVICE_CAPABILITIES = new Set(["watch"]);
+
 export const INVARIANTS = [
 	{
 		id: "surfaces-ran",
@@ -52,7 +57,10 @@ export const INVARIANTS = [
 			if (!data?.platformServices || !data.capabilities) return null;
 			const want = data.platformServices.filter((p) => p.isEnabled).map((p) => p.capability).sort();
 			const got = [...data.capabilities].sort();
-			return want.join() === got.join() ? null : fail("status-capabilities-match-platform-services", `capabilities ${JSON.stringify(want)}`, `capabilities ${JSON.stringify(got)}`, ["status"]);
+			// capabilities names every capability that is on; platformServices only the ones that run a service, so a
+			// capability like watch is expected exactly when capabilities lists it.
+			const expected = [...want, ...got.filter((c) => NON_SERVICE_CAPABILITIES.has(c))].sort();
+			return expected.join() === got.join() ? null : fail("status-capabilities-match-platform-services", `capabilities ${JSON.stringify(expected)}`, `capabilities ${JSON.stringify(got)}`, ["status"]);
 		},
 	},
 	{
