@@ -22,22 +22,27 @@ export const PROJECT_TEMPLATES = {
         repo: "https://github.com/flisk-sh/flisk-restaurant-example.git",
         description: "Restaurant demo: take table bookings, run the kitchen and manage the dining room",
         fixedDir: "flisk-demo",
+        omit: ["DEMO_GUIDE.md"],
     },
     restaurant: {
         repo: "https://github.com/flisk-sh/flisk-restaurant-example.git",
         description: "Restaurant app: table bookings, kitchen orders and the dining room in one place",
+        omit: ["DEMO_GUIDE.md"],
     },
     saas: {
         repo: "https://github.com/flisk-sh/flisk-saas-starter.git",
         description: "Online subscription app: a customer account page and a working payment button",
+        omit: ["DEMO_GUIDE.md"],
     },
     erp: {
         repo: "https://github.com/flisk-sh/flisk-erp-system.git",
         description: "Company back office: 100 small services for sales, stock, finance and more",
+        omit: ["SALES_PITCH.md", "DEMO_GUIDE.md"],
     },
     "user-management": {
         repo: "https://github.com/flisk-sh/flisk-user-management.git",
         description: "Sign-up and log-in: user accounts, passwords and who may do what",
+        omit: ["SALES_PITCH.md", "DEMO_GUIDE.md"],
     },
     ecommerce: {
         repo: "https://github.com/flisk-sh/flisk-ecommerce-example.git",
@@ -86,6 +91,7 @@ export const PROJECT_TEMPLATES = {
         repo: "https://github.com/flisk-sh/flisk-template-launch.git",
         ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
         description: "Launch page: a ready-to-publish website with a search-friendly page, icons and a small data feed",
+        omit: ["docs/demo.gif", "video/shots"],
     },
     portal: {
         repo: "https://github.com/flisk-sh/flisk-template-portal.git",
@@ -97,6 +103,7 @@ export const PROJECT_TEMPLATES = {
         repo: "https://github.com/flisk-sh/flisk-stack.git",
         ref: "fff53f3c77d0daea1f34498c70fe48a9e372b682",
         description: "Full app to build on: a website, the part behind it, background jobs and a database",
+        omit: ["docs/demo.gif", "docs/demo.mp4"],
     },
 };
 /** The template catalog in registration order: key, repo, description, needs and, for a pinned template, its ref. */

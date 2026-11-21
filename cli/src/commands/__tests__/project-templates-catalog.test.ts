@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -149,6 +149,60 @@ describe("cloneProjectTemplate with a pinned ref", () => {
     expect(git(destination, "remote", "get-url", "upstream")).toBe(pathToFileURL(repo).href);
     git(destination, "remote", "add", "origin", "https://example.com/my-app.git");
     expect(git(destination, "remote", "get-url", "origin")).toBe("https://example.com/my-app.git");
+  });
+
+  it("leaves presentation files and their README links out of the clone (#4301)", async () => {
+    const { repo } = twoCommitRepo();
+    writeFileSync(join(repo, "SALES_PITCH.md"), "pitch");
+    writeFileSync(join(repo, "DEMO_GUIDE.md"), "guide");
+    writeFileSync(
+      join(repo, "README.md"),
+      "See [the pitch](SALES_PITCH.md) and [the walkthrough](DEMO_GUIDE.md).\n",
+    );
+    git(repo, "add", ".");
+    git(repo, "commit", "--quiet", "-m", "docs");
+    PROJECT_TEMPLATES[TEST_KEY] = {
+      repo,
+      description: "with docs",
+      omit: ["SALES_PITCH.md", "DEMO_GUIDE.md"],
+    };
+    const destination = join(createTempDir(), "app");
+    await cloneProjectTemplate(TEST_KEY, destination, [], { quiet: true });
+
+    expect(existsSync(join(destination, "SALES_PITCH.md"))).toBe(false);
+    expect(existsSync(join(destination, "DEMO_GUIDE.md"))).toBe(false);
+    expect(existsSync(join(destination, "version.txt"))).toBe(true);
+    expect(readFileSync(join(destination, "README.md"), "utf8")).toBe("");
+  });
+
+  it("leaves demo media and its README image out of the clone (#4285)", async () => {
+    const { repo } = twoCommitRepo();
+    mkdirSync(join(repo, "docs"), { recursive: true });
+    mkdirSync(join(repo, "video", "shots"), { recursive: true });
+    writeFileSync(join(repo, "docs", "demo.gif"), "gif");
+    writeFileSync(join(repo, "docs", "demo.mp4"), "mp4");
+    writeFileSync(join(repo, "video", "shots", "home.png"), "png");
+    writeFileSync(
+      join(repo, "README.md"),
+      "[![demo](docs/demo.gif)](docs/demo.mp4)\n\n| shots | `video/shots.ts` |\n",
+    );
+    git(repo, "add", ".");
+    git(repo, "commit", "--quiet", "-m", "media");
+    PROJECT_TEMPLATES[TEST_KEY] = {
+      repo,
+      description: "with media",
+      omit: ["docs/demo.gif", "docs/demo.mp4", "video/shots"],
+    };
+    const destination = join(createTempDir(), "app");
+    await cloneProjectTemplate(TEST_KEY, destination, [], { quiet: true });
+
+    expect(existsSync(join(destination, "docs", "demo.gif"))).toBe(false);
+    expect(existsSync(join(destination, "docs", "demo.mp4"))).toBe(false);
+    expect(existsSync(join(destination, "video", "shots"))).toBe(false);
+    const readme = readFileSync(join(destination, "README.md"), "utf8");
+    expect(readme).not.toContain("demo.gif");
+    expect(readme).not.toContain("demo.mp4");
+    expect(readme).toContain("`video/shots.ts`");
   });
 
   it("reports a pinned commit that the repository does not have", async () => {
