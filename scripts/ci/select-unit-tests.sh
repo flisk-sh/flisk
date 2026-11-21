@@ -23,7 +23,7 @@ full() { echo "mode=full" >>"$out"; echo "unit tests: full ($1)" >&2; exit 0; }
 
 case "${EVENT:-}" in
   merge_group) ;;
-  pull_request) [ "${RELATED_ON_PR:-}" = 1 ] || full "event pull_request runs the full suite" ;;
+  pull_request) [[ "${RELATED_ON_PR:-}" == 1 ]] || full "event pull_request runs the full suite" ;;
   *) full "event ${EVENT:-unset} is not a merge queue entry" ;;
 esac
 git rev-parse --verify --quiet "HEAD^1" >/dev/null || full "no parent commit to diff against"

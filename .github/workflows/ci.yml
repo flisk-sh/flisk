@@ -305,8 +305,9 @@ jobs:
           EVENT: ${{ github.event_name }}
           RELATED_ON_PR: "1"
         run: scripts/ci/select-unit-tests.sh "$RUNNER_TEMP/unit-select"
-      - if: ${{ steps.select.outputs.mode == 'selected' }}
-        run: bun install --frozen-lockfile
+      - name: Install the dependencies without running their lifecycle scripts
+        if: ${{ steps.select.outputs.mode == 'selected' }}
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Build the CLI (the CLI-spawning tests run cli/dist)
         if: ${{ steps.select.outputs.mode == 'selected' }}
         run: bun run build
