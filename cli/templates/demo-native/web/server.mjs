@@ -13,21 +13,12 @@ const server = createServer((request, response) => {
     response.end("ok");
     return;
   }
-  // Only forward same-origin /api/ paths: parse against a fixed base, so "//evil.com" cannot change the host, and
-  // reject traversal even when percent-encoded.
+  // Same-origin /api/ only: "//evil.com" cannot change the host, and ".." or "%2e" never pass.
   const parsed = new URL(request.url ?? "/", "https://web.invalid");
-  let apiPath = null;
-  try {
-    if (
-      parsed.host === "web.invalid" &&
-      parsed.pathname.startsWith("/api/") &&
-      !decodeURIComponent(parsed.pathname).includes("..")
-    ) {
-      apiPath = parsed.pathname + parsed.search;
-    }
-  } catch {
-    apiPath = null; // malformed percent-encoding
-  }
+  const apiPath =
+    parsed.host === "web.invalid" && /^\/api\/(?!.*(\.\.|%2e))/i.test(parsed.pathname)
+      ? parsed.pathname + parsed.search
+      : null;
   if (apiPath) {
     const upstream = forward(
       { host: api.hostname, port: api.port, path: apiPath, method: request.method },
