@@ -1,14 +1,17 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { addYesOption, confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { isNativeContainerService } from "../utils/native-container.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { discoverResourcesFromRoot } from "../utils/services.js";
 // Same location `flisk up` hands to Tilt (see getTiltfilePath in utils/tilt.ts), relative to the project root.
 export const TILTFILE_RELATIVE_PATH = ".flisk/.flisk-out/Tiltfile";
 export const TILT_UP_COMMAND = `tilt up -f ${TILTFILE_RELATIVE_PATH} -- --focus=<stack>`;
@@ -49,6 +52,92 @@ Deleting them also removes what the Tiltfile needs.
 
 To go back to Flisk: install the version named by \`pinnedFliskVersion\` in \`.flisk/project.json\` (if set), then run \`flisk config regenerate\`.
 `;
+/**
+ * Escapes text for a GFM table cell: collapses newlines to spaces, escapes backslashes first
+ * so literal `\` does not defeat the following pipe escape, then escapes `|` as `\|`.
+ */
+function escapeMarkdownTableCell(value) {
+    return value.replace(/\r?\n/g, " ").replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+}
+/**
+ * Wraps a command or value in an inline Markdown code span safe for a GFM table cell.
+ * GFM splits table cells on unescaped `|` even inside backticks, so backslashes and pipes must be
+ * escaped, newlines collapsed to spaces, and the fence widened if the text contains backticks.
+ */
+function formatMarkdownTableCode(value) {
+    const escaped = escapeMarkdownTableCell(value);
+    const runs = escaped.match(/`+/g);
+    const fence = "`".repeat((runs ? Math.max(...runs.map((r) => r.length)) : 0) + 1);
+    const padded = escaped.startsWith("`") || escaped.endsWith("`") ? ` ${escaped} ` : escaped;
+    return `${fence}${padded}${fence}`;
+}
+/**
+ * The EJECTED.md guide for a project whose services run as local processes, with optional ready-made `image`
+ * containers. It points at the commands and images in service.json, because no Tilt, Traefik or generated
+ * Docker files are involved in that runtime.
+ */
+export function nativeEjectedContent(services) {
+    const hasContainers = services.some((service) => service.image !== undefined);
+    const table = services
+        .map((service) => {
+        const portTrimmed = service.port.trim();
+        const hasNumericPort = /^\d+$/.test(portTrimmed);
+        const runCommand = service.image !== undefined
+            ? hasNumericPort
+                ? `docker run -p 127.0.0.1:${portTrimmed}:${portTrimmed} ${service.image}`
+                : `docker run ${service.image}`
+            : (service.command ?? "");
+        const portCell = escapeMarkdownTableCell(service.port);
+        return `| ${formatMarkdownTableCode(service.name)} | ${formatMarkdownTableCode(runCommand)} | ${portCell} |`;
+    })
+        .join("\n");
+    const intro = `not remove Flisk. This project runs its services as local processes: ${hasContainers ? "ready-made image containers and local processes" : "no containers"}, no UI server and no gateway.`;
+    return `# Ejected from Flisk
+
+\`flisk eject\` wrote this file and nothing else. It did not copy, move or generate anything, and it did
+${intro}
+
+## Running the services without the flisk CLI
+
+Run each service with the \`command\` in its \`service.json\`, from its folder. Start
+databases and other dependencies first. Set each key in a service's \`service.json\` \`env\` map in
+its process environment before running its command (values stay in \`service.json\` or \`.env\` and
+are not written here). The port column is the \`port\` in the same file; set it in the service's
+environment if its command does not read \`service.json\` itself.
+${hasContainers ? "Services with an `image` run as containers on 127.0.0.1 at their port." : ""}
+
+| Service | Command or image | Port |
+| --- | --- | --- |
+${table}
+
+\`flisk up\` also chooses host ports and writes the run state under \`.flisk/\`. Running a command by
+hand skips those steps, so keep the \`service.json\` files and \`.flisk/project.json\` in place.
+
+## Cleaning up
+
+Optional to delete later: this file, and \`.flisk/\` plus the \`service.json\` files if you stop using Flisk.
+
+To go back to Flisk: install the version named by \`pinnedFliskVersion\` in \`.flisk/project.json\` (if set), then run \`flisk config regenerate\`.
+`;
+}
+/** Service rows for the local-process guide, read from each discovered service.json. */
+function localServiceRows(resources) {
+    return resources.flatMap((resource) => {
+        const config = resource.config;
+        if (!config)
+            return [];
+        const port = config.port;
+        const portText = typeof port === "number" || typeof port === "string" ? String(port) : "not set";
+        const command = config.command;
+        if (typeof command === "string" && command.trim() !== "") {
+            return [{ name: resource.name, command, port: portText }];
+        }
+        if (isNativeContainerService(resource)) {
+            return [{ name: resource.name, image: String(config.image), port: portText }];
+        }
+        return [];
+    });
+}
 export const ejectCommand = addYesOption(new Command("eject"))
     .description("Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)")
     .option("--dry-run", "List the generated files and what would be written, without changing the project", false)
@@ -64,20 +153,44 @@ export const ejectCommand = addYesOption(new Command("eject"))
             ignoreVersion: options.ignoreVersion,
             json: options.json,
         });
-        const generatedPaths = [".flisk/.flisk-out"];
-        const presentPaths = generatedPaths.filter((path) => existsSync(join(projectRoot, path)));
-        const files = presentPaths.flatMap((path) => {
-            const absolutePath = join(projectRoot, path);
-            if (statSync(absolutePath).isFile())
-                return [path];
-            try {
-                return readdirSync(absolutePath, { recursive: true }).map((entry) => join(path, entry.toString()));
-            }
-            catch {
-                return [path];
-            }
-        });
-        if (!existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
+        // A local-process project never runs Tilt or the generated Docker files, so both the guide and
+        // the dry-run file list must describe only what that runtime uses.
+        let nativeResources = [];
+        try {
+            const resources = discoverResourcesFromRoot(projectRoot);
+            if (isNativeProject(resources))
+                nativeResources = resources;
+        }
+        catch {
+            // Discovery problems are reported by the commands that start the stack; eject keeps the Docker guide.
+        }
+        const isNative = nativeResources.length > 0;
+        // In a local-process project the service.json files are the runtime inputs, not generated output.
+        // Only a container project reads .flisk/.flisk-out, so the directory walk happens in that branch.
+        let files;
+        if (isNative) {
+            files = nativeResources.flatMap((resource) => {
+                const serviceJson = resource.configPath;
+                const serviceJsonRelative = relative(projectRoot, serviceJson).replace(/\\/g, "/");
+                return existsSync(serviceJson) ? [serviceJsonRelative] : [];
+            });
+        }
+        else {
+            const generatedPaths = [".flisk/.flisk-out"];
+            const presentPaths = generatedPaths.filter((path) => existsSync(join(projectRoot, path)));
+            files = presentPaths.flatMap((path) => {
+                const absolutePath = join(projectRoot, path);
+                if (statSync(absolutePath).isFile())
+                    return [path];
+                try {
+                    return readdirSync(absolutePath, { recursive: true }).map((entry) => join(path, entry.toString()));
+                }
+                catch {
+                    return [path];
+                }
+            });
+        }
+        if (!isNative && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
             // Same state `flisk config verify` reports as "Not generated yet", so give the same fix:
             // `flisk project` already ran when the starter was cloned; regenerate writes .flisk-out.
             // When other generated files exist, only the Tiltfile is gone: name it instead of saying nothing was created.
@@ -94,6 +207,8 @@ export const ejectCommand = addYesOption(new Command("eject"))
         const userTiltfile = existsSync(rootTiltfile) ? ["Tiltfile"] : [];
         const ejectedPath = join(projectRoot, "EJECTED.md");
         const willCreate = existsSync(ejectedPath) ? [] : ["EJECTED.md"];
+        const rows = localServiceRows(nativeResources);
+        const ejectedContent = isNative ? nativeEjectedContent(rows) : EJECTED_CONTENT;
         const report = (dryRun) => ({
             data: {
                 dryRun,
@@ -101,12 +216,15 @@ export const ejectCommand = addYesOption(new Command("eject"))
                 ejectedFile: "EJECTED.md",
                 generatedFiles: files,
                 userFiles: userTiltfile,
-                tiltUpCommand: TILT_UP_COMMAND,
+                tiltUpCommand: isNative ? null : TILT_UP_COMMAND,
+                runtime: isNative ? "native" : "container",
             },
         });
         // eject's plan is a file list, not the standard "Dry run - ..." pair, so it supplies its own printer.
         if (handleDryRun(options, "", "", () => {
-            console.log("Generated files, left where they are (git-ignored):");
+            console.log(isNative
+                ? "Service files, left where they are (not generated):"
+                : "Generated files, left where they are (git-ignored):");
             for (const path of files)
                 console.log(`  ${path}`);
             if (userTiltfile.length > 0) {
@@ -124,19 +242,27 @@ export const ejectCommand = addYesOption(new Command("eject"))
         }
         if (!options.yes &&
             !options.json &&
-            !(await confirmOrCancel("Write EJECTED.md? (Generated files stay in .flisk/.flisk-out/; nothing is copied or moved.)"))) {
+            !(await confirmOrCancel(isNative
+                ? "Write EJECTED.md? (The service.json files stay where they are; nothing is copied or moved.)"
+                : "Write EJECTED.md? (Generated files stay in .flisk/.flisk-out/; nothing is copied or moved.)"))) {
             return { data: null };
         }
         if (existsSync(ejectedPath)) {
             console.log(chalk.green("EJECTED.md already exists and was left unchanged. Nothing was copied, moved or generated."));
         }
         else {
-            writeFileSync(ejectedPath, EJECTED_CONTENT, { flag: "wx" });
+            writeFileSync(ejectedPath, ejectedContent, { flag: "wx" });
             console.log(chalk.green("Wrote EJECTED.md. Nothing was copied, moved or generated."));
         }
-        console.log("Generated files stay in .flisk/.flisk-out/ (git-ignored) and still need Flisk inputs.");
-        console.log(`Run from the project root: ${TILT_UP_COMMAND}`);
-        console.log("Replace <stack> with a stack name under services/, or omit --focus to use the Tiltfile's default phase.");
+        if (isNative) {
+            console.log("Your services run as local processes. No container or UI files are needed.");
+            console.log("Run each service with the command in its service.json, from its folder.");
+        }
+        else {
+            console.log("Generated files stay in .flisk/.flisk-out/ (git-ignored) and still need Flisk inputs.");
+            console.log(`Run from the project root: ${TILT_UP_COMMAND}`);
+            console.log("Replace <stack> with a stack name under services/, or omit --focus to use the Tiltfile's default phase.");
+        }
         console.log("Read EJECTED.md");
         return report(false);
     };

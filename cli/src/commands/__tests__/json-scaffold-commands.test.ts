@@ -77,6 +77,7 @@ describe("flisk eject --json", () => {
         generatedFiles: [".flisk/.flisk-out/Tiltfile"],
         userFiles: [],
         tiltUpCommand: TILT_UP_COMMAND,
+        runtime: "container",
       },
       errors: [],
     });
