@@ -25,23 +25,6 @@ load("../../../../platform/docker/compose/byo_shared_database.star", "byo_wants_
 
 
 
-def _normalize_dependency_path(dependency):
-    dep = str(dependency).strip()
-    if not dep:
-        return ''
-
-    if dep.endswith('-management-backend'):
-        return dep.replace('-management-backend', '')
-
-    if dep.endswith('-backend'):
-        return dep[:-8]
-
-    if dep.endswith('-frontend'):
-        return dep[:-9]
-
-    return dep
-
-
 def _dependency_env_key(dependency):
     dep = str(dependency).upper()
     key = ''
@@ -64,24 +47,26 @@ def _build_dependency_env_lines(manifest):
     if not dependencies:
         return ''
 
-    # Deduplicate while preserving first-seen order.
+    # Deduplicate while preserving first-seen order. The env key keeps the dependency's real name: an earlier
+    # version stripped -backend/-frontend suffixes, which renamed a resource that legitimately ends in one and
+    # collapsed two distinct dependencies (orders-api and orders-api-backend) onto a single VITE_ variable (#395).
     seen = {}
     ordered = []
     for dep in dependencies:
         # Only a backend-side service has an API to call: a typo, a stack, the shared Postgres or a frontend gets no line.
         if resolve_dependency_api_path(dep) == None:
             continue
-        dep_path = _normalize_dependency_path(dep)
-        if dep_path and not seen.get(dep_path, False):
-            seen[dep_path] = True
-            ordered.append((dep_path, dep))
+        dep = str(dep).strip()
+        if dep and not seen.get(dep, False):
+            seen[dep] = True
+            ordered.append(dep)
 
     if not ordered:
         return ''
 
     lines = '\n# Dependency API URLs (the route Traefik serves each dependency on)\n'
-    for dep_path, dep in ordered:
-        dep_key = _dependency_env_key(dep_path)
+    for dep in ordered:
+        dep_key = _dependency_env_key(dep)
         dep_api_path = resolve_dependency_api_path(dep)
         lines += 'VITE_{dep_key}_API_URL=http://{local_domain}{router_port}{dep_api_path}\n'.format(
             dep_key=dep_key,
