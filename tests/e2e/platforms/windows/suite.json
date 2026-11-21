@@ -1,7 +1,7 @@
 {
   "group": "platforms",
   "suite": "windows",
-  "description": "The native Windows CLI on windows-latest (moved from the retired windows-smoke workflow, #1300): W1 typechecks, builds and runs the CLI's help, W2 runs the Windows platform unit tests, W3 checks that native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing, W4 checks that native Windows refuses a Docker starter (flisk restaurant) before it clones it, installs the CLI globally or boots anything, W5 checks that `flisk demo` runs the two-service demo without Docker, reuses it on a rerun and stops on flisk down.",
+  "description": "The native Windows CLI on windows-latest (moved from the retired windows-smoke workflow, #1300): W1 typechecks, builds and runs the CLI's help, W2 runs the Windows platform unit tests, W3 checks that native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing, W4 checks that native Windows refuses a Docker starter (flisk restaurant) before it clones it, installs the CLI globally or boots anything, W5 checks that `flisk demo` runs the two-service demo without Docker, reuses it on a rerun and stops on flisk down, W6 installs a fresh clone with lifecycle scripts enabled and runs the cross-platform clean helpers.",
   "paths": [
     "cli/src/cli.ts",
     "cli/src/utils/platform.ts",
@@ -10,6 +10,10 @@
     "cli/src/utils/windows-doctor.ts",
     "runtime/discovery/native_windows.star",
     "cli/src/commands/up.ts",
+    "package.json",
+    "cli/package.json",
+    "scripts/install-git-hooks.mjs",
+    "scripts/rm.mjs",
     "tests/e2e/lib/**",
     "tests/e2e/platforms/windows/**",
     ".github/workflows/e2e-platforms.yml"
@@ -19,7 +23,8 @@
     "W2",
     "W3",
     "W4",
-    "W5"
+    "W5",
+    "W6"
   ],
   "triggers": [
     "pr"

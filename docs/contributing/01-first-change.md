@@ -41,6 +41,8 @@ Docker and Tilt are optional and not part of the default container. Add them onl
 - Node.js 22.12 or newer
 - Docker and [Tilt](https://docs.tilt.dev/install.html) only if you need to run Flisk services or check a full local environment
 
+On native Windows, `npm install` and the clean scripts work in `cmd.exe` or PowerShell because they use Node scripts. Some maintainer scripts are still Bash: `bash` must be on your `PATH` (Git Bash or Ubuntu on WSL2) for npm entries such as `npm run release:binaries`, `npm run check:shell`, and `npm --prefix cli run check:dist`. The `bash ...` prefix makes the failure explicit when it is missing. See [Start here on Windows](../start-here-on-windows.md).
+
 ## Copy the repo to your computer
 
 Open a terminal and run:

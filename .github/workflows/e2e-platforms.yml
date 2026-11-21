@@ -1,7 +1,8 @@
-# Platforms axis group gate (#1302, epic #1279). The windows leg runs tests/e2e/platforms/windows (W1-W5) on the native
-# Windows runner: typecheck, build and CLI help, platform unit tests, the native Windows refusal contract, and the
-# one-command demo contract. It runs on pull requests and the merge queue, uses no secrets (suite.json needsSecrets is empty)
-# and replaces the retired windows-smoke workflow as a required check. The job name e2e-platforms is the required-check context.
+# Platforms axis group gate (#1302, epic #1279). The windows leg runs tests/e2e/platforms/windows (W1-W6) on the native
+# Windows runner: typecheck, build and CLI help, platform unit tests, the native Windows refusal contract, the one-command
+# demo contract, and a fresh clone whose npm lifecycle scripts must work without POSIX tools. It runs on pull requests and
+# the merge queue, uses no secrets (suite.json needsSecrets is empty) and replaces the retired windows-smoke workflow as a
+# required check. The job name e2e-platforms is the required-check context.
 name: 🔀 PR | E2E | Platforms gate
 
 on:
@@ -76,7 +77,7 @@ jobs:
         # "Cannot read properties of null (reading 'edgesOut')". The repo has no package-lock.json, so every run resolves afresh.
         run: npm install --ignore-scripts --legacy-peer-deps
 
-      # The windows leg (tests/e2e/platforms/windows: suite.json, run.sh, native-refusal.ps1, demo-refusal.ps1, demo-native.ps1), run in order.
+      # The windows leg (tests/e2e/platforms/windows: suite.json, run.sh, native-refusal.ps1, demo-refusal.ps1, demo-native.ps1, W6 clone install), run in order.
       - name: Typecheck, build and run CLI help
         shell: bash
         run: tests/e2e/platforms/windows/run.sh W1
@@ -96,3 +97,7 @@ jobs:
       - name: Run the demo without Docker on native Windows
         shell: bash
         run: tests/e2e/platforms/windows/run.sh W5
+
+      - name: Install a fresh clone with lifecycle scripts enabled
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W6
