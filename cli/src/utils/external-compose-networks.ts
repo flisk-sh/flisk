@@ -14,6 +14,7 @@ import { formatCount } from "./formatting.js";
 import { findProjectRoot } from "./paths.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
 import { discoverResourcesFromRoot } from "./services.js";
+import { findOnPath } from "./which.js";
 
 const PLATFORM_PROXY_COMPOSE_FILES = [
   "shared-product-engineering/introvertic/infra/docker-compose.traefik.yml",
@@ -628,8 +629,10 @@ export function externalNetworkWarnings(
 }
 
 function defaultListDockerNetworks(): string[] | null {
+  const dockerPath = findOnPath("docker");
+  if (!dockerPath) return null;
   try {
-    const output = execFileSync("docker", ["network", "ls", "--format", "{{.Name}}"], {
+    const output = execFileSync(dockerPath, ["network", "ls", "--format", "{{.Name}}"], {
       encoding: "utf-8",
       timeout: 8000,
       stdio: ["ignore", "pipe", "ignore"],
@@ -670,7 +673,9 @@ export function checkExternalComposeNetworks(
   }
 
   if (scan.unmanaged.length === 0 && scan.staleManaged.length === 0) {
-    const names = [...new Set(extraManaged.map((entry) => entry.name))].sort();
+    const names = [...new Set(extraManaged.map((entry) => entry.name))].sort((a, b) =>
+      a.localeCompare(b),
+    );
     return {
       name: "External compose networks",
       didPass: true,
@@ -685,7 +690,7 @@ export function checkExternalComposeNetworks(
         ...scan.unmanaged.map((entry) => entry.name || entry.rawName),
         ...scan.staleManaged.map((entry) => entry.name),
       ]),
-    ].sort();
+    ].sort((a, b) => a.localeCompare(b));
     return {
       name: "External compose networks",
       didPass: false,

@@ -153,7 +153,7 @@ YAML
     bash -c "docker network inspect '$ext_net' >/dev/null 2>&1" \
     || { bp_diagnostics bp5; die "BP5: init-networks did not create external network $ext_net"; }
   run bp5-down down --prune-networks
-  [ "$RC" -eq 0 ] || die "BP5: flisk down --prune-networks exited $RC"
+  [[ "$RC" -eq 0 ]] || die "BP5: flisk down --prune-networks exited $RC"
   log "PASS BP5: init-networks created $ext_net and flisk up started the stack cleanly"
 }
 
