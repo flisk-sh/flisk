@@ -17,6 +17,10 @@ import { parseDemoRootOptions, tiltWatchPorts } from "./utils/demo-args.js";
 import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { handleCommandError } from "./utils/errors.js";
 import { resolveHelpTarget } from "./utils/help-command.js";
+import { cleanupRunningBinaryArtifacts } from "./utils/upgrade-cleanup.js";
+
+// Remove any deferred Windows self-upgrade artifacts left when the prior binary exited.
+cleanupRunningBinaryArtifacts();
 
 /**
  * The program the CLI parses is built from plain command specs, so `--help`, `--version`
