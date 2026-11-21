@@ -22,11 +22,15 @@ describe("reportedCapabilities", () => {
   });
 
   it("keeps the inferred capabilities for a container project", () => {
-    expect(reportedCapabilities(null, containerProject).sort()).toEqual(["database", "gateway"]);
+    expect(reportedCapabilities(null, containerProject).sort()).toEqual([
+      "database",
+      "gateway",
+      "watch",
+    ]);
   });
 
   it("keeps them when the caller has no resources to inspect", () => {
     // `flisk doctor` only discovers resources when the project is native; an empty list must not turn a capability off.
-    expect(reportedCapabilities(null, []).sort()).toEqual(["database", "gateway"]);
+    expect(reportedCapabilities(null, []).sort()).toEqual(["database", "gateway", "watch"]);
   });
 });

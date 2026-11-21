@@ -39,7 +39,7 @@ Variables`, `Master Configs`) and never the Docker, Tilt or host ones, so its ve
 1. `surfaces-ran`: status, doctor, config verify and resources each print one JSON envelope. A command with no envelope is a failure, never a pass.
 2. `database-need-matches-scenario`: status enables PostgreSQL exactly when the scenario needs it.
 3. `gateway-need-matches-scenario`: same for the router.
-4. `status-capabilities-match-platform-services`: `capabilities` lists exactly the enabled platform services.
+4. `status-capabilities-match-platform-services`: `capabilities` lists every capability that is on: the enabled `platformServices` plus any capability that has no platform service behind it (`watch` gates live update, so `platformServices` cannot list it).
 5. `verify-postgres-matches-status`: `config verify`'s `willStart` equals status's database `isEnabled`.
 6. `doctor-postgres-check-matches-status`: doctor runs its shared-Postgres check iff status enables the database.
 7. `env-has-database-keys-when-database-on`: `DB_PASSWORD` is in `.env` and `DATABASE_URL` is built from it.

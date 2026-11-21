@@ -115,11 +115,11 @@ describe("optional gateway capability", () => {
     it("getEnabledCapabilities reports only the capabilities that remain enabled", () => {
       const enabled = getEnabledCapabilities({ capabilities: { gateway: false } });
       expect(enabled).not.toContain("gateway");
-      expect(enabled).toEqual(["database"]);
+      expect(enabled).toEqual(["database", "watch"]);
     });
 
     it("lists only the capabilities something reads, so status --json does not report unused flags as on", () => {
-      expect(getEnabledCapabilities({})).toEqual(["gateway", "database"]);
+      expect(getEnabledCapabilities({})).toEqual(["gateway", "database", "watch"]);
     });
 
     it("getEnabledCapabilities includes gateway when enabled", () => {

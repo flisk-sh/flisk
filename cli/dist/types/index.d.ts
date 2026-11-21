@@ -309,6 +309,8 @@ export interface ProjectCapabilities {
     gateway?: boolean;
     /** The bundled shared Postgres (`database-management`). */
     database?: boolean;
+    /** Hot reload: Tilt live-update syncs and in-container reload steps for container resources. */
+    watch?: boolean;
     [key: string]: boolean | undefined;
 }
 export interface RepoConfig {

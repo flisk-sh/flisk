@@ -726,6 +726,22 @@ def _bun_backend_entry(config):
 _DEPENDENCY_FILES = ['package.json', 'bun.lock', 'bun.lockb', 'package-lock.json', 'pyproject.toml', 'uv.lock', 'requirements.txt']
 
 
+def _watch_enabled(project_root):
+    """False when `.flisk/project.json` sets `capabilities.watch` to false: hot reload is then off and a changed file
+    rebuilds the image instead of syncing into the container (#2234)."""
+    root = project_root or os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = (root + '/.flisk/project.json') if root else '.flisk/project.json'
+    if not file_exists(project_json_path):
+        return True
+    project_json = read_json(project_json_path)
+    if type(project_json) != 'dict':
+        return True
+    capabilities = project_json.get('capabilities', {})
+    if type(capabilities) != 'dict':
+        return True
+    return capabilities.get('watch', True) != False
+
+
 def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False, node_frontend=False, bun_backend_entry=None):
     """Build live update sync and run rules for a resource.
 
@@ -1177,6 +1193,9 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
             go_live_reload=Docker.go_live_reload(config.get('manifest', {})),
             bun_backend_entry=_bun_backend_entry(config),
         )
+        if not _watch_enabled(config.get('project_root', '')):
+            # capabilities.watch=false: no sync/run live-update; Tilt still rebuilds the image on watched changes.
+            live_update_rules = []
         reuse_prebuilt = not defers_start and needs_image_prebuild(config['res_deps'])
         _register_docker_build(config, live_update_rules, reuse_prebuilt)
         if defers_start:

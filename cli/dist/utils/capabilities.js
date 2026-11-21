@@ -154,6 +154,10 @@ export function isDatabaseCapabilityEnabled(projectRootOrConfig, options) {
 export function isGatewayEnabled(projectRootOrConfig, options) {
     return isCapabilityEnabled(projectRootOrConfig, "gateway", options);
 }
+/** False when the project opted out of hot reload (`capabilities.watch: false` in `.flisk/project.json`). */
+export function isWatchEnabled(projectRootOrConfig, options) {
+    return isCapabilityEnabled(projectRootOrConfig, "watch", options);
+}
 /** Names of the capabilities that are on, for `--json` output. */
 export function getEnabledCapabilities(projectRootOrConfig, options) {
     const caps = resolveProjectCapabilities(projectRootOrConfig, options);

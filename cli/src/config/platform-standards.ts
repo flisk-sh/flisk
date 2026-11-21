@@ -97,6 +97,7 @@ const TRAEFIK = {
 export const DEFAULT_CAPABILITIES = {
   gateway: true,
   database: true,
+  watch: true,
 } as const;
 
 const CAPABILITIES = DEFAULT_CAPABILITIES;

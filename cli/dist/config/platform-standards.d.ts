@@ -5,6 +5,7 @@
 export declare const DEFAULT_CAPABILITIES: {
     readonly gateway: true;
     readonly database: true;
+    readonly watch: true;
 };
 export declare const PLATFORM_STANDARDS: {
     readonly version: "1.0.0";
@@ -94,6 +95,7 @@ export declare const PLATFORM_STANDARDS: {
     readonly capabilities: {
         readonly gateway: true;
         readonly database: true;
+        readonly watch: true;
     };
     readonly filewatchIgnores: readonly ["node_modules", "dist", "build", ".git", ".prisma", ".turbo", "coverage", "tmp", "temp", "__tests__", "test", "tests"];
     readonly serviceTypes: {

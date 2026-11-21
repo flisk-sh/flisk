@@ -90,6 +90,7 @@ const TRAEFIK = {
 export const DEFAULT_CAPABILITIES = {
     gateway: true,
     database: true,
+    watch: true,
 };
 const CAPABILITIES = DEFAULT_CAPABILITIES;
 const FILEWATCH_IGNORES = [
