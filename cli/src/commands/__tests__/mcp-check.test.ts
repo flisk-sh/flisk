@@ -5,7 +5,11 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { afterEach, describe, expect, it } from "vitest";
-import { type FakeMcpServer, startFakeMcpServer } from "../../test-support/fake-mcp-server.js";
+import {
+  type FakeMcpServer,
+  type FakeMcpServerOptions,
+  startFakeMcpServer,
+} from "../../test-support/fake-mcp-server.js";
 import {
   cleanEnv,
   createTempDir,
@@ -177,5 +181,37 @@ describe("plain flisk mcp after adding check", () => {
     } finally {
       child.kill();
     }
+  }, 30_000);
+});
+
+describe("flisk mcp check --json golden output", () => {
+  // Captured from the CLI before mcp-check.ts was split into modules, so a diff means the output changed. The fake
+  // server listens on a random port, so its origin is replaced before comparing.
+  async function expectGolden(
+    fake: FakeMcpServerOptions,
+    extraArgs: string[],
+    file: string,
+  ): Promise<void> {
+    server = await startFakeMcpServer(fake);
+    const result = await runFliskAsync(["mcp", "check", server.url, "--json", ...extraArgs], {
+      cwd: createTempDir(),
+    });
+    const text = `exit ${result.status}\n${result.stdout}`.replaceAll(
+      new URL(server.url).origin,
+      "http://fake-mcp.test",
+    );
+    await expect(text).toMatchFileSnapshot(`./__golden__/${file}`);
+  }
+
+  it("a passing server, list only", async () => {
+    await expectGolden({}, [], "cli-pass.golden.txt");
+  }, 30_000);
+
+  it("a passing server, with --call", async () => {
+    await expectGolden({}, ["--call"], "cli-pass-call.golden.txt");
+  }, 30_000);
+
+  it("a server whose tools are not read-only, with --call", async () => {
+    await expectGolden({ isReadOnly: false }, ["--call"], "cli-fail-not-read-only.golden.txt");
   }, 30_000);
 });
