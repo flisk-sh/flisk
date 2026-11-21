@@ -110,6 +110,14 @@ const INFERENCE_TYPE = INFERENCE_RESOURCE_TYPE;
 const INFERENCE_DEFAULT_PORT = 11434;
 const INFERENCE_DEFAULT_IMAGE = "ollama/ollama";
 const INFERENCE_HEALTH_PATH = "/v1/models";
+/**
+ * The inference preset keeps pulled models in a named volume, like the infrastructure presets keep their data: `flisk down`
+ * leaves it alone, `flisk down --purge` removes it. Dependents that list the resource get its OpenAI-compatible URL.
+ */
+const INFERENCE_PRESET = {
+    volume: { sourceSuffix: "models", target: "/root/.ollama" },
+    provides: { OPENAI_BASE_URL: "http://{name}:{port}/v1" },
+};
 function readServiceJsonPort(path) {
     try {
         const port = JSON.parse(readFileSync(path, "utf-8")).port;
@@ -384,6 +392,8 @@ export function createByoServiceJson(name, stack, port, options) {
         ...(options.image ? { image: options.image } : { dockerfile: options.dockerfile }),
         ...(options.exposeViaProxy === false ? { exposeViaProxy: false } : {}),
         ...(options.restart ? { restart: options.restart } : {}),
+        ...(options.volumes ? { volumes: options.volumes } : {}),
+        ...(options.provides ? { provides: options.provides } : {}),
     };
 }
 /**
@@ -1451,6 +1461,20 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
                 ...(image ? { image } : {}),
                 ...(options.proxy === false ? { exposeViaProxy: false } : {}),
                 ...(options.restart ? { restart: options.restart } : {}),
+                ...(isInference
+                    ? {
+                        volumes: [
+                            {
+                                source: `${resourceName}-${INFERENCE_PRESET.volume.sourceSuffix}`,
+                                target: INFERENCE_PRESET.volume.target,
+                            },
+                        ],
+                        provides: Object.fromEntries(Object.entries(INFERENCE_PRESET.provides).map(([key, value]) => [
+                            key,
+                            value.replace("{name}", resourceName).replace("{port}", String(port)),
+                        ])),
+                    }
+                    : {}),
             });
             plan.text(resolve(fullPath, SERVICE_JSON), JSON.stringify(byoServiceJson, null, 2));
             // Create Dockerfile stub if no image provided and dockerfile doesn't exist
