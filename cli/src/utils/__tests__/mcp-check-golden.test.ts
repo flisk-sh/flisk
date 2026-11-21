@@ -3,7 +3,7 @@
 //
 // Golden files for the whole `runMcpCheck` report. They were captured before mcp-check.ts was split into modules, so a
 // diff here means the report changed, not just where the code lives.
-import { afterEach, describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   type FakeMcpServer,
   type FakeMcpServerOptions,
