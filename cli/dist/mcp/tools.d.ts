@@ -16,6 +16,7 @@ export declare const runFliskCli: RunFlisk;
  * the top level for `runtime --check-assets --json`, which prints no envelope), is an error result.
  */
 export declare function toToolResult(run: FliskRun): McpToolResult;
+export declare function summarizeConfigVerify(data: unknown): string | undefined;
 /**
  * Turn the output of a command that has no `--json` (the scaffolding commands) into a tool result: its text output, and an
  * error result when it exits non-zero. Failures are printed to stderr, so it is returned too.

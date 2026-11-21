@@ -25,9 +25,14 @@ export interface McpTool {
 }
 
 export interface McpToolResult {
-  /** The JSON-serializable result; also returned as text for clients that ignore structured content. */
+  /** The JSON-serializable result, sent once as structuredContent. */
   data: unknown;
   isError: boolean;
+  /**
+   * Optional short text for clients that ignore structuredContent. A tool with a large structured
+   * result sets this to a human summary instead of sending the same JSON twice (#4205).
+   */
+  text?: string;
 }
 
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"] as const;
@@ -223,7 +228,7 @@ export function createMcpServer(
         try {
           const result = await tool.handler((args ?? {}) as Record<string, unknown>);
           return reply(message.id, {
-            content: [{ type: "text", text: JSON.stringify(result.data) }],
+            content: [{ type: "text", text: result.text ?? JSON.stringify(result.data) }],
             structuredContent: result.data,
             isError: result.isError,
           });

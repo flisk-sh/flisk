@@ -20,9 +20,14 @@ export interface McpTool {
     handler: (args: Record<string, unknown>) => Promise<McpToolResult>;
 }
 export interface McpToolResult {
-    /** The JSON-serializable result; also returned as text for clients that ignore structured content. */
+    /** The JSON-serializable result, sent once as structuredContent. */
     data: unknown;
     isError: boolean;
+    /**
+     * Optional short text for clients that ignore structuredContent. A tool with a large structured
+     * result sets this to a human summary instead of sending the same JSON twice (#4205).
+     */
+    text?: string;
 }
 export declare const SUPPORTED_PROTOCOL_VERSIONS: readonly ["2025-06-18", "2025-03-26", "2024-11-05"];
 /** The accepted argument name closest to an unknown one, or undefined when none is close. */

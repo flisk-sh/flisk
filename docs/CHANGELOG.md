@@ -7,6 +7,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 ## 1.4.71 (2026-11-20)
 
 - The Claude Code plugin starts its MCP server through a shipped Node launcher instead of a `#!/bin/sh` script, so the plugin works on native Windows and on machines without `/bin/sh` (#4012).
+- `flisk config verify --json` and the `config_verify` MCP tool now lead with a small report: every error line plus each drifted file's path, state (`missing` or `different`) and line counts, instead of whole generated files as diffs. The MCP text part is a short human summary rather than a second copy of the JSON, so a project with several missing files stays under 4 KB. Full diffs are opt-in with `flisk config verify --diff <file>` or the tool's `diffFiles` argument, capped at 200 lines per file with a note when cut (#4205).
 
 ## 1.4.70 (2026-11-20)
 

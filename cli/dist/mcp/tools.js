@@ -70,6 +70,22 @@ function optionalName(value, field) {
     }
     return value;
 }
+/** A list of project-relative paths (used by config_verify's opt-in diffFiles). */
+function paths(value, field) {
+    if (value === undefined)
+        return [];
+    if (!Array.isArray(value)) {
+        throw new FliskError(`${field} must be an array of paths`, [
+            `Pass ${field} as paths reported by config_verify, for example ["Tiltfile"]`,
+        ]);
+    }
+    return value.map((item) => {
+        const file = optionalPath(item, field);
+        if (file === undefined)
+            throw new FliskError(`${field} must contain only non-empty paths`);
+        return file;
+    });
+}
 function flag(value, field, fallback = false) {
     if (value === undefined)
         return fallback;
@@ -163,6 +179,33 @@ export function toToolResult(run) {
     }
     const failed = (envelope.errors?.length ?? 0) > 0 || envelope.data?.ok === false || envelope.ok === false;
     return { data: envelope, isError: failed };
+}
+/** Short human text for config_verify: structuredContent already carries the full report (#4205). */
+const VERIFY_SUMMARY_LINE_LIMIT = 60;
+export function summarizeConfigVerify(data) {
+    const envelope = data;
+    const report = envelope?.data;
+    if (!report || typeof report !== "object")
+        return undefined;
+    const errors = Array.isArray(report.errors)
+        ? report.errors.filter((error) => typeof error === "string")
+        : [];
+    const diffs = Array.isArray(report.diffs) ? report.diffs : [];
+    const missing = diffs.filter((entry) => entry?.state === "missing").length;
+    const different = diffs.filter((entry) => entry?.state === "different").length;
+    const heading = errors.length === 0 && report.valid === true
+        ? "config verify: all files are in sync."
+        : `config verify: ${errors.length} finding(s); ${missing} missing, ${different} different file(s).`;
+    const lines = [heading, ...errors];
+    if (diffs.length > 0) {
+        lines.push("See structuredContent for every path; pass diffFiles to request a file's diff.");
+    }
+    if (lines.length > VERIFY_SUMMARY_LINE_LIMIT) {
+        const hidden = lines.length - VERIFY_SUMMARY_LINE_LIMIT;
+        lines.length = VERIFY_SUMMARY_LINE_LIMIT;
+        lines.push(`... [${hidden} more line(s) in structuredContent]`);
+    }
+    return lines.join("\n");
 }
 /**
  * Turn the output of a command that has no `--json` (the scaffolding commands) into a tool result: its text output, and an
@@ -1070,9 +1113,28 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "config_verify",
-            description: "Check that the generated files match .flisk/project.json and that every service.json is valid. Returns data.valid, data.errors, data.warnings and data.diffs; a drifted generated file is fixed with config_regenerate. Set projectPath when the MCP server is not running from the project root.",
-            inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
-            handler: viaCli(() => ["config", "verify", "--json"]),
+            description: "Check that the generated files match .flisk/project.json and that every service.json is valid. By default returns a small summary: every error line and data.diffs entries with file, state (missing or different), linesAdded and linesRemoved, without file bodies. Pass diffFiles (paths from data.diffs, e.g. .flisk/.flisk-out/Tiltfile or Tiltfile) to request diffs for those files only, capped at 200 lines each with a truncation note; the CLI equivalent is flisk config verify --diff <file>. A drifted generated file is fixed with config_regenerate. Set projectPath when the MCP server is not running from the project root.",
+            inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
+                diffFiles: {
+                    type: "array",
+                    description: "Include a capped diff for each named drifted file instead of a summary only",
+                    items: {
+                        type: "string",
+                        description: "A path reported in data.diffs, e.g. .flisk/.flisk-out/Tiltfile",
+                    },
+                },
+            }),
+            handler: async (args) => {
+                const diffFiles = paths(args.diffFiles, "diffFiles");
+                const result = await viaCli(() => [
+                    "config",
+                    "verify",
+                    "--json",
+                    ...diffFiles.map((file) => `--diff=${file}`),
+                ])(args);
+                return { ...result, text: summarizeConfigVerify(result.data) };
+            },
         },
         {
             name: "config_explain",

@@ -1335,6 +1335,59 @@ describe("tool list", () => {
     });
   });
 
+  it("passes config_verify diffFiles as repeatable --diff options", async () => {
+    const { seen, tools } = recordingTools(
+      '{"schemaVersion":1,"data":{"valid":false,"errors":[],"diffs":[]},"errors":[]}',
+    );
+    const tool = tools.find((t) => t.name === "config_verify");
+
+    await tool?.handler({ diffFiles: [".flisk/.flisk-out/Tiltfile", "spec.master"] });
+
+    expect(seen).toEqual([
+      {
+        args: [
+          "config",
+          "verify",
+          "--json",
+          "--diff=.flisk/.flisk-out/Tiltfile",
+          "--diff=spec.master",
+        ],
+        cwd: undefined,
+      },
+    ]);
+    await expect(tool?.handler({ diffFiles: "Tiltfile" })).rejects.toThrow(
+      "diffFiles must be an array of paths",
+    );
+    await expect(tool?.handler({ diffFiles: ["-bad"] })).rejects.toThrow(
+      'diffFiles must be a non-empty path that does not start with "-"',
+    );
+  });
+
+  it("gives config_verify a short text summary, leaving the full report in structured data", async () => {
+    const bigDiff = Array.from({ length: 500 }, (_, i) => `+line ${i}`).join("\n");
+    const file = ".flisk/.flisk-out/Tiltfile";
+    const report = {
+      valid: false,
+      errors: [`Missing file: ${file} (run 'flisk config regenerate')`],
+      diffs: [{ file, state: "missing", linesAdded: 500, linesRemoved: 0, diff: bigDiff }],
+      diffLineLimit: 200,
+      state: "generated",
+    };
+    const { tools } = recordingTools(
+      JSON.stringify({ schemaVersion: 1, data: report, errors: [] }),
+    );
+
+    const result = await tools.find((t) => t.name === "config_verify")?.handler({});
+
+    expect(result?.text).toContain("config verify:");
+    expect(result?.text).toContain("1 missing");
+    expect(result?.text).toContain(`Missing file: ${file}`);
+    expect(result?.text?.length).toBeLessThan(500);
+    expect(result?.text).not.toContain("+line 499");
+    // The JSON is sent once as structuredContent, with every path and the diff still present.
+    expect(result?.data).toMatchObject({ data: report });
+  });
+
   it("rejects invalid read-only tool arguments before running the CLI", async () => {
     const { seen, tools } = recordingTools("");
     const call = (name: string, args: Record<string, unknown>) =>

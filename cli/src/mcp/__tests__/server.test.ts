@@ -88,6 +88,30 @@ describe("mcp server", () => {
     expect(result.structuredContent).toEqual({ got: { a: 1 } });
     expect(JSON.parse(result.content[0].text)).toEqual({ got: { a: 1 } });
   });
+  it("sends a tool's short text instead of duplicating its structured content", async () => {
+    const short = createMcpServer(
+      [
+        {
+          ...echo,
+          name: "short",
+          handler: async () => ({
+            data: { big: "x".repeat(500) },
+            text: "short summary",
+            isError: false,
+          }),
+        },
+      ],
+      { name: "flisk", version: "1.0.0" },
+    );
+    const res = JSON.parse(
+      (await short.handleLine(
+        JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "short" } }),
+      )) as string,
+    ) as Response;
+    const result = res.result as ToolCallResult;
+    expect(result.content[0].text).toBe("short summary");
+    expect(result.structuredContent).toEqual({ big: "x".repeat(500) });
+  });
   it("turns a thrown handler error into an error result, not a protocol error", async () => {
     const res = await call({
       jsonrpc: "2.0",

@@ -49,8 +49,55 @@ describe("flisk config verify --json", () => {
       "Missing file: .flisk/.flisk-out/Tiltfile (run 'flisk config regenerate')",
     );
     expect(
-      report.data.diffs.find((diff: { file: string }) => diff.file.endsWith("Tiltfile"))?.diff,
-    ).toContain("+++ b/.flisk/.flisk-out/Tiltfile");
+      report.data.diffs.find((diff: { file: string }) => diff.file.endsWith("Tiltfile")),
+    ).toMatchObject({
+      state: "missing",
+      linesAdded: expect.any(Number),
+      linesRemoved: 0,
+    });
+  }, 120_000);
+
+  it("keeps the default JSON report small and offers opt-in diffs (#4205)", () => {
+    // A generated project with five missing master files and one edited one.
+    const projectRoot = createTempProject({
+      projectJson: verifyProject("verify-budget"),
+      generated: { "spec.master": "# old\n" },
+    });
+
+    const result = runVerify(projectRoot);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout.length).toBeLessThan(4096);
+    const report = parseEnvelope(result.stdout);
+    expect(report.data.state).toBe("generated");
+    expect(report.data.diffs).toHaveLength(6);
+    expect(report.data.diffLineLimit).toBeGreaterThan(0);
+    for (const entry of report.data.diffs) {
+      expect(entry).toMatchObject({
+        file: expect.any(String),
+        state: expect.stringMatching(/^(missing|different)$/),
+        linesAdded: expect.any(Number),
+        linesRemoved: expect.any(Number),
+      });
+      expect(entry.diff).toBeUndefined();
+    }
+    for (const error of report.data.errors) {
+      expect(result.stdout).toContain(error);
+    }
+
+    const withDiff = runFlisk(["config", "verify", "--diff", "Tiltfile", "--json"], {
+      cwd: projectRoot,
+    });
+    expect(withDiff.status).toBe(1);
+    const detailed = parseEnvelope(withDiff.stdout).data;
+    const tiltfileDiff = detailed.diffs.find((entry: { file: string }) =>
+      entry.file.endsWith("Tiltfile"),
+    );
+    expect(tiltfileDiff.diff).toContain("+++ b/.flisk/.flisk-out/Tiltfile");
+    expect(tiltfileDiff.diff.split("\n").length).toBeLessThanOrEqual(detailed.diffLineLimit + 4);
+    expect(
+      detailed.diffs.filter((entry: { diff?: string }) => entry.diff !== undefined),
+    ).toHaveLength(1);
   }, 120_000);
 
   it("emits a structured INTERNAL error and exits 2 for invalid project JSON", () => {

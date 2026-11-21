@@ -461,6 +461,7 @@ describe("flisk up drift gate", () => {
       errors,
       warnings: [],
       diffs: [],
+      diffLineLimit: 200,
       state: "generated" as const,
       handEdited,
     });
@@ -1036,6 +1037,7 @@ describe("flisk up --env-file", () => {
       errors: [],
       warnings: [],
       diffs: [],
+      diffLineLimit: 200,
       handEdited: [],
       state: "generated" as const,
     });
@@ -1670,6 +1672,7 @@ describe("flisk up with no resources (#3781)", () => {
       errors: [],
       warnings: [],
       diffs: [],
+      diffLineLimit: 200,
       handEdited: [],
       state: "generated" as const,
     });
