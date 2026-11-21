@@ -1,15 +1,16 @@
-# Full 100-service boot (carried over from erp-scale-e2e.yml at the #1302 cutover, so the weekly full boot is not lost).
+# Full 100-service boot (carried over from erp-scale-e2e.yml at the #1302 cutover). Runs nightly: the merge queue gate
+# (e2e-scale.yml) boots a 5-service smoke instead, so the full boot no longer runs per merge.
 # Boots the public 100-service fixture bench (flisk-sh/flisk-erp-system), a
 # set of generated health-check services rather than a real ERP product, on a
 # clean GitHub-hosted runner with the published CLI and waits for every backend
 # to answer /health through Traefik. It backs the README's "100 services on a
 # 16 GB machine" claim with a measurement anyone can re-run.
 #
-# Manual and weekly only: a full boot builds ~107 images and takes a long time.
+# Nightly and manual only: a full boot builds ~107 images and takes a long time.
 # Use scope "one-stack" for a quick check (about 16 services).
 #
 # The cases live in tests/e2e/scale/erp (suite.json, run.sh): E1 project and doctor, E2 flisk up and the /health wait, E3 the report.
-name: 📅 WEEKLY | E2E | ERP fixture scale
+name: 🌙 NIGHTLY | E2E | ERP fixture scale
 
 on:
   workflow_dispatch:
@@ -28,7 +29,7 @@ on:
         type: string
         default: ""
   schedule:
-    - cron: "0 3 * * 0"
+    - cron: "0 3 * * *"
 
 permissions:
   contents: read

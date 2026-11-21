@@ -453,6 +453,10 @@ describe("native supervisor", () => {
       `web: listening on ${webPort}`,
     ]);
     expect(lines[0]?.time).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(lines.map((line) => line.seq)).toEqual([expect.any(Number), expect.any(Number)]);
+    expect(lines.every((line) => Number.isSafeInteger(line.seq) && (line.seq as number) > 0)).toBe(
+      true,
+    );
     expect(
       readNativeLogLines(root, ["api"], { tail: 10, sinceMs: 0, now: Date.now() + 60_000 }),
     ).toEqual([]);

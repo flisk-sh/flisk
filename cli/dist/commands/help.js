@@ -139,7 +139,7 @@ const COMMAND_GROUPS = [
             {
                 name: "connect",
                 desc: "Connect a coding agent: MCP server entry and Flisk skills",
-                alias: "<claude|cursor|codex> --dry-run",
+                alias: "<claude|cursor|codex|gemini> --dry-run",
             },
             {
                 name: "runtime",

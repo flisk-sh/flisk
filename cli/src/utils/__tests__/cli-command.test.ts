@@ -4,7 +4,7 @@
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   CLI_COMMAND,
@@ -56,12 +56,39 @@ describe("cli-command", () => {
   });
 
   it("suggests a project folder instead of the current one when the folder has files", () => {
-    const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
-    writeFileSync(join(dir, "notes.txt"), "hi");
-    const step = readyNextStep(pathWithFlisk(), dir);
-    expect(step).toContain("mkdir -p");
-    expect(step).toContain("flisk project --yes");
-    expect(step).toContain("flisk project example");
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("linux");
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
+      writeFileSync(join(dir, "notes.txt"), "hi");
+      const step = readyNextStep(pathWithFlisk(), dir);
+      expect(step).toContain("mkdir -p");
+      expect(step).toContain("flisk project --yes");
+      expect(step).toContain("flisk project example");
+    } finally {
+      platform.mockRestore();
+    }
+  });
+
+  it("prints PowerShell next steps on Windows instead of POSIX shell commands", () => {
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    try {
+      const home = mkdtempSync(join(tmpdir(), "flisk-home-"));
+      mkdirSync(join(home, "Documents"));
+      const env = { ...pathWithFlisk(), HOME: home, USERPROFILE: home };
+      const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
+      writeFileSync(join(dir, "notes.txt"), "hi");
+      const workspace = join(home, "Documents", "flisk");
+
+      const step = readyNextStep(env, dir);
+
+      expect(step).toContain(`New-Item -ItemType Directory -Force '${workspace}'`);
+      expect(step).toContain(`Set-Location '${workspace}'`);
+      expect(step).toContain("flisk project --yes");
+      expect(step).not.toContain("mkdir -p");
+      expect(step).not.toContain("&&");
+    } finally {
+      platform.mockRestore();
+    }
   });
 
   it("lets a project start in an empty folder", () => {

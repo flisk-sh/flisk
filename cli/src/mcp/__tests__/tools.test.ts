@@ -260,6 +260,19 @@ describe("argument building", () => {
     }
   });
 
+  it("passes a logs cursor through to --after and rejects invalid cursors", () => {
+    expect(buildLogsArgs({ after: "1763500000000000" })).toEqual([
+      "logs",
+      "--json",
+      "--after=1763500000000000",
+    ]);
+    expect(buildLogsArgs({ after: 42 })).toEqual(["logs", "--json", "--after=42"]);
+    expect(buildLogsArgs({ after: 0 })).toContain("--after=0");
+    for (const bad of ["-1", "1.5", "abc", {}, -1]) {
+      expect(() => buildLogsArgs({ after: bad })).toThrow("after must be a non-negative integer");
+    }
+  });
+
   it("passes the logs source filter and rejects any other value", () => {
     expect(buildLogsArgs({ services: ["api"], source: "runtime" })).toEqual([
       "logs",
@@ -305,6 +318,7 @@ describe("argument building", () => {
     expect(props("status").unhealthy?.type).toBe("boolean");
     expect(props("status").stack?.type).toBe("string");
     expect(props("logs").unhealthy?.type).toBe("boolean");
+    expect(props("logs").after?.type).toBe("string");
     for (const name of ["status", "logs"]) {
       expect(tools.find((tool) => tool.name === name)?.description).toContain("unhealthy: true");
     }

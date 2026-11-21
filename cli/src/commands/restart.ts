@@ -41,7 +41,7 @@ export const restartCommand = new Command("restart")
   .option("--rebuild", "Rebuild the image through Tilt instead of restarting the container", false)
   .option(
     "--project <path>",
-    "Restart resources for the Flisk project in this folder (default: the current project)",
+    "Path to the Flisk project whose resource to restart (default: the current project)",
   )
   .option(
     "--wait <seconds>",
@@ -69,7 +69,7 @@ export const restartCommand = new Command("restart")
     }
 
     const action = async (): Promise<void> => {
-      const root = resolveCommandProject({
+      const root = await resolveCommandProject({
         commandName: "restart",
         project: options.project ?? command.optsWithGlobals().project,
         json: options.json,

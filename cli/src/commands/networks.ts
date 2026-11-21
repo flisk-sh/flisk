@@ -73,6 +73,33 @@ function execSafe(
   });
 }
 
+const HTTP_CHECK_TIMEOUT_MS = 2_000;
+
+type HttpCheckResult = "running" | "stopped" | "unavailable";
+
+/** Probe a service URL in-process so the status check needs neither curl nor a POSIX null device. */
+async function checkHttpStatus(url: string): Promise<HttpCheckResult> {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "manual",
+      signal: AbortSignal.timeout(HTTP_CHECK_TIMEOUT_MS),
+    });
+    await response.body?.cancel();
+
+    // 401 and 403 mean the service answered and asked for credentials.
+    const { status } = response;
+    if ((status >= 200 && status < 400) || status === 401 || status === 403) {
+      return "running";
+    }
+    return "stopped";
+  } catch (err: unknown) {
+    console.warn(chalk.yellow(`⚠️ Could not reach ${url} (HTTP check failed)`));
+    logVerbose(`HTTP check error details for ${url}`, err);
+    return "unavailable";
+  }
+}
+
 export function determineDefaultDomain(): string {
   const projectRoot = findProjectRoot();
   if (projectRoot) {
@@ -167,38 +194,21 @@ export async function checkServiceStatus(
   url?: string,
 ): Promise<"running" | "stopped" | "unknown"> {
   if (url) {
+    let validUrl: URL;
     try {
-      const validUrl = new URL(url);
-      if (validUrl.protocol !== "http:" && validUrl.protocol !== "https:") {
-        return "stopped";
-      }
-
-      const statusCode = await execSafe(
-        "curl",
-        ["-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "2", validUrl.toString()],
-        { timeout: 3000 },
-      );
-
-      const code = statusCode.trim();
-
-      // 401 and 403 mean the service answered and asked for credentials.
-      if (/^[23]\d\d$/.test(code) || code === "401" || code === "403") {
-        return "running";
-      }
-
-      if (/^[45]\d\d$/.test(code)) {
-        return "stopped";
-      }
-
-      // Connection refused or other error - service not accessible
-      if (code === "000") {
-        return "stopped";
-      }
+      validUrl = new URL(url);
     } catch (err: unknown) {
       console.warn(chalk.yellow(`⚠️ Could not reach ${url} (HTTP check failed)`));
       logVerbose(`HTTP check error details for ${url}`, err);
       return "stopped";
     }
+    if (validUrl.protocol !== "http:" && validUrl.protocol !== "https:") {
+      return "stopped";
+    }
+
+    const httpStatus = await checkHttpStatus(validUrl.toString());
+    // When the probe could not run, fall through to the port and Docker checks below.
+    if (httpStatus !== "unavailable") return httpStatus;
   }
 
   if (port && isValidPort(port)) {

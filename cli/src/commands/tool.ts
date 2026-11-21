@@ -10,8 +10,10 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { basename } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { DATABASE_FRAMEWORK } from "../types/index.js";
 import { type CliInvocation, cliInvocation } from "../utils/cli-invocation.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
@@ -19,6 +21,7 @@ import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { readProjectNameOrUndefined } from "../utils/project-reader.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
 import {
@@ -149,6 +152,8 @@ export function resolveWords(words: string[]): { tool: ToolEntry; name?: string 
 /** What `flisk tool add` needs from the project before it runs `flisk resource`: its resources and their stacks. */
 export interface ProjectView {
   native?: boolean;
+  /** `project.name` (or the folder name), so a refusal can give the exact Docker-switch command. */
+  name?: string;
   resources: Array<{ name: string; stack?: string; type?: string }>;
 }
 
@@ -156,7 +161,33 @@ function readProject(): ProjectView | undefined {
   const root = findProjectRoot();
   if (!root) return undefined;
   const { resources } = discoverResourcesWithProblems(root);
-  return { native: isNativeProject(resources), resources };
+  return {
+    native: isNativeProject(resources),
+    name: readProjectNameOrUndefined(root) ?? basename(root),
+    resources,
+  };
+}
+
+/**
+ * The shared Postgres is a Flisk-managed service with no ready-made image: it cannot join a local-process run, and
+ * `flisk up` refuses to mix it with the services that declare `command`. Refuse here, before `flisk resource` writes
+ * anything or prints next steps that would fail. The other database tools use pinned images and keep their behaviour.
+ */
+function sharedPostgresRefusal(tool: ResourceTool, name: string, view: ProjectView): FliskError {
+  const project = view.name ? ` "${view.name}"` : "";
+  return new FliskError(
+    `${tool.title} cannot be added to this local-process project: the shared Postgres has no ready-made image, so \`flisk up\` would refuse to mix it with the services that run locally. Nothing was written.`,
+    [
+      "Use a database with a ready-made image instead: flisk tool add mysql --yes (or flisk tool add mongodb --yes).",
+      `To switch project${project} to Docker, remove \`command\` from each service.json, or create it again with: flisk create ${view.name ?? "my-app"} --runtime docker --yes`,
+      `Then run: flisk tool add ${tool.id} ${name}`,
+    ],
+  );
+}
+
+/** True for the one database tool whose resource has no image: `--type database --framework postgres`. */
+export function needsDockerForLocalProject(tool: ResourceTool): boolean {
+  return tool.group === "data" && tool.args.includes(DATABASE_FRAMEWORK);
 }
 
 /**
@@ -297,7 +328,11 @@ export function addTool(
         error.suggestions.push(`Then run: flisk tool add ${tool.id}${name ? ` ${name}` : ""}`);
         throw error;
       }
-      checkResource(tool, name ?? tool.defaultName, options.stack, view);
+      const resourceName = name ?? tool.defaultName;
+      checkResource(tool, resourceName, options.stack, view);
+      if (view.native && needsDockerForLocalProject(tool)) {
+        throw sharedPostgresRefusal(tool, resourceName, view);
+      }
       const args = resourceArgs(tool, {
         name,
         stack: options.stack,

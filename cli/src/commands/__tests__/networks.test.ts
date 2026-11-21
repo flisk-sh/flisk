@@ -23,6 +23,11 @@ vi.mock("node:child_process", async (importOriginal) => {
   };
 });
 
+function expectNoCurlSpawn(): void {
+  const commands = vi.mocked(childProcess.spawn).mock.calls.map(([command]) => String(command));
+  expect(commands.some((command) => /curl(?:\.exe)?$/i.test(command))).toBe(false);
+}
+
 function createMockChildProcess(options: {
   stdout?: string;
   stderr?: string;
@@ -70,6 +75,10 @@ describe("networksCommand and helpers", () => {
       explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
       reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
     });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 200 })),
+    );
   });
 
   afterEach(() => {
@@ -77,6 +86,8 @@ describe("networksCommand and helpers", () => {
     rmSync(tempDir, { recursive: true, force: true });
     clearDiscoveryCache();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   function setupProject(
@@ -191,45 +202,68 @@ describe("networksCommand and helpers", () => {
   });
 
   describe("checkServiceStatus", () => {
-    it("returns stopped for non-HTTP URLs without spawning curl", async () => {
+    it("returns stopped for non-HTTP URLs without fetching or spawning curl", async () => {
       expect(await checkServiceStatus("orders-api", 4000, "ftp://acme.localhost/api")).toBe(
         "stopped",
       );
+      expect(globalThis.fetch).not.toHaveBeenCalled();
       expect(childProcess.spawn).not.toHaveBeenCalled();
     });
 
-    it("returns running on 2xx/3xx HTTP status and stopped on 4xx/5xx/000 or curl error", async () => {
-      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
-        createMockChildProcess({ stdout: "200" }),
-      );
+    it("reports a reachable URL as running with fetch, with no curl on PATH", async () => {
+      vi.stubEnv("PATH", "");
+      vi.mocked(childProcess.spawn).mockImplementation(() => {
+        throw new Error("curl is not on PATH");
+      });
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(null, { status: 200 }));
+
       expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("running");
-
-      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
-        createMockChildProcess({ stdout: "401" }),
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://app.acme.localhost/",
+        expect.objectContaining({ redirect: "manual", signal: expect.any(AbortSignal) }),
       );
-      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("running");
+      expectNoCurlSpawn();
+    });
 
-      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
-        createMockChildProcess({ stdout: "403" }),
-      );
-      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("running");
-
-      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
-        createMockChildProcess({ stdout: "502" }),
-      );
-      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("stopped");
-
-      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
-        createMockChildProcess({ stdout: "000" }),
-      );
-      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("stopped");
-
+    it("reports an unreachable URL as stopped with no curl on PATH", async () => {
+      vi.stubEnv("PATH", "");
+      vi.mocked(childProcess.spawn).mockImplementation(() => {
+        throw new Error("curl is not on PATH");
+      });
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
-        createMockChildProcess({ exitCode: 7, stderr: "Failed to connect" }),
+      vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error("fetch failed"));
+
+      expect(await checkServiceStatus("web", undefined, "http://app.acme.localhost/")).toBe(
+        "stopped",
       );
-      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("stopped");
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("HTTP check failed"));
+      expectNoCurlSpawn();
+    });
+
+    it("falls back to the port check when the HTTP check cannot run", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error("fetch failed"));
+      vi.spyOn(portAssignment, "checkPortStatus").mockResolvedValueOnce("running");
+
+      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("running");
+      expect(portAssignment.checkPortStatus).toHaveBeenCalledWith(3000);
+      expect(childProcess.spawn).not.toHaveBeenCalled();
+    });
+
+    it("returns running on 2xx/3xx HTTP status and stopped on 4xx/5xx", async () => {
+      const statuses = [
+        [200, "running"],
+        [302, "running"],
+        [401, "running"],
+        [403, "running"],
+        [404, "stopped"],
+        [502, "stopped"],
+      ] as const;
+      for (const [status, expected] of statuses) {
+        vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(null, { status }));
+        expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe(expected);
+      }
+      expect(childProcess.spawn).not.toHaveBeenCalled();
     });
 
     it("falls back to port probe and Docker container check, handling Docker command failure", async () => {
@@ -297,9 +331,6 @@ describe("networksCommand and helpers", () => {
       vi.mocked(childProcess.execFileSync).mockImplementation(() => {
         throw new Error("Docker daemon not running");
       });
-      vi.mocked(childProcess.spawn).mockImplementation(() =>
-        createMockChildProcess({ stdout: "200" }),
-      );
 
       const lines: string[] = [];
       vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -322,9 +353,6 @@ describe("networksCommand and helpers", () => {
       vi.mocked(childProcess.execFileSync).mockImplementation(() => {
         throw new Error("Docker daemon not running");
       });
-      vi.mocked(childProcess.spawn).mockImplementation(() =>
-        createMockChildProcess({ stdout: "200" }),
-      );
 
       const lines: string[] = [];
       vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -345,9 +373,6 @@ describe("networksCommand and helpers", () => {
       vi.mocked(childProcess.execFileSync).mockImplementation(() => {
         throw new Error("Docker daemon not running");
       });
-      vi.mocked(childProcess.spawn).mockImplementation(() =>
-        createMockChildProcess({ stdout: "200" }),
-      );
 
       const lines: string[] = [];
       vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -367,9 +392,6 @@ describe("networksCommand and helpers", () => {
       vi.mocked(childProcess.execFileSync).mockImplementation(() => {
         throw new Error("Docker daemon not running");
       });
-      vi.mocked(childProcess.spawn).mockImplementation(() =>
-        createMockChildProcess({ stdout: "200" }),
-      );
       const lines: string[] = [];
       vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
         lines.push(args.map(String).join(" "));
@@ -379,7 +401,6 @@ describe("networksCommand and helpers", () => {
 
       const output = stripVTControlCharacters(lines.join("\n"));
       expect(output).toMatch(/https:\/\/api\.demo\.test:9000\/api\/vote\/(\s|$)/);
-      vi.unstubAllEnvs();
     });
 
     it("gives a webUi bring-your-own service no IP loopback URL on Windows", async () => {
@@ -392,9 +413,6 @@ describe("networksCommand and helpers", () => {
       vi.mocked(childProcess.execFileSync).mockImplementation(() => {
         throw new Error("Docker daemon not running");
       });
-      vi.mocked(childProcess.spawn).mockImplementation(() =>
-        createMockChildProcess({ stdout: "200" }),
-      );
       const lines: string[] = [];
       vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
         lines.push(args.map(String).join(" "));
@@ -421,13 +439,10 @@ describe("networksCommand and helpers", () => {
       vi.mocked(childProcess.execFileSync).mockImplementation(() => {
         throw new Error("Docker daemon not running");
       });
-      vi.mocked(childProcess.spawn).mockImplementation((_cmd, args) => {
-        const urlArg = args[args.length - 1] ?? "";
-        if (String(urlArg).includes("app.localhost")) {
-          return createMockChildProcess({ stdout: "200" });
-        }
-        return createMockChildProcess({ stdout: "503" });
-      });
+      vi.mocked(globalThis.fetch).mockImplementation(
+        async (input) =>
+          new Response(null, { status: String(input).includes("app.localhost") ? 200 : 503 }),
+      );
 
       const lines: string[] = [];
       vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -484,9 +499,6 @@ describe("networksCommand and helpers", () => {
         { name: "web", appType: "frontend", stack: "shop", port: 5173, basePath: "/shop" },
         { name: "orders-api", appType: "backend", stack: "shop", port: 4000 },
       ]);
-      vi.mocked(childProcess.spawn).mockImplementation(() =>
-        createMockChildProcess({ stdout: "200" }),
-      );
 
       const lines: string[] = [];
       vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {

@@ -102,6 +102,7 @@ describe("machine output contract: every --json command emits the standard envel
 
   it.each([
     ["projects", ["projects", "--json"]],
+    ["create --dry-run", ["create", "contract-app", "--dry-run", "--json"]],
     ["project --list", ["project", "--list", "--json"]],
     ["stacks", ["stacks", "--json"]],
     ["resources", ["resources", "--json"]],

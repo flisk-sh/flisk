@@ -1,9 +1,0 @@
-appName: api
-appType: sdk
-stack: identity
-port: 5175
-backendName: identity-management-backend
-basePath: /identity-sdk
-healthCheck: False
-path: identity-sdk
-playwright: False
