@@ -117,6 +117,7 @@ import {
   checkTiltInstances,
 } from "../utils/doctor-wiring.js";
 import { execAsync } from "../utils/exec-async.js";
+import { checkExternalComposeNetworks } from "../utils/external-compose-networks.js";
 import {
   cacheExecAsync,
   createAsyncCommandCache,
@@ -617,6 +618,9 @@ export const doctorCommand = new Command("doctor")
       () => checkFrontendBackendUrls(),
       () => checkSharedStackRoutes(),
       () => checkNatsBroker(),
+      requiresContainerRuntime("External compose networks", () =>
+        checkExternalComposeNetworks(checkDir, undefined, undefined, process.env, options),
+      ),
       () => checkPrismaConsistency(undefined, undefined, options),
       // Shared platform Postgres: will-start report + unknown dependsOn names stay errors.
       () => checkSharedPlatformPostgres(undefined, options),

@@ -47,6 +47,7 @@ export const CONTAINER_CHECK_NAMES_MAP: Record<string, string> = {
   checkAdvertisedEndpoints: "Advertised Endpoints",
   checkDockerBuildCache: "Docker Build Cache",
   checkDockerFileSharing: "Docker File Sharing",
+  checkExternalComposeNetworks: "External compose networks",
 };
 
 export const CONTAINER_DEPENDENT_CHECK_NAMES = new Set([
@@ -63,6 +64,7 @@ export const CONTAINER_DEPENDENT_CHECK_NAMES = new Set([
   "Docker Build Cache",
   "Colima Disk",
   "Docker File Sharing",
+  "External compose networks",
   ...Object.keys(CONTAINER_CHECK_NAMES_MAP),
 ]);
 

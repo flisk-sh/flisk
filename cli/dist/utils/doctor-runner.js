@@ -36,6 +36,7 @@ export const CONTAINER_CHECK_NAMES_MAP = {
     checkAdvertisedEndpoints: "Advertised Endpoints",
     checkDockerBuildCache: "Docker Build Cache",
     checkDockerFileSharing: "Docker File Sharing",
+    checkExternalComposeNetworks: "External compose networks",
 };
 export const CONTAINER_DEPENDENT_CHECK_NAMES = new Set([
     "Docker OS",
@@ -51,6 +52,7 @@ export const CONTAINER_DEPENDENT_CHECK_NAMES = new Set([
     "Docker Build Cache",
     "Colima Disk",
     "Docker File Sharing",
+    "External compose networks",
     ...Object.keys(CONTAINER_CHECK_NAMES_MAP),
 ]);
 export function isContainerDependentCheck(check) {

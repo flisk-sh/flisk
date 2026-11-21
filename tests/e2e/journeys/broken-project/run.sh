@@ -6,11 +6,14 @@
 #       Tilt running, so the case waits for that report, then runs flisk down.
 #   BP4 an interrupted flisk up: the process is killed once Docker has started containers, flisk down removes them, and a second
 #       flisk up brings the service up healthy.
-# BP3 and BP4 each rebuild the scratch project, so run them one at a time (the default `all` runs them in order).
+#   BP5 external project compose network (#3992): messaging compose declares <project>_traefik-private external, init-networks
+#       creates it automatically, and flisk up starts both nats and the app cleanly.
+# BP3, BP4 and BP5 each rebuild the scratch project, so run them one at a time (the default `all` runs them in order).
 # Expected total duration: under 180s (suite.json typicalSeconds). Each case logs its own wall time.
 #
 #   tests/e2e/journeys/broken-project/run.sh BP3
 #   tests/e2e/journeys/broken-project/run.sh BP4
+#   tests/e2e/journeys/broken-project/run.sh BP5
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -118,6 +121,40 @@ BP4() { # an interrupted flisk up is cleaned up by flisk down, and a second flis
   run bp4-down-final down
   log "BP4 took $((SECONDS - case_start))s"
   log "PASS BP4: flisk down cleaned up after an interrupted up, and a second flisk up started $SERVICE"
+}
+
+BP5() { # a project compose file declaring <project>_traefik-private external starts cleanly because init-networks creates it (#3992)
+  log "BP5 project compose declaring <project>_traefik-private external is initialized by init-networks"
+  scaffold_project ok
+  local proj_prefix="${PROJECT//-/_}"
+  local ext_net="${proj_prefix}_traefik-private"
+  docker network rm "$ext_net" >/dev/null 2>&1 || true
+  mkdir -p "$DIR/services/platform/messaging"
+  cat >"$DIR/services/platform/messaging/docker-compose.yml" <<YAML
+services:
+  nats:
+    image: nats:2-alpine
+    command: ["-js"]
+    networks:
+      - traefik-private
+
+networks:
+  traefik-private:
+    name: ${ext_net}
+    external: true
+YAML
+  start_stack app
+  wait_status_url "$SERVICE"
+  # `flisk up` spends seconds in preflight and generation before Tilt starts init-networks, and
+  # wait_status_url passes as soon as status lists the URL (the field is derived from the manifest,
+  # not from a running stack), so a single inspect here races the up and fails before Tilt even
+  # started. Poll for the network until the ready timeout instead.
+  poll_until "init-networks creates $ext_net" "$READY_TIMEOUT" \
+    bash -c "docker network inspect '$ext_net' >/dev/null 2>&1" \
+    || { bp_diagnostics bp5; die "BP5: init-networks did not create external network $ext_net"; }
+  run bp5-down down --prune-networks
+  [[ "$RC" -eq 0 ]] || die "BP5: flisk down --prune-networks exited $RC"
+  log "PASS BP5: init-networks created $ext_net and flisk up started the stack cleanly"
 }
 
 e2e_main "$@"

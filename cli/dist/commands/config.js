@@ -14,6 +14,7 @@ import { MASTER_CONFIG_FILES, PROJECT_JSON, RESOURCE_DEFAULTS_FILE, TECH_STACK_F
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkDuplicateResourceNames, checkDuplicateResourcePorts, checkPrismaConsistency, } from "../utils/doctor-wiring.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand, showError, } from "../utils/errors.js";
+import { externalNetworkWarnings } from "../utils/external-compose-networks.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
@@ -347,6 +348,7 @@ export const configCommand = new Command("config")
             warnings: [
                 ...verified.warnings,
                 ...postgresVolumeWarnings(projectRoot, resources),
+                ...externalNetworkWarnings(projectRoot, resources),
                 ...(duplicatePorts.didPass
                     ? []
                     : [`${duplicatePorts.message}\n    Fix: ${duplicatePorts.fix}`]),

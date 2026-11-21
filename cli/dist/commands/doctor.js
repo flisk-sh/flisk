@@ -28,6 +28,7 @@ import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkBun, checkDockerVersions, checkTilt } from "../utils/doctor-tools.js";
 import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkInfraFrameworks, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
 import { execAsync } from "../utils/exec-async.js";
+import { checkExternalComposeNetworks } from "../utils/external-compose-networks.js";
 import { cacheExecAsync, createAsyncCommandCache, createHostCommandCache, } from "../utils/host-command-cache.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
@@ -389,6 +390,7 @@ export const doctorCommand = new Command("doctor")
         () => checkFrontendBackendUrls(),
         () => checkSharedStackRoutes(),
         () => checkNatsBroker(),
+        requiresContainerRuntime("External compose networks", () => checkExternalComposeNetworks(checkDir, undefined, undefined, process.env, options)),
         () => checkPrismaConsistency(undefined, undefined, options),
         // Shared platform Postgres: will-start report + unknown dependsOn names stay errors.
         () => checkSharedPlatformPostgres(undefined, options),
