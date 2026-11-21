@@ -79,7 +79,7 @@ function fail(message) {
 	process.exit(1);
 }
 
-function sh(cmd, argv, opts = {}) {
+function sh(cmd, argv, opts = {}) { // NOSONAR: spawnSync uses an argv array, no shell is invoked
 	const r = spawnSync(cmd, argv, { encoding: "utf8", ...opts });
 	return { code: r.status, out: (r.stdout ?? "").trim(), err: (r.stderr ?? "").trim() };
 }

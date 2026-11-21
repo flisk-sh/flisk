@@ -13,9 +13,11 @@ const server = createServer((request, response) => {
     response.end("ok");
     return;
   }
-  if (request.url?.startsWith("/api/")) {
+  // Only forward relative API paths: reject protocol-relative ("//evil.com") and traversal ("../") inputs.
+  const apiPath = request.url && /^\/api\//.test(request.url) && !request.url.includes("..") ? request.url : null;
+  if (apiPath) {
     const upstream = forward(
-      { host: api.hostname, port: api.port, path: request.url, method: request.method },
+      { host: api.hostname, port: api.port, path: apiPath, method: request.method },
       (reply) => {
         response.writeHead(reply.statusCode ?? 502, reply.headers);
         reply.pipe(response);
