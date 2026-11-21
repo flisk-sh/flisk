@@ -274,22 +274,30 @@ describe("native run planning", () => {
     ]);
   });
 
+  /** One `+ "`bring-your-own`" + ` service per [name, command] pair, planned the way `+ "`flisk up`" + ` would plan it. */
+  const plansFor = (services: ReadonlyArray<readonly [string, string]>) =>
+    planNativeRun(
+      services.map(([name, command]) => makeResource(name, "bring-your-own", { command })),
+    ).services;
+
+  /** What `+ "`findMissingPrograms`" + ` reports, with a lookup that finds nothing unless the test says otherwise. */
+  const missingFor = (
+    services: ReadonlyArray<readonly [string, string]>,
+    find: (program: string) => string | null = () => null,
+  ) => findMissingPrograms(plansFor(services), find, () => false);
+
   it("names the program after a leading cd, as a generated setup job declares it (#3885)", () => {
-    const plans = planNativeRun([
-      makeResource("setup", "bring-your-own", {
-        command: "cd ../agent && npm install --no-audit --no-fund",
-      }),
-      makeResource("semicolon", "bring-your-own", { command: "cd ../agent; npm install" }),
-      makeResource("installed", "bring-your-own", { command: "cd ../agent && node server.mjs" }),
-      makeResource("path", "bring-your-own", { command: "cd ../agent && ./bin/run" }),
-      makeResource("alone", "bring-your-own", { command: "cd ../agent" }),
-    ]).services;
-    // `./bin/run` is relative to ../agent, so it is left to the shell; `node` is on PATH and a lone `cd` is a builtin.
+    // `+ "`./bin/run`" + ` is relative to ../agent, so it is left to the shell; `+ "`node`" + ` is on PATH and a lone `+ "`cd`" + ` is a builtin.
     expect(
-      findMissingPrograms(
-        plans,
+      missingFor(
+        [
+          ["setup", "cd ../agent && npm install --no-audit --no-fund"],
+          ["semicolon", "cd ../agent; npm install"],
+          ["installed", "cd ../agent && node server.mjs"],
+          ["path", "cd ../agent && ./bin/run"],
+          ["alone", "cd ../agent"],
+        ],
         (program) => (program === "node" ? "/usr/bin/node" : null),
-        () => false,
       ),
     ).toEqual([
       { name: "setup", program: "npm" },
@@ -298,42 +306,20 @@ describe("native run planning", () => {
   });
 
   it("reports nothing when the program after a leading cd is installed", () => {
-    const plans = planNativeRun([
-      makeResource("setup", "bring-your-own", { command: "cd ../agent && npm install" }),
-    ]).services;
-    expect(
-      findMissingPrograms(
-        plans,
-        () => "/usr/bin/npm",
-        () => false,
-      ),
-    ).toEqual([]);
+    expect(missingFor([["setup", "cd ../agent && npm install"]], () => "/usr/bin/npm")).toEqual([]);
   });
 
   it("does not take a builtin or a compound command for the program (#3885 review)", () => {
-    const plans = planNativeRun([
-      makeResource("exported", "bring-your-own", {
-        command: "cd ../agent && export MODE=dev && npm install",
-      }),
-      makeResource("colon", "bring-your-own", { command: "cd ../agent && : && npm install" }),
-      makeResource("compound", "bring-your-own", {
-        command: "cd ../agent && if true; then npm install; fi",
-      }),
-      makeResource("piped", "bring-your-own", { command: "cd ../agent && npm install | tee log" }),
-      makeResource("sourced", "bring-your-own", {
-        command: "cd ../agent && source .env && npm install",
-      }),
-      makeResource("redirected", "bring-your-own", {
-        command: "cd ../agent && npm install > log",
-      }),
-    ]).services;
-    // `export` and `:` are builtins that run first; the rest is shell grammar this preflight cannot name.
+    // `+ "`export`" + ` and `+ "`:`" + ` are builtins that run first; the rest is shell grammar this preflight cannot name.
     expect(
-      findMissingPrograms(
-        plans,
-        () => null,
-        () => false,
-      ),
+      missingFor([
+        ["exported", "cd ../agent && export MODE=dev && npm install"],
+        ["colon", "cd ../agent && : && npm install"],
+        ["compound", "cd ../agent && if true; then npm install; fi"],
+        ["piped", "cd ../agent && npm install | tee log"],
+        ["sourced", "cd ../agent && source .env && npm install"],
+        ["redirected", "cd ../agent && npm install > log"],
+      ]),
     ).toEqual([
       { name: "exported", program: "npm" },
       { name: "colon", program: "npm" },
@@ -341,20 +327,11 @@ describe("native run planning", () => {
   });
 
   it("keeps a separator inside quotes or an escape part of the argument (#3885 review)", () => {
-    const plans = planNativeRun([
-      makeResource("quoted", "bring-your-own", {
-        command: 'cd ../agent && npm install --flag "a && b"',
-      }),
-      makeResource("escaped", "bring-your-own", {
-        command: "cd ../agent && npm install --flag a\\;b",
-      }),
-    ]).services;
     expect(
-      findMissingPrograms(
-        plans,
-        () => null,
-        () => false,
-      ),
+      missingFor([
+        ["quoted", 'cd ../agent && npm install --flag "a && b"'],
+        ["escaped", "cd ../agent && npm install --flag a\\;b"],
+      ]),
     ).toEqual([
       { name: "quoted", program: "npm" },
       { name: "escaped", program: "npm" },
@@ -362,69 +339,43 @@ describe("native run planning", () => {
   });
 
   it("stops at a shell comment and at a PATH the command sets itself (#3885 review)", () => {
-    const plans = planNativeRun([
-      makeResource("commented", "bring-your-own", {
-        command: "cd ../agent && echo ready # optional setup; npm install",
-      }),
-      makeResource("quoted-hash", "bring-your-own", {
-        command: 'cd ../agent && npm install --tag "#dev"',
-      }),
-      makeResource("path-assignment", "bring-your-own", {
-        command: "cd ../agent && PATH=/opt/node/bin && npm install",
-      }),
-      makeResource("exported-path", "bring-your-own", {
-        command: "cd ../agent && export PATH=/opt/node/bin && npm install",
-      }),
-    ]).services;
-    // Everything after an unquoted `#` never runs; a PATH the command sets is not the one this preflight reads.
+    // Everything after an unquoted `+ "`#`" + ` never runs; a PATH the command sets is not the one this preflight reads.
     expect(
-      findMissingPrograms(
-        plans,
-        () => null,
-        () => false,
-      ),
+      missingFor([
+        ["commented", "cd ../agent && echo ready # optional setup; npm install"],
+        ["quoted-hash", 'cd ../agent && npm install --tag "#dev"'],
+        ["path-assignment", "cd ../agent && PATH=/opt/node/bin && npm install"],
+        ["exported-path", "cd ../agent && export PATH=/opt/node/bin && npm install"],
+      ]),
     ).toEqual([{ name: "quoted-hash", program: "npm" }]);
   });
 
   it("reads env's own options before naming the program it runs (#4676 review)", () => {
-    const plans = planNativeRun([
-      makeResource("plain", "bring-your-own", { command: "env npm install" }),
-      makeResource("ignored", "bring-your-own", { command: "env -i node server.js" }),
-      makeResource("after-cd", "bring-your-own", {
-        command: "cd ../agent && env -i /usr/bin/node server.js",
-      }),
-      makeResource("unset", "bring-your-own", { command: "env -u HOME npm ci" }),
-      makeResource("inline", "bring-your-own", { command: "env -uHOME npm ci" }),
-      makeResource("chdir", "bring-your-own", { command: "env --chdir=app npm ci" }),
-      makeResource("assign", "bring-your-own", { command: "env NODE_ENV=production npm ci" }),
-      makeResource("unknown", "bring-your-own", { command: "env -Z nope-runtime run" }),
-      makeResource("missing", "bring-your-own", { command: "env -i nope-runtime run" }),
-    ]).services;
-    // `-i`, `-u HOME` and `--chdir=app` belong to env; the word after them is the program it runs. An option this
-    // preflight does not know is left to env rather than reported as a missing program.
+    // `+ "`-i`" + `, `+ "`-u HOME`" + ` and `+ "`--chdir=app`" + ` belong to env; the word after them is the program it runs. An
+    // option this preflight does not know is left to env rather than reported as a missing program.
     expect(
-      findMissingPrograms(
-        plans,
+      missingFor(
+        [
+          ["plain", "env npm install"],
+          ["ignored", "env -i node server.js"],
+          ["after-cd", "cd ../agent && env -i /usr/bin/node server.js"],
+          ["unset", "env -u HOME npm ci"],
+          ["inline", "env -uHOME npm ci"],
+          ["chdir", "env --chdir=app npm ci"],
+          ["assign", "env NODE_ENV=production npm ci"],
+          ["unknown", "env -Z nope-runtime run"],
+          ["missing", "env -i nope-runtime run"],
+        ],
         (program) => (program === "npm" || program === "node" ? `/usr/bin/${program}` : null),
-        () => false,
       ),
     ).toEqual([{ name: "missing", program: "nope-runtime" }]);
   });
 
   it("leaves a bare program to the shell when PATH has a relative entry after a cd", () => {
-    const plans = planNativeRun([
-      makeResource("setup", "bring-your-own", { command: "cd ../agent && npm install" }),
-    ]).services;
     const previous = process.env.PATH;
     process.env.PATH = ["bin", previous ?? ""].filter(Boolean).join(delimiter);
     try {
-      expect(
-        findMissingPrograms(
-          plans,
-          () => null,
-          () => false,
-        ),
-      ).toEqual([]);
+      expect(missingFor([["setup", "cd ../agent && npm install"]])).toEqual([]);
     } finally {
       process.env.PATH = previous;
     }
