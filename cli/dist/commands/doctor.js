@@ -11,6 +11,7 @@ import { checkColimaDisk } from "../utils/colima-disk.js";
 import { CONTAINER_RUNTIME_CHECK } from "../utils/constants.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
+import { checkCodingAgents } from "../utils/doctor-agents.js";
 import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, } from "../utils/doctor-container.js";
 import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import { applyDoctorFixes, checkDuplicateFliskInstalls, hasFailedActions, planDoctorFixes, projectTiltPids, } from "../utils/doctor-fix.js";
@@ -83,12 +84,13 @@ export const doctorCommand = new Command("doctor")
     .option("--no-gateway", "Skip gateway checks (ports 80/443)")
     .option("--no-database", "Skip database capability checks")
     .option("--strict", "Fail warnings such as a WSL project under /mnt/c")
+    .option("--agents", "Also check for several coding agents working in this checkout (reads process names and agent session file names/mtimes only)", false)
     .option("--fix", "Repair this project's unused Docker networks and leftover doctor probes", false)
     .option("--dry-run", "With --fix: list the repairs without changing anything", false)
     .option("--scope <scope>", "With --fix: project (default) or machine, which also removes unused networks of other Flisk projects", "project")
     .option("-y, --yes", "With --fix: apply every repair without asking", false)
     .option("--ping-timeout <ms>", "Per-service ping timeout in milliseconds", String(DEFAULT_PING_TIMEOUT_MS))
-    .addHelpText("after", "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --fix --dry-run\n  flisk doctor --json")
+    .addHelpText("after", "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --agents\n  flisk doctor --fix --dry-run\n  flisk doctor --json")
     .action(async (options) => {
     const providerError = secretProviderUsageError(process.env);
     if (providerError) {
@@ -439,6 +441,10 @@ export const doctorCommand = new Command("doctor")
             () => checkDuplicateFliskInstalls(),
         ]
         : containerMachineChecks;
+    // Opt-in only (#3128): scans the process list and agent session metadata, so default runs skip it.
+    if (options.agents) {
+        machineChecks.push(() => checkCodingAgents({ startDir: checkDir, projectRoot, strict: options.strict }));
+    }
     const projectChecks = nativeResources
         ? [
             ...versionAndRepoChecks,
