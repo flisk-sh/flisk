@@ -143,7 +143,7 @@ describe("python pytest-on-save manifest validation", () => {
       "service.json",
     );
     expect(resUnknownKey.errors).toContain(
-      'service.json.dev.testOnSave: unexpected key "extraKey" (expected "enabled" or "path")',
+      'service.json.dev.testOnSave: unexpected key "extraKey" (expected "enabled", "path" or "packages")',
     );
 
     const resMisspelledKey = validateServiceManifest(
@@ -151,27 +151,86 @@ describe("python pytest-on-save manifest validation", () => {
       "service.json",
     );
     expect(resMisspelledKey.errors).toContain(
-      'service.json.dev.testOnSave: unexpected key "enable" (expected "enabled" or "path")',
+      'service.json.dev.testOnSave: unexpected key "enable" (expected "enabled", "path" or "packages")',
     );
   });
 
-  it("warns when dev.testOnSave is enabled for a non-Python service", () => {
-    const resGo = validateServiceManifest(
-      { ...validManifest, language: "go", dev: { testOnSave: true } },
+  it("accepts dev.testOnSave.packages as a go test package pattern", () => {
+    const res = validateServiceManifest(
+      { ...validManifest, dev: { testOnSave: { enabled: true, packages: "./..." } } },
       "service.json",
     );
-    expect(resGo.errors).toEqual([]);
-    expect(resGo.warnings).toContain(
-      'service.json.dev.testOnSave: only applies to Python services (language "python"); it is ignored here',
-    );
+    expect(res.errors).toEqual([]);
+    expect(res.warnings).toEqual([]);
+  });
 
+  it("rejects invalid dev.testOnSave.packages values", () => {
+    for (const packages of ["", "   ", "/abs/path", "has space", 42, null]) {
+      const res = validateServiceManifest(
+        { ...validManifest, dev: { testOnSave: { enabled: true, packages } } },
+        "service.json",
+      );
+      expect(res.errors).toContain(
+        "service.json.dev.testOnSave.packages: expected a go test package pattern such as './...'",
+      );
+    }
+  });
+
+  it("warns when dev.testOnSave is enabled for a language without test-on-save", () => {
     const resNode = validateServiceManifest(
       { ...validManifest, language: "node", dev: { testOnSave: { enabled: true } } },
       "service.json",
     );
     expect(resNode.errors).toEqual([]);
     expect(resNode.warnings).toContain(
-      'service.json.dev.testOnSave: only applies to Python services (language "python"); it is ignored here',
+      "service.json.dev.testOnSave: only applies to Python and Go services; it is ignored here",
+    );
+
+    const resRust = validateServiceManifest(
+      { ...validManifest, language: "rust", dev: { testOnSave: true } },
+      "service.json",
+    );
+    expect(resRust.errors).toEqual([]);
+    expect(resRust.warnings).toContain(
+      "service.json.dev.testOnSave: only applies to Python and Go services; it is ignored here",
+    );
+  });
+
+  it("accepts dev.testOnSave for Go services and requires dev.liveReload for it to run", () => {
+    const resGo = validateServiceManifest(
+      { ...validManifest, language: "go", dev: { liveReload: true, testOnSave: true } },
+      "service.json",
+    );
+    expect(resGo.errors).toEqual([]);
+    expect(resGo.warnings).toEqual([]);
+
+    const resPackages = validateServiceManifest(
+      {
+        ...validManifest,
+        language: "go",
+        dev: { liveReload: true, testOnSave: { enabled: true, packages: "./..." } },
+      },
+      "service.json",
+    );
+    expect(resPackages.errors).toEqual([]);
+    expect(resPackages.warnings).toEqual([]);
+
+    const resNoReload = validateServiceManifest(
+      { ...validManifest, language: "go", dev: { testOnSave: true } },
+      "service.json",
+    );
+    expect(resNoReload.errors).toEqual([]);
+    expect(resNoReload.warnings).toContain(
+      "service.json.dev.testOnSave: Go test-on-save runs inside the dev.liveReload watcher; set dev.liveReload to true or it is ignored here",
+    );
+
+    const resReloadOff = validateServiceManifest(
+      { ...validManifest, language: "go", dev: { liveReload: false, testOnSave: true } },
+      "service.json",
+    );
+    expect(resReloadOff.errors).toEqual([]);
+    expect(resReloadOff.warnings).toContain(
+      "service.json.dev.testOnSave: Go test-on-save runs inside the dev.liveReload watcher; set dev.liveReload to true or it is ignored here",
     );
   });
 });

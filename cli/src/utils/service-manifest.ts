@@ -866,9 +866,15 @@ export function validateServiceManifest(
       typeof testOnSave === "object" &&
       !Array.isArray(testOnSave) &&
       (testOnSave as Record<string, unknown>).enabled !== false);
-  if (testOnSaveEnabled && manifest.language !== "python") {
+  if (testOnSaveEnabled && manifest.language !== "python" && manifest.language !== "go") {
     warnings.push(
-      `${displayPath}.dev.testOnSave: only applies to Python services (language "python"); it is ignored here`,
+      `${displayPath}.dev.testOnSave: only applies to Python and Go services; it is ignored here`,
+    );
+  }
+  // Go test-on-save runs inside the dev.liveReload watcher (#684), so it is inert without liveReload.
+  if (testOnSaveEnabled && manifest.language === "go" && liveReload !== true) {
+    warnings.push(
+      `${displayPath}.dev.testOnSave: Go test-on-save runs inside the dev.liveReload watcher; set dev.liveReload to true or it is ignored here`,
     );
   }
   if (

@@ -142,8 +142,8 @@ export function fieldTypeErrors(manifest, displayPath) {
         else if (isPlainObject(dev.testOnSave)) {
             const testOnSave = dev.testOnSave;
             for (const key of Object.keys(testOnSave)) {
-                if (key !== "enabled" && key !== "path") {
-                    errors.push(`${displayPath}.dev.testOnSave: unexpected key "${key}" (expected "enabled" or "path")`);
+                if (key !== "enabled" && key !== "path" && key !== "packages") {
+                    errors.push(`${displayPath}.dev.testOnSave: unexpected key "${key}" (expected "enabled", "path" or "packages")`);
                 }
             }
             if (typeof testOnSave.enabled !== "undefined" && typeof testOnSave.enabled !== "boolean") {
@@ -155,6 +155,11 @@ export function fieldTypeErrors(manifest, displayPath) {
             }
             else if (typeof testOnSave.path === "string" && isAbsoluteBuildPath(testOnSave.path)) {
                 errors.push(`${displayPath}.dev.testOnSave.path: must be a path relative to the service directory (no leading "/" or drive)`);
+            }
+            if (typeof testOnSave.packages !== "undefined" &&
+                (typeof testOnSave.packages !== "string" ||
+                    !/^[A-Za-z0-9_.][A-Za-z0-9_./-]*$/.test(testOnSave.packages.trim()))) {
+                bad("dev.testOnSave.packages", "a go test package pattern such as './...'");
             }
         }
         else {
