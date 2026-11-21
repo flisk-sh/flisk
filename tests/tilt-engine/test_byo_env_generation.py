@@ -26,7 +26,9 @@ def test_byo_manifest_has_resource_path_before_env_generation():
     function = source[function_start:function_end]
 
     resource_path_assignment = "manifest['_resource_path'] = resource_path"
-    byo_fast_path = "if manifest.get('appType') == 'bring-your-own':"
+    byo_fast_path = (
+        "if manifest.get('appType') == 'bring-your-own' or _uses_own_dockerfile(resource_config):"
+    )
     env_generation = "_generate_env_file(manifest, backend_manifest, write_file)"
 
     assert function.index(resource_path_assignment) < function.index(byo_fast_path)
