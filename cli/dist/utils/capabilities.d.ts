@@ -34,6 +34,8 @@ export declare function isCapabilityEnabled(projectRootOrConfig: CapabilitySourc
 export declare function isDatabaseCapabilityEnabled(projectRootOrConfig?: CapabilitySource, options?: Record<string, unknown>): boolean;
 /** False when the project or a `--no-gateway` flag opted out of the Traefik gateway. */
 export declare function isGatewayEnabled(projectRootOrConfig?: CapabilitySource, options?: Record<string, unknown>): boolean;
+/** False when the project opted out of hot reload (`capabilities.watch: false` in `.flisk/project.json`). */
+export declare function isWatchEnabled(projectRootOrConfig?: CapabilitySource, options?: Record<string, unknown>): boolean;
 /** Names of the capabilities that are on, for `--json` output. */
 export declare function getEnabledCapabilities(projectRootOrConfig?: CapabilitySource, options?: Record<string, unknown>): string[];
 /**
