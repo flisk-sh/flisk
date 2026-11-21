@@ -73,7 +73,7 @@ const GENERATED: Array<{ file: string; sha256: string; contains: string[] }> = [
       "bun-hoisted-symlink-fix.sh",
       "2655a4c8e3d3bf804ad38c1c4c600d4d54b11c492854b6fdb60bf1bd0fe142c9",
     ],
-    ["infisical-entrypoint.sh", "7e273f36ac4e50bdd2d75d74223d6a41b2cdca128805c3cc843871d669c167d0"],
+    ["infisical-entrypoint.sh", "0709e1e3d8351b9782f5be1dbfec2453397f3ff9b3edbcd15b2cc33d862997a2"],
     ["install-deps.sh", "6e2798ca0be701eb75d55f2b3f68caf54a4251fec5e5ae77f41772815e5f0bd1"],
     [
       "prisma-bun-client-link-fix.sh",
