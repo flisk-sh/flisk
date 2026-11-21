@@ -95,13 +95,6 @@
         }
       },
       "then": {
-        "properties": {
-          "featuresEnabled": {
-            "contains": {
-              "const": "nats"
-            }
-          }
-        },
         "required": [
           "featuresEnabled"
         ]
@@ -246,7 +239,7 @@
     },
     "backendName": {
       "description": "For frontends: associated backend resource.\nAuto-computed from appName if not specified.",
-      "pattern": "^[a-z][a-z0-9-]*-backend$",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
       "type": "string"
     },
     "basePath": {

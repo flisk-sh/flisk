@@ -112,7 +112,6 @@ describe("service-schema.json stays independent of the provider registries", () 
               type,
               "shop",
               (type === "frontend" ? 3000 : 4000) + index,
-              type === "worker" ? ["nats"] : [],
             ),
       ),
       ...Object.keys(FRONTEND_FRAMEWORKS).map((framework, index) =>
@@ -151,6 +150,21 @@ describe("service-schema.json stays independent of the provider registries", () 
     for (const service of generatedServices) {
       expect(validateService(service), JSON.stringify(validateService.errors)).toBe(true);
     }
+  });
+
+  it("accepts fresh frontend manifests wired to any backend resource name", () => {
+    const frontend = createServiceJson("web", "frontend", "shop", 3000);
+    frontend.backendName = "api";
+    frontend.dependsOn = ["api"];
+
+    expect(validateService(frontend), JSON.stringify(validateService.errors)).toBe(true);
+  });
+
+  it("accepts fresh worker manifests without nats features", () => {
+    const worker = createServiceJson("jobs", "worker", "shop", 4000);
+
+    expect(worker.featuresEnabled).toEqual([]);
+    expect(validateService(worker), JSON.stringify(validateService.errors)).toBe(true);
   });
 
   it("keeps . and .. segments out of a bind source that starts with a variable, as the CLI does", () => {
