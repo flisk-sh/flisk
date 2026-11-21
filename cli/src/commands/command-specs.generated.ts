@@ -76,7 +76,8 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     options: [
       {
         flags: "-v, --verbose",
-        description: "Show resource details in text view (JSON output is unchanged)",
+        description:
+          "Show resource details including the port in text view (JSON output is unchanged)",
         defaultValue: false,
       },
       {
@@ -93,7 +94,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
       },
       {
         flags: "--ports",
-        description: "Show port assignments in text view (JSON output is unchanged)",
+        description: "Short text view with each resource's port (--verbose also includes ports)",
         defaultValue: false,
       },
       {
