@@ -846,7 +846,7 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
     .option("--local", "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)", false)
     .option("--dry-run", "Preview the resource and files without writing or reserving a port", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
-    .addHelpText("after", "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker\n  flisk resource api --dry-run")
+    .addHelpText("after", "\nExamples:\n  flisk resource api\n  flisk resource api --language python\n  flisk resource jobs --type worker")
     .action(async (name, options, command) => {
     // The frontend listing is the historical default; `--type` selects the listing when it is given.
     const isTypeExplicit = command.getOptionValueSource("type") === "cli";
