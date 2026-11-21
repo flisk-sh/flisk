@@ -14,7 +14,8 @@ const server = createServer((request, response) => {
     return;
   }
   // Only forward relative API paths: reject protocol-relative ("//evil.com") and traversal ("../") inputs.
-  const apiPath = request.url && /^\/api\//.test(request.url) && !request.url.includes("..") ? request.url : null;
+  const apiPath =
+    request.url && /^\/api\//.test(request.url) && !request.url.includes("..") ? request.url : null;
   if (apiPath) {
     const upstream = forward(
       { host: api.hostname, port: api.port, path: apiPath, method: request.method },
