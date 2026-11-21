@@ -9,8 +9,9 @@ import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { nativeWindowsImportNotice } from "../utils/native-windows.js";
 import {
   type NpxInvocation,
-  type NpxRuntime,
-  npxInvocation,
+  type PackageRunnerRuntime,
+  packageRunnerError,
+  packageRunnerInvocation,
   safePackageSpec,
 } from "../utils/npx-invocation.js";
 import { getPackageVersion } from "../utils/paths.js";
@@ -140,10 +141,15 @@ export function importInvocation(
   args: string[],
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
-  runtime: Omit<NpxRuntime, "platform"> = {},
+  runtime: Omit<PackageRunnerRuntime, "platform"> = {},
 ): NpxInvocation & { pkg: string } {
   const pkg = safePackageSpec(env.FLISK_IMPORT_PACKAGE, IMPORT_PACKAGE);
-  return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
+  const invocation = packageRunnerInvocation([pkg, ...args], {
+    ...runtime,
+    platform,
+    pathEnv: runtime.pathEnv ?? env.PATH ?? env.Path,
+  });
+  return { ...invocation, pkg };
 }
 
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
@@ -165,9 +171,7 @@ export function runImport(
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     });
     child.on("error", (err) => {
-      console.error(
-        `flisk import: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`,
-      );
+      console.error(packageRunnerError("flisk import", err.message));
       resolve(127);
     });
     child.on("close", (code) => resolve(code ?? 1));
@@ -183,7 +187,7 @@ export interface ImportRun {
 
 /**
  * Runs flisk-import with its output piped instead of the caller's terminal and no stdin, so it can never prompt, and
- * resolves to what it printed and its exit code. A refusal of the core version gate or a missing npx is a run too.
+ * resolves to what it printed and its exit code. A refusal of the core version gate or a missing package runner is a run too.
  */
 export function runImportCaptured(
   args: string[],
@@ -213,7 +217,7 @@ export function runImportCaptured(
       resolve({
         exitCode: 127,
         stdout,
-        stderr: `flisk import: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`,
+        stderr: packageRunnerError("flisk import", err.message),
       });
     });
     child.on("close", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
@@ -317,7 +321,7 @@ export function importFailure(run: ImportRun, commandName = "flisk import"): Jso
       `flisk-import exited with code ${run.exitCode}`);
   const fallback =
     run.exitCode === 127
-      ? "Install Node.js 22.12 or later, which provides npx, then run the command again"
+      ? "Install Node.js (npx) or Bun (bunx), then run the command again"
       : `Run \`${commandName} --dry-run\` to see the plan without writing anything`;
   const suggestions = hints.length > 0 ? hints : [fallback];
   return new JsonCommandError("IMPORT_FAILED", message, suggestions, run.exitCode);

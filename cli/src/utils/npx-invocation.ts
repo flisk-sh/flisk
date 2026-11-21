@@ -3,6 +3,7 @@
 
 import { existsSync } from "node:fs";
 import { win32 } from "node:path";
+import { findOnPath } from "./which.js";
 
 /** How to spawn `npx <args>` so every argument reaches npx exactly as given. */
 export interface NpxInvocation {
@@ -19,6 +20,13 @@ export interface NpxRuntime {
   exists?: (path: string) => boolean;
   comSpec?: string;
 }
+
+export interface PackageRunnerRuntime extends NpxRuntime {
+  /** PATH to search for the runner; defaults to this process's PATH. */
+  pathEnv?: string;
+}
+
+export type PackageRunner = "npx" | "bunx";
 
 /**
  * Builds the npx call for `flisk export` and `flisk import` (#4004).
@@ -61,6 +69,63 @@ export function npxInvocation(npxArgs: string[], runtime: NpxRuntime = {}): NpxI
     shell: false,
     windowsVerbatimArguments: true,
   };
+}
+
+/**
+ * Picks the package runner for `flisk import` and `flisk export`: npx when installed, otherwise bunx. When neither is
+ * on PATH, npx stays the fallback so the existing spawn error and install hint are reported (#3744).
+ */
+export function findPackageRunner(
+  pathEnv: string | undefined,
+  platform: NodeJS.Platform = process.platform,
+): PackageRunner {
+  const npx = findOnPath("npx", pathEnv, platform);
+  if (npx) return "npx";
+  const bunx = findOnPath("bunx", pathEnv, platform);
+  if (bunx) return "bunx";
+  return "npx";
+}
+
+/**
+ * Builds the package-runner call: npx keeps its `--yes` flag and Windows handling, while bunx has no `--yes` and is a
+ * batch file on Windows, so it goes through cmd.exe with every argument quoted.
+ */
+export function packageRunnerInvocation(
+  packageArgs: readonly string[],
+  runtime: PackageRunnerRuntime = {},
+): NpxInvocation {
+  const platform = runtime.platform ?? process.platform;
+  if (findPackageRunner(runtime.pathEnv, platform) === "npx") {
+    return npxInvocation(["--yes", ...packageArgs], runtime);
+  }
+
+  const args = [...packageArgs];
+  if (platform !== "win32") {
+    return { command: "bunx", args, shell: false, windowsVerbatimArguments: false };
+  }
+
+  // Bun's Windows installer ships `bunx.exe` and no `bunx.cmd` (#3744): run the discovered runner. An executable is
+  // spawned directly; only a batch file (`bunx.cmd`, `bunx.bat`) needs cmd.exe and the quoting below, which then
+  // runs the resolved path so the PATH search cannot pick a different copy than the one found here.
+  const bunx = findOnPath("bunx", runtime.pathEnv, platform);
+  if (bunx && !/\.(?:cmd|bat)$/i.test(bunx)) {
+    return { command: bunx, args, shell: false, windowsVerbatimArguments: false };
+  }
+
+  // The same cmd.exe quoting as npxInvocation: environment values must not choose the program that is spawned.
+  const comSpec = runtime.comSpec ?? "cmd.exe";
+  const line = [quoteCmdArgument(bunx ?? "bunx.cmd"), ...args.map(quoteCmdArgument)].join(" ");
+  return {
+    command: comSpec,
+    args: ["/d", "/s", "/c", `"${line}"`],
+    shell: false,
+    windowsVerbatimArguments: true,
+  };
+}
+
+/** The user-facing error when neither npx nor bunx could be started. */
+export function packageRunnerError(command: string, cause: string): string {
+  return `${command}: could not run npx or bunx (${cause}). Install Node.js (npx) or Bun (bunx) and retry.`;
 }
 
 const CMD_META_CHARS = /([()\][%!^"`<>&|;, *?])/g;

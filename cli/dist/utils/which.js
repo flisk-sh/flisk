@@ -3,9 +3,8 @@
 import { existsSync } from "node:fs";
 import { delimiter, extname, join } from "node:path";
 import { isWindows, pathLookups } from "./platform.js";
-export function findOnPath(command) {
-    const pathEnv = process.env.PATH ?? process.env.Path ?? "";
-    const windows = isWindows();
+export function findOnPath(command, pathEnv = process.env.PATH ?? process.env.Path ?? "", platform = process.platform) {
+    const windows = platform === "win32";
     const names = pathLookups(command, windows);
     if (windows && !extname(command)) {
         for (const extension of (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")) {

@@ -8,9 +8,12 @@
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
 import {
+  findPackageRunner,
   type NpxInvocation,
-  type NpxRuntime,
-  npxInvocation,
+  type PackageRunner,
+  type PackageRunnerRuntime,
+  packageRunnerError,
+  packageRunnerInvocation,
   safePackageSpec,
 } from "../utils/npx-invocation.js";
 
@@ -27,15 +30,24 @@ export function exportInvocation(
   args: string[],
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
-  runtime: Omit<NpxRuntime, "platform"> = {},
+  runtime: Omit<PackageRunnerRuntime, "platform"> = {},
 ): NpxInvocation & { pkg: string } {
   const pkg = safePackageSpec(env.FLISK_EXPORT_PACKAGE, EXPORT_PACKAGE);
-  return { ...npxInvocation(["--yes", pkg, ...args], { ...runtime, platform }), pkg };
+  const invocation = packageRunnerInvocation([pkg, ...args], {
+    ...runtime,
+    platform,
+    pathEnv: runtime.pathEnv ?? env.PATH ?? env.Path,
+  });
+  return { ...invocation, pkg };
 }
 
-/** The extra line printed when the exporter exits non-zero, in case npx could not fetch it at all. */
-export function unavailableHint(pkg: string, exitCode: number): string {
-  return `flisk export: ${pkg} exited with code ${exitCode}. If npx could not download it, check your network access (the first run fetches it from npm) or set FLISK_EXPORT_PACKAGE.`;
+/** The extra line printed when the exporter exits non-zero, in case the runner could not fetch it at all. */
+export function unavailableHint(
+  pkg: string,
+  exitCode: number,
+  runner: PackageRunner = "npx",
+): string {
+  return `flisk export: ${pkg} exited with code ${exitCode}. If ${runner} could not download it, check your network access (the first run fetches it from npm) or set FLISK_EXPORT_PACKAGE.`;
 }
 
 /** Runs flisk-export with the caller's terminal and resolves to its exit code. */
@@ -54,15 +66,17 @@ export function runExport(
     });
     child.on("error", (err) => {
       spawnFailed = true;
-      console.error(
-        `flisk export: could not run npx (${err.message}). Install Node.js 22.12 or later, which provides npx, and retry.`,
-      );
+      console.error(packageRunnerError("flisk export", err.message));
       resolve(127);
     });
     child.on("close", (code) => {
       if (spawnFailed) return;
       const exitCode = code ?? 1;
-      if (exitCode !== 0) console.error(unavailableHint(invocation.pkg, exitCode));
+      if (exitCode !== 0) {
+        console.error(
+          unavailableHint(invocation.pkg, exitCode, findPackageRunner(env.PATH ?? env.Path)),
+        );
+      }
       resolve(exitCode);
     });
   });
