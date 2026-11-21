@@ -7,7 +7,7 @@ import { cwd, execPath } from "node:process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
-import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
+import { generateMasterConfigs, projectNeedsContainerFiles, readProjectConfig, } from "../generator/template-engine.js";
 import { installAgentSkills } from "../utils/agent-skills.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
@@ -394,6 +394,24 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         writeDefaultProjectConfig(destination);
     }
     clearDiscoveryCache();
+    // Generate the master files now, the same way `flisk project` does for a blank project. A fresh
+    // scaffold otherwise has no .flisk/.flisk-out/ files, so `flisk config verify` fails on minute one
+    // even though nobody edited anything (#4196). Local-process starters need no container files, so
+    // they skip the extra work. Keep this quiet: the printed next steps are unchanged on success.
+    const needsContainerFiles = projectNeedsContainerFiles(destination);
+    let masterFilesGenerated = !needsContainerFiles;
+    if (needsContainerFiles) {
+        try {
+            await generateMasterConfigs(destination, { quiet: true });
+            masterFilesGenerated = true;
+        }
+        catch (error) {
+            // An incomplete starter config must not make scaffolding fail. `config verify` still reports
+            // the missing files, so point at the exact command that finishes the lazy generation.
+            const reason = error instanceof Error ? error.message : String(error);
+            console.warn(chalk.yellow(`⚠️  Could not generate the master files yet: ${reason}\n`));
+        }
+    }
     if (options.quiet)
         return destination;
     const printCdStep = () => {
@@ -415,15 +433,29 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         console.log(chalk.green(`\n✅ Created "${templateName}" in ${displayDirWithSlash}`));
         showDetail("\nNext steps:", 0);
         printCdStep();
-        showDetail("2. flisk up       # Postgres, the migrator, the API and the website (needs Docker)");
-        showDetail("3. cat README.md  # what each part does");
+        if (masterFilesGenerated) {
+            showDetail("2. flisk up       # Postgres, the migrator, the API and the website (needs Docker)");
+            showDetail("3. cat README.md  # what each part does");
+        }
+        else {
+            showDetail("2. flisk config regenerate  # create the generated files");
+            showDetail("3. flisk up                 # Postgres, the migrator, the API and the website (needs Docker)");
+            showDetail("4. cat README.md            # what each part does");
+        }
         return destination;
     }
     console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${displayDirWithSlash}`));
     showDetail("\nNext steps:", 0);
     printCdStep();
-    showDetail("2. flisk doctor   # check Docker/Tilt are ready");
-    showDetail("3. flisk up       # start the stack");
+    if (masterFilesGenerated) {
+        showDetail("2. flisk doctor   # check Docker/Tilt are ready");
+        showDetail("3. flisk up       # start the stack");
+    }
+    else {
+        showDetail("2. flisk config regenerate  # create the generated files");
+        showDetail("3. flisk doctor             # check Docker/Tilt are ready");
+        showDetail("4. flisk up                 # start the stack");
+    }
     if (!template.bundledPath) {
         showDetail("\nThe starter is the git remote upstream; add your own with git remote add origin <url>.", 0);
     }

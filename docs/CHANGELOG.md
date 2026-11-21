@@ -7,6 +7,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 ## 1.4.71 (2026-11-20)
 
 - The Claude Code plugin starts its MCP server through a shipped Node launcher instead of a `#!/bin/sh` script, so the plugin works on native Windows and on machines without `/bin/sh` (#4012).
+- `flisk project <starter>` generates the master configuration files before it prints the next steps, so `flisk config verify` passes on a freshly scaffolded project instead of reporting missing `.flisk/.flisk-out/` files (#4196).
 
 ## 1.4.70 (2026-11-20)
 
