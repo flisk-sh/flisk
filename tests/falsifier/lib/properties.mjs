@@ -118,7 +118,9 @@ const removal = {
     const listed = envelope(runFlisk(dir, ["resources", "--json"]))?.data?.resources ?? [];
     const target = listed.find((r) => r.name === sc.remove);
     if (!target) return { expected: `${sc.remove} is listed before removal`, actual: "not listed", surfaces: ["resources"] };
-    rmSync(path.dirname(target.path), { recursive: true, force: true });
+    // `resources --json` reports the folder relative to the project (older builds: the absolute service.json path).
+    const folder = path.resolve(dir, target.path);
+    rmSync(folder.endsWith("service.json") ? path.dirname(folder) : folder, { recursive: true, force: true });
     const regen = runFlisk(dir, ["config", "regenerate"]);
     const wrong = [];
     if (regen.code !== 0) wrong.push(`regenerate exit ${regen.code}: ${short(regen.stderr || regen.stdout, 160)}`);

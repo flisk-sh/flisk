@@ -69,7 +69,11 @@ export function makeLab() {
       const target = path.join(dir, "services", stack, name);
       cpSync(templates[template], target, { recursive: true });
       const file = path.join(target, "service.json");
-      const json = { ...JSON.parse(readFileSync(file, "utf8")), appName: name, name, stack, port, dependsOn, ...patch };
+      const original = JSON.parse(readFileSync(file, "utf8"));
+      const json = { ...original, appName: name, name, stack, port, dependsOn, ...patch };
+      // `config verify` checks the Dockerfile's PORT, EXPOSE and healthcheck against service.json, so move them with the port.
+      const dockerfile = path.join(target, "Dockerfile");
+      if (original.port !== port && existsSync(dockerfile)) writeFileSync(dockerfile, readFileSync(dockerfile, "utf8").replace(new RegExp(`\\b${original.port}\\b`, "g"), String(port)));
       if (json.dependsOn.length === 0) delete json.dependsOn;
       writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`);
     },
