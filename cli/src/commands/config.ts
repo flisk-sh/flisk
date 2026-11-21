@@ -747,23 +747,6 @@ async function toggleInfraService(
   }
   assertValid(validation);
 
-  // Verdaccio is a Premium feature - refuse to enable it without a license
-  // key that actually grants it, rather than writing a config that
-  // generateMasterConfigs will just silently downgrade back to false later.
-  if (service === "verdaccio" && enabled) {
-    const granted = await hasVerdaccioLicense(projectRoot);
-    if (!granted) {
-      throw new FliskError(
-        "Verdaccio is a Premium feature and requires a license key that grants it. " +
-          "Set export FLISK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
-        [
-          "export FLISK_LICENSE_KEY=<key>",
-          "Request a Premium license at https://flisk.sh/#waitlist",
-        ],
-      );
-    }
-  }
-
   const config = readProjectConfig(projectRoot);
 
   // Runtime validation: ensure service is a valid key of optional_infra
@@ -777,6 +760,25 @@ async function toggleInfraService(
 
   const wasEnabled = config.optional_infra[service];
   const changes = Boolean(wasEnabled) !== enabled;
+
+  // Verdaccio is a Premium feature - refuse to enable it without a license key that actually grants it,
+  // rather than writing a config that generateMasterConfigs will just silently downgrade back to false
+  // later. Only a disabled-to-enabled change needs the license (#4432): a repeated run on an already
+  // enabled verdaccio is a no-op and must not demand it again.
+  if (service === "verdaccio" && enabled && changes) {
+    const granted = await hasVerdaccioLicense(projectRoot);
+    if (!granted) {
+      throw new FliskError(
+        "Verdaccio is a Premium feature and requires a license key that grants it. " +
+          "Set export FLISK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
+        [
+          "export FLISK_LICENSE_KEY=<key>",
+          "Request a Premium license at https://flisk.sh/#waitlist",
+        ],
+      );
+    }
+  }
+
   if (options.dryRun) {
     console.log(
       changes
@@ -786,6 +788,15 @@ async function toggleInfraService(
     return {
       data: { dryRun: true, service, enabled, wasEnabled: Boolean(wasEnabled), changed: changes },
     };
+  }
+
+  // A repeated run is a no-op: say so and leave project.json byte-identical (#4432). The JSON
+  // envelope keeps its existing shape (service, enabled, wasEnabled), with no regenerate hint.
+  if (!changes) {
+    console.log(
+      chalk.gray(`No change: ${service} is already ${enabled ? "enabled" : "disabled"}.`),
+    );
+    return { data: { service, enabled, wasEnabled: Boolean(wasEnabled) } };
   }
 
   const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
