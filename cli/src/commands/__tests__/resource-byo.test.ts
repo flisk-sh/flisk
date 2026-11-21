@@ -507,6 +507,7 @@ describe("bring-your-own resource type", () => {
               code: "UNKNOWN_SERVICE",
               message: "Unknown service widgt. Valid names: widget",
               suggestions: ['Did you mean "widget"?'],
+              validNames: ["widget"],
             },
           ],
         },

@@ -540,6 +540,7 @@ export interface MachineError {
     code: string;
     message: string;
     suggestions?: string[];
+    validNames?: string[];
 }
 export interface PortOccupant {
     pid: number;

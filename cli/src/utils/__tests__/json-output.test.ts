@@ -58,7 +58,7 @@ describe("createJsonEmitter exit fallback", () => {
     createJsonEmitter("UP_FAILED", "flisk up");
     exitHandler?.(2);
     expect(lastEnvelope().errors).toEqual([
-      { code: "UP_FAILED", message: "flisk up exited with code 2" },
+      { code: "UP_FAILED", message: "flisk up exited with code 2", suggestions: [] },
     ]);
   });
 

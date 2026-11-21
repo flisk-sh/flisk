@@ -67,12 +67,14 @@ describe("createJsonEmitter", () => {
     });
   });
 
-  it("includes errors passed to the emitter", () => {
+  it("includes errors passed to the emitter, each with a suggestions array", () => {
     const { emit } = createTrackedEmitter("UP_FAILED", "flisk up");
     emit({ ok: false }, [{ code: "E1", message: "boom" }]);
 
     const writes = readWrites();
-    expect(JSON.parse(writes[0]).errors).toEqual([{ code: "E1", message: "boom" }]);
+    expect(JSON.parse(writes[0]).errors).toEqual([
+      { code: "E1", message: "boom", suggestions: [] },
+    ]);
   });
 
   it("only emits once even if called multiple times", () => {
@@ -95,6 +97,7 @@ describe("createJsonEmitter", () => {
     expect(parsed.errors[0]).toEqual({
       code: "UP_FAILED",
       message: "flisk up exited with code 1",
+      suggestions: [],
     });
   });
 

@@ -5,6 +5,18 @@ export const SCHEMA_VERSION = 1;
 export function createMachineEnvelope(data, errors = []) {
     return { schemaVersion: SCHEMA_VERSION, data, errors };
 }
+/**
+ * Builds one error entry for a `--json` envelope. `suggestions` is always present, so a consumer
+ * reads it without checking for the key first (#4522).
+ */
+export function machineError(code, message, suggestions = [], extra) {
+    return {
+        code,
+        message,
+        suggestions: [...suggestions],
+        ...(extra?.validNames !== undefined ? { validNames: [...extra.validNames] } : {}),
+    };
+}
 function isMachineError(value) {
     if (typeof value !== "object" || value === null)
         return false;
@@ -15,6 +27,12 @@ function isMachineError(value) {
         if (!Array.isArray(error.suggestions))
             return false;
         if (!error.suggestions.every((item) => typeof item === "string"))
+            return false;
+    }
+    if (error.validNames !== undefined) {
+        if (!Array.isArray(error.validNames))
+            return false;
+        if (!error.validNames.every((item) => typeof item === "string"))
             return false;
     }
     return true;

@@ -193,6 +193,7 @@ import {
   failedWaitMessages,
   fetchUnhealthyLogLines,
   formatUnhealthyLogTails,
+  INVALID_WAIT_TIMEOUT_SUGGESTIONS,
   parseWaitTimeout,
   type UnhealthyLogTail,
   unhealthyLogTails,
@@ -466,6 +467,31 @@ export interface NativeUpSelection {
 }
 
 /**
+ * Builds the JSON `UNKNOWN_SERVICE` error entry with structured `validNames` and guaranteed
+ * non-empty `suggestions`, keeping the shared `errorFactories.unknownServices` suggestions
+ * uncluttered for human-readable output (#4522).
+ */
+function unknownServiceJsonError(
+  message: string,
+  suggestions: readonly string[],
+  validNames: readonly string[],
+): MachineError {
+  const sortedValidNames = [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const jsonSuggestions =
+    suggestions.length > 0
+      ? [...suggestions]
+      : sortedValidNames.length > 0
+        ? [`Valid names: ${sortedValidNames.join(", ")}`]
+        : ["Run `flisk resources` to see available services"];
+  return {
+    code: "UNKNOWN_SERVICE",
+    message,
+    suggestions: jsonSuggestions,
+    validNames: sortedValidNames,
+  };
+}
+
+/**
  * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which
  * a project without any `command` service always takes. Outside a project, a directory whose services all declare `command`
  * becomes the project. A project whose .flisk/project.json selects its own Tiltfile (`flisk import tiltfile`) also returns null:
@@ -475,7 +501,13 @@ export interface NativeUpSelection {
 export function selectNativeRun(
   stackName: string | undefined,
   only: string[] | undefined,
-  fail: (code: string, message: string, suggestions?: string[], exitCode?: number) => never,
+  fail: (
+    code: string,
+    message: string,
+    suggestions?: string[],
+    exitCode?: number,
+    extra?: { validNames?: string[] },
+  ) => never,
   cwd: string = process.cwd(),
 ): NativeUpSelection | null {
   const foundRoot = findProjectRoot(cwd);
@@ -515,11 +547,11 @@ export function selectNativeRun(
   if (only) {
     const unknown = findUnknownServices(only, requested);
     if (unknown.length > 0) {
-      const error = errorFactories.unknownServices(
-        unknown,
-        requested.map((service) => service.name),
-      );
-      fail("UNKNOWN_SERVICE", error.message, error.suggestions, error.exitCode);
+      const validNames = requested.map((service) => service.name);
+      const error = errorFactories.unknownServices(unknown, validNames);
+      fail("UNKNOWN_SERVICE", error.message, error.suggestions, error.exitCode, {
+        validNames: [...validNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+      });
     }
   }
   // A process cannot start before what it depends on, so a stack or --only selection always brings its dependsOn closure.
@@ -670,9 +702,13 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
   const timeout = parseWaitTimeout(options.waitTimeout);
   if (!timeout.ok) {
     emit?.({ ok: false }, [
-      { code: "INVALID_WAIT_TIMEOUT", message: timeout.message, suggestions: [] },
+      {
+        code: "INVALID_WAIT_TIMEOUT",
+        message: timeout.message,
+        suggestions: [...INVALID_WAIT_TIMEOUT_SUGGESTIONS],
+      },
     ]);
-    showErrorAndExit(timeout.message, 2, []);
+    showErrorAndExit(timeout.message, 2, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
   }
   const outcome = await upAndWait(
     process.argv.slice(2),
@@ -1021,10 +1057,16 @@ export const upCommand = new Command("up")
     const nativeRun = selectNativeRun(
       stackName,
       options.only,
-      (code, message, suggestions, exitCode = 1) => {
-        emit?.({ ok: false }, [
-          { code, message, ...(suggestions && suggestions.length > 0 ? { suggestions } : {}) },
-        ]);
+      (code, message, suggestions, exitCode = 1, extra) => {
+        const jsonError: MachineError =
+          code === "UNKNOWN_SERVICE" && extra?.validNames !== undefined
+            ? unknownServiceJsonError(message, suggestions ?? [], extra.validNames)
+            : {
+                code,
+                message,
+                ...(suggestions && suggestions.length > 0 ? { suggestions } : {}),
+              };
+        emit?.({ ok: false }, [jsonError]);
         return showErrorAndExit(message, exitCode, suggestions);
       },
     );
@@ -1255,11 +1297,7 @@ export const upCommand = new Command("up")
           const validNames = candidates.map((service) => service.name);
           const error = errorFactories.unknownServices(unknown, validNames);
           emit?.({ ok: false }, [
-            {
-              code: "UNKNOWN_SERVICE",
-              message: error.message,
-              ...(error.suggestions.length > 0 ? { suggestions: error.suggestions } : {}),
-            },
+            unknownServiceJsonError(error.message, error.suggestions, validNames),
           ]);
           error.exit();
         }
@@ -1682,9 +1720,13 @@ export const upCommand = new Command("up")
             : undefined;
         if (emit && parsedWaitTimeout && !parsedWaitTimeout.ok) {
           emit({ ok: false }, [
-            { code: "INVALID_WAIT_TIMEOUT", message: parsedWaitTimeout.message, suggestions: [] },
+            {
+              code: "INVALID_WAIT_TIMEOUT",
+              message: parsedWaitTimeout.message,
+              suggestions: [...INVALID_WAIT_TIMEOUT_SUGGESTIONS],
+            },
           ]);
-          showErrorAndExit(parsedWaitTimeout.message, 2, []);
+          showErrorAndExit(parsedWaitTimeout.message, 2, [...INVALID_WAIT_TIMEOUT_SUGGESTIONS]);
         }
         // Keep the running Tilt's port saved once refusal checks pass, so the next `flisk up` (and status, logs, restart) finds it again.
         hostPortPlan.tiltUi = runningPort;
