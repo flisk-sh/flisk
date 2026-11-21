@@ -59,7 +59,7 @@ export const INVARIANTS = [
 			const got = [...data.capabilities].sort();
 			// capabilities names every capability that is on; platformServices only the ones that run a service, so a
 			// capability like watch is expected exactly when capabilities lists it.
-			const expected = [...want, ...got.filter((c) => NON_SERVICE_CAPABILITIES.has(c))].sort();
+			const expected = [...want, ...got.filter((c) => NON_SERVICE_CAPABILITIES.has(c))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 			return expected.join() === got.join() ? null : fail("status-capabilities-match-platform-services", `capabilities ${JSON.stringify(expected)}`, `capabilities ${JSON.stringify(got)}`, ["status"]);
 		},
 	},
