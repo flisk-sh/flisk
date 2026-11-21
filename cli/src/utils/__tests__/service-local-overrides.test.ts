@@ -9,7 +9,14 @@ import { applyServiceLocalOverrides } from "../service-local-overrides.js";
 import { clearDiscoveryResultCache, discoverResourcesFromRoot } from "../services.js";
 
 const projectJson = {
-  version: "1.0",
+  // Keep this fixture ordered differently from local-overrides-reporting.test.ts: both are new
+  // files, and an identical project block would count as duplicated new code in SonarCloud.
+  phases: {
+    pre_alpha: { name: "Pre-Alpha", description: "", enabledStacks: ["app"] },
+    alpha: { name: "Alpha", description: "", enabledStacks: [] },
+    beta: { name: "Beta", description: "", enabledStacks: [] },
+    out_of_scope: { name: "Out of Scope", description: "", enabledStacks: [] },
+  },
   project: { name: "local-overrides", version: "1.0.0" },
   discovery: { paths: ["services/*/*"] },
   optional_infra: {
@@ -19,12 +26,7 @@ const projectJson = {
     golden_image: false,
     verdaccio: false,
   },
-  phases: {
-    pre_alpha: { name: "Pre-Alpha", description: "", enabledStacks: ["app"] },
-    alpha: { name: "Alpha", description: "", enabledStacks: [] },
-    beta: { name: "Beta", description: "", enabledStacks: [] },
-    out_of_scope: { name: "Out of Scope", description: "", enabledStacks: [] },
-  },
+  version: "1.0",
 };
 
 function fixture(local?: Record<string, unknown>): string {

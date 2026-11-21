@@ -50,8 +50,10 @@ export function runningContainer(project, service, docker = (args) => spawnSync(
     }
     return result.stdout.trim().split(/\s+/)[0] || null;
 }
-export function resolveRunTarget(projectRoot, serviceName, command, options = { interactive: false }) {
-    const discovered = options.resources ?? discoverResourcesFromRoot(projectRoot);
+export function resolveRunTarget(projectRoot, serviceName, command, options) {
+    // A fresh object per call avoids a shared mutable default (S7737).
+    const opts = options ?? { interactive: false };
+    const discovered = opts.resources ?? discoverResourcesFromRoot(projectRoot);
     // Runtime comes from the committed manifest: a local `command` must never move a container target to the host.
     const committed = discovered.find((candidate) => candidate.name === serviceName);
     if (!committed) {
@@ -86,11 +88,11 @@ export function resolveRunTarget(projectRoot, serviceName, command, options = { 
             "Check the service's stack and .flisk/project.json with: flisk doctor",
         ]);
     }
-    const container = runningContainer(composeProjectFor(projectName, stack), serviceName, options.docker);
+    const container = runningContainer(composeProjectFor(projectName, stack), serviceName, opts.docker);
     if (!container) {
         throw new FliskError(`"${serviceName}" is not running, so there is no container to run the command in.`, [`Start it with: flisk up ${stack}`, "Then run the command again"]);
     }
-    const execFlags = options.interactive ? ["-i", ...(process.stdin.isTTY ? ["-t"] : [])] : [];
+    const execFlags = opts.interactive ? ["-i", ...(process.stdin.isTTY ? ["-t"] : [])] : [];
     return {
         service: serviceName,
         runtime: "container",

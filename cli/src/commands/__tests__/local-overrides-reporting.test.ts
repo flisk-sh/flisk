@@ -46,6 +46,38 @@ function fixture(): string {
   });
 }
 
+function disabledWorkerProject(extraFiles: Record<string, string> = {}): string {
+  const root = createTempProject({
+    projectJson,
+    files: {
+      "services/app/api/service.json": JSON.stringify({
+        appName: "api",
+        appType: "backend",
+        stack: "app",
+        schemaVersion: 1,
+        command: "node server.js",
+        port: 8080,
+      }),
+      "services/app/worker/service.json": JSON.stringify({
+        appName: "worker",
+        appType: "worker",
+        stack: "app",
+        schemaVersion: 1,
+        command: "node worker.js",
+      }),
+      "services/app/worker/service.local.json": JSON.stringify({ enabled: false }),
+      ...extraFiles,
+    },
+  });
+  const statePath = nativeRunStatePath(root);
+  mkdirSync(dirname(statePath), { recursive: true });
+  writeFileSync(
+    statePath,
+    JSON.stringify({ pid: process.pid, services: { api: { pid: process.pid, ready: true } } }),
+  );
+  return root;
+}
+
 const expected = [
   { service: "api", field: "port" },
   { service: "api", field: "env" },
@@ -132,33 +164,7 @@ describe("local overrides in command output", () => {
   });
 
   it("excludes a locally disabled service from native readiness", () => {
-    const root = createTempProject({
-      projectJson,
-      files: {
-        "services/app/api/service.json": JSON.stringify({
-          appName: "api",
-          appType: "backend",
-          stack: "app",
-          schemaVersion: 1,
-          command: "node server.js",
-          port: 8080,
-        }),
-        "services/app/worker/service.json": JSON.stringify({
-          appName: "worker",
-          appType: "worker",
-          stack: "app",
-          schemaVersion: 1,
-          command: "node worker.js",
-        }),
-        "services/app/worker/service.local.json": JSON.stringify({ enabled: false }),
-      },
-    });
-    const statePath = nativeRunStatePath(root);
-    mkdirSync(dirname(statePath), { recursive: true });
-    writeFileSync(
-      statePath,
-      JSON.stringify({ pid: process.pid, services: { api: { pid: process.pid, ready: true } } }),
-    );
+    const root = disabledWorkerProject();
 
     const result = runFlisk(["status", "--json"], { cwd: root, timeout: 30_000 });
     expect(result.status).toBe(0);
@@ -179,35 +185,10 @@ describe("local overrides in command output", () => {
   });
 
   it("keeps one service's valid override when another service's local file is malformed", () => {
-    const root = createTempProject({
-      projectJson,
-      files: {
-        "services/app/api/service.json": JSON.stringify({
-          appName: "api",
-          appType: "backend",
-          stack: "app",
-          schemaVersion: 1,
-          command: "node server.js",
-          port: 8080,
-        }),
-        // Malformed: api falls back to its committed fields.
-        "services/app/api/service.local.json": '{"port": 9100,',
-        "services/app/worker/service.json": JSON.stringify({
-          appName: "worker",
-          appType: "worker",
-          stack: "app",
-          schemaVersion: 1,
-          command: "node worker.js",
-        }),
-        "services/app/worker/service.local.json": JSON.stringify({ enabled: false }),
-      },
+    // Malformed: api falls back to its committed fields.
+    const root = disabledWorkerProject({
+      "services/app/api/service.local.json": '{"port": 9100,',
     });
-    const statePath = nativeRunStatePath(root);
-    mkdirSync(dirname(statePath), { recursive: true });
-    writeFileSync(
-      statePath,
-      JSON.stringify({ pid: process.pid, services: { api: { pid: process.pid, ready: true } } }),
-    );
 
     const result = runFlisk(["status", "--json"], { cwd: root, timeout: 30_000 });
     expect(result.status).toBe(0);

@@ -66,7 +66,7 @@ export function applyServiceLocalOverrides(resources, options = {}) {
         const local = parsed;
         const rejected = Object.keys(local)
             .filter((field) => !LOCAL_OVERRIDE_FIELDS.includes(field))
-            .sort();
+            .sort((left, right) => left.localeCompare(right));
         if (rejected.length > 0) {
             invalid(file, `"${rejected[0]}" cannot be overridden`, rejected.length === 1
                 ? [`Remove "${rejected[0]}" from ${SERVICE_LOCAL_JSON}, or put it in service.json`]

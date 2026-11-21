@@ -94,7 +94,7 @@ export function applyServiceLocalOverrides(
 
     const rejected = Object.keys(local)
       .filter((field) => !LOCAL_OVERRIDE_FIELDS.includes(field as LocalOverrideField))
-      .sort();
+      .sort((left, right) => left.localeCompare(right));
     if (rejected.length > 0) {
       invalid(
         file,

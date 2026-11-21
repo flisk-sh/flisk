@@ -81,14 +81,16 @@ export function resolveRunTarget(
   projectRoot: string,
   serviceName: string,
   command: string[],
-  options: {
+  options?: {
     interactive: boolean;
     resources?: DiscoveredResource[];
     /** Injectable for tests: a fake `docker ps` runner with a known container id. */
     docker?: (args: string[]) => SpawnSyncReturns<string>;
-  } = { interactive: false },
+  },
 ): RunTarget {
-  const discovered = options.resources ?? discoverResourcesFromRoot(projectRoot);
+  // A fresh object per call avoids a shared mutable default (S7737).
+  const opts = options ?? { interactive: false };
+  const discovered = opts.resources ?? discoverResourcesFromRoot(projectRoot);
   // Runtime comes from the committed manifest: a local `command` must never move a container target to the host.
   const committed = discovered.find((candidate) => candidate.name === serviceName);
   if (!committed) {
@@ -134,7 +136,7 @@ export function resolveRunTarget(
   const container = runningContainer(
     composeProjectFor(projectName, stack),
     serviceName,
-    options.docker,
+    opts.docker,
   );
   if (!container) {
     throw new FliskError(
@@ -142,7 +144,7 @@ export function resolveRunTarget(
       [`Start it with: flisk up ${stack}`, "Then run the command again"],
     );
   }
-  const execFlags = options.interactive ? ["-i", ...(process.stdin.isTTY ? ["-t"] : [])] : [];
+  const execFlags = opts.interactive ? ["-i", ...(process.stdin.isTTY ? ["-t"] : [])] : [];
   return {
     service: serviceName,
     runtime: "container",
