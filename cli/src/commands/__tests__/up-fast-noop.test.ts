@@ -509,10 +509,15 @@ describe("flisk up fast no-op on an unchanged, healthy stack (#4193)", () => {
       errors: [],
     };
     mocks.upAndWait.mockResolvedValue({ kind: "ready", json: JSON.stringify(envelope) });
-    const lines: string[] = [];
-    const log = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
-      lines.push(args.map(String).join(" "));
-    });
+    const originalWriteSync = vi.mocked(writeSync).getMockImplementation();
+    let written = "";
+    vi.mocked(writeSync).mockClear();
+    vi.mocked(writeSync).mockImplementation(((fd: number, data: string) => {
+      if (fd === 1) written += data;
+      return data.length;
+    }) as never);
+    const once = vi.spyOn(process, "once");
+    const listenersBefore = new Set(process.listeners("exit"));
     const exit = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit");
     }) as never);
@@ -521,10 +526,19 @@ describe("flisk up fast no-op on an unchanged, healthy stack (#4193)", () => {
         "process.exit",
       );
       expect(exit).toHaveBeenCalledWith(0);
+      const exitHandler = once.mock.calls.find(([event]) => event === "exit")?.[1];
+      expect(exitHandler).toBeTypeOf("function");
+      (exitHandler as NodeJS.ExitListener)(0);
     } finally {
+      for (const listener of process.listeners("exit")) {
+        if (!listenersBefore.has(listener)) process.removeListener("exit", listener);
+      }
+      once.mockRestore();
       exit.mockRestore();
-      log.mockRestore();
+      if (originalWriteSync) vi.mocked(writeSync).mockImplementation(originalWriteSync);
     }
-    expect(JSON.parse(lines[0] as string)).toEqual(envelope);
+    const documents = written.trim().split("\n");
+    expect(documents).toHaveLength(1);
+    expect(JSON.parse(documents[0] as string)).toEqual(envelope);
   });
 });

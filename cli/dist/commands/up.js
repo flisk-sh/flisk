@@ -419,8 +419,7 @@ async function tryFastNoopUp(options, stackName, configuredTiltPort, emit, befor
  * `flisk up --wait`: runs `flisk up --json` detached and waits for its one result line, so a script gets an exit code
  * when the stack is healthy instead of an attached command that never returns.
  */
-async function runUpWait(options) {
-    const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up --wait") : undefined;
+async function runUpWait(options, emit) {
     const timeout = parseWaitTimeout(options.waitTimeout);
     if (!timeout.ok) {
         emit?.({ ok: false }, [
@@ -436,7 +435,8 @@ async function runUpWait(options) {
         : [];
     if (outcome.kind === "ready" || outcome.kind === "failed") {
         if (options.json) {
-            console.log(outcome.kind === "failed" ? withLogsInResult(outcome.json, unhealthy) : outcome.json);
+            const result = JSON.parse(outcome.kind === "failed" ? withLogsInResult(outcome.json, unhealthy) : outcome.json);
+            emit?.(result.data ?? {}, result.errors ?? []);
         }
         else {
             const parsed = JSON.parse(outcome.json);
@@ -623,7 +623,7 @@ export const upCommand = new Command("up")
         stackName = undefined;
     }
     if (options.wait) {
-        await runUpWait(options);
+        await runUpWait(options, emit);
         return;
     }
     if (options.json)
