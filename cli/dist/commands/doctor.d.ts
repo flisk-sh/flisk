@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime } from "../utils/doctor-container.js";
+import { checkLocalServiceDependencies, checkWorktreeEnv } from "../utils/doctor-local-deps.js";
 import { checkFliskVersion, checkLatestFliskVersion, checkPublishedBindAddress, checkWslProjectLocation, WSL2_DOCTOR_MESSAGE } from "../utils/doctor-machine.js";
 import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkTypeScriptTypeDependencies } from "../utils/doctor-project.js";
 import { renderDoctorOutput } from "../utils/doctor-render.js";
@@ -23,5 +24,5 @@ export declare const DOCTOR_FIXES: {
     readonly notProject: "flisk project --yes";
 };
 export declare const NATIVE_WINDOWS_DOCTOR_MESSAGE = "Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/start-here-on-windows.md (reference: docs/wsl2.md)";
-export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, checkColima, checkContainerEngine, checkContainerResourceHealth, checkContainerResourceHealthFor, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, checkDockerVersions, checkFliskVersion, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkLatestFliskVersion, checkPublishedBindAddress, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTilt, checkTypeScriptTypeDependencies, checkWslProjectLocation, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, MIN_BUN_VERSION, MIN_TILT_VERSION, orderDoctorResults, renderDoctorOutput, requiresContainerRuntime, runChecks, versionMeetsMinimum, WSL2_DOCTOR_MESSAGE, };
+export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, checkColima, checkContainerEngine, checkContainerResourceHealth, checkContainerResourceHealthFor, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, checkDockerVersions, checkFliskVersion, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkLatestFliskVersion, checkLocalServiceDependencies, checkPublishedBindAddress, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTilt, checkTypeScriptTypeDependencies, checkWorktreeEnv, checkWslProjectLocation, type DoctorCheckFn, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, MIN_BUN_VERSION, MIN_TILT_VERSION, orderDoctorResults, renderDoctorOutput, requiresContainerRuntime, runChecks, versionMeetsMinimum, WSL2_DOCTOR_MESSAGE, };
 export declare const doctorCommand: Command;

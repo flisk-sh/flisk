@@ -75,6 +75,7 @@ export function parseStackEnvelope(output) {
                 ok,
                 data: (parsed.data ?? {}),
                 error: ok ? undefined : (parsed.errors?.[0]?.message ?? "the stack did not come up"),
+                ...(parsed.errors?.[0]?.suggestions ? { suggestions: parsed.errors[0].suggestions } : {}),
                 raw: output,
             };
         }

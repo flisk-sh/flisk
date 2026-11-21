@@ -155,10 +155,11 @@ function findReferencedTemplateFiles(projectRoot: string): string[] {
 
 export function checkGeneratedProjectRuntimeAssets(): CheckResult {
   const projectRoot = findProjectRoot() ?? process.cwd();
-  const problems: string[] = [];
+  const missing: string[] = [];
+  const crlf: string[] = [];
 
   if (!existsSync(join(projectRoot, PACKAGE_JSON))) {
-    problems.push(`${PACKAGE_JSON} (workspace root manifest)`);
+    missing.push(`${PACKAGE_JSON} (workspace root manifest)`);
   }
 
   const templateDir = join(projectRoot, "shared-platform-engineering", "docker-templates");
@@ -169,11 +170,24 @@ export function checkGeneratedProjectRuntimeAssets(): CheckResult {
     // Discovery can fail on a half-written project; the base list still applies.
   }
   for (const file of new Set([...REQUIRED_DOCKER_TEMPLATE_FILES, ...referenced])) {
-    if (!existsSync(join(templateDir, file))) {
-      problems.push(`shared-platform-engineering/docker-templates/${file}`);
+    const relative = `shared-platform-engineering/docker-templates/${file}`;
+    const filePath = join(templateDir, file);
+    if (!existsSync(filePath)) {
+      missing.push(relative);
+      continue;
+    }
+    // A CR on the shebang line is enough to break every Linux image build, so
+    // catch it here instead of letting `flisk up` fail minutes later.
+    const firstLine = readFileSync(filePath, "utf-8").split("\n", 1)[0] ?? "";
+    if (firstLine.includes("\r")) {
+      crlf.push(relative);
     }
   }
 
+  const problems = [
+    ...missing.map((file) => `missing: ${file}`),
+    ...crlf.map((file) => `CRLF first line: ${file}`),
+  ];
   if (problems.length === 0) {
     return {
       name: "Generated Runtime Assets",
@@ -185,8 +199,11 @@ export function checkGeneratedProjectRuntimeAssets(): CheckResult {
   return {
     name: "Generated Runtime Assets",
     didPass: false,
-    message: `Generated Dockerfiles reference missing project runtime assets:\n    ${problems.join("\n    ")}`,
-    fix: "Run `flisk project --yes` (or `flisk config regenerate`) with an updated Flisk. `flisk up` also refreshes these assets before starting Tilt.",
+    message: `Generated Docker runtime assets have problems:\n    ${problems.join("\n    ")}`,
+    fix:
+      crlf.length > 0
+        ? "Line endings: run flisk config regenerate to rewrite CRLF scripts with LF"
+        : "Run `flisk project --yes` (or `flisk config regenerate`) with an updated Flisk. `flisk up` also refreshes these assets before starting Tilt.",
   };
 }
 

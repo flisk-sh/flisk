@@ -20,6 +20,7 @@
     "manual"
   ],
   "timeoutMinutes": 40,
+  "typicalSeconds": 180,
   "needsSecrets": [],
   "checkName": "broken-project-e2e",
   "install": true,

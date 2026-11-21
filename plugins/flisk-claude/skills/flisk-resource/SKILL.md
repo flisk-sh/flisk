@@ -25,3 +25,7 @@ Create services with the CLI so each one gets a valid `service.json` and the rig
 - Use kebab-case names.
 - A database migration belongs in its own `migrator` resource, not in an API start script.
 - Ask before creating resources in a stack the user did not name.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

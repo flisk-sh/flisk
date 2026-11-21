@@ -253,6 +253,8 @@ const EXEMPT: Record<string, string> = {
     "creates a project outside one instead of failing, so the matrix's project-required rows do not fit; create.test.ts covers the dry run, real run and errors, and machine-output-contract.test.ts covers the envelope",
   "repos clone --json":
     "a subcommand of repos that clones git repos; repos.test.ts covers the envelope",
+  "repos list --json":
+    "a subcommand of repos that reads the configured repositories and git state without cloning; repos-list.test.ts covers the envelope",
   "distribute board --json":
     "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute status --json":

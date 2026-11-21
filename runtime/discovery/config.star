@@ -138,6 +138,90 @@ def load_project_defaults(project_root):
     )
 
 # -----------------------------------------------------------------------------
+# 🧭 VERDACCIO AVAILABILITY
+# -----------------------------------------------------------------------------
+# The free-tier loader is a no-op stub: setting FLISK_LICENSE_KEY to any string
+# never starts a Verdaccio container (#3956). Scope routing must follow the
+# loader that is actually vendored into the project, plus an explicit project
+# opt-in, so an arbitrary key cannot rewrite the generated registry config.
+
+VERDACCIO_FREE_LOADER_MARKER = "VERDACCIO_LOADER_FREE_TIER_STUB"
+_VERDACCIO_LOADER_REL_PATH = "engine/topologies/platform/registries/verdaccio_loader.star"
+
+
+def _verdaccio_loader_path():
+    """Return the vendored loader that Tilt will execute, or "" when none is found."""
+    candidates = []
+    project_root = os.environ.get("FLISK_PROJECT_ROOT", "")
+    if project_root:
+        candidates.append(
+            project_root
+            + "/.flisk/.flisk-out/flisk-cli-ext/"
+            + _VERDACCIO_LOADER_REL_PATH
+        )
+    extension_path = os.environ.get("FLISK_EXTENSION_PATH", "")
+    if extension_path:
+        candidates.append(extension_path + "/" + _VERDACCIO_LOADER_REL_PATH)
+        # Some callers point at the repository root rather than its runtime/ dir.
+        candidates.append(extension_path + "/runtime/" + _VERDACCIO_LOADER_REL_PATH)
+    for path in candidates:
+        if file_exists(path):
+            return path
+    return ""
+
+
+def _project_enables_verdaccio():
+    """True only when the project explicitly opted into the Verdaccio resource."""
+    project_root = os.environ.get("FLISK_PROJECT_ROOT", "")
+    if not project_root:
+        return False
+
+    project_json_path = project_root + "/.flisk/project.json"
+    if file_exists(project_json_path):
+        project_json = read_json(project_json_path)
+        if type(project_json) == "dict":
+            optional_infra = project_json.get("optional_infra", {})
+            if type(optional_infra) == "dict" and optional_infra.get("verdaccio") == True:
+                return True
+            phases = project_json.get("phases", {})
+            if type(phases) == "dict":
+                for phase_name in phases:
+                    phase = phases.get(phase_name, {})
+                    if type(phase) == "dict" and "verdaccio" in phase.get("enabledStacks", []):
+                        return True
+
+    # spec.master is generated from project.json, but direct Tilt runs and older
+    # projects may only have it on disk. Either location is authoritative here.
+    for spec_path in [
+        project_root + "/.flisk/.flisk-out/generated/spec.master",
+        project_root + "/.flisk/.flisk-out/spec.master",
+        project_root + "/spec.master",
+    ]:
+        if not file_exists(spec_path):
+            continue
+        for line in str(read_file(spec_path, default="")).split("\n"):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if ('"verdaccio"' in stripped or "'verdaccio'" in stripped) and "True" in stripped:
+                return True
+        return False
+    return False
+
+
+def _verdaccio_enabled():
+    """Route scopes to Verdaccio only when a real loader is present and opted in."""
+    if not _project_enables_verdaccio():
+        return False
+    loader_path = _verdaccio_loader_path()
+    if not loader_path:
+        return False
+    # The licensed overlay is private and cannot export a marker we add here, so
+    # detect the public stub by its marker and treat any other loader as real.
+    return VERDACCIO_FREE_LOADER_MARKER not in str(read_file(loader_path, default=""))
+
+
+# -----------------------------------------------------------------------------
 # 🎛️ RESOURCE DEFAULTS
 # -----------------------------------------------------------------------------
 # LOADED FROM: spec.master (searched in order):
@@ -154,10 +238,10 @@ def get_global_config():
         "VERDACCIO_URL_DOCKER",
         PlatformDockerConstants.VERDACCIO_URL_DOCKER,
     )
-    # Verdaccio is a premium feature — only enabled when a license key is present.
-    # Without a key, scoped packages fall back to the public npm registry.
-    verdaccio_license_key = os.environ.get("FLISK_LICENSE_KEY", "")
-    verdaccio_enabled = verdaccio_license_key != ""
+    # A non-empty FLISK_LICENSE_KEY is not enough: the free-tier loader never
+    # starts Verdaccio. Only route scopes when a real loader is vendored and
+    # the project opted in; otherwise scoped packages use public npm.
+    verdaccio_enabled = _verdaccio_enabled()
     return {
         "verdaccio_url_local": PlatformDockerConstants.VERDACCIO_URL_LOCAL,
         "verdaccio_url_docker": verdaccio_url_docker,

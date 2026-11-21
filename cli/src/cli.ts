@@ -477,9 +477,11 @@ if (templateArg) {
   if (!outcome.ok) {
     const tiltUiUrl =
       (outcome.data as { tiltUrl?: string } | undefined)?.tiltUrl ?? "http://localhost:10350";
+    // `up` knows the port it selected, so show its log command instead of one that reads the default port (#3958).
+    const logHint = outcome.suggestions?.find((line) => line.includes("flisk logs"));
     stage.fail(
       firstMachineFailure(outcome.raw) ?? outcome.error ?? "The stack stopped before it was ready.",
-      `Run \`flisk up\` in the project folder, or watch ${tiltUiUrl}.`,
+      logHint ?? `Run \`flisk up\` in the project folder, or watch ${tiltUiUrl}.`,
       writeLog(logLines),
     );
     stage.stop();
@@ -534,7 +536,14 @@ if (process.argv.length === 3 && helpArg && ["-h", "--help", "help"].includes(he
   process.exit(0);
 }
 
-const helpResolved = resolveHelpTarget(process.argv.slice(2), program.commands);
+// `demo` is handled before Commander, so it is not in the program tree that `flisk help demo` searches (#3743).
+const helpArgs = process.argv.slice(2);
+if (helpArgs[0] === "help" && helpArgs[1] === "demo" && helpArgs.length === 2) {
+  showDemoHelp();
+  process.exit(0);
+}
+
+const helpResolved = resolveHelpTarget(helpArgs, program.commands);
 if (helpResolved.unknown) {
   program.error(`error: unknown command '${helpResolved.unknown}'`, {
     exitCode: 1,

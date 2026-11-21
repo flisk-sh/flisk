@@ -56,7 +56,7 @@ Enable these with a premium license key set via `export FLISK_LICENSE_KEY=<key>`
 - **Service Name**: `verdaccio`
 - **Port**: 4873
 - **License**: Premium (requires `FLISK_LICENSE_KEY` environment variable)
-- **Configuration**: Services use this for `npm install` and `bun install` when enabled
+- **Configuration**: Services use this for `npm install` and `bun install` when enabled. A key alone does not rewrite registry config: the licensed loader must be vendored and the resource enabled in `.flisk/project.json`.
 
 ### OPTIONAL Features (Disabled by Default)
 

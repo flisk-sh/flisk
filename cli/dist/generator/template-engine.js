@@ -866,7 +866,28 @@ const REQUIRED_DOCKER_TEMPLATE_FILES = [
     "bun-hoisted-symlink-fix.sh",
     "prisma-bun-client-link-fix.sh",
     "prisma-normalize-client.sh",
+    "infisical-entrypoint.sh",
 ];
+/**
+ * Docker images run these scripts with /bin/sh. A CRLF source checkout (Git's
+ * default core.autocrlf=true on Windows) gives them a `#!/bin/sh\r` shebang,
+ * which Linux cannot execute. Rewrite copied scripts to LF, but leave files
+ * without a CR untouched so mtimes stay stable on POSIX clones.
+ */
+function normalizeCopiedShellScripts(root) {
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        const entryPath = path.join(root, entry.name);
+        if (entry.isDirectory()) {
+            normalizeCopiedShellScripts(entryPath);
+        }
+        else if (entry.isFile() && entry.name.endsWith(".sh")) {
+            const content = fs.readFileSync(entryPath, "utf-8");
+            if (!content.includes("\r"))
+                continue;
+            fs.writeFileSync(entryPath, content.replace(/\r\n/g, "\n"), "utf-8");
+        }
+    }
+}
 // Walk up from this module's own location looking for a directory that has
 // both Tiltfile and engine/ next to it - true when cli/ and engine/ ship
 // together in the same repo (the public flisk layout, where a plain
@@ -921,6 +942,7 @@ export function ensureProjectRuntimeAssets(projectRoot) {
         }
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.cpSync(source, target, { recursive: true });
+        normalizeCopiedShellScripts(target);
         copied.push(parts.join("/"));
     }
     for (const file of REQUIRED_DOCKER_TEMPLATE_FILES) {

@@ -43,3 +43,7 @@ curl -s -X POST -H 'x-session-id: demo' -H 'content-type: application/json' \
 ```
 
 Tell the user the three URLs, how to talk to the agent (the `curl` above), and that `flisk agent sessions assistant --session-id demo` shows the saved conversation.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

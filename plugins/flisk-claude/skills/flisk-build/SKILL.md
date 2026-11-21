@@ -83,3 +83,7 @@ Ready-made plans for common requests: flisk-recipe-starters (clone a working sta
 - Ask before running `flisk up -f`: it stops a Tilt process that is already running.
 - Ask before adding services the user did not ask for. One frontend and one API is enough for "a small" app.
 - Flisk runs the app on this machine. It does not deploy it.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

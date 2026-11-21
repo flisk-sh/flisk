@@ -10,7 +10,7 @@
 
 On Windows, Flisk runs inside **Ubuntu on WSL2**. [WSL2](../start/words.md#wsl2) is a free part of Windows that runs Linux, and **Ubuntu** is the Linux app it installs. You set it up once; after that, you type every Flisk command in the Ubuntu app. Every grey box below is a [command](../start/words.md#command): copy it, paste it and press Enter. Never written code? [Start here](../start/first-time.md).
 
-**For developers:** native Windows runs only inspection commands (`flisk --version`, `flisk doctor`, `flisk up --dry-run`); `flisk up` there refuses and points to WSL2.
+**For developers:** native Windows runs `flisk demo`, projects whose services each declare a `command`, and inspection commands (`flisk --version`, `flisk doctor`, `flisk up --dry-run`). A Docker stack needs WSL2: `flisk up` there refuses and points to Ubuntu.
 
 **1. Install Ubuntu on WSL2.** Open the Start menu, type `PowerShell`, right-click **Windows PowerShell** and choose **Run as administrator**. In PowerShell, paste this and press Enter:
 
@@ -41,5 +41,17 @@ Run every Flisk command from Ubuntu, not from PowerShell. The [Windows & WSL2 gu
 <!-- /tabs:setup -->
 
 ---
+
+## Native Windows: local-process projects
+
+If your project's services each declare a `command`, or you only want to try `flisk demo`, you can stay in PowerShell. Install Node.js 22.12+ from [nodejs.org](https://nodejs.org/) (or Bun 1.2+ with the Windows PowerShell installer), then install Flisk:
+
+```powershell
+powershell -c "irm bun.sh/install.ps1 | iex"   # Bun 1.2+, optional
+npm install -g @flisk-sh/flisk                  # or: bun add -g @flisk-sh/flisk
+flisk doctor
+```
+
+Tilt is only needed for the Docker + Tilt path. On Windows that path runs in WSL2 Ubuntu, so install Tilt with the Linux line in step 3 above. A native PowerShell Tilt installer also exists (`iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.ps1'))`), but native `flisk up` on a Docker project still needs WSL2.
 
 On macOS, Ubuntu or Omarchy? Pick its tab above.

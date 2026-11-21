@@ -229,6 +229,12 @@ Clones the missing service repositories configured in `.flisk/project.json`. Eac
 
 See [layout](layout.md) for the `repos` array.
 
+### `flisk repos list [--json]`
+
+List the repositories configured in `.flisk/project.json` and whether each
+destination already contains a Git checkout. The list does not clone anything.
+Run `flisk repos clone` to fetch any missing repositories.
+
 For optional infrastructure toggles, add `--dry-run` to preview the change without
 writing `.flisk/project.json`. Add `--json` for the machine-readable plan.
 
@@ -325,13 +331,17 @@ flisk stack --remove --resources orders-api --yes
 | `--yes` | Skip the confirmation prompt |
 | `--json` | One JSON object on stdout. Implies `--yes`; needs `--list` or a stack name with `--resources` |
 
-### `flisk stacks` (alias `ls`)
+### `flisk stacks [stack]` (alias `ls`)
 
 | Flag | Effect |
 | --- | --- |
+| `[stack]` | Show only this stack, in text or `--json` |
+| `--stack <name>` | Same filter as the positional argument |
 | `--services` | Include each stack's resources |
 | `-v`, `--verbose` | More detail per stack |
 | `--json` | Versioned JSON report |
+
+`flisk stacks app` and `flisk stacks --stack app` show one stack. To list the resources inside it, run `flisk resources --stack app`.
 
 ## ▶️ Lifecycle
 

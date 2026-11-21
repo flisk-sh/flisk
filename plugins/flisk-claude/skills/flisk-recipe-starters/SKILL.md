@@ -48,3 +48,7 @@ Then change the starter to what the user asked for: rename things in the app cod
 - Cloning needs network access to github.com. If it fails, fall back to the matching recipe (flisk-recipe-shop, flisk-recipe-saas, flisk-recipe-ai-agent) on an empty project.
 - A starter with several stacks can be large on a small machine. Start only the stack the user needs first (`flisk up <stack>`), and ask before starting all of them.
 - Tell the user which starter you used and that it came from github.com/flisk-sh.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

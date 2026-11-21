@@ -85,6 +85,11 @@ export declare function createByoServiceJson(name: string, stack: string, port: 
     image?: string;
     exposeViaProxy?: boolean;
     restart?: string;
+    volumes?: Array<{
+        source: string;
+        target: string;
+    }>;
+    provides?: Record<string, string>;
 }): {
     $schema: string;
     schemaVersion: number;
@@ -96,6 +101,11 @@ export declare function createByoServiceJson(name: string, stack: string, port: 
     image: string;
     exposeViaProxy?: boolean | undefined;
     restart?: string | undefined;
+    volumes?: {
+        source: string;
+        target: string;
+    }[] | undefined;
+    provides?: Record<string, string> | undefined;
 } | {
     $schema: string;
     schemaVersion: number;
@@ -107,6 +117,11 @@ export declare function createByoServiceJson(name: string, stack: string, port: 
     dockerfile: string;
     exposeViaProxy?: boolean | undefined;
     restart?: string | undefined;
+    volumes?: {
+        source: string;
+        target: string;
+    }[] | undefined;
+    provides?: Record<string, string> | undefined;
 };
 export declare function createPackageJson(name: string, type: string, frameworkId?: string, prismaEnabled?: boolean, agentConfig?: AgentConfig, drizzleEnabled?: boolean): {
     name: string;
