@@ -290,23 +290,27 @@
           "type": "boolean"
         },
         "testOnSave": {
-          "description": "Opt-in pytest-on-save runner for Python backends.",
+          "description": "Opt-in test-on-save: runs pytest for Python backends, and go test inside the dev.liveReload watcher for Go services.",
           "oneOf": [
             {
-              "description": "Enable or disable pytest execution on source changes.",
+              "description": "Enable or disable test execution on source changes.",
               "type": "boolean"
             },
             {
-              "description": "Custom pytest configuration with path and enable flag.",
+              "description": "Test-on-save configuration.",
               "type": "object",
               "properties": {
                 "enabled": {
-                  "description": "Whether pytest-on-save is enabled.",
+                  "description": "Whether test-on-save is enabled.",
                   "type": "boolean",
                   "default": true
                 },
                 "path": {
-                  "description": "Test path or directory to execute (defaults to 'tests').",
+                  "description": "pytest only: test path or directory to execute (defaults to 'tests').",
+                  "type": "string"
+                },
+                "packages": {
+                  "description": "Go only: go test package pattern such as './...' or './internal/...'. Defaults to the packages containing the changed files.",
                   "type": "string"
                 }
               },

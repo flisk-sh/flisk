@@ -17,6 +17,8 @@ load(
     "LANGUAGE_REQUIRED_FILES",
     "python_test_on_save_enabled",
     "python_test_on_save_path",
+    "go_test_on_save_enabled",
+    "go_test_on_save_scope",
 )
 load("./config/dockerignore.star", "generate_dockerignore")
 load(
@@ -40,6 +42,8 @@ Docker = struct(
     is_next_frontend = is_next_frontend,
     python_test_on_save = python_test_on_save_enabled,
     python_test_path = python_test_on_save_path,
+    go_test_on_save = go_test_on_save_enabled,
+    go_test_scope = go_test_on_save_scope,
     language_required_files = LANGUAGE_REQUIRED_FILES,
     generate_dockerignore = generate_dockerignore,
     frontend_compose = generate_frontend_compose,

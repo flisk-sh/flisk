@@ -157,6 +157,25 @@ Without the switch nothing changes. `liveReload: true` on a language that has no
 - **One module per service folder.** Only the service folder is copied into the image, so a `replace` to a directory outside it fails the
   image build at `go mod download` (checked on the `development` target only; the default image copies the same single folder, but I did not run it). A `go.work` workspace was not tried.
 
+### Opt-in go test on save (`dev.testOnSave`)
+
+With `dev.liveReload` also enabled, the watcher runs `go test` in the background after every restart, so the app never waits on the suite:
+
+```json
+{ "dev": { "liveReload": true, "testOnSave": true } }
+```
+
+By default only the packages that own the changed files run; a `go.mod` or `go.sum` change (which arrives as an image rebuild anyway)
+and the first pass after a container start run `go test ./...`. To always run the whole module, set a package pattern:
+
+```json
+{ "dev": { "liveReload": true, "testOnSave": { "enabled": true, "packages": "./..." } } }
+```
+
+Test output goes to the service's Tilt log alongside the `go build` output, marked by the watcher's `[flisk]` lines. A failing or slow
+suite never takes the app down: the last good build keeps serving while tests run in the background, and the newest save replaces a
+running pass instead of queuing behind it.
+
 ### Gin and other Go frameworks
 
 The native provider scaffolds standard-library `net/http`, but any framework works if the service listens on `$PORT` on every interface

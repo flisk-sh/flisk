@@ -114,6 +114,8 @@ export interface ResourceConfigFields {
 export interface DevTestOnSaveConfig {
     enabled?: boolean;
     path?: string;
+    /** Go only: `go test` package pattern such as './...' or './internal/...'. Defaults to the packages owning the changed files. */
+    packages?: string;
 }
 export interface DevConfig {
     command?: string;

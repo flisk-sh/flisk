@@ -166,9 +166,9 @@ export function fieldTypeErrors(manifest: Record<string, unknown>, displayPath: 
     } else if (isPlainObject(dev.testOnSave)) {
       const testOnSave = dev.testOnSave as Record<string, unknown>;
       for (const key of Object.keys(testOnSave)) {
-        if (key !== "enabled" && key !== "path") {
+        if (key !== "enabled" && key !== "path" && key !== "packages") {
           errors.push(
-            `${displayPath}.dev.testOnSave: unexpected key "${key}" (expected "enabled" or "path")`,
+            `${displayPath}.dev.testOnSave: unexpected key "${key}" (expected "enabled", "path" or "packages")`,
           );
         }
       }
@@ -184,6 +184,13 @@ export function fieldTypeErrors(manifest: Record<string, unknown>, displayPath: 
         errors.push(
           `${displayPath}.dev.testOnSave.path: must be a path relative to the service directory (no leading "/" or drive)`,
         );
+      }
+      if (
+        typeof testOnSave.packages !== "undefined" &&
+        (typeof testOnSave.packages !== "string" ||
+          !/^[A-Za-z0-9_.][A-Za-z0-9_./-]*$/.test(testOnSave.packages.trim()))
+      ) {
+        bad("dev.testOnSave.packages", "a go test package pattern such as './...'");
       }
     } else {
       bad(
