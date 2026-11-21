@@ -5,39 +5,15 @@
 // initialize, list and get requests, plus four malformed requests to see how they are refused. It calls tools only when
 // asked to, because a tool call can reach the network or change something on the server's side.
 
+import type { JsonObject, McpCheckOptions, McpCheckReport, McpCheckResult } from "./mcp-check/types.js";
+export type { McpCheckOptions, McpCheckReport, McpCheckResult } from "./mcp-check/types.js";
+import { asObject } from "./mcp-check/protocol.js";
+
 const ACCEPT = "application/json, text/event-stream";
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const PROTOCOL_VERSION = "2025-03-26";
 const MAX_DETAIL = 400;
 const MAX_SCHEMA_DEPTH = 6;
-
-export interface McpCheckResult {
-  check: string;
-  didPass: boolean;
-  /** True when the check did not run (for example tools/call without --call); a skipped check never fails. */
-  isSkipped?: boolean;
-  detail: string;
-}
-
-export interface McpCheckReport {
-  url: string;
-  iconUrl: string | null;
-  serverName: string | null;
-  didPass: boolean;
-  failures: number;
-  checks: McpCheckResult[];
-}
-
-export interface McpCheckOptions {
-  /** Call every tool once with arguments built from its inputSchema. Off by default. */
-  call?: boolean;
-  /** Check that icon-512.png next to the endpoint is a PNG. On by default. */
-  icon?: boolean;
-  userAgent?: string;
-  timeoutMs?: number;
-  /** Delay before each of the two retries of a request that failed with a network error. */
-  retryDelayMs?: number;
-}
 
 interface HttpResponse {
   /** 0 when the request never got an answer, after its retries. */
@@ -58,14 +34,6 @@ interface HttpRequest {
   method?: "GET" | "POST";
   body?: string;
   accept?: string | null;
-}
-
-type JsonObject = Record<string, unknown>;
-
-function asObject(value: unknown): JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as JsonObject)
-    : {};
 }
 
 function asArray(value: unknown): unknown[] {
