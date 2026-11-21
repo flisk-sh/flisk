@@ -80,7 +80,7 @@ function fail(message) {
 }
 
 // Only these programs are ever run, always with an argv array and no shell.
-const ALLOWED_COMMANDS = new Set(["npm", "docker", "curl", "pgrep", "lsof", "kill", "flisk", "find", "claude"]);
+const ALLOWED_COMMANDS = new Set(["npm", "docker", "curl", "pgrep", "lsof", "kill", "flisk", "find", "claude", "tilt", "node"]);
 
 function sh(cmd, argv, opts = {}) {
 	if (!ALLOWED_COMMANDS.has(basename(cmd))) throw new Error(`agent-bench: refusing to run ${cmd}`);

@@ -13,12 +13,15 @@ const server = createServer((request, response) => {
     response.end("ok");
     return;
   }
-  // Same-origin /api/ only: "//evil.com" cannot change the host, and ".." or "%2e" never pass.
-  const parsed = new URL(request.url ?? "/", "https://web.invalid");
-  const apiPath =
-    parsed.host === "web.invalid" && /^\/api\/(?!.*(\.\.|%2e))/i.test(parsed.pathname)
-      ? parsed.pathname + parsed.search
-      : null;
+  // Same-origin /api/ only: "//evil.com" cannot change the host, and ".." or "%2e" never pass. A target that
+  // does not parse (such as "//") gets the page.
+  let apiPath = null;
+  try {
+    const parsed = new URL(request.url ?? "/", "https://web.invalid");
+    if (parsed.host === "web.invalid" && /^\/api\/(?!.*(\.\.|%2e))/i.test(parsed.pathname)) {
+      apiPath = parsed.pathname + parsed.search;
+    }
+  } catch {}
   if (apiPath) {
     const upstream = forward(
       { host: api.hostname, port: api.port, path: apiPath, method: request.method },
