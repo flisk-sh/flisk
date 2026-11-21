@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureExit, type ExitCapture, parseEnvelope } from "../../test-support/index.js";
 import type { CheckResult, DoctorAction } from "../../types/index.js";
 import { WEBCONTAINER_DOCS, WEBCONTAINER_UP_MESSAGE } from "../../utils/agent-host.js";
+import { checkCodingAgents } from "../../utils/doctor-agents.js";
 import { hasFailedActions } from "../../utils/doctor-fix.js";
 import {
   collectDoctorChecks,
@@ -49,6 +50,17 @@ vi.mock("../../utils/host-port-config.js", async (importOriginal) => {
   };
 });
 
+vi.mock("../../utils/doctor-agents.js", () => ({
+  checkCodingAgents: vi.fn(() => ({
+    name: "Coding agents",
+    didPass: true,
+    isWarning: true,
+    message: "2 coding agents appear to work in this checkout",
+    fix: "Run each agent in its own git worktree",
+    observed: { kind: "coding-agents", agents: 2 },
+  })),
+}));
+
 vi.mock("../../utils/windows-doctor.js", () => ({
   checkWindowsRuntimeTools: vi.fn(() => ({
     name: "Windows Runtime Tools",
@@ -85,6 +97,7 @@ afterEach(() => {
   doctorCommand.setOptionValue("dryRun", false);
   doctorCommand.setOptionValue("scope", "project");
   doctorCommand.setOptionValue("yes", false);
+  doctorCommand.setOptionValue("agents", false);
 });
 
 function captureOutput(): { log: ReturnType<typeof vi.spyOn>; exit: ExitCapture["exit"] } {
@@ -840,5 +853,86 @@ describe("doctor JSON command", () => {
       container: "shop-api",
       port: 8080,
     });
+  });
+});
+
+describe("doctor --agents opt-in check", () => {
+  const linuxPortPlan = {
+    ingressHttp: 80,
+    ingressHttps: 443,
+    postgres: 5432,
+    requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+    explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+    reason: { ingressHttp: "preferred", ingressHttps: "preferred", postgres: "preferred" },
+  };
+
+  it("adds the coding-agents check only when --agents is passed", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    vi.mocked(getHostPortPlan).mockResolvedValue(linuxPortPlan);
+    vi.mocked(collectDoctorChecks).mockResolvedValue({ checks: [], errors: [] });
+    vi.mocked(checkCodingAgents).mockReturnValue({
+      name: "Coding agents",
+      didPass: true,
+      isWarning: true,
+      message: "2 coding agents appear to work in this checkout",
+      fix: "Run each agent in its own git worktree",
+    });
+
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      const first = captureOutput();
+      await doctorCommand.parseAsync(["--json", "--no-ping"], { from: "user" });
+      const machineChecksWithout = vi.mocked(collectDoctorChecks).mock.calls.at(-1)?.[0] ?? [];
+      expect(checkCodingAgents).not.toHaveBeenCalled();
+      first.log.mockRestore();
+      first.exit.mockRestore();
+
+      const second = captureOutput();
+      await doctorCommand.parseAsync(["--json", "--no-ping", "--agents"], { from: "user" });
+      const machineChecksWith = vi.mocked(collectDoctorChecks).mock.calls.at(-1)?.[0] ?? [];
+
+      expect(machineChecksWith.length).toBe(machineChecksWithout.length + 1);
+
+      // The appended check is the agents check: invoking it runs the mocked util.
+      const appended = machineChecksWith[machineChecksWith.length - 1];
+      const result = await appended?.();
+      expect(result).toMatchObject({ name: "Coding agents", isWarning: true });
+      expect(checkCodingAgents).toHaveBeenCalledTimes(1);
+      expect(checkCodingAgents).toHaveBeenCalledWith(
+        expect.objectContaining({ strict: undefined, startDir: expect.any(String) }),
+      );
+      second.log.mockRestore();
+      second.exit.mockRestore();
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
+  });
+
+  it("reports the coding-agents check in the --json output when --agents is passed", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    vi.mocked(getHostPortPlan).mockResolvedValue(linuxPortPlan);
+    vi.mocked(collectDoctorChecks).mockImplementationOnce(async (machineChecks) => {
+      const agentsCheck = machineChecks[machineChecks.length - 1];
+      const result = agentsCheck ? await agentsCheck() : null;
+      return { checks: result ? [result] : [], errors: [] };
+    });
+
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      const { log, exit } = captureOutput();
+      await doctorCommand.parseAsync(["--json", "--agents", "--no-ping"], { from: "user" });
+      expect(exit).not.toHaveBeenCalled();
+
+      const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
+      const entry = report.data.checks.find((check: CheckResult) => check.name === "Coding agents");
+      expect(entry).toMatchObject({ didPass: true, isWarning: true });
+      expect(report.data.warnings).toContain(entry.message);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+    }
   });
 });

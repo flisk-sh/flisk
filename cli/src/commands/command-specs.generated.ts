@@ -1745,6 +1745,12 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
         description: "Fail warnings such as a WSL project under /mnt/c",
       },
       {
+        flags: "--agents",
+        description:
+          "Also check for several coding agents working in this checkout (reads process names and agent session file names/mtimes only)",
+        defaultValue: false,
+      },
+      {
         flags: "--fix",
         description: "Repair this project's unused Docker networks and leftover doctor probes",
         defaultValue: false,
@@ -1774,7 +1780,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
     arguments: [],
     helpTexts: {
       after: [
-        "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --fix --dry-run\n  flisk doctor --json",
+        "\nExamples:\n  flisk doctor\n  flisk doctor --all\n  flisk doctor --agents\n  flisk doctor --fix --dry-run\n  flisk doctor --json",
       ],
     },
     subcommands: [],
