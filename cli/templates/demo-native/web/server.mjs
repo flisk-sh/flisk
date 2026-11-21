@@ -15,7 +15,7 @@ const server = createServer((request, response) => {
   }
   // Only forward same-origin /api/ paths: parse against a fixed base, so "//evil.com" cannot change the host, and
   // reject traversal even when percent-encoded.
-  const parsed = new URL(request.url ?? "/", "http://web.invalid");
+  const parsed = new URL(request.url ?? "/", "https://web.invalid");
   let apiPath = null;
   try {
     if (
