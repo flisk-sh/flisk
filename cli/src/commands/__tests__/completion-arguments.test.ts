@@ -70,6 +70,32 @@ describe("flisk completion shell selection", () => {
   });
 
   it.each([
+    ["bash", "zsh"],
+    ["zsh", "bash"],
+  ])("rejects conflicting shells (argument %s, --shell %s)", async (argument, option) => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { expectExit } = captureExit();
+
+    try {
+      await expect(runCompletionCommand([argument, "--shell", option])).rejects.toThrow(
+        "process.exit",
+      );
+
+      expect(error).toHaveBeenCalledWith(expect.stringContaining(`argument '${argument}'`));
+      expect(error).toHaveBeenCalledWith(expect.stringContaining(`--shell '${option}'`));
+      expectExit(1);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("accepts matching shells given as both argument and option", async () => {
+    const { stdout } = await runCompletion(["zsh", "--shell", "ZSH"]);
+
+    expect(stdout).toContain("#compdef flisk");
+  });
+
+  it.each([
     ["positional argument", ["unknown-shell"]],
     ["--shell option", ["--shell", "unknown-shell"]],
   ])("rejects an unknown shell (%s) and reports the error", async (_, args) => {

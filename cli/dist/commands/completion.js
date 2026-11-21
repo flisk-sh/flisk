@@ -770,6 +770,15 @@ export const completionCommand = new Command("completion")
     .option("--install", "Install completion; prints any shell configuration steps still needed")
     .addHelpText("after", "\nExamples:\n  flisk completion zsh --install\n  flisk completion bash --install\n  flisk completion fish --install")
     .action((shellArgument, options, command) => {
+    // The shell can be given twice: as a positional argument and as --shell. When they disagree,
+    // one must not silently win: the wrong completion script would be written to a shell profile
+    // with no hint why completion breaks (#4433).
+    if (typeof options.shell === "string" &&
+        typeof shellArgument === "string" &&
+        options.shell.toLowerCase() !== shellArgument.toLowerCase()) {
+        showError(`Conflicting shells: argument '${shellArgument}' and --shell '${options.shell}'`, "Specify the shell once", ["Use `flisk completion <shell>` or `flisk completion --shell <shell>`"]);
+        process.exit(1);
+    }
     const requestedShell = options.shell ?? shellArgument;
     const environmentShell = basename(process.env.SHELL ?? "")
         .replace(/\.exe$/i, "")
