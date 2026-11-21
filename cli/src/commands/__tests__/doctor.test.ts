@@ -434,13 +434,24 @@ describe("doctor generated runtime asset preflight", () => {
     }
   }
 
-  it("fails when the root workspace package.json and Docker template scripts are missing", () => {
+  it("fails when the root workspace package.json is missing", () => {
     const result = checkGeneratedProjectRuntimeAssets();
 
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("package.json");
-    expect(result.message).toContain("install-deps.sh");
     expect(result.fix).toContain("flisk project");
+  });
+
+  it("passes on a fresh starter with no generated Dockerfiles and no docker-templates", () => {
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "fresh-starter", private: true, workspaces: ["services/*/*"] }),
+    );
+
+    const result = checkGeneratedProjectRuntimeAssets();
+
+    expect(result.didPass).toBe(true);
+    expect(result.message).toContain("runtime assets are present");
   });
 
   it("passes when generated Docker runtime assets are present", () => {
@@ -477,6 +488,24 @@ describe("doctor generated runtime asset preflight", () => {
 
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("migrate.sh");
+  });
+
+  it("flags a script the golden image Dockerfile copies but the project lacks", () => {
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({ name: "asset-check", private: true, workspaces: ["services/*/*"] }),
+    );
+    const outDir = join(testDir, ".flisk", ".flisk-out");
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(
+      join(outDir, "golden-layers.Dockerfile"),
+      "COPY shared-platform-engineering/docker-templates/install-deps.sh /usr/local/bin/install-deps.sh\n",
+    );
+
+    const result = checkGeneratedProjectRuntimeAssets();
+
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("install-deps.sh");
   });
 });
 
