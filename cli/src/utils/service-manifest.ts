@@ -527,6 +527,7 @@ export function secretConflictWarnings(
 
 export interface ParsedHealthCheckConfig {
   enabled: boolean;
+  required?: boolean;
   interval?: number;
   timeout?: number;
   retries?: number;
@@ -536,6 +537,7 @@ export interface ParsedHealthCheckConfig {
 
 const HEALTH_CHECK_CONFIG_KEYS = new Set([
   "enabled",
+  "required",
   "interval",
   "timeout",
   "startPeriod",
@@ -547,7 +549,7 @@ const HEALTH_CHECK_CONFIG_KEYS = new Set([
 
 /**
  * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object
- * configuring enabled, interval, timeout, retries, and path.
+ * configuring enabled, required, interval, timeout, retries, and path/port/command.
  */
 export function healthCheckErrors(
   manifest: Record<string, unknown>,
@@ -566,12 +568,15 @@ export function healthCheckErrors(
   for (const key of Object.keys(hc)) {
     if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
       errors.push(
-        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")`,
+        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "required", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")`,
       );
     }
   }
   if (hc.enabled !== undefined && typeof hc.enabled !== "boolean") {
     errors.push(`${displayPath}.healthCheck.enabled: expected true or false`);
+  }
+  if (hc.required !== undefined && typeof hc.required !== "boolean") {
+    errors.push(`${displayPath}.healthCheck.required: expected true or false`);
   }
   if (hc.interval !== undefined) {
     if (typeof hc.interval !== "number" || !Number.isFinite(hc.interval) || hc.interval <= 0) {
@@ -680,6 +685,16 @@ export function isHealthCheckDisabled(manifest?: HealthCheckSource): boolean {
   return value === false || (isPlainObject(value) && value.enabled === false);
 }
 
+/**
+ * True when the service explicitly marks its health check as non-blocking (`healthCheck: { required: false }`).
+ * Defaults to false (health checks are required). Returns false when health checks are disabled entirely.
+ */
+export function isHealthCheckOptional(manifest?: HealthCheckSource): boolean {
+  if (isHealthCheckDisabled(manifest)) return false;
+  const value = manifest?.healthCheck;
+  return isPlainObject(value) && value.required === false;
+}
+
 /** The HTTP path to probe: `healthCheck.path`, then `healthCheckPath`, then `fallback`. */
 export function healthCheckPathOf(
   manifest?: HealthCheckSource,
@@ -701,10 +716,11 @@ export function parseHealthCheckConfig(
   options: { defaultPath?: string } = {},
 ): ParsedHealthCheckConfig {
   if (isHealthCheckDisabled(manifest)) return { enabled: false };
-  const { interval, timeout, retries, startPeriod } = healthCheckObject(manifest);
+  const { required, interval, timeout, retries, startPeriod } = healthCheckObject(manifest);
   const path = healthCheckPathOf(manifest, options.defaultPath);
   return {
     enabled: true,
+    ...(required !== undefined ? { required } : {}),
     ...(path !== undefined ? { path } : {}),
     ...(interval !== undefined ? { interval } : {}),
     ...(timeout !== undefined ? { timeout } : {}),

@@ -4,6 +4,7 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { DiscoveredResource } from "../types/index.js";
+import { isHealthCheckOptional } from "./service-manifest.js";
 import { isRoutedBringYourOwn, resolveServiceUrl } from "./service-urls.js";
 
 /**
@@ -108,7 +109,7 @@ export function buildPrintedUrlTargets(
 ): UrlTarget[] {
   const targets: UrlTarget[] = [];
   for (const resource of resources) {
-    if (deferred.has(resource.name)) continue;
+    if (deferred.has(resource.name) || isHealthCheckOptional(resource.config)) continue;
     const url = resolveServiceUrl(resource, ingressPort);
     if (!url) continue;
     const port = resource.config?.port;

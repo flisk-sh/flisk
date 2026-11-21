@@ -28,6 +28,7 @@ import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveCommandProject } from "../utils/project-resolution.js";
 import { relativeResourceFolder } from "../utils/resource-relative-path.js";
+import { isHealthCheckOptional } from "../utils/service-manifest.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import {
   type ServiceUsage,
@@ -47,16 +48,32 @@ import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { tiltAnswerIsForeign } from "../utils/tilt-answer-owner.js";
 import { findTiltPortOwner } from "../utils/tilt-port-owner.js";
+import { UNHEALTHY_CONTAINER_MESSAGE } from "../utils/tilt-resource-state.js";
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
-import { evaluateTiltReadiness, tiltGetUiResources } from "../utils/up-readiness.js";
+import {
+  evaluateTiltReadiness,
+  getDisabledHealthResourceNames,
+  getOptionalHealthResourceNames,
+  tiltGetUiResources,
+} from "../utils/up-readiness.js";
+
+/** True when a service opted out of blocking readiness (`healthCheck.required: false`) and is only failing its health check or still starting. */
+function isNonBlockingOptionalState(
+  resource: Pick<DiscoveredResource, "config">,
+  state: ServiceRuntimeState | undefined,
+): boolean {
+  if (!isHealthCheckOptional(resource.config) || !state) return false;
+  return state.status === "pending" || state.reason === UNHEALTHY_CONTAINER_MESSAGE;
+}
 
 /**
  * The services `--strict` fails on: the failing or still starting ones. Null when nothing of the project is running (no state
  * at all, or every service with a process of its own is unknown), which `--strict` fails on too. A project with no services
- * has nothing to wait for.
+ * has nothing to wait for. Services with `healthCheck.required: false` whose container/process is running but failing its
+ * health check do not fail `--strict`.
  */
 export function strictNotReady(
-  resources: readonly Pick<DiscoveredResource, "name" | "type">[],
+  resources: readonly Pick<DiscoveredResource, "name" | "type" | "config">[],
   states: Record<string, ServiceRuntimeState> | null,
 ): string[] | null {
   const counted = healthCountedResources(resources, states);
@@ -64,7 +81,10 @@ export function strictNotReady(
   if (!counted.some((resource) => (states?.[resource.name]?.status ?? "unknown") !== "unknown")) {
     return null;
   }
-  return unhealthyServiceNames(resources, states);
+  const blocking = resources.filter(
+    (resource) => !isNonBlockingOptionalState(resource, states?.[resource.name]),
+  );
+  return unhealthyServiceNames(blocking, states);
 }
 
 /** `--strict` turns the answer into the exit code (#3826): output is unchanged, one line on stderr says why it is 1. */
@@ -373,8 +393,17 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
 
         if (text && !foreignTilt) {
           const deferred = getDeferredResourceNames(discovery.resources);
+          const disabledHealth = getDisabledHealthResourceNames(discovery.resources);
+          const optionalHealth = getOptionalHealthResourceNames(discovery.resources);
           try {
-            readiness = evaluateTiltReadiness(text, deferred).result;
+            readiness = evaluateTiltReadiness(
+              text,
+              deferred,
+              undefined,
+              disabledHealth,
+              undefined,
+              optionalHealth,
+            ).result;
           } catch {
             readiness = null;
           }
@@ -416,12 +445,25 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
         // A native run answers the readiness question agents poll (data.tilt.readiness.ready) from its own run state.
         if (nativeStates) {
           const states = Object.entries(nativeStates);
+          const optionalSet = getOptionalHealthResourceNames(discovery.resources);
           const isRunning = states.some(([, state]) => state.status !== "unknown");
+          const optionalUnready = states
+            .filter(([name, state]) => optionalSet.has(name) && state.status === "pending")
+            .map(([name, state]) => ({
+              name,
+              message: state.reason ?? "starting",
+              runtime: true,
+            }));
+          const blockingPending = states.filter(
+            ([name, state]) =>
+              state.status !== "ready" && !(optionalSet.has(name) && state.status === "pending"),
+          );
           readiness = isRunning
             ? {
-                ready: states.every(([, state]) => state.status === "ready"),
+                ready: blockingPending.length === 0,
                 failures: [],
-                pending: states.filter(([, state]) => state.status !== "ready").length,
+                ...(optionalUnready.length > 0 ? { optionalFailures: optionalUnready } : {}),
+                pending: blockingPending.length,
                 timedOut: false,
                 enabled: states.map(([name]) => name),
               }
@@ -469,6 +511,7 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
               envLookup,
             ),
             status: serviceStates?.[resource.name]?.status ?? "unknown",
+            ...(isHealthCheckOptional(resource.config) ? { healthCheckRequired: false } : {}),
             ...(serviceStates?.[resource.name]?.reason
               ? { statusReason: serviceStates[resource.name]?.reason }
               : {}),
@@ -610,13 +653,14 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             const state = states[resource.name];
             if (!state) continue;
             const noOwnProcess = hasNoOwnProcess(resource, state);
+            const isOptionalHealth = isHealthCheckOptional(resource.config);
             let mark = chalk.yellow("…");
             if (noOwnProcess) {
               mark = chalk.dim("-");
             } else if (state.status === "ready") {
               mark = chalk.green("✓");
             } else if (state.status === "error") {
-              mark = chalk.red("✗");
+              mark = isOptionalHealth ? chalk.yellow("⚠") : chalk.red("✗");
             }
             const ports = buildServicePorts(
               resource,
@@ -631,8 +675,12 @@ export const statusCommand = attachNoPositionalHint(new Command("status"))
             const usagePart = options.usage
               ? `  ${chalk.dim(formatServiceUsage(usage?.[resource.name] ?? null, process.platform))}`
               : "";
+            const optionalTag =
+              isOptionalHealth && state.status !== "ready"
+                ? ` ${chalk.dim("[healthCheck.required: false]")}`
+                : "";
             showDetail(
-              `${mark} ${resource.name}${urlPart}${extraPart}  ${noOwnProcess ? chalk.dim("no process of its own") : state.status}${state.reason ? ` (${state.reason})` : ""}${usagePart}`,
+              `${mark} ${resource.name}${urlPart}${extraPart}  ${noOwnProcess ? chalk.dim("no process of its own") : state.status}${state.reason ? ` (${state.reason})` : ""}${optionalTag}${usagePart}`,
               6,
             );
           }

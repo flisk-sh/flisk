@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
+import { isHealthCheckOptional } from "./service-manifest.js";
 import { isRoutedBringYourOwn, resolveServiceUrl } from "./service-urls.js";
 /** Per-request timeout: short, because the stack already reported ready and a live route answers in milliseconds. */
 export const URL_PROBE_TIMEOUT_MS = 3_000;
@@ -35,7 +36,7 @@ const TRAEFIK_GATEWAY_BODIES = {
 export function buildPrintedUrlTargets(resources, ingressPort, deferred = new Set()) {
     const targets = [];
     for (const resource of resources) {
-        if (deferred.has(resource.name))
+        if (deferred.has(resource.name) || isHealthCheckOptional(resource.config))
             continue;
         const url = resolveServiceUrl(resource, ingressPort);
         if (!url)

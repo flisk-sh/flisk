@@ -8,7 +8,7 @@ import {
   parseTiltResourceFailures,
 } from "./doctor-runtime.js";
 import { redactProjectText } from "./secret-redaction.js";
-import { isHealthCheckDisabled } from "./service-manifest.js";
+import { isHealthCheckDisabled, isHealthCheckOptional } from "./service-manifest.js";
 import { discoverResources } from "./services.js";
 import { effectiveRuntimeStatus } from "./tilt-resource-state.js";
 import { findOnPath } from "./which.js";
@@ -19,6 +19,8 @@ export interface ReadinessResult {
   ready: boolean;
   /** `runtime` is true when the container is still running but its health check fails (it may still recover). */
   failures: Array<{ name: string; message: string; runtime?: boolean }>;
+  /** Running services with `healthCheck.required: false` whose health checks are failing without blocking readiness. */
+  optionalFailures?: Array<{ name: string; message: string; runtime?: boolean }>;
   pending: number;
   timedOut: boolean;
   /** Names of the resources Tilt has enabled (everything not `Disabled`), so callers report what actually started. */
@@ -71,12 +73,15 @@ interface TiltItem {
  * status is `not_applicable` (a serve-only local resource) has nothing to build, so it counts as built.
  * When health checks are disabled for a resource (`disabledHealth`), its container health check status is stripped so
  * running containers are considered ready immediately. The same goes for a container Docker reports unhealthy when
- * `probeCannotRun` says its health command cannot run at all (see `healthProbeCannotRun`).
+ * `probeCannotRun` says its health command cannot run at all (see `healthProbeCannotRun`), and for a running container
+ * whose health check is still `starting` when `healthCheck.required: false` (`optionalHealth`) so an optional sidecar's
+ * slow health probe never blocks stack readiness.
  */
 export function onlyEnabledResources(
   jsonText: string,
   disabledHealth?: Set<string>,
   probeCannotRun?: (service: string) => boolean,
+  optionalHealth?: Set<string>,
 ): string {
   const parsed = JSON.parse(jsonText) as { items?: Array<TiltItem> };
   const items = (parsed.items ?? [])
@@ -92,7 +97,8 @@ export function onlyEnabledResources(
         name &&
         current.status?.composeResourceInfo &&
         ((disabledHealth?.has(name) ?? false) ||
-          (health === "unhealthy" && probeCannotRun?.(name) === true))
+          (health === "unhealthy" && probeCannotRun?.(name) === true) ||
+          (health === "starting" && (optionalHealth?.has(name) ?? false)))
       ) {
         const { healthStatus: _healthStatus, ...restInfo } = current.status.composeResourceInfo as {
           healthStatus?: string;
@@ -175,6 +181,15 @@ export function getDisabledHealthResourceNames(resources?: DiscoveredResource[])
   }
 }
 
+export function getOptionalHealthResourceNames(resources?: DiscoveredResource[]): Set<string> {
+  try {
+    const list = resources ?? discoverResources();
+    return new Set(list.filter((svc) => isHealthCheckOptional(svc.config)).map((svc) => svc.name));
+  } catch {
+    return new Set();
+  }
+}
+
 function enabledNames(jsonText: string): string[] {
   return ((JSON.parse(jsonText) as { items?: TiltItem[] }).items ?? [])
     .filter((item) => item.status?.disableStatus?.state !== "Disabled")
@@ -214,22 +229,42 @@ export function evaluateTiltReadiness(
   expected?: string[],
   disabledHealth?: Set<string>,
   probeCannotRun?: (service: string) => boolean,
+  optionalHealth?: Set<string>,
 ): { result: ReadinessResult; settled: boolean } {
   const parsed = parseTiltResourceFailures(
-    onlyEnabledResources(jsonText, disabledHealth, probeCannotRun),
+    onlyEnabledResources(jsonText, disabledHealth, probeCannotRun, optionalHealth),
     deferred,
   );
   // A `<service>-typecheck` resource runs on the host and is advisory: it reports type errors
   // in Tilt, it does not decide whether the stack is up. It must not fail the stack.
-  const blocking = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
   const unhealthyButRunning = unhealthyRunningNames(jsonText);
+  const nonAdvisory = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
+  // Services with `healthCheck.required: false` whose container is running but failing its health check
+  // are reported in `optionalFailures` without blocking stack readiness. Build errors and exited containers still block.
+  const optionalFailures: Array<{ name: string; message: string; runtime?: boolean }> = [];
+  const blocking: typeof nonAdvisory = [];
+  for (const failure of nonAdvisory) {
+    if (optionalHealth?.has(failure.name) && unhealthyButRunning.has(failure.name)) {
+      optionalFailures.push({
+        name: failure.name,
+        message: failure.error || `${failure.updateStatus}/${failure.runtimeStatus}`,
+        runtime: true,
+      });
+    } else {
+      blocking.push(failure);
+    }
+  }
   let result: ReadinessResult = {
-    ready: blocking.length === 0 && parsed.pendingCount === 0 && parsed.okCount > 0,
+    ready:
+      blocking.length === 0 &&
+      parsed.pendingCount === 0 &&
+      (parsed.okCount > 0 || optionalFailures.length > 0),
     failures: blocking.map((failure) => ({
       name: failure.name,
       message: failure.error || `${failure.updateStatus}/${failure.runtimeStatus}`,
       ...(unhealthyButRunning.has(failure.name) ? { runtime: true } : {}),
     })),
+    ...(optionalFailures.length > 0 ? { optionalFailures } : {}),
     pending: parsed.pendingCount,
     timedOut: false,
     enabled: enabledNames(jsonText),
@@ -420,6 +455,8 @@ export async function waitForTiltResourcesReady(
     isStalled?: (jsonText: string) => boolean;
     /** Resource names whose health checks are disabled. */
     disabledHealth?: Set<string>;
+    /** Resource names with `healthCheck.required: false` whose failing health checks do not block readiness. */
+    optionalHealth?: Set<string>;
     /** How long a runtime-only failure may recover before the wait gives up on it (FLISK_UP_FAILURE_GRACE_MS). */
     failureGraceMs?: number;
     now?: () => number;
@@ -437,6 +474,7 @@ export async function waitForTiltResourcesReady(
       : tiltResourceLogs);
   const deferred = options.deferred ?? getDeferredResourceNames();
   const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
+  const optionalHealth = options.optionalHealth ?? getOptionalHealthResourceNames();
   const probeCannotRun =
     options.probeCannotRun ??
     (options.fetchJson && options.fetchJson !== tiltGetUiResources
@@ -470,6 +508,7 @@ export async function waitForTiltResourcesReady(
           options.expected,
           disabledHealth,
           probeCannotRun,
+          optionalHealth,
         );
         last = evaluation.result;
         trackFailingSince(failingSince, last.failures, now());

@@ -46,6 +46,7 @@ export declare function configsErrors(manifest: Record<string, unknown>, display
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];
 export interface ParsedHealthCheckConfig {
     enabled: boolean;
+    required?: boolean;
     interval?: number;
     timeout?: number;
     retries?: number;
@@ -54,7 +55,7 @@ export interface ParsedHealthCheckConfig {
 }
 /**
  * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object
- * configuring enabled, interval, timeout, retries, and path.
+ * configuring enabled, required, interval, timeout, retries, and path/port/command.
  */
 export declare function healthCheckErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /** How a service shows it is ready: an HTTP path, an open TCP port, or a command that exits 0 (#2875). */
@@ -78,6 +79,11 @@ type HealthCheckSource = {
  * signal (its port for a native `command` service, `/health` for a container).
  */
 export declare function isHealthCheckDisabled(manifest?: HealthCheckSource): boolean;
+/**
+ * True when the service explicitly marks its health check as non-blocking (`healthCheck: { required: false }`).
+ * Defaults to false (health checks are required). Returns false when health checks are disabled entirely.
+ */
+export declare function isHealthCheckOptional(manifest?: HealthCheckSource): boolean;
 /** The HTTP path to probe: `healthCheck.path`, then `healthCheckPath`, then `fallback`. */
 export declare function healthCheckPathOf(manifest?: HealthCheckSource, fallback?: string): string | undefined;
 /**

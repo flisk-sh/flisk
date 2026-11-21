@@ -288,6 +288,11 @@ export async function runNativeUp(input) {
         exit(1);
         return;
     }
+    const optionalFailures = "optionalFailures" in supervisor && typeof supervisor.optionalFailures === "function"
+        ? supervisor.optionalFailures()
+        : [];
+    const optionalFailedNames = new Set(optionalFailures.map((failure) => failure.name));
+    const optionalWarnings = optionalFailures.map((failure) => `${failure.name} (optional health check): ${failure.reason}`);
     emit?.({
         ok: true,
         runtime: "native",
@@ -295,7 +300,8 @@ export async function runNativeUp(input) {
         stack: input.stackName ?? null,
         services: serviceNames,
         ...(input.only ? { requested: input.only, dependencies: input.dependencies } : {}),
-        urls: nativeUrlChecks(plan.services, "readyStatuses" in supervisor && typeof supervisor.readyStatuses === "function"
+        ...(optionalFailures.length > 0 ? { optionalFailures, warnings: optionalWarnings } : {}),
+        urls: nativeUrlChecks(plan.services.filter((service) => !optionalFailedNames.has(service.name)), "readyStatuses" in supervisor && typeof supervisor.readyStatuses === "function"
             ? supervisor.readyStatuses()
             : undefined),
     });
@@ -308,12 +314,19 @@ export async function runNativeUp(input) {
         ];
         for (const service of plan.services) {
             const health = service.healthUrl ? ` (health: ${service.healthUrl})` : "";
-            lines.push(`  ✓ ${service.name}${service.url ? ` → ${service.url}` : ""}${health}`);
+            if (optionalFailedNames.has(service.name)) {
+                lines.push(`  ⚠ ${service.name}${service.url ? ` → ${service.url}` : ""}${health} (optional health check failed)`);
+            }
+            else {
+                lines.push(`  ✓ ${service.name}${service.url ? ` → ${service.url}` : ""}${health}`);
+            }
         }
         lines.push("Stop: Ctrl+C here, or flisk down from another terminal");
         lines.push(`Logs: flisk logs --service <name>, or ${join(NATIVE_DIR, "logs")}/<service>.log`);
         for (const line of lines)
             console.log(chalk.blue(line));
+        for (const warning of optionalWarnings)
+            console.log(chalk.yellow(`Warning: ${warning}`));
         const ciWarning = attachedUpInCiWarning(process.env);
         if (ciWarning)
             console.log(chalk.yellow(ciWarning));
