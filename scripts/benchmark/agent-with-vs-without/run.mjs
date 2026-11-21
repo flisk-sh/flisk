@@ -21,7 +21,7 @@ import {
 } from "node:fs";
 import { connect } from "node:net";
 import { cpus, homedir, release, totalmem } from "node:os";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { gzipSync } from "node:zlib";
@@ -79,7 +79,11 @@ function fail(message) {
 	process.exit(1);
 }
 
+// Only these programs are ever run, always with an argv array and no shell.
+const ALLOWED_COMMANDS = new Set(["npm", "docker", "curl", "pgrep", "lsof", "kill", "flisk", "find", "claude", "tilt", "node"]);
+
 function sh(cmd, argv, opts = {}) {
+	if (!ALLOWED_COMMANDS.has(basename(cmd))) throw new Error(`agent-bench: refusing to run ${cmd}`);
 	const r = spawnSync(cmd, argv, { encoding: "utf8", ...opts });
 	return { code: r.status, out: (r.stdout ?? "").trim(), err: (r.stderr ?? "").trim() };
 }
