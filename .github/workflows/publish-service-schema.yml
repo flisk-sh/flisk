@@ -25,9 +25,10 @@ jobs:
           persist-credentials: false
       - name: Copy the schema into the Pages repo
         run: |
+          # This workflow only runs on main or manual dispatch, never on an untrusted PR or fork.
           if [ -z "$PAGES_SYNC_TOKEN" ]; then
-            echo "::warning::PAGES_SYNC_TOKEN is not set; the published schema was not updated."
-            exit 0
+            echo "::error::PAGES_SYNC_TOKEN is not set; the published schema was not updated. Add a fine-grained token with contents:write on flisk-sh/website as the repository secret, then re-run this workflow."
+            exit 1
           fi
           git clone --depth 1 "https://x-access-token:${PAGES_SYNC_TOKEN}@github.com/flisk-sh/website.git" pages
           cp runtime/engine/schemas/service-schema.json pages/schema.service.json
@@ -42,8 +43,8 @@ jobs:
           git commit -am "Sync the published schemas with flisk-sh/flisk (${GITHUB_SHA::7})"
           git push origin HEAD:main
       - name: Report whether the published schema matches main
-        # Publishing is best-effort, so this never fails the job. It exists so that a missing PAGES_SYNC_TOKEN (the copy step above
-        # skips with only a warning) shows up in the run summary instead of looking like a successful publish.
+        # The copy step now fails the job when PAGES_SYNC_TOKEN is missing. This step still reports the live state on every run,
+        # including a failed copy, so the run summary shows exactly which properties are still missing from the published copy.
         if: always()
         run: |
           python3 - <<'PY'
@@ -83,7 +84,7 @@ jobs:
               message = ("The published schema at " + url + " is BEHIND main and was not updated: the repository secret "
                          "PAGES_SYNC_TOKEN is not set. Add a fine-grained token with contents:write on "
                          "flisk-sh/website as that secret, then re-run this workflow.")
-              level = "warning"
+              level = "error"
           else:
               message = "The published schema at " + url + " still differs from main after the copy step (Pages may still be redeploying)."
               level = "warning"
