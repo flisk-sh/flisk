@@ -54,10 +54,10 @@ mkdir -p "$out_dir"
 printf '%s\n' "${related[@]:-}" | sed '/^$/d' >"$out_dir/related.txt"
 test_files() { find cli/src tests/generated tests/runtime-layout \( -name '*.test.ts' -o -name '*.test.tsx' \) -type f 2>/dev/null; }
 {
-  if [ -n "$source_changed" ]; then
+  if [[ -n "$source_changed" ]]; then
     test_files | xargs grep -lE 'runFlisk\(|bin/flisk\.js|cli/dist|dist/cli|spawnSync\(process\.execPath|execFileSync\(process\.execPath' || true
   fi
-  if [ "${#mentions[@]}" -gt 0 ]; then
+  if [[ "${#mentions[@]}" -gt 0 ]]; then
     patterns=()
     for m in "${mentions[@]}"; do patterns+=(-e "$m"); done
     test_files | xargs grep -lF "${patterns[@]}" || true
