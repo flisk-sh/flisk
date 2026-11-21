@@ -23,9 +23,13 @@ import { ProcessExitError } from "../../utils/errors.js";
 
 const execSyncMock = vi.fn();
 const execFileSyncMock = vi.fn();
+const npmViewMock = vi.fn();
 vi.mock("node:child_process", () => ({
   execSync: (...args: unknown[]) => execSyncMock(...args),
-  execFileSync: (...args: unknown[]) => execFileSyncMock(...args),
+  execFileSync: (...args: [command: string, commandArgs?: string[], options?: unknown]) =>
+    args[0] === "npm" && args[1]?.[0] === "view"
+      ? npmViewMock(args[1], args[2])
+      : execFileSyncMock(...args),
 }));
 const sigstoreVerifyMock = vi.hoisted(() => vi.fn());
 vi.mock("sigstore", () => ({ verify: sigstoreVerifyMock }));
@@ -647,61 +651,28 @@ describe("getLatestBinaryRelease", () => {
 });
 
 describe("getLatestVersion", () => {
-  it("on Unix: returns trimmed version from npm view", async () => {
-    platformMock.isWindows.mockReturnValueOnce(false);
-    execSyncMock.mockReturnValueOnce("1.4.5\n");
-    expect(await getLatestVersion()).toBe("1.4.5");
-  });
-
-  it("on Unix: returns null when npm view fails", async () => {
-    platformMock.isWindows.mockReturnValueOnce(false);
-    execSyncMock.mockImplementationOnce(() => {
-      throw new Error("npm connection timeout");
-    });
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    try {
-      expect(await getLatestVersion()).toBeNull();
-    } finally {
-      logSpy.mockRestore();
-    }
-  });
-
-  it("on Windows: returns version from npm registry fetch", async () => {
-    platformMock.isWindows.mockReturnValueOnce(true);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ version: "1.4.6" }),
-      }),
-    );
-    expect(await getLatestVersion()).toBe("1.4.6");
-  });
-
-  it("on Windows: returns null when npm registry fetch fails or returns missing version", async () => {
+  beforeEach(() => {
+    npmViewMock.mockReset();
     platformMock.isWindows.mockReturnValue(true);
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    try {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockResolvedValueOnce({
-          ok: false,
-          status: 503,
-        }),
-      );
-      expect(await getLatestVersion()).toBeNull();
+  });
 
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({}),
-        }),
-      );
-      expect(await getLatestVersion()).toBeNull();
-    } finally {
-      logSpy.mockRestore();
-    }
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the Windows registry version including any prerelease suffix", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ version: "1.4.6-rc.1" })));
+    expect(await getLatestVersion({ quiet: true })).toBe("1.4.6-rc.1");
+    expect(npmViewMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an HTTP error", new Response(null, { status: 503 })],
+    ["a missing version", Response.json({})],
+    ["a non-string version", Response.json({ version: 146 })],
+  ])("returns null for %s", async (_description, response) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response));
+    expect(await getLatestVersion({ quiet: true })).toBeNull();
   });
 });
 
@@ -1329,6 +1300,8 @@ describe("upgradeCommand action handler", () => {
     tmp = mkdtempSync(join(tmpdir(), "flisk-cmd-test-"));
     execSyncMock.mockReset();
     execFileSyncMock.mockReset();
+    npmViewMock.mockReset();
+    npmViewMock.mockReturnValue("1.4.0\n");
     findOnPathMock.mockReset();
     findAllOnPathMock.mockReset();
     promptConfirmMock.mockReset();
@@ -1337,6 +1310,10 @@ describe("upgradeCommand action handler", () => {
     platformMock.isWindows.mockReturnValue(false);
     platformMock.binaryAssetName.mockReturnValue("flisk-darwin-arm64");
     platformMock.executableName.mockReturnValue("flisk");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => Response.json({ version: "1.4.0" })),
+    );
   });
 
   afterEach(() => {
@@ -1345,6 +1322,7 @@ describe("upgradeCommand action handler", () => {
     Object.defineProperty(process, "platform", { value: origPlatform, configurable: true });
     rmSync(tmp, { recursive: true, force: true });
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   async function runUpgrade(
@@ -1770,20 +1748,23 @@ describe("upgradeCommand action handler", () => {
       findOnPathMock.mockReturnValue(npmBin);
     });
 
-    it("exits with 1 when getLatestVersion returns null", async () => {
-      execSyncMock.mockImplementation(() => {
-        throw new Error("npm failure");
+    it("prints manual install hints and exits with 1 when the registry request fails", async () => {
+      npmViewMock.mockImplementation(() => {
+        throw new Error("npm error: registry unavailable");
       });
 
-      const res = await runUpgrade([]);
+      const res = await runUpgrade(["--dry-run"]);
       expect(res.status).toBe(1);
       expect(res.stderr).toContain("Could not determine latest version");
+      expect(res.stdout).toContain("Install the latest published release manually");
+      expect(res.stdout).toContain("bun install -g @flisk-sh/flisk@latest");
+      expect(res.stderr).not.toContain("command not found");
+      expect(execSyncMock).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
     });
 
     it("exits with 0 when already on the latest version and --force is not passed", async () => {
       getPackageVersionMock.mockReturnValue("1.4.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
-
       const res = await runUpgrade([]);
       expect(res.status).toBe(0);
       expect(res.stdout).toContain("You are already on the latest version!");
@@ -1791,7 +1772,6 @@ describe("upgradeCommand action handler", () => {
 
     it("exits with 0 when user declines confirmation prompt", async () => {
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
       promptConfirmMock.mockResolvedValueOnce(false);
 
       const res = await runUpgrade([]);
@@ -1800,8 +1780,6 @@ describe("upgradeCommand action handler", () => {
 
     it("shows force upgrade requested when already on latest and --force is passed with --dry-run", async () => {
       getPackageVersionMock.mockReturnValue("1.4.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
-
       const res = await runUpgrade(["--force", "--dry-run"]);
       expect(res.status).toBe(0);
       expect(res.stdout).toContain("Force upgrade requested (currently 1.4.0)");
@@ -1811,7 +1789,6 @@ describe("upgradeCommand action handler", () => {
 
     it("successfully upgrades and verifies new version", async () => {
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
       execFileSyncMock.mockReturnValue("1.4.0\n");
 
       const res = await runUpgrade(["--yes"]);
@@ -1823,7 +1800,6 @@ describe("upgradeCommand action handler", () => {
 
     it("shows restart warning when version appears unchanged after upgrade without --force", async () => {
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
       execFileSyncMock.mockReturnValue("1.3.0\n");
 
       const res = await runUpgrade(["--yes"]);
@@ -1835,7 +1811,6 @@ describe("upgradeCommand action handler", () => {
 
     it("handles verification failure with permission error", async () => {
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
       execFileSyncMock.mockImplementation((_cmd: string, args: string[]) => {
         if (args?.[0] === "version") {
           const err = new Error("Permission denied");
@@ -1853,7 +1828,6 @@ describe("upgradeCommand action handler", () => {
 
     it("handles verification failure with generic error", async () => {
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
       execFileSyncMock.mockImplementation((_cmd: string, args: string[]) => {
         if (args?.[0] === "version") {
           throw new Error("spawn error");
@@ -1873,12 +1847,123 @@ describe("upgradeCommand action handler", () => {
       writeFileSync(bunPath, "#!/bin/sh");
       findOnPathMock.mockReturnValue(bunPath);
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
       execFileSyncMock.mockReturnValue("1.4.0\n");
 
       const res = await runUpgrade(["--yes"]);
       expect(res.status).toBeUndefined();
       expect(res.stdout).toContain("Upgrade complete!");
+    });
+  });
+
+  describe("configured npm registry lookup", () => {
+    beforeEach(() => {
+      const bin = join(tmp, "node_modules", ".bin", "flisk");
+      mkdirSync(dirname(bin), { recursive: true });
+      writeFileSync(bin, "#!/bin/sh");
+      findOnPathMock.mockReturnValue(bin);
+    });
+
+    it("uses the version returned by npm with the scoped registry config", async () => {
+      npmViewMock.mockReturnValue("1.5.2\n");
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+
+      expect(res.status).toBe(0);
+      expect(res.stderr).toBe("");
+      expect(JSON.parse(res.stdout).data.latestVersion).toBe("1.5.2");
+      expect(npmViewMock).toHaveBeenCalledWith(
+        ["view", "@flisk-sh/flisk", "version"],
+        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"], timeout: 10_000 }),
+      );
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("reports an npm lookup failure without retrying the public registry", async () => {
+      vi.stubEnv("FLISK_VERBOSE", "1");
+      npmViewMock.mockImplementation(() => {
+        throw Object.assign(new Error("Command failed\nnpm error E401"), { status: 1 });
+      });
+
+      const res = await runUpgrade(["--dry-run", "--json"]);
+
+      expect(res.status).toBe(1);
+      expect(JSON.parse(res.stdout).errors[0].message).toBe("Could not determine latest version");
+      expect(res.stderr).not.toContain("npm error E401");
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Bun-only registry lookup", () => {
+    let bunBin: string;
+
+    beforeEach(() => {
+      bunBin = join(tmp, ".bun", "bin", "flisk");
+      mkdirSync(dirname(bunBin), { recursive: true });
+      writeFileSync(bunBin, "#!/bin/sh");
+      vi.stubEnv("PATH", dirname(bunBin));
+      findOnPathMock.mockImplementation((command) => (command === "flisk" ? bunBin : null));
+      npmViewMock.mockImplementation(() => {
+        throw Object.assign(new Error("spawnSync npm ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    it("resolves the latest version on --dry-run without npm on PATH", async () => {
+      const res = await runUpgrade(["--dry-run"]);
+
+      expect(res.status).toBe(0);
+      expect(res.stdout).toContain("Upgrade available: 1.3.186 → 1.4.0");
+      expect(res.stderr).toBe("");
+      expect(fetch).toHaveBeenCalledWith(
+        "https://registry.npmjs.org/@flisk-sh%2fflisk/latest",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(npmViewMock).toHaveBeenCalledOnce();
+      expect(execSyncMock).not.toHaveBeenCalled();
+    });
+
+    it("returns a successful JSON envelope without npm on PATH", async () => {
+      const res = await runUpgrade(["--dry-run", "--json"]);
+
+      expect(res.status).toBe(0);
+      expect(res.stderr).toBe("");
+      expect(JSON.parse(res.stdout)).toEqual({
+        schemaVersion: 1,
+        data: {
+          dryRun: true,
+          currentVersion: "1.3.186",
+          latestVersion: "1.4.0",
+          upgradeAvailable: true,
+          method: "bun",
+          path: bunBin,
+          installations: [{ method: "bun", path: bunBin }],
+        },
+        errors: [],
+      });
+      expect(execSyncMock).not.toHaveBeenCalled();
+    });
+
+    it("reports a failed registry request in the JSON envelope with a Bun install hint", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+      const res = await runUpgrade(["--dry-run", "--json"]);
+
+      expect(res.status).toBe(1);
+      expect(res.stderr).toBe("Could not determine latest version\n");
+      expect(JSON.parse(res.stdout)).toEqual({
+        schemaVersion: 1,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: "COMMAND_FAILED",
+            message: "Could not determine latest version",
+            suggestions: expect.arrayContaining([
+              expect.stringContaining("npm registry access"),
+              expect.stringContaining("bun install -g @flisk-sh/flisk@latest"),
+            ]),
+          }),
+        ],
+      });
+      expect(fetch).toHaveBeenCalledOnce();
+      expect(execSyncMock).not.toHaveBeenCalled();
     });
   });
 
@@ -1889,8 +1974,6 @@ describe("upgradeCommand action handler", () => {
       writeFileSync(npmBin, "#!/bin/sh");
       findOnPathMock.mockReturnValue(npmBin);
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
-
       const res = await runUpgrade(["--dry-run", "--json"]);
       expect(res.status).toBe(0);
       expect(res.stderr).toBe("");
@@ -1916,8 +1999,6 @@ describe("upgradeCommand action handler", () => {
       writeFileSync(npmBin, "#!/bin/sh");
       findOnPathMock.mockReturnValue(npmBin);
       getPackageVersionMock.mockReturnValue("1.4.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
-
       const res = await runUpgrade(["--dry-run", "--json"]);
       expect(res.status).toBe(0);
       const envelope = JSON.parse(res.stdout);
@@ -1980,8 +2061,6 @@ describe("upgradeCommand action handler", () => {
       findOnPathMock.mockReturnValue(npmBin);
       findAllOnPathMock.mockReturnValue([npmBin, bunBin]);
       getPackageVersionMock.mockReturnValue("1.3.0");
-      execSyncMock.mockReturnValue("1.4.0\n");
-
       const res = await runUpgrade(["--dry-run", "--json", "--all"]);
       expect(res.status).toBe(0);
       expect(res.stderr).toBe("");
@@ -2082,6 +2161,8 @@ describe("upgradeCommand action handler", () => {
       const res = await runUpgrade(["--json", "--yes"]);
       expect(res.status).toBe(1);
       expect(execSyncMock).not.toHaveBeenCalled();
+      expect(npmViewMock).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
       const envelope = JSON.parse(res.stdout);
       expect(envelope).toEqual({
         schemaVersion: 1,
