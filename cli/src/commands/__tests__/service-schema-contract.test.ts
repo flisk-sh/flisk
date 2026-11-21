@@ -276,9 +276,23 @@ describe("publishing the schema from main", () => {
     expect(publishWorkflow).not.toContain("pull_request");
   });
 
+  it("republishes when only project-schema.json changes", () => {
+    const pathsBlock =
+      publishWorkflow.match(/paths:([\s\S]*?)(?=\r?\n\s*workflow_dispatch:)/)?.[1] ?? "";
+    expect(pathsBlock).toContain("runtime/engine/schemas/service-schema.json");
+    expect(pathsBlock).toContain("runtime/engine/schemas/project-schema.json");
+  });
+
+  it("serializes publishes so two quick pushes cannot race on the website repo", () => {
+    expect(publishWorkflow).toMatch(
+      /concurrency:\s*\n\s*group: publish-service-schema\s*\n\s*cancel-in-progress: false/,
+    );
+  });
+
   it("reports whether the live copy matches main, so a missing token is not a silent success", () => {
     expect(publishWorkflow).toContain("Report whether the published schema matches main");
     expect(publishWorkflow).toContain("https://flisk.sh/schema.service.json");
+    expect(publishWorkflow).toContain("https://flisk.sh/project-schema.json");
     expect(publishWorkflow).toContain("GITHUB_STEP_SUMMARY");
   });
 });

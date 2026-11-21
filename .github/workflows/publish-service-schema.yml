@@ -1,13 +1,20 @@
 name: 🏷️ RELEASE | Package | Publish service schema
 
-# runtime/engine/schemas/service-schema.json is the source of truth. The copy at
-# https://flisk.sh/schema.service.json is a deploy artifact for editors,
-# refreshed here after a change lands on main.
+# runtime/engine/schemas/{service,project}-schema.json are the source of truth. The copies at
+# https://flisk.sh/schema.service.json and https://flisk.sh/project-schema.json are deploy
+# artifacts for editors, refreshed here after a change lands on main.
 on:
   push:
     branches: [main]
-    paths: [runtime/engine/schemas/service-schema.json]
+    paths:
+      - runtime/engine/schemas/service-schema.json
+      - runtime/engine/schemas/project-schema.json
   workflow_dispatch:
+
+# Two quick pushes must not race on `git push origin HEAD:main` in the website repo.
+concurrency:
+  group: publish-service-schema
+  cancel-in-progress: false
 
 permissions:
   contents: read
