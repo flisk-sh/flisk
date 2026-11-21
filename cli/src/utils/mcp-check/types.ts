@@ -30,3 +30,30 @@ export interface McpCheckOptions {
   /** Delay before each of the two retries of a request that failed with a network error. */
   retryDelayMs?: number;
 }
+
+export interface HttpResponse {
+  /** 0 when the request never got an answer, after its retries. */
+  status: number;
+  contentType: string;
+  body: Buffer;
+  sessionId: string | null;
+  error?: string;
+}
+
+export interface RpcResponse {
+  status: number;
+  message: Record<string, unknown> | null;
+  error?: string;
+}
+
+export interface HttpRequest {
+  method?: "GET" | "POST";
+  body?: string;
+  accept?: string | null;
+}
+
+export interface McpTransport {
+  http(target: string, request?: HttpRequest): Promise<HttpResponse>;
+  rpc(method: string, params?: unknown, request?: HttpRequest): Promise<RpcResponse>;
+  notify(method: string): Promise<void>;
+}
