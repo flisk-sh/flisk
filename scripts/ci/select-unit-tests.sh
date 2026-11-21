@@ -5,7 +5,9 @@
 #
 # A merge queue entry is the queue's base plus one pull request, and the pull request already ran the full suite with
 # coverage, so the queue only has to run what the pull request can have affected. That is decided conservatively:
-#   - any event but merge_group runs everything (the pull request run keeps the coverage ratchet);
+#   - any event but merge_group runs everything (the pull request run keeps the coverage ratchet), except that the fast related
+#     job of a pull request sets RELATED_ON_PR=1 to select too. A pull request checkout is the merge of its head into the base,
+#     so `HEAD^1` is the base there as well; that job is an early signal and the full run still follows;
 #   - the entry is read as `git diff HEAD^1 HEAD` (its first parent is the queue's base; the checkout is depth 2);
 #   - every changed file must be a TypeScript source under cli/src or committed build output under cli/dist, and none may be
 #     under cli/src/test-support (shared by every test). Anything else (docs, runtime/, examples/, package.json, a vitest
@@ -19,7 +21,11 @@ out_dir="${1:?usage: select-unit-tests.sh <out-dir>}"
 out="${GITHUB_OUTPUT:-/dev/stdout}"
 full() { echo "mode=full" >>"$out"; echo "unit tests: full ($1)" >&2; exit 0; }
 
-[ "${EVENT:-}" = merge_group ] || full "event ${EVENT:-unset} is not a merge queue entry"
+case "${EVENT:-}" in
+  merge_group) ;;
+  pull_request) [ "${RELATED_ON_PR:-}" = 1 ] || full "event pull_request runs the full suite" ;;
+  *) full "event ${EVENT:-unset} is not a merge queue entry" ;;
+esac
 git rev-parse --verify --quiet "HEAD^1" >/dev/null || full "no parent commit to diff against"
 
 changed="$(git diff --name-only HEAD^1 HEAD)"

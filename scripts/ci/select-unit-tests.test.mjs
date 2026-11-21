@@ -109,6 +109,19 @@ test("pull requests and manual runs run the full suite", () => {
   }
 });
 
+test("a pull request selects only when the fast related job asks for it", () => {
+  const change = (d) => write(d, "cli/src/utils/which.ts", "changed\n");
+  const fast = queueEntry(change, { EVENT: "pull_request", RELATED_ON_PR: "1" });
+  assert.equal(fast.mode, "mode=selected");
+  assert.deepEqual(fast.related, ["src/utils/which.ts"]);
+  for (const EVENT of ["workflow_dispatch", "schedule", "push", ""]) {
+    const { mode } = queueEntry(change, { EVENT, RELATED_ON_PR: "1" });
+    assert.equal(mode, "mode=full", `event ${EVENT || "unset"}`);
+  }
+  const docs = queueEntry((d) => write(d, "docs/x.md", "changed\n"), { EVENT: "pull_request", RELATED_ON_PR: "1" });
+  assert.equal(docs.mode, "mode=full");
+});
+
 test("a commit with no parent to diff against runs the full suite", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "unit-select-root-"));
   git(dir, "init", "-q", ".");

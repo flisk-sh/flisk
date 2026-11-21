@@ -275,6 +275,60 @@ jobs:
           if [ "${#spawning[@]}" -gt 0 ]; then bun run test:files "${spawning[@]}" || status=$?; fi
           exit "$status"
 
+  # An early signal on pull requests: the unit tests the change can affect, without coverage, Tilt or the macOS build. The Test job
+  # still runs the whole suite with coverage and stays the gate; this job only tells the author sooner. A change outside cli/src
+  # and cli/dist has nothing to select, so the job passes at once and leaves it to the Test job.
+  test-related:
+    name: ⚡ Related tests
+    runs-on: ubuntu-26.04
+    needs: changes
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2 # the checkout is the merge of the head into the base, so HEAD^1 is the base
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.23.5
+      - name: Choose the unit tests this pull request affects
+        id: select
+        working-directory: .
+        env:
+          EVENT: ${{ github.event_name }}
+          RELATED_ON_PR: "1"
+        run: scripts/ci/select-unit-tests.sh "$RUNNER_TEMP/unit-select"
+      - if: ${{ steps.select.outputs.mode == 'selected' }}
+        run: bun install --frozen-lockfile
+      - name: Build the CLI (the CLI-spawning tests run cli/dist)
+        if: ${{ steps.select.outputs.mode == 'selected' }}
+        run: bun run build
+      - name: Run the related unit tests
+        if: ${{ steps.select.outputs.mode == 'selected' }}
+        shell: bash
+        env:
+          SELECT_DIR: ${{ runner.temp }}/unit-select
+        run: |
+          related=()
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then related+=("$line"); fi
+          done < "$SELECT_DIR/related.txt"
+          spawning=()
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then spawning+=("$line"); fi
+          done < "$SELECT_DIR/spawn.txt"
+          status=0
+          if [ "${#related[@]}" -gt 0 ]; then bun run test:related "${related[@]}" || status=$?; fi
+          if [ "${#spawning[@]}" -gt 0 ]; then bun run test:files "${spawning[@]}" || status=$?; fi
+          exit "$status"
+
   test:
     name: 🧪 Test
     runs-on: ubuntu-26.04
