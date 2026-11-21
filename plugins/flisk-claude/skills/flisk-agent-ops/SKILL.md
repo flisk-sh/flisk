@@ -39,3 +39,7 @@ When building, adding, or modifying services in this workspace, **do not hand-wr
    - List agents: `flisk resources --type agent --json` (or tool `agent_list`)
    - List agent sessions: `flisk agent sessions <resource> --json` (or tool `agent_sessions` with `resource`); add `--session-id <id>` (tool: `sessionId`) to read one session's checkpoint
    - Stop services: `flisk down --json` (or tool `down`)
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

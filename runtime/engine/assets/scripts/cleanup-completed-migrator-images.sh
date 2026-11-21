@@ -9,7 +9,10 @@ set -euo pipefail
 # - only exited containers with exit code 0 are processed
 # - image deletion is best-effort (skips if still in use)
 
-mapfile -t migrator_containers < <(
+migrator_containers=()
+while IFS= read -r line || [ -n "$line" ]; do
+  if [ -n "$line" ]; then migrator_containers+=("$line"); fi
+done < <(
   docker ps -a --format '{{.Names}}' | grep -E -- '-db-migrator($|-)' 2>/dev/null || true
 )
 

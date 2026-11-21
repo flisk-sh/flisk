@@ -1,3 +1,4 @@
+import { type NativeRunState } from "./native-runtime.js";
 type CommandRunner = (command: string, args: string[]) => string;
 /** The engine prefixes networks with the project name, hyphens turned into underscores. */
 export declare function projectNetworkNames(projectName: string): string[];
@@ -49,12 +50,26 @@ export declare function lookupProjectTiltUpPids(tiltfilePath: string, platform?:
  * project's Tilt (or a Tilt the user started by hand) untouched.
  */
 export declare function findProjectTiltUpPids(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
+/** Every folder Flisk has recorded as a project root, once each. */
+export declare function knownProjectRoots(home?: string): string[];
 /**
- * Roots of the Flisk projects that have a `tilt up` running, read from each process's `-f <root>/.flisk/.flisk-out/Tiltfile`
- * (the Tiltfile `flisk up` passes). Lets `flisk down` find the project when it runs outside one. A root counts only while
- * it still has `.flisk/project.json`.
+ * How {@link findRunningFliskProjects} looks for native runs. A native run has no searchable process command line: the
+ * existing project registry supplies the folders to check for `.flisk/native/run.json`. Tests replace this so they never
+ * read a real registry or process table.
  */
-export declare function findRunningFliskProjects(platform?: NodeJS.Platform, commandRunner?: CommandRunner, isProject?: (root: string) => boolean): string[];
+export interface NativeRunLookup {
+    roots: () => readonly string[];
+    readState: (root: string) => NativeRunState | null;
+    /** The real implementation checks the pid's start time and boot time before calling it a live Flisk run. */
+    isAlive: (state: NativeRunState) => Promise<boolean>;
+}
+/**
+ * Roots of the Flisk projects that are running, either under `tilt up` (read from each process's
+ * `-f <root>/.flisk/.flisk-out/Tiltfile`) or as a live native run recorded in `<root>/.flisk/native/run.json`. Lets
+ * `flisk down` and the other commands find a project when they run outside one. A root counts only while it still has
+ * `.flisk/project.json`.
+ */
+export declare function findRunningFliskProjects(platform?: NodeJS.Platform, commandRunner?: CommandRunner, isProject?: (root: string) => boolean, native?: NativeRunLookup): Promise<string[]>;
 export declare function stopProjectTiltUp(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
 /** Wait (up to `timeoutMs`) for the `tilt up` processes to exit after TERM, so `tilt down` does not race a live Tilt. */
 export declare function waitForTiltUpExit(tiltfilePath: string, timeoutMs?: number, findPids?: (tiltfilePath: string) => number[]): Promise<boolean>;

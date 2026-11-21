@@ -35,10 +35,11 @@ export declare const MAX_FAILURE_MESSAGE = 300;
  * (`postgres-healthy`, `<svc>-healthy`, `<job>-done`) print the cause as their last `ERROR: ...` line, such as a container
  * that exited or a health check that kept failing past its recovery window, so `flisk up` shows that rather than
  * "exit status 1" (#3210). A failed command or compose step (`init-networks`, `docker compose up`) is shown as the last
- * lines of its log, where Docker's own message is, rather than the command line. A reason taken from a log is stripped
- * of terminal escapes and cut to MAX_FAILURE_MESSAGE characters. Other failures, and those whose log has nothing to
- * show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters. Only the first five
- * failures have their log read; the command text of the rest is cut the same way.
+ * lines of its log, where Docker's own message is, rather than the command line (#3822). An image build keeps the
+ * `ERROR:` line and the four lines before it, which is what Docker actually said (#3958). A reason taken from a log is
+ * stripped of terminal escapes and cut to MAX_FAILURE_MESSAGE characters. Other failures, and those whose log has
+ * nothing to show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters. Only the
+ * first five failures have their log read; resources that printed the same command reuse that reason.
  */
 export declare function withLoggedReasons<T extends {
     name: string;
@@ -56,6 +57,15 @@ export declare function explainFailures<T extends {
 }>>;
 /** The last lines of a log that have text, joined on one line, keeping the end when it is too long. */
 export declare function logTail(log: string, lines?: number): string | null;
+/**
+ * The detail under "Resources failed": one entry per distinct reason, with the number and names of the resources that
+ * printed it. Each entry ends with the reason so a build's `ERROR:` line stays the last thing the user reads (#3958).
+ */
+export declare function formatFailureDetail(failures: Array<{
+    name: string;
+    message: string;
+    fix?: string;
+}>): string;
 /**
  * The failure lines `flisk up --wait` prints from the `flisk up --json` result: each failed resource and its reason,
  * and under it the fix when the reason names a known machine problem.

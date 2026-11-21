@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 const DOCS = "https://github.com/flisk-sh/flisk/blob/main/docs";
+const DEFAULT_TILT_PORT = 10350;
 
 /** Troubleshooting entries the hints point at. Each anchor is a heading in docs/troubleshooting.md. */
 export const UP_HINT_DOCS = {
@@ -29,8 +30,17 @@ export type UpFailure =
       failed: string[];
       timedOut?: boolean;
       stillBuilding?: string[];
+      /** The port this run actually started Tilt on, when known (the demo may move off 10350). */
+      tiltPort?: number;
     }
-  | { kind: "smoke"; failed: string[] };
+  | { kind: "smoke"; failed: string[]; tiltPort?: number };
+
+/** A log command that works even when the stack is not on the default Tilt port (#3958). */
+function logHint(name: string, tiltPort?: number): string {
+  const port =
+    tiltPort !== undefined && tiltPort !== DEFAULT_TILT_PORT ? ` --port ${tiltPort}` : "";
+  return `See why ${name} failed: flisk logs -s ${name}${port}`;
+}
 
 /**
  * One or two commands to run next after a failed `flisk up`, plus the troubleshooting page for that failure. Printed
@@ -54,9 +64,7 @@ export function upFailureHints(failure: UpFailure): string[] {
     case "services":
     case "smoke": {
       const logs =
-        failure.failed.length > 0
-          ? [`See why ${failure.failed[0]} failed: flisk logs -s ${failure.failed[0]}`]
-          : [];
+        failure.failed.length > 0 ? [logHint(failure.failed[0] as string, failure.tiltPort)] : [];
       if (failure.kind === "smoke") {
         return [...logs, `Smoke checks: ${UP_HINT_DOCS.smoke}`];
       }

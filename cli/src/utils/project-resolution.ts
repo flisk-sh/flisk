@@ -38,7 +38,7 @@ export interface ResolveProjectOptions {
  *    - If 0 projects are running, fails with the standard `notInProject` error and suggestions.
  * 4. Changes `process.cwd()` to the resolved project root if it differs from current root.
  */
-export function resolveCommandProject(options: ResolveProjectOptions): string {
+export async function resolveCommandProject(options: ResolveProjectOptions): Promise<string> {
   const { commandName, project, json = false, autoSelectSingleRunning = false } = options;
 
   const fail = (error: FliskError): never => {
@@ -84,7 +84,7 @@ export function resolveCommandProject(options: ResolveProjectOptions): string {
     if (here) {
       resolvedRoot = here;
     } else {
-      const running = findRunningFliskProjects();
+      const running = await findRunningFliskProjects();
       if (autoSelectSingleRunning && running.length === 1) {
         const root = running[0] as string;
         if (!json) {

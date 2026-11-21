@@ -22,14 +22,27 @@ export const COMMAND_SPECS = [
                 defaultValue: false,
             },
             {
+                flags: "--stack <name>",
+                description: "Only show this stack",
+            },
+            {
                 flags: "--json",
                 description: "Output a versioned JSON stack report",
                 defaultValue: false,
             },
         ],
-        arguments: [],
+        arguments: [
+            {
+                name: "stack",
+                description: "Only show this stack (default: all stacks)",
+                required: false,
+                variadic: false,
+            },
+        ],
         helpTexts: {
-            after: ["\nExamples:\n  flisk stacks\n  flisk stacks --services\n  flisk stacks --json"],
+            after: [
+                "\nExamples:\n  flisk stacks\n  flisk stacks app\n  flisk stacks --stack app\n  flisk stacks app --json\n  flisk stacks --services\n  flisk stacks --json\n\nTo list the resources of one stack, run: flisk resources --stack <name>",
+            ],
         },
         subcommands: [],
     },
@@ -209,7 +222,7 @@ export const COMMAND_SPECS = [
         ],
         helpTexts: {
             after: [
-                "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
+                "\nFree disk space is checked first. Container projects: under 5 GiB flisk up stops, under 15 GiB it warns. Local-process projects: under 1 GiB it stops, under 2 GiB it warns. FLISK_DISK_MIN_GIB and FLISK_DISK_WARN_GIB change the limits of both. The shared Docker build cache is trimmed to 20 GiB (FLISK_BUILD_CACHE_MAX_GIB, 0 turns it off).\n\nExit codes: 2 for an argument you typed wrong (an unknown --only service, an unknown --profile, an invalid --wait-timeout, a rejected --env-file), 1 for a failure such as a stack that cannot start.\n\nExamples:\n  flisk up\n  flisk up shop\n  flisk up --dry-run\n  flisk up --ignore-drift",
             ],
         },
         subcommands: [],
@@ -393,14 +406,14 @@ export const COMMAND_SPECS = [
         arguments: [
             {
                 name: "host",
-                description: "Agent host: claude, cursor, codex",
+                description: "Agent host: claude, cursor, codex, gemini",
                 required: true,
                 variadic: false,
             },
         ],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global",
+                "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global\n  flisk connect gemini --dry-run",
             ],
         },
         subcommands: [],
@@ -436,6 +449,10 @@ export const COMMAND_SPECS = [
                 description: "Only logs newer than this duration, for example 30s, 5m, 1h",
             },
             {
+                flags: "--after <cursor>",
+                description: "Only lines with a sequence number greater than this cursor, returned as data.nextCursor by a previous --json read",
+            },
+            {
                 flags: "--source <source>",
                 description: "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
             },
@@ -450,7 +467,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "View logs for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project whose logs to read (default: the current project)",
             },
             {
                 flags: "--json",
@@ -461,7 +478,7 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",
+                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json\n  flisk logs --json --after 42",
             ],
         },
         subcommands: [],
@@ -769,7 +786,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "Show status for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project to report on (default: the current project)",
             },
         ],
         arguments: [],
@@ -1050,7 +1067,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--list",
-                description: "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
+                description: "List the starter templates (key, repo, description, needs, pinned ref); with --json, the usual envelope with them in data.templates",
                 defaultValue: false,
             },
             {
@@ -1121,6 +1138,11 @@ export const COMMAND_SPECS = [
             {
                 flags: "--start",
                 description: "Install dependencies and start what was written (the local app route; a starter is never started here)",
+                defaultValue: false,
+            },
+            {
+                flags: "--json",
+                description: "Print one JSON envelope on stdout; progress goes to stderr",
                 defaultValue: false,
             },
         ],
@@ -1918,7 +1940,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "Restart resources for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project whose resource to restart (default: the current project)",
             },
             {
                 flags: "--wait <seconds>",
@@ -2106,7 +2128,7 @@ export const COMMAND_SPECS = [
     {
         name: "repos",
         path: ["repos"],
-        description: "Clone the Git repositories listed in .flisk/project.json",
+        description: "List or clone the Git repositories configured in .flisk/project.json",
         aliases: [],
         hidden: false,
         hasAction: false,
@@ -2118,6 +2140,27 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {},
         subcommands: [
+            {
+                name: "list",
+                path: ["repos", "list"],
+                description: "List configured repositories without cloning",
+                aliases: [],
+                hidden: false,
+                hasAction: true,
+                allowUnknown: false,
+                passThrough: false,
+                positionalOptions: false,
+                allowExcessArguments: false,
+                options: [
+                    {
+                        flags: "--json",
+                        description: "Print one JSON report",
+                    },
+                ],
+                arguments: [],
+                helpTexts: {},
+                subcommands: [],
+            },
             {
                 name: "clone",
                 path: ["repos", "clone"],

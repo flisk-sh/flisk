@@ -16,6 +16,7 @@ import {
 } from "../../test-support/index.js";
 import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
 import { agentCommand } from "../agent.js";
+import { COMMAND_SPECS } from "../command-specs.generated.js";
 import { configCommand } from "../config.js";
 import { connectCommand } from "../connect.js";
 import { downCommand } from "../down.js";
@@ -248,8 +249,12 @@ const EXEMPT: Record<string, string> = {
     "creates a new project folder from answers or flags and never runs inside an existing project, so the matrix's project-required rows do not fit; create.test.ts runs it with no terminal and covers the defaults, the flags and the errors",
   "create --dry-run":
     "prints the flisk commands it would run and writes nothing, in a folder that is not a project; create.test.ts proves nothing is written",
+  "create --json":
+    "creates a project outside one instead of failing, so the matrix's project-required rows do not fit; create.test.ts covers the dry run, real run and errors, and machine-output-contract.test.ts covers the envelope",
   "repos clone --json":
     "a subcommand of repos that clones git repos; repos.test.ts covers the envelope",
+  "repos list --json":
+    "a subcommand of repos that reads the configured repositories and git state without cloning; repos-list.test.ts covers the envelope",
   "distribute board --json":
     "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute status --json":
@@ -690,6 +695,28 @@ describe("flag contract: -y/--yes and --force convention", () => {
     for (const { description } of jsonOptions) {
       const lower = description.toLowerCase();
       expect(lower.includes("json") || lower.includes("machine-readable")).toBe(true);
+    }
+  });
+});
+
+describe("flag contract: --project on project-scoped commands", () => {
+  it("logs, restart and status expose the same required --project <path> option in specs", async () => {
+    const commands = new Map(
+      (await loadAllCommands())
+        .flatMap((cmd) => collectCommands(cmd))
+        .map(({ name, command }) => [name, command] as const),
+    );
+
+    for (const name of ["logs", "restart", "status"]) {
+      const option = commands
+        .get(name)
+        ?.options.find((candidate) => candidate.long === "--project");
+      expect(option?.flags, `${name} --project flags`).toBe("--project <path>");
+      const spec = COMMAND_SPECS.find((entry) => entry.path.join(" ") === name);
+      expect(
+        spec?.options.some((candidate) => candidate.flags === "--project <path>"),
+        `${name} generated spec`,
+      ).toBe(true);
     }
   });
 });

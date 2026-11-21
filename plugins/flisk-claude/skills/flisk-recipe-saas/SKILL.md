@@ -37,3 +37,7 @@ flisk networks --stack saas --raw
 Each answers 200: the `web` health URL, `/api/accounts/health`, `/api/accounts/health/db`, `/api/billing/health` and `/api/billing/health/db` on `api.<project>.localhost:<port>`. Also sign up and log in once with `curl` and show the user it worked.
 
 Then tell the user the web app URL, the two API URLs, that payments are not connected to a real provider (unless they are), and that `flisk down` stops everything.
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

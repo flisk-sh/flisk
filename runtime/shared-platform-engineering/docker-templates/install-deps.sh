@@ -54,11 +54,8 @@ else
 fi
 
 # =============================================================================
-# CRITICAL FIX: Reduced timeout for faster failure detection (was 900s)
-# Using 60s to fail fast and retry, rather than hanging for 15 minutes
+# Keep a per-attempt cap: a transient failure gets another try with a short pause rather than hanging the image build.
 # =============================================================================
-# CRITICAL FIX: Extended timeout for full dependency resolution
-# 60s was too short - packages resolve but need time for transitive deps
 INSTALL_TIMEOUT_SECONDS="${BUN_INSTALL_TIMEOUT_SECONDS:-300}"
 echo "📦 Dependency install timeout: ${INSTALL_TIMEOUT_SECONDS}s (Verdaccio packages available)"
 
@@ -134,14 +131,16 @@ run_install() {
 # try; a package that does not exist (a 404 for its metadata, not a tarball) is not.
 is_transient_install_failure() {
   [ "$1" -eq 124 ] && return 0
-  grep -Eq -- "\.tgz - 404|- (408|429|5[0-9][0-9])([^0-9]|$)|ECONNRESET|ETIMEDOUT|ECONNREFUSED|ConnectionRefused|ConnectionClosed|timed out|socket hang up" "$BUN_INSTALL_LOG"
+  grep -Eq -- "\.tgz - 404|- (408|429|5[0-9][0-9])([^0-9]|$)|FailedToOpenSocket|ECONNRESET|ETIMEDOUT|ECONNREFUSED|ConnectionRefused|ConnectionClosed|timed out|socket hang up" "$BUN_INSTALL_LOG"
 }
 
 # =============================================================================
 # Install with lockfile but allow updates within resolved ranges
 # =============================================================================
 MAX_ATTEMPTS="${FLISK_INSTALL_ATTEMPTS:-3}"
-RETRY_DELAY_SECONDS="${FLISK_INSTALL_RETRY_DELAY:-15}"
+# Pauses before attempts 2 and 3. FLISK_INSTALL_RETRY_DELAY, when set, overrides each pause (0 retries immediately).
+FIRST_RETRY_DELAY_SECONDS=2
+RETRY_DELAY_SECONDS=5
 ATTEMPT=1
 INSTALL_CODE=0
 TRANSIENT=0
@@ -157,7 +156,13 @@ while :; do
   elif is_transient_install_failure "$INSTALL_CODE"; then
     TRANSIENT=1
     [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ] && break
-    delay=$((ATTEMPT * RETRY_DELAY_SECONDS))
+    if [ -n "${FLISK_INSTALL_RETRY_DELAY:-}" ]; then
+      delay="$FLISK_INSTALL_RETRY_DELAY"
+    elif [ "$ATTEMPT" -eq 1 ]; then
+      delay="$FIRST_RETRY_DELAY_SECONDS"
+    else
+      delay="$RETRY_DELAY_SECONDS"
+    fi
     echo "⚠️  bun install hit a registry or network error (attempt $ATTEMPT of $MAX_ATTEMPTS) - retrying in ${delay}s:"
     grep -E -- " - [0-9]{3}([^0-9]|$)|ECONN|timed out" "$BUN_INSTALL_LOG" | head -n 3 || true
     sleep "$delay"

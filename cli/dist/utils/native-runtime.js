@@ -9,9 +9,11 @@ import { dependsOnOf } from "./dependency-graph.js";
 import { expandEnvValue } from "./env-expand.js";
 import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
+import { LOG_SEQ_SUB_MILLISECOND } from "./log-cursors.js";
 import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
 import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainerName, removeNativeContainers, } from "./native-container.js";
-import { appendNativeLogLine, readLogTail } from "./native-log.js";
+import { appendNativeLogLine, maxNativeLogSeq, readLogTail } from "./native-log.js";
+import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { bootTimeMs, processStartTime } from "./process-identity.js";
 import { createEnvRedactor, createPrivateKeyLineGuard } from "./secret-redaction.js";
@@ -462,6 +464,23 @@ function pathHasRelativeEntry() {
     const pathEnv = process.env.PATH ?? process.env.Path ?? "";
     return pathEnv.split(delimiter).some((entry) => entry !== "" && !isAbsolute(entry));
 }
+/**
+ * Why a service that gave up never became ready. Exit code 127 is the shell's "command not found": name the
+ * program the service runs so the person sees what to install instead of a generic "kept exiting" (#4678).
+ */
+function missingProgramReason(service) {
+    if (service.lastExitCode === 127) {
+        const program = commandProgram(service.plan.command);
+        if (program)
+            return `runs ${program}, which is not installed`;
+    }
+    return "kept exiting; see its output above";
+}
+/** The "command not found" clause for an exit note, empty when the command does not name a single program. */
+function missingProgramNote(service) {
+    const program = commandProgram(service.plan.command);
+    return program ? `: ${service.plan.name} runs ${program}, which is not installed` : "";
+}
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
 export function findMissingPrograms(plans, find = findOnPath, exists = existsSync) {
     const missing = [];
@@ -848,9 +867,17 @@ export function readNativeLogLines(projectRoot, services, options) {
             continue;
         }
         for (const raw of raws) {
-            const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (.*)$/.exec(raw);
+            const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) (?:#(\d+) )?(.*)$/.exec(raw);
             const time = match?.[1] ?? null;
-            lines.push({ time, resource, level: null, source: null, text: match?.[2] ?? raw });
+            const seq = match?.[2] === undefined ? undefined : Number(match[2]);
+            lines.push({
+                ...(seq === undefined ? {} : { seq }),
+                time,
+                resource,
+                level: null,
+                source: null,
+                text: match?.[3] ?? raw,
+            });
         }
     }
     // Stable sort: lines of one service keep their order when two share a millisecond.
@@ -946,6 +973,8 @@ export class NativeSupervisor {
     migratorOutputs = new Map();
     redactLine;
     startedAt = new Date().toISOString();
+    /** One counter for every service in the project, resumed from the logs when a previous supervisor wrote them. */
+    seq;
     pidStartTime;
     stopping = false;
     baseEnv;
@@ -956,6 +985,10 @@ export class NativeSupervisor {
         this.options = options;
         this.baseEnv = options.baseEnv;
         this.redactLine = createEnvRedactor(projectRoot, options.extraEnvPaths);
+        this.seq = maxNativeLogSeq(plans.flatMap((plan) => [
+            nativeLogPath(projectRoot, plan.name),
+            `${nativeLogPath(projectRoot, plan.name)}.1`,
+        ]));
         for (const plan of plans) {
             this.services.set(plan.name, {
                 plan,
@@ -963,6 +996,7 @@ export class NativeSupervisor {
                 quickCrashes: 0,
                 gaveUp: false,
                 isReady: false,
+                lastExitCode: null,
             });
         }
     }
@@ -1028,7 +1062,7 @@ export class NativeSupervisor {
                         reason: service.plan.job
                             ? "the job did not exit 0; see its output above"
                             : service.gaveUp
-                                ? "kept exiting; see its output above"
+                                ? missingProgramReason(service)
                                 : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
                     });
                 }
@@ -1151,6 +1185,7 @@ export class NativeSupervisor {
         if (this.stopping || service.child !== child || service.restarting)
             return;
         service.isReady = false;
+        service.lastExitCode = code;
         this.saveState();
         const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
         if (service.plan.job) {
@@ -1193,13 +1228,16 @@ export class NativeSupervisor {
         }
         const ranFor = Date.now() - service.startedAt;
         service.quickCrashes = ranFor < QUICK_CRASH_MS ? service.quickCrashes + 1 : 1;
+        // Exit code 127 is the shell's "command not found": say so as soon as it happens, so the first exit
+        // already names the program to install instead of only the give-up note (#4678).
+        const missing = service.lastExitCode === 127 ? missingProgramNote(service) : "";
         if (service.quickCrashes >= MAX_QUICK_CRASHES) {
             service.gaveUp = true;
-            this.events.onNote?.(service.plan.name, `${how}; it exited ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`);
+            this.events.onNote?.(service.plan.name, `${how}${missing}; it exited ${MAX_QUICK_CRASHES} times in a row, so it is not restarted. Fix it, then run flisk up again.`);
             return;
         }
         const delay = (this.options.restartDelayMs ?? 1_000) * 2 ** (service.quickCrashes - 1);
-        this.events.onNote?.(service.plan.name, `${how}; restarting in ${delay / 1000}s`);
+        this.events.onNote?.(service.plan.name, `${how}${missing}; restarting in ${delay / 1000}s`);
         service.restartTimer = setTimeout(() => this.respawn(service), delay);
     }
     /** Starts a service again after it exited, and reports when it is ready again. */
@@ -1276,9 +1314,13 @@ export class NativeSupervisor {
                 return;
             }
             try {
-                // A timestamp per line lets `flisk logs` merge services in order and honour --since. The log is rotated to
-                // <service>.log.1 at NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
-                appendNativeLogLine(logPath, `${new Date().toISOString()} ${safeLine}\n`, this.logSizes);
+                // A timestamp per line lets `flisk logs` merge services in order and honour --since; the number lets a
+                // cursor read ask for only what came later. It has the same time-based scale as numbers derived from
+                // Tilt/Docker lines, so the two runtimes can share one cursor. The log is rotated to <service>.log.1 at
+                // NATIVE_LOG_MAX_BYTES, so it cannot grow without bound (#3720).
+                const now = new Date();
+                this.seq = Math.max(this.seq + 1, now.getTime() * LOG_SEQ_SUB_MILLISECOND);
+                appendNativeLogLine(logPath, `${now.toISOString()} #${this.seq} ${safeLine}\n`, this.logSizes);
             }
             catch {
                 // A full disk must not stop the service; the terminal still shows the line.

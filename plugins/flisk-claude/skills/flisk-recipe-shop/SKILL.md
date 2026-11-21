@@ -39,3 +39,7 @@ Each of these answers 200 (ports come from `flisk networks`):
 - `http://api.<project>.localhost:<port>/api/orders/health/db`
 
 Then tell the user: "Your shop is running. Open the storefront at … . The orders API is at … ; try `curl …/api/orders/products`. Stop it with `flisk down`."
+
+## MCP tools
+
+If a `mcp__flisk__*` tool is missing, run `flisk connect claude` in the project folder and restart Claude Code. The CLI commands in this skill work without MCP as well.

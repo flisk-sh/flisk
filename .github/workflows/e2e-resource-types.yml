@@ -123,6 +123,14 @@ jobs:
               before="$RUNNER_TEMP/byo-templates-before.json"
               git show "$reuse:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
               matrix="$(git diff --name-only "$reuse" HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before" --base "$reuse")"
+            elif git rev-parse --verify --quiet "HEAD^1" >/dev/null; then
+              # No reusable pull request run: still filter by path. The queued commit sits on top of the queue's base, so its
+              # first parent is that base and the depth-2 checkout is enough to list exactly what this pull request changed.
+              # A change none of the suites read runs no legs instead of the full matrix.
+              echo "No reusable run; selecting legs from the changes this queue entry makes over its parent."
+              before="$RUNNER_TEMP/byo-templates-before.json"
+              git show "HEAD^1:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
+              matrix="$(git diff --name-only HEAD^1 HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before" --base HEAD^1)"
             fi
           fi
           if [ "$EVENT" = "pull_request" ]; then

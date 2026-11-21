@@ -62,6 +62,10 @@ const line = (resource: string, text: string): NativeLogLine => ({
   source: null,
   text,
 });
+const numbered = (seq: number, resource: string, text: string): NativeLogLine => ({
+  ...line(resource, text),
+  seq,
+});
 const NATIVE = [
   makeResource("api", "backend", { command: "node api.js" }),
   makeResource("frontend", "frontend", { command: "vite" }),
@@ -244,7 +248,71 @@ describe("flisk logs (in-process)", () => {
         since: null,
         lines: [],
         unhealthy: [],
+        nextCursor: 0,
+        truncated: false,
       });
+      expect(nativeRuntime.readNativeLogLines).not.toHaveBeenCalled();
+    });
+
+    it("--json numbers every line, returns nextCursor, and --after keeps only newer lines", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([
+        numbered(10, "api", "one"),
+        numbered(11, "frontend", "two"),
+        numbered(12, "api", "three"),
+      ]);
+
+      const first = parseEnvelope((await runLogs(["--json"])).stdout).data;
+
+      expect(first.lines.map((l: NativeLogLine) => l.seq)).toEqual([10, 11, 12]);
+      expect(first.nextCursor).toBe(12);
+      expect(first.truncated).toBe(false);
+
+      nativeRuntime.readNativeLogLines.mockReturnValue([
+        numbered(10, "api", "one"),
+        numbered(11, "frontend", "two"),
+        numbered(12, "api", "three"),
+        numbered(13, "api", "four"),
+      ]);
+      const second = parseEnvelope((await runLogs(["--json", "--after", "12"])).stdout).data;
+
+      expect(second.lines.map((l: NativeLogLine) => l.seq)).toEqual([13]);
+      expect(second.nextCursor).toBe(13);
+    });
+
+    it("an unchanged log returns no lines and the same nextCursor", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([
+        numbered(4, "api", "one"),
+        numbered(5, "api", "two"),
+      ]);
+      const first = parseEnvelope((await runLogs(["--json"])).stdout).data;
+
+      const second = parseEnvelope(
+        (await runLogs(["--json", "--after", String(first.nextCursor)])).stdout,
+      ).data;
+
+      expect(second.lines).toEqual([]);
+      expect(second.nextCursor).toBe(first.nextCursor);
+      expect(second.truncated).toBe(false);
+    });
+
+    it("a cursor older than the retained log returns the oldest lines with truncated: true", async () => {
+      nativeRuntime.readNativeLogLines.mockReturnValue([
+        numbered(20, "api", "oldest kept"),
+        numbered(21, "api", "newest kept"),
+      ]);
+
+      const data = parseEnvelope((await runLogs(["--json", "--after", "3"])).stdout).data;
+
+      expect(data.lines.map((l: NativeLogLine) => l.text)).toEqual(["oldest kept", "newest kept"]);
+      expect(data.truncated).toBe(true);
+      expect(data.nextCursor).toBe(21);
+    });
+
+    it("rejects a non-integer --after cursor with a usage error", async () => {
+      const run = await runLogs(["--json", "--after", "1.5"]);
+
+      expect(run.status).toBe(2);
+      expect(parseEnvelope(run.stdout).errors[0]).toMatchObject({ code: "USAGE" });
       expect(nativeRuntime.readNativeLogLines).not.toHaveBeenCalled();
     });
   });

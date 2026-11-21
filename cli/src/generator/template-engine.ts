@@ -653,6 +653,16 @@ function normalizeProjectConfig(value: unknown): NormalizedProjectConfig {
   if (typeof project.name !== "string") {
     return fail("project.name", "a string", project.name);
   }
+  // Reading an existing project.json accepts every name Docker Compose accepts for a project (lowercase letters, numbers,
+  // hyphens and underscores, starting with a letter or number): `flisk import` keeps a Compose project's own name such as
+  // `pl_mail` so its volume names stay stable. The stricter kebab-case rule applies where Flisk derives or asks for a name.
+  if (project.name.length > 64 || !/^[a-z0-9][a-z0-9_-]*$/.test(project.name)) {
+    return fail(
+      "project.name",
+      "a Docker-compatible name (lowercase letters, numbers, hyphens and underscores, starting with a letter or number)",
+      project.name,
+    );
+  }
   if (typeof project.version !== "string") {
     return fail("project.version", "a string", project.version);
   }
@@ -1066,7 +1076,27 @@ const REQUIRED_DOCKER_TEMPLATE_FILES = [
   "bun-hoisted-symlink-fix.sh",
   "prisma-bun-client-link-fix.sh",
   "prisma-normalize-client.sh",
+  "infisical-entrypoint.sh",
 ] as const;
+
+/**
+ * Docker images run these scripts with /bin/sh. A CRLF source checkout (Git's
+ * default core.autocrlf=true on Windows) gives them a `#!/bin/sh\r` shebang,
+ * which Linux cannot execute. Rewrite copied scripts to LF, but leave files
+ * without a CR untouched so mtimes stay stable on POSIX clones.
+ */
+function normalizeCopiedShellScripts(root: string): void {
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      normalizeCopiedShellScripts(entryPath);
+    } else if (entry.isFile() && entry.name.endsWith(".sh")) {
+      const content = fs.readFileSync(entryPath, "utf-8");
+      if (!content.includes("\r")) continue;
+      fs.writeFileSync(entryPath, content.replace(/\r\n/g, "\n"), "utf-8");
+    }
+  }
+}
 
 // Walk up from this module's own location looking for a directory that has
 // both Tiltfile and engine/ next to it - true when cli/ and engine/ ship
@@ -1130,6 +1160,7 @@ export function ensureProjectRuntimeAssets(projectRoot: string): string[] {
 
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.cpSync(source, target, { recursive: true });
+    normalizeCopiedShellScripts(target);
     copied.push(parts.join("/"));
   }
 

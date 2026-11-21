@@ -1,16 +1,18 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   composeProjectsUnder,
   findProjectTiltUpPids,
   findRunningFliskProjects,
   fliskNetworkOwner,
   fliskNetworkPrefixes,
+  knownProjectRoots,
   lookupProjectTiltUpPids,
+  type NativeRunLookup,
   planProjectNetworkPrune,
   projectComposeProjects,
   projectNetworkNames,
@@ -20,6 +22,9 @@ import {
   stopProjectTiltUp,
   waitForTiltUpExit,
 } from "../down-cleanup.js";
+import type { NativeRunState } from "../native-runtime.js";
+import { readNativeRunState } from "../native-runtime.js";
+import { recordProjectRoot } from "../project-registry.js";
 
 const TILTFILE = "/work/shop/.flisk/.flisk-out/Tiltfile";
 
@@ -171,6 +176,12 @@ describe("pruneProjectNetworks", () => {
   });
 });
 
+const NO_NATIVE_RUNS: NativeRunLookup = {
+  roots: () => [],
+  readState: () => null,
+  isAlive: async () => false,
+};
+
 describe("findRunningFliskProjects", () => {
   const ps = [
     "  100 /opt/homebrew/bin/tilt up -f /work/shop/.flisk/.flisk-out/Tiltfile -- --focus=app migrations web",
@@ -189,24 +200,122 @@ describe("findRunningFliskProjects", () => {
   ].join("\n");
   const isProject = (root: string) => root !== "/work/deleted";
 
-  it("returns the roots of Flisk projects with a tilt up running, each once, sorted", () => {
-    expect(findRunningFliskProjects("darwin", () => ps, isProject)).toEqual([
+  it("returns the roots of Flisk projects with a tilt up running, each once, sorted", async () => {
+    expect(await findRunningFliskProjects("darwin", () => ps, isProject, NO_NATIVE_RUNS)).toEqual([
       "/work/my blog",
       "/work/shop",
     ]);
   });
 
-  it("returns nothing on Windows or when ps fails", () => {
-    expect(findRunningFliskProjects("win32", () => ps, isProject)).toEqual([]);
+  it("returns nothing on Windows or when ps fails", async () => {
+    expect(await findRunningFliskProjects("win32", () => ps, isProject, NO_NATIVE_RUNS)).toEqual(
+      [],
+    );
     expect(
-      findRunningFliskProjects(
+      await findRunningFliskProjects(
         "linux",
         () => {
           throw new Error("no ps");
         },
         isProject,
+        NO_NATIVE_RUNS,
       ),
     ).toEqual([]);
+  });
+});
+
+describe("findRunningFliskProjects native runs (#4412)", () => {
+  const dirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function tempDir(prefix: string): string {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+    dirs.push(dir);
+    return dir;
+  }
+
+  function makeNativeProject(
+    home: string,
+    name: string,
+    state: NativeRunState | null,
+    recorded = true,
+  ): string {
+    const root = tempDir(`flisk-native-${name}-`);
+    mkdirSync(join(root, ".flisk", "native"), { recursive: true });
+    writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify({ project: { name } }));
+    if (state) writeFileSync(join(root, ".flisk", "native", "run.json"), JSON.stringify(state));
+    if (recorded) recordProjectRoot(root, { home });
+    return root;
+  }
+
+  function state(pid: number, pidStartTime: string): NativeRunState {
+    return { pid, pidStartTime, startedAt: new Date().toISOString(), services: {} };
+  }
+
+  function lookupFor(home: string, isAlive: (state: NativeRunState) => boolean): NativeRunLookup {
+    // The fake stands in for `isNativeRunSupervisorAlive`, whose pid-identity check is covered in native-runtime.test.ts.
+    return {
+      roots: () => knownProjectRoots(home),
+      readState: readNativeRunState,
+      isAlive: async (run) => isAlive(run),
+    };
+  }
+
+  it("finds recorded native projects on Windows, without asking ps", async () => {
+    const home = tempDir("flisk-native-home-");
+    const live = makeNativeProject(home, "live", state(101, "current-start-time"));
+    makeNativeProject(home, "stale", state(202, "reused-by-another-process"));
+    makeNativeProject(home, "stopped", null);
+    makeNativeProject(home, "unrecorded", state(303, "current-start-time"), false);
+
+    expect(
+      await findRunningFliskProjects(
+        "win32",
+        () => {
+          throw new Error("ps must not be called on Windows");
+        },
+        undefined,
+        lookupFor(home, (run) => run.pidStartTime === "current-start-time"),
+      ),
+    ).toEqual([live]);
+  });
+
+  it("ignores a recorded run whose supervisor is no longer alive", async () => {
+    const home = tempDir("flisk-native-home-");
+    makeNativeProject(home, "gone", state(404, "current-start-time"));
+
+    expect(
+      await findRunningFliskProjects(
+        "win32",
+        undefined,
+        undefined,
+        lookupFor(home, () => false),
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps tilt discovery and counts a project running both ways once", async () => {
+    const home = tempDir("flisk-native-home-");
+    const nativeOnly = makeNativeProject(home, "native", state(505, "current-start-time"));
+    const both = makeNativeProject(home, "both", state(606, "current-start-time"));
+    const tiltOnly = "/work/tilt-only";
+    const ps = [
+      `  100 /usr/local/bin/tilt up -f ${both}/.flisk/.flisk-out/Tiltfile`,
+      `  101 tilt up -f ${tiltOnly}/.flisk/.flisk-out/Tiltfile`,
+    ].join("\n");
+    const isProject = (root: string) => root === tiltOnly || root === nativeOnly || root === both;
+
+    expect(
+      await findRunningFliskProjects(
+        "darwin",
+        () => ps,
+        isProject,
+        lookupFor(home, () => true),
+      ),
+    ).toEqual([both, nativeOnly, tiltOnly].sort());
   });
 });
 

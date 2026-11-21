@@ -1,17 +1,22 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-// The plain agent loop every framework wraps: the Anthropic SDK's tool runner asks the model, runs the tools it calls, feeds
-// the results back, and stops when the model answers. The tools are the MCP tool server's, found through tools/list.
-// Out of the box the model is the mock in model/ (offline, free); see the README to use Claude.
+// The plain agent loop every framework wraps: a model asks for tools, the loop runs the MCP tool server's tools it calls,
+// feeds the results back, and stops when the model answers. MODEL and the base URLs come from the environment; out of the
+// box the model is the local mock in model/ (offline, free). See the README for Claude, Ollama and OpenRouter.
 import { createServer } from "node:http";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaTool } from "@anthropic-ai/sdk/helpers/beta/json-schema.mjs";
 import { beforeTurn, createTurnGuard } from "./guard.mjs";
 
 const toolsUrl = process.env.TOOLS_URL ?? "http://localhost:4501";
+const mockBaseUrl = "http://localhost:4502";
+const model = process.env.MODEL?.trim() || "claude-opus-5-5";
+const openaiBaseUrl = process.env.OPENAI_BASE_URL?.trim().replace(/\/+$/, "") ?? "";
+const openaiApiKey = process.env.OPENAI_API_KEY?.trim() ?? "";
+const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL?.trim() || mockBaseUrl;
+const usingMock = !openaiBaseUrl && anthropicBaseUrl === mockBaseUrl;
 // The SDK retries a request whose connection failed (the model is restarting, say) with backoff.
-const client = new Anthropic({ maxRetries: 4 });
-const usingMock = Boolean(process.env.ANTHROPIC_BASE_URL);
+const client = new Anthropic({ maxRetries: 4, baseURL: anthropicBaseUrl });
 
 let rpcId = 0;
 async function mcp(method, params) {
@@ -25,37 +30,94 @@ async function mcp(method, params) {
   return reply.result;
 }
 
-/** Retries a call to the tool server, waiting 0.5 s and doubling, so a tool server that is being restarted is waited for. */
+/** Retries a call to a server that is being restarted, waiting 0.5 s and doubling. A fatal HTTP error is not retried. */
 async function withRetries(call, attempts = 5) {
   for (let attempt = 1; ; attempt++) {
     try {
       return await call();
     } catch (error) {
-      if (attempt >= attempts) throw error;
+      if (error.fatal || attempt >= attempts) throw error;
       await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** (attempt - 1)));
     }
   }
 }
 
-/** Every tool the MCP server lists, as a tool the SDK's runner can call. */
+/** Every tool the MCP server lists, each with a guarded `run` that records calls. Both model APIs use these. */
 async function mcpTools(called, guard) {
   const { tools } = await withRetries(() => mcp("tools/list"));
-  return tools.map((tool) =>
-    betaTool({
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    run: guard.guardRun(tool.name, async (args) => {
+      called.push(tool.name);
+      const result = await withRetries(() =>
+        mcp("tools/call", { name: tool.name, arguments: args }),
+      );
+      const text = result.content?.[0]?.text ?? "";
+      if (result.isError) throw new Error(text);
+      return text;
+    }),
+  }));
+}
+
+/**
+ * OpenAI-compatible servers (Ollama, vLLM, OpenRouter) speak /chat/completions, not the Anthropic Messages API. Send the
+ * MCP tools as function definitions, run the tool_calls the model makes, and feed role:tool results back until it answers.
+ */
+async function askOpenAI(question, tools, called) {
+  const messages = [{ role: "user", content: question }];
+  const endpoint = `${openaiBaseUrl}/chat/completions`;
+  const definitions = tools.map((tool) => ({
+    type: "function",
+    function: {
       name: tool.name,
       description: tool.description,
-      inputSchema: tool.inputSchema,
-      run: guard.guardRun(tool.name, async (args) => {
-        called.push(tool.name);
-        const result = await withRetries(() =>
-          mcp("tools/call", { name: tool.name, arguments: args }),
-        );
-        const text = result.content?.[0]?.text ?? "";
-        if (result.isError) throw new Error(text);
-        return text;
-      }),
-    }),
-  );
+      parameters: tool.inputSchema,
+    },
+  }));
+  for (let iteration = 0; iteration < 8; iteration++) {
+    const completion = await withRetries(async () => {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(openaiApiKey ? { authorization: `Bearer ${openaiApiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          ...(definitions.length > 0 ? { tools: definitions, tool_choice: "auto" } : {}),
+        }),
+      });
+      if (!response.ok) {
+        const message = `chat/completions: ${response.status} ${await response.text()}`;
+        throw Object.assign(new Error(message), {
+          fatal: response.status >= 400 && response.status < 500,
+        });
+      }
+      return response.json();
+    });
+    const choice = completion.choices?.[0]?.message;
+    if (!choice) throw new Error("chat/completions: no message in the reply");
+    messages.push(choice);
+    const calls = choice.tool_calls ?? [];
+    if (calls.length === 0) return { answer: choice.content ?? "", stopReason: "end_turn" };
+    for (const call of calls) {
+      const name = call.function?.name;
+      const tool = tools.find((entry) => entry.name === name);
+      let args;
+      try {
+        args = JSON.parse(call.function?.arguments || "{}");
+      } catch {
+        args = {};
+      }
+      const content = tool ? await tool.run(args) : `Unknown tool: ${name}`;
+      called.push(name);
+      messages.push({ role: "tool", tool_call_id: call.id, content });
+    }
+  }
+  throw new Error("the model did not finish within 8 tool turns");
 }
 
 export async function ask(question) {
@@ -64,8 +126,13 @@ export async function ask(question) {
     throw Object.assign(new Error(verdict.reason ?? "refused"), { refused: true });
   const called = [];
   const { guardRun, state } = createTurnGuard();
+  const tools = await mcpTools(called, { guardRun });
+  if (openaiBaseUrl) {
+    const { answer, stopReason } = await askOpenAI(question, tools, called);
+    return { answer, tools: called, blocked: state.blocked, stopReason, model };
+  }
   const message = await client.beta.messages.toolRunner({
-    model: "claude-opus-5-5",
+    model,
     max_tokens: 16000,
     // A declined request is re-run on Anthropic's recommended fallback model instead of coming back as a refusal.
     betas: ["server-side-fallback-2026-07-01"],
@@ -74,7 +141,7 @@ export async function ask(question) {
     max_iterations: 8,
     system:
       "Answer the user's question. Look things up with the tools first; cite what they returned.",
-    tools: await mcpTools(called, { guardRun }),
+    tools: tools.map((tool) => betaTool(tool)),
     messages: [{ role: "user", content: question }],
   });
   if (message.stop_reason === "refusal") throw new Error("the model declined to answer");

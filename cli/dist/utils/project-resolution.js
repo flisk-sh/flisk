@@ -18,7 +18,7 @@ import { findProjectRoot } from "./paths.js";
  *    - If 0 projects are running, fails with the standard `notInProject` error and suggestions.
  * 4. Changes `process.cwd()` to the resolved project root if it differs from current root.
  */
-export function resolveCommandProject(options) {
+export async function resolveCommandProject(options) {
     const { commandName, project, json = false, autoSelectSingleRunning = false } = options;
     const fail = (error) => {
         if (options.onFail) {
@@ -60,7 +60,7 @@ export function resolveCommandProject(options) {
             resolvedRoot = here;
         }
         else {
-            const running = findRunningFliskProjects();
+            const running = await findRunningFliskProjects();
             if (autoSelectSingleRunning && running.length === 1) {
                 const root = running[0];
                 if (!json) {

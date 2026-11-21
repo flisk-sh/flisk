@@ -45,7 +45,7 @@ import { suggestClosest } from "../utils/suggestions.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { writeToolLoopProject } from "../utils/tool-loop-template.js";
-import { isTargetDirSafe } from "../utils/validation.js";
+import { deriveProjectName, isTargetDirSafe, validateProjectName } from "../utils/validation.js";
 
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
@@ -558,14 +558,14 @@ const DEFAULT_PROJECT_JSON: ProjectConfig = {
  */
 export function writeDefaultProjectConfig(projectRoot: string): void {
   const projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON)) as ProjectConfig;
-  projectConfig.project.name = basename(projectRoot) || "my-project";
+  projectConfig.project.name = deriveProjectName(basename(projectRoot));
   ensureDirectory(join(projectRoot, ".flisk"));
   writeJsonFile(join(projectRoot, ".flisk", PROJECT_JSON), projectConfig);
 }
 
 /**
  * Prints the template catalog: with `json`, the usual envelope with the templates in `data.templates` (the same rows
- * as the `project_templates` MCP tool); otherwise one block per template for a person to read.
+ * as the `project_templates` MCP tool); otherwise one block per template with its key, description, repo, needs and ref.
  */
 export function printTemplateCatalog(json: boolean): void {
   const templates = listProjectTemplates();
@@ -574,9 +574,10 @@ export function printTemplateCatalog(json: boolean): void {
     return;
   }
   console.log(chalk.bold("Starter templates (flisk project <key>):\n"));
-  for (const { key, repo, description, ref } of templates) {
+  for (const { key, repo, description, needs, ref } of templates) {
     console.log(`  ${chalk.cyan(key)}  ${description}`);
     console.log(chalk.gray(`    ${repo}`));
+    console.log(chalk.gray(`    needs: ${needs}`));
     if (ref) console.log(chalk.gray(`    ref ${ref}`));
   }
 }
@@ -602,7 +603,7 @@ export const projectCommand = addYesOption(new Command("project"))
   )
   .option(
     "--list",
-    "List the starter templates (key, repo, description, pinned ref); with --json, the usual envelope with them in data.templates",
+    "List the starter templates (key, repo, description, needs, pinned ref); with --json, the usual envelope with them in data.templates",
     false,
   )
   .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
@@ -807,18 +808,30 @@ export const projectCommand = addYesOption(new Command("project"))
         }
         const configContent = readFileSync(configFilePath, "utf-8");
         projectConfig = JSON.parse(configContent);
+        if (typeof projectConfig?.project?.name === "string") {
+          const nameResult = validateProjectName(projectConfig.project.name.trim());
+          if (!nameResult.valid) {
+            throw new FliskError(nameResult.error ?? "Invalid project name", [
+              "Set project.name in the config file to a Docker- and npm-compatible name (lowercase letters, numbers, and hyphens only)",
+            ]);
+          }
+          projectConfig.project.name = projectConfig.project.name.trim();
+        }
         if (!quiet) showSuccess(`Loaded config from: ${configFilePath}`);
       } else if (yes) {
         projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-        projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
+        projectConfig.project.name = deriveProjectName(basename(projectRoot));
         if (!quiet) console.log(chalk.gray("Using default configuration (non-interactive mode)"));
       } else {
         showStep("📝 Project Setup Wizard\n");
 
         const projectName = await promptText({
           message: "Project name:",
-          initial: projectRoot.split("/").pop() || "my-project",
-          validate: (input: string) => input.trim() !== "" || "Project name is required",
+          initial: deriveProjectName(basename(projectRoot)),
+          validate: (input: string) => {
+            const result = validateProjectName(input.trim());
+            return result.valid ? true : (result.error ?? "Project name is required");
+          },
         });
         const projectVersion = await promptText({
           message: "Project version:",

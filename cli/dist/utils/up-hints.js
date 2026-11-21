@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 const DOCS = "https://github.com/flisk-sh/flisk/blob/main/docs";
+const DEFAULT_TILT_PORT = 10350;
 /** Troubleshooting entries the hints point at. Each anchor is a heading in docs/troubleshooting.md. */
 export const UP_HINT_DOCS = {
     coldStart: `${DOCS}/troubleshooting.md#cold-start-blocked-docker-or-tilt-missing`,
@@ -15,6 +16,11 @@ export function attachedUpInCiWarning(env) {
     if (!env.CI || env.CI === "false" || env.CI === "0")
         return null;
     return "This command stays attached and never exits on its own, so a CI job hangs here. Use `flisk up --wait`: it returns once the stack is healthy and leaves it running.";
+}
+/** A log command that works even when the stack is not on the default Tilt port (#3958). */
+function logHint(name, tiltPort) {
+    const port = tiltPort !== undefined && tiltPort !== DEFAULT_TILT_PORT ? ` --port ${tiltPort}` : "";
+    return `See why ${name} failed: flisk logs -s ${name}${port}`;
 }
 /**
  * One or two commands to run next after a failed `flisk up`, plus the troubleshooting page for that failure. Printed
@@ -37,9 +43,7 @@ export function upFailureHints(failure) {
             ];
         case "services":
         case "smoke": {
-            const logs = failure.failed.length > 0
-                ? [`See why ${failure.failed[0]} failed: flisk logs -s ${failure.failed[0]}`]
-                : [];
+            const logs = failure.failed.length > 0 ? [logHint(failure.failed[0], failure.tiltPort)] : [];
             if (failure.kind === "smoke") {
                 return [...logs, `Smoke checks: ${UP_HINT_DOCS.smoke}`];
             }

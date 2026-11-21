@@ -135,6 +135,7 @@ Tracked in [#1627](https://github.com/flisk-sh/flisk/issues/1627).
 | Unset | none | none; Verdaccio and Sablier fall back to disabled public stubs and print a message that they need a license |
 | Invalid or expired | made, unless a cached result is still fresh | none for a rejected key; an overlay already in `.flisk/.flisk-out/flisk-cli-ext` stays in use |
 
+- Scope routing follows the vendored `verdaccio_loader.star` and the project's `optional_infra.verdaccio` flag, not merely a non-empty key. A free-tier stub means generated `.npmrc`/`bunfig` files keep all scopes on public npm (#3956).
 - Bundle downloads and entitlement checks (grant or denial) are cached per key under `~/.flisk/cache` and reused for up to 12 hours. For that window a key that was just revoked or has just expired can still be treated as entitled, and a key that was denied is not re-checked until the cache expires. Operators will hit this most often.
 - `flisk up` does not revalidate the key or re-vendor `.flisk/.flisk-out/flisk-cli-ext`. A premium overlay created while the key was valid can stay in use after the key expires.
 - DDD is public code gated separately by `flisk resource --ddd`; it is not a stub.

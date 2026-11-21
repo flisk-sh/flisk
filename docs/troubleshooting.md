@@ -241,6 +241,31 @@ Switch to that version with your version manager, or change "toolchain" in the s
 - **Fix:** switch versions with your version manager (nvm, fnm, mise, pyenv, ...), or change `toolchain`. Container services are not checked: their image decides the runtime.
 - **Defined in:** [`toolchain.ts`](../cli/src/utils/toolchain.ts).
 
+### Local service dependencies
+
+```text
+✗ api: missing node_modules - run `npm install` in services/app/api
+    worker: missing .venv - run `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"` in services/app/worker
+ℹ Fix: cd services/app/api && npm install
+  cd services/app/worker && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+```
+
+- **Cause:** this is a fresh worktree or clone, so a gitignored `node_modules` (Node/Bun) or `.venv` (Python) that the local-process command imports is absent. A directory at the project root counts as installed, since installs can be hoisted.
+- **Fix:** run the exact command printed for each service, from the named directory. Docker-built services are not checked: their image installs its own dependencies.
+- **Defined in:** [`doctor-local-deps.ts`](../cli/src/utils/doctor-local-deps.ts) (`checkLocalServiceDependencies`).
+- **Machine-readable:** the finding is a blocking check in `flisk doctor --json` and in the MCP `doctor` tool, with structured entries in `checks[].observed.findings`.
+
+### Worktree .env
+
+```text
+⚠ This worktree has no .env, but another worktree has one: /work/main/.env
+ℹ Fix: cp '/work/main/.env' '.env'
+```
+
+- **Cause:** `.env` is gitignored, so a new worktree starts without the keys the local processes read. `flisk doctor` runs `git worktree list`, finds another worktree that does have a `.env`, and prints the copy command.
+- **Fix:** run the printed command if this worktree needs the same values. Flisk never copies the file itself: the values can be worktree-specific. A worktree that already has a `.env` skips this check; `flisk up` prints the same hint before starting local processes.
+- **Defined in:** [`doctor-local-deps.ts`](../cli/src/utils/doctor-local-deps.ts) (`checkWorktreeEnv`).
+
 ### Env values that point outside the local stack
 
 ```text

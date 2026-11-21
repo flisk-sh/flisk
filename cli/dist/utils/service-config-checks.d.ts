@@ -67,6 +67,13 @@ export declare function warnModelRunner(projectRoot: string, resources?: Discove
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export declare function checkServicePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**
+ * A resource's own Dockerfile can drift from its service.json after a re-registration (#3738) or a hand edit:
+ * `ENV PORT`, `EXPOSE` and the healthcheck keep the old number while `port` moves on. `flisk up` then publishes the
+ * new port to a container that still listens on the old one, and only the healthcheck reveals the mismatch. Local
+ * process resources have no Dockerfile, so they are skipped.
+ */
+export declare function checkDockerfilePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+/**
  * A service.json with no schemaVersion is how every project began, so this is a warning: it keeps working, and only
  * `flisk config migrate` writes the field. A version this flisk does not know is reported the same way, with a different fix.
  */

@@ -4,7 +4,7 @@
 import { EventEmitter } from "node:events";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -50,6 +50,27 @@ describe("parseStackEnvelope", () => {
     );
     expect(outcome?.ok).toBe(false);
     expect(outcome?.error).toBe("Docker is not running");
+  });
+
+  it("keeps the port-aware log suggestion the demo shows next to a failed build (#3958)", () => {
+    const outcome = parseStackEnvelope(
+      JSON.stringify({
+        schemaVersion: 1,
+        data: { ok: false },
+        errors: [
+          {
+            code: "UP_RESOURCE_FAILED",
+            message: "Resources failed",
+            suggestions: [
+              "See why floor-app-image failed: flisk logs -s floor-app-image --port 10351",
+            ],
+          },
+        ],
+      }),
+    );
+    expect(outcome?.suggestions).toEqual([
+      "See why floor-app-image failed: flisk logs -s floor-app-image --port 10351",
+    ]);
   });
 
   it("ignores output that is not the envelope", () => {
@@ -165,7 +186,7 @@ describe("findServiceDirs", () => {
     mkdirSync(join(root, "services", "web", "node_modules", "x"), { recursive: true });
     writeFileSync(join(root, "services", "web", "node_modules", "x", "package.json"), "{}");
     const dirs = findServiceDirs(root).map((dir) => dir.slice(root.length));
-    expect(dirs).toContain("/services/api");
+    expect(dirs).toContain(`${sep}services${sep}api`);
     expect(dirs.some((dir) => dir.includes("node_modules"))).toBe(false);
   });
 });

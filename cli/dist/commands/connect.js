@@ -67,7 +67,7 @@ export const connectCommand = new Command("connect")
     .option("--dry-run", "Print what would be written, without changing any file", false)
     .option("--force", "Replace an existing, different flisk entry or edited Flisk skill", false)
     .option("--json", "Print the result as a JSON envelope")
-    .addHelpText("after", "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global")
+    .addHelpText("after", "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global\n  flisk connect gemini --dry-run")
     .action(async (hostArg, options, command) => {
     const target = options.project ?? command.optsWithGlobals().project;
     const run = () => {

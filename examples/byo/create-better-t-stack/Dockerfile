@@ -2,6 +2,8 @@
 FROM node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a
 # The scaffolder and its generated workspaces need npm >= 11.16.
 RUN npm install -g github:npm/cli#0c2278c72f40730e1eb8a4e71e7763d1cf9276c8
+RUN mkdir -p /work && chown node:node /work
+USER node
 WORKDIR /work
 RUN npm create better-t-stack@latest app -- --frontend tanstack-router --backend hono --runtime node \
     --database none --orm none --auth none --api none --addons none --examples none \
@@ -11,7 +13,5 @@ RUN npm ci
 # Two processes: the API server (its own port) in the background, the web app on the port Flisk assigns.
 # Vite must listen beyond loopback (--host).
 WORKDIR /work/app/apps/web
-RUN chown -R node:node .
-USER node
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD nc -z 127.0.0.1 ${PORT:-3001} || exit 1
 CMD ["sh", "-c", "(cd ../server && npm run dev) & exec npx vite --host 0.0.0.0 --port ${PORT:-3001}"]
