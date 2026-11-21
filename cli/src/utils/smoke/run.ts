@@ -1,0 +1,348 @@
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+
+import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { createEnvRedactor } from "../secret-redaction.js";
+import type { SmokeDeps, SmokePlan, SmokeResult } from "./schema.js";
+import {
+  DEFAULT_SMOKE_TIMEOUT_SECONDS,
+  isRecord,
+  SMOKE_RECORD_BODY_MAX_BYTES,
+  validateSmoke,
+} from "./schema.js";
+
+const RETRY_DELAY_MS = 1000;
+const REQUEST_TIMEOUT_MS = 10_000;
+const BODY_SNIPPET_CHARS = 200;
+/** Statuses a proxy answers while a route or its upstream is not up yet. Anything else is the service's real answer. */
+const NOT_READY_STATUSES = new Set([404, 502, 503, 504]);
+/** Error codes that prove the request never left this machine, so repeating even a write is safe. */
+const PRE_SEND_ERROR_CODES = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+]);
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** A thrown request error is retried for safe methods, and for others only when its code shows the request was never sent. */
+function shouldRetryRequestError(err: unknown, method: string): boolean {
+  if (SAFE_METHODS.has(method)) return true;
+  if (!isRecord(err)) return false;
+  const cause = isRecord(err.cause) ? err.cause : undefined;
+  const code = err.code ?? cause?.code;
+  return typeof code === "string" && PRE_SEND_ERROR_CODES.has(code);
+}
+
+function readPath(value: unknown, path: string): unknown {
+  const parts = path.replace(/^\$\.?/, "").match(/[^.[\]]+/g) ?? [];
+  let current: unknown = value;
+  for (const part of parts) {
+    if (current === null || current === undefined) return undefined;
+    // Own properties only: a path like "__proto__" must not reach inherited values.
+    if (part === "__proto__" || part === "constructor" || part === "prototype") return undefined;
+    if (!Object.hasOwn(current, part)) return undefined;
+    // Resolve only own data properties. Besides avoiding inherited properties, this
+    // avoids invoking accessors on values supplied by smoke-test responses.
+    const descriptor = Object.getOwnPropertyDescriptor(current, part);
+    if (!descriptor || !("value" in descriptor)) return undefined;
+    current = descriptor.value;
+  }
+  return current;
+}
+
+function fill(template: string, saved: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) => saved[key] ?? match);
+}
+
+function fillBody(body: unknown, saved: Record<string, string>): unknown {
+  if (typeof body === "string") return fill(body, saved);
+  if (Array.isArray(body)) return body.map((item) => fillBody(item, saved));
+  if (isRecord(body)) {
+    return Object.fromEntries(Object.entries(body).map(([k, v]) => [k, fillBody(v, saved)]));
+  }
+  return body;
+}
+
+function snippet(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > BODY_SNIPPET_CHARS ? `${flat.slice(0, BODY_SNIPPET_CHARS)}...` : flat;
+}
+
+function slug(text: string): string {
+  return (
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "step"
+  );
+}
+
+/** Two steps whose names slug the same (`read back`, `read-back`) must not share a record directory. */
+function stepKey(seen: Map<string, number>, label: string): string {
+  const base = slug(label);
+  const n = (seen.get(base) ?? 0) + 1;
+  seen.set(base, n);
+  return n === 1 ? base : `${base}-${n}`;
+}
+
+interface StepRecord {
+  service: string;
+  step: string;
+  method: string;
+  /** Withheld when the URL could not be masked safely. */
+  url?: string;
+  expectedStatus: number;
+  status: number | null;
+  error?: string;
+  truncated: boolean;
+  bodyBytes: number;
+}
+
+/** Writes latest.json (+ body.txt) for a step; a passing step also replaces the last-success pair. Returns the latest.json path. */
+function writeStepRecord(
+  recordDir: string,
+  stepKey: string,
+  record: StepRecord,
+  body: string | undefined,
+  passed: boolean,
+): string | undefined {
+  try {
+    const dir = join(recordDir, slug(record.service), stepKey);
+    mkdirSync(dir, { recursive: true });
+    const latest = join(dir, "latest.json");
+    const bodyPath = join(dir, "body.txt");
+    if (body === undefined) {
+      rmSync(bodyPath, { force: true });
+    } else {
+      writeFileSync(bodyPath, body);
+    }
+    writeFileSync(
+      latest,
+      `${JSON.stringify({ ...record, bodyPath: body === undefined ? null : "body.txt" }, null, 2)}\n`,
+    );
+    if (passed) {
+      copyFileSync(latest, join(dir, "last-success.json"));
+      if (body === undefined) rmSync(join(dir, "last-success-body.txt"), { force: true });
+      else copyFileSync(bodyPath, join(dir, "last-success-body.txt"));
+    }
+    return latest;
+  } catch {
+    // The record is a diagnostic aid; failing to write it must not change the smoke result.
+    return undefined;
+  }
+}
+
+/** Caps a body at SMOKE_RECORD_BODY_MAX_BYTES of UTF-8 without splitting a character. */
+function capBody(text: string): { body: string; truncated: boolean; bytes: number } {
+  const buf = Buffer.from(text, "utf8");
+  if (buf.length <= SMOKE_RECORD_BODY_MAX_BYTES)
+    return { body: text, truncated: false, bytes: buf.length };
+  const body = buf
+    .subarray(0, SMOKE_RECORD_BODY_MAX_BYTES)
+    .toString("utf8")
+    .replace(/\uFFFD$/, "");
+  return { body, truncated: true, bytes: Buffer.byteLength(body, "utf8") };
+}
+
+/** Runs the steps in order. A not-ready answer (connection error, 404, 502-504) is retried until the timeout; a real wrong answer fails at once. */
+export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promise<SmokeResult> {
+  const doFetch = deps.fetch ?? ((url, init) => fetch(url, init));
+  const now = deps.now ?? Date.now;
+  const sleep =
+    deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const budgetMs = (plan.smoke.timeoutSeconds ?? DEFAULT_SMOKE_TIMEOUT_SECONDS) * 1000;
+  let deadline = now() + budgetMs;
+  const saved: Record<string, string> = {};
+
+  // A manifest with errors is still loaded, so a malformed block must fail the check, not throw out of `flisk up`.
+  const invalid = validateSmoke(plan.smoke);
+  if (invalid.length > 0) {
+    return {
+      name: plan.name,
+      ok: false,
+      failure: `${plan.name}: invalid smoke block: ${invalid.join("; ")}`,
+    };
+  }
+
+  // `flisk up` starts the check once Tilt's UI is up, while images may still be building. Traefik then resets or 404s early requests.
+  // A write must not be repeated after a reset (it may have reached the service), so wait for readiness with GETs instead.
+  // If the service never answers, fall through: the first step then fails with its own record.
+  if (plan.readyPath) {
+    const readyUrl = `${plan.baseUrl}${plan.readyPath}`;
+    for (;;) {
+      try {
+        const response = await doFetch(readyUrl, {
+          method: "GET",
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        await response.text();
+        // A 5xx from the health path (migrations running, database not up) is still "not ready"; 401 or 3xx means something answered.
+        if (!NOT_READY_STATUSES.has(response.status) && response.status < 500) break;
+      } catch {
+        // not accepting connections yet
+      }
+      if (now() >= deadline) break;
+      await sleep(RETRY_DELAY_MS);
+    }
+  }
+
+  // The steps get their own `timeoutSeconds`; a slow build must not eat the first step's budget.
+  deadline = now() + budgetMs;
+  const stepKeys = new Map<string, number>();
+
+  for (const [index, step] of plan.smoke.steps.entries()) {
+    const label = step.name ?? `step ${index + 1}`;
+    const method = (step.method ?? "GET").toUpperCase();
+    const url = `${plan.baseUrl}${fill(step.path, saved)}`;
+    const expected = step.expect ?? 200;
+    const hasBody = step.body !== undefined;
+
+    let status: number | undefined;
+    let text = "";
+    let error: string | undefined;
+    let errorCode: string | undefined;
+    for (;;) {
+      error = undefined;
+      errorCode = undefined;
+      status = undefined;
+      let retryableError = false;
+      try {
+        const response = await doFetch(url, {
+          method,
+          headers: hasBody ? { "content-type": "application/json" } : undefined,
+          body: hasBody ? JSON.stringify(fillBody(step.body, saved)) : undefined,
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        status = response.status;
+        text = await response.text();
+      } catch (err) {
+        retryableError = shouldRetryRequestError(err, method);
+        error = err instanceof Error ? err.message : String(err);
+        const code = isRecord(err)
+          ? (err.code ?? (isRecord(err.cause) ? err.cause.code : undefined))
+          : undefined;
+        errorCode = typeof code === "string" ? code : undefined;
+      }
+      const notReady =
+        (error !== undefined && retryableError) ||
+        (status !== undefined && status !== expected && NOT_READY_STATUSES.has(status));
+      if (!notReady || now() >= deadline) break;
+      await sleep(RETRY_DELAY_MS);
+    }
+
+    // The URL, the response body and the error can all hold a secret the project knows about. Mask them once, here, so the
+    // printed snippet, the stored body and the record cannot drift apart. The raw text still decides the assertions and the
+    // saved values: masking is for what is shown and stored, not for what is checked or sent.
+    let maskFailed = false;
+    const mask = (text: string): string | undefined => {
+      if (maskFailed) return undefined;
+      if (!deps.redact) return text;
+      try {
+        return deps.redact(text);
+      } catch (error) {
+        maskFailed = true;
+        const reason = error instanceof Error ? error.message : String(error);
+        deps.warn?.(
+          `${plan.name}: ${label}: the response text was neither shown nor stored: ${reason}`,
+        );
+        return undefined;
+      }
+    };
+    const safeUrl = mask(url);
+    const safeText = status === undefined ? undefined : mask(text);
+    const safeError = error === undefined ? undefined : mask(error);
+    const recordError = error === undefined ? undefined : (errorCode ?? safeError);
+
+    const where = `${plan.name}: ${label}: ${method} ${safeUrl ?? "(url withheld)"}`;
+    // Every step that ran leaves a record. A step is "passed" for last-success only if status and bodyContains both match.
+    let recordPath: string | undefined;
+    if (deps.recordDir) {
+      const capped = safeText === undefined ? undefined : capBody(safeText);
+      const passed =
+        error === undefined &&
+        status === expected &&
+        (step.bodyContains === undefined || text.includes(step.bodyContains));
+      recordPath = writeStepRecord(
+        deps.recordDir,
+        stepKey(stepKeys, label),
+        {
+          service: plan.name,
+          step: label,
+          method,
+          ...(safeUrl === undefined ? {} : { url: safeUrl }),
+          expectedStatus: expected,
+          status: status ?? null,
+          ...(recordError === undefined ? {} : { error: recordError }),
+          truncated: capped?.truncated ?? false,
+          bodyBytes: capped?.bytes ?? 0,
+        },
+        capped?.body,
+        passed,
+      );
+    }
+    const fail = (failure: string): SmokeResult => ({
+      name: plan.name,
+      ok: false,
+      failure,
+      recordPath,
+    });
+    if (error !== undefined)
+      return fail(`${where} never answered (${safeError ?? "the error was withheld"})`);
+    if (status !== expected) {
+      return fail(
+        `${where} returned ${status}, expected ${expected}${safeText ? `: ${snippet(safeText)}` : ""}`,
+      );
+    }
+    if (step.bodyContains !== undefined && !text.includes(step.bodyContains)) {
+      return fail(
+        `${where} returned ${status} but the body does not contain "${step.bodyContains}"${safeText ? `: ${snippet(safeText)}` : ""}`,
+      );
+    }
+    if (step.save) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return fail(
+          `${where} returned a body that is not JSON, cannot save${safeText ? `: ${snippet(safeText)}` : ""}`,
+        );
+      }
+      for (const [key, path] of Object.entries(step.save)) {
+        const value = readPath(parsed, path);
+        if (value === undefined || value === null || typeof value === "object") {
+          return fail(
+            `${where} response has no ${path} to save as {{${key}}}${safeText ? `: ${snippet(safeText)}` : ""}`,
+          );
+        }
+        saved[key] = String(value);
+      }
+    }
+  }
+  return { name: plan.name, ok: true };
+}
+
+/**
+ * The dependencies that keep smoke text safe: the project's own secret values are masked before anything is shown or stored.
+ * Both `flisk up` and `flisk doctor` use them, so neither prints a body that holds a secret.
+ */
+export function safeSmokeDeps(
+  projectRoot: string,
+  warn?: (message: string) => void,
+  options: { envFiles?: readonly string[] } = {},
+): Pick<SmokeDeps, "redact" | "warn"> {
+  return {
+    redact: createEnvRedactor(projectRoot, options.envFiles ?? []),
+    ...(warn ? { warn } : {}),
+  };
+}
+
+/** Runs every plan side by side; each plan keeps its own timeout. */
+export async function runSmokePlans(
+  plans: SmokePlan[],
+  deps: SmokeDeps = {},
+): Promise<SmokeResult[]> {
+  return Promise.all(plans.map((plan) => runSmokePlan(plan, deps)));
+}
