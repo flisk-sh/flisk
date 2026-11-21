@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/doubles.js";
-import { createTempProject, parseEnvelope } from "../../test-support/index.js";
+import { createTempProject, parseEnvelope, runCommandInProcess } from "../../test-support/index.js";
 import {
   buildBoard,
   buildKit,
@@ -68,12 +68,21 @@ const fullDist: DistributionFile = {
 
 const originalCwd = process.cwd();
 let logs: string[] = [];
+let warns: string[] = [];
+let errors: string[] = [];
 beforeEach(() => {
   logs = [];
+  warns = [];
+  errors = [];
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
     logs.push(args.join(" "));
   });
-  vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+    warns.push(args.join(" "));
+  });
+  vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+    errors.push(args.join(" "));
+  });
 });
 afterEach(() => {
   process.chdir(originalCwd);
@@ -541,5 +550,151 @@ describe("distribute status", () => {
       JSON.stringify({ apps: { api: { channels: { npm: { status: "done" } } } } }),
     );
     expect(() => readDistributionFile(root)).toThrow(/api \/ npm has status "done"/);
+  });
+
+  it("--init --merge keeps existing entries and adds missing apps and channels", async () => {
+    const root = project();
+    const file = path.join(root, "distribution.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        owner: "Flisk",
+        apps: {
+          helper: { tagline: "kept", channels: { npm: { status: "live", url: "https://x" } } },
+          gone: { channels: {} },
+        },
+      }),
+    );
+    await runDistribute(root, ["status", "--init", "--merge"]);
+    const merged = readDistributionFile(root);
+    expect(merged?.owner).toBe("Flisk");
+    expect(merged?.apps.helper?.tagline).toBe("kept");
+    expect(merged?.apps.helper?.channels?.npm).toEqual({ status: "live", url: "https://x" });
+    expect(merged?.apps.helper?.channels?.smithery?.status).toBe("todo");
+    expect(Object.keys(merged?.apps ?? {})).toEqual(["api", "gone", "helper"]);
+  });
+
+  it("--init --force still merges but points at --merge and --reset", async () => {
+    const root = project();
+    fs.writeFileSync(
+      path.join(root, "distribution.json"),
+      JSON.stringify({ apps: { helper: { tagline: "kept", channels: {} } } }),
+    );
+    await runDistribute(root, ["status", "--init", "--force"]);
+    expect(readDistributionFile(root)?.apps.helper?.tagline).toBe("kept");
+    expect(warns.join("\n")).toContain("--merge");
+    expect(warns.join("\n")).toContain("--reset");
+  });
+
+  it("--init --reset replaces the existing entries", async () => {
+    const root = project();
+    fs.writeFileSync(
+      path.join(root, "distribution.json"),
+      JSON.stringify({ owner: "Old", apps: { helper: { tagline: "kept", channels: {} } } }),
+    );
+    await runDistribute(root, ["status", "--init", "--reset"]);
+    const fresh = readDistributionFile(root);
+    expect(fresh?.owner).toBeUndefined();
+    expect(fresh?.apps.helper?.tagline).toBe("");
+    expect(Object.keys(fresh?.apps ?? {})).toEqual(["api", "helper"]);
+  });
+
+  it("--init --dry-run writes nothing and prints the additions", async () => {
+    const root = project();
+    const file = path.join(root, "distribution.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        apps: { helper: { tagline: "kept", channels: { npm: { status: "live" } } } },
+      }),
+    );
+    const before = fs.readFileSync(file, "utf-8");
+    const out = await runDistribute(root, ["status", "--init", "--merge", "--dry-run"]);
+    expect(fs.readFileSync(file, "utf-8")).toBe(before);
+    expect(out).toContain("Dry run");
+    expect(out).toContain("add app: api");
+    expect(out).toContain("add channel: helper/smithery");
+    expect(out).toContain("nothing written");
+  });
+
+  it("--init --dry-run --json prints a machine envelope and writes nothing", async () => {
+    const root = project();
+    const file = path.join(root, "distribution.json");
+    const before = fs.existsSync(file) ? fs.readFileSync(file, "utf-8") : null;
+    const { distributeCommand } = await import("../distribute.js");
+    const result = await runCommandInProcess(
+      distributeCommand,
+      ["status", "--init", "--dry-run", "--json"],
+      root,
+    );
+    expect(result.status).toBeUndefined();
+    const envelope = JSON.parse(result.stdout);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.errors).toEqual([]);
+    expect(envelope.data.dryRun).toBe(true);
+    expect(Object.keys(envelope.data.distribution.apps).sort()).toEqual(["api", "helper"]);
+    expect(fs.existsSync(file) ? fs.readFileSync(file, "utf-8") : null).toBe(before);
+  });
+
+  it("--init --reset overwrites a corrupt distribution.json without stale warnings", async () => {
+    const root = project();
+    const file = path.join(root, "distribution.json");
+    fs.writeFileSync(file, "{ not json");
+    const out = await runDistribute(root, ["status", "--init", "--reset"]);
+    expect(out).toContain("Reset distribution.json");
+    expect(warns.join("\n")).toBe("");
+    expect(Object.keys(readDistributionFile(root)?.apps ?? {})).toEqual(["api", "helper"]);
+  });
+
+  it("--init --force on a fresh project does not emit the existing-file merge hint", async () => {
+    const root = project();
+    await runDistribute(root, ["status", "--init", "--force"]);
+    expect(warns.join("\n")).not.toContain("--force now merges");
+    expect(Object.keys(readDistributionFile(root)?.apps ?? {})).toEqual(["api", "helper"]);
+  });
+
+  for (const flag of ["--merge", "--reset", "--force", "--dry-run"]) {
+    it(`${flag} without --init is a usage error`, async () => {
+      const root = project(fullDist);
+      const { distributeCommand } = await import("../distribute.js");
+      const result = await runCommandInProcess(distributeCommand, ["status", flag], root);
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain("only with --init");
+    });
+
+    it(`${flag} --json without --init writes a machine error envelope`, async () => {
+      const root = project(fullDist);
+      const { distributeCommand } = await import("../distribute.js");
+      const result = await runCommandInProcess(distributeCommand, ["status", flag, "--json"], root);
+      expect(result.status).toBe(2);
+      const envelope = JSON.parse(result.stdout);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors[0].message).toContain("only with --init");
+    });
+  }
+
+  it("the already-exists hint names --merge and --reset", async () => {
+    const root = project();
+    fs.writeFileSync(path.join(root, "distribution.json"), JSON.stringify({ apps: {} }));
+    await expect(runDistribute(root, ["status", "--init"])).rejects.toThrow();
+    const shown = errors.join("\n");
+    expect(shown).toContain("--merge");
+    expect(shown).toContain("--reset");
+  });
+
+  it("the --init help documents --merge, --reset and --dry-run", async () => {
+    const { distributeCommand } = await import("../distribute.js");
+    const status = distributeCommand.commands.find((c) => c.name() === "status");
+    expect(status).toBeDefined();
+    let out = "";
+    status?.configureOutput({
+      writeOut: (s) => {
+        out += s;
+      },
+    });
+    status?.outputHelp();
+    expect(out).toContain("--merge");
+    expect(out).toContain("--reset");
+    expect(out).toContain("--dry-run");
   });
 });

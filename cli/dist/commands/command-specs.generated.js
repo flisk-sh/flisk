@@ -2114,13 +2114,32 @@ export const COMMAND_SPECS = [
                         defaultValue: false,
                     },
                     {
-                        flags: "--force",
+                        flags: "--merge",
                         description: "With --init, add missing apps and channels to an existing distribution.json, keeping its entries",
+                        defaultValue: false,
+                    },
+                    {
+                        flags: "--reset",
+                        description: "With --init, replace an existing distribution.json with fresh entries",
+                        defaultValue: false,
+                    },
+                    {
+                        flags: "--force",
+                        description: "Alias for --merge; use --reset to replace existing entries",
+                        defaultValue: false,
+                    },
+                    {
+                        flags: "--dry-run",
+                        description: "With --init, print the apps and channels it would write and change nothing",
                         defaultValue: false,
                     },
                 ],
                 arguments: [],
-                helpTexts: {},
+                helpTexts: {
+                    after: [
+                        "\nExamples:\n  flisk distribute status --init --dry-run\n  flisk distribute status --init --merge\n  flisk distribute status --init --reset",
+                    ],
+                },
                 subcommands: [],
             },
         ],
