@@ -56,7 +56,6 @@ export function sampleString(schema: JsonObject): string {
   return maxLength !== undefined ? value.slice(0, maxLength) : value;
 }
 
-
 export function sampleNumber(schema: JsonObject, isInteger: boolean): number {
   let value = 1;
   if (typeof schema.minimum === "number") value = schema.minimum;

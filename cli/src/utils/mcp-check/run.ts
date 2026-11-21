@@ -1,9 +1,17 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import type { McpCheckOptions, McpCheckReport, McpCheckResult, McpTransport } from "./types.js";
-import { asObject, asArray, isPng, PROTOCOL_VERSION, buildPromptArguments, buildSampleArguments, iconUrlFor } from "./protocol.js";
+import {
+  asArray,
+  asObject,
+  buildPromptArguments,
+  buildSampleArguments,
+  iconUrlFor,
+  isPng,
+  PROTOCOL_VERSION,
+} from "./protocol.js";
 import { McpProbe } from "./transport.js";
+import type { McpCheckOptions, McpCheckReport, McpCheckResult, McpTransport } from "./types.js";
 
 const MAX_DETAIL = 400;
 

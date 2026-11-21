@@ -1,9 +1,16 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import type { JsonObject, McpCheckOptions, HttpRequest, HttpResponse, RpcResponse } from "./types.js";
-import  {parseRpcBody} from "./protocol.js"
-import {isFinalNetworkError} from './taxonomy.js'
+import { parseRpcBody } from "./protocol.js";
+import { isFinalNetworkError } from "./taxonomy.js";
+import type {
+  HttpRequest,
+  HttpResponse,
+  JsonObject,
+  McpCheckOptions,
+  RpcResponse,
+} from "./types.js";
+
 const ACCEPT = "application/json, text/event-stream";
 
 function sleep(ms: number): Promise<void> {
