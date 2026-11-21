@@ -11,7 +11,9 @@ const dirs = vi.hoisted(() => ({ home: "", cwd: "" }));
 const stackMocks = vi.hoisted(() => ({
   runStackQuiet: vi.fn(),
   stopDemoStack: vi.fn(),
-  stageUpdates: [] as Array<{ phases?: Array<{ id: string; status: string }> }>,
+  stageUpdates: [] as Array<{
+    phases?: Array<{ id: string; status: string; elapsedMs?: number }>;
+  }>,
 }));
 
 vi.mock("node:os", async (importOriginal) => {
@@ -42,6 +44,18 @@ vi.mock("../../utils/cli-command.js", async (importOriginal) => ({
 vi.mock("../../utils/colima.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/colima.js")>()),
   checkColima: vi.fn(() => ({ isColima: false, running: true })),
+}));
+
+// This suite exercises the Docker demo. Decide the path here instead of probing the host, so it runs the same on a
+// developer's Windows machine (where the shell stubs below cannot execute) and on the hosted macOS runner.
+vi.mock("../../utils/native-demo.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/native-demo.js")>()),
+  nativeDemoReason: vi.fn(async () => null),
+}));
+
+vi.mock("../../utils/native-windows.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/native-windows.js")>()),
+  nativeWindowsStackRefusal: vi.fn(() => null),
 }));
 
 // The test subject is where the demo lands on disk, so every step that needs
@@ -81,7 +95,7 @@ vi.mock("../../utils/demo-stage.js", async (importOriginal) => {
       const stage = actual.createDemoStage(...args);
       return {
         ...stage,
-        update: (patch: { phases?: Array<{ id: string; status: string }> }) => {
+        update: (patch: { phases?: Array<{ id: string; status: string; elapsedMs?: number }> }) => {
           stackMocks.stageUpdates.push(patch);
           stage.update(patch as never);
         },
@@ -96,7 +110,17 @@ vi.mock("../../utils/demo-networks.js", () => ({
 
 vi.mock("../../utils/stack-progress.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/stack-progress.js")>()),
-  readStackProgress: vi.fn(async () => undefined),
+  // One `(Tiltfile)` build with Tilt's own timestamps: a clean start, not a reload (#4128).
+  readStackProgress: vi.fn(async () => ({
+    tiltfileLoad: { builds: 1, firstElapsedMs: 61_000 },
+    ready: 0,
+    building: 0,
+    pending: 0,
+    failed: 0,
+    total: 9,
+    working: [],
+    broken: [],
+  })),
 }));
 
 vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
@@ -204,7 +228,9 @@ describe("flisk demo fixed directory", () => {
       expect(await runDemoCli(template)).toBe(0);
 
       expect(readdirSync(dirs.cwd)).toHaveLength(1);
-      expect(existsSync(join(dirs.home, ".flisk"))).toBe(false);
+      // A successful demo now writes its log (including the Tiltfile evaluation count) under ~/.flisk, but the
+      // project itself must still be in the current working directory.
+      expect(existsSync(join(dirs.home, ".flisk", "flisk-demo"))).toBe(false);
     },
   );
 
@@ -326,10 +352,81 @@ describe("flisk demo fixed directory", () => {
       stackMocks.stageUpdates.findIndex((patch) =>
         patch.phases?.some((phase) => phase.id === id && phase.status === status),
       );
-    for (const id of ["fetch", "config", "deps", "start"]) {
+    for (const id of ["fetch", "config", "deps", "reading", "start"]) {
       expect(seen(id, "active")).toBeGreaterThanOrEqual(0);
       expect(seen(id, "active")).toBeLessThan(seen(id, "done"));
     }
+  });
+
+  it("shows the previous stack's reset as a timed phase on a second run (#4128)", async () => {
+    expect(await runDemoCli("demo")).toBe(0);
+    const marker = join(demoDir, "stale-marker.txt");
+    writeFileSync(marker, "left over");
+
+    expect(await runDemoCli("demo")).toBe(0);
+
+    const reset = stackMocks.stageUpdates
+      .flatMap((patch) => patch.phases ?? [])
+      .filter((phase) => phase.id === "reset" && phase.status === "done")
+      .at(-1);
+    expect(reset?.elapsedMs).toBeGreaterThanOrEqual(0);
+    expect(reset?.elapsedMs).toBeLessThan(10_000);
+    const output = vi
+      .mocked(process.stderr.write)
+      .mock.calls.map(([chunk]) => String(chunk))
+      .join("");
+    expect(output).toContain("Resetting the previous demo");
+  });
+
+  it("reports the first Tiltfile load as its own phase with Tilt's timing (#4128)", async () => {
+    const { classifyTiltPorts } = await import("../../utils/tilt-port-owner.js");
+    const { readStackProgress } = await import("../../utils/stack-progress.js");
+    vi.mocked(classifyTiltPorts).mockResolvedValue({ running: [10350] } as never);
+
+    let progressSeen: () => void = () => {};
+    const seen = new Promise<void>((resolve) => {
+      progressSeen = resolve;
+    });
+    vi.mocked(readStackProgress).mockImplementation(async () => {
+      // Let the watcher consume this frame before `flisk up` finishes, so the phase is set from Tilt's
+      // timestamps rather than from the fallback wall clock.
+      setTimeout(progressSeen, 0);
+      return {
+        tiltfileLoad: { builds: 1, firstElapsedMs: 61_000 },
+        ready: 0,
+        building: 0,
+        pending: 0,
+        failed: 0,
+        total: 9,
+        working: [],
+        broken: [],
+      } as never;
+    });
+    stackMocks.runStackQuiet.mockImplementation(async () => {
+      await seen;
+      return { ok: true, raw: "", data: { tiltUrl: "http://localhost:10350" } };
+    });
+
+    expect(await runDemoCli("demo")).toBe(0);
+
+    const reading = stackMocks.stageUpdates
+      .flatMap((patch) => patch.phases ?? [])
+      .filter((phase) => phase.id === "reading" && phase.status === "done")
+      .at(-1);
+    expect(reading?.elapsedMs).toBe(61_000);
+    const output = vi
+      .mocked(process.stderr.write)
+      .mock.calls.map(([chunk]) => String(chunk))
+      .join("");
+    expect(output).toContain("Reading the project");
+    expect(output).toContain("1m 1s");
+
+    const logDir = join(dirs.home, ".flisk", "logs");
+    const [logName] = readdirSync(logDir);
+    expect(logName).toBeDefined();
+    expect(readFileSync(join(logDir, logName as string), "utf8")).toContain(
+      "Tiltfile evaluations: 1",
+    );
   });
 
   it("watches the Tilt port that TILT_PORT selected", async () => {

@@ -2,8 +2,15 @@
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, relative as relativePath, resolve as resolvePath, sep } from "node:path";
 import { toComposeProjectName } from "./compose-project-name.js";
+import {
+  isNativeRunSupervisorAlive,
+  type NativeRunState,
+  readNativeRunState,
+} from "./native-runtime.js";
+import { readProjectRecords } from "./project-registry.js";
 
 type CommandRunner = (command: string, args: string[]) => string;
 
@@ -199,32 +206,64 @@ export function findProjectTiltUpPids(
 
 const PROJECT_TILTFILE_SUFFIX = "/.flisk/.flisk-out/Tiltfile";
 
+/** Every folder Flisk has recorded as a project root, once each. */
+export function knownProjectRoots(home: string = homedir()): string[] {
+  return [...new Set(readProjectRecords(home).flatMap((record) => record.roots))].sort();
+}
+
 /**
- * Roots of the Flisk projects that have a `tilt up` running, read from each process's `-f <root>/.flisk/.flisk-out/Tiltfile`
- * (the Tiltfile `flisk up` passes). Lets `flisk down` find the project when it runs outside one. A root counts only while
- * it still has `.flisk/project.json`.
+ * How {@link findRunningFliskProjects} looks for native runs. A native run has no searchable process command line: the
+ * existing project registry supplies the folders to check for `.flisk/native/run.json`. Tests replace this so they never
+ * read a real registry or process table.
  */
-export function findRunningFliskProjects(
+export interface NativeRunLookup {
+  roots: () => readonly string[];
+  readState: (root: string) => NativeRunState | null;
+  /** The real implementation checks the pid's start time and boot time before calling it a live Flisk run. */
+  isAlive: (state: NativeRunState) => Promise<boolean>;
+}
+
+const nativeRunLookup: NativeRunLookup = {
+  roots: () => knownProjectRoots(),
+  readState: readNativeRunState,
+  isAlive: isNativeRunSupervisorAlive,
+};
+
+/**
+ * Roots of the Flisk projects that are running, either under `tilt up` (read from each process's
+ * `-f <root>/.flisk/.flisk-out/Tiltfile`) or as a live native run recorded in `<root>/.flisk/native/run.json`. Lets
+ * `flisk down` and the other commands find a project when they run outside one. A root counts only while it still has
+ * `.flisk/project.json`.
+ */
+export async function findRunningFliskProjects(
   platform = process.platform,
   commandRunner: CommandRunner = run,
   isProject: (root: string) => boolean = (root) => existsSync(join(root, ".flisk", "project.json")),
-): string[] {
-  if (platform === "win32") return [];
-  let output: string;
-  try {
-    output = commandRunner("ps", ["-axo", "pid=,command="]);
-  } catch {
-    return [];
-  }
+  native: NativeRunLookup = nativeRunLookup,
+): Promise<string[]> {
   const roots = new Set<string>();
-  for (const line of output.split(/\r?\n/)) {
-    const command = /^\s*\d+\s+(.*)$/.exec(line)?.[1] ?? "";
-    const exe = (command.split(/\s+/)[0] ?? "").split("/").at(-1);
-    if (exe !== "tilt" || !/^\S+\s+up\s/.test(command)) continue;
-    const tiltfile = / -f (\/.*?\/\.flisk\/\.flisk-out\/Tiltfile)(?= |$)/.exec(command)?.[1];
-    if (!tiltfile) continue;
-    const root = tiltfile.slice(0, -PROJECT_TILTFILE_SUFFIX.length);
-    if (isProject(root)) roots.add(root);
+  if (platform !== "win32") {
+    let output: string;
+    try {
+      output = commandRunner("ps", ["-axo", "pid=,command="]);
+    } catch {
+      output = "";
+    }
+    for (const line of output.split(/\r?\n/)) {
+      const command = /^\s*\d+\s+(.*)$/.exec(line)?.[1] ?? "";
+      const exe = (command.split(/\s+/)[0] ?? "").split("/").at(-1);
+      if (exe !== "tilt" || !/^\S+\s+up\s/.test(command)) continue;
+      const tiltfile = / -f (\/.*?\/\.flisk\/\.flisk-out\/Tiltfile)(?= |$)/.exec(command)?.[1];
+      if (!tiltfile) continue;
+      const root = tiltfile.slice(0, -PROJECT_TILTFILE_SUFFIX.length);
+      if (isProject(root)) roots.add(root);
+    }
+  }
+  for (const root of native.roots()) {
+    if (!isProject(root)) continue;
+    const state = native.readState(root);
+    // `isNativeRunSupervisorAlive` rejects a stale record whose supervisor pid was reused by another process.
+    if (state && (await native.isAlive(state))) roots.add(root);
   }
   return [...roots].sort();
 }

@@ -2,7 +2,7 @@
 
 [← Back to the README](../../README.md#pick-your-agent)
 
-One command gives your coding agent the Flisk runtime: the `flisk mcp` server and the Flisk skills. With them, Claude Code, Cursor or Codex can scaffold services, start the whole local stack, check it, read its logs and fix what fails, through Flisk, instead of writing Dockerfiles and Compose files by hand.
+One command gives your coding agent the Flisk runtime: the `flisk mcp` server and the Flisk skills. With them, Claude Code, Cursor, Codex or Gemini CLI can scaffold services, start the whole local stack, check it, read its logs and fix what fails, through Flisk, instead of writing Dockerfiles and Compose files by hand.
 
 ## The one command
 
@@ -13,11 +13,12 @@ Run it in your project folder (any folder works; a Flisk project is not required
 | Claude Code | `flisk connect claude` | `.mcp.json` | `.claude/skills/` |
 | Cursor | `flisk connect cursor` | `.cursor/mcp.json` | `.agents/skills/` |
 | Codex | `flisk connect codex` | `.codex/config.toml` (the new `flisk` entry has no machine path; an existing entry is kept without `--force`, so check the whole file before you commit it) | `.agents/skills/` |
+| Gemini CLI | `flisk connect gemini` | `.gemini/settings.json` | `.agents/skills/` |
 
 - `--dry-run` prints what it would write and writes nothing.
 - It merges: other MCP servers and other settings in those files stay as they are. Running it again changes nothing.
 - An existing, different `flisk` entry or a Flisk skill you edited is reported as `kept` and left alone. `--force` replaces it with the current one.
-- `--global` writes the MCP entry to your user config instead (`~/.cursor/mcp.json`, `~/.codex/config.toml`), without skills. For Claude Code, use `claude mcp add --scope user flisk -- flisk mcp`; `flisk connect claude --global` stops with that suggestion.
+- `--global` writes the MCP entry to your user config instead (`~/.cursor/mcp.json`, `~/.codex/config.toml`, `~/.gemini/settings.json`), without skills. For Claude Code, use `claude mcp add --scope user flisk -- flisk mcp`; `flisk connect claude --global` stops with that suggestion.
 - `--json` prints one `{schemaVersion, data, errors}` envelope with every file and its action (`create`, `update`, `unchanged`, `kept`).
 - An unknown host stops with exit code 2 and the list of supported hosts. Any other MCP client can still run `flisk mcp` as a stdio server; the [MCP setup guide](../agent-tooling/flisk-mcp-setup.md) has the format.
 
@@ -69,11 +70,11 @@ Run Flisk doctor first, then start the stack and give me the URLs.
 
 With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, then poll `status` until the stack is ready. A first build pulls images and can take minutes. When a service fails, each `data.tilt.readiness.failures` entry names the `logs` call to make in `next`, and it has `logs` (with `source: "runtime"`) and `config_verify` to find out why, instead of guessing at Docker. For a stack of local processes (services with a `command`), a failed `up` result carries each failed service's last output lines in `failures[].logs`, so the cause (a missing variable, a crash) is in the tool result itself. What it builds, and whether every fix lands, still depends on the agent and the model.
 
-For Cursor, run `flisk connect cursor` and open the folder in Cursor. For Codex, run `flisk connect codex` and start `codex` in the folder; Codex loads a project `.codex/config.toml` only for trusted projects.
+For Cursor, run `flisk connect cursor` and open the folder in Cursor. For Codex, run `flisk connect codex` and start `codex` in the folder; Codex loads a project `.codex/config.toml` only for trusted projects. For Gemini CLI, run `flisk connect gemini`, start `gemini` in the folder and check `/mcp list`.
 
 ## Prompts to try
 
-No project yet? Run `flisk connect claude` (or `cursor`, `codex`) in an empty folder and paste these in order. Each line names the tools the agent is expected to call.
+No project yet? Run `flisk connect claude` (or `cursor`, `codex`, `gemini`) in an empty folder and paste these in order. Each line names the tools the agent is expected to call.
 
 | You want to | Ask the agent | Tools |
 | --- | --- | --- |

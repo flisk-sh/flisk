@@ -27,7 +27,10 @@ changed="$(git diff --name-only "$base" HEAD)"
 if [ -z "$changed" ]; then say false "no changed files"; exit 0; fi
 
 for file in "$@"; do
-  mapfile -t patterns < <(jq -r '.paths[]?' "$file")
+  patterns=()
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [ -n "$line" ]; then patterns+=("$line"); fi
+  done < <(jq -r '.paths[]?' "$file")
   if [ "${#patterns[@]}" -eq 0 ]; then say true "$file declares no paths"; exit 0; fi
   for pattern in "${patterns[@]}"; do
     glob="${pattern//\*\*/*}"

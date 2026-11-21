@@ -58,6 +58,11 @@ export function pathDelimiter(windows = isWindows()): string {
   return windows ? ";" : delimiter;
 }
 
+/** A single-quoted PowerShell path literal; embedded single quotes are doubled. */
+export function powerShellPathLiteral(path: string): string {
+  return `'${path.replaceAll("'", "''")}'`;
+}
+
 /** Where Flisk is running, for advice that differs by host: native Windows, WSL2, Linux or macOS. */
 export type PlatformKind = "windows" | "wsl2" | "linux" | "macos" | "other";
 

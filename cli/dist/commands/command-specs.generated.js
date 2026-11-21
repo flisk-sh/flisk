@@ -393,14 +393,14 @@ export const COMMAND_SPECS = [
         arguments: [
             {
                 name: "host",
-                description: "Agent host: claude, cursor, codex",
+                description: "Agent host: claude, cursor, codex, gemini",
                 required: true,
                 variadic: false,
             },
         ],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global",
+                "\nExamples:\n  flisk connect cursor --dry-run\n  flisk connect cursor\n  flisk connect cursor --global\n  flisk connect gemini --dry-run",
             ],
         },
         subcommands: [],
@@ -436,6 +436,10 @@ export const COMMAND_SPECS = [
                 description: "Only logs newer than this duration, for example 30s, 5m, 1h",
             },
             {
+                flags: "--after <cursor>",
+                description: "Only lines with a sequence number greater than this cursor, returned as data.nextCursor by a previous --json read",
+            },
+            {
                 flags: "--source <source>",
                 description: "Only runtime output (what the service printed) or build output (image build steps); a crash cause is in runtime",
             },
@@ -450,7 +454,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "View logs for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project whose logs to read (default: the current project)",
             },
             {
                 flags: "--json",
@@ -461,7 +465,7 @@ export const COMMAND_SPECS = [
         arguments: [],
         helpTexts: {
             after: [
-                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json",
+                "\nExamples:\n  flisk logs --tail 50\n  flisk logs --service orders-api --since 5m\n  flisk logs --unhealthy --json\n  flisk logs --service orders-api --source runtime --json\n  flisk logs --json --after 42",
             ],
         },
         subcommands: [],
@@ -769,7 +773,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "Show status for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project to report on (default: the current project)",
             },
         ],
         arguments: [],
@@ -1121,6 +1125,11 @@ export const COMMAND_SPECS = [
             {
                 flags: "--start",
                 description: "Install dependencies and start what was written (the local app route; a starter is never started here)",
+                defaultValue: false,
+            },
+            {
+                flags: "--json",
+                description: "Print one JSON envelope on stdout; progress goes to stderr",
                 defaultValue: false,
             },
         ],
@@ -1918,7 +1927,7 @@ export const COMMAND_SPECS = [
             },
             {
                 flags: "--project <path>",
-                description: "Restart resources for the Flisk project in this folder (default: the current project)",
+                description: "Path to the Flisk project whose resource to restart (default: the current project)",
             },
             {
                 flags: "--wait <seconds>",

@@ -30,6 +30,7 @@ function toEntries(commands, parent = "") {
             ...(command.argument ? { argument: command.argument } : {}),
             ...(command.variadic ? { variadic: true } : {}),
             ...(command.optionValues ? { optionValues: command.optionValues } : {}),
+            ...(command.positionalValues ? { positionalValues: command.positionalValues } : {}),
         };
     });
 }
@@ -222,6 +223,8 @@ function renderBash(candidates) {
                 return `        ${entry.name}) words="\${stacks} \${resources}" ;;`;
             case "commands":
                 return `        ${entry.name}) words="\${commands}" ;;`;
+            case "hosts":
+                return `        ${entry.name}) words="${(entry.positionalValues ?? []).join(" ")}" ;;`;
             default:
                 return "";
         }
@@ -240,6 +243,8 @@ function renderBash(candidates) {
                 return `            "${entry.path}") words="\${stacks} \${resources}" ;;`;
             case "commands":
                 return `            "${entry.path}") words="\${commands}" ;;`;
+            case "hosts":
+                return `            "${entry.path}") words="${(entry.positionalValues ?? []).join(" ")}" ;;`;
             default:
                 return "";
         }
@@ -353,6 +358,8 @@ function zshPositionalSpecs(entry) {
             return ["'1:target:_flisk_stacks'"];
         case "commands":
             return ["'1:command:_flisk_commands'"];
+        case "hosts":
+            return [`'1:${entry.argument ?? "host"}:(${(entry.positionalValues ?? []).join(" ")})'`];
         default:
             break;
     }
@@ -532,6 +539,10 @@ function renderFish(candidates) {
     const commandNameLines = flatten(entries)
         .filter((entry) => entry.positional === "commands")
         .map((entry) => `complete -c flisk -f -n '${fishCondition(entry)}' -a '${commandWords(entries).join(" ")}'`);
+    // Fixed values of a positional argument, such as the hosts of `flisk connect <host>`.
+    const positionalValueLines = flatten(entries)
+        .filter((entry) => entry.positionalValues && entry.positionalValues.length > 0)
+        .map((entry) => `complete -c flisk -f -n '${fishCondition(entry)}' -a '${entry.positionalValues?.join(" ")}'`);
     const typeValueFunctions = Object.entries(candidates.typeValues)
         .map(([flag, values]) => `function __flisk_${flag.slice(2)}_values\n${fishTypeValues(values)}\nend`)
         .join("\n\n");
@@ -561,6 +572,9 @@ ${projectFlagLines.join("\n")}
 
 # Project values
 ${[...stackLines, ...resourceLines, ...commandNameLines].join("\n")}
+
+# Fixed positional values
+${positionalValueLines.join("\n")}
 
 # The type of the current command line, for the flags whose values depend on it
 ${FISH_TYPE}
@@ -599,6 +613,9 @@ function renderPowerShell(candidates) {
     const positionalLines = flatten(entries)
         .filter((entry) => entry.positional)
         .map((entry) => `    '${entry.path}' = '${entry.positional}'`);
+    const positionalValueLines = flatten(entries)
+        .filter((entry) => entry.positionalValues && entry.positionalValues.length > 0)
+        .map((entry) => `    '${entry.path}' = @(${entry.positionalValues?.map((value) => `'${value}'`).join(", ")})`);
     const aliasLines = entries.flatMap((entry) => entry.aliases.map((alias) => `    '${alias}' = '${entry.name}'`));
     const typeValueBlocks = Object.entries(candidates.typeValues)
         .map(([flag, values]) => powershellTypeValues(flag, values))
@@ -634,6 +651,10 @@ ${commandValueLines.join("\n")}
 
   $positional = [ordered]@{
 ${positionalLines.join("\n")}
+  }
+
+  $positionalValues = [ordered]@{
+${positionalValueLines.join("\n")}
   }
 
   $globalOptions = @(${globalLines})
@@ -705,6 +726,11 @@ ${typeValueBlocks}
       if ($key.StartsWith($commandPath + ' ')) { $names += $key.Split(' ')[-1] }
     }
     if ($names.Count -gt 0) { return $names | Where-Object { $_ -like "$wordToComplete*" } }
+  }
+
+  # The fixed values of the positional argument, for example the hosts of flisk connect.
+  if ($positionalValues.Contains($commandPath)) {
+    return $positionalValues[$commandPath] | Where-Object { $_ -like "$wordToComplete*" }
   }
 
   # The project values of the positional argument.

@@ -9,6 +9,7 @@ import {
   fliskOs,
   fliskOsFor,
   pathLookups,
+  powerShellPathLiteral,
 } from "./platform.js";
 
 describe("platform mappings", () => {
@@ -30,6 +31,13 @@ describe("platform mappings", () => {
 
   it("includes Windows executable suffixes for PATH lookup", () => {
     expect(pathLookups("tilt", true)).toEqual(["tilt", "tilt.exe", "tilt.cmd", "tilt.bat"]);
+  });
+
+  it("quotes PowerShell path literals without expanding them", () => {
+    expect(powerShellPathLiteral("C:\\Users\\me\\Documents\\flisk")).toBe(
+      "'C:\\Users\\me\\Documents\\flisk'",
+    );
+    expect(powerShellPathLiteral("C:\\it's here\\$home")).toBe("'C:\\it''s here\\$home'");
   });
 
   it("uses the native executable name for the current operating system", () => {

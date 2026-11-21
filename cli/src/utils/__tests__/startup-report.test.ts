@@ -5,6 +5,7 @@ import { parseTiltResourceFailures } from "../doctor-runtime.js";
 import {
   buildStartupReport,
   explainFailures,
+  formatFailureDetail,
   formatStartupReport,
   formatWaitFailures,
   isStartupStalled,
@@ -588,6 +589,58 @@ describe("failed commands and compose steps", () => {
     expect(failures[0]?.fix).toContain("flisk doctor --fix --scope=machine");
     expect(failures[1]?.message).toContain("pull access denied");
     expect(failures[1]).not.toHaveProperty("fix");
+  });
+});
+
+// #3958: the demo's image builds all fail on the same registry error. The shell template is not a reason;
+// the last lines of the build are, and they must be printed once with the number of affected resources.
+describe("failed image builds", () => {
+  const demoCommand =
+    'Command "sh -c \\"cp \\"$1\\" \\"$2\\" && cd \\"$2\\" && bun install\\" -- /tmp/src /tmp/build" failed: exit status 1';
+  const buildLog = [
+    "Step 1/6 : FROM flisk-sh/flisk-l4-base:latest",
+    "Step 2/6 : WORKDIR /app",
+    "Step 3/6 : COPY install-deps.sh .",
+    "Step 4/6 : RUN ./install-deps.sh",
+    "bun install v1.2.20",
+    "\u001b[31mERROR: error: FailedToOpenSocket downloading package manifest @flisk-sh/flisk\u001b[0m",
+    "",
+  ].join("\n");
+  const names = Array.from({ length: 6 }, (_, index) => `svc${index}-image`);
+
+  it("renders the build's last error line and its four preceding lines, not the shell template", async () => {
+    const fetch = vi.fn(async () => buildLog);
+    const [failure] = await withLoggedReasons(
+      [{ name: "floor-app-image", message: demoCommand }],
+      fetch,
+    );
+    const lines = failure?.message.split("\n") ?? [];
+    expect(lines).toHaveLength(5);
+    expect(lines[0]).toBe("Step 2/6 : WORKDIR /app");
+    expect(lines.at(-1)).toBe(
+      "ERROR: error: FailedToOpenSocket downloading package manifest @flisk-sh/flisk",
+    );
+    expect(failure?.message).not.toContain("sh -c");
+    expect(failure?.message).not.toContain("\u001b");
+  });
+
+  it("prints the shared build output once, ending with it, and counts every failed resource", async () => {
+    const fetch = vi.fn(async () => buildLog);
+    const failures = await withLoggedReasons(
+      names.map((name) => ({ name, message: demoCommand })),
+      fetch,
+    );
+    const detail = formatFailureDetail(failures);
+    const lines = detail.split("\n");
+    expect(lines[0]).toBe(
+      "6 resources failed the same way (svc0-image, svc1-image, svc2-image, svc3-image, svc4-image, svc5-image):",
+    );
+    expect(lines.at(-1)).toBe(
+      "ERROR: error: FailedToOpenSocket downloading package manifest @flisk-sh/flisk",
+    );
+    expect(detail.match(/ERROR: error: FailedToOpenSocket/g)).toHaveLength(1);
+    expect(detail).not.toContain("sh -c");
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+// biome-ignore-all lint/suspicious/noTemplateCurlyInString: service.json env values are Compose-style variable references
 // The tool-loop starter's files, manifests and mock model. The agent needs `npm install`, so the real SDK loop is tested live
 // in tests/e2e/journeys/agent-templates K1-K4.
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -7,6 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { expandEnvValue } from "../env-expand.js";
 import { isOneShotJob } from "../native-runtime.js";
 import { toolLoopManifests, writeToolLoopProject } from "../tool-loop-template.js";
 
@@ -22,7 +24,44 @@ describe("tool-loop template", () => {
     expect(isOneShotJob(manifests["setup/service.json"] as never)).toBe(true);
     const agent = manifests["agent/service.json"];
     expect(agent?.dependsOn).toEqual(["setup", "tools", "model"]);
-    expect(agent?.env).toMatchObject({ ANTHROPIC_BASE_URL: "http://localhost:4502" });
+    expect(agent?.env).toMatchObject({
+      ANTHROPIC_BASE_URL: "${ANTHROPIC_BASE_URL:-http://localhost:4502}",
+    });
+  });
+
+  it("resolves MODEL and both base URLs from the env, with the mock as the default", () => {
+    const env = toolLoopManifests()["agent/service.json"].env as Record<string, string>;
+    const resolve = (vars: Record<string, string>) =>
+      Object.fromEntries(
+        Object.entries(env).map(([key, value]) => [key, expandEnvValue(value, vars)]),
+      );
+    expect(resolve({})).toMatchObject({
+      MODEL: "claude-opus-5-5",
+      OPENAI_BASE_URL: "",
+      ANTHROPIC_BASE_URL: "http://localhost:4502",
+    });
+    expect(
+      resolve({
+        MODEL: "llama3.2",
+        OPENAI_BASE_URL: "http://brain:11434/v1",
+        ANTHROPIC_BASE_URL: "https://api.anthropic.com",
+      }),
+    ).toMatchObject({
+      MODEL: "llama3.2",
+      OPENAI_BASE_URL: "http://brain:11434/v1",
+      ANTHROPIC_BASE_URL: "https://api.anthropic.com",
+    });
+  });
+
+  it("uses a real /chat/completions tool loop for OpenAI-compatible servers", () => {
+    const server = readFileSync(join(templates, "tool-loop/agent/server.mjs"), "utf-8");
+    expect(server).toContain("process.env.MODEL");
+    expect(server).toContain("process.env.OPENAI_BASE_URL");
+    expect(server).toContain("process.env.ANTHROPIC_BASE_URL");
+    expect(server).toMatch(/\/chat\/completions/);
+    expect(server).toContain("tool_calls");
+    expect(server).toContain('role: "tool"');
+    expect(server).toContain("model,");
   });
 
   it("reuses the super-agent's MCP tool server and pins the SDK", () => {

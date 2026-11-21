@@ -15,6 +15,7 @@ import { checkColima, checkContainerEngine, checkDockerCompose, checkDockerOpera
 import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import { applyDoctorFixes, checkDuplicateFliskInstalls, hasFailedActions, planDoctorFixes, projectTiltPids, } from "../utils/doctor-fix.js";
 import { checkDiskSpace } from "../utils/doctor-host.js";
+import { checkLocalServiceDependencies, checkWorktreeEnv } from "../utils/doctor-local-deps.js";
 import { checkEnvironmentVariables, checkFliskVersion, checkLatestFliskVersion, checkMasterConfigs, checkPublishedBindAddress, checkWslProjectLocation, WSL2_DOCTOR_MESSAGE, } from "../utils/doctor-machine.js";
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
 import { checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkResourceDiscovery, checkStartupScripts, checkTypeScriptTypeDependencies, } from "../utils/doctor-project.js";
@@ -66,7 +67,7 @@ export const NATIVE_WINDOWS_DOCTOR_MESSAGE = `Native Windows cannot boot a Docke
 // Container runtime checks live in utils/doctor-container.ts; re-exported for existing importers.
 // Generated-project checks live in utils/doctor-project.ts; re-exported for existing importers.
 // Running-service checks live in utils/doctor-services.ts; re-exported for existing importers.
-export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, checkColima, checkContainerEngine, checkContainerResourceHealth, checkContainerResourceHealthFor, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, checkDockerVersions, checkFliskVersion, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkLatestFliskVersion, checkPublishedBindAddress, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTilt, checkTypeScriptTypeDependencies, checkWslProjectLocation, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, MIN_BUN_VERSION, MIN_TILT_VERSION, orderDoctorResults, renderDoctorOutput, requiresContainerRuntime, runChecks, versionMeetsMinimum, WSL2_DOCTOR_MESSAGE, };
+export { CONTAINER_CHECK_NAMES_MAP, CONTAINER_DEPENDENT_CHECK_NAMES, checkBun, checkColima, checkContainerEngine, checkContainerResourceHealth, checkContainerResourceHealthFor, checkDockerCompose, checkDockerOperatingSystem, checkDockerRuntime, checkDockerVersions, checkFliskVersion, checkFrontendDockerPreflight, checkGeneratedFiles, checkGeneratedProjectRuntimeAssets, checkLatestFliskVersion, checkLocalServiceDependencies, checkPublishedBindAddress, checkResourceDiscovery, checkServiceHealth, checkServiceSmoke, checkTilt, checkTypeScriptTypeDependencies, checkWorktreeEnv, checkWslProjectLocation, formatDoctorSummary, getDoctorOutcomeMessage, isContainerDependentCheck, MIN_BUN_VERSION, MIN_TILT_VERSION, orderDoctorResults, renderDoctorOutput, requiresContainerRuntime, runChecks, versionMeetsMinimum, WSL2_DOCTOR_MESSAGE, };
 export const doctorCommand = new Command("doctor")
     .description("Check environment readiness for Flisk")
     .option("--all", "Run every check and show Machine and Project sections with a summary", false)
@@ -345,6 +346,9 @@ export const doctorCommand = new Command("doctor")
         () => checkDuplicateResourceNames(),
         () => checkDependsOnShape(),
         () => checkRequiredSecrets(checkDir, undefined, process.env),
+        // A fresh worktree has the sources but not the gitignored installs or .env (#4048).
+        () => checkLocalServiceDependencies(checkDir),
+        () => checkWorktreeEnv(checkDir),
     ];
     const graphChecks = [
         () => checkCircularDependencies(),

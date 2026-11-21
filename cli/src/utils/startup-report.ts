@@ -89,27 +89,39 @@ export const MAX_FAILURE_MESSAGE = 300;
 
 const LOG_TAIL_LINES = 3;
 
+/** Docker/Tilt image-build logs mark the reason with either spelling; keep that line plus four lines of context. */
+const BUILD_ERROR_LINE = /(?:^|\s)(?:ERROR|error):\s+(\S.*)$/;
+const BUILD_TAIL_LINES = 5;
+
 /**
  * Failures whose message carries no reason, given the reason their command logged instead. The health gates
  * (`postgres-healthy`, `<svc>-healthy`, `<job>-done`) print the cause as their last `ERROR: ...` line, such as a container
  * that exited or a health check that kept failing past its recovery window, so `flisk up` shows that rather than
  * "exit status 1" (#3210). A failed command or compose step (`init-networks`, `docker compose up`) is shown as the last
- * lines of its log, where Docker's own message is, rather than the command line. A reason taken from a log is stripped
- * of terminal escapes and cut to MAX_FAILURE_MESSAGE characters. Other failures, and those whose log has nothing to
- * show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters. Only the first five
- * failures have their log read; the command text of the rest is cut the same way.
+ * lines of its log, where Docker's own message is, rather than the command line (#3822). An image build keeps the
+ * `ERROR:` line and the four lines before it, which is what Docker actually said (#3958). A reason taken from a log is
+ * stripped of terminal escapes and cut to MAX_FAILURE_MESSAGE characters. Other failures, and those whose log has
+ * nothing to show, are returned unchanged, with the command text cut to MAX_FAILURE_MESSAGE characters. Only the
+ * first five failures have their log read; resources that printed the same command reuse that reason.
  */
 export async function withLoggedReasons<T extends { name: string; message: string }>(
   failures: T[],
   fetchLogs: (name: string) => Promise<string | null>,
 ): Promise<T[]> {
   const out: T[] = [];
+  const reasonByCommand = new Map<string, string>();
   for (const [index, failure] of failures.entries()) {
     const message = failure.message.trim();
     const isBareExit = BARE_EXIT_STATUS.test(message);
-    const isCommand = FAILED_COMMAND.test(message);
+    // Tilt's error can be cut to 220 characters before it reaches here, so "failed: exit status 1" may be gone.
+    const isCommand = FAILED_COMMAND.test(message) || /^command\s+"/i.test(message);
+    const key = isCommand ? message : null;
     if (!isBareExit && !isCommand) {
       out.push(failure);
+      continue;
+    }
+    if (key && reasonByCommand.has(key)) {
+      out.push({ ...failure, message: capEnd(reasonByCommand.get(key) as string) });
       continue;
     }
     if (index >= 5) {
@@ -117,10 +129,14 @@ export async function withLoggedReasons<T extends { name: string; message: strin
       continue;
     }
     const log = stripTerminalControls((await fetchLogs(failure.name)) ?? "");
+    const buildTail = isCommand ? buildOutputTail(log) : null;
     const errorLine = loggedErrorLine(log);
-    const reason = errorLine ? capStart(errorLine.trim()) : isCommand ? logTail(log) : null;
-    if (reason) out.push({ ...failure, message: reason });
-    else if (isCommand && failure.name === "init-networks")
+    const reason =
+      buildTail ?? (errorLine ? capStart(errorLine.trim()) : isCommand ? logTail(log) : null);
+    if (reason) {
+      if (key && buildTail) reasonByCommand.set(key, buildTail);
+      out.push({ ...failure, message: buildTail ? capEnd(reason) : reason });
+    } else if (isCommand && failure.name === "init-networks")
       out.push({ ...failure, message: INIT_NETWORKS_FALLBACK });
     else if (isCommand) out.push({ ...failure, message: capStart(message) });
     else out.push(failure);
@@ -153,9 +169,55 @@ export function logTail(log: string, lines = LOG_TAIL_LINES): string | null {
     .slice(-lines)
     .join(" ");
   if (!tail) return null;
-  return tail.length > MAX_FAILURE_MESSAGE
-    ? `…${tail.slice(tail.length - (MAX_FAILURE_MESSAGE - 1))}`
-    : tail;
+  return capEnd(tail);
+}
+
+/**
+ * The last `ERROR:`/`error:` line of an image build and the four lines before it. Docker's reason is on that line, but
+ * the lines above it (the step and command that failed) are what make it readable, so keep them instead of only the
+ * one-line summary used for health checks.
+ */
+function buildOutputTail(log: string, lines = BUILD_TAIL_LINES): string | null {
+  const cleaned = stripTerminalControls(log)
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0);
+  let lastError = -1;
+  for (const [index, line] of cleaned.entries()) {
+    if (BUILD_ERROR_LINE.test(line)) lastError = index;
+  }
+  if (lastError < 0) return null;
+  return capEnd(
+    cleaned
+      .slice(Math.max(0, lastError - lines + 1), lastError + 1)
+      .map((line) => line.trim())
+      .join("\n"),
+  );
+}
+
+/**
+ * The detail under "Resources failed": one entry per distinct reason, with the number and names of the resources that
+ * printed it. Each entry ends with the reason so a build's `ERROR:` line stays the last thing the user reads (#3958).
+ */
+export function formatFailureDetail(
+  failures: Array<{ name: string; message: string; fix?: string }>,
+): string {
+  const groups = new Map<string, { names: string[]; fix?: string }>();
+  for (const failure of failures) {
+    const group = groups.get(failure.message) ?? { names: [], fix: failure.fix };
+    group.names.push(failure.name);
+    groups.set(failure.message, group);
+  }
+  return [...groups.entries()]
+    .map(([message, group]) => {
+      const names = group.names;
+      const label =
+        names.length === 1
+          ? `${names[0]}:`
+          : `${names.length} resources failed the same way (${names.join(", ")}):`;
+      return `${group.fix ? `${label} ${group.fix.replace(/^Fix:\s*/, "")}` : label}\n${message}`;
+    })
+    .join("\n");
 }
 
 /**
@@ -189,6 +251,13 @@ export function lastLines(count: number): string {
 
 function capStart(text: string): string {
   return text.length > MAX_FAILURE_MESSAGE ? `${text.slice(0, MAX_FAILURE_MESSAGE - 1)}…` : text;
+}
+
+/** Keep the end of a log excerpt, where the reason is, when it is too long for one message. */
+function capEnd(text: string): string {
+  return text.length > MAX_FAILURE_MESSAGE
+    ? `…${text.slice(text.length - (MAX_FAILURE_MESSAGE - 1))}`
+    : text;
 }
 
 /**

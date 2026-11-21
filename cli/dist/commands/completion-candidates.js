@@ -2,6 +2,7 @@ import { BACKEND_FRAMEWORKS } from "../backend-frameworks/registry.js";
 import { BACKEND_LANGUAGES } from "../backend-languages/registry.js";
 import { FRONTEND_FRAMEWORKS } from "../frontend-frameworks/registry.js";
 import { DATABASE_FRAMEWORKS, PRESET_RESOURCE_TYPES, RESOURCE_CREATE_TYPE_VALUES, } from "../types/index.js";
+import { CONNECT_HOSTS } from "../utils/agent-connect.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import { SUPPORTED_SHELLS } from "./completion-shells.js";
@@ -16,6 +17,15 @@ const POSITIONALS = {
     restart: "resources",
     logs: "resources",
     "agent sessions": "resources",
+    connect: "hosts",
+};
+/**
+ * The fixed values of a positional argument, keyed by the command path. `flisk connect` takes the
+ * hosts from the same registry as its help and its unknown-host error, so a new host is suggested
+ * in every shell without editing this file.
+ */
+const POSITIONAL_VALUES = {
+    connect: [...CONNECT_HOSTS],
 };
 /**
  * Command-specific flag values, including overrides of the default value lists.
@@ -94,6 +104,7 @@ function helpCommandOf(program) {
 }
 function toCompletionCommand(command, path) {
     const optionValues = COMMAND_VALUES[path];
+    const positionalValues = POSITIONAL_VALUES[path];
     const argument = command.registeredArguments[0];
     return {
         name: command.name(),
@@ -105,6 +116,7 @@ function toCompletionCommand(command, path) {
         ...(argument ? { argument: argument.name() } : {}),
         ...(argument?.variadic ? { variadic: true } : {}),
         ...(optionValues ? { optionValues } : {}),
+        ...(positionalValues ? { positionalValues } : {}),
     };
 }
 /**

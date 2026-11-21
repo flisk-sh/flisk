@@ -140,6 +140,7 @@ import {
 import {
   buildStartupReport,
   explainFailures,
+  formatFailureDetail,
   formatStartupReport,
   isStartupStalled,
   machineProblemFixes,
@@ -1071,6 +1072,9 @@ export const upCommand = new Command("up")
         console.log(chalk.gray(skippedProfilesNote(nativeProfiles.skipped)));
       }
       guardDisk(false);
+      // A native run has no Tilt process to discover, so record the folder with the same registry `flisk up` keeps for
+      // container projects. Commands run outside the project then find its `.flisk/native/run.json` (#4412).
+      recordProjectRoot(projectRoot, { stacks: recordableStacks(projectRoot) });
       await runNativeUp({
         projectRoot,
         selected: nativeProfiles.kept,
@@ -1978,22 +1982,26 @@ export const upCommand = new Command("up")
             const failures = await explainFailures(readiness.failures, (name) =>
               tiltResourceLogs(port, name),
             );
-            const detail = failures
-              .map((f) => `${f.name}: ${f.message}${f.fix ? `. ${f.fix}` : ""}`)
-              .join("; ");
+            const detail = formatFailureDetail(failures);
             const stillBuildingMsg =
               readiness.stillBuilding && readiness.stillBuilding.length > 0
                 ? ` (${readiness.stillBuilding.join(", ")} still building)`
                 : "";
+            // The build's `ERROR:` line is the last line of a non-timeout failure: repeating six shell templates or
+            // hiding the reason behind "inspect Tilt" sent the demo user in the wrong direction (#3958).
+            const message = readiness.timedOut
+              ? `Timed out waiting for resources${stillBuildingMsg}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`
+              : `Resources failed. Tilt is still running; inspect it or run: flisk down${detail ? `\n${detail}` : ""}`;
             emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures }, [
               {
                 code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
-                message: `${readiness.timedOut ? `Timed out waiting for resources${stillBuildingMsg}` : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
+                message,
                 suggestions: upFailureHints({
                   kind: "services",
                   failed: readiness.failures.map((failure) => failure.name),
                   timedOut: readiness.timedOut,
                   stillBuilding: readiness.stillBuilding,
+                  tiltPort: port,
                 }),
               },
             ]);
@@ -2069,6 +2077,7 @@ export const upCommand = new Command("up")
                   failed: report.failed.map((failure) => failure.name),
                   timedOut: readiness.timedOut,
                   stillBuilding: readiness.stillBuilding,
+                  tiltPort: port,
                 }),
               );
             }

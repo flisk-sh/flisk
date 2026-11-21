@@ -6,7 +6,8 @@ install-deps.sh, the dependency install every app image runs (#2895).
 A registry lists a new release before its CDN serves the tarball, so a build minutes after a release failed with
 `GET .../rollup-4.67.3.tgz - 404` and took the one-command demo down with it. The script now skips versions published
 in the last day, retries registry and network errors with a growing delay, retries without the minimum age when a
-dependency pins a newer version, and fails at once on an error retrying cannot fix.
+dependency pins a newer version, and fails at once on an error retrying cannot fix (#3957 also covers the dropped
+socket that the old transient-pattern list missed).
 
 Runs the real script in Alpine (busybox sh, grep and timeout, as in the image) with a stub `bun` that plays a scenario.
 The files go in as a tar on stdin, so the test does not depend on Docker file sharing.
@@ -30,7 +31,7 @@ CLI_COPY = REPO_ROOT / "cli" / "shared-platform-engineering" / "docker-templates
 DOCKER_REQUIRED = pytest.mark.skipif(shutil.which("docker") is None, reason="docker CLI not installed")
 
 # The stub answers `bun install --help` (with the flag unless NO_FLAG is set) and plays one line of $SCENARIO per install:
-# ok, tgz404, meta404, age, 503 or hang. Every install's arguments go to /w/calls.log.
+# ok, tgz404, meta404, plain404, socket, age, 503 or hang. Every install's arguments go to /w/calls.log.
 STUB_BUN = r"""#!/bin/sh
 if [ "$2" = "--help" ]; then
   [ -n "$NO_FLAG" ] || echo "      --minimum-release-age=<val>    Only install packages published at least N seconds ago"
@@ -43,6 +44,8 @@ case "$step" in
   ok) mkdir -p node_modules/x && echo "4 packages installed"; exit 0 ;;
   tgz404) echo "error: GET https://registry.npmjs.org/rollup/-/rollup-4.67.3.tgz - 404"; exit 1 ;;
   meta404) echo "error: GET https://registry.npmjs.org/no-such-package-xyz - 404"; exit 1 ;;
+  plain404) echo "error: 404 Not Found"; exit 1 ;;
+  socket) echo "error: FailedToOpenSocket downloading package manifest @flisk-sh/flisk"; exit 1 ;;
   age) echo 'error: No version matching "rollup" found for specifier "4.67.3" (blocked by minimum-release-age: 86400 seconds)'; exit 1 ;;
   age2) echo 'error: Version "@vitest/mocker@5.1.1" was published within minimum release age of 86400 seconds'; exit 1 ;;
   503) echo "error: GET https://registry.npmjs.org/vite - 503"; exit 1 ;;
@@ -90,6 +93,36 @@ def test_a_package_that_does_not_exist_fails_at_once_without_the_transient_hint(
     assert code == 1
     assert len(calls) == 1
     assert "usually transient" not in log
+
+
+@DOCKER_REQUIRED
+def test_a_plain_404_fails_after_one_attempt_without_retrying():
+    code, log, calls = run_install("plain404,ok")
+    assert code == 1
+    assert "Attempt 1" in log
+    assert "Attempt 2" not in log
+    assert "failed after 1 attempts" in log
+    assert len(calls) == 1
+    assert "usually transient" not in log
+
+
+@DOCKER_REQUIRED
+def test_a_dropped_socket_is_retried_and_succeeds_on_attempt_two():
+    code, log, calls = run_install("socket,ok")
+    assert code == 0, log
+    assert "Attempt 2" in log
+    assert "retrying" in log
+    assert len(calls) == 2
+
+
+@DOCKER_REQUIRED
+def test_a_persistent_socket_error_fails_after_three_attempts():
+    code, log, calls = run_install("socket,socket,socket,ok")
+    assert code == 1
+    assert "Attempt 3" in log
+    assert "Attempt 4" not in log
+    assert "failed after 3 attempts" in log
+    assert len(calls) == 3
 
 
 @DOCKER_REQUIRED

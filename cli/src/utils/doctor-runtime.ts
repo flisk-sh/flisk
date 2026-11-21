@@ -416,6 +416,10 @@ export function parseTiltResourceFailures(
  */
 const GOLDEN_BASE_IMAGE_PULL_FAILURE =
   /failed to resolve source metadata for docker\.io\/library\/([A-Za-z0-9._-]+-l[1-4](?:-[a-z]+)*)(?::[^\s:]+)?:/i;
+const SCRIPT_PATH = /(?:^|[\s/"'`])([\w./-]+\.sh)\b/i;
+const SCRIPT_EXEC_FAILURE = /\b(?:not found|exec format error)\b/i;
+const NETWORK_OR_REGISTRY_MARKER =
+  /ConnectionRefused|Verdaccio|private registry|:4873\b|ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|\bnetwork\b|\bregistry\b|\bfetch failed\b|could not resolve/i;
 
 export function summarizeTiltBuildError(error: string): string {
   const normalized = error.replace(/\s+/g, " ").trim();
@@ -428,6 +432,13 @@ export function summarizeTiltBuildError(error: string): string {
     return "a required host port is already allocated";
   }
 
+  // `#!/bin/sh\r` fails with "not found"/"exec format error" that names the
+  // script, not the line ending. Say so before the registry heuristic claims it.
+  const scriptPath = normalized.match(SCRIPT_PATH)?.[1];
+  if (scriptPath && SCRIPT_EXEC_FAILURE.test(normalized)) {
+    return `${scriptPath} cannot execute on Linux — check line endings: run flisk config regenerate`;
+  }
+
   const refusedPackages = [
     ...normalized.matchAll(/ConnectionRefused downloading package manifest (@[A-Za-z0-9._/-]+)/gi),
   ].map((match) => match[1]);
@@ -438,19 +449,20 @@ export function summarizeTiltBuildError(error: string): string {
     return `private registry ConnectionRefused for ${shown}${more} — Verdaccio (:4873) is down or unreachable from the build`;
   }
 
+  const installScript = /install-deps\.sh/i.test(normalized);
+  const installCommand = /bun install(?: --production)?|npm (?:ci|install)/i.test(normalized);
+  if (installCommand || (installScript && NETWORK_OR_REGISTRY_MARKER.test(normalized))) {
+    return "dependency install failed during ImageBuild — usually Verdaccio (:4873) unreachable or missing @scoped packages (ConnectionRefused downloading package manifest)";
+  }
+  if (installScript) {
+    return "ImageBuild failed while running install-deps.sh — open the resource logs in Tilt for the actual error";
+  }
+
   // Golden base images are named `<project>-l1`, `<project>-l2`, `<project>-l3-backend`,
   // `<project>-l4-migrator`, and so on, for whatever the project is called.
   const goldenBase = normalized.match(GOLDEN_BASE_IMAGE_PULL_FAILURE);
   if (goldenBase) {
     return `base image ${goldenBase[1]} was missing when this build started (the golden layers weren't built yet, or golden-layers-build failed) - Tilt does not retry a failed build by itself`;
-  }
-
-  if (
-    /install-deps\.sh/i.test(normalized) ||
-    /bun install(?: --production)?/i.test(normalized) ||
-    /npm (?:ci|install)/i.test(normalized)
-  ) {
-    return "dependency install failed during ImageBuild — usually Verdaccio (:4873) unreachable or missing @scoped packages (ConnectionRefused downloading package manifest)";
   }
 
   const missingImage =
@@ -480,8 +492,15 @@ export function summarizeTiltBuildError(error: string): string {
 }
 
 export function isRegistryRelatedBuildError(error: string): boolean {
-  return /ConnectionRefused downloading package manifest|Verdaccio|private registry|dependency install failed during ImageBuild|install-deps\.sh|bun install/i.test(
-    error,
+  // A CRLF shebang is an executable-format problem, never a registry problem.
+  if (SCRIPT_PATH.test(error) && SCRIPT_EXEC_FAILURE.test(error)) {
+    return false;
+  }
+  return (
+    /ConnectionRefused downloading package manifest|Verdaccio|private registry|dependency install failed during ImageBuild|bun install/i.test(
+      error,
+    ) ||
+    (/install-deps\.sh/i.test(error) && NETWORK_OR_REGISTRY_MARKER.test(error))
   );
 }
 

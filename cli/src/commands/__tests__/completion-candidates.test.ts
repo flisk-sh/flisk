@@ -6,6 +6,7 @@ import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 import { FRONTEND_FRAMEWORKS } from "../../frontend-frameworks/registry.js";
 import { createProgram } from "../../program.js";
 import { RESOURCE_CREATE_TYPE_VALUES } from "../../types/index.js";
+import { CONNECT_HOSTS } from "../../utils/agent-connect.js";
 import { VALID_RESOURCE_TYPES } from "../../utils/constants.js";
 import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
 import { renderCompletionScript } from "../completion.js";
@@ -56,8 +57,8 @@ function bashShape(source: string): ShellShape {
   }
   const subcommands: Record<string, string[]> = {};
   for (const match of source.matchAll(/^\s*([\w-]+)\) words="([^"]*)" ;;$/gm)) {
-    // The project values of a positional argument are not command names.
-    if (match[2].includes("${")) continue;
+    // The project values and the fixed values of a positional argument are not command names.
+    if (match[2].includes("${") || match[1] === "connect") continue;
     subcommands[match[1]] = match[2].split(/\s+/).filter(Boolean);
   }
   const defaultValues: Record<string, string[]> = {};
@@ -250,6 +251,32 @@ function valuesOf(shell: Shell, path: string, flag: string): string[] {
   return shape.defaultValues[flag] ?? [];
 }
 
+/** The values a shell offers for the `connect` host argument. */
+function connectHostsOf(shell: Shell): string[] {
+  const source = renderCompletionScript(shell, candidates);
+  switch (shell) {
+    case "bash":
+      return (source.match(/^\s*connect\) words="([^"]*)" ;;$/m)?.[1] ?? "")
+        .split(/\s+/)
+        .filter(Boolean);
+    case "zsh":
+      return (source.match(/'1:host:\(([^)]*)\)'/)?.[1] ?? "").split(/\s+/).filter(Boolean);
+    case "fish":
+      return (
+        source.match(
+          /complete -c flisk -f -n '__fish_seen_subcommand_from connect' -a '([^']+)'/,
+        )?.[1] ?? ""
+      )
+        .split(/\s+/)
+        .filter(Boolean);
+    case "powershell": {
+      const block = source.match(/\$positionalValues = \[ordered\]@\{\n([\s\S]*?)\n {2}\}/);
+      const entry = block?.[1].match(/^\s*'connect' = @\(([^)]*)\)/m)?.[1] ?? "";
+      return [...entry.matchAll(/'([^']+)'/g)].map(([, value]) => value);
+    }
+  }
+}
+
 /** The values a shell offers for a flag that depends on the `--type` of the command line. */
 function typeValuesOf(shell: Shell, flag: string, type: string): string[] {
   const source = renderCompletionScript(shell, candidates);
@@ -415,6 +442,11 @@ describe("shell completion candidates", () => {
     expect(valuesOf(shell, "doctor", "--scope")).toEqual(["project", "machine"]);
     expect(valuesOf(shell, "create", "--runtime")).toEqual(["local", "docker"]);
     expect(valuesOf(shell, "create", "--starter")).toEqual(Object.keys(PROJECT_TEMPLATES));
+  });
+
+  it.each(SHELLS)("completes every connect host in %s", (shell) => {
+    expect(connectHostsOf(shell)).toEqual([...CONNECT_HOSTS]);
+    expect(connectHostsOf(shell)).toContain("gemini");
   });
 
   it("offers the frameworks of the type of the command line", () => {

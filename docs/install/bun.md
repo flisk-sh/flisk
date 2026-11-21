@@ -9,7 +9,7 @@
 
 Bun is a newer alternative to [Node.js](../start/words.md#nodejs) that can also install JavaScript tools. Use this tab if you already use Bun. Never heard of it? The **npm** or **Prebuilt binary** tab above is all you need.
 
-**Needs:** Bun 1.2 or newer. Install it with `curl -fsSL https://bun.sh/install | bash`.
+**Needs:** Bun 1.2 or newer. Install it with `curl -fsSL https://bun.sh/install | bash` (macOS/Linux) or `powershell -c "irm bun.sh/install.ps1 | iex"` in Windows PowerShell.
 
 Then paste this into your [terminal](../start/words.md#terminal) and press Enter:
 

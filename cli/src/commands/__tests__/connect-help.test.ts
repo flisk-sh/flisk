@@ -9,4 +9,6 @@ it("shows connection examples in help", () => {
   connectCommand.outputHelp();
   expect(help).toContain("Examples:");
   expect(help).toContain("flisk connect cursor --dry-run");
+  expect(help).toContain("flisk connect gemini");
+  expect(help).toContain("Agent host: claude, cursor, codex, gemini");
 });

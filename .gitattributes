@@ -1,0 +1,23 @@
+# Line endings are part of the source here: Docker copies shell scripts byte-for-byte into Linux images,
+# where a CRLF shebang fails with "/bin/sh^M". Editors only see .editorconfig; Git needs these rules.
+* text=auto
+
+# Keep the rules themselves stable on every platform.
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+
+# Sources executed by Linux containers and other Unix hosts.
+*.sh text eol=lf
+*.bash text eol=lf
+*.py text eol=lf
+*.star text eol=lf
+Dockerfile* text eol=lf
+
+# Starlark and the Handlebars templates that render Starlark/Tilt sources.
+Tiltfile text eol=lf
+Tiltfile.* text eol=lf
+*.star.hbs text eol=lf
+Tiltfile.hbs text eol=lf
+
+# Windows scripts are the exception: keep them CRLF.
+*.ps1 text eol=crlf

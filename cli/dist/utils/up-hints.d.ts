@@ -21,9 +21,12 @@ export type UpFailure = {
     failed: string[];
     timedOut?: boolean;
     stillBuilding?: string[];
+    /** The port this run actually started Tilt on, when known (the demo may move off 10350). */
+    tiltPort?: number;
 } | {
     kind: "smoke";
     failed: string[];
+    tiltPort?: number;
 };
 /**
  * One or two commands to run next after a failed `flisk up`, plus the troubleshooting page for that failure. Printed

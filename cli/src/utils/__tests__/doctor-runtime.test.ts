@@ -401,12 +401,15 @@ describe("doctor-runtime utilities", () => {
       expect(summarizeTiltBuildError("bun install --production failed")).toContain(
         "dependency install failed during ImageBuild",
       );
-      expect(summarizeTiltBuildError("install-deps.sh exited with 1")).toContain(
-        "dependency install failed during ImageBuild",
-      );
       expect(summarizeTiltBuildError("npm ci failed")).toContain(
         "dependency install failed during ImageBuild",
       );
+    });
+
+    it("does not summarize a bare install-deps.sh failure as a registry problem", () => {
+      const summary = summarizeTiltBuildError("install-deps.sh exited with 1");
+      expect(summary).toContain("ImageBuild failed while running install-deps.sh");
+      expect(summary).not.toContain("Verdaccio");
     });
 
     it("summarizes missing compose image", () => {
@@ -433,6 +436,8 @@ describe("doctor-runtime utilities", () => {
       expect(isRegistryRelatedBuildError("private registry timed out")).toBe(true);
       expect(isRegistryRelatedBuildError("dependency install failed during ImageBuild")).toBe(true);
       expect(isRegistryRelatedBuildError("bun install failed")).toBe(true);
+      expect(isRegistryRelatedBuildError("install-deps.sh: ETIMEDOUT to registry")).toBe(true);
+      expect(isRegistryRelatedBuildError("install-deps.sh exited with 1")).toBe(false);
       expect(isRegistryRelatedBuildError("SyntaxError: Unexpected token")).toBe(false);
       expect(isRegistryRelatedBuildError("TypeScript check failed: TS2304")).toBe(false);
     });

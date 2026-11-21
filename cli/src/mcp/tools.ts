@@ -14,6 +14,7 @@ import {
   resolveRestartSequenceCliTimeoutMs,
 } from "../utils/container-restart.js";
 import { FliskError } from "../utils/errors.js";
+import { isValidCursor } from "../utils/log-cursors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import {
   isProcessAlive,
@@ -537,6 +538,15 @@ export function buildLogsArgs(args: Record<string, unknown>): string[] {
     }
     out.push(`--since=${args.since}`);
   }
+  if (args.after !== undefined) {
+    const cursor = typeof args.after === "number" ? String(args.after) : args.after;
+    if (typeof cursor !== "string" || !isValidCursor(cursor)) {
+      throw new FliskError("after must be a non-negative integer cursor", [
+        "Pass the data.nextCursor value returned by a previous logs call",
+      ]);
+    }
+    out.push(`--after=${cursor}`);
+  }
   if (args.source !== undefined) {
     if (args.source !== "runtime" && args.source !== "build") {
       throw new FliskError("source must be runtime or build", [
@@ -847,7 +857,7 @@ export function createFliskTools(
     {
       name: "doctor",
       description:
-        "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
+        "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project; for local-process services that also reports missing node_modules/.venv with the exact install command, and hints at a .env in another git worktree with the copy command (it never copies). Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         noPing: {
@@ -947,7 +957,7 @@ export function createFliskTools(
     {
       name: "logs",
       description:
-        "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. After a failed `up`, call it first with unhealthy: true to read only the failing or still-starting services. Otherwise use `status` first to find which service is failing, then pass services to narrow the output and source `runtime` to skip image build output and read why it failed.",
+        "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only: reading with a cursor writes nothing. Not a stream: every JSON line has a `seq`, the response carries `data.nextCursor`, and passing that value back as `after` returns only newer lines (an unchanged log gives no lines and the same cursor; a cursor older than the retained log returns the oldest available lines with `data.truncated: true`). Optionally select the project with projectPath. After a failed `up`, call it first with unhealthy: true to read only the failing or still-starting services. Otherwise use `status` first to find which service is failing, then pass services to narrow the output and source `runtime` to skip image build output and read why it failed.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         services: {
@@ -964,6 +974,11 @@ export function createFliskTools(
         since: {
           type: "string",
           description: "Only logs newer than this, for example 30s, 5m, 1h",
+        },
+        after: {
+          type: "string",
+          description:
+            "Only lines with seq greater than this cursor. Pass the data.nextCursor from a previous logs call; it may be a long integer, so send it as a string.",
         },
         source: {
           type: "string",

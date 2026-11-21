@@ -85,6 +85,17 @@ describe("inference resource type", () => {
     expect(existsSync(join(tempDir, "services", "kitchen", "brain", "Dockerfile"))).toBe(false);
   });
 
+  it("keeps pulled models in a named volume and provides OPENAI_BASE_URL to dependents", async () => {
+    const service = await createInference();
+    expect(service.volumes).toEqual([{ source: "brain-models", target: "/root/.ollama" }]);
+    expect(service.provides).toEqual({ OPENAI_BASE_URL: "http://brain:11434/v1" });
+  });
+
+  it("provides OPENAI_BASE_URL on a custom --port too", async () => {
+    const service = await createInference(["--port", "8000"]);
+    expect(service.provides).toEqual({ OPENAI_BASE_URL: "http://brain:8000/v1" });
+  });
+
   it("does not make Ollama mandatory: --image, --port and --health-path win", async () => {
     const service = await createInference([
       "--image",

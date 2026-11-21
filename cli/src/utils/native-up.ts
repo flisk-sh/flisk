@@ -4,6 +4,7 @@ import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource } from "../types/index.js";
+import { worktreeEnvHintMessage } from "./doctor-local-deps.js";
 import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
@@ -201,6 +202,12 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
     );
   }
   const vars = runVariables(projectRoot, input.envFilePath);
+  // A worktree without its gitignored .env is a common source of confusing missing-key errors (#4048). Point at another
+  // worktree's file and print the copy command, but never copy it: the values may be worktree-specific.
+  if (!input.envFilePath && !quiet && !existsSync(join(projectRoot, ".env"))) {
+    const hint = worktreeEnvHintMessage(projectRoot);
+    if (hint) console.warn(chalk.yellow(`⚠ ${hint}`));
+  }
   const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
   if (plan.errors.length > 0) fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
   const databaseNames = databaseResourceNames(selected);

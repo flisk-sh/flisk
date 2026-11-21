@@ -7,6 +7,8 @@
 $ErrorActionPreference = 'Stop'
 
 Remove-Item Env:FLISK_ALLOW_NATIVE_WINDOWS -ErrorAction SilentlyContinue
+$env:FLISK_ALLOW_NATIVE_WINDOWS = ""
+[Environment]::SetEnvironmentVariable("FLISK_ALLOW_NATIVE_WINDOWS", "", "Process")
 $demoDir = Join-Path ([IO.Path]::GetTempPath()) 'flisk-demo-native-e2e'
 if (Test-Path -LiteralPath $demoDir) { Remove-Item -LiteralPath $demoDir -Recurse -Force }
 

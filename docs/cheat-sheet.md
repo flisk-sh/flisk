@@ -578,12 +578,13 @@ Runs a Model Context Protocol server over stdio for coding agents. See [agent ho
 ```bash
 flisk connect cursor --dry-run
 flisk connect cursor
+flisk connect gemini --dry-run
 ```
 
 | Flag | Effect |
 | --- | --- |
 | `--project` | Write into this project (default) |
-| `--global` | Write the MCP entry to the user config (Cursor and Codex only; no skills). For Claude Code, use `claude mcp add --scope user flisk -- flisk mcp` |
+| `--global` | Write the MCP entry to the user config (Cursor, Codex and Gemini CLI only; no skills). For Claude Code, use `claude mcp add --scope user flisk -- flisk mcp` |
 | `--dry-run` | Print what would be written, without changing any file |
 | `--force` | Replace an existing, different flisk entry or edited Flisk skill |
 | `--json` | Print the result as a JSON envelope |
