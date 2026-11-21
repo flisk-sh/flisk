@@ -27,7 +27,7 @@ FAKE_DOCKER = r'''#!/usr/bin/env python3
 """Replays a container timeline: each `docker ps` call is one poll and moves to the next step."""
 import json, os, sys
 state_dir = os.environ["FAKE_DOCKER_DIR"]
-steps = json.load(open(os.path.join(state_dir, "steps.json")))
+steps = json.load(open(os.path.join(state_dir, "steps.json"), encoding="utf-8"))
 counter = os.path.join(state_dir, "polls")
 args = sys.argv[1:]
 if args and args[0] == "ps":
@@ -61,7 +61,7 @@ elif "FailingStreak" in fmt:
 
 def _starlark_string(path: Path, name: str) -> str:
     """The value of a `NAME = ( '...' + '...' )` string constant; that expression is also valid Python."""
-    source = path.read_text()
+    source = path.read_text(encoding="utf-8")
     match = re.search(rf"^{name} = (\(.*?^\))", source, re.S | re.M)
     assert match, f"{name} not found in {path}"
     return ast.literal_eval(match.group(1).replace("\n    +", "\n    "))
@@ -81,7 +81,7 @@ def _run(tmp_path: Path, script: str, args: list[str], steps: list[dict]):
     (tmp_path / "steps.json").write_text(json.dumps(steps))
     env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "FAKE_DOCKER_DIR": str(tmp_path)}
     out = subprocess.run(["sh", "-c", script, "sh", *args], capture_output=True, text=True, env=env, timeout=120)
-    polls = int((tmp_path / "polls").read_text()) if (tmp_path / "polls").exists() else 0
+    polls = int((tmp_path / "polls").read_text(encoding="utf-8")) if (tmp_path / "polls").exists() else 0
     return out, polls
 
 
@@ -144,7 +144,7 @@ def test_still_starting_times_out_at_the_poll_limit(tmp_path, script, args, labe
 
 
 def _sleeps(tmp_path: Path) -> list[str]:
-    return (tmp_path / "sleeps").read_text().split() if (tmp_path / "sleeps").exists() else []
+    return (tmp_path / "sleeps").read_text(encoding="utf-8").split() if (tmp_path / "sleeps").exists() else []
 
 
 @pytest.mark.parametrize("script,args,label", SCRIPTS)
@@ -191,7 +191,7 @@ def test_quick_check_falls_back_when_sleep_takes_whole_seconds_only():
 
 
 def test_windows_gates_check_a_starting_container_quickly_too():
-    ps = (TILT / "common" / "windows_scripts.star").read_text()
+    ps = (TILT / "common" / "windows_scripts.star").read_text(encoding="utf-8")
     for start, end in (("def healthy_postgres_script", "def provision_database_script"), ("def healthy_script", "def job_done_script")):
         body = ps[ps.index(start):ps.index(end)]
         assert "if ($i -le 12 -and $state -eq 'running' -and $health -eq 'starting') { Start-Sleep -Milliseconds 250; } else { Start-Sleep -Seconds 1; }" in body
@@ -199,7 +199,7 @@ def test_windows_gates_check_a_starting_container_quickly_too():
 
 def test_windows_gates_have_the_same_unhealthy_window():
     """The PowerShell gates cannot run here; pin that they follow the same rule as the POSIX ones."""
-    ps = (TILT / "common" / "windows_scripts.star").read_text()
+    ps = (TILT / "common" / "windows_scripts.star").read_text(encoding="utf-8")
     for start, end in (("def healthy_postgres_script", "def provision_database_script"), ("def healthy_script", "def job_done_script")):
         body = ps[ps.index(start):ps.index(end)]
         assert "$grace = 120; $badSince = -1;" in body

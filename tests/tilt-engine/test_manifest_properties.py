@@ -22,7 +22,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from hypothesis import given, settings, strategies as st
+
+# A plain `pytest` install does not bring Hypothesis with it (#4304): skip with a clear reason
+# instead of failing collection before any test can run.
+hypothesis = pytest.importorskip("hypothesis", reason="hypothesis is required for property tests")
+given, settings, st = hypothesis.given, hypothesis.settings, hypothesis.strategies
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
