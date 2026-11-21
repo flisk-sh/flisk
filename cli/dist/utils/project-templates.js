@@ -22,22 +22,27 @@ export const PROJECT_TEMPLATES = {
         repo: "https://github.com/flisk-sh/flisk-restaurant-example.git",
         description: "Restaurant demo: take table bookings, run the kitchen and manage the dining room",
         fixedDir: "flisk-demo",
+        omit: ["DEMO_GUIDE.md"],
     },
     restaurant: {
         repo: "https://github.com/flisk-sh/flisk-restaurant-example.git",
         description: "Restaurant app: table bookings, kitchen orders and the dining room in one place",
+        omit: ["DEMO_GUIDE.md"],
     },
     saas: {
         repo: "https://github.com/flisk-sh/flisk-saas-starter.git",
         description: "Online subscription app: a customer account page and a working payment button",
+        omit: ["DEMO_GUIDE.md"],
     },
     erp: {
         repo: "https://github.com/flisk-sh/flisk-erp-system.git",
         description: "Company back office: 100 small services for sales, stock, finance and more",
+        omit: ["SALES_PITCH.md", "DEMO_GUIDE.md"],
     },
     "user-management": {
         repo: "https://github.com/flisk-sh/flisk-user-management.git",
         description: "Sign-up and log-in: user accounts, passwords and who may do what",
+        omit: ["SALES_PITCH.md", "DEMO_GUIDE.md"],
     },
     ecommerce: {
         repo: "https://github.com/flisk-sh/flisk-ecommerce-example.git",
