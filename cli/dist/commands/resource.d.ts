@@ -265,6 +265,10 @@ export interface ResourceReport {
     framework: string | null;
     language: string | null;
     discovered: boolean;
+    requestedType?: string;
+    ignoredType?: string;
+    ignoredPort?: number;
+    preservedPort?: number;
     /** Non-fatal notes, such as a stack name that looks like a typo of an existing one (#4378). */
     warnings?: string[];
 }

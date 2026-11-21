@@ -29,7 +29,7 @@ import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
 import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.js";
 import { ResourceFilePlan } from "../utils/resource-plan.js";
-import { reserveResourcePort, resourcePortReservation, } from "../utils/resource-port-reservation.js";
+import { findPortOwner, reserveResourcePort, resourcePortReservation, } from "../utils/resource-port-reservation.js";
 import { BASE_PATH_PATTERN, healthCheckPathOf, isHealthCheckDisabled, SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
 import { suggestClosest } from "../utils/suggestions.js";
@@ -229,6 +229,14 @@ function readExistingManifest(projectRoot, resourcePath) {
         path: manifestPath,
         config: parseExistingServiceJson(readFileSync(manifestPath, "utf-8"), manifestPath),
     };
+}
+/** The type a manifest has for discovery: `appType`, then the legacy `type` (see readLegacyAppType in utils/services.ts). */
+function effectiveManifestType(config) {
+    if (!config)
+        return undefined;
+    if (typeof config.appType === "string" && config.appType)
+        return config.appType;
+    return typeof config.type === "string" && config.type ? config.type : undefined;
 }
 /** The folder a resource gets without --path: the type's conventional folder, or services/<stack>/<name> when discovery skips it. */
 function inferResourcePath(projectRoot, resourceType, stackName, resourceName) {
@@ -774,7 +782,7 @@ export function frameworkInventoryReport(options) {
 }
 /** Registration keeps runtime fields, even when the creation flags would select another scaffold. */
 function registrationReport(report, manifest) {
-    const type = manifest.appType ?? report.type;
+    const type = effectiveManifestType(manifest) ?? report.type;
     const language = typeof manifest.language === "string"
         ? manifest.language
         : type === "backend"
@@ -905,7 +913,9 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
                 suppliedExistingManifest = readExistingManifest(projectRoot, inferred.path);
             }
         }
-        const earlyAppType = requestedType === "sdk" ? "sdk" : suppliedExistingManifest?.config.appType || requestedType;
+        const earlyAppType = requestedType === "sdk"
+            ? "sdk"
+            : effectiveManifestType(suppliedExistingManifest?.config) || requestedType;
         // Only a resource that ends up a frontend takes --base-path (the update path ignores it on any other appType).
         const preValidatedBasePath = earlyAppType === "frontend" ? resolveBasePath(options.basePath) : undefined;
         if (earlyAppType === "frontend" &&
@@ -1222,15 +1232,57 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         const existingInferencePort = isInference && !options.port && shouldRegisterExisting && hasServiceJson
             ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
             : undefined;
+        const existingRegistration = shouldRegisterExisting && hasServiceJson
+            ? suppliedExistingManifest?.path === resolve(fullPath, SERVICE_JSON)
+                ? suppliedExistingManifest
+                : readExistingManifest(projectRoot, finalResourcePath)
+            : undefined;
+        const existingRegistrationManifest = existingRegistration?.config;
+        const existingAppType = effectiveManifestType(existingRegistrationManifest);
+        if (process.env.DEBUG_4634)
+            console.error("DBG existingRegistration=", existingRegistration?.path, "manifest=", JSON.stringify(existingRegistrationManifest), "existingAppType=", existingAppType, "requestedType=", requestedType, "resourceType=", resourceType, "hasTypeConflict=", existingAppType !== undefined && resourceType !== existingAppType);
+        // Compare what registration would write (a preset is a bring-your-own container whatever --type named it), not the
+        // raw --type, so `--type database --framework redis` over a Redis manifest is no conflict.
+        const hasTypeConflict = existingAppType !== undefined && resourceType !== existingAppType;
+        const existingRegistrationPort = typeof existingRegistrationManifest?.port === "number" &&
+            Number.isInteger(existingRegistrationManifest.port) &&
+            existingRegistrationManifest.port > 0
+            ? existingRegistrationManifest.port
+            : undefined;
+        // The registered port stays authoritative, even for the same type, so a --port that differs is reported and ignored.
+        const preserveExistingPort = existingRegistrationPort !== undefined;
+        const ignoredPort = preserveExistingPort &&
+            options.port !== undefined &&
+            Number(options.port) !== existingRegistrationPort
+            ? Number(options.port)
+            : undefined;
+        // A preset's port (Redis 6379) is the image's container-internal port: the resource is reached on the Docker
+        // network by name through `provides`, so several resources of one framework keep the same port without colliding.
+        // Only a host-facing port is unique across the project.
+        const retainedPresetPort = existingRegistrationPort !== undefined &&
+            typeof existingRegistrationManifest?.framework === "string" &&
+            isInfraFramework(existingRegistrationManifest.framework) &&
+            INFRA_PRESETS[existingRegistrationManifest.framework].port === existingRegistrationPort;
+        if (existingRegistrationPort !== undefined && existingRegistration && !retainedPresetPort) {
+            const owner = findPortOwner(projectRoot, existingRegistrationPort, existingRegistration.path);
+            if (owner) {
+                throw new FliskError(`Port ${existingRegistrationPort} of ${finalResourcePath} is already used by ${owner}.`, ["Change one of the two ports in its service.json, then run this again."]);
+            }
+        }
         if (infraPreset)
             assertInfraPresetOptions(infraPreset, options);
-        let assignedPort = infraPreset
-            ? INFRA_PRESETS[infraPreset].port
-            : isInference
-                ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
-                : resourceType === "sdk" || isDatabase
-                    ? 0
-                    : resolveResourcePort(resourceType, options.port, nextPort, allResources);
+        // A conflicting type must not allocate a port the existing manifest never had (a portless sdk or database).
+        let assignedPort = preserveExistingPort
+            ? existingRegistrationPort
+            : hasTypeConflict && existingRegistration
+                ? 0
+                : infraPreset
+                    ? INFRA_PRESETS[infraPreset].port
+                    : isInference
+                        ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
+                        : resourceType === "sdk" || isDatabase
+                            ? 0
+                            : resolveResourcePort(resourceType, options.port, nextPort, allResources);
         // --local: on your own computer the port has to be free right now, not only unassigned in this project (another
         // program may already listen on 3000). Picked here so the details, the confirmation and the JSON report all show
         // the port the service really gets. An explicit --port is kept as it is.
@@ -1246,7 +1298,8 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
             !infraPreset &&
             !isInference &&
             resourceType !== "sdk" &&
-            !isDatabase) {
+            !isDatabase &&
+            !(preserveExistingPort && shouldRegisterExisting)) {
             const reserved = await reserveResourcePort(assignedPort, {
                 explicit: Boolean(options.port),
                 max: PORT_RANGES[resourceType].max,
@@ -1262,7 +1315,12 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         // Builds the registered manifest from `existingServiceJson`. Run again from a fresh read after the confirmation
         // prompt, so an edit made to service.json while the prompt was open is not overwritten.
         const buildRegisteredServiceJson = (existingServiceJson) => {
-            const updatedAppType = resourceType === "sdk" ? "sdk" : existingServiceJson.appType || resourceType;
+            const existingType = effectiveManifestType(existingServiceJson);
+            const updatedAppType = hasTypeConflict && existingType
+                ? existingType
+                : resourceType === "sdk"
+                    ? "sdk"
+                    : existingType || resourceType;
             // Update with new values while preserving existing fields
             const updatedServiceJson = {
                 ...existingServiceJson,
@@ -1328,6 +1386,16 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
                             : null)),
                 language: backendLanguage?.id ?? null,
                 discovered: isPathDiscovered(projectRoot, finalResourcePath, readDiscoveryPaths(projectRoot)),
+                ...(hasTypeConflict &&
+                    existingAppType && {
+                    // The alias the user typed (for example `inference`), not the normalized type the comparison uses.
+                    requestedType: options.type,
+                    ignoredType: options.type,
+                }),
+                ...((hasTypeConflict || ignoredPort !== undefined) && {
+                    preservedPort: existingRegistrationPort,
+                }),
+                ...(ignoredPort !== undefined && { ignoredPort }),
                 ...(stackNote ? { warnings: [stackNote] } : {}),
             };
             return {
@@ -1341,6 +1409,12 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
         console.log(chalk.gray(`  Stack: ${stackName}`));
         console.log(chalk.gray(`  Port: ${resource.port || (resource.type === DATABASE_RESOURCE_TYPE ? "N/A (database)" : "N/A (SDK)")}`));
         console.log(chalk.gray(`  Path:  ${finalResourcePath}`));
+        if (resource.ignoredType && existingAppType) {
+            console.log(chalk.yellow(`\n⚠️  Requested type "${resource.ignoredType}" conflicts with existing type "${existingAppType}". Keeping existing type and port ${resource.port ?? "N/A"}; requested type ignored.`));
+        }
+        if (resource.ignoredPort !== undefined) {
+            console.log(chalk.yellow(`\n⚠️  Requested port ${resource.ignoredPort} ignored. Keeping existing port ${resource.preservedPort}.`));
+        }
         if (stackNote)
             console.log(chalk.yellow(`\n⚠️  ${stackNote}`));
         if (shouldRegisterExisting && hasServiceJson) {
@@ -1357,6 +1431,12 @@ export const resourceCommand = addResourceListHint(addYesOption(new Command("res
             const fresh = readExistingManifest(projectRoot, finalResourcePath)?.config;
             if (!fresh)
                 throw errorFactories.invalidPath(finalResourcePath);
+            // The port was kept, not reserved, so an edit during the prompt could leave it free for another resource.
+            if (preserveExistingPort &&
+                (fresh.port !== existingRegistrationPort ||
+                    effectiveManifestType(fresh) !== existingAppType)) {
+                throw new FliskError(`${finalResourcePath}/service.json changed while waiting for confirmation. Run the command again.`, ["Run the same flisk resource command again to register against the new manifest"]);
+            }
             updatedServiceJson = buildRegisteredServiceJson(fresh);
         }
         const plan = new ResourceFilePlan();

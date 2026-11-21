@@ -25,12 +25,15 @@ function snapshot(root: string, prefix = ""): Record<string, string> {
 function runResourceCommand(root: string, args: string[], dryRun = true) {
   const result = runFlisk(
     ["resource", "sample", "--stack", "shop", "--json", ...args, ...(dryRun ? ["--dry-run"] : [])],
-    { cwd: root, input: "", env: { FLISK_LICENSE_KEY: undefined } },
+    { cwd: root, input: "", env: { ...process.env, FLISK_LICENSE_KEY: undefined } },
   );
   expect(result.status, result.stderr).toBe(0);
   expect(result.stdout).toMatch(/^\{[^\n]*\}\n$/);
   const envelope = parseEnvelope(result.stdout);
   expect(envelope.errors).toEqual([]);
+  if (process.env.DEBUG_4634) { console.error("STDOUT:", result.stdout?.slice(0, 500)); console.error("STDERR:", result.stderr?.slice(0, 300)); }
+  // debug: check if existingRegistration would be defined
+  if (process.env.DEBUG_4634) console.error("ARGS:", args.join(" "));
   return envelope.data;
 }
 
@@ -108,6 +111,90 @@ describe("resource scaffolding preview", () => {
     expect(snapshot(root)).toEqual(before);
   });
 
+  it("preserves an existing backend type and port when worker is requested", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, [
+      "--type",
+      "worker",
+      "--path",
+      "existing",
+      "--port",
+      "6100",
+    ]);
+    expect(preview.resource).toMatchObject({
+      action: "registered",
+      type: "backend",
+      port: 4100,
+      requestedType: "worker",
+      ignoredType: "worker",
+      preservedPort: 4100,
+    });
+    const applied = runResourceCommand(
+      root,
+      ["--type", "worker", "--path", "existing", "--port", "6100"],
+      false,
+    );
+    expect(applied).toMatchObject({
+      action: "registered",
+      type: "backend",
+      port: 4100,
+      ignoredType: "worker",
+    });
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject({
+      appType: "backend",
+      port: 4100,
+    });
+
+    const text = runFlisk(
+      [
+        "resource",
+        "sample",
+        "--type",
+        "worker",
+        "--path",
+        "existing",
+        "--stack",
+        "shop",
+        "--port",
+        "6100",
+        "--dry-run",
+        "--yes",
+      ],
+      { cwd: root, input: "" },
+    );
+    expect(text.status, text.stderr).toBe(0);
+    expect(text.stdout).toContain('Requested type "worker" conflicts with existing type "backend"');
+    expect(text.stdout).toContain("Keeping existing type and port 4100");
+  });
+
+  it("keeps an existing backend type and port when sdk is requested", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const applied = runResourceCommand(root, ["--type", "sdk", "--path", "existing"], false);
+    expect(applied).toMatchObject({ type: "backend", port: 4100, ignoredType: "sdk" });
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject({
+      appType: "backend",
+      port: 4100,
+    });
+  });
+
   it.each(["backend", "sdk"])(
     "previews registration of an existing %s without overwriting its manifest",
     (type) => {
@@ -135,6 +222,222 @@ describe("resource scaffolding preview", () => {
       });
     },
   );
+
+  it("keeps the existing port for the same type and reports the ignored --port", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const args = ["--type", "backend", "--path", "existing", "--port", "6100"];
+    const preview = runResourceCommand(root, args);
+    expect(preview.resource).toMatchObject({ port: 4100, preservedPort: 4100, ignoredPort: 6100 });
+    runResourceCommand(root, args, false);
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8")).port).toBe(4100);
+    const text = runFlisk(
+      [
+        "resource",
+        "sample",
+        "--path",
+        "existing",
+        "--stack",
+        "shop",
+        "--port",
+        "6100",
+        "--dry-run",
+        "--yes",
+      ],
+      { cwd: root, input: "" },
+    );
+    expect(text.stdout).toContain("Requested port 6100 ignored. Keeping existing port 4100");
+  });
+
+  it("names the requested type, not the infrastructure type, when --type queue hits a backend", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, ["--type", "queue", "--path", "existing"]);
+    expect(preview.resource).toMatchObject({
+      type: "backend",
+      requestedType: "queue",
+      ignoredType: "queue",
+    });
+  });
+
+  it("reports the requested alias, not the normalized type, when --type inference hits a backend", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, ["--type", "inference", "--path", "existing"]);
+    expect(preview.resource).toMatchObject({
+      type: "backend",
+      requestedType: "inference",
+      ignoredType: "inference",
+      preservedPort: 4100,
+    });
+    const text = runFlisk(
+      [
+        "resource",
+        "sample",
+        "--type",
+        "inference",
+        "--path",
+        "existing",
+        "--stack",
+        "shop",
+        "--dry-run",
+        "--yes",
+      ],
+      { cwd: root, input: "" },
+    );
+    expect(text.status, text.stderr).toBe(0);
+    expect(text.stdout).toContain(
+      'Requested type "inference" conflicts with existing type "backend"',
+    );
+  });
+
+  it("does not give a portless existing sdk a port when worker is requested", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "sdk",
+          stack: "shop",
+        }),
+      },
+    });
+    const args = ["--type", "worker", "--path", "existing", "--port", "6100"];
+    const preview = runResourceCommand(root, args);
+    expect(preview.resource).toMatchObject({
+      type: "sdk",
+      requestedType: "worker",
+      ignoredType: "worker",
+    });
+    expect(preview.resource.port ?? null).toBeNull();
+    runResourceCommand(root, args, false);
+    const manifest = JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"));
+    expect(manifest.appType).toBe("sdk");
+    expect(manifest.port).toBeUndefined();
+  });
+
+  it("refuses to keep a port that another resource already uses", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+        "other/service.json": JSON.stringify({
+          appName: "other",
+          appType: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const result = runFlisk(
+      ["resource", "sample", "--path", "existing", "--stack", "shop", "--dry-run", "--yes"],
+      { cwd: root, input: "" },
+    );
+    expect(result.status).not.toBe(0);
+    expect(result.stderr + result.stdout).toContain("already used by other/service.json");
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8")).port).toBe(4100);
+  });
+
+  it("re-registers a preset that shares its internal port with another preset of the same framework", () => {
+    const redis = {
+      appName: "sample",
+      appType: "bring-your-own",
+      framework: "redis",
+      stack: "shop",
+      port: 6379,
+    };
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify(redis),
+        "other/service.json": JSON.stringify({ ...redis, appName: "other" }),
+      },
+    });
+    const args = ["--type", "database", "--framework", "redis", "--path", "existing"];
+    const preview = runResourceCommand(root, args);
+    expect(preview.resource).toMatchObject({
+      action: "registered",
+      type: "bring-your-own",
+      port: 6379,
+    });
+    runResourceCommand(root, args, false);
+    expect(JSON.parse(readFileSync(join(root, "existing/service.json"), "utf8"))).toMatchObject({
+      appType: "bring-your-own",
+      framework: "redis",
+      port: 6379,
+    });
+  });
+
+  it("reports a legacy type-only manifest as a type conflict", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          type: "backend",
+          stack: "shop",
+          port: 4100,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, ["--type", "worker", "--path", "existing", "--port", "6100"]);
+    // eslint-disable-next-line no-console
+    console.error("PREVIEW2:", JSON.stringify(preview.resource));
+    expect(preview.resource).toMatchObject({
+      action: "registered",
+      type: "backend",
+      port: 4100,
+      requestedType: "worker",
+      ignoredType: "worker",
+      preservedPort: 4100,
+    });
+  });
+
+  it("does not report a conflict for a redis preset registered with --type database", () => {
+    const root = createTempProject({
+      files: {
+        "existing/service.json": JSON.stringify({
+          appName: "sample",
+          appType: "bring-your-own",
+          framework: "redis",
+          stack: "shop",
+          port: 6379,
+        }),
+      },
+    });
+    const preview = runResourceCommand(root, ["--type", "database", "--framework", "redis", "--path", "existing"]);
+    expect(preview.resource).toMatchObject({
+      action: "registered",
+      type: "bring-your-own",
+      port: 6379,
+    });
+    expect(preview.resource.ignoredType).toBeUndefined();
+  });
 
   it("leaves existing BYO Dockerfiles and instructions out of the write plan", () => {
     const root = createTempProject({
