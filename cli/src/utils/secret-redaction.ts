@@ -133,7 +133,9 @@ function serviceSecretValues(projectRoot: string, projectEnvPaths: readonly stri
     for (const name of secretNamesOf(config.secrets)) keep(process.env[name]);
     const vars = { ...envVarsOf(join(resource.path, ".env")), ...projectVars, ...process.env };
     for (const field of ["env", "params"] as const) {
-      found.push(...secretValuesFromEnv(config[field] as Record<string, unknown> | undefined, vars));
+      found.push(
+        ...secretValuesFromEnv(config[field] as Record<string, unknown> | undefined, vars),
+      );
     }
     if (Array.isArray(config.envFile)) {
       for (const file of config.envFile) {

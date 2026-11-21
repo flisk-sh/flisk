@@ -87,7 +87,9 @@ describe("choosing the native runtime for flisk up", () => {
         discovery: { paths: ["services/*/*"] },
       },
       files: {
-        "services/app/api/service.json": JSON.stringify(native("api", { stack: "app", port: 8080 })),
+        "services/app/api/service.json": JSON.stringify(
+          native("api", { stack: "app", port: 8080 }),
+        ),
         "services/app/api/service.local.json": JSON.stringify({ port: 9100 }),
         "services/app/postgres/service.json": JSON.stringify({
           appName: "postgres",
